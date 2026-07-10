@@ -32,6 +32,12 @@ class DatabaseSeeder extends Seeder
             'venue_clusters',
             'venue_staff_assignments',
         ]);
+        $this->callIfTablesExist(VenueStaffShiftsTableSeeder::class, [
+            'users',
+            'venue_clusters',
+            'venue_staff_shifts',
+            'venue_staff_shift_schedules',
+        ]);
 
         $this->callIfTablesExist(PriceSlotsTableSeeder::class, ['court_types', 'venue_clusters', 'price_slots']);
         $this->callIfTablesExist(HolidayPricesTableSeeder::class, ['court_types', 'venue_clusters', 'holiday_prices']);
@@ -228,6 +234,9 @@ class DatabaseSeeder extends Seeder
             'conversation_participants',
             'messages',
         ]);
+
+        $this->callIfTablesExist(ServiceCategoriesTableSeeder::class, ['service_categories']);
+        $this->callIfTablesExist(VenueClusterServicesTableSeeder::class, ['venue_cluster_services', 'venue_clusters', 'service_categories']);
     }
 
     private function callIfTablesExist(string $seeder, array $tables): void

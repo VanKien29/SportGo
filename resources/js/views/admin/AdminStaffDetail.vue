@@ -517,7 +517,7 @@ export default {
   text-decoration: none;
   font-weight: 500;
 }
-.back-link:hover {
+.back-link.never-hover-class-placeholder {
   text-decoration: underline;
 }
 .title-row {

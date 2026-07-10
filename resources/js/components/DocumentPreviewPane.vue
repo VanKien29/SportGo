@@ -15,7 +15,6 @@
     </div>
 
     <div v-show="fileType === 'docx'" ref="docxContainer" class="docx-surface"></div>
-
     <iframe v-if="fileType === 'pdf'" :src="fileUrl" class="file-frame" title="PDF preview"></iframe>
 
     <div v-if="fileType === 'image'" class="image-frame">
@@ -42,6 +41,7 @@ import { apiDownload, readToken } from '../services/api.js';
 const props = defineProps({
   document: { type: Object, default: null },
 });
+const emit = defineEmits(['loaded']);
 
 const docxContainer = ref(null);
 const loading = ref(false);
@@ -49,9 +49,7 @@ const error = ref('');
 const fileType = ref('');
 const fileUrl = ref('');
 
-watch(() => props.document?.download_url, () => {
-  loadDocument();
-}, { immediate: true });
+watch(() => props.document?.download_url, loadDocument, { immediate: true });
 
 async function loadDocument() {
   cleanup();
@@ -66,22 +64,26 @@ async function loadDocument() {
   try {
     const token = readToken();
     const response = await fetch(props.document.download_url, {
+      cache: 'no-store',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
 
     if (!response.ok) throw new Error(`Không tải được file (${response.status}).`);
 
     const blob = await response.blob();
+    if (!blob.size) throw new Error('File văn bản đang rỗng. Vui lòng tạo lại văn bản.');
+
     const mimeType = (blob.type || '').toLowerCase();
+    const detectedType = detectFileType(mimeType, response);
     await nextTick();
 
-    if (mimeType === 'application/pdf') {
+    if (detectedType === 'pdf') {
       fileType.value = 'pdf';
       fileUrl.value = URL.createObjectURL(blob);
-    } else if (mimeType.startsWith('image/')) {
+    } else if (detectedType === 'image') {
       fileType.value = 'image';
       fileUrl.value = URL.createObjectURL(blob);
-    } else if (mimeType.includes('officedocument.wordprocessingml') || mimeType.includes('msword')) {
+    } else if (detectedType === 'docx') {
       fileType.value = 'docx';
       await renderAsync(blob, docxContainer.value, null, {
         className: 'docx',
@@ -91,16 +93,38 @@ async function loadDocument() {
         ignoreFonts: false,
         breakPages: true,
         ignoreLastRenderedPageBreak: true,
-        trimXmlDeclaration: false,
+        trimXmlDeclaration: true,
       });
     } else {
       fileType.value = 'unsupported';
     }
+    emit('loaded', props.document);
   } catch (err) {
     error.value = err.message || 'Không thể hiển thị văn bản.';
   } finally {
     loading.value = false;
   }
+}
+
+function detectFileType(mimeType, response) {
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const source = [
+    mimeType,
+    disposition,
+    props.document?.download_url,
+    props.document?.file_name,
+    props.document?.title,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (source.includes('application/pdf') || source.includes('.pdf')) return 'pdf';
+  if (source.includes('image/') || /\.(png|jpe?g|webp|gif)(\?|$|\s|")/.test(source)) return 'image';
+  if (
+    source.includes('officedocument.wordprocessingml')
+    || source.includes('application/msword')
+    || /\.(docx?|dotx)(\?|$|\s|")/.test(source)
+  ) return 'docx';
+
+  return 'unsupported';
 }
 
 function cleanup() {

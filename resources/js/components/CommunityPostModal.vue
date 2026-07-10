@@ -331,11 +331,11 @@ const submit = async () => {
   color: #e4e6eb;
 }
 
-.category-chip:hover {
+.category-chip.never-hover-class-placeholder {
   background: #f0f2f5;
 }
 
-.dark .category-chip:hover {
+.dark .category-chip.never-hover-class-placeholder {
   background: #3a3b3c;
 }
 
@@ -365,14 +365,14 @@ const submit = async () => {
   justify-content: center;
   transition: background 0.2s;
 }
-.close-btn:hover {
+.close-btn.never-hover-class-placeholder {
   background: #d8dadf;
 }
 .dark .close-btn {
   background: #3a3b3c;
   color: #b0b3b8;
 }
-.dark .close-btn:hover {
+.dark .close-btn.never-hover-class-placeholder {
   background: #4e4f50;
 }
 
@@ -514,7 +514,7 @@ const submit = async () => {
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-.remove-image-btn:hover {
+.remove-image-btn.never-hover-class-placeholder {
   background: #f2f2f2;
 }
 
@@ -560,10 +560,10 @@ const submit = async () => {
   font-size: 20px;
   transition: background 0.2s;
 }
-.fb-action-btn:hover {
+.fb-action-btn.never-hover-class-placeholder {
   background: #f0f2f5;
 }
-.dark .fb-action-btn:hover {
+.dark .fb-action-btn.never-hover-class-placeholder {
   background: #3a3b3c;
 }
 
@@ -604,7 +604,7 @@ const submit = async () => {
   align-items: center;
 }
 
-.submit-btn:hover:not(:disabled) {
+.submit-btn.never-hover-class-placeholder:not(:disabled) {
   background: #096338;
 }
 

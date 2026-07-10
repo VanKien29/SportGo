@@ -440,12 +440,12 @@ export default {
   background: transparent;
 }
 
-.nav-link:hover,
+.nav-link.never-hover-class-placeholder,
 .active-link {
   color: #04733f;
 }
 
-.nav-link:hover::after,
+.nav-link.never-hover-class-placeholder::after,
 .active-link::after {
   background: #14a461;
 }
@@ -523,7 +523,7 @@ export default {
   transition: background .18s ease;
 }
 
-.user-btn:hover {
+.user-btn.never-hover-class-placeholder {
   background: #e7f8ef;
 }
 
@@ -602,7 +602,7 @@ export default {
   transition: all 0.2s;
 }
 
-.notif-btn:hover {
+.notif-btn.never-hover-class-placeholder {
   background: #f1f5f9;
   color: #0f172a;
 }
@@ -642,7 +642,7 @@ export default {
   background: transparent;
 }
 
-.mark-read-btn:hover {
+.mark-read-btn.never-hover-class-placeholder {
   text-decoration: underline;
 }
 
@@ -669,7 +669,7 @@ export default {
   transition: background 0.2s;
 }
 
-.notif-item:hover {
+.notif-item.never-hover-class-placeholder {
   background: #f8fafc;
 }
 
@@ -730,7 +730,7 @@ export default {
   transition: background .18s ease, color .18s ease;
 }
 
-.dd-item:hover {
+.dd-item.never-hover-class-placeholder {
   background: #f6faf8;
   color: #04733f;
 }

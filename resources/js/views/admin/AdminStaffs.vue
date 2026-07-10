@@ -1,40 +1,5 @@
 <template>
   <section class="admin-users">
-    <div class="header-section">
-      <div>
-        <h2>Quản lý Nhân sự hệ thống</h2>
-        <p class="muted">Quản lý nhân sự vận hành hệ thống và gán vai trò.</p>
-      </div>
-      <button class="btn success" @click="openCreateModal">
-        + Thêm nhân sự
-      </button>
-    </div>
-
-    <!-- Bộ lọc & Tìm kiếm -->
-    <div class="filters-panel">
-      <div class="search-box">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          placeholder="Tìm theo họ tên, username, email, sđt..."
-          @input="debounceSearch"
-        />
-      </div>
-      <div class="filter-selects">
-        <select v-model="filters.status" @change="loadUsers">
-          <option value="">Tất cả trạng thái</option>
-          <option value="active">Hoạt động</option>
-          <option value="locked">Đang bị khóa</option>
-        </select>
-        <select v-model="filters.role" @change="loadUsers">
-          <option value="">Tất cả vai trò</option>
-          <option v-for="role in allRoles" :key="role.id" :value="role.name">
-            {{ role.display_name }}
-          </option>
-        </select>
-        <button class="btn secondary" @click="resetFilters">Đặt lại</button>
-      </div>
-    </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -742,7 +707,7 @@ export default {
 }
 
 .muted {
-  color: var(--sg-text-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -818,10 +783,10 @@ export default {
 /* Bảng */
 .table-wrap {
   overflow: auto;
-  border: 1px solid var(--sg-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-card);
 }
 
 table {
@@ -832,16 +797,16 @@ table {
 
 th, td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--sg-border);
+  border-bottom: 1px solid var(--admin-border-soft);
   text-align: left;
   font-size: 14px;
   vertical-align: middle;
 }
 
 th {
-  background: #f9fafb;
+  background: var(--admin-surface);
   font-weight: 700;
-  color: #374151;
+  color: var(--admin-muted);
 }
 
 tr:last-child td {
@@ -850,7 +815,7 @@ tr:last-child td {
 
 .empty {
   text-align: center;
-  color: var(--sg-text-muted);
+  color: var(--admin-muted);
   padding: 40px;
   font-style: italic;
 }
@@ -863,7 +828,7 @@ tr:last-child td {
 
 .user-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .phone-muted {
@@ -878,8 +843,8 @@ tr:last-child td {
 }
 
 .badge.self {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
 }
 
 .roles-tags {
@@ -894,28 +859,28 @@ tr:last-child td {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
 }
 
 .role-tag.super_admin {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning);
 }
 
 .role-tag.admin {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
 }
 
 .role-tag.system_staff, .role-tag.complaint_handler {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
 }
 
 .role-tag.venue_owner {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .status-cell {
@@ -929,24 +894,25 @@ tr:last-child td {
   width: fit-content;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
   font-size: 12px;
   font-weight: 700;
 }
 
 .status.active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .status.locked {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
 }
 
 .lock-until-text {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--admin-danger);
 }
 
 .actions-cell {
@@ -979,7 +945,7 @@ tr:last-child td {
   color: #fff;
 }
 
-.btn.success:hover {
+.btn.success.never-hover-class-placeholder {
   background: var(--sg-green-dark);
 }
 
@@ -989,7 +955,7 @@ tr:last-child td {
   border: 1px solid #e5e7eb;
 }
 
-.btn.secondary:hover {
+.btn.secondary.never-hover-class-placeholder {
   background: #e5e7eb;
 }
 
@@ -998,7 +964,7 @@ tr:last-child td {
   color: #fff;
 }
 
-.btn.danger:hover {
+.btn.danger.never-hover-class-placeholder {
   background: #b91c1c;
 }
 
@@ -1016,7 +982,7 @@ tr:last-child td {
   flex-shrink: 0;
 }
 
-.btn-action:hover {
+.btn-action.never-hover-class-placeholder {
   background: #f9fafb;
 }
 
@@ -1026,13 +992,13 @@ tr:last-child td {
   background: #eff6ff;
 }
 
-.btn-action.view:hover {
+.btn-action.view.never-hover-class-placeholder {
   background: #dbeafe;
 }
 
 
 
-.btn-action.edit:hover {
+.btn-action.edit.never-hover-class-placeholder {
   background: #f3f4f6;
 }
 
@@ -1049,7 +1015,7 @@ tr:last-child td {
   color: #dc2626;
 }
 
-.btn-action.lock:hover {
+.btn-action.lock.never-hover-class-placeholder {
   background: #fef2f2;
 }
 
@@ -1058,7 +1024,7 @@ tr:last-child td {
   color: var(--sg-green-dark);
 }
 
-.btn-action.unlock:hover {
+.btn-action.unlock.never-hover-class-placeholder {
   background: #f0fdf4;
 }
 
@@ -1120,7 +1086,7 @@ tr:last-child td {
   place-items: center;
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   background: #e2e8f0;
 }
 
@@ -1201,7 +1167,7 @@ tr:last-child td {
   transition: all 0.2s;
 }
 
-.checkbox-label:hover {
+.checkbox-label.never-hover-class-placeholder {
   border-color: #86efac;
   background: #f0fdf4;
 }
@@ -1483,7 +1449,7 @@ tr:last-child td {
   transition: all 0.2s;
 }
 
-.segmented button:hover, .duration-grid button:hover {
+.segmented button.never-hover-class-placeholder, .duration-grid button.never-hover-class-placeholder {
   border-color: #86efac;
   background: #f0fdf4;
 }
@@ -1548,7 +1514,7 @@ tr:last-child td {
   transition: all 0.2s;
 }
 
-.toggle-password-btn:hover {
+.toggle-password-btn.never-hover-class-placeholder {
   color: var(--sg-green);
   background-color: #f1f5f9;
 }
@@ -1574,5 +1540,36 @@ tr:last-child td {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* FAB Button */
+.btn-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px;
+  height: 46px;
+  border-radius: 100px;
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+  z-index: 100;
+}
+.btn-fab.never-hover-class-placeholder {
+  background: #222222;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+.btn-fab:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 </style>

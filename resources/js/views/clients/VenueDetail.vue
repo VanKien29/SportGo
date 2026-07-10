@@ -101,6 +101,30 @@
             </div>
           </section>
 
+          <!-- On-site Services & Products -->
+          <section class="detail-section" v-if="groupedServices.length">
+            <h2 class="section-title">Dịch vụ & Sản phẩm tại sân</h2>
+            <div class="services-by-category-container">
+              <div v-for="group in groupedServices" :key="group.key" class="service-category-block" style="margin-bottom: 20px;">
+                <h3 class="service-category-label" style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+                  {{ group.label }}
+                </h3>
+                <div class="services-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
+                  <div v-for="item in group.items" :key="item.id" class="service-product-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="flex: 1; padding-right: 8px;">
+                      <span class="product-name" style="font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.8); display: block;">{{ item.name }}</span>
+                      <span v-if="item.description" class="product-desc" style="font-size: 11.5px; color: rgba(255,255,255,0.35); margin-top: 2px; display: block;">{{ item.description }}</span>
+                    </div>
+                    <div style="text-align: right; white-space: nowrap;">
+                      <span class="product-price" style="font-size: 13.5px; font-weight: 700; color: #f59e0b; display: block;">{{ formatPrice(item.price) }}</span>
+                      <span class="product-unit" style="font-size: 11px; color: rgba(255,255,255,0.35); display: block; margin-top: 1px;">/ {{ item.unit }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- Court Types & Courts -->
           <section class="detail-section" v-if="venue.venue_courts?.length">
             <h2 class="section-title">Danh sách sân</h2>
@@ -218,12 +242,12 @@
               <button
                 class="btn-outline btn-full flex items-center justify-center gap-2"
                 style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
-                @click="chatWithOwner"
+                @click="chatWithVenue"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                Nhắn tin hỏi chủ sân
+                Nhắn tin với cụm sân
               </button>
 
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
@@ -300,6 +324,26 @@ export default {
         if (!groups[typeId]) groups[typeId] = { typeId, typeName, courts: [] };
         groups[typeId].courts.push(court);
       });
+      return Object.values(groups);
+    },
+
+    groupedServices() {
+      const services = this.venue?.services || [];
+      const groups = {};
+      
+      services.forEach(item => {
+        const catId = item.category_id || 'other';
+        const catName = item.category?.name || 'Dịch vụ khác';
+        if (!groups[catId]) {
+          groups[catId] = {
+            key: catId,
+            label: catName,
+            items: []
+          };
+        }
+        groups[catId].items.push(item);
+      });
+      
       return Object.values(groups);
     },
 
@@ -395,7 +439,7 @@ export default {
       this.$router.push({ name: 'booking-create', query });
     },
 
-    chatWithOwner() {
+    chatWithVenue() {
       if (!this.venue) return;
       this.$router.push({
         path: '/chat',
@@ -451,7 +495,7 @@ export default {
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-primary:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+.btn-primary.never-hover-class-placeholder { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 .btn-primary.btn-full { width: 100%; justify-content: center; border-radius: 10px; }
 .btn-outline {
@@ -465,7 +509,7 @@ export default {
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-outline:hover { border-color: rgba(255,255,255,0.4); color: #fff; }
+.btn-outline.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); color: #fff; }
 
 /* ─── Hero ─── */
 .hero {
@@ -530,7 +574,7 @@ export default {
 }
 .thumb-btn img { width: 100%; height: 100%; object-fit: cover; }
 .thumb-btn.active { border-color: #ffffff; }
-.thumb-btn:hover { border-color: rgba(255,255,255,0.4); }
+.thumb-btn.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); }
 
 /* Hero Info */
 .back-link {
@@ -543,7 +587,7 @@ export default {
   margin-bottom: 16px;
   transition: color 0.2s;
 }
-.back-link:hover { color: #ffffff; }
+.back-link.never-hover-class-placeholder { color: #ffffff; }
 
 .court-type-badges {
   display: flex;

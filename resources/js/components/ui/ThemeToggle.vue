@@ -63,15 +63,15 @@ export default {
       isOpen: false,
       activeTheme: 'system',
       options: [
-        { value: 'light', label: 'Light' },
-        { value: 'dark', label: 'Dark' },
-        { value: 'system', label: 'System' }
+        { value: 'light', label: 'Sáng' },
+        { value: 'dark', label: 'Tối' },
+        { value: 'system', label: 'Hệ thống' }
       ]
     };
   },
   computed: {
     currentThemeLabel() {
-      return this.options.find(o => o.value === this.activeTheme)?.label || 'System';
+      return this.options.find(o => o.value === this.activeTheme)?.label || 'Hệ thống';
     }
   },
   created() {
@@ -129,7 +129,9 @@ export default {
 <style scoped>
 .theme-toggle-container {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
 }
 
 .theme-toggle-btn {
@@ -137,7 +139,7 @@ export default {
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid var(--admin-border-soft);
+  border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
   color: var(--admin-muted);
@@ -147,7 +149,7 @@ export default {
   transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.theme-toggle-btn:hover {
+.theme-toggle-btn.never-hover-class-placeholder {
   border-color: rgba(47, 158, 68, 0.32);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -156,7 +158,7 @@ export default {
 
 .theme-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
   z-index: 90;
   width: 130px;
@@ -168,6 +170,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transform-origin: top right;
 }
 
 .theme-dropdown-item {
@@ -188,7 +191,7 @@ export default {
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.theme-dropdown-item:hover {
+.theme-dropdown-item.never-hover-class-placeholder {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
 }
@@ -213,12 +216,12 @@ export default {
 /* Animations */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .fade-slide-enter-from,
 .fade-slide-leave-to {
   opacity: 0;
-  transform: translateY(6px);
+  transform: scale(0.96) translateY(-8px);
 }
 </style>

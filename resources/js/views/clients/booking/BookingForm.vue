@@ -1676,7 +1676,7 @@ export default {
     transition: background 0.15s;
 }
 
-.schedule-cell:hover:not(.busy) {
+.schedule-cell.never-hover-class-placeholder:not(.busy) {
     background: rgba(255, 255, 255, 0.15);
 }
 
@@ -1764,7 +1764,7 @@ export default {
     transition: var(--sg-transition);
 }
 
-.voucher-card:hover {
+.voucher-card.never-hover-class-placeholder {
     background: var(--sg-surface);
     border-color: var(--sg-green-light);
 }
@@ -1833,7 +1833,7 @@ export default {
     transition: var(--sg-transition);
 }
 
-.payment-option-card:hover {
+.payment-option-card.never-hover-class-placeholder {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.2);
 }
@@ -1950,7 +1950,7 @@ export default {
     transition: var(--sg-transition);
 }
 
-.btn-voucher-summary:hover:not(:disabled) {
+.btn-voucher-summary.never-hover-class-placeholder:not(:disabled) {
     border-color: var(--sg-green);
     box-shadow: 0 4px 14px rgba(34, 197, 94, 0.12);
 }
@@ -1994,7 +1994,7 @@ export default {
     transition: var(--sg-transition);
 }
 
-.btn-submit:hover:not(:disabled) {
+.btn-submit.never-hover-class-placeholder:not(:disabled) {
     background: rgba(255, 255, 255, 0.88);
     transform: translateY(-1px);
 }

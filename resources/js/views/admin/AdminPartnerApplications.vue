@@ -1,5 +1,7 @@
 <template>
   <div class="partner-page">
+<<<<<<< HEAD
+=======
     <header class="page-header">
       <div>
         <h2>Quản lý hồ sơ đối tác</h2>
@@ -10,32 +12,26 @@
       </button>
     </header>
 
-    <div class="tabs">
-      <button
-        v-for="tab in listTabs"
-        :key="tab.value"
-        class="tab-btn"
-        :class="{ active: filters.tab === tab.value }"
-        type="button"
-        @click="selectListTab(tab.value)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
-
-    <div class="toolbar card">
-      <label class="field">
-        <span>Tìm kiếm</span>
-        <input v-model.trim="filters.search" type="search" placeholder="Tên sân, chủ sân, email, MST" @input="onFilterChange" />
-      </label>
-      <label class="field">
-        <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadApplications(1)">
-          <option value="">Tất cả</option>
+    <SaaSFilterBar
+      v-model="selectedTab"
+      v-model:search="searchQuery"
+      :tabs="listTabs"
+      class="partner-filter-bar"
+      search-id="search-partner-application"
+      search-placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân"
+    >
+      <template #actions>
+        <select
+          v-model="filters.status"
+          class="partner-status-filter"
+          aria-label="Trạng thái hồ sơ"
+          @change="loadApplications(1)"
+        >
+          <option value="">Tất cả trạng thái</option>
           <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
-      </label>
-    </div>
+      </template>
+    </SaaSFilterBar>
 
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -54,29 +50,36 @@
         <table>
           <thead>
             <tr>
-              <th>Hồ sơ</th>
-              <th>Người nộp</th>
-              <th>Sân</th>
-              <th>Ngày gửi</th>
-              <th class="center">Trạng thái</th>
+              <th>Mã đối tác</th>
+              <th>Đối tác</th>
+              <th>Cụm sân</th>
+              <th class="center">Trạng thái hồ sơ</th>
+              <th class="center">Trạng thái hợp đồng</th>
+              <th>Đăng ký gần nhất</th>
               <th class="right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="application in applications" :key="application.id">
               <td>
-                <div class="strong">{{ application.venue_name }}</div>
-                <div class="muted">{{ application.business_name }}</div>
+                <div class="strong">{{ application.partner_code }}</div>
+                <div class="muted">{{ application.application_count || 1 }} hồ sơ</div>
               </td>
               <td>
-                <div class="strong">{{ application.user?.full_name || application.user?.username || '-' }}</div>
-                <div class="muted">{{ application.user?.email || application.user?.phone || '-' }}</div>
+                <div class="strong">{{ application.partner_name || '-' }}</div>
+                <div class="muted">{{ application.partner_phone || '-' }} · {{ application.partner_email || '-' }}</div>
               </td>
-              <td>{{ application.courts_count || 0 }}</td>
-              <td>{{ formatDate(application.submitted_at) }}</td>
+              <td>
+                <div class="strong">{{ application.managed_clusters_count || 0 }}</div>
+                <div class="muted">{{ (application.venue_names || []).slice(0, 2).join(', ') || application.venue_name || '-' }}</div>
+              </td>
               <td class="center">
-                <span class="status" :class="`status-${application.status}`">{{ statusLabel(application.status) }}</span>
+                <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
               </td>
+              <td class="center">
+                <span class="status" :class="`status-${application.contract_status || 'none'}`">{{ contractStatusLabel(application.contract_status) }}</span>
+              </td>
+              <td>{{ formatDate(application.latest_registered_at || application.submitted_at) }}</td>
               <td class="right">
                 <div class="actions">
                   <button class="icon-btn" type="button" title="Chi tiết" @click="openDetail(application)">
@@ -110,11 +113,12 @@
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 export default {
   name: 'AdminPartnerApplications',
-  components: { AppIcon },
+  components: { AppIcon, SaaSFilterBar },
   data() {
     return {
       applications: [],
@@ -122,12 +126,16 @@ export default {
       error: '',
       message: '',
       filterTimer: null,
-      filters: { tab: 'pending', search: '', status: '' },
+      filters: { tab: 'all', search: '', status: '' },
       pagination: { current_page: 1, last_page: 1, total: 0 },
       listTabs: [
-        { value: 'pending', label: 'Chờ xử lý' },
-        { value: 'active', label: 'Hợp đồng & hoạt động' },
-        { value: 'terminating', label: 'Đang chấm dứt' },
+        { value: 'all', label: 'Tất cả đối tác' },
+        { value: 'pending_review', label: 'Chờ duyệt hồ sơ' },
+        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
+        { value: 'active', label: 'Đang hoạt động' },
+        { value: 'terminating', label: 'Đang yêu cầu chấm dứt' },
+        { value: 'terminated', label: 'Đã chấm dứt' },
+        { value: 'rejected', label: 'Đã từ chối' },
       ],
       statusOptions: [
         { value: 'submitted', label: 'Chờ duyệt' },
@@ -138,6 +146,25 @@ export default {
         { value: 'rejected', label: 'Từ chối' },
       ],
     };
+  },
+  computed: {
+    selectedTab: {
+      get() {
+        return this.filters.tab;
+      },
+      set(tab) {
+        this.selectListTab(tab);
+      },
+    },
+    searchQuery: {
+      get() {
+        return this.filters.search;
+      },
+      set(value) {
+        this.filters.search = value.trim();
+        this.onFilterChange();
+      },
+    },
   },
   mounted() {
     this.loadApplications();
@@ -177,26 +204,32 @@ export default {
       this.clearAlerts();
       this.$router.push({
         name: 'admin-partner-application-detail',
-        params: { id: application.id },
+        params: { id: application.latest_application_id || application.id },
         query: action ? { action } : {},
       });
     },
     isReviewable(status) {
-      return ['pending', 'reviewing', 'submitted', 'need_supplement'].includes(status);
+      return status === 'pending_review';
     },
     statusLabel(status) {
       return {
-        pending: 'Chờ duyệt',
-        submitted: 'Chờ duyệt',
-        reviewing: 'Đang xem xét',
-        need_supplement: 'Cần bổ sung',
-        approved_pending_contract: 'Đã duyệt, chờ hợp đồng',
-        contract_pending_owner_signature: 'Chờ chủ sân ký',
-        contract_pending_sportgo_signature: 'Chờ SportGo ký',
+        pending_review: 'Chờ duyệt hồ sơ',
+        pending_signature: 'Chờ ký hợp đồng',
         completed: 'Đang hoạt động',
+        terminating: 'Đang yêu cầu chấm dứt',
+        terminated: 'Đã chấm dứt',
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
       }[status] || status || '-';
+    },
+    contractStatusLabel(status) {
+      return {
+        pending_sportgo_signature: 'Chờ SportGo ký',
+        pending_owner_signature: 'Chờ chủ sân ký',
+        signed_active: 'Đang hiệu lực',
+        terminated: 'Đã chấm dứt',
+        cancelled: 'Đã hủy',
+      }[status] || 'Chưa có';
     },
     formatDate(value) {
       if (!value) return '-';
@@ -227,7 +260,6 @@ export default {
   border-radius: 8px;
 }
 
-.tabs,
 .actions,
 .pagination {
   display: flex;
@@ -235,62 +267,30 @@ export default {
   gap: 8px;
 }
 
-.tab-btn {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-muted);
-  font-weight: 800;
-  cursor: pointer;
+.partner-filter-bar :deep(.filter-tabs) {
+  flex-wrap: wrap;
 }
 
-.tab-btn.active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.toolbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px);
-  gap: 12px;
-  padding: 14px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.field.full {
-  grid-column: 1 / -1;
-}
-
-.field input,
-.field select,
-.field textarea {
-  width: 100%;
-  border: 1px solid var(--admin-border);
+.partner-status-filter {
+  width: 220px;
+  height: 38px;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0 12px;
   color: var(--admin-text);
   background: var(--admin-surface);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.field input,
-.field select {
-  height: 40px;
+.partner-status-filter:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+  border-color: var(--admin-primary);
 }
 
-.field textarea {
-  min-height: 110px;
-  padding-top: 10px;
-  resize: vertical;
+[data-theme="dark"] .partner-status-filter {
+  border-color: var(--admin-border);
 }
 
 .notice {
@@ -342,7 +342,7 @@ export default {
 
 table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1180px;
   border-collapse: collapse;
 }
 
@@ -376,11 +376,8 @@ th {
   color: var(--admin-text);
 }
 
-.status-pending,
-.status-submitted,
-.status-reviewing,
-.status-contract_pending_owner_signature,
-.status-contract_pending_sportgo_signature {
+.status-pending_review,
+.status-pending_signature {
   background: #fef3c7;
   color: #92400e;
 }
@@ -388,6 +385,16 @@ th {
 .status-completed {
   background: #dcfce7;
   color: #166534;
+}
+
+.status-terminating {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.status-terminated {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .status-rejected,
@@ -427,12 +434,8 @@ th {
 }
 
 @media (max-width: 900px) {
-  .toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .field.full {
-    grid-column: auto;
+  .partner-status-filter {
+    width: 100%;
   }
 }
 </style>

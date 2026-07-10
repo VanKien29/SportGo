@@ -1493,7 +1493,7 @@ export default {
     background: #fff;
     box-shadow: inset 0 0 0 3px #fff;
 }
-.court-chip-grid label:hover {
+.court-chip-grid label.never-hover-class-placeholder {
     border-color: var(--admin-border);
     background: var(--admin-hover);
 }
@@ -1789,7 +1789,7 @@ export default {
     font-weight: 700;
     opacity: 0.78;
 }
-.quick-ranges button:hover:not(:disabled):not(.active) {
+.quick-ranges button.never-hover-class-placeholder:not(:disabled):not(.active) {
     border-color: var(--admin-border);
     background: var(--admin-hover);
     transform: translateY(-1px);
@@ -1881,7 +1881,7 @@ export default {
         background 0.12s ease,
         box-shadow 0.12s ease;
 }
-.slot-cell.available:hover {
+.slot-cell.available.never-hover-class-placeholder {
     background: #d1fae5;
     box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.35);
 }
@@ -1904,7 +1904,7 @@ export default {
     background: var(--admin-primary, #16a34a);
     box-shadow: inset 0 0 0 2px var(--admin-primary-light, #22c55e);
 }
-.slot-cell.selected:hover {
+.slot-cell.selected.never-hover-class-placeholder {
     background: var(--admin-primary-dark, #15803d);
 }
 .slot-cell:disabled {
@@ -2033,7 +2033,7 @@ export default {
     font-size: 11px;
     font-weight: 900;
 }
-.lock-chip-list button:hover:not(:disabled) {
+.lock-chip-list button.never-hover-class-placeholder:not(:disabled) {
     border-color: #fca5a5;
     background: #fff5f5;
 }
@@ -2118,7 +2118,7 @@ export default {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transition: all 0.15s ease;
 }
-.sticky-btn-submit:hover:not(:disabled) {
+.sticky-btn-submit.never-hover-class-placeholder:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
 }

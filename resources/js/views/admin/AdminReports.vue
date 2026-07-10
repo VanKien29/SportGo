@@ -5,43 +5,7 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <nav class="page-tabs" style="margin-bottom: 20px; display: flex; gap: 12px;">
-      <button class="tab-btn" :class="{ active: filters.target_group === 'content' }" @click="setTargetGroup('content')">Bài viết & Bình luận</button>
-      <button class="tab-btn" :class="{ active: filters.target_group === 'user' }" @click="setTargetGroup('user')">Tài khoản</button>
-      <button class="tab-btn" :class="{ active: filters.target_group === 'venue' }" @click="setTargetGroup('venue')">Cụm sân</button>
-    </nav>
 
-    <section class="filter-panel">
-      <div class="filter-bar">
-        <label class="search-box">
-          <AppIcon name="search" size="17" />
-          <input v-model.trim="filters.keyword" placeholder="Tìm người gửi, nội dung hoặc mã đối tượng" @keyup.enter="loadReports" />
-        </label>
-        <CustomSelect 
-          v-if="filters.target_group === 'content'"
-          v-model="filters.target_type" 
-          :options="[{value: '', label: 'Tất cả đối tượng'}, ...filteredTargetTypes]" 
-          @change="loadReports" 
-        />
-        <CustomSelect 
-          v-model="filters.reason" 
-          :options="[{value: '', label: 'Tất cả lý do'}, ...reasons]" 
-          @change="loadReports" 
-        />
-        <CustomSelect 
-          v-model="filters.status" 
-          :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]" 
-          @change="loadReports" 
-        />
-        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
-        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
-        <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
-        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
-      </div>
-    </section>
-
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
 
     <div v-if="loading" class="empty-state">Đang tải danh sách báo cáo...</div>
     <div v-else-if="reports.length === 0" class="empty-state">Không có báo cáo phù hợp.</div>
@@ -665,7 +629,7 @@ export default {
   display: inline-block;
 }
 
-.floating-config-btn:hover {
+.floating-config-btn.never-hover-class-placeholder {
   width: 215px;
   justify-content: flex-start;
   padding-left: 14px;
@@ -674,7 +638,7 @@ export default {
   background-color: #f8fafc;
 }
 
-.floating-config-btn:hover .floating-config-text {
+.floating-config-btn.never-hover-class-placeholder .floating-config-text {
   max-width: 170px;
   opacity: 1;
   margin-left: 6px;

@@ -21,6 +21,8 @@ import {
   ownerNavigationSections,
   ownerRouteTitles,
 } from '../../config/ownerNavigation.js';
+import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
+import { applyOwnerTheme, clearOwnerTheme } from '../../utils/ownerTheme.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
@@ -49,12 +51,35 @@ export default {
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.syncExternalCluster);
+    window.addEventListener('owner-theme-updated', this.syncOwnerTheme);
+    await this.loadOwnerTheme();
     await this.loadClusters();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.syncExternalCluster);
+    window.removeEventListener('owner-theme-updated', this.syncOwnerTheme);
+    clearOwnerTheme();
   },
   methods: {
+    async loadOwnerTheme() {
+      try {
+        const settings = await ownerUiSettingsService.getSettings();
+        applyOwnerTheme(settings);
+        if (settings.sidebar_style) {
+          localStorage.setItem('owner-sidebar-style', settings.sidebar_style);
+        }
+        window.dispatchEvent(new Event('owner-sidebar-style-changed'));
+      } catch {
+        clearOwnerTheme();
+      }
+    },
+    syncOwnerTheme(event) {
+      applyOwnerTheme(event.detail || {});
+      if (event.detail?.sidebar_style) {
+        localStorage.setItem('owner-sidebar-style', event.detail.sidebar_style);
+      }
+      window.dispatchEvent(new Event('owner-sidebar-style-changed'));
+    },
     async loadClusters() {
       this.clusterLoading = true;
       try {

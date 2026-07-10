@@ -141,7 +141,7 @@ textarea:focus {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.record-card:hover {
+.record-card.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
   border-color: #94a3b8 !important;
@@ -555,7 +555,7 @@ textarea:focus {
   cursor: pointer; color: #64748b; 
   transition: all 0.2s; 
 }
-.fb-close-btn:hover { background: #e2e8f0; color: #1e293b; }
+.fb-close-btn.never-hover-class-placeholder { background: #e2e8f0; color: #1e293b; }
 
 /* Body Area */
 .fb-body {
@@ -599,8 +599,8 @@ textarea:focus {
 /* Post Actions (Icons Only) */
 .fb-actions { display: flex; gap: 16px; justify-content: flex-end; padding-top: 8px; }
 .fb-action-item { display: flex; justify-content: center; align-items: center; border: 0; border-radius: 6px; background: transparent !important; cursor: pointer; color: #64748b; transition: color 0.2s; padding: 4px; }
-.fb-action-item:hover { color: #1e293b; }
-.fb-action-item.danger:hover { color: #b91c1c; }
+.fb-action-item.never-hover-class-placeholder { color: #1e293b; }
+.fb-action-item.danger.never-hover-class-placeholder { color: #b91c1c; }
 
 /* Comments Section */
 .fb-comments { padding: 16px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid #e2e8f0; }
@@ -633,10 +633,10 @@ textarea:focus {
 .fb-bubble-status.hidden { color: #b91c1c; background: #fee2e2; }
 
 .fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 600; cursor: default; }
-.fb-comment-footer span:hover { text-decoration: underline; cursor: pointer; }
+.fb-comment-footer span.never-hover-class-placeholder { text-decoration: underline; cursor: pointer; }
 .fb-comment-tools { display: flex; gap: 14px; margin-left: 8px; }
 .fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; }
-.fb-comment-tools button:hover { color: #1e293b; }
-.fb-comment-tools button.tool-danger:hover { color: #b91c1c; }
+.fb-comment-tools button.never-hover-class-placeholder { color: #1e293b; }
+.fb-comment-tools button.tool-danger.never-hover-class-placeholder { color: #b91c1c; }
 
 .fb-no-comments { text-align: center; color: #64748b; padding: 20px 0; font-size: 15px; }

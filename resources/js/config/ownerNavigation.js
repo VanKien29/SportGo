@@ -14,6 +14,12 @@ export const ownerNavigationSections = [
         to: '/owner/partner-profile',
         activeNames: ['owner-partner-profile'],
       },
+      {
+        label: 'Tin nhắn',
+        icon: 'messageSquare',
+        to: '/owner/chat',
+        activeNames: ['owner-chat'],
+      },
     ],
   },
   {
@@ -50,10 +56,22 @@ export const ownerNavigationSections = [
         activeNames: ['owner-pricing'],
       },
       {
+        label: 'Dịch vụ tại sân',
+        icon: 'shopping-bag',
+        to: '/owner/services',
+        activeNames: ['owner-services'],
+      },
+      {
         label: 'Cấu hình đặt sân',
         icon: 'calendar',
         to: '/owner/booking-settings',
         activeNames: ['owner-booking-settings'],
+      },
+      {
+        label: 'Cấu hình giao diện',
+        icon: 'palette',
+        to: '/owner/settings',
+        activeNames: ['owner-settings'],
       },
       {
         label: 'Giao lưu tại sân',
@@ -125,6 +143,12 @@ export const ownerNavigationSections = [
         to: '/owner/staff',
         activeNames: ['owner-staff'],
       },
+      {
+        label: 'Ca trực & Chấm công',
+        icon: 'calendar',
+        to: '/owner/staff-shifts',
+        activeNames: ['owner-staff-shifts'],
+      },
     ],
   },
 ];
@@ -133,6 +157,7 @@ export const ownerNavigationSections = [
 export const ownerRouteTitles = {
   'owner-dashboard': 'Bảng điều hành',
   'owner-partner-profile': 'Hồ sơ đối tác',
+  'owner-chat': 'Tin nhắn',
   'owner-profile': 'Thông tin cá nhân',
   'owner-venue-clusters': 'Quản lý cụm sân',
   'owner-venue-courts': 'Quản lý sân con',
@@ -140,11 +165,13 @@ export const ownerRouteTitles = {
   'owner-counter-booking': 'Booking tại quầy',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
+  'owner-settings': 'Cấu hình giao diện',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',
   'owner-platform-fees': 'Phí nền tảng',
   'owner-finance': 'Ví tài chính',
   'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',
+  'owner-staff-shifts': 'Ca trực & Chấm công',
   'owner-vouchers': 'Voucher của sân',
   'owner-complaints': 'Quản lý khiếu nại',
   'owner-complaint-detail': 'Chi tiết khiếu nại',
@@ -154,6 +181,7 @@ export const ownerRouteTitles = {
   'owner-venue-posts': 'Quản lý bài viết',
   'owner-matchmaking': 'Giao lưu tại sân',
   'owner-affiliate': 'Tiếp thị liên kết',
+  'owner-services': 'Quản lý dịch vụ tại sân',
 };
 
 export const ownerRouteSectionLabels = {

@@ -135,7 +135,7 @@
   color: var(--admin-bg);
 }
 
-.pricing-page .btn.primary:hover:not(:disabled) {
+.pricing-page .btn.primary.never-hover-class-placeholder:not(:disabled) {
   background: var(--admin-primary-light);
 }
 
@@ -145,7 +145,7 @@
   border: 1px solid var(--admin-border);
 }
 
-.pricing-page .btn.secondary:hover:not(:disabled) {
+.pricing-page .btn.secondary.never-hover-class-placeholder:not(:disabled) {
   background: var(--admin-hover);
 }
 
@@ -372,7 +372,7 @@ td {
   font-size: 13px;
 }
 
-tbody tr:hover {
+tbody tr.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
 
@@ -506,7 +506,7 @@ td small {
   transition: background 0.2s, color 0.2s;
 }
 
-.modal-head button:hover {
+.modal-head button.never-hover-class-placeholder {
   background: var(--admin-hover);
   color: var(--admin-text);
 }
@@ -538,7 +538,7 @@ td small {
   transition: background 0.18s, border-color 0.18s, color 0.18s;
 }
 
-.day-grid label:hover {
+.day-grid label.never-hover-class-placeholder {
   border-color: var(--admin-text);
   color: var(--admin-text);
 }

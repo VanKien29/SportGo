@@ -451,7 +451,7 @@ export default {
   text-decoration: none;
 }
 
-.article-breadcrumbs a:hover {
+.article-breadcrumbs a.never-hover-class-placeholder {
   text-decoration: underline;
 }
 
@@ -555,7 +555,7 @@ export default {
 .article-body :deep(p) { margin: 0 0 12px; }
 .article-body :deep(img) { max-width: 100%; border-radius: 8px; margin: 12px 0; }
 .article-body :deep(a) { color: #0866FF; text-decoration: none; }
-.article-body :deep(a:hover) { text-decoration: underline; }
+.article-body :deep(a.never-hover-class-placeholder) { text-decoration: underline; }
 
 .fb-media-container {
   width: 100%;
@@ -638,7 +638,7 @@ export default {
   transition: background-color 0.2s;
 }
 
-.action-btn:hover {
+.action-btn.never-hover-class-placeholder {
   background-color: #f2f2f2;
 }
 
@@ -701,7 +701,7 @@ export default {
   border-radius: 50%;
 }
 
-.submit-comment-btn:hover:not(:disabled) {
+.submit-comment-btn.never-hover-class-placeholder:not(:disabled) {
   background: #e4e6eb;
 }
 
@@ -775,8 +775,8 @@ export default {
 .clickable {
   cursor: pointer;
 }
-.clickable:hover .liker-count,
-.clickable:hover {
+.clickable.never-hover-class-placeholder .liker-count,
+.clickable.never-hover-class-placeholder {
   text-decoration: underline;
 }
 
@@ -849,7 +849,7 @@ export default {
   cursor: pointer;
   color: #65676B;
 }
-.close-btn:hover {
+.close-btn.never-hover-class-placeholder {
   background: #d8dadf;
 }
 .likers-modal-body {

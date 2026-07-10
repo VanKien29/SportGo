@@ -209,7 +209,7 @@ const submit = async () => {
   color: #65676b;
   transition: background 0.2s;
 }
-.close-btn:hover {
+.close-btn.never-hover-class-placeholder {
   background: #d8dadf;
 }
 .modal-body {
@@ -235,14 +235,14 @@ const submit = async () => {
   background: #e4e6eb;
   color: #050505;
 }
-.btn.secondary:hover:not(:disabled) {
+.btn.secondary.never-hover-class-placeholder:not(:disabled) {
   background: #d8dadf;
 }
 .btn.primary {
   background: #1877f2;
   color: #fff;
 }
-.btn.primary:hover:not(:disabled) {
+.btn.primary.never-hover-class-placeholder:not(:disabled) {
   background: #166fe5;
 }
 .btn:disabled {
@@ -273,7 +273,7 @@ const submit = async () => {
   border-radius: 8px;
   transition: all 0.2s;
 }
-.radio-label:hover {
+.radio-label.never-hover-class-placeholder {
   background: #f0f2f5;
 }
 .radio-label input[type="radio"] {

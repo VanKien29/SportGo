@@ -22,81 +22,88 @@
         </div>
 
         <!-- Main Grid -->
-        <div v-else class="clusters-grid">
-            <!-- Cluster List Sidebar -->
-            <div class="clusters-list card">
-                <div
-                    v-for="cluster in clusters"
-                    :key="cluster.id"
-                    class="cluster-item"
-                    :class="{ active: selectedCluster?.id === cluster.id }"
-                    @click="selectCluster(cluster)"
-                >
-                    <div class="cluster-info">
-                        <h4 class="cluster-name">{{ cluster.name }}</h4>
-                        <p class="cluster-address">
-                            {{ formatFullAddress(cluster) }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
+        <div v-else class="clusters-workspace">
             <!-- Cluster Detail with Tabs -->
             <div v-if="selectedCluster" class="cluster-detail">
-                <!-- Tabs -->
-                <div class="detail-tabs card" style="display: flex; justify-content: space-between; align-items: center; padding-right: 16px; position: relative;">
-                    <div style="display: flex; gap: 8px;">
-                        <button
-                            v-for="tab in tabs"
-                            :key="tab.key"
-                            class="tab-btn"
-                            :class="{ active: activeTab === tab.key }"
-                            @click="activeTab = tab.key"
-                        >
-                            {{ tab.label }}
-                            <span
-                                v-if="
-                                    tab.key === 'approvals' &&
-                                    pendingApprovalCount > 0
-                                "
-                                class="tab-badge"
-                            >
-                                {{ pendingApprovalCount }}
+                <section class="cluster-hero surface-card">
+                    <div class="cluster-hero-copy">
+                        <div class="cluster-hero-kicker">
+                            <span class="status-pill" :class="clusterStatusClass(selectedCluster)">
+                                {{ clusterStatusLabel(selectedCluster) }}
                             </span>
-                            <span
-                                v-if="
-                                    tab.key === 'location' &&
-                                    pendingLocationCount > 0
-                                "
-                                class="tab-badge tab-badge-location"
-                            >
-                                {{ pendingLocationCount }}
-                            </span>
-                            <span
-                                v-if="
-                                    tab.key === 'info_requests' &&
-                                    pendingInfoCount > 0
-                                "
-                                class="tab-badge tab-badge-location"
-                            >
-                                {{ pendingInfoCount }}
-                            </span>
-                            <span
-                                v-if="
-                                    tab.key === 'unlock' &&
-                                    pendingUnlockCount > 0
-                                "
-                                class="tab-badge"
-                                style="background-color: #dc2626;"
-                            >
-                                {{ pendingUnlockCount }}
-                            </span>
-                        </button>
+                            <span>{{ clusterCourtCount(selectedCluster) }} sân con</span>
+                        </div>
+                        <h1>{{ selectedCluster.name }}</h1>
+                        <p>{{ formatFullAddress(selectedCluster) }}</p>
+                        <div class="cluster-hero-actions">
+                            <button type="button" class="btn btn-primary" @click="activeTab = 'courts'">
+                                <AppIcon name="court" size="15" />
+                                <span>Quản lý sân con</span>
+                            </button>
+                            <button type="button" class="btn btn-outline" @click="activeTab = 'approvals'">
+                                <AppIcon name="plus" size="15" />
+                                <span>Yêu cầu quy mô</span>
+                                <span v-if="pendingApprovalCount > 0" class="inline-count">{{ pendingApprovalCount }}</span>
+                            </button>
+                            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
+                                <AppIcon name="fileText" size="15" />
+                                <span>Hồ sơ đối tác</span>
+                            </button>
+                        </div>
                     </div>
+                    <div class="cluster-hero-media" :class="{ empty: !clusterPrimaryImage(selectedCluster) }">
+                        <img
+                            v-if="clusterPrimaryImage(selectedCluster)"
+                            :src="clusterPrimaryImage(selectedCluster)"
+                            :alt="'Ảnh cụm sân ' + selectedCluster.name"
+                        />
+                        <div v-else class="cluster-media-placeholder">
+                            <AppIcon name="building" size="30" />
+                            <span>Chưa có ảnh đại diện</span>
+                        </div>
+                    </div>
+                </section>
 
+                <section class="cluster-quick-grid" aria-label="Tổng quan cụm sân">
+                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'info'">
+                        <span class="quick-stat-label">Thông tin</span>
+                        <strong>{{ selectedCluster.phone_contact || "Chưa có SĐT" }}</strong>
+                        <small>Cấu hình tiện ích, mô tả, album ảnh</small>
+                    </button>
+                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'approvals'">
+                        <span class="quick-stat-label">Quy mô</span>
+                        <strong>{{ pendingApprovalCount }} chờ xử lý</strong>
+                        <small>Thêm, giảm hoặc điều chỉnh sân con</small>
+                    </button>
+                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'location'">
+                        <span class="quick-stat-label">Vị trí</span>
+                        <strong>{{ pendingLocationCount }} chờ duyệt</strong>
+                        <small>Địa chỉ và tọa độ cụm sân</small>
+                    </button>
+                    <button v-if="isClusterLocked" type="button" class="quick-stat surface-card danger" @click="activeTab = 'unlock'">
+                        <span class="quick-stat-label">Mở khóa</span>
+                        <strong>{{ pendingUnlockCount }} yêu cầu</strong>
+                        <small>Gửi giải trình để kích hoạt lại</small>
+                    </button>
+                </section>
 
-                </div>
-
+                <!-- Tabs -->
+                <nav class="detail-tabs surface-card" aria-label="Khu vực quản lý cụm sân">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        class="tab-btn"
+                        :class="{ active: activeTab === tab.key }"
+                        type="button"
+                        :aria-current="activeTab === tab.key ? 'page' : undefined"
+                        @click="activeTab = tab.key"
+                    >
+                        {{ tab.label }}
+                        <span v-if="tabBadgeCount(tab.key) > 0" class="tab-badge">
+                            {{ tabBadgeCount(tab.key) }}
+                        </span>
+                    </button>
+                </nav>
                 <!-- ═══════════════════════════════════════════════════
                      TAB 1: THÔNG TIN CHUNG
                 ═══════════════════════════════════════════════════ -->
@@ -106,57 +113,60 @@
                         Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
-                    <div class="readonly-detail-container">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); padding-bottom: 10px;">
-                            <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Thông tin chi tiết</h3>
-                        </div>
-                        <!-- Tên & Điện thoại -->
-                        <div class="info-row-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                            <div class="form-group-readonly">
-                                <label class="info-label">Tên cụm sân</label>
-                                <div class="info-value-text">{{ selectedCluster.name }}</div>
+                    <div class="readonly-detail-container info-overview-panel">
+                        <header class="info-section-header">
+                            <div>
+                                <span class="section-eyebrow">Hồ sơ cụm sân</span>
+                                <h3>Thông tin chi tiết</h3>
                             </div>
-                            <div class="form-group-readonly">
-                                <label class="info-label">Số điện thoại liên hệ</label>
-                                <div class="info-value-text">{{ selectedCluster.phone_contact }}</div>
+                            <span class="status-pill" :class="clusterStatusClass(selectedCluster)">
+                                {{ clusterStatusLabel(selectedCluster) }}
+                            </span>
+                        </header>
+
+                        <div class="info-summary-grid">
+                            <div class="info-summary-card">
+                                <span class="info-summary-icon" aria-hidden="true">
+                                    <AppIcon name="building" size="18" />
+                                </span>
+                                <div>
+                                    <span class="info-label">Tên cụm sân</span>
+                                    <strong>{{ selectedCluster.name }}</strong>
+                                </div>
+                            </div>
+                            <div class="info-summary-card">
+                                <span class="info-summary-icon" aria-hidden="true">
+                                    <AppIcon name="messageSquare" size="18" />
+                                </span>
+                                <div>
+                                    <span class="info-label">Số điện thoại liên hệ</span>
+                                    <strong>{{ selectedCluster.phone_contact || "Chưa cập nhật" }}</strong>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Vị trí hiện tại (chỉ đọc) -->
-                        <div class="location-readonly-box" style="margin-bottom: 16px;">
+                        <section class="location-readonly-box location-overview-card">
                             <div class="location-readonly-header">
                                 <div>
-                                    <span class="location-readonly-title" style="font-weight:700;">Vị trí hiện tại</span>
-                                    <span
-                                        v-if="pendingLocationCount > 0"
-                                        class="pending-location-badge"
-                                    >
-                                        ⏳ Đang có yêu cầu thay đổi chờ duyệt
-                                    </span>
+                                    <span class="section-eyebrow">Địa chỉ & bản đồ</span>
+                                    <h4 class="location-readonly-title">Vị trí hiện tại</h4>
+                                </div>
+                                <span
+                                    v-if="pendingLocationCount > 0"
+                                    class="pending-location-badge"
+                                >
+                                    Đang chờ duyệt vị trí
+                                </span>
+                            </div>
+                            <div class="location-content-grid map-only">
+                                <div class="location-map-frame">
+                                    <div
+                                        id="cluster-map"
+                                        class="map-container map-readonly"
+                                    ></div>
                                 </div>
                             </div>
-                            <div class="location-readonly-body" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
-                                <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600;">Tỉnh/TP: </span>
-                                    <span class="location-value">{{ selectedCluster.province || "—" }}</span>
-                                </div>
-                                <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600;">Phường/Xã: </span>
-                                    <span class="location-value">{{ selectedCluster.ward || "—" }}</span>
-                                </div>
-                                <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600;">Địa chỉ: </span>
-                                    <span class="location-value">{{ selectedCluster.address || "—" }}</span>
-                                </div>
-                            </div>
-                            <!-- Bản đồ chỉ xem -->
-                            <div
-                                id="cluster-map"
-                                class="map-container map-readonly"
-                                style="margin-top: 12px;"
-                            ></div>
-                        </div>
-
+                        </section>
                         <!-- Tiện ích cụm sân (Amenities) -->
                         <div class="amenities-management-section" style="margin-top: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1192,6 +1202,40 @@
                                                 <img :src="req.evidence_image_url" alt="Ảnh minh chứng" class="approval-evidence-thumb" />
                                             </a>
                                         </div>
+                                        <div v-if="req.supplementary_documents?.length" class="supplement-documents">
+                                            <span class="approval-evidence-label">Giấy tờ bổ sung:</span>
+                                            <button
+                                                v-for="doc in req.supplementary_documents"
+                                                :key="doc.id || doc.file_path || doc.file_name"
+                                                type="button"
+                                                class="supplement-document-link"
+                                                @click="downloadSupplementDocument(doc)"
+                                            >
+                                                {{ doc.file_name || 'Tải file' }}
+                                            </button>
+                                        </div>
+                                        <div v-if="req.generated_document" class="request-document-actions">
+                                            <span>Đơn yêu cầu:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document, req.partner_application_id)">
+                                                <AppIcon name="eye" size="14" />
+                                                {{ requestDocumentActionLabel(req.generated_document) }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
+                                        <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
+                                            <span>Phụ lục hợp đồng:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                                <AppIcon name="eye" size="14" />
+                                                {{ requestDocumentActionLabel(req.appendix_document) }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
                                         <div
                                             v-if="
                                                 req.reviewed_by &&
@@ -1214,7 +1258,7 @@
                                             }}
                                         </span>
                                         <button
-                                            v-if="req.status === 'pending'"
+                                            v-if="['pending_owner_signature', 'pending'].includes(req.status)"
                                             class="btn btn-outline btn-sm"
                                             :disabled="cancellingId === req.id"
                                             @click="handleCancelApproval(req)"
@@ -1224,6 +1268,13 @@
                                                     ? "..."
                                                     : "Hủy yêu cầu"
                                             }}
+                                        </button>
+                                        <button
+                                            v-if="req.status === 'need_supplement'"
+                                            class="btn btn-primary btn-sm"
+                                            @click="openSupplementRequestModal('scale', req)"
+                                        >
+                                            Bổ sung giấy tờ
                                         </button>
                                     </div>
                                 </div>
@@ -1517,6 +1568,40 @@
                                             Lý do từ chối:
                                             {{ req.status_reason }}
                                         </div>
+                                        <div v-if="req.supplementary_documents?.length" class="supplement-documents">
+                                            <span>Giấy tờ bổ sung:</span>
+                                            <button
+                                                v-for="doc in req.supplementary_documents"
+                                                :key="doc.id || doc.file_path || doc.file_name"
+                                                type="button"
+                                                class="supplement-document-link"
+                                                @click="downloadSupplementDocument(doc)"
+                                            >
+                                                {{ doc.file_name || 'Tải file' }}
+                                            </button>
+                                        </div>
+                                        <div v-if="req.generated_document" class="request-document-actions">
+                                            <span>Đơn yêu cầu:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document, req.partner_application_id)">
+                                                <AppIcon name="eye" size="14" />
+                                                {{ requestDocumentActionLabel(req.generated_document) }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
+                                        <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
+                                            <span>Phụ lục hợp đồng:</span>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                                <AppIcon name="eye" size="14" />
+                                                {{ requestDocumentActionLabel(req.appendix_document) }}
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
+                                                <AppIcon name="download" size="14" />
+                                                Tải
+                                            </button>
+                                        </div>
                                         <div
                                             v-if="
                                                 req.reviewed_by &&
@@ -1539,7 +1624,7 @@
                                             }}
                                         </span>
                                         <button
-                                            v-if="req.status === 'pending'"
+                                            v-if="['pending_owner_signature', 'pending'].includes(req.status)"
                                             class="btn btn-outline btn-sm"
                                             :disabled="
                                                 cancellingLocationId === req.id
@@ -1553,6 +1638,13 @@
                                                     ? "..."
                                                     : "Hủy yêu cầu"
                                             }}
+                                        </button>
+                                        <button
+                                            v-if="req.status === 'need_supplement'"
+                                            class="btn btn-primary btn-sm"
+                                            @click="openSupplementRequestModal('location', req)"
+                                        >
+                                            Bổ sung giấy tờ
                                         </button>
                                     </div>
                                 </div>
@@ -1680,7 +1772,7 @@
             class="modal-backdrop"
             @click.self="closeRequestModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-scale">
                 <div class="modal-header">
                     <h3>Gửi yêu cầu thêm tiện ích</h3>
                     <button class="btn-close" @click="closeRequestModal">
@@ -1765,7 +1857,91 @@
                         <div v-if="newReqError" class="alert alert-danger">
                             {{ newReqError }}
                         </div>
-                        <div class="form-row">
+                        <div class="scale-adjust-board">
+                            <section class="scale-adjust-section">
+                                <div class="scale-adjust-head">
+                                    <div>
+                                        <label>Sân muốn thêm vào phụ lục</label>
+                                        <p class="section-desc">Có thể thêm nhiều sân trong cùng một yêu cầu.</p>
+                                    </div>
+                                    <button type="button" class="btn btn-outline btn-sm" @click="addRequestedCourt">
+                                        <AppIcon name="plus" size="15" />
+                                        Thêm sân
+                                    </button>
+                                </div>
+
+                                <div class="requested-court-list">
+                                    <div
+                                        v-for="(court, index) in newReqForm.requested_courts"
+                                        :key="court.local_id"
+                                        class="requested-court-row"
+                                    >
+                                        <div class="requested-court-index">{{ index + 1 }}</div>
+                                        <div class="requested-court-fields">
+                                            <div class="form-group compact">
+                                                <label>Loại sân</label>
+                                                <BaseCombobox
+                                                    v-model="court.court_type_id"
+                                                    :options="leafCourtTypeOptions"
+                                                    placeholder="Chọn loại sân"
+                                                />
+                                            </div>
+                                            <div class="form-group compact">
+                                                <label>Tên sân</label>
+                                                <input
+                                                    v-model.trim="court.name"
+                                                    type="text"
+                                                    class="form-control"
+                                                    placeholder="Ví dụ: Sân 5, Sân VIP..."
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="btn-icon-danger"
+                                            title="Xóa dòng sân thêm"
+                                            @click="removeRequestedCourt(index)"
+                                        >
+                                            <AppIcon name="x" size="15" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="scale-adjust-section">
+                                <div class="scale-adjust-head">
+                                    <div>
+                                        <label>Sân muốn xóa bớt khỏi quy mô</label>
+                                        <p class="section-desc">Chọn các sân con không còn nằm trong phụ lục mới.</p>
+                                    </div>
+                                </div>
+                                <div v-if="removableCourts.length" class="court-remove-list scale-remove-list">
+                                    <label v-for="court in removableCourts" :key="court.id" class="court-remove-option">
+                                        <input v-model="newReqForm.removed_court_ids" type="checkbox" :value="court.id" />
+                                        <span>{{ court.name }} · {{ court.court_type?.name || 'Chưa phân loại' }}</span>
+                                    </label>
+                                </div>
+                                <p v-else class="section-desc">Chưa có sân con đang hoạt động để chọn xóa bớt.</p>
+                            </section>
+                        </div>
+                        <div v-if="false" class="form-group">
+                            <label>Hình thức thay đổi <span class="required">*</span></label>
+                            <div class="change-type-options">
+                                <label>
+                                    <input v-model="newReqForm.change_type" type="radio" value="add" />
+                                    Thêm sân
+                                </label>
+                                <label>
+                                    <input v-model="newReqForm.change_type" type="radio" value="remove" />
+                                    Xóa bớt sân
+                                </label>
+                                <label>
+                                    <input v-model="newReqForm.change_type" type="radio" value="mixed" />
+                                    Thêm và xóa sân
+                                </label>
+                            </div>
+                        </div>
+                        <div v-if="false" class="form-row">
                             <div class="form-group">
                                 <label
                                     >Loại sân đề xuất
@@ -1863,6 +2039,16 @@
                                 />
                             </div>
                         </div>
+                        <div v-if="false" class="form-group">
+                            <label>Sân cần xóa bớt <span class="required">*</span></label>
+                            <div v-if="removableCourts.length" class="court-remove-list">
+                                <label v-for="court in removableCourts" :key="court.id" class="court-remove-option">
+                                    <input v-model="newReqForm.removed_court_ids" type="checkbox" :value="court.id" />
+                                    <span>{{ court.name }} · {{ court.court_type?.name || 'Chưa phân loại' }}</span>
+                                </label>
+                            </div>
+                            <p v-else class="section-desc">Chưa có sân con đang hoạt động để chọn xóa bớt.</p>
+                        </div>
                         <div class="form-group">
                             <label>Ghi chú/Lý do mở rộng</label>
                             <textarea
@@ -1873,9 +2059,9 @@
                             ></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Ảnh minh chứng <span class="text-muted">(không bắt buộc)</span></label>
+                            <label>Ảnh minh chứng <span class="required">*</span></label>
                             <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
-                                Gửi ảnh chụp thực tế sân (hỗ trợ: JPG, PNG, WebP — tối đa 5MB)
+                                Bắt buộc gửi ảnh chụp thực tế sân hoặc khu vực mở rộng (JPG, PNG, WebP - tối đa 5MB).
                             </p>
                             <div class="evidence-upload-area">
                                 <div
@@ -1901,6 +2087,95 @@
                                     style="display:none"
                                     @change="handleEvidenceSelect"
                                 />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
+                            <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                Bắt buộc tải giấy ĐKKD hoặc giấy cập nhật kinh doanh liên quan đến yêu cầu mở rộng.
+                            </p>
+                            <div class="document-upload-grid">
+                                <label class="document-upload-card">
+                                    <span>Giấy pháp lý / ĐKKD</span>
+                                    <input
+                                        ref="scaleLegalInput"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                        @change="handleScaleDocumentSelect('legal', $event)"
+                                    />
+                                </label>
+                                <label class="document-upload-card">
+                                    <span>Hồ sơ mặt bằng / quy hoạch</span>
+                                    <input
+                                        ref="scalePremiseInput"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                        @change="handleScaleDocumentSelect('premise', $event)"
+                                    />
+                                </label>
+                                <label class="document-upload-card">
+                                    <span>Tài liệu bổ sung khác</span>
+                                    <input
+                                        ref="scaleExtraInput"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                        @change="handleScaleDocumentSelect('extra', $event)"
+                                    />
+                                </label>
+                            </div>
+                            <input
+                                v-if="false"
+                                ref="scaleSupplementInput"
+                                type="file"
+                                class="form-control"
+                                multiple
+                                accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                @change="handleScaleSupplementSelect"
+                            />
+                            <div v-if="scaleSupplementFiles.length" class="supplement-file-list">
+                                <button
+                                    v-for="file in scaleSupplementFiles"
+                                    :key="file.name + file.size"
+                                    type="button"
+                                    title="Nhấp đôi để xem file"
+                                    @dblclick="previewLocalFile(file)"
+                                >{{ file.name }}</button>
+                            </div>
+                        </div>
+                        <div v-if="false" class="request-preview-gate">
+                            <div>
+                                <strong>Xem đơn yêu cầu trước khi ký</strong>
+                                <p>Hệ thống sẽ sinh file từ thông tin bạn vừa nhập. Bạn cần mở và đọc file trước khi ký/gửi.</p>
+                            </div>
+                            <button type="button" class="btn btn-outline" :disabled="scalePreviewing" @click="previewScaleRequest">
+                                <AppIcon name="eye" size="16" />
+                                {{ scalePreviewing ? "Đang tạo đơn..." : "Xem đơn" }}
+                            </button>
+                            <span :class="scalePreviewLoaded ? 'signature-ok' : 'signature-missing'">
+                                {{ scalePreviewLoaded ? "Đã xem đơn" : "Chưa xem đơn" }}
+                            </span>
+                        </div>
+                        <div v-if="false" class="form-group request-signature-group" :class="{ 'request-signature-disabled': !scalePreviewLoaded }">
+                            <label>Ký xác nhận yêu cầu <span class="required">*</span></label>
+                            <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
+                                Chủ sân ký xác nhận thông tin và giấy tờ đính kèm trong yêu cầu mở rộng quy mô là chính xác.
+                            </p>
+                            <canvas
+                                ref="scaleSignatureCanvas"
+                                class="request-signature-pad"
+                                @pointerdown="startSignatureDraw($event, 'scaleSignatureCanvas', 'scaleSignatureDirty')"
+                                @pointermove="drawSignature"
+                                @pointerup="stopSignatureDraw"
+                                @pointerleave="stopSignatureDraw"
+                            ></canvas>
+                            <div class="request-signature-actions">
+                                <span :class="scaleSignatureDirty ? 'signature-ok' : 'signature-missing'">
+                                    {{ scaleSignatureDirty ? 'Đã có chữ ký' : 'Chưa có chữ ký' }}
+                                </span>
+                                <button type="button" class="btn btn-outline btn-sm" @click="clearSignature('scaleSignatureCanvas', 'scaleSignatureDirty')">Ký lại</button>
                             </div>
                         </div>
                     </div>
@@ -1956,65 +2231,25 @@
                                     >Tỉnh/Thành phố mới
                                     <span class="required">*</span></label
                                 >
-                                <div class="searchable-select-container">
-                                    <input
-                                        type="text"
-                                        v-model="provinceSearch"
-                                        class="form-control searchable-select-input"
-                                        placeholder="Gõ để tìm Tỉnh/Thành..."
-                                        required
-                                        @focus="showProvinceDropdown = true"
-                                        @blur="closeProvinceDropdown"
-                                    />
-                                    <span class="searchable-select-arrow" :class="{ open: showProvinceDropdown }">▼</span>
-                                    <div v-if="showProvinceDropdown" class="searchable-select-dropdown">
-                                        <div
-                                            v-for="p in filteredProvinces"
-                                            :key="p.code"
-                                            class="searchable-select-option"
-                                            :class="{ selected: p.name === locationForm.new_province }"
-                                            @mousedown="selectProvince(p)"
-                                        >
-                                            {{ p.name }}
-                                        </div>
-                                        <div v-if="filteredProvinces.length === 0" class="searchable-select-option empty">
-                                            Không tìm thấy kết quả
-                                        </div>
-                                    </div>
-                                </div>
+                                <BaseCombobox 
+                                    v-model="locationForm.new_province_code"
+                                    :options="provinceOptions"
+                                    placeholder="Tìm Tỉnh/Thành phố..."
+                                    @update:modelValue="onProvinceChange"
+                                />
                             </div>
                             <div class="form-group">
                                 <label
                                     >Phường/Xã mới
                                     <span class="required">*</span></label
                                 >
-                                <div class="searchable-select-container">
-                                    <input
-                                        type="text"
-                                        v-model="wardSearch"
-                                        class="form-control searchable-select-input"
-                                        placeholder="Gõ để tìm Phường/Xã..."
-                                        required
-                                        :disabled="!locationForm.new_province"
-                                        @focus="showWardDropdown = true"
-                                        @blur="closeWardDropdown"
-                                    />
-                                    <span class="searchable-select-arrow" :class="{ open: showWardDropdown }">▼</span>
-                                    <div v-if="showWardDropdown" class="searchable-select-dropdown">
-                                        <div
-                                            v-for="w in filteredWards"
-                                            :key="w.code"
-                                            class="searchable-select-option"
-                                            :class="{ selected: w.name === locationForm.new_ward }"
-                                            @mousedown="selectWard(w)"
-                                        >
-                                            {{ w.name }}
-                                        </div>
-                                        <div v-if="filteredWards.length === 0" class="searchable-select-option empty">
-                                            Không tìm thấy kết quả
-                                        </div>
-                                    </div>
-                                </div>
+                                <BaseCombobox 
+                                    v-model="locationForm.new_ward_code"
+                                    :options="wardOptions"
+                                    placeholder="Tìm Phường/Xã..."
+                                    :disabled="!locationForm.new_province_code"
+                                    @update:modelValue="onWardChange"
+                                />
                             </div>
                         </div>
                         <div class="form-group">
@@ -2051,6 +2286,15 @@
                                             ? "Đang trích xuất..."
                                             : "Trích xuất tọa độ"
                                     }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-extract"
+                                    :disabled="resolvingLocationMap"
+                                    @click="useCurrentLocationForChange"
+                                >
+                                    <AppIcon name="mapPin" size="15" />
+                                    Lấy vị trí hiện tại
                                 </button>
                             </div>
                             <p
@@ -2114,6 +2358,95 @@
                                 placeholder="Mô tả lý do bạn muốn đổi vị trí..."
                                 required
                             ></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
+                            <p class="map-help-text">
+                                Bắt buộc tải giấy ĐKKD/giấy cập nhật kinh doanh hoặc hình ảnh minh chứng vị trí mới.
+                            </p>
+                            <div class="document-upload-grid">
+                                <label class="document-upload-card">
+                                    <span>Giấy pháp lý / ĐKKD</span>
+                                    <input
+                                        ref="locationLegalInput"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                        @change="handleLocationDocumentSelect('legal', $event)"
+                                    />
+                                </label>
+                                <label class="document-upload-card">
+                                    <span>Minh chứng vị trí / mặt bằng</span>
+                                    <input
+                                        ref="locationPremiseInput"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                        @change="handleLocationDocumentSelect('premise', $event)"
+                                    />
+                                </label>
+                                <label class="document-upload-card">
+                                    <span>Tài liệu bổ sung khác</span>
+                                    <input
+                                        ref="locationExtraInput"
+                                        type="file"
+                                        multiple
+                                        accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                        @change="handleLocationDocumentSelect('extra', $event)"
+                                    />
+                                </label>
+                            </div>
+                            <input
+                                v-if="false"
+                                ref="locationSupplementInput"
+                                type="file"
+                                class="form-control"
+                                multiple
+                                accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+                                @change="handleLocationSupplementSelect"
+                            />
+                            <div v-if="locationSupplementFiles.length" class="supplement-file-list">
+                                <button
+                                    v-for="file in locationSupplementFiles"
+                                    :key="file.name + file.size"
+                                    type="button"
+                                    title="Nhấp đôi để xem file"
+                                    @dblclick="previewLocalFile(file)"
+                                >{{ file.name }}</button>
+                            </div>
+                        </div>
+                        <div v-if="false" class="request-preview-gate">
+                            <div>
+                                <strong>Xem đơn yêu cầu trước khi ký</strong>
+                                <p>Hệ thống sẽ sinh file từ địa chỉ, tọa độ và giấy tờ bạn vừa nhập. Bạn cần mở và đọc file trước khi ký/gửi.</p>
+                            </div>
+                            <button type="button" class="btn btn-outline" :disabled="locationPreviewing" @click="previewLocationRequest">
+                                <AppIcon name="eye" size="16" />
+                                {{ locationPreviewing ? "Đang tạo đơn..." : "Xem đơn" }}
+                            </button>
+                            <span :class="locationPreviewLoaded ? 'signature-ok' : 'signature-missing'">
+                                {{ locationPreviewLoaded ? "Đã xem đơn" : "Chưa xem đơn" }}
+                            </span>
+                        </div>
+                        <div v-if="false" class="form-group request-signature-group" :class="{ 'request-signature-disabled': !locationPreviewLoaded }">
+                            <label>Ký xác nhận yêu cầu <span class="required">*</span></label>
+                            <p class="map-help-text">
+                                Chủ sân ký xác nhận thông tin vị trí mới và giấy tờ đính kèm là chính xác.
+                            </p>
+                            <canvas
+                                ref="locationSignatureCanvas"
+                                class="request-signature-pad"
+                                @pointerdown="startSignatureDraw($event, 'locationSignatureCanvas', 'locationSignatureDirty')"
+                                @pointermove="drawSignature"
+                                @pointerup="stopSignatureDraw"
+                                @pointerleave="stopSignatureDraw"
+                            ></canvas>
+                            <div class="request-signature-actions">
+                                <span :class="locationSignatureDirty ? 'signature-ok' : 'signature-missing'">
+                                    {{ locationSignatureDirty ? 'Đã có chữ ký' : 'Chưa có chữ ký' }}
+                                </span>
+                                <button type="button" class="btn btn-outline btn-sm" @click="clearSignature('locationSignatureCanvas', 'locationSignatureDirty')">Ký lại</button>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -2452,8 +2785,91 @@
             </div>
         </div>
 
+        <div v-if="supplementRequestTarget" class="modal-overlay" @click.self="closeSupplementRequestModal">
+            <div class="modal-content">
+                <form @submit.prevent="submitSupplementRequest">
+                    <div class="modal-header">
+                        <h3>Bổ sung giấy tờ</h3>
+                        <button type="button" class="modal-close" @click="closeSupplementRequestModal">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nội dung SportGo yêu cầu</label>
+                            <div class="readonly-note">
+                                {{ supplementRequestTarget.status_reason || 'SportGo yêu cầu bổ sung thêm giấy tờ/thông tin cho yêu cầu này.' }}
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Phản hồi của bạn</label>
+                            <textarea
+                                v-model="supplementRequestNote"
+                                class="form-control"
+                                rows="4"
+                                placeholder="Nhập nội dung giải trình hoặc ghi chú cho giấy tờ bổ sung..."
+                            ></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Giấy tờ bổ sung <span class="required">*</span></label>
+                            <input
+                                ref="supplementRequestInput"
+                                type="file"
+                                class="form-control"
+                                multiple
+                                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+                                @change="handleSupplementRequestFiles"
+                            />
+                            <div v-if="supplementRequestFiles.length" class="supplement-file-list">
+                                <button
+                                    v-for="file in supplementRequestFiles"
+                                    :key="`${file.name}-${file.size}`"
+                                    type="button"
+                                    title="Nhấp đôi để xem file"
+                                    @dblclick="previewLocalFile(file)"
+                                >{{ file.name }}</button>
+                            </div>
+                        </div>
+                        <div v-if="false" class="form-group request-signature-group">
+                            <label>Ký xác nhận bổ sung <span class="required">*</span></label>
+                            <p class="map-help-text">
+                                Chủ sân ký xác nhận các tài liệu bổ sung mới là đúng và được phép nộp cho SportGo.
+                            </p>
+                            <canvas
+                                ref="supplementSignatureCanvas"
+                                class="request-signature-pad"
+                                @pointerdown="startSignatureDraw($event, 'supplementSignatureCanvas', 'supplementSignatureDirty')"
+                                @pointermove="drawSignature"
+                                @pointerup="stopSignatureDraw"
+                                @pointerleave="stopSignatureDraw"
+                            ></canvas>
+                            <div class="request-signature-actions">
+                                <span :class="supplementSignatureDirty ? 'signature-ok' : 'signature-missing'">
+                                    {{ supplementSignatureDirty ? 'Đã có chữ ký' : 'Chưa có chữ ký' }}
+                                </span>
+                                <button type="button" class="btn btn-outline btn-sm" @click="clearSignature('supplementSignatureCanvas', 'supplementSignatureDirty')">Ký lại</button>
+                            </div>
+                        </div>
+                        <div v-if="supplementRequestError" class="error-message">
+                            {{ supplementRequestError }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline" @click="closeSupplementRequestModal">Hủy</button>
+                        <button type="submit" class="btn btn-primary" :disabled="supplementRequestSubmitting">
+                            {{ supplementRequestSubmitting ? "Đang gửi..." : "Gửi bổ sung" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Nut noi hanh dong cum san -->
         <ClusterActionFloating :is-locked="isClusterLocked" @action="triggerAction" />
+        <PartnerFilePreviewDialog
+            :show="documentPreviewOpen"
+            :document="previewDocument"
+            @close="closeRequestDocument"
+            @loaded="handleRequestDocumentLoaded"
+        />
     </div>
 </template>
 
@@ -2464,14 +2880,17 @@ import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
 import FloatAddButton from "../../components/FloatAddButton.vue";
 import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
+import PartnerFilePreviewDialog from "../../components/partner/PartnerFilePreviewDialog.vue";
+import BaseCombobox from "../../components/BaseCombobox.vue";
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
+import { api, apiDownload } from "../../services/api";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating, PartnerFilePreviewDialog, BaseCombobox },
     data() {
         return {
             // Cluster list
@@ -2479,6 +2898,8 @@ export default {
             selectedCluster: null,
             loading: true,
             error: null,
+            documentPreviewOpen: false,
+            previewDocument: null,
  
             // Tabs
             activeTab: "info",
@@ -2582,9 +3003,20 @@ export default {
             approvalRequests: [],
             approvalFilter: "",
             approvalsLoading: false,
-            newReqForm: { court_type_id: "", name: "", note: "" },
+            newReqForm: {
+                requested_courts: [{ local_id: "court-1", court_type_id: "", name: "" }],
+                removed_court_ids: [],
+                note: "",
+            },
             evidenceFile: null,
             evidencePreview: null,
+            scaleDocumentFiles: { legal: [], premise: [], extra: [] },
+            scaleSupplementFiles: [],
+            scaleSignatureDirty: false,
+            scalePreviewDocument: null,
+            scalePreviewLoaded: false,
+            scalePreviewing: false,
+            scalePreviewKey: "",
             newReqSuccess: null,
             newReqError: null,
             creatingReq: false,
@@ -2600,10 +3032,19 @@ export default {
             showLocationModal: false,
             locationSubmitting: false,
             locationModalError: null,
+            locationDocumentFiles: { legal: [], premise: [], extra: [] },
+            locationSupplementFiles: [],
+            locationSignatureDirty: false,
+            locationPreviewDocument: null,
+            locationPreviewLoaded: false,
+            locationPreviewing: false,
+            locationPreviewKey: "",
             resolvingLocationMap: false,
             locationMapMsg: null,
             locationForm: {
+                new_province_code: "",
                 new_province: "",
+                new_ward_code: "",
                 new_ward: "",
                 new_address: "",
                 new_map_url: "",
@@ -2615,10 +3056,6 @@ export default {
             locationMarker: null,
             provincesList: [],
             wardsList: [],
-            provinceSearch: "",
-            wardSearch: "",
-            showProvinceDropdown: false,
-            showWardDropdown: false,
 
             // Unlock Requests State
             unlockRequests: [],
@@ -2642,6 +3079,14 @@ export default {
             uploadingTempImage: false,
             infoRequests: [],
             infoFilter: "",
+            supplementRequestType: "",
+            supplementRequestTarget: null,
+            supplementRequestNote: "",
+            supplementRequestFiles: [],
+            supplementSignatureDirty: false,
+            signatureDrawing: null,
+            supplementRequestError: "",
+            supplementRequestSubmitting: false,
         };
     },
 
@@ -2698,6 +3143,9 @@ export default {
                 (c) => c.layout_x === null || c.layout_y === null,
             );
         },
+        removableCourts() {
+            return (this.courts || []).filter((court) => court.status !== "inactive");
+        },
         collisions() {
             const collisionMap = {};
             const placed = this.placedCourts;
@@ -2725,6 +3173,13 @@ export default {
                 }))
                 .filter((g) => g.children.length > 0);
         },
+        leafCourtTypeOptions() {
+            const types = this.courtTypes || [];
+            const parentIds = new Set(types.map((type) => type.parent_id).filter(Boolean));
+            return types
+                .filter((type) => type.is_active !== false && !parentIds.has(type.id))
+                .map((type) => ({ ...type, value: type.id, label: type.name }));
+        },
         selectedReqCourtType() {
             return (
                 this.courtTypes.find(
@@ -2739,7 +3194,7 @@ export default {
             );
         },
         pendingApprovalCount() {
-            return this.approvalRequests.filter((r) => r.status === "pending")
+            return this.approvalRequests.filter((r) => ["pending_owner_signature", "pending"].includes(r.status))
                 .length;
         },
         filteredLocationRequests() {
@@ -2749,22 +3204,14 @@ export default {
             );
         },
         pendingLocationCount() {
-            return this.locationRequests.filter((r) => r.status === "pending")
+            return this.locationRequests.filter((r) => ["pending_owner_signature", "pending"].includes(r.status))
                 .length;
         },
-        filteredProvinces() {
-            const query = (this.provinceSearch || "").toLowerCase().trim();
-            if (!query) return this.provincesList;
-            return this.provincesList.filter(p => 
-                p.name.toLowerCase().includes(query)
-            );
+        provinceOptions() {
+            return this.provincesList.map((p) => ({ ...p, value: p.code, label: p.name }));
         },
-        filteredWards() {
-            const query = (this.wardSearch || "").toLowerCase().trim();
-            if (!query) return this.wardsList;
-            return this.wardsList.filter(w => 
-                w.name.toLowerCase().includes(query)
-            );
+        wardOptions() {
+            return this.wardsList.map((w) => ({ ...w, value: w.code, label: w.name }));
         },
         courtTypeStats() {
             if (!this.courts) return [];
@@ -2789,6 +3236,18 @@ export default {
         },
         "locationForm.new_longitude"() {
             this.updateLocationModalMapMarker();
+        },
+        newReqForm: {
+            deep: true,
+            handler() {
+                this.resetScalePreview();
+            },
+        },
+        locationForm: {
+            deep: true,
+            handler() {
+                this.resetLocationPreview();
+            },
         },
         activeTab(newTab) {
             if (newTab === "courts" && this.selectedCluster) {
@@ -2823,6 +3282,7 @@ export default {
             this.onOwnerClusterChanged,
         );
         window.addEventListener('keydown', this.handleCanvasKeydown);
+        window.addEventListener('resize', this.refreshReadonlyMapSize);
     },
 
     beforeUnmount() {
@@ -2832,10 +3292,57 @@ export default {
             this.onOwnerClusterChanged,
         );
         window.removeEventListener('keydown', this.handleCanvasKeydown);
+        window.removeEventListener('resize', this.refreshReadonlyMapSize);
         this.destroyMap();
     },
 
     methods: {
+        searchToken(value) {
+            return String(value || "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase()
+                .trim();
+        },
+
+        validateRequestFiles(files, options = {}) {
+            const list = Array.from(files || []);
+            const maxFiles = options.maxFiles || 10;
+            const maxBytes = options.maxBytes || 10 * 1024 * 1024;
+            const label = options.label || "file";
+            const allowed = options.allowed || [
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "application/pdf",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ];
+
+            if (list.length > maxFiles) {
+                return `Chỉ được chọn tối đa ${maxFiles} ${label}.`;
+            }
+
+            const tooLarge = list.find((file) => file.size > maxBytes);
+            if (tooLarge) {
+                return `${tooLarge.name} vượt quá dung lượng ${Math.round(maxBytes / 1024 / 1024)}MB.`;
+            }
+
+            const invalid = list.find((file) => !allowed.includes(file.type) && !/\.(jpe?g|png|webp|pdf|docx?)$/i.test(file.name));
+            if (invalid) {
+                return `${invalid.name} không đúng định dạng cho phép.`;
+            }
+
+            return "";
+        },
+
+        previewLocalFile(file) {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            window.open(url, "_blank", "noopener");
+            window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        },
+
         // ── Cluster list ──
         async fetchClusters() {
             this.loading = true;
@@ -2950,6 +3457,52 @@ export default {
             if (cluster) this.selectCluster(cluster);
         },
 
+        clusterInitial(cluster) {
+            return String(cluster?.name || "S")
+                .trim()
+                .charAt(0)
+                .toUpperCase();
+        },
+
+        clusterCourtCount(cluster) {
+            if (!cluster) return 0;
+            if (typeof cluster.court_count === "number") return cluster.court_count;
+            if (Array.isArray(cluster.courts)) return cluster.courts.length;
+            if (this.selectedCluster && String(cluster.id) === String(this.selectedCluster.id)) {
+                return this.courts.length;
+            }
+            return 0;
+        },
+
+        clusterStatusLabel(cluster) {
+            const status = cluster?.status || "active";
+            return {
+                active: "Đang hoạt động",
+                inactive: "Tạm khóa",
+                locked: "Đang khóa",
+                maintenance: "Bảo trì",
+                pending: "Chờ duyệt",
+            }[status] || status;
+        },
+
+        clusterStatusClass(cluster) {
+            return `status-${cluster?.status || "active"}`;
+        },
+
+        clusterPrimaryImage(cluster) {
+            const media = Array.isArray(cluster?.media) ? cluster.media : [];
+            const image = media.find((item) => item.file_path && !item.file_path.includes("default-home.jpg"));
+            return image ? this.imageUrl(image.file_path) : "";
+        },
+
+        tabBadgeCount(key) {
+            return {
+                approvals: this.pendingApprovalCount,
+                location: this.pendingLocationCount,
+                info_requests: this.pendingInfoCount,
+                unlock: this.pendingUnlockCount,
+            }[key] || 0;
+        },
         formatFullAddress(cluster) {
             if (!cluster) return "";
             return (
@@ -3167,6 +3720,7 @@ export default {
         statusLabel(status) {
             return {
                 pending: "Đang chờ duyệt",
+                need_supplement: "Cần bổ sung",
                 approved: "Đã chấp nhận",
                 rejected: "Bị từ chối",
                 cancelled: "Đã hủy",
@@ -3277,8 +3831,11 @@ export default {
 
         async fetchProvinces() {
             try {
-                const res = await fetch("/api/locations/provinces").then((r) => r.json());
+                const res = await api("/api/user/partner-application/provinces");
                 this.provincesList = res.data || [];
+                if (this.locationForm.new_province_code && !this.wardsList.length) {
+                    await this.fetchWards(this.locationForm.new_province_code);
+                }
             } catch (err) {
                 console.error("Lỗi khi tải danh mục tỉnh thành:", err);
             }
@@ -3290,7 +3847,7 @@ export default {
                 return;
             }
             try {
-                const res = await fetch(`/api/locations/wards?province_code=${provinceCode}`).then((r) => r.json());
+                const res = await api(`/api/user/partner-application/provinces/${provinceCode}/wards`);
                 this.wardsList = res.data || [];
             } catch (err) {
                 console.error("Lỗi khi tải danh mục xã phường:", err);
@@ -3299,44 +3856,48 @@ export default {
         },
 
         async onProvinceChange() {
-            const selectedProvinceName = this.locationForm.new_province;
-            const province = this.provincesList.find(
-                (p) => p.name === selectedProvinceName,
-            );
+            const provinceCode = this.locationForm.new_province_code;
+            const province = this.provincesList.find((p) => String(p.code) === String(provinceCode));
+            this.locationForm.new_province = province?.name || "";
+            this.locationForm.new_ward_code = "";
             this.locationForm.new_ward = "";
-            this.wardSearch = "";
-            if (province) {
-                await this.fetchWards(province.code);
+            if (provinceCode) {
+                await this.fetchWards(provinceCode);
             } else {
                 this.wardsList = [];
             }
+            this.resetLocationPreview();
         },
 
-        closeProvinceDropdown() {
-            setTimeout(() => {
-                this.showProvinceDropdown = false;
-                this.provinceSearch = this.locationForm.new_province;
-            }, 200);
+        onWardChange() {
+            const ward = this.wardsList.find((w) => String(w.code) === String(this.locationForm.new_ward_code));
+            this.locationForm.new_ward = ward?.name || "";
+            this.resetLocationPreview();
         },
 
-        closeWardDropdown() {
-            setTimeout(() => {
-                this.showWardDropdown = false;
-                this.wardSearch = this.locationForm.new_ward;
-            }, 200);
+        findProvinceByName(name) {
+            const token = this.searchToken(name);
+            return this.provincesList.find((p) => this.searchToken(p.name) === token)
+                || this.provincesList.find((p) => {
+                    const provinceToken = this.searchToken(p.name);
+                    return provinceToken.includes(token) || token.includes(provinceToken);
+                });
         },
 
-        selectProvince(province) {
-            this.locationForm.new_province = province.name;
-            this.provinceSearch = province.name;
-            this.showProvinceDropdown = false;
-            this.onProvinceChange();
+        findWardByName(name) {
+            const token = this.searchToken(name);
+            return this.wardsList.find((w) => this.searchToken(w.name) === token)
+                || this.wardsList.find((w) => {
+                    const wardToken = this.searchToken(w.name);
+                    return wardToken.includes(token) || token.includes(wardToken);
+                });
         },
 
-        selectWard(ward) {
-            this.locationForm.new_ward = ward.name;
-            this.wardSearch = ward.name;
-            this.showWardDropdown = false;
+        syncLocationNamesFromCodes() {
+            const province = this.provincesList.find((p) => String(p.code) === String(this.locationForm.new_province_code));
+            const ward = this.wardsList.find((w) => String(w.code) === String(this.locationForm.new_ward_code));
+            this.locationForm.new_province = province?.name || this.locationForm.new_province || "";
+            this.locationForm.new_ward = ward?.name || this.locationForm.new_ward || "";
         },
 
         openRequestModal() {
@@ -3461,8 +4022,8 @@ export default {
             if (!this.map) {
                 this.map = window.L.map("cluster-map", { scrollWheelZoom: false }).setView([lat, lng], 15);
                 window.L.tileLayer(
-                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    { attribution: "&copy; OpenStreetMap contributors" },
+                    "https://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
+                    { attribution: "&copy; Google Maps" },
                 ).addTo(this.map);
                 this.marker = window.L.marker([lat, lng], {
                     draggable: false,
@@ -3471,11 +4032,23 @@ export default {
                 this.map.setView([lat, lng], 15);
                 this.marker.setLatLng([lat, lng]);
             }
-            setTimeout(() => {
-                if (this.map) this.map.invalidateSize();
-            }, 100);
+            this.refreshReadonlyMapSize();
         },
 
+        refreshReadonlyMapSize() {
+            if (!this.map) return;
+            const refresh = () => {
+                if (!this.map) return;
+                this.map.invalidateSize({ pan: false });
+            };
+            this.$nextTick(() => {
+                refresh();
+                window.requestAnimationFrame(refresh);
+                window.setTimeout(refresh, 120);
+                window.setTimeout(refresh, 320);
+                window.setTimeout(refresh, 700);
+            });
+        },
         updateMapMarker() {
             if (this.map && this.marker) {
                 const lat = parseFloat(this.form.latitude);
@@ -3530,30 +4103,20 @@ export default {
                     "location-change-modal-map",
                 ).setView([lat, lng], 15);
                 window.L.tileLayer(
-                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    { attribution: "&copy; OpenStreetMap contributors" },
+                    "https://mt0.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}",
+                    { attribution: "&copy; Google Maps" },
                 ).addTo(this.locationMap);
                 this.locationMarker = window.L.marker([lat, lng], {
                     draggable: true,
                 }).addTo(this.locationMap);
                 this.locationMarker.on("dragend", (e) => {
                     const p = e.target.getLatLng();
-                    this.locationForm.new_latitude = parseFloat(
-                        p.lat.toFixed(7),
-                    );
-                    this.locationForm.new_longitude = parseFloat(
-                        p.lng.toFixed(7),
-                    );
+                    this.applyLocationPoint(p);
                 });
                 this.locationMap.on("click", (e) => {
                     const p = e.latlng;
                     this.locationMarker.setLatLng(p);
-                    this.locationForm.new_latitude = parseFloat(
-                        p.lat.toFixed(7),
-                    );
-                    this.locationForm.new_longitude = parseFloat(
-                        p.lng.toFixed(7),
-                    );
+                    this.applyLocationPoint(p);
                 });
             } else {
                 this.locationMap.setView([lat, lng], 15);
@@ -3562,6 +4125,62 @@ export default {
             setTimeout(() => {
                 if (this.locationMap) this.locationMap.invalidateSize();
             }, 100);
+        },
+
+        async applyLocationPoint(point) {
+            const lat = parseFloat(point.lat.toFixed(7));
+            const lng = parseFloat(point.lng.toFixed(7));
+            this.locationForm.new_latitude = lat;
+            this.locationForm.new_longitude = lng;
+            this.locationForm.new_map_url = this.googleMapsPointUrl(lat, lng);
+            this.resetLocationPreview();
+            this.locationMapMsg = {
+                type: "success",
+                text: `Đã chọn vị trí mới: ${lat}, ${lng}`,
+            };
+            this.reverseLocationPoint(lat, lng);
+        },
+
+        async reverseLocationPoint(lat, lng) {
+            try {
+                const res = await venueClusterService.reverseMapPoint(lat, lng);
+                const data = res.data || {};
+                if (data.address) {
+                    this.locationForm.new_address = data.address;
+                }
+                if (data.province) {
+                    const province = data.province_code
+                        ? this.provincesList.find((p) => p.code === data.province_code)
+                        : this.findProvinceByName(data.province);
+                    this.locationForm.new_province_code = province?.code || data.province_code || "";
+                    this.locationForm.new_province = province?.name || data.province;
+                    this.locationForm.new_ward_code = "";
+                    this.locationForm.new_ward = "";
+                    if (province) {
+                        await this.fetchWards(province.code);
+                    }
+                }
+                if (data.ward) {
+                    const ward = data.ward_code
+                        ? this.wardsList.find((w) => String(w.code) === String(data.ward_code))
+                        : this.findWardByName(data.ward);
+                    this.locationForm.new_ward_code = ward?.code || data.ward_code || "";
+                    this.locationForm.new_ward = ward?.name || data.ward;
+                }
+                this.locationMapMsg = {
+                    type: "success",
+                    text: `Đã chọn vị trí và cập nhật địa chỉ: ${lat}, ${lng}`,
+                };
+            } catch (error) {
+                this.locationMapMsg = {
+                    type: "success",
+                    text: `Đã chọn tọa độ ${lat}, ${lng}. Không tự lấy được địa chỉ, vui lòng kiểm tra lại tỉnh/phường/địa chỉ.`,
+                };
+            }
+        },
+
+        googleMapsPointUrl(lat, lng) {
+            return `https://www.google.com/maps?q=${lat},${lng}`;
         },
 
         updateLocationModalMapMarker() {
@@ -4454,6 +5073,7 @@ export default {
             }
             this.evidenceFile = file;
             this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
         },
         handleEvidenceDrop(e) {
             const file = e.dataTransfer.files[0];
@@ -4464,6 +5084,7 @@ export default {
             }
             this.evidenceFile = file;
             this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
         },
         removeEvidence() {
             this.evidenceFile = null;
@@ -4474,38 +5095,599 @@ export default {
             if (this.$refs.evidenceInput) {
                 this.$refs.evidenceInput.value = '';
             }
+            this.resetScalePreview();
+        },
+        handleScaleSupplementSelect(e) {
+            this.scaleSupplementFiles = Array.from(e.target.files || []);
+            this.resetScalePreview();
+        },
+        clearScaleSupplementFiles() {
+            this.scaleDocumentFiles = { legal: [], premise: [], extra: [] };
+            this.scaleSupplementFiles = [];
+            ["scaleSupplementInput", "scaleLegalInput", "scalePremiseInput", "scaleExtraInput"].forEach((refName) => {
+                if (this.$refs[refName]) this.$refs[refName].value = '';
+            });
+            this.resetScalePreview();
+        },
+        handleLocationSupplementSelect(e) {
+            this.locationSupplementFiles = Array.from(e.target.files || []);
+            this.resetLocationPreview();
+        },
+        clearLocationSupplementFiles() {
+            this.locationDocumentFiles = { legal: [], premise: [], extra: [] };
+            this.locationSupplementFiles = [];
+            ["locationSupplementInput", "locationLegalInput", "locationPremiseInput", "locationExtraInput"].forEach((refName) => {
+                if (this.$refs[refName]) this.$refs[refName].value = '';
+            });
+            this.resetLocationPreview();
+        },
+        handleEvidenceSelect(e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const error = this.validateRequestFiles([file], {
+                maxFiles: 1,
+                maxBytes: 5 * 1024 * 1024,
+                label: "anh minh chung",
+                allowed: ["image/jpeg", "image/png", "image/webp"],
+            });
+            if (error) {
+                this.newReqError = error;
+                e.target.value = "";
+                return;
+            }
+            this.newReqError = null;
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
+        },
+        handleEvidenceDrop(e) {
+            const file = e.dataTransfer.files?.[0];
+            if (!file) return;
+            const error = this.validateRequestFiles([file], {
+                maxFiles: 1,
+                maxBytes: 5 * 1024 * 1024,
+                label: "anh minh chung",
+                allowed: ["image/jpeg", "image/png", "image/webp"],
+            });
+            if (error) {
+                this.newReqError = error;
+                return;
+            }
+            this.newReqError = null;
+            this.evidenceFile = file;
+            this.evidencePreview = URL.createObjectURL(file);
+            this.resetScalePreview();
+        },
+        handleScaleSupplementSelect(e) {
+            const files = Array.from(e.target.files || []);
+            const error = this.validateRequestFiles(files, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.newReqError = error;
+                e.target.value = "";
+                return;
+            }
+            this.newReqError = null;
+            this.scaleSupplementFiles = files;
+            this.resetScalePreview();
+        },
+        handleScaleDocumentSelect(group, e) {
+            const files = Array.from(e.target.files || []);
+            const nextFiles = {
+                ...this.scaleDocumentFiles,
+                [group]: files,
+            };
+            const allFiles = Object.values(nextFiles).flat();
+            const error = this.validateRequestFiles(allFiles, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.newReqError = error;
+                e.target.value = "";
+                return;
+            }
+            this.newReqError = null;
+            this.scaleDocumentFiles = nextFiles;
+            this.scaleSupplementFiles = allFiles;
+            this.resetScalePreview();
+        },
+        handleLocationSupplementSelect(e) {
+            const files = Array.from(e.target.files || []);
+            const error = this.validateRequestFiles(files, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.locationModalError = error;
+                e.target.value = "";
+                return;
+            }
+            this.locationModalError = null;
+            this.locationSupplementFiles = files;
+            this.resetLocationPreview();
+        },
+        handleLocationDocumentSelect(group, e) {
+            const files = Array.from(e.target.files || []);
+            const nextFiles = {
+                ...this.locationDocumentFiles,
+                [group]: files,
+            };
+            const allFiles = Object.values(nextFiles).flat();
+            const error = this.validateRequestFiles(allFiles, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.locationModalError = error;
+                e.target.value = "";
+                return;
+            }
+            this.locationModalError = null;
+            this.locationDocumentFiles = nextFiles;
+            this.locationSupplementFiles = allFiles;
+            this.resetLocationPreview();
+        },
+        prepareSignatureCanvas(refName, force = false) {
+            const canvas = this.$refs[refName];
+            if (!canvas) return;
+            const width = Math.max(360, Math.floor(canvas.clientWidth || canvas.offsetWidth || 620));
+            const height = Math.max(160, Math.floor(canvas.clientHeight || canvas.offsetHeight || 180));
+            if (force || canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#0f172a';
+            }
+        },
+        signaturePoint(event, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+                y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+            };
+        },
+        startSignatureDraw(event, refName, dirtyKey) {
+            const canvas = this.$refs[refName];
+            if (!canvas) return;
+            event.preventDefault();
+            this.prepareSignatureCanvas(refName);
+            const point = this.signaturePoint(event, canvas);
+            const ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.moveTo(point.x, point.y);
+            this.signatureDrawing = { refName, dirtyKey, x: point.x, y: point.y };
+            this[dirtyKey] = true;
+            event.currentTarget?.setPointerCapture?.(event.pointerId);
+        },
+        drawSignature(event) {
+            if (!this.signatureDrawing) return;
+            const canvas = this.$refs[this.signatureDrawing.refName];
+            if (!canvas) return;
+            event.preventDefault();
+            const point = this.signaturePoint(event, canvas);
+            const ctx = canvas.getContext('2d');
+            ctx.lineTo(point.x, point.y);
+            ctx.stroke();
+            this.signatureDrawing.x = point.x;
+            this.signatureDrawing.y = point.y;
+        },
+        stopSignatureDraw() {
+            this.signatureDrawing = null;
+        },
+        clearSignature(refName, dirtyKey) {
+            this.prepareSignatureCanvas(refName, true);
+            this[dirtyKey] = false;
+        },
+        signatureData(refName) {
+            const canvas = this.$refs[refName];
+            return canvas ? canvas.toDataURL('image/png') : null;
         },
 
-        openCreateApprovalModal() {
-            this.newReqForm = { court_type_id: "", name: "", note: "" };
+        openSupplementRequestModal(type, req) {
+            this.supplementRequestType = type;
+            this.supplementRequestTarget = req;
+            this.supplementRequestNote = "";
+            this.supplementRequestFiles = [];
+            this.supplementSignatureDirty = false;
+            this.supplementRequestError = "";
+            this.$nextTick(() => {
+                if (this.$refs.supplementRequestInput) {
+                    this.$refs.supplementRequestInput.value = "";
+                }
+                this.prepareSignatureCanvas('supplementSignatureCanvas', true);
+            });
+        },
+        closeSupplementRequestModal() {
+            this.supplementRequestTarget = null;
+            this.supplementRequestType = "";
+            this.supplementRequestNote = "";
+            this.supplementRequestFiles = [];
+            this.supplementSignatureDirty = false;
+            this.supplementRequestError = "";
+        },
+        handleSupplementRequestFiles(e) {
+            const files = Array.from(e.target.files || []);
+            const error = this.validateRequestFiles(files, {
+                maxFiles: 10,
+                maxBytes: 10 * 1024 * 1024,
+                label: "giay to",
+            });
+            if (error) {
+                this.supplementRequestError = error;
+                e.target.value = "";
+                return;
+            }
+            this.supplementRequestFiles = files;
+            this.supplementRequestError = "";
+        },
+        async submitSupplementRequest() {
+            if (!this.supplementRequestTarget || !this.selectedCluster) return;
+            if (!this.supplementRequestFiles.length) {
+                this.supplementRequestError = "Vui lòng chọn ít nhất một giấy tờ bổ sung.";
+                return;
+            }
+
+            this.supplementRequestSubmitting = true;
+            this.supplementRequestError = "";
+            try {
+                const formData = new FormData();
+                if (this.supplementRequestNote.trim()) {
+                    formData.append("note", this.supplementRequestNote.trim());
+                }
+                this.supplementRequestFiles.forEach((file) => {
+                    formData.append("supplementary_documents[]", file);
+                });
+                const res = this.supplementRequestType === "location"
+                    ? await venueClusterService.supplementLocationChangeRequest(this.selectedCluster.id, this.supplementRequestTarget.id, formData)
+                    : await venueClusterService.supplementApprovalRequest(this.selectedCluster.id, this.supplementRequestTarget.id, formData);
+
+                const list = this.supplementRequestType === "location" ? this.locationRequests : this.approvalRequests;
+                const idx = list.findIndex((item) => item.id === this.supplementRequestTarget.id);
+                if (idx !== -1) list.splice(idx, 1, res.data);
+                this.closeSupplementRequestModal();
+                this.openRequestDocument(res.data?.generated_document, res.data?.partner_application_id);
+            } catch (err) {
+                this.supplementRequestError = err.message || "Không gửi được giấy tờ bổ sung.";
+            } finally {
+                this.supplementRequestSubmitting = false;
+            }
+        },
+
+        openRequestDocument(document, partnerApplicationId = null) {
+            if (!document) return;
+            const applicationId = partnerApplicationId || document.partner_application_id;
+            if (document.status === "pending_owner_signature" && applicationId && document.id) {
+                this.$router.push({
+                    name: "owner-partner-document",
+                    params: { id: applicationId, documentId: document.id },
+                    query: { from: "venue-change" },
+                });
+                return;
+            }
+            this.previewDocument = {
+                ...document,
+                title: document.title || "Đơn yêu cầu thay đổi hồ sơ",
+                download_url: document.download_url || `/api/files/documents/${document.id}/download`,
+            };
+            this.documentPreviewOpen = true;
+        },
+
+        requestDocumentActionLabel(document) {
+            return document?.status === "pending_owner_signature" ? "Ký" : "Xem";
+        },
+
+        closeRequestDocument() {
+            this.documentPreviewOpen = false;
+            this.previewDocument = null;
+        },
+
+        downloadRequestDocument(document) {
+            const url = document?.download_url || (document?.id ? `/api/files/documents/${document.id}/download` : "");
+            if (url) apiDownload(url);
+        },
+
+        downloadSupplementDocument(document) {
+            if (document?.download_url) {
+                apiDownload(document.download_url);
+            }
+        },
+
+        handleRequestDocumentLoaded(document) {
+            if (!document?.id) return;
+            if (this.scalePreviewDocument?.id === document.id) {
+                this.scalePreviewLoaded = true;
+            }
+            if (this.locationPreviewDocument?.id === document.id) {
+                this.locationPreviewLoaded = true;
+            }
+        },
+
+        resetScalePreview() {
+            this.scalePreviewDocument = null;
+            this.scalePreviewLoaded = false;
+            this.scalePreviewKey = "";
+        },
+
+        resetLocationPreview() {
+            this.locationPreviewDocument = null;
+            this.locationPreviewLoaded = false;
+            this.locationPreviewKey = "";
+        },
+
+        fileListKey(files) {
+            return (files || [])
+                .map((file) => `${file.name}:${file.size}:${file.lastModified || 0}`)
+                .join("|");
+        },
+
+        blankRequestedCourt() {
+            return {
+                local_id: `court-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                court_type_id: "",
+                name: "",
+            };
+        },
+
+        defaultScaleRequestForm() {
+            return {
+                requested_courts: [this.blankRequestedCourt()],
+                removed_court_ids: [],
+                note: "",
+            };
+        },
+
+        addedScaleCourts() {
+            return (this.newReqForm.requested_courts || [])
+                .map((court) => ({
+                    ...court,
+                    court_type_id: court.court_type_id ? Number(court.court_type_id) : "",
+                    name: String(court.name || "").trim(),
+                }))
+                .filter((court) => court.court_type_id || court.name);
+        },
+
+        currentScaleChangeType() {
+            const hasAdded = this.addedScaleCourts().length > 0;
+            const hasRemoved = (this.newReqForm.removed_court_ids || []).length > 0;
+            if (hasAdded && hasRemoved) return "mixed";
+            if (hasRemoved) return "remove";
+            return "add";
+        },
+
+        prepareScaleRequestForSubmit() {
+            const addedCourts = this.addedScaleCourts();
+            const hasRemoved = (this.newReqForm.removed_court_ids || []).length > 0;
+
+            if (!addedCourts.length && !hasRemoved) {
+                this.newReqError = "Vui lòng thêm ít nhất một sân hoặc chọn sân cần xóa.";
+                return false;
+            }
+
+            if (addedCourts.some((court) => !court.court_type_id || !court.name)) {
+                this.newReqError = "Vui lòng nhập đủ loại sân và tên sân cho từng sân muốn thêm.";
+                return false;
+            }
+
+            const firstCourt = addedCourts[0] || {};
+            this.newReqForm.change_type = this.currentScaleChangeType();
+            this.newReqForm.court_type_id = firstCourt.court_type_id || "";
+            this.newReqForm.name = firstCourt.name || "";
+
+            return true;
+        },
+
+        addRequestedCourt() {
+            this.newReqForm.requested_courts.push(this.blankRequestedCourt());
+        },
+
+        removeRequestedCourt(index) {
+            this.newReqForm.requested_courts.splice(index, 1);
+            if (!this.newReqForm.requested_courts.length) {
+                this.newReqForm.requested_courts.push(this.blankRequestedCourt());
+            }
+        },
+
+        scaleRequestKey() {
+            return JSON.stringify({
+                change_type: this.currentScaleChangeType(),
+                requested_courts: this.addedScaleCourts(),
+                removed_court_ids: this.newReqForm.removed_court_ids || [],
+                note: this.newReqForm.note || "",
+                evidence: this.evidenceFile ? this.fileListKey([this.evidenceFile]) : "",
+                files: this.fileListKey(this.scaleSupplementFiles),
+            });
+        },
+
+        locationRequestKey() {
+            return JSON.stringify({
+                ...this.locationForm,
+                files: this.fileListKey(this.locationSupplementFiles),
+            });
+        },
+
+        buildScaleRequestFormData(includeSignature = false) {
+            const formData = new FormData();
+            const addedCourts = this.addedScaleCourts();
+            const changeType = this.currentScaleChangeType();
+            formData.append('change_type', changeType);
+            if (addedCourts.length) {
+                formData.append('court_type_id', addedCourts[0].court_type_id);
+                formData.append('name', addedCourts[0].name);
+                addedCourts.forEach((court, index) => {
+                    formData.append(`requested_courts[${index}][court_type_id]`, court.court_type_id);
+                    formData.append(`requested_courts[${index}][name]`, court.name);
+                });
+            }
+            if (changeType !== "add") {
+                (this.newReqForm.removed_court_ids || []).forEach((id) => {
+                    formData.append('removed_court_ids[]', id);
+                });
+            }
+            if (this.newReqForm.note) {
+                formData.append('note', this.newReqForm.note);
+            }
+            if (this.evidenceFile) {
+                formData.append('evidence_image', this.evidenceFile);
+            }
+            this.scaleSupplementFiles.forEach((file) => {
+                formData.append('supplementary_documents[]', file);
+            });
+            if (includeSignature) {
+                formData.append('signature_image', this.signatureData('scaleSignatureCanvas'));
+                if (this.scalePreviewDocument?.id) {
+                    formData.append('preview_document_id', this.scalePreviewDocument.id);
+                }
+            }
+            return formData;
+        },
+
+        buildLocationRequestFormData(includeSignature = false) {
+            this.syncLocationNamesFromCodes();
+            const formData = new FormData();
+            Object.entries(this.locationForm).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    formData.append(key, value);
+                }
+            });
+            this.locationSupplementFiles.forEach((file) => {
+                formData.append('supplementary_documents[]', file);
+            });
+            if (includeSignature) {
+                formData.append('signature_image', this.signatureData('locationSignatureCanvas'));
+                if (this.locationPreviewDocument?.id) {
+                    formData.append('preview_document_id', this.locationPreviewDocument.id);
+                }
+            }
+            return formData;
+        },
+
+        async previewScaleRequest() {
+            if (!this.prepareScaleRequestForSubmit()) return;
+            const changeType = this.newReqForm.change_type || "add";
+            if (changeType !== "remove" && !this.newReqForm.court_type_id) {
+                this.newReqError = "Vui lòng chọn loại sân.";
+                return;
+            }
+            if (changeType !== "remove" && !this.newReqForm.name?.trim()) {
+                this.newReqError = "Vui lòng nhập tên sân cần mở rộng.";
+                return;
+            }
+            if (changeType !== "add" && !(this.newReqForm.removed_court_ids || []).length) {
+                this.newReqError = "Vui lòng chọn ít nhất một sân cần xóa bớt.";
+                return;
+            }
+            if (!this.evidenceFile) {
+                this.newReqError = "Vui lòng tải lên ảnh minh chứng quy mô sân.";
+                return;
+            }
+            if (!this.scaleSupplementFiles.length) {
+                this.newReqError = "Vui lòng tải lên giấy ĐKKD hoặc giấy cập nhật kinh doanh.";
+                return;
+            }
+
+            this.scalePreviewing = true;
+            this.newReqError = null;
+            try {
+                const key = this.scaleRequestKey();
+                const res = await venueClusterService.previewApprovalRequest(
+                    this.selectedCluster.id,
+                    this.buildScaleRequestFormData(false),
+                );
+                this.scalePreviewDocument = res.data;
+                this.scalePreviewLoaded = false;
+                this.scalePreviewKey = key;
+                this.openRequestDocument(res.data);
+            } catch (err) {
+                this.newReqError = err.message || "Không tạo được bản xem trước đơn yêu cầu.";
+            } finally {
+                this.scalePreviewing = false;
+            }
+        },
+
+        async previewLocationRequest() {
+            if (!this.locationSupplementFiles.length) {
+                this.locationModalError = "Vui lòng tải lên giấy tờ/hình ảnh minh chứng vị trí mới.";
+                return;
+            }
+            this.locationPreviewing = true;
+            this.locationModalError = null;
+            try {
+                const key = this.locationRequestKey();
+                const res = await venueClusterService.previewLocationChangeRequest(
+                    this.selectedCluster.id,
+                    this.buildLocationRequestFormData(false),
+                );
+                this.locationPreviewDocument = res.data;
+                this.locationPreviewLoaded = false;
+                this.locationPreviewKey = key;
+                this.openRequestDocument(res.data);
+            } catch (err) {
+                this.locationModalError = err.message || "Không tạo được bản xem trước đơn yêu cầu.";
+            } finally {
+                this.locationPreviewing = false;
+            }
+        },
+
+        async openCreateApprovalModal() {
+            this.newReqForm = this.defaultScaleRequestForm();
+            if (this.selectedCluster && !this.courts.length) {
+                await this.fetchCourts(this.selectedCluster.id);
+            }
             this.removeEvidence();
+            this.clearScaleSupplementFiles();
+            this.scaleSignatureDirty = false;
+            this.resetScalePreview();
             this.showCreateApprovalModal = true;
             this.newReqSuccess = null;
             this.newReqError = null;
+            this.$nextTick(() => this.prepareSignatureCanvas('scaleSignatureCanvas', true));
         },
 
         closeCreateApprovalModal() {
             this.showCreateApprovalModal = false;
+            this.resetScalePreview();
         },
 
         async handleCreateApproval() {
-            if (!this.newReqForm.court_type_id) {
+            if (!this.prepareScaleRequestForSubmit()) return;
+            const changeType = this.newReqForm.change_type || "add";
+            if (changeType !== "remove" && !this.newReqForm.court_type_id) {
                 this.newReqError = "Vui lòng chọn loại sân.";
+                return;
+            }
+            if (changeType !== "remove" && !this.newReqForm.name?.trim()) {
+                this.newReqError = "Vui lòng nhập tên sân cần thêm.";
+                return;
+            }
+            if (changeType !== "add" && !(this.newReqForm.removed_court_ids || []).length) {
+                this.newReqError = "Vui lòng chọn ít nhất một sân cần xóa bớt.";
+                return;
+            }
+            if (!this.evidenceFile) {
+                this.newReqError = "Vui lòng tải lên ảnh minh chứng quy mô sân.";
+                return;
+            }
+            if (!this.scaleSupplementFiles.length) {
+                this.newReqError = "Vui lòng tải lên giấy ĐKKD hoặc giấy cập nhật kinh doanh.";
                 return;
             }
             this.creatingReq = true;
             this.newReqError = null;
             this.newReqSuccess = null;
             try {
-                const formData = new FormData();
-                formData.append('court_type_id', this.newReqForm.court_type_id);
-                formData.append('name', this.newReqForm.name);
-                if (this.newReqForm.note) {
-                    formData.append('note', this.newReqForm.note);
-                }
-                if (this.evidenceFile) {
-                    formData.append('evidence_image', this.evidenceFile);
-                }
+                const formData = this.buildScaleRequestFormData(false);
                 const res = await venueClusterService.createApprovalRequest(
                     this.selectedCluster.id,
                     formData,
@@ -4513,9 +5695,11 @@ export default {
                 this.newReqSuccess =
                     "Gửi yêu cầu thành công! Admin sẽ xem xét và phê duyệt sớm.";
                 this.approvalRequests.unshift(res.data);
-                this.newReqForm = { court_type_id: "", name: "", note: "" };
+                this.newReqForm = this.defaultScaleRequestForm();
                 this.removeEvidence();
+                this.clearScaleSupplementFiles();
                 this.closeCreateApprovalModal();
+                this.openRequestDocument(res.data?.generated_document, res.data?.partner_application_id);
                 if (!this.courtTypes.length) {
                     const typesRes = await courtTypeService.getAll();
                     this.courtTypes = typesRes.data || [];
@@ -4547,9 +5731,14 @@ export default {
         },
 
         approvalStatusLabel(status) {
+            if (status === "approved_pending_appendix") return "Da duyet, cho SportGo ky phu luc";
+            if (status === "pending_owner_signature") return "Chờ chủ sân ký";
+            if (status === "completed") return "Hoan tat thay doi";
+
             return (
                 {
                     pending: "Chờ duyệt",
+                    need_supplement: "Cần bổ sung",
                     approved: "Đã duyệt",
                     rejected: "Từ chối",
                     cancelled: "Đã hủy",
@@ -4580,8 +5769,18 @@ export default {
         async openLocationChangeModal() {
             this.locationModalError = null;
             this.locationMapMsg = null;
+            this.clearLocationSupplementFiles();
+            this.locationSignatureDirty = false;
+            if (!this.provincesList.length) {
+                await this.fetchProvinces();
+            }
+            const selectedProvince = this.selectedCluster.province_code
+                ? this.provincesList.find((p) => String(p.code) === String(this.selectedCluster.province_code))
+                : this.findProvinceByName(this.selectedCluster.province);
             this.locationForm = {
+                new_province_code: selectedProvince?.code || this.selectedCluster.province_code || "",
                 new_province: this.selectedCluster.province || "",
+                new_ward_code: this.selectedCluster.ward_code || "",
                 new_ward: this.selectedCluster.ward || "",
                 new_address: this.selectedCluster.address || "",
                 new_map_url: this.selectedCluster.map_url || "",
@@ -4593,42 +5792,51 @@ export default {
             };
             this.showLocationModal = true;
 
-            this.provinceSearch = this.locationForm.new_province;
-            this.wardSearch = this.locationForm.new_ward;
-
             this.wardsList = [];
-            if (this.locationForm.new_province) {
-                const province = this.provincesList.find(
-                    (p) => p.name === this.locationForm.new_province,
-                );
-                if (province) {
-                    await this.fetchWards(province.code);
+            if (this.locationForm.new_province_code) {
+                await this.fetchWards(this.locationForm.new_province_code);
+                if (!this.locationForm.new_ward_code && this.locationForm.new_ward) {
+                    const ward = this.findWardByName(this.locationForm.new_ward);
+                    this.locationForm.new_ward_code = ward?.code || "";
                 }
+                this.syncLocationNamesFromCodes();
             }
 
             this.$nextTick(() => {
                 this.initLocationModalMap();
+                this.prepareSignatureCanvas('locationSignatureCanvas', true);
             });
         },
 
         closeLocationChangeModal() {
             this.showLocationModal = false;
             this.destroyLocationMap();
+            this.clearLocationSupplementFiles();
+            this.locationSignatureDirty = false;
         },
 
         async handleLocationChangeSubmit() {
-            this.locationSubmitting = true;
             this.locationModalError = null;
+            if (!this.locationForm.new_province_code || !this.locationForm.new_ward_code) {
+                this.locationModalError = "Vui lòng chọn Tỉnh/Thành phố và Phường/Xã từ danh sách.";
+                return;
+            }
+            if (!this.locationSupplementFiles.length) {
+                this.locationModalError = "Vui lòng tải lên giấy tờ/hình ảnh minh chứng vị trí mới.";
+                return;
+            }
+            this.locationSubmitting = true;
             try {
+                const formData = this.buildLocationRequestFormData(false);
                 const res =
                     await venueClusterService.createLocationChangeRequest(
                         this.selectedCluster.id,
-                        this.locationForm,
+                        formData,
                     );
                 this.locationRequests.unshift(res.data);
                 this.closeLocationChangeModal();
-                // Chuyển sang tab location để xem yêu cầu vừa gửi
                 this.activeTab = "location";
+                this.openRequestDocument(res.data?.generated_document, res.data?.partner_application_id);
             } catch (err) {
                 this.locationModalError = err.message || "Lỗi khi gửi yêu cầu.";
             } finally {
@@ -4655,6 +5863,39 @@ export default {
             }
         },
 
+        async useCurrentLocationForChange() {
+            if (!navigator.geolocation) {
+                this.locationMapMsg = {
+                    type: "error",
+                    text: "Trình duyệt không hỗ trợ lấy vị trí hiện tại.",
+                };
+                return;
+            }
+
+            this.resolvingLocationMap = true;
+            this.locationMapMsg = null;
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    try {
+                        await this.applyLocationPoint({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        });
+                    } finally {
+                        this.resolvingLocationMap = false;
+                    }
+                },
+                (error) => {
+                    this.locationMapMsg = {
+                        type: "error",
+                        text: error?.message || "Không lấy được vị trí hiện tại. Vui lòng kiểm tra quyền truy cập vị trí.",
+                    };
+                    this.resolvingLocationMap = false;
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+            );
+        },
+
         async parseLocationCoords(url) {
             let targetUrl = url;
             if (
@@ -4665,8 +5906,10 @@ export default {
                     const res = await venueClusterService.resolveMapUrl(url);
                     const d = res.data;
                     if (d?.latitude && d?.longitude) {
-                        this.locationForm.new_latitude = d.latitude;
-                        this.locationForm.new_longitude = d.longitude;
+                        this.applyLocationPoint({
+                            lat: Number(d.latitude),
+                            lng: Number(d.longitude),
+                        });
                         this.locationMapMsg = {
                             type: "success",
                             text: `Trích xuất thành công: ${d.latitude}, ${d.longitude}`,
@@ -4684,8 +5927,10 @@ export default {
             }
             let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
             if (match) {
-                this.locationForm.new_latitude = parseFloat(match[1]);
-                this.locationForm.new_longitude = parseFloat(match[2]);
+                this.applyLocationPoint({
+                    lat: parseFloat(match[1]),
+                    lng: parseFloat(match[2]),
+                });
                 this.locationMapMsg = {
                     type: "success",
                     text: `Trích xuất thành công: ${match[1]}, ${match[2]}`,
@@ -4694,8 +5939,10 @@ export default {
             }
             match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             if (match) {
-                this.locationForm.new_latitude = parseFloat(match[1]);
-                this.locationForm.new_longitude = parseFloat(match[2]);
+                this.applyLocationPoint({
+                    lat: parseFloat(match[1]),
+                    lng: parseFloat(match[2]),
+                });
                 this.locationMapMsg = {
                     type: "success",
                     text: `Trích xuất thành công: ${match[1]}, ${match[2]}`,
@@ -4805,112 +6052,418 @@ export default {
 </script>
 
 <style scoped>
+h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
+    font-weight: 500 !important;
+}
+
 .venue-clusters-container {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1200px;
+    width: min(100%, 1440px);
     margin: 0 auto;
 }
 
 .card {
-    background: var(--admin-surface, #ffffff);
-    border-radius: 12px;
-    border: 1px solid var(--admin-border, #e5e7eb);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    padding: 24px;
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    padding: 16px 0;
 }
 
-/* ─── Layout ─── */
-.clusters-grid {
+.surface-card {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+}
+
+.section-eyebrow {
+    display: block;
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+/* Layout */
+.clusters-workspace {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     align-items: start;
 }
 
-@media (max-width: 900px) {
-    .clusters-grid {
-        grid-template-columns: 1fr;
-    }
+.clusters-rail {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.clusters-rail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.clusters-rail-head h2 {
+    margin: 4px 0 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+.rail-count {
+    min-width: 34px;
+    height: 34px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #f4f8f5);
+    color: var(--admin-text, #0f172a);
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .clusters-list {
-    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    position: sticky;
-    top: 20px;
+    gap: 6px;
+    padding: 10px;
+    overflow-y: auto;
 }
 
 .cluster-item {
-    display: flex;
+    width: 100%;
+    min-height: 74px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
     align-items: center;
-    padding: 14px 16px;
+    padding: 12px;
     border-radius: 8px;
-    cursor: pointer;
     border: 1px solid transparent;
-    transition: all 0.2s ease;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
-.cluster-item:hover {
-    background: var(--admin-hover, var(--sg-surface));
+
+.cluster-item.never-hover-class-placeholder {
+    background: var(--admin-hover, #f3f7f3);
+    border-color: var(--admin-border, #d8e4dc);
 }
+
+.cluster-item:focus-visible,
+.quick-stat:focus-visible,
+.tab-btn:focus-visible {
+    outline: 2px solid var(--admin-primary, #16351f);
+    outline-offset: 2px;
+}
+
 .cluster-item.active {
-    background: var(--admin-primary-soft, rgba(0, 0, 0, 0.05));
-    border-color: var(--admin-border, rgba(0, 0, 0, 0.2));
+    background: var(--admin-primary-soft, #eef8ef);
+    border-color: var(--admin-primary, #16351f);
 }
+
+.cluster-avatar {
+    width: 40px;
+    height: 40px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #16351f;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.cluster-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 .cluster-name {
+    color: var(--admin-text, #0f172a);
     font-size: 14px;
     font-weight: 700;
-    color: var(--admin-text, var(--sg-text));
-    margin: 0;
-}
-.cluster-address {
-    font-size: 12px;
-    color: var(--admin-faint, rgba(15, 23, 42, 0.5));
-    margin-top: 4px;
+    line-height: 1.3;
     overflow: hidden;
-    white-space: nowrap;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cluster-address,
+.cluster-meta-line {
+    color: var(--admin-faint, #64748b);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.cluster-address {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cluster-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #16a34a;
+}
+
+.status-dot.status-locked,
+.status-dot.status-inactive {
+    background: #dc2626;
+}
+
+.status-dot.status-maintenance,
+.status-dot.status-pending {
+    background: #d97706;
 }
 
 .cluster-detail {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-/* ─── Tabs ─── */
+.cluster-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+    gap: 18px;
+    padding: 18px;
+    overflow: hidden;
+}
+
+.cluster-hero-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+}
+
+.cluster-hero-kicker {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--admin-faint, #64748b);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #eaf7ef;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-pill.status-locked,
+.status-pill.status-inactive {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.status-pill.status-maintenance,
+.status-pill.status-pending {
+    background: #fff7ed;
+    color: #b45309;
+    border-color: #fed7aa;
+}
+
+.cluster-hero h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+}
+
+.cluster-hero p {
+    max-width: 72ch;
+    margin: 0;
+    color: var(--admin-muted, #475569);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.cluster-hero-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.cluster-hero-actions .btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.cluster-hero-media {
+    min-height: 190px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--admin-surface-muted, #f4f8f5);
+    border: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.cluster-hero-media img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.cluster-hero-media.empty {
+    display: grid;
+    place-items: center;
+}
+
+.cluster-media-placeholder {
+    display: grid;
+    gap: 8px;
+    place-items: center;
+    color: var(--admin-faint, #64748b);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cluster-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+
+.quick-stat {
+    min-height: 112px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 18px;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.quick-stat.never-hover-class-placeholder {
+    border-color: var(--admin-primary, #16351f);
+    transform: translateY(-1px);
+}
+
+.quick-stat-label {
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.quick-stat strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 17px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.quick-stat small {
+    color: var(--admin-muted, #475569);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.quick-stat.danger {
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.inline-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    margin-left: 2px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #16a34a;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Tabs */
 .detail-tabs {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
     padding: 8px;
-    background: var(--admin-surface, #ffffff);
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .tab-btn {
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 8px 16px;
-    border-radius: 6px;
+    padding: 8px 12px;
     border: 1px solid transparent;
+    border-radius: 8px;
     background: transparent;
-    color: var(--admin-muted, rgba(15, 23, 42, 0.6));
-    font-size: 13px;
+    color: var(--admin-muted, #475569);
+    font-size: 13.5px;
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
-.tab-btn:hover {
-    background: var(--admin-hover, var(--sg-surface));
-    color: var(--admin-text, var(--sg-text));
+
+.tab-btn.never-hover-class-placeholder {
+    background: var(--admin-hover, #f3f7f3);
+    color: var(--admin-text, #0f172a);
 }
+
 .tab-btn.active {
-    background: var(--admin-primary, #000);
-    color: var(--admin-bg, #fff);
-    border-color: var(--admin-primary, #000);
+    background: var(--admin-primary, #16351f);
+    color: #ffffff;
+    border-color: var(--admin-primary, #16351f);
 }
 
 .tab-badge {
@@ -4922,14 +6475,70 @@ export default {
     padding: 0 5px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 800;
-    background: #ef4444;
-    color: #fff;
-}
-.tab-btn.active .tab-badge {
-    background: rgba(255, 255, 255, 0.2);
+    font-weight: 700;
+    background: #dc2626;
+    color: #ffffff;
 }
 
+.tab-btn.active .tab-badge {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+@media (max-width: 1180px) {
+    .clusters-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .clusters-rail {
+        position: static;
+        max-height: none;
+    }
+
+    .clusters-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        max-height: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .cluster-hero,
+    .cluster-quick-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cluster-hero-media {
+        min-height: 180px;
+    }
+}
+
+@media (max-width: 576px) {
+    .venue-clusters-container {
+        gap: 16px;
+    }
+
+    .clusters-rail-head,
+    .cluster-hero {
+        padding: 18px;
+    }
+
+    .clusters-list {
+        grid-template-columns: 1fr;
+    }
+
+    .cluster-hero h1 {
+        font-size: 23px;
+    }
+
+    .cluster-hero-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .quick-stat {
+        min-height: 96px;
+    }
+}
 /* ─── Info Tab ─── */
 .cluster-edit {
     display: flex;
@@ -4940,14 +6549,14 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--sg-border);
+    border-bottom: 1px solid var(--admin-border);
     padding-bottom: 16px;
     margin-bottom: 20px;
 }
 .edit-header h3 {
     font-size: 18px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0;
 }
 
@@ -4969,8 +6578,8 @@ export default {
 }
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
-    color: var(--admin-text, var(--sg-text));
+    font-weight: 500;
+    color: var(--admin-text, var(--admin-text));
 }
 .required {
     color: #ef4444;
@@ -4978,10 +6587,10 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--admin-border, var(--sg-border));
-    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, var(--admin-border));
+    background: var(--admin-surface, var(--admin-surface, #ffffff));
     font-size: 14px;
-    color: var(--admin-text, var(--sg-text));
+    color: var(--admin-text, var(--admin-text));
     outline: none;
     transition: border-color 0.2s;
 }
@@ -4992,11 +6601,14 @@ export default {
 .map-input-group {
     display: flex;
     gap: 12px;
+    flex-wrap: wrap;
 }
 .map-input-group .form-control {
-    flex: 1;
+    flex: 1 1 280px;
+    min-width: 0;
 }
 .btn-extract {
+    flex: 0 0 auto;
     white-space: nowrap;
 }
 .map-extract-msg {
@@ -5004,7 +6616,7 @@ export default {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .map-extract-msg.success {
     background: #f3f4f6;
@@ -5020,7 +6632,7 @@ export default {
     width: 100%;
     height: 320px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     margin-top: 8px;
     z-index: 1;
 }
@@ -5033,10 +6645,10 @@ export default {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
-    background: var(--sg-surface);
-    padding: 16px;
+    background: var(--admin-surface);
+    padding: 18px 20px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
 }
 .amenity-item-wrapper {
     display: flex;
@@ -5044,8 +6656,8 @@ export default {
     justify-content: center;
     padding: 10px 12px;
     border-radius: 8px;
-    background: var(--sg-background);
-    border: 1px solid var(--sg-border);
+    background: var(--admin-bg);
+    border: 1px solid var(--admin-border);
     transition: all 0.2s ease;
 }
 .amenity-item-wrapper.active {
@@ -5065,7 +6677,7 @@ export default {
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .amenity-checkbox input {
     width: 16px;
@@ -5085,7 +6697,7 @@ export default {
     transition: background-color 0.2s;
     color: #64748b;
 }
-.btn-edit-amenity-desc:hover {
+.btn-edit-amenity-desc.never-hover-class-placeholder {
     background-color: rgba(15, 23, 42, 0.08);
     color: var(--admin-primary, #000000);
 }
@@ -5112,14 +6724,14 @@ export default {
 }
 .link-request-amenity {
     color: #000;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: underline;
 }
 
 .form-actions {
     display: flex;
     justify-content: flex-end;
-    border-top: 1px solid var(--sg-border);
+    border-top: 1px solid var(--admin-border);
     padding-top: 20px;
     margin-top: 8px;
 }
@@ -5136,8 +6748,11 @@ export default {
     aspect-ratio: 4/3;
     border-radius: 8px;
     overflow: hidden;
-    border: 1px solid var(--sg-border);
-    background: #f8fafc;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 .owner-gallery-img {
     width: 100%;
@@ -5152,23 +6767,23 @@ export default {
     height: 20px;
     border-radius: 50%;
     background: rgba(220, 38, 38, 0.85);
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     z-index: 10;
 }
-.btn-delete-img:hover {
+.btn-delete-img.never-hover-class-placeholder {
     background: rgb(220, 38, 38);
 }
 .owner-gallery-empty {
     padding: 18px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px dashed var(--admin-border, var(--sg-border));
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1px dashed var(--admin-border, var(--admin-border));
     border-radius: 8px;
     text-align: center;
     color: var(--admin-faint, rgba(15, 23, 42, 0.45));
@@ -5178,11 +6793,11 @@ export default {
 .owner-upload-zone {
     border: 2px dashed var(--admin-border, #cbd5e1);
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: var(--admin-surface, var(--admin-surface, #ffffff));
 }
-.owner-upload-zone:hover {
+.owner-upload-zone.never-hover-class-placeholder {
     border-color: var(--admin-primary, #000);
-    background-color: var(--admin-surface-muted, #f8fafc);
+    background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
 }
 .hidden-file-input {
     display: none;
@@ -5197,7 +6812,7 @@ export default {
 }
 .upload-status-text {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: #475569;
     display: flex;
     align-items: center;
@@ -5219,7 +6834,7 @@ export default {
 }
 .courts-header-left h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 500;
     margin: 0;
 }
 .subtitle {
@@ -5239,66 +6854,87 @@ export default {
 }
 .layout-toggle-tabs {
     display: flex;
-    gap: 4px;
-    background: #fff;
-    border: 1px solid var(--sg-border);
-    border-radius: 10px;
-    padding: 6px;
+    gap: 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--admin-border, #cfded1);
+    border-radius: 8px;
+    padding: 0;
+    margin-bottom: 12px;
 }
 
 .courts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--admin-border, #cbd5e1);
+    border-radius: var(--admin-radius, 8px);
+    background: var(--admin-surface, #ffffff);
+    overflow: hidden;
+}
+.court-card:last-child {
+    border-bottom: none;
+}
+.court-card.never-hover-class-placeholder {
+    transform: none;
+    background-color: var(--admin-hover, #edf7ed);
+    box-shadow: none;
 }
 .court-card {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
-    transition:
-        transform 0.2s,
-        box-shadow 0.2s;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    gap: 24px;
+    border-bottom: 1px solid var(--admin-border-soft, #e3ece4);
+    background: transparent;
+    border-radius: 8px;
+    box-shadow: none;
+    transition: background-color 0.2s;
 }
-.court-card:hover {
+.court-card.never-hover-class-placeholder {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
 }
 .court-header {
+    border-bottom: none;
+    padding-bottom: 0;
+    flex: 1;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--sg-border);
-    padding-bottom: 12px;
+    gap: 12px;
 }
 .court-name {
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 500;
     margin: 0;
 }
 .court-body {
-    flex: 1;
+    flex: 2;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    gap: 24px;
 }
 .info-row {
     display: flex;
-    justify-content: space-between;
-    font-size: 13px;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
 }
 .info-row .label {
     color: rgba(15, 23, 42, 0.5);
-    font-weight: 700;
+    font-weight: 500;
 }
 .info-row .value {
-    font-weight: 700;
+    font-weight: 500;
 }
 .court-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    border-top: 1px solid var(--sg-border);
-    padding-top: 12px;
+    border-top: none;
+    padding-top: 0;
+    flex-shrink: 0;
 }
 
 .badge-placed {
@@ -5308,7 +6944,7 @@ export default {
     background: rgba(0, 0, 0, 0.05);
     color: #000;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .badge-unplaced {
     display: inline-block;
@@ -5317,7 +6953,7 @@ export default {
     background: #f3f4f6;
     color: rgba(15, 23, 42, 0.4);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .status-badge {
@@ -5325,7 +6961,7 @@ export default {
     padding: 4px 8px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     border: 1px solid transparent;
 }
 .status-badge.active {
@@ -5355,9 +6991,9 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 12px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border-radius: 10px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -5379,8 +7015,8 @@ export default {
 /* ─── Tool Switcher (Figma-style) ─── */
 .tool-switcher {
     display: flex;
-    background: #f1f5f9;
-    border: 1.5px solid #e2e8f0;
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1.5px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -5398,19 +7034,19 @@ export default {
     color: #64748b;
     transition: all 0.15s;
 }
-.tool-btn:hover {
-    background: #e2e8f0;
+.tool-btn.never-hover-class-placeholder {
+    background: var(--admin-border, #cbd5e1);
     color: #1e293b;
 }
 .tool-btn.active {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     color: #3b82f6;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: #e2e8f0;
+    background: var(--admin-border, #cbd5e1);
     align-self: center;
     margin: 0 2px;
 }
@@ -5424,7 +7060,7 @@ export default {
     flex: 1;
     background: #f0f2f5;
     border-radius: 10px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     overflow: hidden;
     position: relative;
     cursor: default;
@@ -5475,23 +7111,26 @@ export default {
     gap: 4px;
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(8px);
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     padding: 6px 8px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .btn-zoom {
     padding: 4px 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 6px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     cursor: pointer;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     transition: all 0.15s;
 }
-.btn-zoom:hover {
-    background: #f8fafc;
+.btn-zoom.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 .btn-zoom.fit,
 .btn-zoom.reset {
@@ -5502,7 +7141,7 @@ export default {
 }
 .zoom-level {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
     min-width: 42px;
     text-align: center;
@@ -5549,7 +7188,7 @@ export default {
     box-sizing: border-box;
     transition: box-shadow 0.1s;
 }
-.canvas-court-element:hover {
+.canvas-court-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-court-element:active {
@@ -5567,7 +7206,7 @@ export default {
     width: 12px;
     height: 12px;
     background: #3b82f6;
-    border: 2px solid #fff;
+    border: 2px solid var(--admin-surface, #ffffff);
     border-radius: 2px;
     z-index: 10;
 }
@@ -5596,11 +7235,11 @@ export default {
     top: 4px;
     left: 4px;
     background: rgba(239, 68, 68, 0.9);
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     pointer-events: none;
     z-index: 5;
 }
@@ -5613,15 +7252,15 @@ export default {
     overflow-y: auto;
 }
 .sidebar-section {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border-radius: 10px;
-    border: 1px solid var(--sg-border);
-    padding: 16px;
+    border: 1px solid var(--admin-border);
+    padding: 18px 20px;
 }
 .section-title {
     font-size: 14px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0 0 12px 0;
 }
 .section-desc {
@@ -5636,7 +7275,7 @@ export default {
     padding: 10px;
     margin-bottom: 12px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: #713f12;
 }
 .inspector-fields {
@@ -5656,7 +7295,7 @@ export default {
 }
 .field-group label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.6);
 }
 .input-row {
@@ -5666,7 +7305,7 @@ export default {
 }
 .input-row input {
     flex: 1;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 6px;
     padding: 6px 8px;
     font-size: 13px;
@@ -5675,7 +7314,7 @@ export default {
 }
 .input-row .x,
 .input-row .comma {
-    font-weight: 700;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.4);
 }
 .rotation-control {
@@ -5701,13 +7340,13 @@ export default {
 }
 .unplaced-court-item {
     padding: 10px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s;
 }
-.unplaced-court-item:hover {
-    background: var(--sg-surface);
+.unplaced-court-item.never-hover-class-placeholder {
+    background: var(--admin-surface);
     border-color: #000;
 }
 .item-header {
@@ -5717,7 +7356,7 @@ export default {
 }
 .item-name {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .item-add-hint {
     font-size: 11px;
@@ -5729,7 +7368,7 @@ export default {
     margin-top: 4px;
 }
 .empty-unplaced {
-    padding: 16px;
+    padding: 18px 20px;
     text-align: center;
     color: rgba(15, 23, 42, 0.4);
     font-size: 13px;
@@ -5758,21 +7397,21 @@ export default {
 }
 .tab-sm {
     padding: 5px 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 6px;
     background: transparent;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     cursor: pointer;
     color: rgba(15, 23, 42, 0.6);
     transition: all 0.15s;
 }
-.tab-sm:hover {
-    background: var(--sg-surface);
+.tab-sm.never-hover-class-placeholder {
+    background: var(--admin-surface);
 }
 .tab-sm.active {
     background: #000;
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     border-color: #000;
 }
 .empty-section {
@@ -5786,16 +7425,19 @@ export default {
     gap: 10px;
 }
 .approval-card {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    padding: 16px;
+    padding: 18px 20px;
     transition: box-shadow 0.15s;
     border-left-width: 3px;
 }
-.approval-card:hover {
+.approval-card.never-hover-class-placeholder {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 .approval-pending {
+    border-left-color: #f59e0b;
+}
+.approval-need_supplement {
     border-left-color: #f59e0b;
 }
 .approval-approved {
@@ -5818,7 +7460,7 @@ export default {
 }
 .approval-name {
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 500;
     margin-bottom: 6px;
 }
 .approval-meta {
@@ -5830,7 +7472,7 @@ export default {
     font-size: 13px;
     color: #ef4444;
     margin-top: 6px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .approval-right {
     display: flex;
@@ -5844,22 +7486,26 @@ export default {
     padding: 4px 10px;
     border-radius: 9999px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .approval-status-pending {
     background: #fef9c3;
     color: #713f12;
 }
+.approval-status-need_supplement {
+    background: var(--admin-warning-soft, #fff7ed);
+    color: #92400e;
+}
 .approval-status-approved {
     background: var(--admin-primary, #000000);
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
 .approval-status-rejected {
     background: #fee2e2;
     color: #7f1d1d;
 }
 .approval-status-cancelled {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #475569;
 }
 
@@ -5872,14 +7518,14 @@ export default {
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     transition: border-color 0.2s;
 }
-.custom-select-trigger:hover,
+.custom-select-trigger.never-hover-class-placeholder,
 .custom-select-trigger.active {
     border-color: #000;
 }
@@ -5897,8 +7543,8 @@ export default {
     color: rgba(15, 23, 42, 0.3);
 }
 .child-name {
-    font-weight: 700;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
 }
 .custom-options-container {
     position: absolute;
@@ -5906,8 +7552,8 @@ export default {
     left: 0;
     right: 0;
     z-index: 1000;
-    background: #fff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     max-height: 260px;
@@ -5917,11 +7563,11 @@ export default {
 .custom-optgroup-label {
     padding: 8px 12px 4px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.4);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-top: 1px solid var(--sg-border);
+    border-top: 1px solid var(--admin-border);
 }
 .custom-optgroup:first-child .custom-optgroup-label {
     border-top: none;
@@ -5934,14 +7580,14 @@ export default {
     cursor: pointer;
     transition: background 0.1s;
 }
-.custom-option:hover {
-    background: var(--sg-surface);
+.custom-option.never-hover-class-placeholder {
+    background: var(--admin-surface);
 }
 .custom-option.selected {
     background: rgba(0, 0, 0, 0.04);
 }
 .option-text {
-    font-weight: 700;
+    font-weight: 500;
     font-size: 14px;
 }
 .option-details {
@@ -5951,7 +7597,7 @@ export default {
 .check-mark {
     margin-left: auto;
     color: #000;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 /* ─── Modal ─── */
@@ -5965,6 +7611,10 @@ export default {
     z-index: 999;
 }
 .modal {
+    background: var(--admin-surface, #ffffff);
+    border-radius: var(--admin-radius-lg, 12px);
+    border: 1px solid var(--admin-border, #cbd5e1);
+    box-shadow: var(--admin-shadow-lg, 0 10px 15px -3px rgba(0,0,0,0.1));
     width: min(500px, 95vw);
     max-height: 90vh;
     padding: 0;
@@ -5977,12 +7627,12 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid var(--sg-border);
+    border-bottom: 1px solid var(--admin-border);
 }
 .modal-header h3 {
     margin: 0;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 500;
 }
 .btn-close {
     background: none;
@@ -6003,8 +7653,11 @@ export default {
     justify-content: flex-end;
     gap: 10px;
     padding: 16px 20px;
-    border-top: 1px solid var(--sg-border);
-    background: #f8fafc;
+    border-top: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 /* ─── Buttons ─── */
@@ -6014,7 +7667,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 500;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
@@ -6027,9 +7680,9 @@ export default {
 .btn-primary {
     background: #000;
     border-color: #000;
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
 }
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222;
     border-color: #222;
 }
@@ -6038,12 +7691,12 @@ export default {
     cursor: not-allowed;
 }
 .btn-outline {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     background: transparent;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
-.btn-outline:hover {
-    background: var(--sg-surface);
+.btn-outline.never-hover-class-placeholder {
+    background: var(--admin-surface);
 }
 .btn-outline:disabled {
     opacity: 0.5;
@@ -6054,7 +7707,7 @@ export default {
     background: transparent;
     color: rgba(0, 0, 0, 0.7);
 }
-.btn-danger-outline:hover {
+.btn-danger-outline.never-hover-class-placeholder {
     background: rgba(0, 0, 0, 0.05);
 }
 
@@ -6073,13 +7726,13 @@ export default {
 }
 .error-message {
     color: #ef4444;
-    font-weight: 700;
+    font-weight: 500;
 }
 .alert {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     margin-bottom: 16px;
 }
 .alert-success {
@@ -6093,7 +7746,7 @@ export default {
     border: 1px solid #fecaca;
 }
 .fw-bold {
-    font-weight: 700;
+    font-weight: 500;
 }
 .spinner {
     width: 40px;
@@ -6120,7 +7773,7 @@ export default {
 
 /* ─── Location Readonly Box ─── */
 .location-readonly-box {
-    border: 1px solid var(--admin-border, var(--sg-border));
+    border: 1px solid var(--admin-border, var(--admin-border));
     border-radius: 10px;
     overflow: hidden;
     margin-bottom: 8px;
@@ -6130,15 +7783,15 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border-bottom: 1px solid var(--admin-border, var(--sg-border));
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border-bottom: 1px solid var(--admin-border, var(--admin-border));
     gap: 12px;
     flex-wrap: wrap;
 }
 .location-readonly-title {
-    font-weight: 700;
+    font-weight: 500;
     font-size: 13px;
-    color: var(--admin-text, var(--sg-text));
+    color: var(--admin-text, var(--admin-text));
 }
 .pending-location-badge {
     display: inline-block;
@@ -6146,7 +7799,7 @@ export default {
     padding: 3px 10px;
     border-radius: 20px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     background: var(--admin-warning-soft, #fef3c7);
     color: var(--admin-warning, #92400e);
     border: 1px solid var(--admin-warning, #fde68a);
@@ -6156,7 +7809,7 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: var(--admin-surface, #fff);
+    background: var(--admin-surface, var(--admin-surface, #ffffff));
 }
 .location-info-row {
     display: flex;
@@ -6165,13 +7818,13 @@ export default {
     align-items: baseline;
 }
 .location-label {
-    font-weight: 700;
+    font-weight: 500;
     color: var(--admin-faint, rgba(15, 23, 42, 0.5));
     min-width: 80px;
     flex-shrink: 0;
 }
 .location-value {
-    color: var(--admin-text, var(--sg-text));
+    color: var(--admin-text, var(--admin-text));
 }
 .location-coord {
     font-family: monospace;
@@ -6208,16 +7861,29 @@ export default {
 /* ─── Tab Badge ─── */
 .tab-badge-location {
     background: #f59e0b;
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
 }
 
 /* ─── Modal Location ─── */
 .modal-location {
-    max-width: 600px;
+    max-width: 900px;
     width: 100%;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
+}
+.modal-scale {
+    width: min(900px, 96vw);
+    max-height: 90vh;
+}
+.modal-scale form {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.modal-scale .modal-body {
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 .modal-location form {
     display: flex;
@@ -6228,6 +7894,7 @@ export default {
 }
 .modal-location .modal-body {
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
 }
 
@@ -6247,7 +7914,7 @@ export default {
     transition: box-shadow 0.1s;
     z-index: 20;
 }
-.canvas-decor-element:hover {
+.canvas-decor-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-decor-element.dragging {
@@ -6266,11 +7933,11 @@ export default {
 }
 .btn-add-decor {
     padding: 8px;
-    background: #f8fafc;
-    border: 1.5px solid #e2e8f0;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1.5px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
     cursor: pointer;
     text-align: center;
@@ -6281,8 +7948,8 @@ export default {
     justify-content: center;
     gap: 4px;
 }
-.btn-add-decor:hover {
-    background: #f1f5f9;
+.btn-add-decor.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     border-color: #cbd5e1;
     color: #1e293b;
 }
@@ -6314,8 +7981,8 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     z-index: 999;
@@ -6330,13 +7997,13 @@ export default {
     transition: background-color 0.15s, color 0.15s;
     text-align: left;
 }
-.searchable-select-option:hover {
-    background-color: #f1f5f9;
+.searchable-select-option.never-hover-class-placeholder {
+    background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #0f172a;
 }
 .searchable-select-option.selected {
-    background-color: #e2e8f0;
-    font-weight: 600;
+    background-color: var(--admin-border, #cbd5e1);
+    font-weight: 400;
 }
 .searchable-select-option.empty {
     color: #64748b;
@@ -6355,13 +8022,13 @@ export default {
     text-align: center;
     cursor: pointer;
     transition: all 0.25s ease;
-    background: #f8fafc;
+    background: var(--admin-surface-muted, #f8fafc);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
 }
-.evidence-dropzone:hover {
+.evidence-dropzone.never-hover-class-placeholder {
     border-color: #3b82f6;
     background: #eff6ff;
 }
@@ -6382,10 +8049,10 @@ export default {
     display: inline-block;
     border-radius: 12px;
     overflow: hidden;
-    border: 2px solid #e2e8f0;
+    border: 2px solid var(--admin-border, #cbd5e1);
     transition: border-color 0.2s;
 }
-.evidence-preview-wrapper:hover {
+.evidence-preview-wrapper.never-hover-class-placeholder {
     border-color: #3b82f6;
 }
 .evidence-preview-img {
@@ -6404,7 +8071,7 @@ export default {
     border-radius: 50%;
     border: none;
     background: rgba(239, 68, 68, 0.9);
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
@@ -6414,7 +8081,7 @@ export default {
     transition: all 0.2s;
     backdrop-filter: blur(4px);
 }
-.btn-remove-evidence:hover {
+.btn-remove-evidence.never-hover-class-placeholder {
     background: #dc2626;
     transform: scale(1.15);
 }
@@ -6436,7 +8103,7 @@ export default {
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
 }
-.approval-evidence-link:hover {
+.approval-evidence-link.never-hover-class-placeholder {
     transform: scale(1.03);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
@@ -6445,20 +8112,303 @@ export default {
     max-height: 120px;
     object-fit: cover;
     border-radius: 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
     display: block;
+}
+
+.supplement-file-list,
+.supplement-documents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.supplement-file-list span,
+.supplement-file-list button,
+.supplement-documents a,
+.supplement-document-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid #c7d2fe;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    appearance: none;
+}
+
+.supplement-file-list button {
+    appearance: none;
+    font-family: inherit;
+}
+
+.request-document-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.request-document-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    border-color: #0f172a;
+    color: #0f172a;
+    background: var(--admin-surface, #ffffff);
+}
+
+.request-signature-group {
+    margin-top: 14px;
+}
+
+.request-preview-gate {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    margin: 14px 0;
+    padding: 18px;
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.request-preview-gate strong {
+    display: block;
+    color: #0f172a;
+    font-weight: 500;
+}
+
+.request-preview-gate p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12.5px;
+}
+
+.change-type-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.change-type-options label,
+.court-remove-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid #d7e5da;
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+    color: #16351f;
+    font-weight: 400;
+}
+
+.court-remove-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 8px;
+}
+
+.scale-adjust-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+}
+
+.scale-adjust-section {
+    border: 1px solid #d7e5da;
+    border-radius: 8px;
+    background: #fbfdfb;
+    padding: 18px;
+}
+
+.scale-adjust-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.scale-adjust-head label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #16351f;
+}
+
+.requested-court-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.requested-court-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #dfe9e2;
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.requested-court-index {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    background: #ecfdf3;
+    color: #166534;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.requested-court-fields {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1.1fr);
+    gap: 10px;
+}
+
+.form-group.compact {
+    margin-bottom: 0;
+}
+
+.btn-icon-danger {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+    color: #dc2626;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.btn-icon-danger.never-hover-class-placeholder {
+    background: #fef2f2;
+}
+
+.document-upload-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+}
+
+.document-upload-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 86px;
+    padding: 12px;
+    border: 1px dashed #b8cbbd;
+    border-radius: 8px;
+    background: #fbfdfb;
+}
+
+.document-upload-card span {
+    font-size: 12px;
+    font-weight: 500;
+    color: #16351f;
+}
+
+.document-upload-card input {
+    width: 100%;
+    font-size: 12px;
+}
+
+.scale-remove-list {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+@media (max-width: 720px) {
+    .requested-court-row {
+        grid-template-columns: 28px minmax(0, 1fr) 32px;
+    }
+
+    .requested-court-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.request-signature-disabled {
+    opacity: 0.62;
+}
+
+.request-signature-disabled .request-signature-pad {
+    pointer-events: none;
+}
+
+.request-signature-pad {
+    width: 100%;
+    min-height: 170px;
+    border: 1px dashed #94a3b8;
+    border-radius: 10px;
+    background: var(--admin-surface, #ffffff);
+    touch-action: none;
+}
+
+.request-signature-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.signature-ok {
+    color: #047857;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.signature-missing {
+    color: #b45309;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.readonly-note {
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    background: var(--admin-warning-soft, #fff7ed);
+    padding: 10px 12px;
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
 }
 
 /* ─── Tab Headers ─── */
 .tab-header {
-    border-bottom: 1px solid var(--sg-border);
+    border-bottom: 1px solid var(--admin-border);
     padding-bottom: 16px;
     margin-bottom: 20px;
 }
 .tab-header h3 {
     font-size: 18px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0;
 }
 .tab-header .subtitle {
@@ -6473,8 +8423,8 @@ export default {
 }
 .card-section-title {
     font-size: 14px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0 0 12px 0;
 }
 .scale-summary-grid {
@@ -6489,13 +8439,13 @@ export default {
 }
 .scale-stat-label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.5);
 }
 .scale-stat-value {
     font-size: 18px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
 }
 .scale-types-list {
     display: flex;
@@ -6503,13 +8453,13 @@ export default {
     gap: 6px;
 }
 .scale-type-tag {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #475569;
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 11px;
-    font-weight: 600;
-    border: 1px solid #e2e8f0;
+    font-weight: 400;
+    border: 1px solid var(--admin-border, #cbd5e1);
 }
 .scale-type-tag strong {
     color: #0f172a;
@@ -6531,30 +8481,30 @@ export default {
     font-size: 14px;
 }
 .affiliate-table th {
-    background-color: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
+    background-color: var(--admin-surface-muted, #f8fafc);
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
     padding: 14px 16px;
     text-align: left;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
 }
 .affiliate-table td {
     padding: 12px 16px;
     vertical-align: middle;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
 }
 .affiliate-table tr.product-row {
     transition: background-color 0.2s;
 }
-.affiliate-table tr.product-row:hover {
-    background-color: #f8fafc;
+.affiliate-table tr.product-row.never-hover-class-placeholder {
+    background-color: var(--admin-surface-muted, #f8fafc);
 }
 .affiliate-table th.col-img { width: 80px; }
 .affiliate-table th.col-platform { width: 120px; }
 .affiliate-table th.col-price { width: 140px; text-align: right; }
 .affiliate-table td.cell-price { text-align: right; }
 .affiliate-table th.col-clicks { width: 100px; text-align: center; }
-.affiliate-table td.cell-clicks { text-align: center; font-weight: 700; color: #475569; }
+.affiliate-table td.cell-clicks { text-align: center; font-weight: 500; color: #475569; }
 .affiliate-table th.col-status { width: 120px; text-align: center; }
 .affiliate-table td.cell-status { text-align: center; }
 .affiliate-table th.col-actions { width: 120px; text-align: center; }
@@ -6564,12 +8514,12 @@ export default {
     width: 48px;
     height: 48px;
     border-radius: 8px;
-    background-color: #f1f5f9;
+    background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
 }
 .product-thumb {
     width: 100%;
@@ -6580,7 +8530,7 @@ export default {
     color: #cbd5e1;
 }
 .product-title {
-    font-weight: 700;
+    font-weight: 500;
     color: #1e293b;
     margin-bottom: 2px;
     display: -webkit-box;
@@ -6600,7 +8550,7 @@ export default {
     padding: 4px 8px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     text-transform: uppercase;
     display: inline-block;
 }
@@ -6611,7 +8561,7 @@ export default {
 .platform-badge.khac { background-color: #ecfdf5; color: #10b981; }
 
 .price-discount {
-    font-weight: 700;
+    font-weight: 500;
     color: #10b981;
 }
 .price-original {
@@ -6658,7 +8608,7 @@ export default {
     left: 2px;
     width: 16px;
     height: 16px;
-    background-color: #fff;
+    background-color: var(--admin-surface, #ffffff);
     border-radius: 50%;
     transition: transform 0.2s;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -6679,29 +8629,29 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     cursor: pointer;
     transition: all 0.2s;
 }
-.btn-action-icon:hover {
-    background-color: var(--sg-surface);
+.btn-action-icon.never-hover-class-placeholder {
+    background-color: var(--admin-surface);
 }
 .btn-action-icon.edit {
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 .btn-action-icon.delete {
     border-color: #fecaca;
     color: #dc2626;
 }
-.btn-action-icon.delete:hover {
+.btn-action-icon.delete.never-hover-class-placeholder {
     background-color: #fee2e2;
 }
 
 /* ─── Unlock Tab Styles ─── */
 .unlock-locked-banner {
     border-left: 5px solid #dc2626;
-    background-color: #fffafb;
-    padding: 14px;
+    background-color: var(--admin-danger-soft, #fef2f2);
+    padding: 18px;
     margin-bottom: 20px;
     border-radius: 6px;
     border: 1px solid #fecaca;
@@ -6726,9 +8676,9 @@ export default {
     color: #b91c1c;
 }
 .pending-alert-box {
-    background: #fffbeb;
+    background: var(--admin-warning-soft, #fff7ed);
     border: 1px solid #fde68a;
-    padding: 16px;
+    padding: 18px 20px;
     margin-bottom: 20px;
     border-radius: 8px;
 }
@@ -6736,12 +8686,12 @@ export default {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 700;
+    font-weight: 500;
     color: #b45309;
     margin-bottom: 12px;
 }
 .pending-reason-preview {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border: 1px solid #f3f4f6;
     padding: 10px 12px;
     border-radius: 4px;
@@ -6766,7 +8716,7 @@ export default {
     margin: 0 0 6px;
     font-size: 16px;
     color: #1e293b;
-    font-weight: 700;
+    font-weight: 500;
 }
 .form-section-desc {
     margin: 0 0 16px;
@@ -6775,7 +8725,7 @@ export default {
     line-height: 1.4;
 }
 .field-label-bold {
-    font-weight: 700;
+    font-weight: 500;
     font-size: 14px;
     color: #344238;
     display: block;
@@ -6804,14 +8754,14 @@ export default {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
     padding-bottom: 8px;
 }
 .history-title {
     margin: 0;
     font-size: 15px;
     color: #1e293b;
-    font-weight: 700;
+    font-weight: 500;
 }
 .empty-state-text {
     text-align: center;
@@ -6821,7 +8771,7 @@ export default {
     font-size: 14px;
 }
 .border-rounded {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 6px;
     overflow: hidden;
 }
@@ -6831,22 +8781,22 @@ export default {
     font-size: 14px;
 }
 .unlock-history-table th {
-    background-color: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
+    background-color: var(--admin-surface-muted, #f8fafc);
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
     padding: 10px 12px;
     text-align: left;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
 }
 .unlock-history-table td {
     padding: 10px 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
 }
 .unlock-history-table tr.history-row {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
 }
 .unlock-history-table th.col-code { width: 100px; }
-.unlock-history-table td.cell-code { font-family: monospace; font-weight: 700; color: #475569; }
+.unlock-history-table td.cell-code { font-family: monospace; font-weight: 500; color: #475569; }
 .unlock-history-table th.col-time { width: 150px; }
 .unlock-history-table th.col-reason { max-width: 300px; }
 .unlock-history-table td.cell-reason { max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; }
@@ -6867,7 +8817,7 @@ export default {
 }
 .info-label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -6875,17 +8825,17 @@ export default {
 .info-value-text {
     padding: 10px 14px;
     border-radius: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     font-size: 14.5px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #0f172a);
 }
 .info-description-text {
-    padding: 14px;
+    padding: 18px;
     border-radius: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     font-size: 14px;
     line-height: 1.6;
     color: var(--admin-text, #334155);
@@ -6896,11 +8846,11 @@ export default {
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    background: var(--admin-primary-soft, #f1f5f9);
-    border: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-primary-soft, var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc)));
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     border-radius: 9999px;
     font-size: 13.5px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #334155);
 }
 .btn-edit-amenity-desc-readonly {
@@ -6916,7 +8866,7 @@ export default {
     border-radius: 4px;
     transition: all 0.2s;
 }
-.btn-edit-amenity-desc-readonly:hover {
+.btn-edit-amenity-desc-readonly.never-hover-class-placeholder {
     color: #0f172a;
     background: rgba(0, 0, 0, 0.05);
 }
@@ -6936,13 +8886,13 @@ export default {
     font-size: 13.5px;
     font-weight: 500;
     color: var(--admin-muted, #64748b);
-    background: var(--admin-surface-muted, #f8fafc);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     border: 1px dashed var(--admin-border, #cbd5e1);
     transition: all 0.2s ease-in-out;
     user-select: none;
 }
-.amenity-select-tag:hover {
-    background: var(--admin-hover, #f1f5f9);
+.amenity-select-tag.never-hover-class-placeholder {
+    background: var(--admin-hover, var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc)));
     border-color: var(--admin-faint, #94a3b8);
     color: var(--admin-text, #334155);
     transform: translateY(-1px);
@@ -6950,19 +8900,19 @@ export default {
 .amenity-select-tag.active {
     background: var(--admin-primary, #000000);
     border: 1px solid var(--admin-primary, #000000);
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
-.amenity-select-tag.active:hover {
+.amenity-select-tag.active.never-hover-class-placeholder {
     background: var(--admin-primary-light, #1f1f22);
     border-color: var(--admin-primary-light, #1f1f22);
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
     transform: translateY(-1px);
 }
 .amenity-check-icon {
     display: inline-flex;
     align-items: center;
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
 .btn-edit-amenity-desc {
     background: none;
@@ -6978,10 +8928,10 @@ export default {
     transition: all 0.2s;
 }
 .amenity-select-tag.active .btn-edit-amenity-desc {
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
-.btn-edit-amenity-desc:hover {
-    color: var(--admin-bg, #ffffff);
+.btn-edit-amenity-desc.never-hover-class-placeholder {
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
     background: rgba(128, 128, 128, 0.25);
 }
 .btn-edit-amenity-desc .has-desc-dot {
@@ -6994,10 +8944,10 @@ export default {
 }
 
 .location-readonly-box {
-    padding: 16px;
-    border: 1px solid var(--admin-border, #e2e8f0);
+    padding: 18px 20px;
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     border-radius: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
 }
 .location-readonly-title {
     font-size: 14px;
@@ -7010,7 +8960,7 @@ export default {
     padding: 2px 8px;
     background: #fef3c7;
     color: #d97706;
-    font-weight: 600;
+    font-weight: 400;
     border-radius: 9999px;
 }
 .map-readonly {
@@ -7022,5 +8972,453 @@ export default {
 .req-parent-select .custom-options-container {
     max-height: 200px;
     overflow-y: auto;
+}
+
+/* Refined info overview */
+.info-overview-panel {
+    gap: 20px;
+    padding: 22px;
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.info-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 2px 16px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.info-section-header h3 {
+    margin: 4px 0 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 700 !important;
+}
+
+.info-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.info-summary-card {
+    min-height: 82px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 18px;
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.info-summary-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--admin-primary-soft, #eef8ef);
+    color: var(--admin-primary, #16351f);
+}
+
+.info-summary-card .info-label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    letter-spacing: 0;
+}
+
+.info-summary-card strong {
+    display: block;
+    color: var(--admin-text, #0f172a);
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 700 !important;
+    overflow-wrap: anywhere;
+}
+
+.location-overview-card.location-readonly-box {
+    padding: 0;
+    margin: 0 0 6px;
+    overflow: hidden;
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.location-overview-card .location-readonly-header {
+    padding: 18px 20px;
+    background: var(--admin-surface, #ffffff);
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.location-overview-card .location-readonly-title {
+    display: block;
+    margin: 4px 0 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 16px;
+    line-height: 1.3;
+    font-weight: 700 !important;
+}
+
+.location-content-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+    gap: 16px;
+    min-height: 260px;
+    padding: 16px;
+}
+
+.location-overview-card .location-readonly-body {
+    margin: 0;
+    padding: 18px 20px;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+}
+
+.location-overview-card .location-info-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.location-overview-card .location-info-row:last-child {
+    border-bottom: none;
+}
+
+.location-overview-card .location-label {
+    min-width: 0;
+    color: var(--admin-faint, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.location-overview-card .location-value {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 13.5px;
+    line-height: 1.45;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.location-map-frame {
+    min-width: 0;
+    min-height: 260px;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.location-map-frame .map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 260px;
+    margin: 0 !important;
+    border: 0;
+    border-radius: 8px;
+}
+
+.location-map-frame .map-readonly {
+    opacity: 1;
+}
+
+@media (max-width: 900px) {
+    .info-summary-grid,
+    .location-content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .location-overview-card .location-readonly-body {
+        border: 1px solid var(--admin-border, #d8e4dc);
+    }
+}
+
+@media (max-width: 576px) {
+    .info-section-header {
+        flex-direction: column;
+    }
+
+    .info-summary-card {
+        grid-template-columns: 36px minmax(0, 1fr);
+    }
+
+    .info-summary-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .location-overview-card .location-info-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}
+
+/* Flatten nested borders in cluster detail */
+.detail-tabs.surface-card {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+}
+
+.detail-tabs .tab-btn {
+    border-color: var(--admin-border, #d8e4dc);
+    background: var(--admin-surface, #ffffff);
+}
+
+.detail-tabs .tab-btn.active {
+    border-color: var(--admin-primary, #16351f);
+}
+
+.info-overview-panel {
+    padding: 4px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.info-section-header {
+    padding: 0 0 14px;
+}
+
+.info-summary-card {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.location-overview-card.location-readonly-box {
+    border: 0;
+    background: transparent;
+}
+
+.location-overview-card .location-readonly-header {
+    padding: 0 0 14px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+    background: transparent;
+}
+
+.location-content-grid {
+    padding: 16px 0 0;
+}
+
+.location-overview-card .location-readonly-body,
+.location-map-frame {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+@media (max-width: 900px) {
+    .location-overview-card .location-readonly-body {
+        border: 0;
+    }
+}
+
+/* Flat content treatment: avoid card-heavy presentation */
+.surface-card {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.cluster-hero.surface-card {
+    padding: 0 0 18px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.cluster-hero-media {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.quick-stat.surface-card {
+    border: 0;
+    box-shadow: none;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.quick-stat.surface-card.never-hover-class-placeholder {
+    background: var(--admin-hover, #f3f7f3);
+    transform: none;
+}
+
+.quick-stat.danger {
+    border: 0;
+    background: var(--admin-danger-soft, #fef2f2);
+}
+
+.detail-tabs .tab-btn {
+    border: 0;
+    background: transparent;
+}
+
+.detail-tabs .tab-btn.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.detail-tabs .tab-btn.active {
+    background: var(--admin-primary, #16351f);
+    color: #ffffff;
+}
+
+.courts-header.card,
+.current-scale-card,
+.location-current-card {
+    padding: 0 0 16px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.court-card.card {
+    border: 0;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 0;
+    background: transparent;
+}
+
+.court-card.card.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, #f8fafc);
+    box-shadow: none;
+    transform: none;
+}
+
+.approval-card {
+    border: 0;
+    border-left: 3px solid var(--admin-border, #d8e4dc);
+    border-radius: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+    box-shadow: none;
+}
+
+.approval-card.never-hover-class-placeholder {
+    box-shadow: none;
+}
+
+.document-upload-card {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+/* Borderless owner cluster overview */
+.cluster-detail .surface-card,
+.cluster-detail .card,
+.cluster-detail .cluster-hero,
+.cluster-detail .cluster-hero-media,
+.cluster-detail .quick-stat,
+.cluster-detail .detail-tabs,
+.cluster-detail .tab-btn,
+.cluster-detail .info-overview-panel,
+.cluster-detail .info-section-header,
+.cluster-detail .info-summary-card,
+.cluster-detail .location-overview-card,
+.cluster-detail .location-readonly-header,
+.cluster-detail .location-readonly-body,
+.cluster-detail .location-info-row,
+.cluster-detail .location-map-frame {
+    border: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    box-shadow: none !important;
+}
+
+.cluster-detail .cluster-hero.surface-card {
+    padding-bottom: 8px;
+}
+
+.cluster-detail .status-pill {
+    border: 0 !important;
+}
+
+.cluster-hero-actions .btn-outline,
+.detail-tabs .tab-btn {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.cluster-hero-actions .btn-outline {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.detail-tabs {
+    gap: 8px;
+    padding: 0;
+}
+
+.detail-tabs .tab-btn {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.detail-tabs .tab-btn.active {
+    background: var(--admin-primary, #16351f);
+}
+
+.info-section-header {
+    padding-bottom: 8px;
+}
+
+.location-overview-card .location-readonly-header {
+    padding-bottom: 8px;
+}
+
+.location-overview-card .location-info-row {
+    padding: 9px 0;
+}
+
+
+/* Map-only location overview */
+.location-content-grid.map-only {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+}
+
+.location-content-grid.map-only .location-map-frame {
+    width: 100%;
+    min-width: 0;
+}
+
+.location-content-grid.map-only .map-container,
+.location-content-grid.map-only .map-readonly {
+    width: 100% !important;
+    min-height: 280px;
+}
+/* Disable hover effects for owner cluster tabs */
+.cluster-detail .detail-tabs .tab-btn,
+.cluster-detail .detail-tabs .tab-btn.never-hover-class-placeholder,
+.cluster-detail .detail-tabs .tab-btn:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.cluster-detail .detail-tabs .tab-btn:not(.active),
+.cluster-detail .detail-tabs .tab-btn:not(.active).never-hover-class-placeholder,
+.cluster-detail .detail-tabs .tab-btn:not(.active):active,
+.cluster-detail .detail-tabs .tab-btn:not(.active):focus {
+    background: var(--admin-surface-muted, #f8fafc) !important;
+    color: var(--admin-muted, #475569) !important;
+    border-color: transparent !important;
+    outline-color: transparent !important;
+}
+
+.cluster-detail .detail-tabs .tab-btn.active,
+.cluster-detail .detail-tabs .tab-btn.active.never-hover-class-placeholder,
+.cluster-detail .detail-tabs .tab-btn.active:active,
+.cluster-detail .detail-tabs .tab-btn.active:focus {
+    background: var(--admin-primary, #16351f) !important;
+    color: var(--admin-primary-text, #101c15) !important;
+    border-color: var(--admin-primary, #16351f) !important;
+    outline-color: transparent !important;
 }
 </style>

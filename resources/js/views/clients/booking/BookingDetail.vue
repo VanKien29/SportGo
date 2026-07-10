@@ -829,12 +829,12 @@ export default {
     margin-top: 12px;
 }
 
-.btn-sepay:hover:not(:disabled) {
+.btn-sepay.never-hover-class-placeholder:not(:disabled) {
     background: rgba(255, 255, 255, 0.88);
     transform: translateY(-1px);
 }
 
-.btn-cancel-payment:hover:not(:disabled) {
+.btn-cancel-payment.never-hover-class-placeholder:not(:disabled) {
     filter: brightness(1.05);
     transform: translateY(-1px);
 }

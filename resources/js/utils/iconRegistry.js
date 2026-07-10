@@ -78,6 +78,10 @@ export const ICON_REGISTRY = {
     ['path', { d: 'M9 22v-4h6v4' }],
     ['path', { d: 'M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01' }],
   ],
+  mapPin: [
+    ['path', { d: 'M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z' }],
+    ['circle', { cx: 12, cy: 10, r: 3 }],
+  ],
   calendar: [
     ['rect', { x: 3, y: 4, width: 18, height: 18, rx: 2 }],
     ['path', { d: 'M16 2v4M8 2v4M3 10h18' }],
@@ -241,6 +245,11 @@ export const ICON_REGISTRY = {
     ['path', { d: 'M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z' }],
     ['circle', { cx: 7.5, cy: 7.5, r: 1.5 }],
   ],
+  shoppingBag: [
+    ['path', { d: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6L18 2Z' }],
+    ['line', { x1: 3, y1: 6, x2: 21, y2: 6 }],
+    ['path', { d: 'M16 10a4 4 0 0 1-8 0' }],
+  ],
   rotateCcw: [
     ['path', { d: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' }],
     ['path', { d: 'M3 3v5h5' }],
@@ -319,6 +328,7 @@ export const ICON_ALIASES = {
   stop: 'power',
   back: 'arrow-left',
   arrowLeft: 'arrow-left',
+  'shopping-bag': 'shoppingBag',
 };
 
 export const NAV_ICON_MAP = {

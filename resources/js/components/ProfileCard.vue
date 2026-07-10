@@ -685,7 +685,7 @@ export default {
   border: 1px solid #f3f4f6;
   transition: all .15s ease;
 }
-.info-item:hover {
+.info-item.never-hover-class-placeholder {
   background: #f0fdf4;
   border-color: #bbf7d0;
 }
@@ -714,10 +714,10 @@ export default {
   background: #faf5ff;
   color: #7c3aed;
 }
-.info-item:hover .info-icon-user { background: #dcfce7; }
-.info-item:hover .info-icon-mail { background: #dbeafe; }
-.info-item:hover .info-icon-phone { background: #ffedd5; }
-.info-item:hover .info-icon-role { background: #ede9fe; }
+.info-item.never-hover-class-placeholder .info-icon-user { background: #dcfce7; }
+.info-item.never-hover-class-placeholder .info-icon-mail { background: #dbeafe; }
+.info-item.never-hover-class-placeholder .info-icon-phone { background: #ffedd5; }
+.info-item.never-hover-class-placeholder .info-icon-role { background: #ede9fe; }
 
 .info-body { flex: 1; min-width: 0; }
 .info-label {
@@ -1044,7 +1044,7 @@ export default {
   font-size: 13px;
   font-weight: 850;
 }
-.membership-rank-toggle:hover {
+.membership-rank-toggle.never-hover-class-placeholder {
   background: #dcfce7;
 }
 .membership-rules-table td {
@@ -1077,7 +1077,7 @@ export default {
   cursor: pointer;
   transition: all .15s ease;
 }
-.btn-back:hover {
+.btn-back.never-hover-class-placeholder {
   background: #f0fdf4;
   border-color: #86efac;
   color: #15803d;
@@ -1095,7 +1095,7 @@ export default {
   font-weight: 800;
   text-decoration: none;
 }
-.btn-vip:hover {
+.btn-vip.never-hover-class-placeholder {
   background: #dcfce7;
 }
 

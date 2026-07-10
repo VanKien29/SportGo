@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminUiSettingsController;
 use App\Http\Controllers\Api\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
 use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerCont
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
 use App\Http\Controllers\Api\Admin\MembershipPackageController as AdminMembershipPackageController;
+use App\Http\Controllers\Api\Admin\AdminServiceCategoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
@@ -29,10 +31,12 @@ use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeController;
 use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
+use App\Http\Controllers\Api\Owner\StaffShiftController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
+use App\Http\Controllers\Api\Owner\UiSettingsController as OwnerUiSettingsController;
 use App\Http\Controllers\Api\Partner\PartnerApplicationDocumentDownloadController;
 use App\Http\Controllers\Api\Partner\PartnerDocumentDownloadController;
 use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApplicationController;
@@ -46,6 +50,7 @@ use App\Http\Controllers\Api\Public\SystemPostController as PublicSystemPostCont
 use App\Http\Controllers\Api\Public\UserProfileController as PublicUserProfileController;
 use App\Http\Controllers\Api\Admin\SystemPostController as AdminSystemPostController;
 use App\Http\Controllers\Api\Owner\VenuePostController as OwnerVenuePostController;
+use App\Http\Controllers\Api\Owner\OwnerVenueServiceController;
 use App\Http\Controllers\Api\Player\VenuePostController as PlayerVenuePostController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
@@ -161,6 +166,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/platform-fee-settings', [AdminPlatformFeeTierController::class, 'settings']);
         Route::put('/platform-fee-settings', [AdminPlatformFeeTierController::class, 'updateSettings']);
 
+        Route::get('/ui-settings', [AdminUiSettingsController::class, 'getSettings']);
+        Route::post('/ui-settings', [AdminUiSettingsController::class, 'updateSettings']);
+
         Route::get('/partner-applications', [AdminPartnerApplicationController::class, 'index']);
         Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
@@ -219,6 +227,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/amenities/{id}/review', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'review']);
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
 
+        Route::patch('/service-categories/{id}/toggle-status', [AdminServiceCategoryController::class, 'toggleStatus']);
+        Route::apiResource('service-categories', AdminServiceCategoryController::class);
+
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/matrix', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'matrix']);
         Route::get('/roles/{id}/users', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'users']);
@@ -260,9 +271,11 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::patch('/venue-clusters/{id}/amenities', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'updateAmenities']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveRequest']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectRequest']);
+        Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'requestSupplementForScale']);
         // Venue Location Change Requests (Admin duyệt/từ chối thay đổi vị trí)
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveLocationChange']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectLocationChange']);
+        Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'requestSupplementForLocationChange']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveUnlockRequest']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/reject', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'rejectUnlockRequest']);
         Route::patch('/venue-clusters/{clusterId}/information-change-requests/{requestId}/approve', [\App\Http\Controllers\Api\Admin\VenueClusterController::class, 'approveInformationChange']);
@@ -308,6 +321,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/ui-settings', [OwnerUiSettingsController::class, 'getSettings']);
+        Route::post('/ui-settings', [OwnerUiSettingsController::class, 'updateSettings']);
         Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);
         Route::put('/booking-configs/{venueClusterId}', [OwnerBookingConfigController::class, 'update']);
 
@@ -336,6 +351,20 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/staff', [OwnerStaffController::class, 'store']);
         Route::put('/staff/{id}', [OwnerStaffController::class, 'update']);
         Route::patch('/staff/{id}/deactivate', [OwnerStaffController::class, 'deactivate']);
+
+        // Staff Shifts & Schedules
+        Route::get('/staff-shifts', [StaffShiftController::class, 'listShifts']);
+        Route::post('/staff-shifts', [StaffShiftController::class, 'storeShift']);
+        Route::put('/staff-shifts/{id}', [StaffShiftController::class, 'updateShift']);
+        Route::delete('/staff-shifts/{id}', [StaffShiftController::class, 'destroyShift']);
+        Route::get('/staff-shifts/schedules', [StaffShiftController::class, 'listSchedules']);
+        Route::post('/staff-shifts/schedules', [StaffShiftController::class, 'storeSchedules']);
+        Route::put('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'updateSchedule']);
+        Route::delete('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'destroySchedule']);
+        Route::get('/staff-shifts/attendance-report', [StaffShiftController::class, 'attendanceReport']);
+        Route::get('/staff-shifts/my-schedules', [StaffShiftController::class, 'mySchedules']);
+        Route::post('/staff-shifts/schedules/{id}/check-in', [StaffShiftController::class, 'checkIn']);
+        Route::post('/staff-shifts/schedules/{id}/check-out', [StaffShiftController::class, 'checkOut']);
         Route::get('/vouchers', [OwnerVoucherController::class, 'index']);
         Route::get('/vouchers/{id}', [OwnerVoucherController::class, 'show']);
         Route::post('/vouchers', [OwnerVoucherController::class, 'store']);
@@ -343,11 +372,15 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/vouchers/{id}/deactivate', [OwnerVoucherController::class, 'deactivate']);
         // Venue Court Approval Requests (Owner gửi yêu cầu quy mô)
         Route::get('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests/preview', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'preview']);
         Route::post('/venue-clusters/{clusterId}/approval-requests', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'store']);
+        Route::post('/venue-clusters/{clusterId}/approval-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/approval-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueCourtApprovalController::class, 'cancel']);
         // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
         Route::get('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests/preview', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'preview']);
         Route::post('/venue-clusters/{clusterId}/location-change-requests', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'store']);
+        Route::post('/venue-clusters/{clusterId}/location-change-requests/{requestId}/supplement', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'supplement']);
         Route::patch('/venue-clusters/{clusterId}/location-change-requests/{requestId}/cancel', [\App\Http\Controllers\Api\Owner\VenueLocationChangeController::class, 'cancel']);
         // Venue Information Change Requests (Owner gửi yêu cầu chỉnh sửa thông tin sân)
         Route::get('/venue-clusters/{clusterId}/information-change-requests', [\App\Http\Controllers\Api\Owner\VenueInformationChangeController::class, 'index']);
@@ -435,6 +468,13 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/affiliate-products/{id}', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'update']);
         Route::delete('/affiliate-products/{id}', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'destroy']);
         Route::patch('/affiliate-products/{id}/toggle-status', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'toggleStatus']);
+
+        // Dịch vụ & Sản phẩm tại sân (On-site Services & Products)
+        Route::get('/venue-clusters/{clusterId}/services', [OwnerVenueServiceController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/services', [OwnerVenueServiceController::class, 'store']);
+        Route::put('/venue-services/{id}', [OwnerVenueServiceController::class, 'update']);
+        Route::delete('/venue-services/{id}', [OwnerVenueServiceController::class, 'destroy']);
+        Route::patch('/venue-services/{id}/toggle-status', [OwnerVenueServiceController::class, 'toggleStatus']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
@@ -452,13 +492,17 @@ Route::middleware('auth:sanctum')
         Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
 
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
+        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereUuid('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);
         Route::post('/user/partner-application/resolve-map', [UserPartnerApplicationController::class, 'resolveMap']);
+        Route::post('/user/partner-application/reverse-map', [UserPartnerApplicationController::class, 'reverseMap']);
         Route::post('/user/partner-application/preview', [UserPartnerApplicationController::class, 'preview']);
         Route::post('/user/partner-application', [UserPartnerApplicationController::class, 'store']);
+        Route::post('/user/partner-application/{id}/draft', [UserPartnerApplicationController::class, 'updateDraft']);
         Route::post('/user/partner-application/{id}/submit', [UserPartnerApplicationController::class, 'submitSigned']);
+        Route::post('/user/partner-application/{id}/supplement-documents', [UserPartnerApplicationController::class, 'supplementDocuments']);
         Route::post('/user/partner-application/{id}/cancel', [UserPartnerApplicationController::class, 'cancel']);
         Route::get('/user/partner-application/documents', [UserPartnerApplicationController::class, 'documents']);
         Route::get('/user/partner-application/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
@@ -475,7 +519,10 @@ Route::middleware('auth:sanctum')
         Route::post('/policies/{policy}/accept', [PolicyAcceptanceController::class, 'accept']);
 
         Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
+        Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
+        Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
+        Route::get('/service-categories', [AdminServiceCategoryController::class, 'index']);
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
         Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
@@ -517,11 +564,20 @@ Route::middleware('auth:sanctum')
         Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);
 
         // Chat routes
-        Route::prefix('chat')->group(function (): void {
+        Route::prefix('chat')
+            ->middleware('throttle:60,1')
+            ->group(function (): void {
             Route::get('/conversations', [ChatController::class, 'getConversations']);
             Route::post('/conversations', [ChatController::class, 'startConversation']);
             Route::get('/conversations/{id}/messages', [ChatController::class, 'getMessages']);
             Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
+            Route::post('/messages/{id}/react', [ChatController::class, 'reactToMessage']);
+            Route::post('/messages/{id}/pin', [ChatController::class, 'togglePinMessage']);
+            Route::get('/conversations/{id}/bookings', [ChatController::class, 'getEligibleBookings']);
+            Route::get('/conversations/{id}/related-bookings', [ChatController::class, 'getRelatedBookings']);
+            Route::post('/conversations/{id}/support-requests', [ChatController::class, 'createBookingSupportRequest']);
+            Route::patch('/support-requests/{id}', [ChatController::class, 'updateBookingSupportRequest']);
+            Route::post('/conversations/{id}/bookings', [ChatController::class, 'sendBooking']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
             Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);

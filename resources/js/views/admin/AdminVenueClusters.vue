@@ -16,33 +16,14 @@
 
         <template v-else>
             <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
-            <div class="avc-filters card animate-fade-in" v-if="clusters.length > 0">
-                <div class="filter-row">
-                    <div class="filter-tabs">
-                        <button
-                            v-for="tab in statusTabs"
-                            :key="tab.value"
-                            class="tab-btn"
-                            :class="{ active: filterStatus === tab.value }"
-                            @click="filterStatus = tab.value"
-                        >
-                            {{ tab.label }}
-                        </button>
-                    </div>
-                    <div class="filter-search">
-                        <div class="search-box">
-                            <AppIcon name="search" size="16" />
-                            <input
-                                id="search-venue-cluster"
-                                v-model="searchText"
-                                type="text"
-                                placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
-                                class="search-input"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <SaaSFilterBar
+                v-if="clusters.length > 0"
+                v-model="filterStatus"
+                v-model:search="searchText"
+                :tabs="statusTabs"
+                search-id="search-venue-cluster"
+                search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
+            />
 
             <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
             <div v-if="clusters.length === 0" class="state-box card animate-fade-in">
@@ -123,11 +104,12 @@
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 
 export default {
     name: "AdminVenueClusters",
-    components: { ActionIconButton, AppIcon, SaaSTable },
+    components: { ActionIconButton, AppIcon, SaaSTable, SaaSFilterBar },
     data() {
         return {
             clusters: [],
@@ -237,75 +219,6 @@ export default {
 
 
 
-/* Filters */
-.avc-filters {
-    padding: 12px 0;
-}
-.filter-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-.filter-tabs {
-    display: flex;
-    gap: 6px;
-}
-.avc-filters .filter-tabs button.tab-btn {
-    height: 38px !important;
-    min-height: 38px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 16px !important;
-    border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
-    background: var(--admin-surface) !important;
-    color: #475569 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    cursor: pointer !important;
-    transition: all 0.18s !important;
-    box-sizing: border-box !important;
-}
-.avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary) !important;
-    border-color: var(--admin-primary) !important;
-    color: var(--admin-primary-text, #fff) !important;
-}
-.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
-    background: var(--admin-hover) !important;
-    color: var(--admin-primary-dark) !important;
-}
-[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
-    border: 1px solid var(--admin-border) !important;
-    color: var(--admin-muted) !important;
-}
-.filter-search {
-    flex: 1;
-    min-width: 250px;
-}
-/* Search box border styling to increase contrast on light theme */
-.filter-search :deep(.search-box) {
-    border-color: #cbd5e1 !important;
-}
-.filter-search :deep(.search-box input::placeholder) {
-    color: #64748b !important;
-}
-.filter-search :deep(.search-box svg) {
-    color: #64748b !important;
-}
-[data-theme="dark"] .filter-search :deep(.search-box) {
-    border-color: var(--admin-border) !important;
-}
-[data-theme="dark"] .filter-search :deep(.search-box input::placeholder) {
-    color: var(--admin-faint) !important;
-}
-[data-theme="dark"] .filter-search :deep(.search-box svg) {
-    color: var(--admin-faint) !important;
-}
-
 /* State */
 .state-box {
     display: flex;
@@ -372,7 +285,7 @@ export default {
     border-bottom: none;
 }
 
-.cluster-row-item:hover {
+.cluster-row-item.never-hover-class-placeholder {
     background: var(--admin-hover, rgba(15, 23, 42, 0.015));
 }
 
@@ -387,7 +300,7 @@ export default {
     transition: opacity 0.15s ease;
 }
 
-.cluster-row-item:hover .accent-line {
+.cluster-row-item.never-hover-class-placeholder .accent-line {
     opacity: 1;
 }
 
@@ -552,7 +465,7 @@ export default {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cluster-row-item:hover .row-right {
+.cluster-row-item.never-hover-class-placeholder .row-right {
     opacity: 1;
     transform: translateX(0);
 }
@@ -572,7 +485,7 @@ export default {
     border-color: var(--admin-border, var(--sg-border));
     color: var(--admin-text, var(--sg-text));
 }
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--admin-hover, #f1f5f9);
 }
 
@@ -661,7 +574,7 @@ export default {
 
 .cluster-address-text {
     font-size: 11.5px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
     max-width: 250px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -676,7 +589,7 @@ export default {
 
 .owner-email-text {
     font-size: 11px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
 }
 
 .courts-badge-count {

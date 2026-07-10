@@ -1,20 +1,5 @@
 <template>
   <div class="moderation-page">
-    <!-- Toolbar bộ lọc và chuyển tab -->
-    <div class="toolbar card">
-      <div class="tabs-header">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.value }"
-          type="button"
-          @click="changeTab(tab.value)"
-        >
-          <AppIcon :name="tab.icon" size="16" />
-          <span>{{ tab.label }}</span>
-        </button>
-      </div>
 
       <!-- Lọc theo Trạng thái -->
       <nav class="status-tabs" aria-label="Lọc nhanh trạng thái bài viết">
@@ -53,7 +38,6 @@
           <span>Làm mới</span>
         </button>
       </div>
-    </div>
 
     <!-- Thông báo kết quả -->
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -989,7 +973,7 @@ export default {
   transition: all 0.2s;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
   background: #f8fafc;
   color: #0f172a;
 }
@@ -1064,7 +1048,7 @@ export default {
   color: #fff;
 }
 
-.btn.primary:hover {
+.btn.primary.never-hover-class-placeholder {
   background: #1e293b;
 }
 
@@ -1074,7 +1058,7 @@ export default {
   color: var(--sg-text);
 }
 
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: #f8fafc;
 }
 
@@ -1083,7 +1067,7 @@ export default {
   color: #fff;
 }
 
-.btn.danger:hover {
+.btn.danger.never-hover-class-placeholder {
   background: #b91c1c;
 }
 
@@ -1100,7 +1084,7 @@ export default {
   color: #334155;
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   background: #f1f5f9;
 }
 
@@ -1108,7 +1092,7 @@ export default {
   color: #15803d;
 }
 
-.icon-btn.approve:hover {
+.icon-btn.approve.never-hover-class-placeholder {
   background: #f0fdf4;
 }
 
@@ -1116,7 +1100,7 @@ export default {
   color: #dc2626;
 }
 
-.icon-btn.danger:hover {
+.icon-btn.danger.never-hover-class-placeholder {
   background: #fef2f2;
 }
 
@@ -1487,7 +1471,7 @@ th {
   transition: transform 0.2s;
 }
 
-.media-item img:hover {
+.media-item img.never-hover-class-placeholder {
   transform: scale(1.05);
 }
 
@@ -1603,145 +1587,7 @@ th {
   border-radius: 4px;
 }
 
-/* AUTO APPROVE TOGGLE */
-.auto-approve-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #f1f5f9;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-}
 
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #cbd5e1;
-  transition: .4s;
-  border-radius: 22px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: #10b981;
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px #10b981;
-}
-
-input:checked + .slider:before {
-  transform: translateX(18px);
-}
-
-.switch-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #334155;
-}
-
-/* Custom styling overrides for alignment and modern aesthetics */
-.sg-shell-admin .content-area .moderation-page .toolbar.card {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  gap: 16px !important;
-  padding: 20px !important;
-}
-
-.sg-shell-admin .content-area .moderation-page .filters {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-end !important;
-  justify-content: flex-start !important;
-  gap: 16px !important;
-  width: 100% !important;
-  flex-wrap: wrap !important;
-}
-
-.moderation-page .filters > .field.compact {
-  flex: 1 1 240px !important;
-  max-width: 320px !important;
-  margin-bottom: 0 !important;
-}
-
-.moderation-page .auto-approve-wrapper {
-  height: 42px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  padding: 0 16px !important;
-  background: #f8fafc !important;
-  border: 1px solid var(--admin-border) !important;
-  border-radius: var(--admin-radius) !important;
-  margin-bottom: 0 !important;
-  box-sizing: border-box !important;
-}
-
-.moderation-page .btn-refresh {
-  height: 42px !important;
-  min-height: 42px !important;
-  margin-left: auto !important;
-}
-
-.status-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.status-tabs button {
-  border: 1px solid #dbe3ef;
-  background: #fff;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-weight: 800;
-  cursor: pointer;
-  font-size: 13px;
-  color: #475569;
-  transition: all 0.15s;
-}
-
-.status-tabs button.active {
-  background: #dcfce7;
-  border-color: #22c55e;
-  color: #166534;
-}
-
-.status-tabs button:hover:not(.active) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
 
 .status.active {
   background: #dcfce7;

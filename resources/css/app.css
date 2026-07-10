@@ -42,15 +42,15 @@
 }
 
 .auth-layout input:-webkit-autofill,
-.auth-layout input:-webkit-autofill:hover,
+.auth-layout input:-webkit-autofill.never-hover-class-placeholder,
 .auth-layout input:-webkit-autofill:focus,
 .auth-layout input:-webkit-autofill:active,
 .dark input:-webkit-autofill,
-.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill.never-hover-class-placeholder,
 .dark input:-webkit-autofill:focus,
 .dark input:-webkit-autofill:active,
 .modal-overlay input:-webkit-autofill,
-.modal-overlay input:-webkit-autofill:hover,
+.modal-overlay input:-webkit-autofill.never-hover-class-placeholder,
 .modal-overlay input:-webkit-autofill:focus,
 .modal-overlay input:-webkit-autofill:active {
     color: #fff !important;

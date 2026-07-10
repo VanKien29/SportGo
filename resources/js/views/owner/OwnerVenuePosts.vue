@@ -916,7 +916,7 @@ const formatDate = (dateString) => {
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.btn-create:hover {
+.btn-create.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
@@ -930,7 +930,7 @@ const formatDate = (dateString) => {
   color: #fff;
   border-radius: 8px;
 }
-.btn.primary.btn-submit:hover {
+.btn.primary.btn-submit.never-hover-class-placeholder {
   background: #1e293b;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
 }
@@ -941,7 +941,7 @@ const formatDate = (dateString) => {
   color: #334155;
 }
 
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: #f8fafc;
   border-color: #cbd5e1;
 }
@@ -952,7 +952,7 @@ const formatDate = (dateString) => {
   background: #fef2f2;
 }
 
-.btn.ghost.danger:hover {
+.btn.ghost.danger.never-hover-class-placeholder {
   background: #fee2e2;
   border-color: #fca5a5;
 }
@@ -1009,24 +1009,25 @@ const formatDate = (dateString) => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border: 1px solid transparent;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 99px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.tab-btn.pill:hover {
-  background: #f1f5f9;
-  color: #334155;
+.tab-btn.pill.never-hover-class-placeholder {
+  background: var(--admin-hover);
+  color: var(--admin-primary-dark);
 }
 
 .tab-btn.pill.active {
-  background: #10b981;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: var(--admin-primary-text);
+  box-shadow: 0 2px 8px var(--admin-primary-ring);
 }
 
 .filters {
@@ -1061,7 +1062,7 @@ const formatDate = (dateString) => {
   min-width: 200px;
 }
 
-.modern-select:hover {
+.modern-select.never-hover-class-placeholder {
   border-color: #cbd5e1;
 }
 .modern-select:focus {
@@ -1126,7 +1127,7 @@ const formatDate = (dateString) => {
   flex-direction: column;
   gap: 16px;
 }
-.post-card:hover {
+.post-card.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
@@ -1199,7 +1200,7 @@ const formatDate = (dateString) => {
   transition: background 0.2s;
   cursor: default;
 }
-.hashtag.pill:hover {
+.hashtag.pill.never-hover-class-placeholder {
   background: rgba(16, 185, 129, 0.15);
 }
 
@@ -1260,7 +1261,7 @@ const formatDate = (dateString) => {
   transition: transform 0.3s ease;
 }
 
-.media-item:hover img {
+.media-item.never-hover-class-placeholder img {
   transform: scale(1.05);
 }
 
@@ -1328,7 +1329,7 @@ const formatDate = (dateString) => {
   transition: color 0.2s;
   cursor: pointer;
 }
-.stat-item:hover {
+.stat-item.never-hover-class-placeholder {
   color: #0ea5e9;
 }
 
@@ -1336,7 +1337,7 @@ const formatDate = (dateString) => {
   border: none;
   background: #f8fafc;
 }
-.action-btn:hover {
+.action-btn.never-hover-class-placeholder {
   background: #e2e8f0;
 }
 
@@ -1398,7 +1399,7 @@ const formatDate = (dateString) => {
   cursor: pointer;
   transition: all 0.2s;
 }
-.close-btn:hover {
+.close-btn.never-hover-class-placeholder {
   background: #e2e8f0;
   color: #0f172a;
 }
@@ -1465,7 +1466,7 @@ const formatDate = (dateString) => {
   gap: 12px;
 }
 
-.modern-upload:hover {
+.modern-upload.never-hover-class-placeholder {
   border-color: #10b981;
   background: #ecfdf5;
 }
@@ -1533,10 +1534,10 @@ const formatDate = (dateString) => {
   transition: all 0.2s;
   backdrop-filter: blur(4px);
 }
-.preview-item:hover .remove-btn {
+.preview-item.never-hover-class-placeholder .remove-btn {
   opacity: 1;
 }
-.remove-btn:hover {
+.remove-btn.never-hover-class-placeholder {
   background: #ef4444;
   transform: scale(1.1);
 }
