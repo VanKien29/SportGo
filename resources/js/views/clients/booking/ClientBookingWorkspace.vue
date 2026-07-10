@@ -54,25 +54,8 @@
                             <div class="date-picker-panel">
                                 <div class="date-control">
                                     <button type="button" aria-label="Ngày trước" @click="shiftDate(-1)">‹</button>
-                                    <strong>{{ formatDate(bookingDate) }}</strong>
+                                    <input v-model="bookingDate" type="date" :min="today" @change="changeDate" />
                                     <button type="button" aria-label="Ngày sau" @click="shiftDate(1)">›</button>
-                                </div>
-                                <MiniCalendar
-                                    v-model="bookingDate"
-                                    :min-date="today"
-                                    @select="changeDate"
-                                />
-                                <div class="date-shortcuts">
-                                    <button
-                                        v-for="item in quickDateOptions"
-                                        :key="item.value"
-                                        type="button"
-                                        :class="{ active: bookingDate === item.value }"
-                                        @click="selectDate(item.value)"
-                                    >
-                                        <span>{{ item.label }}</span>
-                                        <strong>{{ formatShortDate(item.value) }}</strong>
-                                    </button>
                                 </div>
                             </div>
                         </label>
@@ -259,14 +242,13 @@
 
 <script>
 import AppIcon from "../../../components/AppIcon.vue";
-import MiniCalendar from "../../../components/MiniCalendar.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 
 export default {
     name: "ClientBookingWorkspace",
-    components: { AppIcon, MiniCalendar, PublicNavbar },
+    components: { AppIcon, PublicNavbar },
     data() {
         return {
             steps: [
@@ -306,19 +288,6 @@ export default {
     computed: {
         today() {
             return new Date().toLocaleDateString("en-CA");
-        },
-        quickDateOptions() {
-            const options = [
-                { label: "Hôm nay", value: this.today },
-                { label: "Ngày mai", value: this.addDays(this.today, 1) },
-                { label: "Cuối tuần", value: this.nextWeekendDate(this.today) },
-            ];
-            const seen = new Set();
-            return options.filter(item => {
-                if (!item.value || item.value < this.today || seen.has(item.value)) return false;
-                seen.add(item.value);
-                return true;
-            });
         },
         currentCluster() {
             return this.clusters.find(item => String(item.id) === String(this.clusterId)) || null;
@@ -549,8 +518,8 @@ export default {
         },
         gridStyle() {
             const slotCount = Math.max(this.activePeriodSlots.length, 1);
-            const courtColumn = 168;
-            const slotColumn = 72;
+            const courtColumn = 160;
+            const slotColumn = 60;
             return {
                 gridTemplateColumns: `${courtColumn}px repeat(${slotCount}, minmax(${slotColumn}px, 1fr))`,
                 "--timeline-min-width": `${courtColumn + slotCount * slotColumn}px`,
@@ -679,18 +648,6 @@ export default {
             if (value === this.bookingDate) return;
             this.bookingDate = value;
             this.changeDate();
-        },
-        addDays(value, days) {
-            const date = new Date(`${value}T00:00:00`);
-            date.setDate(date.getDate() + days);
-            return date.toLocaleDateString("en-CA");
-        },
-        nextWeekendDate(value) {
-            const date = new Date(`${value}T00:00:00`);
-            const day = date.getDay();
-            const daysToSaturday = day === 0 ? 6 : (6 - day + 7) % 7;
-            date.setDate(date.getDate() + daysToSaturday);
-            return date.toLocaleDateString("en-CA");
         },
         slotStatus(courtId, slot) {
             return this.statuses.find(item => String(item.venue_court_id) === String(courtId) && item.start_time === slot?.start_time);
@@ -942,11 +899,6 @@ export default {
             const [year, month, day] = value.split("-");
             return `${day}/${month}/${year}`;
         },
-        formatShortDate(value) {
-            if (!value) return "-";
-            const [, month, day] = value.split("-");
-            return `${day}/${month}`;
-        },
         money(value) {
             return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0));
         },
@@ -966,9 +918,9 @@ export default {
 }
 
 .booking-shell {
-    width: min(1480px, 100%);
+    width: min(1680px, 100%);
     margin: 0 auto;
-    padding: 92px 24px 48px;
+    padding: 92px 20px 48px;
 }
 
 .page-head {
@@ -1060,8 +1012,8 @@ export default {
 
 .workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 16px;
     align-items: start;
 }
 
@@ -1194,68 +1146,9 @@ export default {
     border-radius: 0;
 }
 
-.date-control strong {
-    display: grid;
-    place-items: center;
-    min-height: 42px;
-    border-top: 1px solid #cbd9cf;
-    border-bottom: 1px solid #cbd9cf;
-    background: #fff;
-    color: #17251c;
-    font-size: 14px;
-    font-weight: 850;
-}
-
 .date-picker-panel {
     display: grid;
     gap: 8px;
-}
-
-.date-picker-panel :deep(.mini-cal) {
-    max-width: none;
-    padding: 9px;
-    border-color: #d7e4d9;
-    border-radius: 7px;
-}
-
-.date-shortcuts {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-}
-
-.date-shortcuts button {
-    display: grid;
-    gap: 2px;
-    min-height: 42px;
-    padding: 7px 8px;
-    border: 1px solid #d5e2d8;
-    border-radius: 7px;
-    background: #fff;
-    color: #33483b;
-    text-align: left;
-}
-
-.date-shortcuts button span {
-    color: #6a7b70;
-    font-size: 10.5px;
-    font-weight: 800;
-}
-
-.date-shortcuts button strong {
-    color: #17251c;
-    font-size: 12px;
-    font-weight: 900;
-}
-
-.date-shortcuts button.active {
-    border-color: #22a653;
-    background: #effbf2;
-}
-
-.date-shortcuts button.active span,
-.date-shortcuts button.active strong {
-    color: #13753d;
 }
 
 .booking-insights {
@@ -1425,7 +1318,8 @@ export default {
 .legend .past { background: #edf1ed; }
 
 .schedule-board {
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     border: 1px solid #d5e2d8;
     border-radius: 8px;
 }
@@ -1463,7 +1357,7 @@ export default {
     flex-direction: column;
     justify-content: center;
     gap: 3px;
-    padding: 9px 12px;
+    padding: 9px 10px;
     border: 0;
     background: #fff;
     text-align: left;
@@ -1471,7 +1365,7 @@ export default {
 
 .court-name strong {
     color: #16251c;
-    font-size: 12px;
+    font-size: 11.5px;
 }
 
 .court-name span {
@@ -1497,7 +1391,7 @@ export default {
 
 .slot small {
     color: #14733b;
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 900;
     white-space: nowrap;
 }
