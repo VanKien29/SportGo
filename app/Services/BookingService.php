@@ -280,7 +280,7 @@ class BookingService
 
                 if (! $this->checkAvailability($range['venue_court_id'], $data['booking_date'], $range['start_time'], $range['end_time'])) {
                     throw ValidationException::withMessages([
-                        'time_ranges' => 'Một hoặc nhiều khung giờ đã có booking hoặc đang được giữ chỗ.',
+                        'time_ranges' => 'Một hoặc nhiều khung giờ vừa được đặt, giữ chỗ hoặc khóa bởi thao tác khác. Vui lòng tải lại lịch trước khi xác nhận.',
                     ]);
                 }
             }
@@ -326,7 +326,7 @@ class BookingService
                     $errorKey = isset($data['time_ranges']) ? 'time_ranges' : 'start_time';
 
                     throw ValidationException::withMessages([
-                        $errorKey => 'Một hoặc nhiều khung giờ đã có booking hoặc đang được giữ chỗ.',
+                        $errorKey => 'Một hoặc nhiều khung giờ vừa được đặt, giữ chỗ hoặc khóa bởi thao tác khác. Vui lòng tải lại lịch trước khi xác nhận.',
                     ]);
                 }
             }
@@ -902,16 +902,21 @@ class BookingService
         foreach ($courts as $court) {
             foreach ($timeSlots as $slot) {
                 $busyInterval = $this->overlappingInterval($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
-                $isAvailable = $busyInterval === null;
+                $slotState = $this->slotAvailabilityState($busyInterval, $cluster->id, $bookingDate, $slot['start_time']);
                 $price = $this->resolveHourlyRate($cluster->id, $court->court_type_id, $bookingDate, $slot['start_time'], $slot['end_time'], $bookingType);
+                $durationHours = max(($this->timeToMinutes($slot['end_time']) - $this->timeToMinutes($slot['start_time'])) / 60, 0);
 
                 $slotStatuses[] = [
                     'venue_court_id' => $court->id,
                     'start_time' => $slot['start_time'],
                     'end_time' => $slot['end_time'],
-                    'is_available' => $isAvailable,
+                    'is_available' => $slotState['is_available'],
+                    'can_book' => $slotState['can_book'],
+                    'slot_status' => $slotState['slot_status'],
+                    'status_label' => $slotState['status_label'],
+                    'unavailable_reason' => $slotState['unavailable_reason'],
                     'hourly_rate' => $price['hourly_rate'],
-                    'price' => round($price['hourly_rate'] / 2, 2),
+                    'price' => round($price['hourly_rate'] * $durationHours, 2),
                     'price_source' => $price['source'],
                     'busy_source' => $busyInterval['source'] ?? null,
                     'busy_status' => $busyInterval['status'] ?? null,
@@ -950,6 +955,72 @@ class BookingService
             ->addMinutes($this->timeToMinutes($startTime));
 
         return now()->addMinutes($minimumMinutes)->lte($bookingStart);
+    }
+
+    private function slotAvailabilityState(?array $busyInterval, string $venueClusterId, string $bookingDate, string $startTime): array
+    {
+        if ($busyInterval !== null) {
+            return $this->busySlotState($busyInterval);
+        }
+
+        $bookingStart = Carbon::parse($bookingDate)
+            ->startOfDay()
+            ->addMinutes($this->timeToMinutes($startTime));
+
+        if ($bookingStart->lt(now())) {
+            return $this->unavailableSlotState(
+                'past',
+                'Đã qua giờ',
+                'Khung giờ này đã quá thời hạn đặt.',
+            );
+        }
+
+        if (! $this->meetsMinimumAdvanceNotice($venueClusterId, $bookingDate, $startTime)) {
+            $minimumMinutes = (int) ($this->bookingConfigForCluster($venueClusterId)?->min_advance_booking_minutes ?? 30);
+
+            return $this->unavailableSlotState(
+                'too_early',
+                'Chưa đủ thời gian đặt trước',
+                "Cần đặt trước tối thiểu {$minimumMinutes} phút.",
+            );
+        }
+
+        return [
+            'is_available' => true,
+            'can_book' => true,
+            'slot_status' => 'available',
+            'status_label' => 'Trống',
+            'unavailable_reason' => null,
+        ];
+    }
+
+    private function busySlotState(array $busyInterval): array
+    {
+        if (($busyInterval['source'] ?? null) === 'slot_lock') {
+            return $this->unavailableSlotState(
+                'locked',
+                'Khóa sân',
+                $busyInterval['reason'] ?: 'Khung giờ này đang bị khóa.',
+            );
+        }
+
+        return match ($busyInterval['status'] ?? null) {
+            'pending_approval' => $this->unavailableSlotState('pending_approval', 'Chờ xác nhận', 'Booking đang chờ chủ sân xác nhận.'),
+            'pending_payment' => $this->unavailableSlotState('pending_payment', 'Chờ thanh toán', 'Booking đang chờ khách thanh toán.'),
+            'confirmed', 'checked_in', 'completed' => $this->unavailableSlotState('booked', 'Đã đặt', 'Khung giờ này đã có booking.'),
+            default => $this->unavailableSlotState('busy', 'Không thể đặt', 'Khung giờ này không còn trống.'),
+        };
+    }
+
+    private function unavailableSlotState(string $status, string $label, string $reason): array
+    {
+        return [
+            'is_available' => false,
+            'can_book' => false,
+            'slot_status' => $status,
+            'status_label' => $label,
+            'unavailable_reason' => $reason,
+        ];
     }
 
     public function resolveOperatingHours(string $venueClusterId, string $bookingDate): array
