@@ -3,38 +3,22 @@
     <div class="avc-filters">
       <div class="filter-row">
         <div class="filter-tabs">
-          <button
-            class="tab-btn"
-            :class="{ active: currentTab === 'today' }"
-            @click="currentTab = 'today'"
-          >
+          <button class="tab-btn" :class="{ active: currentTab === 'today' }" @click="currentTab = 'today'">
             <AppIcon name="calendar" size="16" />
             <span>{{ isStaff ? 'Ca trực của tôi' : 'Lịch trực hôm nay' }}</span>
           </button>
-          <button
-            v-if="!isStaff"
-            class="tab-btn"
-            :class="{ active: currentTab === 'schedules' }"
-            @click="currentTab = 'schedules'"
-          >
+          <button v-if="!isStaff" class="tab-btn" :class="{ active: currentTab === 'schedules' }"
+            @click="currentTab = 'schedules'">
             <AppIcon name="users" size="16" />
             <span>Lập lịch trực</span>
           </button>
-          <button
-            v-if="!isStaff"
-            class="tab-btn"
-            :class="{ active: currentTab === 'templates' }"
-            @click="currentTab = 'templates'"
-          >
+          <button v-if="!isStaff" class="tab-btn" :class="{ active: currentTab === 'templates' }"
+            @click="currentTab = 'templates'">
             <AppIcon name="settings" size="16" />
             <span>Cấu hình ca mẫu</span>
           </button>
-          <button
-            v-if="!isStaff"
-            class="tab-btn"
-            :class="{ active: currentTab === 'report' }"
-            @click="currentTab = 'report'"
-          >
+          <button v-if="!isStaff" class="tab-btn" :class="{ active: currentTab === 'report' }"
+            @click="currentTab = 'report'">
             <AppIcon name="fileText" size="16" />
             <span>Thống kê & Báo cáo</span>
           </button>
@@ -84,20 +68,12 @@
               <p v-if="sch.notes" class="notes">Ghi chú: {{ sch.notes }}</p>
             </div>
             <div class="card-footer">
-              <button
-                v-if="sch.status === 'scheduled'"
-                class="btn primary btn-block"
-                :disabled="!canCheckIn(sch) || actionLoading === sch.id"
-                @click="doCheckIn(sch.id)"
-              >
+              <button v-if="sch.status === 'scheduled'" class="btn primary btn-block"
+                :disabled="!canCheckIn(sch) || actionLoading === sch.id" @click="doCheckIn(sch.id)">
                 {{ actionLoading === sch.id ? 'Đang check-in...' : 'CHECK-IN' }}
               </button>
-              <button
-                v-if="sch.status === 'checked_in'"
-                class="btn danger btn-block"
-                :disabled="actionLoading === sch.id"
-                @click="doCheckOut(sch.id)"
-              >
+              <button v-if="sch.status === 'checked_in'" class="btn danger btn-block"
+                :disabled="actionLoading === sch.id" @click="doCheckOut(sch.id)">
                 {{ actionLoading === sch.id ? 'Đang check-out...' : 'CHECK-OUT' }}
               </button>
               <span v-if="sch.status === 'checked_out'" class="footer-done-text">
@@ -114,21 +90,13 @@
           <div class="table-header flex-header">
             <h4>Lịch trực hôm nay ({{ todayDateString }})</h4>
             <div class="view-mode-toggle">
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: todayViewMode === 'table' }"
-                @click="todayViewMode = 'table'"
-              >
+              <button type="button" class="toggle-btn" :class="{ active: todayViewMode === 'table' }"
+                @click="todayViewMode = 'table'">
                 <AppIcon name="fileText" size="14" />
                 <span>Dạng bảng</span>
               </button>
-              <button
-                type="button"
-                class="toggle-btn"
-                :class="{ active: todayViewMode === 'timeline' }"
-                @click="todayViewMode = 'timeline'"
-              >
+              <button type="button" class="toggle-btn" :class="{ active: todayViewMode === 'timeline' }"
+                @click="todayViewMode = 'timeline'">
                 <AppIcon name="clock" size="14" />
                 <span>Timeline 24h</span>
               </button>
@@ -168,13 +136,55 @@
                   <td>
                     <TableActionGroup>
                       <ActionIconButton icon="pencil" label="Sửa trạng thái" @click="openEditSchedule(sch)" />
-                      <ActionIconButton icon="trash" label="Hủy lịch trực" variant="danger" @click="deleteSchedule(sch.id)" />
+                      <ActionIconButton icon="trash" label="Hủy lịch trực" variant="danger"
+                        @click="deleteSchedule(sch.id)" />
                     </TableActionGroup>
                   </td>
                 </tr>
               </tbody>
             </table>
-
+            <div v-if="todayViewMode === 'table'" class="mobile-today-list">
+              <article
+                v-for="sch in todaySchedules"
+                :key="`mobile-today-${sch.id}`"
+                class="mobile-shift-card"
+                :class="sch.status"
+              >
+                <div class="mobile-shift-card__top">
+                  <div>
+                    <strong>{{ sch.user?.full_name }}</strong>
+                    <span>{{ sch.user?.username }}</span>
+                  </div>
+                  <span class="badge" :class="sch.status">{{ statusLabel(sch.status) }}</span>
+                </div>
+                <div class="mobile-shift-card__body">
+                  <div>
+                    <span>Ca trực</span>
+                    <strong>{{ sch.shift?.name || 'Ca đặc biệt' }}</strong>
+                  </div>
+                  <div>
+                    <span>Dự kiến</span>
+                    <strong>{{ formatTime(sch.start_time) }} - {{ formatTime(sch.end_time) }}</strong>
+                  </div>
+                  <div>
+                    <span>Check-in</span>
+                    <strong>{{ sch.check_in_at ? formatDateTime(sch.check_in_at) : '-' }}</strong>
+                  </div>
+                  <div>
+                    <span>Check-out</span>
+                    <strong>{{ sch.check_out_at ? formatDateTime(sch.check_out_at) : '-' }}</strong>
+                  </div>
+                </div>
+                <div class="mobile-card-actions">
+                  <button type="button" class="mobile-action-btn" @click="openEditSchedule(sch)">
+                    Sửa
+                  </button>
+                  <button type="button" class="mobile-action-btn danger" @click="deleteSchedule(sch.id)">
+                    Hủy
+                  </button>
+                </div>
+              </article>
+            </div>
             <!-- 1.2.2 Dạng Timeline 24h -->
             <div v-else class="shift-timeline-layout">
               <div class="timeline-board">
@@ -182,43 +192,25 @@
                   <div class="timeline-axis">
                     <div class="axis-staff">Nhân viên</div>
                     <div class="axis-track">
-                      <span
-                        v-for="tick in timelineTicks"
-                        :key="tick.label"
-                        class="axis-tick"
-                        :style="{ left: `${tick.left}%` }"
-                      >
+                      <span v-for="tick in timelineTicks" :key="tick.label" class="axis-tick"
+                        :style="{ left: `${tick.left}%` }">
                         {{ tick.label }}
                       </span>
                     </div>
                   </div>
 
-                  <article
-                    v-for="row in todayTimelineRows"
-                    :key="row.user.id"
-                    class="timeline-row"
-                  >
+                  <article v-for="row in todayTimelineRows" :key="row.user.id" class="timeline-row">
                     <div class="staff-meta">
                       <strong>{{ row.user.full_name }}</strong>
                       <span>{{ row.user.username }}</span>
                     </div>
                     <div class="timeline-track">
-                      <span
-                        v-for="tick in timelineTicks"
-                        :key="`grid-${row.user.id}-${tick.label}`"
-                        class="track-gridline"
-                        :style="{ left: `${tick.left}%` }"
-                      ></span>
-                      <button
-                        v-for="block in row.blocks"
-                        :key="block.id"
-                        type="button"
-                        class="timeline-block"
-                        :class="block.statusClass"
-                        :style="block.style"
+                      <span v-for="tick in timelineTicks" :key="`grid-${row.user.id}-${tick.label}`"
+                        class="track-gridline" :style="{ left: `${tick.left}%` }"></span>
+                      <button v-for="block in row.blocks" :key="block.id" type="button" class="timeline-block"
+                        :class="block.statusClass" :style="block.style"
                         :title="`Bấm để chỉnh sửa. Trạng thái: ${block.statusLabel}. Ghi chú: ${block.schedule.notes || 'Không có'}`"
-                        @click="openEditSchedule(block.schedule)"
-                      >
+                        @click="openEditSchedule(block.schedule)">
                         <strong>{{ block.title }}</strong>
                         <span class="block-time">{{ block.timeLabel }}</span>
                       </button>
@@ -236,13 +228,19 @@
     <!-- TAB 2: SCHEDULES / LẬP LỊCH TUẦN -->
     <!-- ========================================== -->
     <div v-if="currentTab === 'schedules'" class="tab-content">
-   
-      <div class="filter-group">
-          <button class="btn icon-only" @click="shiftWeek(-1)"><AppIcon name="chevronLeft" size="16" /></button>
+
+      <div class="schedule-filters">
+        <div class="filter-group">
+          <button class="btn icon-only" @click="shiftWeek(-1)">
+            <AppIcon name="chevronLeft" size="16" />
+          </button>
           <span class="week-label">Tuần: {{ formatWeekRange() }}</span>
-          <button class="btn icon-only" @click="shiftWeek(1)"><AppIcon name="chevronRight" size="16" /></button>
+          <button class="btn icon-only" @click="shiftWeek(1)">
+            <AppIcon name="chevronRight" size="16" />
+          </button>
           <button class="btn secondary" @click="goCurrentWeek">Tuần này</button>
         </div>
+      </div>
 
       <section class="table-card table-schedule-grid">
         <div v-if="loading" class="state">Đang tải lịch trực...</div>
@@ -263,34 +261,101 @@
                 <div class="text-sub">{{ staffMember.username }}</div>
               </td>
               <td v-for="day in weekDays" :key="day.dateString" class="col-day-cell">
-                <div
-                  class="cell-schedules-container"
-                  :class="{ 'clickable-cell': !isPastDate(day.dateString) }"
+                <div class="cell-schedules-container" :class="{ 'clickable-cell': !isPastDate(day.dateString) }"
                   @click="!isPastDate(day.dateString) && onCellClick(staffMember.id, day.dateString, $event)"
-                  :title="!isPastDate(day.dateString) ? 'Bấm vào vùng trống để phân ca nhanh cho nhân viên này' : ''"
-                >
-                  <div
-                    v-for="sch in getSchedulesForCell(staffMember.id, day.dateString)"
-                    :key="sch.id"
-                    class="cell-schedule-text"
-                    :class="sch.status"
-                    @click.stop="openEditSchedule(sch)"
-                    :title="`Bấm để chỉnh sửa. Trạng thái: ${getStatusLabelCompact(sch.status)}. Ghi chú: ${sch.notes || 'Không có'}`"
-                  >
+                  :title="!isPastDate(day.dateString) ? 'Bấm vào vùng trống để phân ca nhanh cho nhân viên này' : ''">
+                  <div v-for="sch in getSchedulesForCell(staffMember.id, day.dateString)" :key="sch.id"
+                    class="cell-schedule-text" :class="sch.status" @click.stop="openEditSchedule(sch)"
+                    :title="`Bấm để chỉnh sửa. Trạng thái: ${getStatusLabelCompact(sch.status)}. Ghi chú: ${sch.notes || 'Không có'}`">
                     <div class="text-time">{{ formatTime(sch.start_time) }} - {{ formatTime(sch.end_time) }}</div>
                     <div class="text-name">
                       {{ sch.shift?.name || 'Ca riêng' }}
                       <span class="status-suffix">({{ getStatusLabelCompact(sch.status) }})</span>
                     </div>
                   </div>
+                  <button
+                    v-if="!isPastDate(day.dateString)"
+                    type="button"
+                    class="cell-add-shift-btn"
+                    title="Thêm ca khác trong ngày này"
+                    @click.stop="openScheduleForStaffDay(staffMember.id, day.dateString)"
+                  >
+                    + Thêm ca
+                  </button>
                 </div>
               </td>
             </tr>
             <tr v-if="staffList.length === 0">
-              <td colspan="8" class="state">Chưa có nhân viên nào trong cụm sân này để xếp lịch. Hãy thêm nhân viên trước.</td>
+              <td colspan="8" class="state">Chưa có nhân viên nào trong cụm sân này để xếp lịch. Hãy thêm nhân viên
+                trước.
+              </td>
             </tr>
           </tbody>
         </table>
+
+        <div v-if="!loading" class="mobile-week-list">
+          <div v-if="staffList.length === 0" class="state">
+            Chưa có nhân viên nào trong cụm sân này để xếp lịch. Hãy thêm nhân viên trước.
+          </div>
+          <article
+            v-for="row in mobileStaffScheduleRows"
+            v-else
+            :key="`mobile-week-${row.staff.id}`"
+            class="mobile-staff-week"
+          >
+            <header class="mobile-staff-week__header">
+              <div>
+                <strong>{{ row.staff.full_name }}</strong>
+                <span>{{ row.staff.username }}</span>
+              </div>
+              <button
+                type="button"
+                class="mobile-add-small"
+                @click="openScheduleForStaff(row.staff.id)"
+              >
+                Phân ca
+              </button>
+            </header>
+
+            <div v-if="row.days.length === 0" class="mobile-empty-week">
+              Chưa có ca trong tuần này.
+            </div>
+            <div v-else class="mobile-day-stack">
+              <section
+                v-for="day in row.days"
+                :key="`mobile-day-${row.staff.id}-${day.dateString}`"
+                class="mobile-day-card"
+              >
+                <div class="mobile-day-card__head">
+                  <div>
+                    <strong>{{ day.label }}</strong>
+                    <span>{{ day.dateDisplay }}</span>
+                  </div>
+                  <button
+                    v-if="!isPastDate(day.dateString)"
+                    type="button"
+                    class="mobile-add-day"
+                    @click="openScheduleForStaffDay(row.staff.id, day.dateString)"
+                  >
+                    Thêm
+                  </button>
+                </div>
+                <button
+                  v-for="sch in day.schedules"
+                  :key="`mobile-sch-${sch.id}`"
+                  type="button"
+                  class="mobile-schedule-pill"
+                  :class="sch.status"
+                  @click="openEditSchedule(sch)"
+                >
+                  <span>{{ formatTime(sch.start_time) }} - {{ formatTime(sch.end_time) }}</span>
+                  <strong>{{ sch.shift?.name || 'Ca riêng' }}</strong>
+                  <em>{{ getStatusLabelCompact(sch.status) }}</em>
+                </button>
+              </section>
+            </div>
+          </article>
+        </div>
       </section>
     </div>
 
@@ -351,7 +416,8 @@
 
       <section class="table-card">
         <div v-if="loading" class="state">Đang tải báo cáo thống kê...</div>
-        <div v-else-if="reportData.length === 0" class="state">Không có dữ liệu ca trực trong khoảng thời gian này.</div>
+        <div v-else-if="reportData.length === 0" class="state">Không có dữ liệu ca trực trong khoảng thời gian này.
+        </div>
         <table v-else>
           <thead>
             <tr>
@@ -396,7 +462,8 @@
           <label>Tên ca mẫu <input v-model.trim="shiftForm.name" placeholder="Ví dụ: Ca sáng" required /></label>
           <label>Giờ bắt đầu <input type="time" v-model="shiftForm.start_time" required /></label>
           <label>Giờ kết thúc <input type="time" v-model="shiftForm.end_time" required /></label>
-          <label class="full-width">Mô tả <textarea v-model.trim="shiftForm.description" rows="2" placeholder="Nhập ghi chú hoặc mô tả về ca trực"></textarea></label>
+          <label class="full-width">Mô tả <textarea v-model.trim="shiftForm.description" rows="2"
+              placeholder="Nhập ghi chú hoặc mô tả về ca trực"></textarea></label>
           <label v-if="shiftForm.id" class="check">
             <input type="checkbox" v-model="shiftForm.is_active" /> Ca trực đang hoạt động
           </label>
@@ -413,12 +480,16 @@
     <!-- ========================================== -->
     <div v-if="showScheduleModal" class="modal-backdrop" @click.self="closeScheduleModal">
       <form class="modal schedule-modal" @submit.prevent="saveSchedules">
-        <h3>Phân công ca trực cho nhân viên</h3>
-        <div class="sch-grid">
+        <header class="schedule-modal-head">
+          <h3>Phân công ca trực cho nhân viên</h3>
+        </header>
 
-          <!-- Staff picker as chips -->
-          <div class="sch-full">
-            <div class="field-label">Chọn nhân viên trực</div>
+        <div class="sch-grid">
+          <section class="schedule-panel schedule-panel-left">
+            <div class="schedule-panel-title">
+              <span>Nhân viên</span>
+              <strong>{{ scheduleForm.user_ids.length }}</strong>
+            </div>
             <div class="staff-chip-grid">
               <button
                 v-for="staffMember in staffList"
@@ -433,15 +504,14 @@
                 <span v-if="scheduleForm.user_ids.includes(staffMember.id)" class="chip-check">✓</span>
               </button>
             </div>
-          </div>
 
-          <!-- Custom Date Picker -->
-          <div class="sch-full">
-            <div class="field-label">Chọn ngày trực</div>
+            <div class="schedule-panel-title schedule-panel-title-spaced">
+              <span>Ngày trực</span>
+              <strong>{{ scheduleForm.dates.length }}</strong>
+            </div>
             <div class="custom-date-picker">
-              <!-- Calendar trigger / tags row -->
               <div class="date-tags-bar">
-                <div class="date-tags-list" v-if="scheduleForm.dates.length > 0">
+                <div v-if="scheduleForm.dates.length > 0" class="date-tags-list">
                   <span v-for="date in scheduleForm.dates" :key="date" class="date-tag">
                     {{ formatDateDisplay(date) }}
                     <button type="button" class="tag-remove" @click="removeScheduleDate(date)">&#215;</button>
@@ -449,11 +519,15 @@
                 </div>
                 <div v-else class="date-placeholder">Chưa chọn ngày nào</div>
                 <button type="button" class="cal-toggle-btn" @click="calendarOpen = !calendarOpen">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
                   Thêm ngày
                 </button>
               </div>
-              <!-- Inline calendar -->
               <div v-if="calendarOpen" class="cal-panel">
                 <div class="cal-nav">
                   <button type="button" class="cal-nav-btn" @click="calPrevMonth">‹</button>
@@ -461,7 +535,7 @@
                   <button type="button" class="cal-nav-btn" @click="calNextMonth">›</button>
                 </div>
                 <div class="cal-weekdays">
-                  <span v-for="d in ['T2','T3','T4','T5','T6','T7','CN']" :key="d">{{ d }}</span>
+                  <span v-for="d in ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']" :key="d">{{ d }}</span>
                 </div>
                 <div class="cal-days-grid">
                   <button
@@ -481,116 +555,83 @@
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <!-- Shift template custom dropdown -->
-          <div class="sch-full">
-            <div class="field-label">Ca mẫu có sẵn</div>
-            <!-- Transparent backdrop to close dropdown when clicking outside -->
-            <div v-if="shiftDropOpen" class="dropdown-backdrop" @click="shiftDropOpen = false"></div>
-            <div class="custom-dropdown" :class="{ open: shiftDropOpen }">
-              <button type="button" class="dropdown-trigger" @click="shiftDropOpen = !shiftDropOpen">
-                <span v-if="scheduleForm.venue_staff_shift_id">
-                  {{ activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.name }}
-                  ({{ formatTime(activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.start_time) }} –
-                  {{ formatTime(activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.end_time) }})
-                </span>
-                <span v-else class="dropdown-placeholder">— Tự định nghĩa giờ trực —</span>
-                <span class="dropdown-caret" :class="{ rotated: shiftDropOpen }">&#9662;</span>
-              </button>
-              <div v-if="shiftDropOpen" class="dropdown-menu">
-                <button type="button" class="dropdown-item" :class="{ active: !scheduleForm.venue_staff_shift_id }" @click="selectShiftTemplate(null)">
-                  <span>— Tự định nghĩa giờ trực —</span>
+          <section class="schedule-panel schedule-panel-right">
+            <div class="schedule-field">
+              <div class="field-label">Ca mẫu có sẵn</div>
+              <div v-if="shiftDropOpen" class="dropdown-backdrop" @click="shiftDropOpen = false"></div>
+              <div class="custom-dropdown" :class="{ open: shiftDropOpen }">
+                <button type="button" class="dropdown-trigger" @click="shiftDropOpen = !shiftDropOpen">
+                  <span v-if="scheduleForm.venue_staff_shift_id">
+                    {{ activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.name }}
+                    ({{ formatTime(activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.start_time) }} –
+                    {{ formatTime(activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.end_time) }})
+                  </span>
+                  <span v-else class="dropdown-placeholder">— Tự định nghĩa giờ trực —</span>
+                  <span class="dropdown-caret" :class="{ rotated: shiftDropOpen }">&#9662;</span>
                 </button>
-                <button
-                  v-for="shift in activeShifts"
-                  :key="shift.id"
-                  type="button"
-                  class="dropdown-item"
-                  :class="{ active: scheduleForm.venue_staff_shift_id === shift.id }"
-                  @click="selectShiftTemplate(shift.id)"
-                >
-                  <strong>{{ shift.name }}</strong>
-                  <span class="shift-time-badge">{{ formatTime(shift.start_time) }} – {{ formatTime(shift.end_time) }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Custom time pickers -->
-          <template v-if="!scheduleForm.venue_staff_shift_id">
-            <div class="time-picker-card">
-              <div class="field-label">Giờ bắt đầu</div>
-              <div class="time-picker-body">
-                <!-- Hour -->
-                <div class="time-unit">
-                  <button type="button" class="time-step" @click="adjustTime('start', 'h', 1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                <div v-if="shiftDropOpen" class="dropdown-menu">
+                  <button
+                    type="button"
+                    class="dropdown-item"
+                    :class="{ active: !scheduleForm.venue_staff_shift_id }"
+                    @click="selectShiftTemplate(null)"
+                  >
+                    <span>— Tự định nghĩa giờ trực —</span>
                   </button>
-                  <div class="time-val">{{ startH }}</div>
-                  <button type="button" class="time-step" @click="adjustTime('start', 'h', -1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  <button
+                    v-for="shift in activeShifts"
+                    :key="shift.id"
+                    type="button"
+                    class="dropdown-item"
+                    :class="{ active: scheduleForm.venue_staff_shift_id === shift.id }"
+                    @click="selectShiftTemplate(shift.id)"
+                  >
+                    <strong>{{ shift.name }}</strong>
+                    <span class="shift-time-badge">{{ formatTime(shift.start_time) }} – {{ formatTime(shift.end_time) }}</span>
                   </button>
                 </div>
-                <div class="time-colon">:</div>
-                <!-- Minute -->
-                <div class="time-unit">
-                  <button type="button" class="time-step" @click="adjustTime('start', 'm', 1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                  </button>
-                  <div class="time-val">{{ startM }}</div>
-                  <button type="button" class="time-step" @click="adjustTime('start', 'm', -1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                </div>
-                <!-- AM/PM badge -->
-                <div class="time-ampm">{{ startHour < 12 ? 'SA' : 'CH' }}</div>
               </div>
             </div>
 
-            <div class="time-picker-card">
-              <div class="field-label">Giờ kết thúc</div>
-              <div class="time-picker-body">
-                <div class="time-unit">
-                  <button type="button" class="time-step" @click="adjustTime('end', 'h', 1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                  </button>
-                  <div class="time-val">{{ endH }}</div>
-                  <button type="button" class="time-step" @click="adjustTime('end', 'h', -1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                </div>
-                <div class="time-colon">:</div>
-                <div class="time-unit">
-                  <button type="button" class="time-step" @click="adjustTime('end', 'm', 1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                  </button>
-                  <div class="time-val">{{ endM }}</div>
-                  <button type="button" class="time-step" @click="adjustTime('end', 'm', -1)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                </div>
-                <div class="time-ampm">{{ endHour < 12 ? 'SA' : 'CH' }}</div>
-              </div>
+            <div v-if="!scheduleForm.venue_staff_shift_id" class="time-input-row">
+              <label class="time-input-card">
+                <span>Giờ bắt đầu</span>
+                <input
+                  v-model="scheduleForm.start_time"
+                  class="time-input-control"
+                  type="time"
+                  required
+                />
+              </label>
+              <label class="time-input-card">
+                <span>Giờ kết thúc</span>
+                <input
+                  v-model="scheduleForm.end_time"
+                  class="time-input-control"
+                  type="time"
+                  required
+                />
+              </label>
             </div>
-          </template>
-
-          <!-- Notes -->
-          <div class="sch-full">
-            <div class="field-label">Ghi chú công việc</div>
-            <input class="styled-input" v-model.trim="scheduleForm.notes" placeholder="Nhập nhiệm vụ hoặc lưu ý đặc biệt" />
-          </div>
+            <div class="schedule-field">
+              <div class="field-label">Ghi chú công việc</div>
+              <input
+                class="styled-input"
+                v-model.trim="scheduleForm.notes"
+                placeholder="Nhập nhiệm vụ hoặc lưu ý đặc biệt"
+              />
+            </div>
+          </section>
         </div>
-        <footer>
+
+        <footer class="schedule-modal-footer">
           <button class="btn secondary" type="button" @click="closeScheduleModal">Hủy</button>
           <button class="btn primary" type="submit" :disabled="saving">Phân công</button>
         </footer>
       </form>
     </div>
-
-    <!-- ========================================== -->
-    <!-- MODAL 3: SỬA LỊCH TRỰC & TRẠNG THÁI -->
-    <!-- ========================================== -->
     <div v-if="showEditScheduleModal" class="modal-backdrop" @click.self="closeEditScheduleModal">
       <form class="modal" @submit.prevent="saveEditSchedule">
         <h3>Điều chỉnh ca trực nhân viên</h3>
@@ -619,19 +660,11 @@
 
     <!-- Floating Action Button for Owner -->
     <div v-if="!isStaff && (currentTab === 'schedules' || currentTab === 'templates')" class="floating-add-container">
-      <button
-        v-if="currentTab === 'templates'"
-        class="btn-float-add"
-        @click="openCreateShift"
-      >
+      <button v-if="currentTab === 'templates'" class="btn-float-add" @click="openCreateShift">
         <AppIcon name="plus" size="20" />
         <span class="btn-float-text">Thêm ca mẫu</span>
       </button>
-      <button
-        v-if="currentTab === 'schedules'"
-        class="btn-float-add"
-        @click="openScheduleModal"
-      >
+      <button v-if="currentTab === 'schedules'" class="btn-float-add" @click="openScheduleModal">
         <AppIcon name="plus" size="20" />
         <span class="btn-float-text">Phân ca trực</span>
       </button>
@@ -728,7 +761,7 @@ export default {
     endH() { return String(this.endHour).padStart(2, '0'); },
     endM() { return String(this.endMin).padStart(2, '0'); },
     calMonthLabel() {
-      const months = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+      const months = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
       return `${months[this.calViewMonth]} ${this.calViewYear}`;
     },
     calDays() {
@@ -746,12 +779,12 @@ export default {
         const d = prevMonthDays - i;
         const m = month === 0 ? 12 : month;
         const y = month === 0 ? year - 1 : year;
-        const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         cells.push({ key: `prev-${d}`, day: d, dateStr, currentMonth: false });
       }
       // Current month
       for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         cells.push({ key: `cur-${d}`, day: d, dateStr, currentMonth: true });
       }
       // Next month filler
@@ -759,7 +792,7 @@ export default {
       for (let d = 1; d <= remaining; d++) {
         const m = month === 11 ? 1 : month + 2;
         const y = month === 11 ? year + 1 : year;
-        const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         cells.push({ key: `next-${d}`, day: d, dateStr, currentMonth: false });
       }
       return cells;
@@ -786,7 +819,7 @@ export default {
     },
     todayTimelineRows() {
       if (this.isStaff) return [];
-      
+
       const grouped = {};
       this.todaySchedules.forEach(sch => {
         const userId = sch.user_id;
@@ -796,7 +829,7 @@ export default {
             blocks: [],
           };
         }
-        
+
         // Parse time to minutes from midnight
         const parseTimeMins = (timeStr) => {
           if (!timeStr) return 0;
@@ -805,14 +838,14 @@ export default {
           const m = parseInt(parts[1]) || 0;
           return h * 60 + m;
         };
-        
+
         const startMins = parseTimeMins(sch.start_time);
         const endMins = parseTimeMins(sch.end_time);
         const totalMins = 24 * 60; // 24 hours
-        
+
         const left = (startMins / totalMins) * 100;
         const width = ((endMins - startMins) / totalMins) * 100;
-        
+
         grouped[userId].blocks.push({
           id: sch.id,
           schedule: sch,
@@ -826,7 +859,7 @@ export default {
           },
         });
       });
-      
+
       return Object.values(grouped);
     },
     weekDays() {
@@ -849,6 +882,17 @@ export default {
         });
       }
       return days;
+    },
+    mobileStaffScheduleRows() {
+      return this.staffList.map((staff) => ({
+        staff,
+        days: this.weekDays
+          .map((day) => ({
+            ...day,
+            schedules: this.getSchedulesForCell(staff.id, day.dateString),
+          }))
+          .filter((day) => day.schedules.length > 0),
+      }));
     },
   },
   watch: {
@@ -894,8 +938,8 @@ export default {
         user_ids: [],
         dates: [],
         venue_staff_shift_id: null,
-        start_time: '',
-        end_time: '',
+        start_time: '06:00',
+        end_time: '12:00',
         notes: '',
       };
     },
@@ -1141,8 +1185,30 @@ export default {
         user_ids: [staffId],
         dates: [dateString],
         venue_staff_shift_id: null,
-        start_time: '',
-        end_time: '',
+        start_time: '06:00',
+        end_time: '12:00',
+        notes: '',
+      };
+      this.showScheduleModal = true;
+    },
+    openScheduleForStaff(staffId) {
+      this.scheduleForm = {
+        user_ids: [staffId],
+        dates: [],
+        venue_staff_shift_id: null,
+        start_time: '06:00',
+        end_time: '12:00',
+        notes: '',
+      };
+      this.showScheduleModal = true;
+    },
+    openScheduleForStaffDay(staffId, dateString) {
+      this.scheduleForm = {
+        user_ids: [staffId],
+        dates: [dateString],
+        venue_staff_shift_id: null,
+        start_time: '06:00',
+        end_time: '12:00',
         notes: '',
       };
       this.showScheduleModal = true;
@@ -1358,7 +1424,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
   text-align: left;
@@ -1455,13 +1522,16 @@ th {
 .my-shift-card.checked_in {
   border-left: 6px solid #22c55e;
 }
+
 .my-shift-card.checked_out {
   border-left: 6px solid #64748b;
   opacity: 0.85;
 }
+
 .my-shift-card.scheduled {
   border-left: 6px solid #3b82f6;
 }
+
 .my-shift-card.absent {
   border-left: 6px solid #ef4444;
 }
@@ -1510,9 +1580,17 @@ th {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .timer-label {
@@ -1655,6 +1733,32 @@ th {
   min-height: 80px;
 }
 
+.cell-add-shift-btn {
+  min-height: 32px;
+  align-self: center;
+  padding: 4px 10px;
+  border: 1px dashed var(--admin-border, #cbd5e1);
+  border-radius: 999px;
+  background: var(--admin-surface, #fff);
+  color: var(--admin-faint, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0.82;
+  transition: border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
+}
+
+.cell-add-shift-btn:focus-visible {
+  border-color: var(--admin-primary, #22a653);
+  color: var(--admin-primary-dark, #15733a);
+  opacity: 1;
+}
+
+.cell-add-shift-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent);
+  outline-offset: 2px;
+}
+
 .cell-schedule-text {
   padding: 4px 6px;
   font-size: 13px;
@@ -1693,6 +1797,7 @@ th {
 .cell-schedule-text.scheduled .text-time {
   color: var(--admin-text, #1e293b) !important;
 }
+
 .cell-schedule-text.scheduled .text-name {
   color: var(--admin-text, #1e293b) !important;
 }
@@ -1701,6 +1806,7 @@ th {
 .cell-schedule-text.checked_in .text-time {
   color: var(--admin-success, #22c55e) !important;
 }
+
 .cell-schedule-text.checked_in .text-name {
   color: var(--admin-text, #1e293b) !important;
 }
@@ -1709,6 +1815,7 @@ th {
 .cell-schedule-text.checked_out {
   opacity: 0.65;
 }
+
 .cell-schedule-text.checked_out .text-time,
 .cell-schedule-text.checked_out .text-name {
   color: var(--admin-faint, #94a3b8) !important;
@@ -1718,6 +1825,7 @@ th {
 .cell-schedule-text.absent .text-time {
   color: var(--admin-danger, #ef4444) !important;
 }
+
 .cell-schedule-text.absent .text-name {
   color: var(--admin-text, #1e293b) !important;
 }
@@ -1727,6 +1835,7 @@ th {
   opacity: 0.5;
   text-decoration: line-through;
 }
+
 .cell-schedule-text.cancelled .text-time,
 .cell-schedule-text.cancelled .text-name {
   color: var(--admin-faint, #94a3b8) !important;
@@ -1796,7 +1905,7 @@ th {
   width: 90%;
   max-width: 500px;
   padding: 24px;
-  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .modal h3 {
@@ -1804,6 +1913,129 @@ th {
   margin-bottom: 20px;
   font-size: 18px;
   font-weight: 800;
+}
+
+.schedule-modal {
+  width: min(960px, calc(100vw - 48px));
+  max-width: 960px;
+  padding: 0;
+  overflow: visible;
+  font-size: 13px;
+}
+
+.schedule-modal-head {
+  padding: 22px 24px 14px;
+}
+
+.schedule-modal-head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.schedule-modal .sch-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(440px, 1.15fr);
+  gap: 0;
+  margin: 0;
+}
+
+.schedule-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 22px 24px;
+}
+
+.schedule-panel-left {
+  padding-right: 18px;
+}
+
+.schedule-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--admin-faint, #64748b);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.schedule-panel-title strong {
+  min-width: 28px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--admin-text, #1e293b);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.schedule-panel-title-spaced {
+  margin-top: 10px;
+}
+
+.schedule-field {
+  display: grid;
+  gap: 8px;
+}
+
+.time-input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.schedule-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 24px 22px;
+}
+
+.schedule-modal .staff-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.schedule-modal .staff-chip {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 8px 12px 8px 8px;
+}
+
+.schedule-modal .staff-chip.active {
+  font-weight: 500;
+}
+
+.schedule-modal .chip-avatar {
+  font-weight: 500;
+}
+
+.schedule-modal .chip-name {
+  max-width: none;
+  min-width: 0;
+}
+
+.schedule-modal .field-label,
+.schedule-modal .schedule-panel-title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.schedule-modal .dropdown-trigger,
+.schedule-modal .styled-input,
+.schedule-modal .staff-chip {
+  font-size: 13px !important;
 }
 
 .grid {
@@ -1826,7 +2058,9 @@ label {
   color: var(--admin-faint, #64748b);
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   border: 1px solid var(--admin-border, #cbd5e1) !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
@@ -1837,13 +2071,17 @@ input, select, textarea {
   width: 100% !important;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--admin-primary, #3b82f6) !important;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
 }
 
-input:disabled, select:disabled, textarea:disabled {
+input:disabled,
+select:disabled,
+textarea:disabled {
   opacity: 0.6 !important;
   cursor: not-allowed !important;
   background: rgba(255, 255, 255, 0.05) !important;
@@ -2116,16 +2354,12 @@ footer {
   opacity: 0.6;
 }
 
-/* Clickable cells hover grid */
 .cell-schedules-container.clickable-cell {
   cursor: pointer;
-  transition: background-color 0.2s ease;
   border-radius: 8px;
   padding: 6px;
 }
-.cell-schedules-container.clickable-cell:hover {
-  background-color: var(--admin-hover, #f1f5f9);
-}
+
 
 /* ========================================
    SCHEDULE MODAL CUSTOM FORM STYLES
@@ -2165,13 +2399,11 @@ footer {
 
 .staff-chip:hover {
   border-color: var(--admin-primary, #22a653);
-  background: var(--admin-primary-soft, #e2f6e8);
   color: var(--admin-primary-dark, #15733a);
 }
 
 .staff-chip.active {
   border-color: var(--admin-primary, #22a653);
-  background: var(--admin-primary-soft, #e2f6e8);
   color: var(--admin-primary-dark, #15733a);
   font-weight: 600;
 }
@@ -2226,7 +2458,6 @@ footer {
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  background: var(--admin-primary-soft, #e2f6e8);
   border: 1px solid color-mix(in srgb, var(--admin-primary, #22a653) 30%, transparent);
   border-radius: 999px;
   font-size: 12px;
@@ -2245,7 +2476,10 @@ footer {
   opacity: 0.7;
   transition: opacity 0.15s;
 }
-.tag-remove:hover { opacity: 1; }
+
+.tag-remove:hover {
+  opacity: 1;
+}
 
 .date-placeholder {
   font-size: 13px;
@@ -2277,7 +2511,7 @@ footer {
 
 .styled-select:focus {
   border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34,166,83,0.18));
+  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.18));
 }
 
 .select-arrow {
@@ -2307,7 +2541,7 @@ footer {
 
 .styled-input:focus {
   border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34,166,83,0.18));
+  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.18));
 }
 
 input[type="date"].styled-input::-webkit-calendar-picker-indicator,
@@ -2324,7 +2558,10 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   gap: 18px;
   margin-top: 4px;
 }
-.sch-full { grid-column: 1 / -1; }
+
+.sch-full {
+  grid-column: 1 / -1;
+}
 
 /* ========================
    Custom Date Picker
@@ -2352,7 +2589,6 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   padding: 5px 12px;
   border-radius: 8px;
   border: 1.5px solid var(--admin-primary, #22a653);
-  background: var(--admin-primary-soft, #e2f6e8);
   color: var(--admin-primary-dark, #15733a);
   font-size: 13px;
   font-weight: 600;
@@ -2361,6 +2597,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   white-space: nowrap;
   margin-left: auto;
 }
+
 .cal-toggle-btn:hover {
   background: color-mix(in srgb, var(--admin-primary, #22a653) 18%, white);
 }
@@ -2398,6 +2635,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   justify-content: center;
   transition: background 0.15s, border-color 0.15s;
 }
+
 .cal-nav-btn:hover {
   background: var(--admin-hover, #f1f5f9);
   border-color: var(--admin-primary, #22a653);
@@ -2409,6 +2647,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   margin-bottom: 4px;
   gap: 2px;
 }
+
 .cal-weekdays span {
   text-align: center;
   font-size: 11px;
@@ -2438,24 +2677,28 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   align-items: center;
   justify-content: center;
 }
+
 .cal-day:hover:not(:disabled):not(.is-past) {
-  background: var(--admin-primary-soft, #e2f6e8);
   color: var(--admin-primary-dark, #15733a);
 }
+
 .cal-day.other-month {
   color: var(--admin-faint, #94a3b8);
   opacity: 0.4;
 }
+
 .cal-day.is-today {
   border: 1.5px solid var(--admin-primary, #22a653);
   font-weight: 700;
   color: var(--admin-primary-dark, #15733a);
 }
+
 .cal-day.is-selected {
   background: var(--admin-primary, #22a653) !important;
   color: #fff !important;
   font-weight: 700;
 }
+
 .cal-day.is-past,
 .cal-day:disabled {
   color: var(--admin-faint, #94a3b8);
@@ -2487,13 +2730,16 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   transition: border-color 0.15s, box-shadow 0.15s;
   text-align: left;
 }
+
 .dropdown-trigger:hover,
 .custom-dropdown.open .dropdown-trigger {
   border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34,166,83,0.15));
+  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.15));
 }
 
-.dropdown-placeholder { color: var(--admin-faint, #94a3b8); }
+.dropdown-placeholder {
+  color: var(--admin-faint, #94a3b8);
+}
 
 .dropdown-caret {
   font-size: 11px;
@@ -2501,7 +2747,10 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
-.dropdown-caret.rotated { transform: rotate(180deg); }
+
+.dropdown-caret.rotated {
+  transform: rotate(180deg);
+}
 
 .dropdown-menu {
   position: absolute;
@@ -2512,7 +2761,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   background: var(--admin-surface, #fff);
   border: 1.5px solid var(--admin-border, #e2e8f0);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   overflow: hidden;
 }
 
@@ -2533,15 +2782,22 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   transition: background 0.12s;
   border-bottom: 1px solid var(--admin-border-soft, #f0f0f0);
 }
-.dropdown-item:last-child { border-bottom: none; }
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
 .dropdown-item:hover {
   background: var(--admin-hover, #f1f5f9);
 }
+
 .dropdown-item.active {
-  background: var(--admin-primary-soft, #e2f6e8);
   color: var(--admin-primary-dark, #15733a);
 }
-.dropdown-item.active strong { color: inherit; }
+
+.dropdown-item.active strong {
+  color: inherit;
+}
 
 .shift-time-badge {
   font-size: 12px;
@@ -2553,6 +2809,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   border-radius: 999px;
   white-space: nowrap;
 }
+
 .dropdown-item.active .shift-time-badge {
   background: color-mix(in srgb, var(--admin-primary, #22a653) 15%, white);
   border-color: color-mix(in srgb, var(--admin-primary, #22a653) 30%, transparent);
@@ -2560,110 +2817,462 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 }
 
 /* ========================
-   Custom Time Picker (redesigned)
+   Time inputs
    ======================== */
+.time-input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
 
-/* Card wrapper */
-.time-picker-card {
-  display: flex;
-  flex-direction: column;
+.time-input-card {
+  display: grid;
   gap: 8px;
-}
-
-/* Body: row with hour col, colon, minute col, ampm badge */
-.time-picker-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1.5px solid var(--admin-border, #e2e8f0);
-  border-radius: 12px;
-  background: var(--admin-surface, #fff);
-}
-
-/* Individual hour/minute column */
-.time-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-/* The digit display */
-.time-val {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--admin-text, #1e293b);
-  min-width: 52px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em;
-  line-height: 1;
-  background: var(--admin-bg-soft, #f7f9fc);
-  border-radius: 8px;
-  padding: 6px 0;
-}
-
-/* Up/down arrow buttons */
-.time-step {
-  width: 36px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1.5px solid var(--admin-border, #e2e8f0);
-  background: var(--admin-surface-muted, #f8fafc);
   color: var(--admin-faint, #64748b);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.1s;
-}
-.time-step:hover {
-  background: var(--admin-primary-soft, #e2f6e8);
-  border-color: var(--admin-primary, #22a653);
-  color: var(--admin-primary-dark, #15733a);
-  transform: scale(1.08);
-}
-.time-step:active {
-  transform: scale(0.95);
-}
-
-/* Colon separator */
-.time-colon {
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--admin-border, #94a3b8);
-  padding: 0 2px;
-  user-select: none;
-  align-self: center;
-  line-height: 1;
-}
-
-/* SA/CH badge */
-.time-ampm {
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 500;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--admin-primary-dark, #15733a);
-  background: var(--admin-primary-soft, #e2f6e8);
-  border: 1px solid color-mix(in srgb, var(--admin-primary, #22a653) 25%, transparent);
-  border-radius: 6px;
-  padding: 4px 8px;
-  align-self: center;
-  min-width: 32px;
-  text-align: center;
 }
 
+.time-input-control {
+  height: 44px;
+  border: 1px solid var(--admin-border, #cbd5e1) !important;
+  border-radius: 10px !important;
+  background: var(--admin-surface, #fff) !important;
+  color: var(--admin-text, #1e293b) !important;
+  -webkit-text-fill-color: var(--admin-text, #1e293b) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 0 12px !important;
+}
+
+.time-input-control:focus {
+  outline: none;
+  border-color: var(--admin-primary, #22a653) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary, #22a653) 18%, transparent) !important;
+}
+
+.time-input-control::-webkit-calendar-picker-indicator {
+  opacity: 0.7;
+}
 /* Legacy modal grid (for other modals like shift template modal) */
 .modal .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
-.modal .grid .full-width { grid-column: 1 / -1; }
+
+.modal .grid .full-width {
+  grid-column: 1 / -1;
+}
+.mobile-today-list,
+.mobile-week-list {
+  display: none;
+}
+
+.mobile-shift-card,
+.mobile-staff-week,
+.mobile-day-card {
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 12px;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 14px 12px 96px;
+    overflow-x: hidden;
+  }
+
+  .avc-filters {
+    padding: 6px 0 10px;
+    margin-inline: -2px;
+  }
+
+  .filter-row {
+    display: block;
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-tabs button.tab-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0 14px !important;
+    scroll-snap-align: start;
+  }
+
+  .tab-content {
+    margin-top: 6px;
+  }
+
+  .filter-group {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .filter-group .btn {
+    min-height: 44px;
+  }
+
+  .filter-group .btn.secondary {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .week-label {
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .table-card {
+    border-radius: 12px;
+    overflow: visible;
+    margin-bottom: 16px;
+  }
+
+  .owner-today-container .table-card > table,
+  .table-schedule-grid > table {
+    display: none;
+  }
+
+  .mobile-today-list,
+  .mobile-week-list {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .table-header {
+    padding: 14px 14px 10px;
+  }
+
+  .table-header h4 {
+    width: 100%;
+    font-size: 15px;
+  }
+
+  .view-mode-toggle {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .view-mode-toggle .toggle-btn {
+    min-height: 40px !important;
+    justify-content: center;
+    padding: 0 8px !important;
+  }
+
+  .shift-timeline-layout {
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .shift-timeline-layout .timeline-board {
+    min-width: 760px;
+  }
+
+  .mobile-shift-card {
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+    border-left: 4px solid var(--admin-primary, #22a653);
+  }
+
+  .mobile-shift-card.checked_in,
+  .mobile-schedule-pill.checked_in {
+    border-left-color: #22c55e;
+  }
+
+  .mobile-shift-card.checked_out,
+  .mobile-schedule-pill.checked_out {
+    border-left-color: #94a3b8;
+  }
+
+  .mobile-shift-card.absent,
+  .mobile-schedule-pill.absent {
+    border-left-color: #ef4444;
+  }
+
+  .mobile-shift-card.cancelled,
+  .mobile-schedule-pill.cancelled {
+    border-left-color: #94a3b8;
+    opacity: 0.72;
+  }
+
+  .mobile-shift-card__top,
+  .mobile-staff-week__header,
+  .mobile-day-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mobile-shift-card__top strong,
+  .mobile-staff-week__header strong,
+  .mobile-day-card__head strong {
+    display: block;
+    color: var(--admin-text, #1e293b);
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .mobile-shift-card__top span,
+  .mobile-staff-week__header span,
+  .mobile-day-card__head span {
+    display: block;
+    margin-top: 2px;
+    color: var(--admin-faint, #64748b);
+    font-size: 12px;
+  }
+
+  .mobile-shift-card__body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mobile-shift-card__body div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .mobile-shift-card__body span {
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .mobile-shift-card__body strong {
+    color: var(--admin-text, #1e293b);
+    font-size: 13px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .mobile-action-btn,
+  .mobile-add-small,
+  .mobile-add-day {
+    min-height: 44px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #1e293b);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .mobile-action-btn.danger {
+    color: var(--admin-danger, #dc2626);
+  }
+
+  .mobile-staff-week {
+    overflow: hidden;
+  }
+
+  .mobile-staff-week__header {
+    padding: 14px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+  }
+
+  .mobile-add-small,
+  .mobile-add-day {
+    min-width: 76px;
+    min-height: 40px;
+    padding: 0 12px;
+    background: var(--admin-primary-soft, #e2f6e8);
+    color: var(--admin-primary-dark, #15733a);
+    border-color: color-mix(in srgb, var(--admin-primary, #22a653) 25%, transparent);
+  }
+
+  .mobile-empty-week {
+    padding: 14px;
+    color: var(--admin-faint, #64748b);
+    font-size: 13px;
+  }
+
+  .mobile-day-stack {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .mobile-day-card {
+    padding: 12px;
+    background: var(--admin-bg-soft, #f7f9fc);
+  }
+
+  .mobile-day-card__head {
+    margin-bottom: 10px;
+  }
+
+  .mobile-schedule-pill {
+    width: 100%;
+    min-height: 56px;
+    display: grid;
+    grid-template-columns: minmax(84px, auto) 1fr auto;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px 10px 10px 12px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-left: 4px solid var(--admin-primary, #22a653);
+    border-radius: 10px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #1e293b);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .mobile-schedule-pill span {
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .mobile-schedule-pill strong {
+    min-width: 0;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-schedule-pill em {
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .floating-add-container {
+    right: 16px;
+    bottom: 18px;
+  }
+
+  .btn-float-add {
+    min-height: 52px;
+    border-radius: 999px;
+  }
+
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modal {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    border-radius: 16px 16px 12px 12px;
+    padding: 18px;
+  }
+
+  .modal .grid,
+  .sch-grid,
+  .schedule-modal .sch-grid,
+  .time-input-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .schedule-modal {
+    width: 100%;
+    max-width: none;
+    overflow-y: auto;
+  }
+
+  .schedule-modal-head {
+    padding: 18px 18px 12px;
+  }
+
+  .schedule-panel {
+    padding: 16px 18px;
+  }
+
+  .schedule-panel-left {
+    border-right: none;
+  }
+
+  .schedule-modal .staff-chip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-modal-footer {
+    position: sticky;
+    bottom: -18px;
+    margin: 0 -18px -18px;
+    padding: 12px 18px 18px;
+    background: var(--admin-surface, #fff);
+    border-top: none;
+  }
+
+  .full-width,
+  .modal .grid .full-width,
+  .sch-full {
+    grid-column: 1 / -1;
+  }
+
+  footer {
+    position: sticky;
+    bottom: -18px;
+    margin: 18px -18px -18px;
+    padding: 12px 18px 18px;
+    background: var(--admin-surface, #fff);
+    border-top: 1px solid var(--admin-border-soft, #e2e8f0);
+  }
+
+  footer .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .mobile-shift-card__body,
+  .mobile-card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-schedule-pill {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .mobile-schedule-pill strong,
+  .mobile-schedule-pill span,
+  .mobile-schedule-pill em {
+    white-space: normal;
+  }
+}
 </style>
-
-
-
