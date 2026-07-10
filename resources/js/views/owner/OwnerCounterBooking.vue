@@ -4,7 +4,7 @@
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
         <div class="tabs-and-actions">
-            <div class="tabs">
+            <div v-if="!isBookingListRoute" class="tabs">
                 <button
                     type="button"
                     :class="{ active: activeTab === 'counter' }"
@@ -21,18 +21,25 @@
                     <AppIcon name="calendar" size="16" />
                     <span>Đặt lịch cố định</span>
                 </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'bookingList' }"
-                    @click="setActiveTab('bookingList')"
+            </div>
+            <div v-else class="tabs context-tabs">
+                <router-link class="tab-nav-link" to="/owner/counter-booking">
+                    <AppIcon name="plus" size="16" />
+                    <span>Tạo booking tại quầy</span>
+                </router-link>
+                <router-link
+                    class="tab-nav-link"
+                    :to="{ name: 'owner-counter-booking', query: { tab: 'recurring' } }"
                 >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách booking</span>
-                </button>
+                    <AppIcon name="calendar" size="16" />
+                    <span>Đặt lịch cố định</span>
+                </router-link>
             </div>
             <button class="secondary-btn" type="button" @click="refreshActiveTab">
                 <AppIcon name="refresh" size="16" />
-                <span>Tải lại lịch</span>
+                <span>{{
+                    activeTab === "bookingList" ? "Tải lại danh sách" : "Tải lại lịch"
+                }}</span>
             </button>
         </div>
 
@@ -2242,6 +2249,9 @@ export default {
         };
     },
     computed: {
+        isBookingListRoute() {
+            return this.$route.name === "owner-booking-list";
+        },
         selectedCluster() {
             return (
                 this.clusters.find(
@@ -3073,6 +3083,15 @@ export default {
         activeTab() {
             this.queueRecurringPreview();
         },
+        "$route.name"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.tab"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.view"() {
+            this.handleRouteModeChange();
+        },
         counterDrawerOpen(isOpen) {
             if (!isOpen) return;
 
@@ -3084,6 +3103,7 @@ export default {
         },
     },
     async created() {
+        this.syncActiveTabFromRoute();
         await this.loadOwnerData();
     },
     mounted() {
@@ -3101,6 +3121,34 @@ export default {
         clearTimeout(this.recurringPreviewTimer);
     },
     methods: {
+        syncActiveTabFromRoute() {
+            if (this.$route.name === "owner-booking-list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.view === "list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.tab === "recurring") {
+                this.activeTab = "recurring";
+                return;
+            }
+
+            if (this.activeTab === "bookingList") {
+                this.activeTab = "counter";
+            }
+        },
+        async handleRouteModeChange() {
+            const before = this.activeTab;
+            this.syncActiveTabFromRoute();
+
+            if (before === this.activeTab || !this.selectedClusterId) return;
+
+            await this.refreshActiveTab();
+        },
         sameDateSet(a = [], b = []) {
             if (a.length !== b.length) return false;
             return [...a].sort().join("|") === [...b].sort().join("|");
@@ -6350,7 +6398,8 @@ input.invalid {
     min-width: 0;
 }
 
-.tabs-and-actions .tabs button {
+.tabs-and-actions .tabs button,
+.tabs-and-actions .tabs .tab-nav-link {
     margin-right: 0;
     white-space: nowrap;
 }
@@ -6360,8 +6409,29 @@ input.invalid {
     margin-left: auto;
 }
 
-.tabs button {
+.tabs button,
+.tabs .tab-nav-link {
     margin-right: 8px;
+}
+
+.tab-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    border: 1px solid #d5e4d6;
+    border-radius: 8px;
+    padding: 0 14px;
+    background: #fff;
+    color: #24362a;
+    font-size: 14px;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.tab-nav-link:hover {
+    border-color: #16a34a;
+    color: #087c35;
 }
 .period-tabs {
     display: flex;

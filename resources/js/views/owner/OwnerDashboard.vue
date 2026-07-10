@@ -96,7 +96,7 @@
           <div class="section-title-wrapper">
             <h3 class="section-title">LỊCH HÔM NAY</h3>
           </div>
-          <router-link to="/owner/counter-booking?view=list" class="section-action-btn">
+          <router-link to="/owner/booking-list" class="section-action-btn">
             Xem danh sách
           </router-link>
         </div>
