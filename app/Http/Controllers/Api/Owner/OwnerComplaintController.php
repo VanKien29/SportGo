@@ -247,6 +247,19 @@ class OwnerComplaintController extends Controller
                 $this->audit->log($request, 'complaint', 'complaint.processing', 'complaints', $complaint->id, $oldValues, $complaint->toArray());
             }
 
+            if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
+                \App\Models\Notification::query()->create([
+                    'user_id' => $complaint->customer_id,
+                    'type' => 'complaint_replied',
+                    'title' => 'Chủ sân đã phản hồi khiếu nại',
+                    'body' => 'Chủ sân vừa gửi phản hồi cho khiếu nại của bạn. Vui lòng kiểm tra chi tiết.',
+                    'reference_type' => Complaint::class,
+                    'reference_id' => $complaint->id,
+                    'data' => ['status' => $complaint->status],
+                    'is_read' => false,
+                ]);
+            }
+
             DB::commit();
 
             return response()->json([

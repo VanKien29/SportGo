@@ -2896,7 +2896,7 @@ export default {
   background: var(--tg-border);
   border-radius: 0;
 }
-::-webkit-scrollbar-thumb.never-hover-class-placeholder {
+::-webkit-scrollbar-thumb:hover {
   background: var(--tg-meta);
 }
 
