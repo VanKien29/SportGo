@@ -71,10 +71,10 @@
                     <div class="booking-insights">
                         <section>
                             <span class="eyebrow">CÁCH CHỌN</span>
-                            <strong>Chọn các ô trống liền nhau trên cùng một sân</strong>
+                            <strong>Chọn một hoặc nhiều sân trong cùng ngày</strong>
                             <p>
-                                Ô đã đặt, sân khóa hoặc quá sát giờ sẽ bị khóa chọn. Giá trong từng ô là giá theo
-                                cấu hình của cụm sân tại ngày đang xem.
+                                Ô đã đặt, sân khóa hoặc quá sát giờ sẽ bị khóa chọn. Mỗi sân cần đủ thời lượng tối
+                                thiểu theo cấu hình, giá trong từng ô được tính theo khung giờ.
                             </p>
                         </section>
                         <section class="price-guide">
@@ -158,28 +158,28 @@
                             <strong>{{ validationError ? "Cần điều chỉnh" : selectionTitle }}</strong>
                             <span>{{ validationError || selectionHint }}</span>
                         </div>
-                        <button v-if="selectedIndexes.length" type="button" @click="clearSelection">Bỏ chọn</button>
+                        <button v-if="selectedSlotKeys.length" type="button" @click="clearSelection">Bỏ chọn</button>
                     </div>
                 </section>
 
                 <aside class="booking-summary">
                     <header>
                         <span class="eyebrow">TÓM TẮT BOOKING</span>
-                        <h2>{{ selectedCourt?.name || "Chưa chọn sân" }}</h2>
-                        <p>{{ selectedCourt?.court_type?.name || "Chọn một khung giờ trống để bắt đầu." }}</p>
+                        <h2>{{ summaryTitle }}</h2>
+                        <p>{{ summarySubtitle }}</p>
                     </header>
 
                     <dl class="booking-facts">
                         <div><dt>Ngày chơi</dt><dd>{{ formatDate(bookingDate) }}</dd></div>
                         <div><dt>Khung giờ</dt><dd>{{ selectedTimeText }}</dd></div>
-                        <div><dt>Thời lượng</dt><dd>{{ duration ? `${duration} phút` : "-" }}</dd></div>
+                        <div><dt>Thời lượng</dt><dd>{{ durationText }}</dd></div>
                     </dl>
 
-                    <section v-if="selectedDetails.length" class="price-breakdown">
-                        <header><strong>Chi tiết giá</strong><span>{{ selectedDetails.length }} ô</span></header>
-                        <div v-for="slot in selectedDetails" :key="slot.start_time">
-                            <span>{{ shortTime(slot.start_time) }} - {{ shortTime(slot.end_time) }}</span>
-                            <strong>{{ money(slot.price) }}</strong>
+                    <section v-if="selectedPriceRows.length" class="price-breakdown">
+                        <header><strong>Chi tiết giá</strong><span>{{ selectedPriceRows.length }} khung</span></header>
+                        <div v-for="row in selectedPriceRows" :key="`${row.courtId}-${row.startTime}`">
+                            <span>{{ row.courtName }} · {{ shortTime(row.startTime) }} - {{ shortTime(row.endTime) }}</span>
+                            <strong>{{ money(row.amount) }}</strong>
                         </div>
                     </section>
 
@@ -263,8 +263,7 @@ export default {
             statuses: [],
             operatingHours: null,
             activePeriod: "",
-            selectedCourtId: "",
-            selectedIndexes: [],
+            selectedSlotKeys: [],
             selectionError: "",
             checking: false,
             available: false,
@@ -297,14 +296,51 @@ export default {
             });
             return [...types.values()];
         },
+        selectedSlotEntries() {
+            return this.slotEntriesFromKeys(this.selectedSlotKeys);
+        },
+        selectedSlotRanges() {
+            return this.slotRangesFromKeys(this.selectedSlotKeys);
+        },
+        selectedCourts() {
+            const map = new Map();
+            this.selectedSlotEntries.forEach(entry => map.set(String(entry.court.id), entry.court));
+            return [...map.values()];
+        },
         selectedCourt() {
-            return this.courts.find(item => String(item.id) === String(this.selectedCourtId)) || null;
+            return this.selectedCourts[0] || null;
         },
         selectedDetails() {
-            return this.selectedIndexes.map(index => this.slotStatus(this.selectedCourtId, this.slots[index])).filter(Boolean);
+            return this.selectedSlotEntries
+                .map(entry => ({
+                    ...entry,
+                    status: this.slotStatus(entry.courtId, entry.slot),
+                }))
+                .filter(entry => entry.status);
+        },
+        selectedPriceRows() {
+            return this.selectedSlotRanges.map(range => {
+                const amount = this.selectedDetails
+                    .filter(entry => {
+                        return String(entry.courtId) === String(range.venue_court_id)
+                            && this.minutes(entry.slot.start_time) >= this.minutes(range.start_time)
+                            && this.minutes(entry.slot.end_time) <= this.minutes(range.end_time);
+                    })
+                    .reduce((sum, entry) => sum + Number(entry.status?.price || 0), 0);
+
+                return {
+                    courtId: range.venue_court_id,
+                    courtName: range.court?.name || "Sân",
+                    startTime: range.start_time,
+                    endTime: range.end_time,
+                    amount,
+                };
+            });
         },
         duration() {
-            return this.selectedIndexes.length * 30;
+            return this.selectedSlotEntries.reduce((sum, entry) => {
+                return sum + Math.max(this.minutes(entry.slot.end_time) - this.minutes(entry.slot.start_time), 0);
+            }, 0);
         },
         minDuration() {
             return Number(this.config.min_duration_minutes || 30);
@@ -317,36 +353,65 @@ export default {
             return Number(this.config.min_advance_booking_minutes || 0);
         },
         startTime() {
-            if (!this.selectedIndexes.length) return "";
-            return this.slots[Math.min(...this.selectedIndexes)]?.start_time || "";
+            return this.selectedSlotRanges[0]?.start_time || "";
         },
         endTime() {
-            if (!this.selectedIndexes.length) return "";
-            return this.slots[Math.max(...this.selectedIndexes)]?.end_time || "";
+            return this.selectedSlotRanges[this.selectedSlotRanges.length - 1]?.end_time || "";
         },
         selectedTimeText() {
-            return this.startTime ? `${this.shortTime(this.startTime)} - ${this.shortTime(this.endTime)}` : "-";
+            return this.rangeListText(this.selectedSlotRanges);
+        },
+        summaryTitle() {
+            if (!this.selectedSlotRanges.length) return "Chưa chọn sân";
+            if (this.selectedCourts.length === 1) return this.selectedCourts[0].name;
+            return `${this.selectedCourts.length} sân đã chọn`;
+        },
+        summarySubtitle() {
+            if (!this.selectedSlotRanges.length) return "Chọn một hoặc nhiều khung giờ trống để bắt đầu.";
+            if (this.selectedSlotRanges.length === 1) return this.selectedCourt?.court_type?.name || "Sân thể thao";
+            return `${this.selectedSlotRanges.length} khung giờ · ${this.durationText}`;
+        },
+        durationText() {
+            if (!this.duration) return "-";
+            const hours = Math.floor(this.duration / 60);
+            const minutes = this.duration % 60;
+            if (!hours) return `${minutes} phút`;
+            if (!minutes) return `${hours} giờ`;
+            return `${hours} giờ ${minutes} phút`;
         },
         selectionTitle() {
             if (this.checking) return "Đang kiểm tra khung giờ";
-            return this.selectedIndexes.length ? `${this.selectedCourt?.name} · ${this.duration} phút` : "Chọn khung giờ trống";
+            if (!this.selectedSlotRanges.length) return "Chọn khung giờ trống";
+            if (this.selectedSlotRanges.length === 1) return `${this.selectedCourt?.name} · ${this.durationText}`;
+            return `${this.selectedSlotRanges.length} khung giờ · ${this.selectedCourts.length} sân`;
         },
         selectionHint() {
             if (this.checking) return "Hệ thống đang đối chiếu trạng thái sân, giá và ưu đãi mới nhất.";
-            return this.selectedIndexes.length
+            return this.selectedSlotRanges.length
                 ? `${this.selectedTimeText} · ${this.money(this.baseAmount)}`
-                : `Chọn tối thiểu ${this.minDuration} phút liên tiếp trên cùng một sân.`;
+                : `Có thể chọn nhiều sân; mỗi sân cần đủ tối thiểu ${this.minDuration} phút.`;
         },
         validationError() {
             if (this.selectionError) return this.selectionError;
-            if (!this.selectedIndexes.length) return "";
-            if (this.duration < this.minDuration) return `Thời lượng tối thiểu là ${this.minDuration} phút.`;
-            if (this.maxDuration && this.duration > this.maxDuration) return `Thời lượng tối đa là ${this.maxDuration} phút.`;
+            if (!this.selectedSlotKeys.length) return "";
+            const invalidCourt = this.selectedCourts.find(court => {
+                const minutes = this.selectedSlotEntries
+                    .filter(entry => String(entry.courtId) === String(court.id))
+                    .reduce((sum, entry) => sum + Math.max(this.minutes(entry.slot.end_time) - this.minutes(entry.slot.start_time), 0), 0);
+                return minutes < this.minDuration || (this.maxDuration && minutes > this.maxDuration);
+            });
+            if (invalidCourt) {
+                const minutes = this.selectedSlotEntries
+                    .filter(entry => String(entry.courtId) === String(invalidCourt.id))
+                    .reduce((sum, entry) => sum + Math.max(this.minutes(entry.slot.end_time) - this.minutes(entry.slot.start_time), 0), 0);
+                if (minutes < this.minDuration) return `${invalidCourt.name} cần đặt tối thiểu ${this.minDuration} phút.`;
+                return `${invalidCourt.name} chỉ được đặt tối đa ${this.maxDuration} phút.`;
+            }
             if (!this.available && !this.checking) return "Khung giờ không còn khả dụng.";
             return "";
         },
         baseAmount() {
-            return this.selectedDetails.reduce((sum, item) => sum + Number(item.price || 0), 0);
+            return this.selectedDetails.reduce((sum, item) => sum + Number(item.status?.price || 0), 0);
         },
         membershipDiscount() {
             return Number(this.preview?.membership_discount_amount || 0);
@@ -396,7 +461,7 @@ export default {
         },
         activeStep() {
             if (this.available && !this.validationError) return 3;
-            if (this.selectedIndexes.length) return 2;
+            if (this.selectedSlotKeys.length) return 2;
             return 1;
         },
         configCards() {
@@ -584,7 +649,7 @@ export default {
         slotClasses(courtId, slot, index) {
             const status = this.slotStatus(courtId, slot);
             return {
-                selected: String(this.selectedCourtId) === String(courtId) && this.selectedIndexes.includes(index),
+                selected: this.selectedSlotKeys.includes(this.slotKey(courtId, slot)),
                 booked: status?.is_available === false && status?.busy_source !== "slot_lock",
                 locked: status?.busy_source === "slot_lock",
                 past: this.slotPast(slot) || this.slotTooSoon(slot),
@@ -599,38 +664,32 @@ export default {
             return `${court.name} · ${this.shortTime(slot.start_time)} · ${this.money(status?.price)}`;
         },
         async toggleSlot(court, index) {
-            if (this.slotDisabled(court.id, this.slots[index])) return;
+            const slot = this.slots[index];
+            if (this.slotDisabled(court.id, slot)) return;
             this.selectionError = "";
-            let indexes = [index];
-            if (String(this.selectedCourtId) === String(court.id) && this.selectedIndexes.length) {
-                const min = Math.min(...this.selectedIndexes);
-                const max = Math.max(...this.selectedIndexes);
-                if (this.selectedIndexes.includes(index)) indexes = [index];
-                else if (index === min - 1) indexes = this.range(index, max);
-                else if (index === max + 1) indexes = this.range(min, index);
-                else {
-                    this.selectionError = "Chỉ được chọn các khung giờ liên tiếp trên cùng một sân.";
-                    return;
-                }
-            }
-            if (this.maxDuration && indexes.length * 30 > this.maxDuration) {
-                this.selectionError = `Thời lượng tối đa là ${this.maxDuration} phút.`;
+            const key = this.slotKey(court.id, slot);
+            const nextKeys = this.selectedSlotKeys.includes(key)
+                ? this.selectedSlotKeys.filter(item => item !== key)
+                : [...this.selectedSlotKeys, key];
+            const nextEntries = this.slotEntriesFromKeys(nextKeys);
+            const courtMinutes = nextEntries
+                .filter(entry => String(entry.courtId) === String(court.id))
+                .reduce((sum, entry) => sum + Math.max(this.minutes(entry.slot.end_time) - this.minutes(entry.slot.start_time), 0), 0);
+
+            if (this.maxDuration && courtMinutes > this.maxDuration) {
+                this.selectionError = `${court.name} chỉ được đặt tối đa ${this.maxDuration} phút.`;
                 return;
             }
-            if (indexes.some(item => this.slotDisabled(court.id, this.slots[item]))) {
-                this.selectionError = "Khoảng vừa chọn có khung giờ không khả dụng.";
-                return;
-            }
-            this.selectedCourtId = court.id;
-            this.selectedIndexes = indexes;
+
+            this.selectedSlotKeys = nextKeys;
             await this.checkAvailability();
         },
         focusCourt(court) {
-            if (String(this.selectedCourtId) !== String(court.id)) this.clearSelection();
+            const courtKeys = this.selectedSlotKeys.filter(key => key.startsWith(`${court.id}|`));
+            if (courtKeys.length) this.selectedSlotKeys = courtKeys;
         },
         clearSelection() {
-            this.selectedCourtId = "";
-            this.selectedIndexes = [];
+            this.selectedSlotKeys = [];
             this.selectionError = "";
             this.available = false;
             this.preview = null;
@@ -640,20 +699,31 @@ export default {
             this.selectedVipVoucherId = "";
         },
         async checkAvailability() {
-            if (!this.selectedCourtId || !this.startTime || !this.endTime) return;
+            if (!this.selectedSlotRanges.length) {
+                this.available = false;
+                this.preview = null;
+                this._venueVouchers = [];
+                this._vipVouchers = [];
+                return;
+            }
             this.checking = true;
             this.available = false;
             try {
-                const response = await bookingService.checkAvailability({
-                    venue_court_id: this.selectedCourtId,
+                const responses = await Promise.all(this.selectedSlotRanges.map(range => bookingService.checkAvailability({
+                    venue_court_id: range.venue_court_id,
                     booking_date: this.bookingDate,
-                    start_time: this.startTime,
-                    end_time: this.endTime,
-                });
-                this.available = Boolean(response.available);
+                    start_time: range.start_time,
+                    end_time: range.end_time,
+                })));
+                this.available = responses.every(response => Boolean(response.available));
+                const original = responses.reduce((sum, response) => sum + Number(response.price_preview?.original_amount || response.total_price || 0), 0);
+                const membershipDiscount = responses.reduce((sum, response) => {
+                    return sum + Number(response.membership_discount?.discount_amount || response.price_preview?.membership_discount_amount || 0);
+                }, 0);
                 this.preview = {
-                    ...(response.price_preview || {}),
-                    membership_discount_amount: response.membership_discount?.discount_amount || response.price_preview?.membership_discount_amount || 0,
+                    original_amount: original,
+                    membership_discount_amount: membershipDiscount,
+                    final_amount: Math.max(original - membershipDiscount, 0),
                 };
                 if (this.available) await this.loadVouchers();
             } catch (error) {
@@ -664,11 +734,14 @@ export default {
         },
         async loadVouchers() {
             try {
+                const firstRange = this.selectedSlotRanges[0];
+                if (!firstRange) return;
                 const response = await bookingService.eligibleVouchers({
-                    venue_court_id: this.selectedCourtId,
+                    venue_court_id: firstRange.venue_court_id,
                     booking_date: this.bookingDate,
-                    start_time: this.startTime,
-                    end_time: this.endTime,
+                    start_time: firstRange.start_time,
+                    end_time: firstRange.end_time,
+                    amount: this.baseAmount,
                 });
                 this._venueVouchers = response.venue_vouchers || [];
                 this._vipVouchers = response.vip_vouchers || [];
@@ -712,8 +785,7 @@ export default {
                 .map(({ index }) => index);
             this.routeSelection = null;
             if (!court || !selection.length || selection.some(index => this.slotDisabled(court.id, this.slots[index]))) return;
-            this.selectedCourtId = court.id;
-            this.selectedIndexes = selection;
+            this.selectedSlotKeys = selection.map(index => this.slotKey(court.id, this.slots[index]));
             this.setActivePeriodByIndex(selection[0]);
             await this.checkAvailability();
         },
@@ -722,11 +794,18 @@ export default {
             this.submitting = true;
             this.submitError = "";
             try {
+                const ranges = this.selectedSlotRanges.map(range => ({
+                    venue_court_id: range.venue_court_id,
+                    start_time: range.start_time,
+                    end_time: range.end_time,
+                }));
+                const firstRange = ranges[0];
                 const booking = await bookingService.createBooking({
-                    venue_court_id: this.selectedCourtId,
+                    venue_court_id: firstRange.venue_court_id,
                     booking_date: this.bookingDate,
-                    start_time: this.startTime,
-                    end_time: this.endTime,
+                    start_time: firstRange.start_time,
+                    end_time: firstRange.end_time,
+                    ...(ranges.length > 1 ? { time_ranges: ranges } : {}),
                     payment_option: this.paymentOption,
                     venue_voucher_id: this.selectedVenueVoucherId || null,
                     vip_voucher_id: this.selectedVipVoucherId || null,
@@ -741,6 +820,48 @@ export default {
         },
         range(start, end) {
             return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+        },
+        slotKey(courtId, slot) {
+            return `${courtId}|${slot?.start_time || ""}`;
+        },
+        slotEntriesFromKeys(keys = []) {
+            return keys
+                .map(key => {
+                    const [courtId, startTime] = key.split("|");
+                    const court = this.courts.find(item => String(item.id) === String(courtId));
+                    const slot = this.slots.find(item => item.start_time === startTime);
+                    return court && slot ? { courtId, court, slot } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => {
+                    const courtSort = String(a.court.name || "").localeCompare(String(b.court.name || ""));
+                    if (courtSort !== 0) return courtSort;
+                    return this.minutes(a.slot.start_time) - this.minutes(b.slot.start_time);
+                });
+        },
+        slotRangesFromKeys(keys = []) {
+            const ranges = [];
+            this.slotEntriesFromKeys(keys).forEach(({ courtId, court, slot }) => {
+                const current = ranges[ranges.length - 1];
+                if (!current || String(current.venue_court_id) !== String(courtId) || current.end_time !== slot.start_time) {
+                    ranges.push({
+                        venue_court_id: courtId,
+                        court,
+                        start_time: slot.start_time,
+                        end_time: slot.end_time,
+                    });
+                    return;
+                }
+                current.end_time = slot.end_time;
+            });
+            return ranges;
+        },
+        rangeListText(ranges = []) {
+            if (!ranges.length) return "-";
+            if (ranges.length <= 2) {
+                return ranges.map(range => `${range.court?.name || "Sân"}: ${this.shortTime(range.start_time)} - ${this.shortTime(range.end_time)}`).join("; ");
+            }
+            return `${ranges.length} khung giờ trên ${this.selectedCourts.length} sân`;
         },
         minutes(time) {
             const [hour, minute] = String(time || "00:00").slice(0, 5).split(":").map(Number);
@@ -770,6 +891,845 @@ export default {
 </script>
 
 <style scoped>
-.client-booking{min-height:100vh;background:#f3f7f4;color:#17251c}.booking-shell{width:min(1540px,100%);margin:auto;padding:94px 24px 48px}.page-head{margin-bottom:18px}.page-head>div{display:flex;gap:8px;color:#65756b;font-size:12px}.page-head a{color:#168447;text-decoration:none;font-weight:800}.page-head h1{margin:10px 0 5px;font-size:32px;letter-spacing:0}.page-head p{margin:0;color:#65756b}.flow-steps{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:18px;border:1px solid #d6e3d8;border-radius:8px;overflow:hidden;background:#d6e3d8;gap:1px}.flow-steps>div{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff}.flow-steps>div>span{display:grid;place-items:center;width:30px;height:30px;border:1px solid #c9d7cb;border-radius:50%;font-weight:900}.flow-steps section{display:grid;gap:2px}.flow-steps small{color:#718077}.flow-steps .active{background:#f0faf3}.flow-steps .active>span,.flow-steps .done>span{border-color:#22a653;background:#22a653;color:#fff}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px;align-items:start}.schedule-workspace,.booking-summary{border:1px solid #d6e3d8;border-radius:8px;background:#fff;box-shadow:0 8px 24px rgba(35,65,43,.05)}.schedule-workspace{min-width:0;padding:18px}.workspace-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.workspace-head h2,.booking-summary h2{margin:3px 0 0;font-size:19px}.eyebrow{color:#168447;font-size:10px;font-weight:900;letter-spacing:.06em}.config-chips{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}.config-chips span{padding:5px 8px;border-radius:999px;background:#e7f7eb;color:#15733a;font-size:11px;font-weight:800}.booking-filters{display:grid;grid-template-columns:1fr 1fr .8fr;gap:10px;margin:16px 0 10px;padding:12px;border:1px solid #e0e9e1;border-radius:8px;background:#f7faf7}.booking-filters label{display:grid;gap:6px;min-width:0}.booking-filters label>span{color:#526158;font-size:11px;font-weight:800}.booking-filters select,.booking-filters input{box-sizing:border-box;width:100%;height:40px;border:1px solid #cedbd0;border-radius:7px;background:#fff;color:#17251c;padding:0 10px;font:inherit}.date-control{display:grid;grid-template-columns:36px 1fr 36px}.date-control button{border:1px solid #cedbd0;background:#fff;color:#15733a;font-size:19px}.date-control button:first-child{border-radius:7px 0 0 7px}.date-control button:last-child{border-radius:0 7px 7px 0}.date-control input{border-radius:0;border-inline:0}.booking-insights{display:grid;grid-template-columns:minmax(0,.9fr) minmax(280px,1.1fr);gap:10px;margin-bottom:12px}.booking-insights section{border:1px solid #d9e6db;border-radius:8px;background:#fbfdfb;padding:12px}.booking-insights section>strong{display:block;margin-top:4px;color:#173921;font-size:13px}.booking-insights p{margin:5px 0 0;color:#68786e;font-size:12px;line-height:1.45}.price-guide header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.price-guide header strong{font-size:12px;color:#173921}.price-guide>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.price-guide article{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid #e2ebe3;border-radius:7px;background:#fff}.price-guide article span{display:grid;min-width:0}.price-guide article strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.price-guide article small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#728077;font-size:10px}.price-guide article em{flex:none;color:#168447;font-style:normal;font-size:12px;font-weight:900}.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:12px;color:#607066;font-size:11px;font-weight:700}.legend span{display:flex;align-items:center;gap:5px}.legend i{width:12px;height:12px;border:1px solid #bfd0c2;border-radius:3px}.legend .free{background:#eefaf1}.legend .selected{background:#22a653}.legend .booked{background:#fee2e2}.legend .locked{background:repeating-linear-gradient(-45deg,#9ca3af,#9ca3af 3px,#e5e7eb 3px,#e5e7eb 6px)}.legend .past{background:#edf1ed}.schedule-board{overflow:auto;border:1px solid #d6e3d8;border-radius:8px}.timeline{display:grid;min-width:max-content}.timeline>*{min-height:54px;border-right:1px solid #e0e8e1;border-bottom:1px solid #e0e8e1}.sticky{position:sticky;left:0;z-index:2}.court-heading,.time-heading{display:grid;place-items:center;background:#edf5ee;color:#4d5e53;font-size:11px;font-weight:900}.court-name{display:flex;flex-direction:column;justify-content:center;gap:3px;padding:8px 10px;border:0;background:#fff;text-align:left}.court-name strong{color:#17251c;font-size:12px}.court-name span{color:#6d7c72;font-size:10px}.slot{position:relative;border:0;border-right:1px solid #e0e8e1;border-bottom:1px solid #e0e8e1;background:#f4fbf5;cursor:pointer}.slot:hover:not(:disabled){background:#dcf5e2}.slot small{color:#267f43;font-size:9px;font-weight:850}.slot.selected{background:#22a653;box-shadow:inset 0 0 0 2px #168447}.slot.selected small{color:#fff}.slot.booked{background:#fee7e7}.slot.locked{background:repeating-linear-gradient(-45deg,#d1d5db,#d1d5db 6px,#eef0f2 6px,#eef0f2 12px)}.slot.past{background:#edf1ed}.slot:disabled{cursor:not-allowed}.selection-feedback{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding:11px 12px;border:1px solid #bfe6c8;border-radius:8px;background:#effbf2}.selection-feedback>div{display:grid;gap:2px}.selection-feedback strong{color:#176c36;font-size:12px}.selection-feedback span{color:#597063;font-size:11px}.selection-feedback button{color:#c62828;font-size:11px;font-weight:850}.selection-feedback.error{border-color:#fecaca;background:#fff3f3}.selection-feedback.error strong{color:#b91c1c}.booking-summary{position:sticky;top:86px;padding:18px}.booking-summary header p{margin:4px 0 0;color:#68786e;font-size:12px}.booking-facts{display:grid;gap:0;margin:16px 0}.booking-facts div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #e5ece6}.booking-facts dt{color:#68786e;font-size:12px}.booking-facts dd{margin:0;font-size:12px;font-weight:850;text-align:right}.price-breakdown,.discount-section,.payment-section{display:grid;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid #dfe8e0}.price-breakdown header,.price-breakdown>div,.discount-section>div{display:flex;justify-content:space-between;gap:10px;font-size:11px}.price-breakdown header span,.price-breakdown>div span{color:#68786e}.discount-section>div strong{color:#168447}.discount-section>button{display:flex;justify-content:space-between;gap:8px;padding:10px;border:1px solid #bfe2c6;border-radius:7px;background:#eef9f0;color:#184f2b;font-weight:800}.discount-section button em{font-style:normal;color:#168447}.voucher-list{display:grid;gap:6px}.voucher-list button{display:flex;justify-content:space-between;gap:8px;padding:9px;border:1px solid #d7e3d8;border-radius:7px;background:#fff;text-align:left}.voucher-list button.active{border-color:#22a653;background:#effbf2}.voucher-list button span{display:grid}.voucher-list small{color:#6c7b71}.voucher-list em{color:#168447;font-style:normal;font-weight:900}.payment-section h3{margin:0 0 2px;font-size:13px}.payment-section label{display:flex;gap:9px;padding:10px;border:1px solid #d7e3d8;border-radius:7px}.payment-section label.active{border-color:#22a653;background:#effbf2}.payment-section label span{display:grid}.payment-section label small{color:#6b7a70}.booking-summary footer{display:grid;gap:9px;margin-top:16px;padding-top:15px;border-top:1px solid #dfe8e0}.booking-summary footer>div{display:flex;justify-content:space-between}.booking-summary footer>div strong{font-size:18px}.booking-summary footer .required strong{color:#168447}.booking-summary footer>p{margin:0;padding:8px;border-radius:6px;background:#fff0f0;color:#b91c1c;font-size:11px}.booking-summary footer>button{min-height:44px;border:1px solid #22a653;border-radius:7px;background:#22a653;color:#fff;font-weight:900}.booking-summary footer>button:disabled{border-color:#d4ddd5;background:#e7ece8;color:#99a49c}.booking-summary footer>small{color:#6c7b71;text-align:center}.state-panel,.loading-panel{display:grid;place-items:center;min-height:180px;color:#68786e}.state-panel.error{color:#b91c1c}.schedule-skeleton{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.schedule-skeleton i{height:54px;border-radius:7px;background:linear-gradient(90deg,#edf2ee,#f8faf8,#edf2ee);background-size:200% 100%;animation:shimmer 1.2s infinite}@keyframes shimmer{to{background-position:-200% 0}}.loading-panel{gap:10px}.loading-panel i{width:30px;height:30px;border:3px solid #d9e5db;border-top-color:#22a653;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:1050px){.workspace{grid-template-columns:1fr}.booking-summary{position:static}.booking-filters{grid-template-columns:1fr 1fr}.booking-filters label:last-child{grid-column:1/-1}.booking-insights{grid-template-columns:1fr}.price-guide>div{grid-template-columns:1fr}}@media(max-width:680px){.booking-shell{padding:78px 12px 30px}.page-head h1{font-size:25px}.flow-steps{grid-template-columns:1fr}.flow-steps>div{padding:9px 11px}.workspace-head{flex-direction:column}.config-chips{justify-content:flex-start}.booking-filters{grid-template-columns:1fr}.booking-filters label:last-child{grid-column:auto}.schedule-workspace,.booking-summary{padding:13px}.selection-feedback{align-items:flex-start;flex-direction:column}.schedule-skeleton{grid-template-columns:repeat(2,1fr)}} 
-.period-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.period-tabs{display:flex;flex-wrap:wrap;gap:8px}.period-tabs button{display:flex;align-items:baseline;justify-content:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid #d6e3d8;border-radius:7px;background:#fff;color:#2f4136;font-weight:900}.period-tabs button.active{border-color:#22a653;background:#22a653;color:#fff;box-shadow:0 8px 18px rgba(34,166,83,.18)}.period-tabs button span{color:inherit;font-size:11px;font-weight:800;opacity:.72}.period-tabs button:disabled{opacity:.55}.slot small{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);white-space:nowrap}.config-chips span:first-child{background:#edf5ff;color:#2563a7}@media(max-width:680px){.booking-summary{position:sticky;bottom:0;top:auto;z-index:10;max-height:82vh;overflow:auto;border-radius:10px 10px 0 0;box-shadow:0 -12px 30px rgba(15,49,26,.14)}.period-tabs{display:grid;grid-template-columns:1fr;width:100%}.period-tabs button{justify-content:center}}
+.client-booking {
+    min-height: 100vh;
+    background: #f4f8f5;
+    color: #15241b;
+}
+
+.booking-shell {
+    width: min(1480px, 100%);
+    margin: 0 auto;
+    padding: 92px 24px 48px;
+}
+
+.page-head {
+    margin-bottom: 18px;
+}
+
+.page-head > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #66756c;
+    font-size: 13px;
+}
+
+.page-head a {
+    color: #148348;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.page-head h1 {
+    margin: 10px 0 6px;
+    font-size: 30px;
+    line-height: 1.15;
+}
+
+.page-head p {
+    margin: 0;
+    color: #627267;
+    font-size: 14px;
+}
+
+.flow-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin-bottom: 18px;
+    overflow: hidden;
+    border: 1px solid #d7e4d9;
+    border-radius: 8px;
+    background: #d7e4d9;
+}
+
+.flow-steps > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 62px;
+    padding: 12px 16px;
+    background: #fff;
+}
+
+.flow-steps > div > span {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #cbd8ce;
+    border-radius: 999px;
+    font-weight: 900;
+}
+
+.flow-steps section {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.flow-steps strong {
+    font-size: 14px;
+}
+
+.flow-steps small {
+    color: #748178;
+    font-size: 12px;
+}
+
+.flow-steps .active {
+    background: #f1faf4;
+}
+
+.flow-steps .active > span,
+.flow-steps .done > span {
+    border-color: #22a653;
+    background: #22a653;
+    color: #fff;
+}
+
+.workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 18px;
+    align-items: start;
+}
+
+.schedule-workspace,
+.booking-summary {
+    border: 1px solid #d5e2d8;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(37, 68, 45, 0.06);
+}
+
+.schedule-workspace {
+    min-width: 0;
+    padding: 18px;
+}
+
+.workspace-head {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) auto;
+    gap: 18px;
+    align-items: start;
+}
+
+.workspace-head h2,
+.booking-summary h2 {
+    margin: 4px 0 0;
+    font-size: 22px;
+    line-height: 1.25;
+}
+
+.eyebrow {
+    color: #148348;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.config-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+    max-width: 620px;
+}
+
+.config-chips span {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #e8f7ec;
+    color: #13753d;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.config-chips span:first-child {
+    background: #eef6ff;
+    color: #2563a7;
+}
+
+.booking-filters {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) minmax(180px, 0.9fr);
+    gap: 12px;
+    margin: 18px 0 12px;
+    padding: 12px;
+    border: 1px solid #dce8de;
+    border-radius: 8px;
+    background: #f8fbf8;
+}
+
+.booking-filters label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.booking-filters label > span {
+    color: #53655a;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.booking-filters select,
+.booking-filters input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 42px;
+    border: 1px solid #cbd9cf;
+    border-radius: 7px;
+    background: #fff;
+    color: #17251c;
+    padding: 0 12px;
+    font: inherit;
+    font-size: 14px;
+}
+
+.booking-filters input[type="date"] {
+    color-scheme: light;
+    color: #17251c;
+}
+
+.date-control {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+}
+
+.date-control button {
+    border: 1px solid #cbd9cf;
+    background: #fff;
+    color: #13753d;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.date-control button:first-child {
+    border-radius: 7px 0 0 7px;
+}
+
+.date-control button:last-child {
+    border-radius: 0 7px 7px 0;
+}
+
+.date-control input {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+.booking-insights {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.82fr) minmax(420px, 1.18fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.booking-insights section {
+    border: 1px solid #dce8de;
+    border-radius: 8px;
+    background: #fbfdfb;
+    padding: 12px;
+}
+
+.booking-insights section > strong {
+    display: block;
+    margin-top: 5px;
+    color: #173921;
+    font-size: 15px;
+}
+
+.booking-insights p {
+    margin: 7px 0 0;
+    color: #64766b;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.price-guide header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.price-guide header strong {
+    color: #173921;
+    font-size: 13px;
+}
+
+.price-guide > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.price-guide article {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid #e0e9e1;
+    border-radius: 7px;
+    background: #fff;
+}
+
+.price-guide article span {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.price-guide article strong,
+.price-guide article small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.price-guide article strong {
+    font-size: 13px;
+}
+
+.price-guide article small {
+    color: #718077;
+    font-size: 11px;
+}
+
+.price-guide article em {
+    flex: 0 0 auto;
+    color: #148348;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.period-row {
+    margin: 14px 0 10px;
+}
+
+.period-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.period-tabs button {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid #d5e2d8;
+    border-radius: 7px;
+    background: #fff;
+    color: #2d4035;
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.period-tabs button.active {
+    border-color: #22a653;
+    background: #22a653;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(34, 166, 83, 0.18);
+}
+
+.period-tabs button span {
+    color: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    opacity: 0.74;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px 16px;
+    margin-bottom: 12px;
+    color: #5d6d64;
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend i {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #bdd0c1;
+    border-radius: 3px;
+}
+
+.legend .free { background: #eefaf1; }
+.legend .selected { background: #22a653; }
+.legend .booked { background: #fee2e2; }
+.legend .locked { background: repeating-linear-gradient(-45deg, #9ca3af, #9ca3af 3px, #e5e7eb 3px, #e5e7eb 6px); }
+.legend .past { background: #edf1ed; }
+
+.schedule-board {
+    overflow: auto;
+    border: 1px solid #d5e2d8;
+    border-radius: 8px;
+}
+
+.timeline {
+    display: grid;
+    min-width: max-content;
+}
+
+.timeline > * {
+    min-height: 54px;
+    border-right: 1px solid #e1e9e2;
+    border-bottom: 1px solid #e1e9e2;
+}
+
+.sticky {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.court-heading,
+.time-heading {
+    display: grid;
+    place-items: center;
+    background: #edf5ee;
+    color: #43544a;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.court-name {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 9px 12px;
+    border: 0;
+    background: #fff;
+    text-align: left;
+}
+
+.court-name strong {
+    color: #16251c;
+    font-size: 12px;
+}
+
+.court-name span {
+    color: #6e7e74;
+    font-size: 10.5px;
+    line-height: 1.35;
+}
+
+.slot {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-right: 1px solid #e1e9e2;
+    border-bottom: 1px solid #e1e9e2;
+    background: #f5fbf6;
+    cursor: pointer;
+}
+
+.slot:hover:not(:disabled) {
+    background: #ddf4e3;
+}
+
+.slot small {
+    color: #14733b;
+    font-size: 10.5px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.slot.selected {
+    background: #22a653;
+    box-shadow: inset 0 0 0 2px #148348;
+}
+
+.slot.selected small {
+    color: #fff;
+}
+
+.slot.booked { background: #fee7e7; }
+.slot.locked { background: repeating-linear-gradient(-45deg, #d1d5db, #d1d5db 6px, #eef0f2 6px, #eef0f2 12px); }
+.slot.past { background: #edf1ed; }
+.slot:disabled { cursor: not-allowed; }
+
+.selection-feedback {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid #bfe6c8;
+    border-radius: 8px;
+    background: #effbf2;
+}
+
+.selection-feedback > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.selection-feedback strong {
+    color: #176c36;
+    font-size: 14px;
+}
+
+.selection-feedback span {
+    overflow: hidden;
+    color: #5c6f63;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.selection-feedback button {
+    flex: 0 0 auto;
+    color: #c62828;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.selection-feedback.error {
+    border-color: #fecaca;
+    background: #fff3f3;
+}
+
+.selection-feedback.error strong {
+    color: #b91c1c;
+}
+
+.booking-summary {
+    position: sticky;
+    top: 86px;
+    padding: 18px;
+}
+
+.booking-summary header p {
+    margin: 6px 0 0;
+    color: #68786e;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.booking-facts {
+    display: grid;
+    margin: 16px 0;
+}
+
+.booking-facts div {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid #e5ece6;
+}
+
+.booking-facts dt {
+    color: #68786e;
+    font-size: 13px;
+}
+
+.booking-facts dd {
+    margin: 0;
+    color: #14221a;
+    font-size: 13px;
+    font-weight: 850;
+    text-align: right;
+}
+
+.price-breakdown,
+.discount-section,
+.payment-section {
+    display: grid;
+    gap: 9px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #dfe8e0;
+}
+
+.price-breakdown header,
+.price-breakdown > div,
+.discount-section > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+}
+
+.price-breakdown > div span {
+    color: #68786e;
+    line-height: 1.35;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.discount-section > div strong,
+.discount-section button em {
+    color: #148348;
+}
+
+.discount-section > button {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 12px;
+    border: 1px solid #bfe2c6;
+    border-radius: 7px;
+    background: #eef9f0;
+    color: #184f2b;
+    font-weight: 850;
+}
+
+.discount-section button em {
+    font-style: normal;
+    font-weight: 900;
+}
+
+.voucher-list {
+    display: grid;
+    gap: 7px;
+}
+
+.voucher-list button {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #d7e3d8;
+    border-radius: 7px;
+    background: #fff;
+    text-align: left;
+}
+
+.voucher-list button.active {
+    border-color: #22a653;
+    background: #effbf2;
+}
+
+.voucher-list button span {
+    display: grid;
+}
+
+.voucher-list small {
+    color: #6c7b71;
+}
+
+.payment-section h3 {
+    margin: 0 0 2px;
+    font-size: 15px;
+}
+
+.payment-section label {
+    display: flex;
+    gap: 10px;
+    padding: 11px;
+    border: 1px solid #d7e3d8;
+    border-radius: 7px;
+}
+
+.payment-section label.active {
+    border-color: #22a653;
+    background: #effbf2;
+}
+
+.payment-section label span {
+    display: grid;
+    gap: 2px;
+}
+
+.payment-section label small {
+    color: #6b7a70;
+}
+
+.booking-summary footer {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 15px;
+    border-top: 1px solid #dfe8e0;
+}
+
+.booking-summary footer > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.booking-summary footer > div strong {
+    font-size: 20px;
+}
+
+.booking-summary footer .required strong {
+    color: #148348;
+}
+
+.booking-summary footer > p {
+    margin: 0;
+    padding: 9px 10px;
+    border-radius: 7px;
+    background: #fff0f0;
+    color: #b91c1c;
+    font-size: 12px;
+}
+
+.booking-summary footer > button {
+    min-height: 46px;
+    border: 1px solid #22a653;
+    border-radius: 7px;
+    background: #22a653;
+    color: #fff;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.booking-summary footer > button:disabled {
+    border-color: #d4ddd5;
+    background: #e7ece8;
+    color: #99a49c;
+}
+
+.booking-summary footer > small {
+    color: #6c7b71;
+    text-align: center;
+}
+
+.state-panel,
+.loading-panel {
+    display: grid;
+    place-items: center;
+    min-height: 180px;
+    color: #68786e;
+}
+
+.state-panel.error {
+    color: #b91c1c;
+}
+
+.schedule-skeleton {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.schedule-skeleton i {
+    height: 54px;
+    border-radius: 7px;
+    background: linear-gradient(90deg, #edf2ee, #f8faf8, #edf2ee);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+}
+
+.loading-panel {
+    gap: 10px;
+}
+
+.loading-panel i {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #d9e5db;
+    border-top-color: #22a653;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes shimmer {
+    to { background-position: -200% 0; }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1100px) {
+    .workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .booking-summary {
+        position: static;
+    }
+
+    .booking-filters,
+    .booking-insights {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    .booking-shell {
+        padding: 78px 12px 30px;
+    }
+
+    .page-head h1 {
+        font-size: 25px;
+    }
+
+    .flow-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-head,
+    .booking-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .config-chips {
+        justify-content: flex-start;
+    }
+
+    .schedule-workspace,
+    .booking-summary {
+        padding: 14px;
+    }
+
+    .price-guide > div {
+        grid-template-columns: 1fr;
+    }
+
+    .selection-feedback {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .selection-feedback span {
+        white-space: normal;
+    }
+
+    .period-tabs {
+        display: grid;
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .booking-summary {
+        position: sticky;
+        z-index: 10;
+        bottom: 0;
+        max-height: 82vh;
+        overflow: auto;
+        border-radius: 10px 10px 0 0;
+        box-shadow: 0 -12px 30px rgba(15, 49, 26, 0.14);
+    }
+}
 </style>

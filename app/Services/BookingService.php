@@ -115,6 +115,10 @@ class BookingService
      */
     public function createBooking(array $data, string $customerId): Booking
     {
+        if (count($data['time_ranges'] ?? []) > 1) {
+            return $this->createOnlineRangeBooking($data, $customerId);
+        }
+
         return DB::transaction(function () use ($data, $customerId) {
             $venueCourtId = $data['venue_court_id'];
             $bookingDate = $data['booking_date'];
@@ -264,6 +268,53 @@ class BookingService
             }
 
             return $booking;
+        });
+    }
+
+    private function createOnlineRangeBooking(array $data, string $customerId): Booking
+    {
+        return DB::transaction(function () use ($data, $customerId): Booking {
+            $actor = User::query()->findOrFail($customerId);
+            $court = $this->lockActiveCourt($data['venue_court_id']);
+            $timeRanges = $this->normalizeTimeRanges($data, $court->id);
+            $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
+
+            $this->validateTimeRanges($timeRanges);
+            $this->ensureRangesAreNotInPast($data['booking_date'], $timeRanges, 'start_time');
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+
+            foreach ($timeRanges as $range) {
+                $this->assertWithinOperatingHours(
+                    $court->venue_cluster_id,
+                    $data['booking_date'],
+                    $range['start_time'],
+                    $range['end_time'],
+                );
+                $this->assertMinimumAdvanceNotice($court->venue_cluster_id, $data['booking_date'], $range['start_time']);
+
+                if (! $this->checkAvailability($range['venue_court_id'], $data['booking_date'], $range['start_time'], $range['end_time'])) {
+                    throw ValidationException::withMessages([
+                        'time_ranges' => 'Một hoặc nhiều khung giờ đã có booking hoặc đang được giữ chỗ.',
+                    ]);
+                }
+            }
+
+            return $this->createOperationalBooking(
+                $court,
+                array_merge($data, [
+                    'customer_id' => $customerId,
+                    'start_time' => $timeRanges[0]['start_time'],
+                    'end_time' => $timeRanges[array_key_last($timeRanges)]['end_time'],
+                    'time_ranges' => $timeRanges,
+                    'range_courts' => $rangeCourts,
+                    'source' => 'online',
+                    'initial_status' => $data['payment_option'] === 'no_prepay' ? 'pending_approval' : 'pending_payment',
+                    'create_counter_payment' => false,
+                ]),
+                $actor,
+                $data['booking_date'],
+                'single',
+            );
         });
     }
 
@@ -1035,10 +1086,11 @@ class BookingService
         $discountAmount = round($membershipDiscountAmount + $voucherDiscountAmount, 2);
         $totalPrice = round(max($amountAfterMembership - $voucherDiscountAmount, 0), 2);
         $requiredPaymentAmount = $this->requiredPaymentAmount($court->venue_cluster_id, $totalPrice, $data['payment_option']);
+        $source = $data['source'] ?? 'counter';
         $isPaid = $requiredPaymentAmount <= 0 && $data['payment_option'] !== 'no_prepay'
             ? true
             : (bool) ($data['is_paid'] ?? false);
-        $status = $this->initialCounterStatus($data['payment_option'], $isPaid);
+        $status = $data['initial_status'] ?? $this->initialCounterStatus($data['payment_option'], $isPaid);
         $startTime = $timeRanges[0]['start_time'];
         $endTime = $timeRanges[array_key_last($timeRanges)]['end_time'];
 
@@ -1068,7 +1120,7 @@ class BookingService
             'vip_voucher_code_snapshot' => $vipVoucher['code'] ?? null,
             'payment_option' => $data['payment_option'],
             'required_payment_amount' => $requiredPaymentAmount,
-            'source' => 'counter',
+            'source' => $source,
             'booking_type' => $bookingType,
             'recurring_group_code' => $data['recurring_group_code'] ?? null,
             'recurring_start_date' => $data['recurring_start_date'] ?? null,
@@ -1098,7 +1150,9 @@ class BookingService
             $this->recordVoucherUsage($voucher, $booking, $customer->id);
         }
 
-        $payment = $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
+        $payment = ($data['create_counter_payment'] ?? ($source === 'counter'))
+            ? $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash')
+            : null;
 
         if ($payment && $payment->status === 'paid') {
             $this->recordSystemVoucherSubsidyForPayment($payment);
