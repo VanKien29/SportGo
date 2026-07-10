@@ -30,6 +30,7 @@ import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
+import StaffLayout from "../views/staff/StaffLayout.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
@@ -447,6 +448,25 @@ const routes = [
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },
+    {
+        path: "/staff",
+        component: StaffLayout,
+        meta: { requiresAuth: true, role: "staff" },
+        children: [
+            {
+                path: "dashboard",
+                name: "staff-dashboard",
+                component: () => import("../views/staff/StaffDashboard.vue"),
+            },
+            {
+                path: "schedules",
+                name: "staff-schedules",
+                component: () => import("../views/staff/StaffSchedules.vue"),
+            },
+            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "", redirect: { name: "staff-dashboard" } },
+        ],
+    },
     { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
@@ -474,6 +494,10 @@ router.beforeEach(async (to, from, next) => {
         return next({ name: "owner-profile" });
     }
 
+    if (to.name === "profile" && auth?.role_group === "staff") {
+        return next({ name: "staff-profile" });
+    }
+
     if (to.matched.some((route) => route.meta.requiresAuth)) {
         const requiredRole = to.matched.find((route) => route.meta.role)?.meta
             .role;
@@ -491,6 +515,8 @@ router.beforeEach(async (to, from, next) => {
                 return next({ name: "admin-dashboard" });
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
+            if (auth.role_group === "staff")
+                return next({ name: "staff-dashboard" });
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
         }
@@ -501,6 +527,8 @@ router.beforeEach(async (to, from, next) => {
             return next({ name: "admin-dashboard" });
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
+        if (auth.role_group === "staff")
+            return next({ name: "staff-dashboard" });
         return next({ name: "home" });
     }
 

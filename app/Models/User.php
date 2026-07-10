@@ -97,7 +97,8 @@ class User extends Authenticatable
             'policy_manager',
             'staff_manager',
         ];
-        $ownerRoles = ['venue_owner', 'venue_staff'];
+        $ownerRoles = ['venue_owner'];
+        $staffRoles = ['venue_staff'];
 
         if (array_intersect($roles, $adminRoles)) {
             return 'admin';
@@ -105,6 +106,10 @@ class User extends Authenticatable
 
         if (array_intersect($roles, $ownerRoles)) {
             return 'owner';
+        }
+
+        if (array_intersect($roles, $staffRoles)) {
+            return 'staff';
         }
 
         return 'user';

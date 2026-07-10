@@ -2896,9 +2896,7 @@ export default {
   background: var(--tg-border);
   border-radius: 0;
 }
-::-webkit-scrollbar-thumb.never-hover-class-placeholder {
-  background: var(--tg-meta);
-}
+
 
 /* ── Avatars ────────────────────────────────── */
 .tg-avatar {

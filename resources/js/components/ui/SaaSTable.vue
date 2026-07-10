@@ -97,9 +97,7 @@ export default {
   border-radius: 99px;
 }
 
-.saas-table-scroll::-webkit-scrollbar-thumb.never-hover-class-placeholder {
-  background: var(--admin-faint, #94a3b8);
-}
+
 
 .saas-table {
   width: 100%;

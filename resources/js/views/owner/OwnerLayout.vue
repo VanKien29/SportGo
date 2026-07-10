@@ -8,6 +8,8 @@
     :selected-cluster-id="selectedClusterId"
     :selected-cluster="selectedCluster"
     :cluster-loading="clusterLoading"
+    workspace-label="Chủ sân"
+    role-label="Chủ sân"
     @cluster-change="changeCluster"
   >
     <router-view />

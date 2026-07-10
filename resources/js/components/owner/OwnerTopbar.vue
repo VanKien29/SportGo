@@ -17,7 +17,7 @@
       </button>
 
       <div class="admin-crumbs" aria-label="Breadcrumb">
-        <span>Owner</span>
+        <span>{{ workspaceLabel }}</span>
         <AppIcon name="chevronRight" size="13" />
         
         <!-- Cluster Selector Dropdown in Breadcrumbs -->
@@ -71,9 +71,11 @@
 
       <UserProfileDropdown
         :user="user"
-        profile-url="/owner/profile"
-        billing-url="/owner/billing"
-        settings-url="/owner/settings"
+        :profile-url="profileUrl"
+        :billing-url="billingUrl"
+        :settings-url="settingsUrl"
+        :show-billing="showAccountLinks"
+        :show-settings="showAccountLinks"
         @logout="handleLogout"
       />
     </div>
@@ -97,6 +99,11 @@ export default {
     selectedClusterId: { type: [String, Number], default: '' },
     selectedCluster: { type: Object, default: null },
     clusterLoading: { type: Boolean, default: false },
+    workspaceLabel: { type: String, default: 'Owner' },
+    profileUrl: { type: String, default: '/owner/profile' },
+    billingUrl: { type: String, default: '/owner/billing' },
+    settingsUrl: { type: String, default: '/owner/settings' },
+    showAccountLinks: { type: Boolean, default: true },
   },
   emits: ['toggle-sidebar', 'toggle-collapse', 'cluster-change'],
   data() {

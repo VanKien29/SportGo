@@ -234,27 +234,27 @@
           <button class="btn icon-only" @click="shiftWeek(-1)">
             <AppIcon name="chevronLeft" size="16" />
           </button>
-          <span class="week-label">Tuan: {{ formatWeekRange() }}</span>
+          <span class="week-label">Tuần: {{ formatWeekRange() }}</span>
           <button class="btn icon-only" @click="shiftWeek(1)">
             <AppIcon name="chevronRight" size="16" />
           </button>
-          <button class="btn secondary" @click="goCurrentWeek">Tuan nay</button>
+          <button class="btn secondary" @click="goCurrentWeek">Tuần này</button>
         </div>
 
-        <div class="schedule-view-switch" role="group" aria-label="Chon kieu xem lich truc">
+        <div class="schedule-view-switch" role="group" aria-label="Chọn kiểu xem lịch trực">
           <button type="button" class="schedule-view-btn" :class="{ active: scheduleViewMode === 'week' }" @click="setScheduleViewMode('week')">
-            Tuan
+            Tuần
           </button>
           <button type="button" class="schedule-view-btn" :class="{ active: scheduleViewMode === 'day' }" @click="setScheduleViewMode('day')">
-            Ngay
+            Ngày
           </button>
         </div>
       </div>
 
-      <section v-if="scheduleViewMode === 'day'" class="table-card day-schedule-board">
+      <section v-if="scheduleViewMode === 'day'" class="day-schedule-board">
         <div class="day-schedule-head">
           <div>
-            <p class="day-schedule-kicker">Lich truc trong ngay</p>
+            <p class="day-schedule-kicker">Lịch trực trong ngày</p>
             <h3>{{ selectedScheduleDayLabel }}</h3>
           </div>
           <div class="day-schedule-controls">
@@ -265,28 +265,28 @@
             <button class="btn icon-only" type="button" @click="shiftScheduleDay(1)">
               <AppIcon name="chevronRight" size="16" />
             </button>
-            <button class="btn secondary" type="button" @click="goTodayScheduleDay">Hom nay</button>
+            <button class="btn secondary" type="button" @click="goTodayScheduleDay">Hôm nay</button>
           </div>
         </div>
 
-        <div v-if="loading" class="state">Dang tai lich truc...</div>
+        <div v-if="loading" class="state">Đang tải lịch trực...</div>
         <div v-else class="day-schedule-content">
           <div class="day-summary-row">
-            <div class="day-summary-item"><span>Tong ca</span><strong>{{ selectedDaySchedules.length }}</strong></div>
-            <div class="day-summary-item"><span>Nhan vien co lich</span><strong>{{ selectedDayStaffCount }}</strong></div>
-            <div class="day-summary-item"><span>Chua phan ca</span><strong>{{ unscheduledStaffForSelectedDay.length }}</strong></div>
+            <div class="day-summary-item"><span>Tổng ca</span><strong>{{ selectedDaySchedules.length }}</strong></div>
+            <div class="day-summary-item"><span>Nhân viên có lịch</span><strong>{{ selectedDayStaffCount }}</strong></div>
+            <div class="day-summary-item"><span>Chưa phân ca</span><strong>{{ unscheduledStaffForSelectedDay.length }}</strong></div>
           </div>
 
           <div v-if="dayScheduleGroups.length === 0" class="day-empty-state">
-            <strong>Chua co ca truc trong ngay nay</strong>
-            <span>Chon nhan vien ben duoi hoac dung nut them de phan ca nhanh.</span>
+            <strong>Chưa có ca trực trong ngày này</strong>
+            <span>Chọn nhân viên bên dưới hoặc dùng nút thêm để phân ca nhanh.</span>
           </div>
 
           <div v-else class="day-shift-groups">
             <article v-for="group in dayScheduleGroups" :key="group.key" class="day-shift-group">
               <header class="day-shift-group-head">
                 <div><strong>{{ group.timeLabel }}</strong><span>{{ group.shiftName }}</span></div>
-                <em>{{ group.schedules.length }} nhan vien</em>
+                <em>{{ group.schedules.length }} nhân viên</em>
               </header>
               <div class="day-shift-staff-list">
                 <button v-for="sch in group.schedules" :key="`day-sch-${sch.id}`" type="button" class="day-staff-shift" :class="sch.status" @click="openEditSchedule(sch)">
@@ -298,7 +298,7 @@
           </div>
 
           <section v-if="!isPastDate(selectedScheduleDate) && unscheduledStaffForSelectedDay.length > 0" class="day-unassigned-panel">
-            <header><strong>Nhan vien chua co lich</strong><span>{{ unscheduledStaffForSelectedDay.length }} nguoi</span></header>
+            <header><strong>Nhân viên chưa có lịch</strong><span>{{ unscheduledStaffForSelectedDay.length }} người</span></header>
             <div class="day-unassigned-list">
               <button v-for="staffMember in unscheduledStaffForSelectedDay" :key="`day-unassigned-${staffMember.id}`" type="button" class="day-unassigned-chip" @click="openScheduleForStaffDay(staffMember.id, selectedScheduleDate)">
                 <span>{{ getInitials(staffMember.full_name) }}</span><strong>{{ staffMember.full_name }}</strong>
@@ -580,7 +580,7 @@
                 <div v-if="scheduleForm.dates.length > 0" class="date-tags-list">
                   <span v-for="date in scheduleForm.dates" :key="date" class="date-tag">
                     {{ formatDateDisplay(date) }}
-                    <button type="button" class="tag-remove" aria-label="Bo ngay" @click="removeScheduleDate(date)">&#215;</button>
+                    <button type="button" class="tag-remove" aria-label="Bỏ ngày" @click="removeScheduleDate(date)">&#215;</button>
                   </span>
                 </div>
                 <div v-else class="date-placeholder">Chưa chọn ngày nào</div>
@@ -969,7 +969,7 @@ export default {
     dayScheduleGroups() {
       const groups = new Map();
       this.selectedDaySchedules.forEach((sch) => {
-        const shiftName = sch.shift?.name || 'Ca rieng';
+        const shiftName = sch.shift?.name || 'Ca riêng';
         const key = `${this.formatTime(sch.start_time)}-${this.formatTime(sch.end_time)}-${shiftName}`;
         if (!groups.has(key)) {
           groups.set(key, {
@@ -1471,7 +1471,7 @@ export default {
 
     buildDayMeta(dateString) {
       if (!dateString) return null;
-      const labels = ['Chu nhat', 'Thu 2', 'Thu 3', 'Thu 4', 'Thu 5', 'Thu 6', 'Thu 7'];
+      const labels = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
       const date = new Date(`${dateString}T00:00:00`);
       if (Number.isNaN(date.getTime())) return null;
       const dd = String(date.getDate()).padStart(2, '0');
@@ -1490,7 +1490,7 @@ export default {
     getScheduleStaffName(schedule) {
       return schedule?.user?.full_name
         || this.staffList.find((staff) => String(staff.id) === String(schedule?.user_id))?.full_name
-        || 'Nhan vien';
+        || 'Nhân viên';
     },
     getInitials(name) {
       const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -1858,8 +1858,8 @@ th {
 }
 
 .week-label {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--admin-text, #1e293b);
   min-width: 120px;
   text-align: center;
@@ -1903,8 +1903,8 @@ th {
 
 .day-schedule-board {
   display: grid;
-  gap: 16px;
-  padding: 16px;
+  gap: 14px;
+  padding: 2px 0 0;
 }
 
 .day-schedule-head {
@@ -1912,6 +1912,8 @@ th {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
 }
 
 .day-schedule-kicker {
@@ -1926,7 +1928,7 @@ th {
 .day-schedule-head h3 {
   margin: 0;
   color: var(--admin-text, #f4f4f5);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -1946,22 +1948,23 @@ th {
 .day-schedule-content,
 .day-shift-groups {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .day-summary-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
 }
 
 .day-summary-item {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
-  border-radius: 8px;
-  background: var(--admin-bg-soft, rgba(255,255,255,0.04));
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
 }
 
 .day-summary-item span {
@@ -1971,16 +1974,14 @@ th {
 
 .day-summary-item strong {
   color: var(--admin-text, #f4f4f5);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
 }
 
 .day-empty-state {
   display: grid;
   gap: 6px;
-  padding: 18px;
-  border: 1px dashed var(--admin-border, #3f3f46);
-  border-radius: 8px;
+  padding: 18px 0;
   color: var(--admin-muted, #a1a1aa);
 }
 
@@ -1991,28 +1992,26 @@ th {
 
 .day-shift-group {
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--admin-border, #27272a);
-  border-radius: 8px;
-  background: var(--admin-surface, #09090b);
+  grid-template-columns: minmax(160px, 220px) 1fr;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
 }
 
 .day-shift-group-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+  display: grid;
+  gap: 6px;
+  align-content: start;
 }
 
 .day-shift-group-head div {
   display: grid;
-  gap: 3px;
+  gap: 4px;
 }
 
 .day-shift-group-head strong {
   color: var(--admin-text, #f4f4f5);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -2025,26 +2024,30 @@ th {
 
 .day-shift-staff-list,
 .day-unassigned-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  gap: 0;
 }
 
 .day-staff-shift,
 .day-unassigned-chip {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 28px 1fr;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  border: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
-  border-radius: 8px;
-  background: var(--admin-bg-soft, rgba(255,255,255,0.04));
+  gap: 10px;
+  min-height: 44px;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--admin-text, #f4f4f5);
   cursor: pointer;
+  text-align: left;
 }
 
-.day-staff-shift {
-  padding: 8px 10px;
+.day-staff-shift + .day-staff-shift,
+.day-unassigned-chip + .day-unassigned-chip {
+  border-top: 1px solid var(--admin-border-soft, rgba(255,255,255,0.06));
 }
 
 .day-staff-avatar,
@@ -2070,7 +2073,7 @@ th {
 .day-staff-main strong,
 .day-unassigned-chip strong {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .day-staff-main em {
@@ -2081,29 +2084,26 @@ th {
 
 .day-unassigned-panel {
   display: grid;
-  gap: 10px;
-  padding-top: 4px;
+  grid-template-columns: minmax(160px, 220px) 1fr;
+  gap: 16px;
+  padding: 16px 0 0;
 }
 
 .day-unassigned-panel header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  align-content: start;
+  gap: 4px;
   color: var(--admin-text, #f4f4f5);
 }
 
 .day-unassigned-panel header strong {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .day-unassigned-panel header span {
   color: var(--admin-faint, #a1a1aa);
   font-size: 12px;
-}
-
-.day-unassigned-chip {
-  padding: 7px 10px;
 }
 .table-schedule-grid {
   overflow-x: auto;
@@ -2326,6 +2326,7 @@ th {
 .schedule-modal {
   width: min(960px, calc(100vw - 48px));
   max-width: 960px;
+  box-sizing: border-box;
   padding: 0;
   overflow: visible;
   font-size: 13px;
@@ -2343,9 +2344,10 @@ th {
 
 .schedule-modal .sch-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 0.85fr) minmax(440px, 1.15fr);
-  gap: 0;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.15fr);
+  gap: 26px;
   margin: 0;
+  padding: 20px 24px 12px;
 }
 
 .schedule-panel {
@@ -2353,11 +2355,18 @@ th {
   align-content: start;
   gap: 14px;
   min-width: 0;
-  padding: 22px 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .schedule-panel-left {
-  padding-right: 18px;
+  padding-right: 0;
+}
+
+.schedule-panel-right {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .schedule-panel-title {
@@ -2385,7 +2394,7 @@ th {
 }
 
 .schedule-panel-title-spaced {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .schedule-field {
@@ -2444,6 +2453,14 @@ th {
 .schedule-modal .styled-input,
 .schedule-modal .staff-chip {
   font-size: 13px !important;
+}
+
+.schedule-modal .dropdown-trigger,
+.schedule-modal .time-input-control,
+.schedule-modal .styled-input,
+.schedule-modal textarea {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .grid {
@@ -3296,6 +3313,22 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   border-radius: 12px;
 }
 
+@media (max-width: 920px) {
+  .schedule-modal {
+    width: min(760px, calc(100vw - 32px));
+  }
+
+  .schedule-modal .sch-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .time-input-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
 @media (max-width: 760px) {
   .schedule-planner-toolbar,
   .day-schedule-head {
@@ -3320,19 +3353,19 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   }
 
   .day-summary-row {
-    grid-template-columns: 1fr;
+    align-items: flex-start;
+    gap: 10px 16px;
   }
 
-  .day-shift-staff-list,
-  .day-unassigned-list {
-    display: grid;
+  .day-shift-group,
+  .day-unassigned-panel {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .day-staff-shift,
   .day-unassigned-chip {
     width: 100%;
-    justify-content: flex-start;
   }
   .page {
     padding: 14px 12px 96px;
@@ -3671,11 +3704,14 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   }
 
   .schedule-panel {
-    padding: 16px 18px;
+    padding: 0;
   }
 
-  .schedule-panel-left {
-    border-right: none;
+  .schedule-panel-left,
+  .schedule-panel-right {
+    padding-left: 0;
+    padding-right: 0;
+    border-left: 0;
   }
 
   .schedule-modal .staff-chip-grid {
