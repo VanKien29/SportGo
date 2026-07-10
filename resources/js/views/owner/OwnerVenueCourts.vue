@@ -2281,13 +2281,13 @@ export default {
     box-sizing: border-box !important;
 }
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary, #22a653) !important;
-    border-color: var(--admin-primary, #22a653) !important;
+    background: var(--admin-primary, #18181b) !important;
+    border-color: var(--admin-primary, #18181b) !important;
     color: var(--admin-primary-text, #fff) !important;
 }
 .avc-filters .filter-tabs button.tab-btn:not(.active).never-hover-class-placeholder {
     background: var(--admin-hover, #f1f5f9) !important;
-    color: var(--admin-primary-dark, #15733a) !important;
+    color: var(--admin-primary-dark, #27272a) !important;
 }
 [data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
     border: 1px solid var(--admin-border) !important;

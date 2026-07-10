@@ -229,20 +229,86 @@
     <!-- ========================================== -->
     <div v-if="currentTab === 'schedules'" class="tab-content">
 
-      <div class="schedule-filters">
+      <div class="schedule-filters schedule-planner-toolbar">
         <div class="filter-group">
           <button class="btn icon-only" @click="shiftWeek(-1)">
             <AppIcon name="chevronLeft" size="16" />
           </button>
-          <span class="week-label">Tuần: {{ formatWeekRange() }}</span>
+          <span class="week-label">Tuan: {{ formatWeekRange() }}</span>
           <button class="btn icon-only" @click="shiftWeek(1)">
             <AppIcon name="chevronRight" size="16" />
           </button>
-          <button class="btn secondary" @click="goCurrentWeek">Tuần này</button>
+          <button class="btn secondary" @click="goCurrentWeek">Tuan nay</button>
+        </div>
+
+        <div class="schedule-view-switch" role="group" aria-label="Chon kieu xem lich truc">
+          <button type="button" class="schedule-view-btn" :class="{ active: scheduleViewMode === 'week' }" @click="setScheduleViewMode('week')">
+            Tuan
+          </button>
+          <button type="button" class="schedule-view-btn" :class="{ active: scheduleViewMode === 'day' }" @click="setScheduleViewMode('day')">
+            Ngay
+          </button>
         </div>
       </div>
 
-      <section class="table-card table-schedule-grid">
+      <section v-if="scheduleViewMode === 'day'" class="table-card day-schedule-board">
+        <div class="day-schedule-head">
+          <div>
+            <p class="day-schedule-kicker">Lich truc trong ngay</p>
+            <h3>{{ selectedScheduleDayLabel }}</h3>
+          </div>
+          <div class="day-schedule-controls">
+            <button class="btn icon-only" type="button" @click="shiftScheduleDay(-1)">
+              <AppIcon name="chevronLeft" size="16" />
+            </button>
+            <input v-model="selectedScheduleDate" class="day-date-input" type="date" @change="syncWeekToSelectedDate" />
+            <button class="btn icon-only" type="button" @click="shiftScheduleDay(1)">
+              <AppIcon name="chevronRight" size="16" />
+            </button>
+            <button class="btn secondary" type="button" @click="goTodayScheduleDay">Hom nay</button>
+          </div>
+        </div>
+
+        <div v-if="loading" class="state">Dang tai lich truc...</div>
+        <div v-else class="day-schedule-content">
+          <div class="day-summary-row">
+            <div class="day-summary-item"><span>Tong ca</span><strong>{{ selectedDaySchedules.length }}</strong></div>
+            <div class="day-summary-item"><span>Nhan vien co lich</span><strong>{{ selectedDayStaffCount }}</strong></div>
+            <div class="day-summary-item"><span>Chua phan ca</span><strong>{{ unscheduledStaffForSelectedDay.length }}</strong></div>
+          </div>
+
+          <div v-if="dayScheduleGroups.length === 0" class="day-empty-state">
+            <strong>Chua co ca truc trong ngay nay</strong>
+            <span>Chon nhan vien ben duoi hoac dung nut them de phan ca nhanh.</span>
+          </div>
+
+          <div v-else class="day-shift-groups">
+            <article v-for="group in dayScheduleGroups" :key="group.key" class="day-shift-group">
+              <header class="day-shift-group-head">
+                <div><strong>{{ group.timeLabel }}</strong><span>{{ group.shiftName }}</span></div>
+                <em>{{ group.schedules.length }} nhan vien</em>
+              </header>
+              <div class="day-shift-staff-list">
+                <button v-for="sch in group.schedules" :key="`day-sch-${sch.id}`" type="button" class="day-staff-shift" :class="sch.status" @click="openEditSchedule(sch)">
+                  <span class="day-staff-avatar">{{ getInitials(getScheduleStaffName(sch)) }}</span>
+                  <span class="day-staff-main"><strong>{{ getScheduleStaffName(sch) }}</strong><em>{{ getStatusLabelCompact(sch.status) }}</em></span>
+                </button>
+              </div>
+            </article>
+          </div>
+
+          <section v-if="!isPastDate(selectedScheduleDate) && unscheduledStaffForSelectedDay.length > 0" class="day-unassigned-panel">
+            <header><strong>Nhan vien chua co lich</strong><span>{{ unscheduledStaffForSelectedDay.length }} nguoi</span></header>
+            <div class="day-unassigned-list">
+              <button v-for="staffMember in unscheduledStaffForSelectedDay" :key="`day-unassigned-${staffMember.id}`" type="button" class="day-unassigned-chip" @click="openScheduleForStaffDay(staffMember.id, selectedScheduleDate)">
+                <span>{{ getInitials(staffMember.full_name) }}</span><strong>{{ staffMember.full_name }}</strong>
+              </button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section v-if="scheduleViewMode === 'week'" class="table-card table-schedule-grid">
         <div v-if="loading" class="state">Đang tải lịch trực...</div>
         <table v-else>
           <thead>
@@ -514,7 +580,7 @@
                 <div v-if="scheduleForm.dates.length > 0" class="date-tags-list">
                   <span v-for="date in scheduleForm.dates" :key="date" class="date-tag">
                     {{ formatDateDisplay(date) }}
-                    <button type="button" class="tag-remove" @click="removeScheduleDate(date)">&#215;</button>
+                    <button type="button" class="tag-remove" aria-label="Bo ngay" @click="removeScheduleDate(date)">&#215;</button>
                   </span>
                 </div>
                 <div v-else class="date-placeholder">Chưa chọn ngày nào</div>
@@ -568,7 +634,7 @@
                     ({{ formatTime(activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.start_time) }} –
                     {{ formatTime(activeShifts.find(s => s.id === scheduleForm.venue_staff_shift_id)?.end_time) }})
                   </span>
-                  <span v-else class="dropdown-placeholder">— Tự định nghĩa giờ trực —</span>
+                  <span v-else class="dropdown-placeholder">Tự định nghĩa giờ trực</span>
                   <span class="dropdown-caret" :class="{ rotated: shiftDropOpen }">&#9662;</span>
                 </button>
                 <div v-if="shiftDropOpen" class="dropdown-menu">
@@ -578,7 +644,7 @@
                     :class="{ active: !scheduleForm.venue_staff_shift_id }"
                     @click="selectShiftTemplate(null)"
                   >
-                    <span>— Tự định nghĩa giờ trực —</span>
+                    <span>Tự định nghĩa giờ trực</span>
                   </button>
                   <button
                     v-for="shift in activeShifts"
@@ -698,6 +764,8 @@ export default {
 
       // Current week states for Tab 2
       currentWeekStart: new Date(),
+      scheduleViewMode: 'week',
+      selectedScheduleDate: this.formatDateIso(new Date()),
 
       // Shift template modal states
       showShiftModal: false,
@@ -882,6 +950,49 @@ export default {
         });
       }
       return days;
+    },
+    selectedScheduleDayMeta() {
+      return this.buildDayMeta(this.selectedScheduleDate);
+    },
+    selectedScheduleDayLabel() {
+      const day = this.selectedScheduleDayMeta;
+      return day ? `${day.label}, ${day.dateDisplay}` : this.selectedScheduleDate;
+    },
+    selectedDaySchedules() {
+      return this.schedules
+        .filter((sch) => sch.date === this.selectedScheduleDate)
+        .sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+    },
+    selectedDayStaffCount() {
+      return new Set(this.selectedDaySchedules.map((sch) => String(sch.user_id))).size;
+    },
+    dayScheduleGroups() {
+      const groups = new Map();
+      this.selectedDaySchedules.forEach((sch) => {
+        const shiftName = sch.shift?.name || 'Ca rieng';
+        const key = `${this.formatTime(sch.start_time)}-${this.formatTime(sch.end_time)}-${shiftName}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key,
+            startMinutes: this.timeToMinutes(sch.start_time),
+            timeLabel: `${this.formatTime(sch.start_time)} - ${this.formatTime(sch.end_time)}`,
+            shiftName,
+            schedules: [],
+          });
+        }
+        groups.get(key).schedules.push(sch);
+      });
+
+      return Array.from(groups.values())
+        .map((group) => ({
+          ...group,
+          schedules: group.schedules.sort((a, b) => this.getScheduleStaffName(a).localeCompare(this.getScheduleStaffName(b), 'vi')),
+        }))
+        .sort((a, b) => a.startMinutes - b.startMinutes);
+    },
+    unscheduledStaffForSelectedDay() {
+      const scheduledIds = new Set(this.selectedDaySchedules.map((sch) => String(sch.user_id)));
+      return this.staffList.filter((staff) => !scheduledIds.has(String(staff.id)));
     },
     mobileStaffScheduleRows() {
       return this.staffList.map((staff) => ({
@@ -1318,10 +1429,18 @@ export default {
       const d = new Date(this.currentWeekStart);
       d.setDate(d.getDate() + weeks * 7);
       this.currentWeekStart = d;
+      if (this.scheduleViewMode === 'day') {
+        const selected = new Date((this.selectedScheduleDate || this.todayDateString) + 'T00:00:00');
+        selected.setDate(selected.getDate() + weeks * 7);
+        this.selectedScheduleDate = this.formatDateIso(selected);
+      }
       this.loadSchedulesForWeek();
     },
     goCurrentWeek() {
       this.currentWeekStart = new Date();
+      if (this.scheduleViewMode === 'day') {
+        this.selectedScheduleDate = this.formatDateIso(new Date());
+      }
       this.loadSchedulesForWeek();
     },
     formatWeekRange() {
@@ -1350,6 +1469,55 @@ export default {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     },
 
+    buildDayMeta(dateString) {
+      if (!dateString) return null;
+      const labels = ['Chu nhat', 'Thu 2', 'Thu 3', 'Thu 4', 'Thu 5', 'Thu 6', 'Thu 7'];
+      const date = new Date(`${dateString}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return null;
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      return {
+        label: labels[date.getDay()],
+        dateString,
+        dateDisplay: `${dd}/${mm}`,
+      };
+    },
+    timeToMinutes(timeStr) {
+      if (!timeStr) return 0;
+      const [hour = '0', minute = '0'] = String(timeStr).split(':');
+      return (parseInt(hour, 10) || 0) * 60 + (parseInt(minute, 10) || 0);
+    },
+    getScheduleStaffName(schedule) {
+      return schedule?.user?.full_name
+        || this.staffList.find((staff) => String(staff.id) === String(schedule?.user_id))?.full_name
+        || 'Nhan vien';
+    },
+    getInitials(name) {
+      const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 0) return '?';
+      return parts.slice(-2).map((part) => part.charAt(0).toUpperCase()).join('');
+    },
+    setScheduleViewMode(mode) {
+      this.scheduleViewMode = mode;
+      if (mode === 'day') this.syncWeekToSelectedDate();
+    },
+    syncWeekToSelectedDate() {
+      if (!this.selectedScheduleDate) {
+        this.selectedScheduleDate = this.formatDateIso(new Date());
+      }
+      this.currentWeekStart = new Date(`${this.selectedScheduleDate}T00:00:00`);
+      this.loadSchedulesForWeek();
+    },
+    shiftScheduleDay(days) {
+      const current = new Date(`${this.selectedScheduleDate || this.todayDateString}T00:00:00`);
+      current.setDate(current.getDate() + days);
+      this.selectedScheduleDate = this.formatDateIso(current);
+      this.syncWeekToSelectedDate();
+    },
+    goTodayScheduleDay() {
+      this.selectedScheduleDate = this.formatDateIso(new Date());
+      this.syncWeekToSelectedDate();
+    },
     // Display helpers
     statusLabel(status) {
       return {
@@ -1481,9 +1649,9 @@ th {
 }
 
 .filter-tabs button.tab-btn.active {
-  background: var(--admin-primary, #3b82f6) !important;
+  background: var(--admin-primary, #18181b) !important;
   color: var(--admin-primary-text, #ffffff) !important;
-  border-color: var(--admin-primary, #3b82f6) !important;
+  border-color: var(--admin-primary, #18181b) !important;
 }
 
 .action-header {
@@ -1697,6 +1865,246 @@ th {
   text-align: center;
 }
 
+
+.schedule-planner-toolbar {
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.schedule-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+  padding: 3px;
+  border: 1px solid var(--admin-border, #27272a);
+  border-radius: 8px;
+  background: var(--admin-surface, #09090b);
+}
+
+.schedule-view-btn {
+  min-width: 68px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-muted, #a1a1aa);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.schedule-view-btn.active {
+  background: var(--admin-primary, #18181b);
+  color: var(--admin-primary-text, #fff);
+}
+
+.day-schedule-board {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.day-schedule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.day-schedule-kicker {
+  margin: 0 0 4px;
+  color: var(--admin-faint, #71717a);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.day-schedule-head h3 {
+  margin: 0;
+  color: var(--admin-text, #f4f4f5);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.day-schedule-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.day-date-input {
+  width: 150px !important;
+  min-height: 38px;
+}
+
+.day-schedule-content,
+.day-shift-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.day-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.day-summary-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  background: var(--admin-bg-soft, rgba(255,255,255,0.04));
+}
+
+.day-summary-item span {
+  color: var(--admin-faint, #a1a1aa);
+  font-size: 12px;
+}
+
+.day-summary-item strong {
+  color: var(--admin-text, #f4f4f5);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.day-empty-state {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px dashed var(--admin-border, #3f3f46);
+  border-radius: 8px;
+  color: var(--admin-muted, #a1a1aa);
+}
+
+.day-empty-state strong {
+  color: var(--admin-text, #f4f4f5);
+  font-weight: 600;
+}
+
+.day-shift-group {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--admin-border, #27272a);
+  border-radius: 8px;
+  background: var(--admin-surface, #09090b);
+}
+
+.day-shift-group-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.day-shift-group-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.day-shift-group-head strong {
+  color: var(--admin-text, #f4f4f5);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.day-shift-group-head span,
+.day-shift-group-head em {
+  color: var(--admin-faint, #a1a1aa);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.day-shift-staff-list,
+.day-unassigned-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-staff-shift,
+.day-unassigned-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid var(--admin-border-soft, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  background: var(--admin-bg-soft, rgba(255,255,255,0.04));
+  color: var(--admin-text, #f4f4f5);
+  cursor: pointer;
+}
+
+.day-staff-shift {
+  padding: 8px 10px;
+}
+
+.day-staff-avatar,
+.day-unassigned-chip span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--admin-surface-muted, #27272a);
+  color: var(--admin-text, #f4f4f5);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.day-staff-main {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.day-staff-main strong,
+.day-unassigned-chip strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.day-staff-main em {
+  color: var(--admin-faint, #a1a1aa);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.day-unassigned-panel {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.day-unassigned-panel header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--admin-text, #f4f4f5);
+}
+
+.day-unassigned-panel header strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.day-unassigned-panel header span {
+  color: var(--admin-faint, #a1a1aa);
+  font-size: 12px;
+}
+
+.day-unassigned-chip {
+  padding: 7px 10px;
+}
 .table-schedule-grid {
   overflow-x: auto;
 }
@@ -1749,13 +2157,13 @@ th {
 }
 
 .cell-add-shift-btn:focus-visible {
-  border-color: var(--admin-primary, #22a653);
-  color: var(--admin-primary-dark, #15733a);
+  border-color: var(--admin-focus-border, #18181b);
+  color: var(--admin-primary-dark, #27272a);
   opacity: 1;
 }
 
 .cell-add-shift-btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent);
+  outline: 2px solid var(--admin-focus-ring, rgba(24, 24, 27, 0.22));
   outline-offset: 2px;
 }
 
@@ -2075,8 +2483,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--admin-primary, #3b82f6) !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+  border-color: var(--admin-focus-border, #18181b) !important;
+  box-shadow: 0 0 0 2px var(--admin-focus-ring, rgba(24, 24, 27, 0.18)) !important;
 }
 
 input:disabled,
@@ -2133,8 +2541,8 @@ input[type='time'] {
 
 .tag {
   background: var(--admin-primary-soft, #eff6ff);
-  color: var(--admin-primary, #3b82f6);
-  border: 1px solid var(--admin-primary-ring, #bfdbfe);
+  color: var(--admin-primary, #18181b);
+  border: 1px solid var(--admin-primary-ring, rgba(24, 24, 27, 0.18));
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 12px;
@@ -2147,7 +2555,7 @@ input[type='time'] {
 .tag button {
   background: none;
   border: none;
-  color: var(--admin-primary, #3b82f6);
+  color: var(--admin-primary, #18181b);
   font-weight: bold;
   cursor: pointer;
   padding: 0;
@@ -2398,13 +2806,13 @@ footer {
 }
 
 .staff-chip:hover {
-  border-color: var(--admin-primary, #22a653);
-  color: var(--admin-primary-dark, #15733a);
+  border-color: var(--admin-focus-border, #18181b);
+  color: var(--admin-primary-dark, #27272a);
 }
 
 .staff-chip.active {
-  border-color: var(--admin-primary, #22a653);
-  color: var(--admin-primary-dark, #15733a);
+  border-color: var(--admin-focus-border, #18181b);
+  color: var(--admin-primary-dark, #27272a);
   font-weight: 600;
 }
 
@@ -2424,7 +2832,7 @@ footer {
 }
 
 .staff-chip.active .chip-avatar {
-  background: var(--admin-primary, #22a653);
+  background: var(--admin-primary, #18181b);
   color: #fff;
 }
 
@@ -2436,7 +2844,7 @@ footer {
 
 .chip-check {
   font-size: 11px;
-  color: var(--admin-primary-dark, #15733a);
+  color: var(--admin-primary-dark, #27272a);
   font-weight: 700;
 }
 
@@ -2450,34 +2858,43 @@ footer {
 .date-tags-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .date-tag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border: 1px solid color-mix(in srgb, var(--admin-primary, #22a653) 30%, transparent);
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--admin-primary-dark, #15733a);
+  gap: 4px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text, #f4f4f5);
 }
 
 .tag-remove {
-  background: none;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: 0;
   padding: 0;
   cursor: pointer;
   font-size: 14px;
-  color: var(--admin-primary-dark, #15733a);
+  color: var(--admin-faint, #71717a);
   line-height: 1;
-  opacity: 0.7;
-  transition: opacity 0.15s;
+  opacity: 0.85;
+  transition: opacity 0.15s, color 0.15s;
 }
 
 .tag-remove:hover {
+  color: var(--admin-text, #f4f4f5);
   opacity: 1;
 }
 
@@ -2510,8 +2927,8 @@ footer {
 }
 
 .styled-select:focus {
-  border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.18));
+  border-color: var(--admin-focus-border, #18181b);
+  box-shadow: 0 0 0 3px var(--admin-focus-ring, rgba(24, 24, 27, 0.18));
 }
 
 .select-arrow {
@@ -2540,8 +2957,8 @@ footer {
 }
 
 .styled-input:focus {
-  border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.18));
+  border-color: var(--admin-focus-border, #18181b);
+  box-shadow: 0 0 0 3px var(--admin-focus-ring, rgba(24, 24, 27, 0.18));
 }
 
 input[type="date"].styled-input::-webkit-calendar-picker-indicator,
@@ -2567,10 +2984,8 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
    Custom Date Picker
    ======================== */
 .custom-date-picker {
-  border: 1.5px solid var(--admin-border, #e2e8f0);
-  border-radius: 10px;
-  background: var(--admin-surface, #fff);
-  overflow: hidden;
+  display: grid;
+  gap: 10px;
 }
 
 .date-tags-bar {
@@ -2578,32 +2993,34 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--admin-border-soft, #f0f0f0);
 }
 
 .cal-toggle-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  border-radius: 8px;
-  border: 1.5px solid var(--admin-primary, #22a653);
-  color: var(--admin-primary-dark, #15733a);
+  min-height: 34px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-muted, #a1a1aa);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
   white-space: nowrap;
   margin-left: auto;
 }
 
 .cal-toggle-btn:hover {
-  background: color-mix(in srgb, var(--admin-primary, #22a653) 18%, white);
+  color: var(--admin-text, #f4f4f5);
+  background: transparent;
 }
 
 .cal-panel {
   padding: 12px;
+  border: 1px solid var(--admin-border, #27272a);
+  border-radius: 8px;
   background: var(--admin-surface, #fff);
 }
 
@@ -2638,7 +3055,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .cal-nav-btn:hover {
   background: var(--admin-hover, #f1f5f9);
-  border-color: var(--admin-primary, #22a653);
+  border-color: var(--admin-focus-border, #18181b);
 }
 
 .cal-weekdays {
@@ -2679,7 +3096,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 }
 
 .cal-day:hover:not(:disabled):not(.is-past) {
-  color: var(--admin-primary-dark, #15733a);
+  color: var(--admin-primary-dark, #27272a);
 }
 
 .cal-day.other-month {
@@ -2688,13 +3105,13 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 }
 
 .cal-day.is-today {
-  border: 1.5px solid var(--admin-primary, #22a653);
+  border: 1.5px solid var(--admin-primary, #18181b);
   font-weight: 700;
-  color: var(--admin-primary-dark, #15733a);
+  color: var(--admin-primary-dark, #27272a);
 }
 
 .cal-day.is-selected {
-  background: var(--admin-primary, #22a653) !important;
+  background: var(--admin-primary, #18181b) !important;
   color: #fff !important;
   font-weight: 700;
 }
@@ -2733,8 +3150,8 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .dropdown-trigger:hover,
 .custom-dropdown.open .dropdown-trigger {
-  border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.15));
+  border-color: var(--admin-focus-border, #18181b);
+  box-shadow: 0 0 0 3px var(--admin-focus-ring, rgba(24, 24, 27, 0.15));
 }
 
 .dropdown-placeholder {
@@ -2792,7 +3209,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 }
 
 .dropdown-item.active {
-  color: var(--admin-primary-dark, #15733a);
+  color: var(--admin-primary-dark, #27272a);
 }
 
 .dropdown-item.active strong {
@@ -2811,9 +3228,9 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 }
 
 .dropdown-item.active .shift-time-badge {
-  background: color-mix(in srgb, var(--admin-primary, #22a653) 15%, white);
-  border-color: color-mix(in srgb, var(--admin-primary, #22a653) 30%, transparent);
-  color: var(--admin-primary-dark, #15733a);
+  background: color-mix(in srgb, var(--admin-primary, #18181b) 15%, white);
+  border-color: color-mix(in srgb, var(--admin-primary, #18181b) 30%, transparent);
+  color: var(--admin-primary-dark, #27272a);
 }
 
 /* ========================
@@ -2849,8 +3266,8 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .time-input-control:focus {
   outline: none;
-  border-color: var(--admin-primary, #22a653) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--admin-primary, #22a653) 18%, transparent) !important;
+  border-color: var(--admin-focus-border, #18181b) !important;
+  box-shadow: 0 0 0 2px var(--admin-focus-ring, rgba(24, 24, 27, 0.18)) !important;
 }
 
 .time-input-control::-webkit-calendar-picker-indicator {
@@ -2880,6 +3297,43 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 }
 
 @media (max-width: 760px) {
+  .schedule-planner-toolbar,
+  .day-schedule-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .schedule-view-switch,
+  .day-schedule-controls,
+  .day-date-input {
+    width: 100% !important;
+  }
+
+  .schedule-view-btn,
+  .day-schedule-controls .btn,
+  .day-date-input {
+    min-height: 44px;
+  }
+
+  .schedule-view-btn {
+    flex: 1;
+  }
+
+  .day-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .day-shift-staff-list,
+  .day-unassigned-list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .day-staff-shift,
+  .day-unassigned-chip {
+    width: 100%;
+    justify-content: flex-start;
+  }
   .page {
     padding: 14px 12px 96px;
     overflow-x: hidden;
@@ -2995,7 +3449,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     padding: 14px;
     display: grid;
     gap: 12px;
-    border-left: 4px solid var(--admin-primary, #22a653);
+    border-left: 4px solid var(--admin-primary, #18181b);
   }
 
   .mobile-shift-card.checked_in,
@@ -3109,8 +3563,8 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     min-height: 40px;
     padding: 0 12px;
     background: var(--admin-primary-soft, #e2f6e8);
-    color: var(--admin-primary-dark, #15733a);
-    border-color: color-mix(in srgb, var(--admin-primary, #22a653) 25%, transparent);
+    color: var(--admin-primary-dark, #27272a);
+    border-color: color-mix(in srgb, var(--admin-primary, #18181b) 25%, transparent);
   }
 
   .mobile-empty-week {
@@ -3144,7 +3598,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     margin-top: 8px;
     padding: 10px 10px 10px 12px;
     border: 1px solid var(--admin-border-soft, #e2e8f0);
-    border-left: 4px solid var(--admin-primary, #22a653);
+    border-left: 4px solid var(--admin-primary, #18181b);
     border-radius: 10px;
     background: var(--admin-surface, #fff);
     color: var(--admin-text, #1e293b);

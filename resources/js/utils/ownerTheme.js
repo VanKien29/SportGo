@@ -17,6 +17,8 @@ function contrastColor(hex) {
   return yiq >= 150 ? '#101c15' : '#ffffff';
 }
 
+export const OWNER_THEME_SCOPE_CLASS = 'sg-owner-theme-scope';
+
 export const OWNER_THEME_DEFAULTS = {
   active_theme_id: 'owner-zinc',
   sidebar_style: 'one-level',
@@ -51,14 +53,14 @@ export function getOwnerThemePreset(settings = {}) {
 }
 
 function cssVarsForMode(mode) {
-  const primary = normalizeHex(mode.primary, '#22a653');
+  const primary = normalizeHex(mode.primary, '#18181b');
   const secondary = normalizeHex(mode.secondary, '#2563eb');
-  const accent = normalizeHex(mode.accent, '#edf7ed');
-  const muted = normalizeHex(mode.muted, '#2f3d34');
+  const accent = normalizeHex(mode.accent, '#f4f4f5');
+  const muted = normalizeHex(mode.muted, '#71717a');
   const danger = normalizeHex(mode.destructive, '#dc2626');
-  const border = normalizeHex(mode.border, '#cfded1');
+  const border = normalizeHex(mode.border, '#e4e4e7');
   const surface = normalizeHex(mode.card, '#ffffff');
-  const background = normalizeHex(mode.background, '#eef6f0');
+  const background = normalizeHex(mode.background, '#fafafa');
   const primaryText = contrastColor(primary);
   const isDarkBackground = contrastColor(background) === '#ffffff';
   const floatingBg = isDarkBackground
@@ -97,6 +99,8 @@ function cssVarsForMode(mode) {
     '--admin-primary-light: color-mix(in srgb, ' + primary + ' 76%, white) !important;',
     '--admin-primary-dark: color-mix(in srgb, ' + primary + ' 76%, black) !important;',
     '--admin-primary-ring: color-mix(in srgb, ' + primary + ' 24%, transparent) !important;',
+    '--admin-focus-border: ' + primary + ' !important;',
+    '--admin-focus-ring: color-mix(in srgb, ' + primary + ' 22%, transparent) !important;',
     '--admin-floating-bg: ' + floatingBg + ' !important;',
     '--admin-floating-fg: ' + floatingFg + ' !important;',
     '--admin-floating-border: color-mix(in srgb, ' + border + ' 72%, ' + primary + ') !important;',
@@ -120,9 +124,24 @@ export function buildOwnerThemeCss(settings = {}) {
   const radius = merged.radius || '8px';
   const light = cssVarsForMode(preset.light || OWNER_THEME_DEFAULTS.presets[0].light);
   const dark = cssVarsForMode(preset.dark || OWNER_THEME_DEFAULTS.presets[0].dark);
-  return '.sg-shell-owner {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n}\n'
-    + ':root:not([data-theme="dark"]) .sg-shell-owner {\n  ' + light + '\n}\n'
-    + '[data-theme="dark"] .sg-shell-owner {\n  ' + dark + '\n}\n';
+  const ownerScope = '.sg-shell-owner,\nbody.' + OWNER_THEME_SCOPE_CLASS;
+  const ownerLightScope = ':root:not([data-theme="dark"]) .sg-shell-owner,\n'
+    + ':root:not([data-theme="dark"]) body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
+    + 'body.' + OWNER_THEME_SCOPE_CLASS + ':not([data-theme="dark"])';
+  const ownerDarkScope = '[data-theme="dark"] .sg-shell-owner,\n'
+    + '[data-theme="dark"] body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
+    + 'body.' + OWNER_THEME_SCOPE_CLASS + '[data-theme="dark"]';
+  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n}\n'
+    + ownerLightScope + ' {\n  ' + light + '\n}\n'
+    + ownerDarkScope + ' {\n  ' + dark + '\n}\n';
+}
+
+export function enableOwnerThemeScope() {
+  document.body?.classList.add(OWNER_THEME_SCOPE_CLASS);
+}
+
+export function disableOwnerThemeScope() {
+  document.body?.classList.remove(OWNER_THEME_SCOPE_CLASS);
 }
 
 export function applyOwnerTheme(settings = {}) {
@@ -162,4 +181,5 @@ export function applyOwnerThemeFromStorage() {
 
 export function clearOwnerTheme() {
   document.getElementById('owner-custom-theme-style')?.remove();
+  disableOwnerThemeScope();
 }

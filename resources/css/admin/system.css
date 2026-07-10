@@ -330,7 +330,7 @@
 }
 
 .sg-shell-admin .content-area :is(input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus, .form-control:focus, .search-box:focus-within, .search-field:focus-within) {
-  border-color: rgba(47, 158, 68, 0.62) !important;
+  border-color: var(--admin-focus-border, var(--admin-primary)) !important;
   outline: none !important;
   box-shadow: none !important;
 }
@@ -350,7 +350,7 @@
 }
 
 .sg-shell-admin .content-area :is(.search-field:focus-within, .search-box:focus-within) {
-  border-color: rgba(47, 158, 68, 0.72) !important;
+  border-color: var(--admin-focus-border, var(--admin-primary)) !important;
   box-shadow: none !important;
 }
 
@@ -415,7 +415,7 @@
 
 .sg-shell-admin .content-area :is(.btn, .mini-btn, .icon-btn, .icon-action, .icon-close, .btn-action, .btn-action-mini, .btn-action-icon, .btn-switch, .tab-btn, .sort-btn, .btn-back, .primary-btn, .secondary-btn, .primary-link, .ghost-btn, .export-btn, .icon-only, .icon-command, .pay-command, .link-btn):focus-visible {
   outline: none !important;
-  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+  box-shadow: 0 0 0 3px var(--admin-focus-ring, var(--admin-primary-ring)) !important;
 }
 
 .sg-shell-admin .content-area :is(.btn:disabled, .mini-btn:disabled, .icon-btn:disabled, .icon-action:disabled, .icon-close:disabled, .btn-action:disabled, .btn-action-icon:disabled, .primary-btn:disabled, .secondary-btn:disabled, .primary-link:disabled, .ghost-btn:disabled, .export-btn:disabled, .icon-only:disabled, .icon-command:disabled, .pay-command:disabled) {
@@ -545,7 +545,7 @@
 }
 
 .sg-shell-admin .content-area :is(.notice.success, .alert.success, .global-alert.success, .toast.success) {
-  border-color: rgba(47, 158, 68, 0.2) !important;
+  border-color: var(--admin-primary-ring, rgba(24, 24, 27, 0.16)) !important;
   background: var(--admin-primary-soft) !important;
   color: var(--admin-primary-dark) !important;
 }
@@ -582,7 +582,7 @@
 .sg-shell-admin .content-area :is(.spinner) {
   width: 34px !important;
   height: 34px !important;
-  border: 3px solid rgba(47, 158, 68, 0.14) !important;
+  border: 3px solid var(--admin-primary-ring, rgba(24, 24, 27, 0.14)) !important;
   border-top-color: var(--admin-primary) !important;
   border-radius: 999px !important;
 }
@@ -845,18 +845,19 @@
 
 /* cal-toggle-btn */
 .sg-shell-admin .content-area .schedule-modal .cal-toggle-btn {
-  padding: 5px 12px !important;
-  border: 1.5px solid var(--admin-primary) !important;
-  border-radius: 8px !important;
-  background: var(--admin-primary-soft) !important;
-  color: var(--admin-primary-dark) !important;
+  padding: 0 6px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--admin-muted) !important;
   font-size: 13px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   gap: 6px !important;
   justify-content: flex-start !important;
 }
 .sg-shell-admin .content-area .schedule-modal .cal-toggle-btn:hover {
-  background: color-mix(in srgb, var(--admin-primary) 22%, transparent) !important;
+  background: transparent !important;
+  color: var(--admin-text) !important;
 }
 
 /* dropdown-trigger */
@@ -874,8 +875,8 @@
 }
 .sg-shell-admin .content-area .schedule-modal .dropdown-trigger:hover,
 .sg-shell-admin .content-area .schedule-modal .custom-dropdown.open .dropdown-trigger {
-  border-color: var(--admin-primary) !important;
-  box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
+  border-color: var(--admin-focus-border, var(--admin-primary)) !important;
+  box-shadow: 0 0 0 3px var(--admin-focus-ring, var(--admin-primary-ring)) !important;
 }
 
 /* dropdown-item */
