@@ -187,6 +187,12 @@
             </div>
 
             <div class="booking-form">
+              <div class="booking-flow">
+                <span class="active">1. Chọn ngày</span>
+                <span>2. Xem lịch</span>
+                <span>3. Xác nhận</span>
+              </div>
+
               <div class="bform-group">
                 <label class="bform-label" for="bp-date">Ngày chơi</label>
                 <input
@@ -260,8 +266,7 @@
               </button>
 
               <button
-                class="btn-outline btn-full flex items-center justify-center gap-2"
-                style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
+                class="btn-outline btn-full chat-owner-btn"
                 @click="chatWithOwner"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1031,5 +1036,269 @@ export default {
   .venue-name { font-size: 24px; }
   .price-row { grid-template-columns: 1fr 1fr; font-size: 12px; }
   .price-row.header-row { display: none; }
+}
+
+/* Light redesign for client venue detail */
+.venue-detail-page {
+  background: #f4f8f5;
+  color: #15231a;
+}
+.loading-screen,
+.error-screen {
+  background: #f4f8f5;
+}
+.spinner {
+  border-color: #d9e8dd;
+  border-top-color: #20a553;
+}
+.error-msg {
+  color: #c2410c;
+}
+.btn-primary {
+  min-height: 44px;
+  justify-content: center;
+  border: 1px solid #20a553;
+  border-radius: 8px;
+  background: #20a553;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(32, 165, 83, 0.18);
+}
+.btn-primary:hover {
+  background: #188a43;
+}
+.btn-outline {
+  border: 1px solid #cbdccd;
+  background: #fff;
+  color: #233329;
+  border-radius: 8px;
+}
+.btn-outline:hover {
+  border-color: #20a553;
+  color: #168447;
+}
+.hero {
+  padding-top: 96px;
+  padding-bottom: 26px;
+  border-bottom: 0;
+}
+.gallery-main {
+  background: #fff;
+  border: 1px solid #d6e3d8;
+  box-shadow: 0 16px 36px rgba(28, 61, 37, 0.08);
+}
+.gallery-placeholder {
+  color: #dce6de;
+  background: linear-gradient(135deg, #f8fbf8, #eef6f0);
+}
+.thumb-btn {
+  border-color: #d6e3d8;
+  background: #fff;
+}
+.thumb-btn.active,
+.thumb-btn:hover {
+  border-color: #20a553;
+}
+.type-badge {
+  background: #eef9f1;
+  border-color: #cbead3;
+  color: #15733a;
+}
+.venue-name {
+  color: #13241a;
+  text-shadow: none;
+}
+.venue-meta,
+.meta-item {
+  color: #596a60;
+}
+.meta-item svg {
+  color: #168447;
+}
+.main-layout {
+  padding-top: 24px;
+  gap: 28px;
+}
+.detail-section {
+  padding: 22px;
+  margin-bottom: 16px;
+  border: 1px solid #d6e3d8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(35, 65, 43, 0.04);
+}
+.section-title {
+  color: #14251b;
+}
+.description-text,
+.price-block-label {
+  color: #5e7065;
+}
+.amenity-item,
+.court-chip,
+.price-table,
+.map-text {
+  background: #f8fbf8;
+  border-color: #dfe9e1;
+}
+.amenity-name,
+.price-val {
+  color: #15231a;
+}
+.amenity-desc,
+.court-type-label,
+.court-chip,
+.price-row {
+  color: #64766b;
+}
+.price-row {
+  background: #fff;
+  border-bottom: 1px solid #edf2ee;
+}
+.price-row.header-row {
+  background: #eef6f0;
+  color: #56685e;
+}
+.map-text {
+  color: #596a60;
+}
+.booking-col {
+  top: 88px;
+}
+.booking-panel {
+  overflow: hidden;
+  border: 1px solid #cfe0d2;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(28, 61, 37, 0.1);
+}
+.booking-panel-header {
+  padding: 18px;
+  border-bottom: 1px solid #e2ece4;
+  background: linear-gradient(135deg, #f7fbf8, #eef9f1);
+}
+.panel-title {
+  color: #14251b;
+}
+.panel-price {
+  color: #168447;
+}
+.panel-price-unit,
+.panel-note {
+  color: #6b7c71;
+}
+.booking-form {
+  padding: 16px 18px;
+  gap: 12px;
+}
+.booking-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.booking-flow span {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d6e3d8;
+  border-radius: 7px;
+  background: #f7fbf8;
+  color: #5d6f64;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.booking-flow .active {
+  border-color: #20a553;
+  background: #e8f8ed;
+  color: #15733a;
+}
+.bform-label {
+  color: #4f6157;
+}
+.bform-input {
+  background: #fff;
+  border-color: #cdded0;
+  color: #15231a;
+}
+.bform-input:focus {
+  border-color: #20a553;
+  box-shadow: 0 0 0 3px rgba(32, 165, 83, 0.12);
+}
+.bform-input option {
+  background: #fff;
+  color: #15231a;
+}
+.mini-schedule {
+  border-color: #d8e7db;
+  background: #f7fbf8;
+}
+.mini-schedule-head strong {
+  color: #15231a;
+}
+.mini-schedule-head span {
+  color: #168447;
+}
+.mini-schedule-head button {
+  background: #fff;
+  border-color: #cfe0d2;
+  color: #168447;
+}
+.mini-slot-list button {
+  border-color: #bfe7c9;
+  background: #ecfaf0;
+  color: #15231a;
+}
+.mini-slot-list button:hover:not(:disabled) {
+  border-color: #20a553;
+  background: #ddf5e3;
+}
+.mini-slot-list button span {
+  color: #168447;
+}
+.mini-slot-list button.full,
+.mini-slot-list button.past {
+  border-color: #e4e9e5;
+  background: #f1f4f2;
+  color: #89968e;
+}
+.mini-slot-list button.full span,
+.mini-slot-list button.past span,
+.mini-schedule-state {
+  color: #7a887f;
+}
+.mini-schedule-state.error {
+  color: #b91c1c;
+}
+.panel-info-list {
+  border-top-color: #e2ece4;
+  background: #fbfdfb;
+}
+.panel-info-item {
+  color: #596a60;
+}
+.panel-info-item svg {
+  color: #20a553;
+}
+.chat-owner-btn {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-weight: 700;
+}
+@media (max-width: 1024px) {
+  .hero {
+    padding-top: 82px;
+  }
+}
+@media (max-width: 640px) {
+  .booking-flow {
+    grid-template-columns: 1fr;
+  }
+  .detail-section {
+    padding: 16px;
+  }
 }
 </style>
