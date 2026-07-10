@@ -27,7 +27,7 @@ class ComplaintController extends Controller
             'venue_cluster_id' => $request->complaint_type === 'venue' ? $request->venue_cluster_id : null,
             'booking_id' => $request->booking_id,
             'content' => $request->content,
-            'status' => 'pending',
+            'status' => 'open',
         ]);
 
         if ($request->hasFile('evidence_image')) {
@@ -50,6 +50,19 @@ class ComplaintController extends Controller
                 'file_path' => $path,
                 'mime_type' => 'image/webp',
                 'file_size' => filesize(storage_path('app/public/' . $path)),
+            ]);
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
+            \App\Models\Notification::query()->create([
+                'user_id' => $request->user()->id,
+                'type' => 'complaint_created',
+                'title' => 'Gửi khiếu nại thành công',
+                'body' => 'Chúng tôi đã ghi nhận yêu cầu khiếu nại của bạn và sẽ xử lý trong thời gian sớm nhất.',
+                'reference_type' => Complaint::class,
+                'reference_id' => $complaint->id,
+                'data' => ['status' => 'open'],
+                'is_read' => false,
             ]);
         }
 
