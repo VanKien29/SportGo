@@ -348,11 +348,16 @@ const routes = [
             {
                 path: "bookings",
                 name: "owner-bookings",
-                redirect: { name: "owner-counter-booking" },
+                redirect: { name: "owner-booking-list" },
             },
             {
                 path: "counter-booking",
                 name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
+            {
+                path: "booking-list",
+                name: "owner-booking-list",
                 component: () => import("../views/owner/OwnerCounterBooking.vue"),
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },

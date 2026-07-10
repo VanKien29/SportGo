@@ -44,6 +44,12 @@ export const ownerNavigationSections = [
         activeNames: ['owner-counter-booking'],
       },
       {
+        label: 'Danh sách booking',
+        icon: 'fileText',
+        to: '/owner/booking-list',
+        activeNames: ['owner-booking-list'],
+      },
+      {
         label: 'Cấu hình giá',
         icon: 'settings',
         to: '/owner/pricing',
@@ -138,6 +144,7 @@ export const ownerRouteTitles = {
   'owner-venue-courts': 'Quản lý sân con',
   'owner-bookings': 'Lịch sân',
   'owner-counter-booking': 'Booking tại quầy',
+  'owner-booking-list': 'Danh sách booking',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',

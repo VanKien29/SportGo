@@ -90,6 +90,95 @@
         </div>
       </div>
 
+      <!-- Lịch hôm nay -->
+      <div class="section-box booking-today-box">
+        <div class="section-header-row">
+          <div class="section-title-wrapper">
+            <h3 class="section-title">LỊCH HÔM NAY</h3>
+          </div>
+          <router-link to="/owner/booking-list" class="section-action-btn">
+            Xem danh sách
+          </router-link>
+        </div>
+
+        <div class="booking-summary-grid">
+          <div class="booking-summary-card primary">
+            <span>Tổng lịch</span>
+            <strong>{{ isLoading ? '...' : stats.today_booking_summary.total }}</strong>
+          </div>
+          <div class="booking-summary-card warning">
+            <span>Chờ xác nhận</span>
+            <strong>{{ isLoading ? '...' : stats.today_booking_summary.pending_approval }}</strong>
+          </div>
+          <div class="booking-summary-card warning">
+            <span>Chờ thanh toán</span>
+            <strong>{{ isLoading ? '...' : stats.today_booking_summary.pending_payment }}</strong>
+          </div>
+          <div class="booking-summary-card success">
+            <span>Đã thanh toán</span>
+            <strong>{{ isLoading ? '...' : stats.today_booking_summary.paid }}</strong>
+          </div>
+          <div class="booking-summary-card danger">
+            <span>Đã hủy</span>
+            <strong>{{ isLoading ? '...' : stats.today_booking_summary.cancelled }}</strong>
+          </div>
+          <div class="booking-summary-card money">
+            <span>Doanh thu hôm nay</span>
+            <strong>{{ isLoading ? '...' : formatCurrency(stats.today_booking_summary.revenue) }}</strong>
+          </div>
+        </div>
+
+        <div class="booking-dashboard-grid">
+          <div class="booking-panel">
+            <div class="booking-panel-head">
+              <h4>Booking cần chú ý</h4>
+              <span>{{ pendingBookings.length }} lịch</span>
+            </div>
+            <div v-if="isLoading" class="booking-mini-loading">Đang tải lịch chờ xử lý...</div>
+            <div v-else-if="pendingBookings.length === 0" class="booking-mini-empty">
+              Không có booking nào đang chờ xử lý.
+            </div>
+            <div v-else class="booking-mini-list">
+              <article v-for="booking in pendingBookings" :key="booking.id" class="booking-mini-card">
+                <div>
+                  <strong>{{ booking.booking_code }}</strong>
+                  <p>{{ booking.customer_name }} · {{ booking.court_label }}</p>
+                  <small>{{ formatDate(booking.booking_date) }} · {{ booking.time_label }}</small>
+                </div>
+                <div class="booking-mini-side">
+                  <span class="booking-pill" :class="`tone-${booking.status}`">{{ booking.status_label }}</span>
+                  <b>{{ formatCurrency(booking.outstanding_amount || booking.total_price) }}</b>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div class="booking-panel">
+            <div class="booking-panel-head">
+              <h4>Lịch trong ngày</h4>
+              <span>{{ todayBookings.length }} lịch gần nhất</span>
+            </div>
+            <div v-if="isLoading" class="booking-mini-loading">Đang tải lịch hôm nay...</div>
+            <div v-else-if="todayBookings.length === 0" class="booking-mini-empty">
+              Hôm nay chưa có booking.
+            </div>
+            <div v-else class="booking-mini-list compact">
+              <article v-for="booking in todayBookings" :key="booking.id" class="booking-mini-card">
+                <div>
+                  <strong>{{ booking.time_label }}</strong>
+                  <p>{{ booking.court_label }}</p>
+                  <small>{{ booking.customer_name }} · {{ booking.source_label }}</small>
+                </div>
+                <div class="booking-mini-side">
+                  <span class="booking-pill" :class="`tone-${booking.status}`">{{ booking.status_label }}</span>
+                  <small>{{ booking.payment_state_label }}</small>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Bài viết đã xuất bản -->
       <div class="section-box">
         <div class="section-header-row">
@@ -233,6 +322,18 @@ export default {
           total_earned: 0,
           total_withdrawn: 0,
         },
+        today_booking_summary: {
+          date: null,
+          total: 0,
+          pending_approval: 0,
+          pending_payment: 0,
+          paid: 0,
+          cancelled: 0,
+          revenue: 0,
+        },
+        today_bookings: [],
+        pending_bookings: [],
+        cancelled_today: [],
         golden_hours: [],
         court_revenues: [],
         published_posts: [],
@@ -244,6 +345,12 @@ export default {
   computed: {
     userName() {
       return this.user?.fullName || this.user?.full_name || this.user?.username || 'Chủ sân';
+    },
+    todayBookings() {
+      return this.stats.today_bookings || [];
+    },
+    pendingBookings() {
+      return this.stats.pending_bookings || [];
     },
   },
   async mounted() {
