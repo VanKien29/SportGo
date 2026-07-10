@@ -7,15 +7,11 @@
         <div class="filter-toolbar card" style="margin-bottom: 24px;">
           <!-- Tabs -->
           <div class="tabs-header">
-            <button
-              v-for="status in [{value: '', label: 'Tất cả'}, ...statuses]"
-              :key="status.value"
-              class="tab-btn"
-              :class="{ active: filters.status === status.value }"
-              type="button"
-              @click="filters.status = status.value; loadComplaints()"
-            >
-              <span>{{ status.label }}</span>
+            <button class="tab-btn" :class="{ active: filters.complaint_type === 'system' }" @click="filters.complaint_type = 'system'; loadComplaints()">
+              <AppIcon name="shield-alert" size="16" /> Khiếu nại hệ thống
+            </button>
+            <button class="tab-btn" :class="{ active: filters.complaint_type === 'venue' }" @click="filters.complaint_type = 'venue'; loadComplaints()">
+              <AppIcon name="message-square" size="16" /> Khiếu nại cụm sân
             </button>
           </div>
 
@@ -31,15 +27,11 @@
               />
             </label>
             <CustomSelect 
-              v-model="filters.complaint_type" 
-              :options="[{value: '', label: 'Tất cả loại'}, {value: 'venue', label: 'Khiếu nại cụm sân'}, {value: 'system', label: 'Khiếu nại hệ thống'}]" 
+              v-model="filters.status" 
+              :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]" 
               @change="loadComplaints" 
             />
-            <CustomSelect 
-              v-model="filters.assigned_to" 
-              :options="[{value: '', label: 'Tất cả người xử lý'}, {value: 'unassigned', label: 'Chưa phân công'}, ...staff.map(s => ({value: s.id, label: s.full_name}))]" 
-              @change="loadComplaints" 
-            />
+
             <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" />
             <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" />
             <ActionIconButton icon="filter" label="Lọc" variant="primary" @click="loadComplaints" />
@@ -142,7 +134,7 @@
               </div>
             </div>
             <span class="status-badge" :style="selected.status === 'resolved' ? 'background: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 16px;' : (selected.status === 'processing' ? 'background: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 16px;' : 'background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 16px;')">
-              {{ getStatusLabel(selected.status) }}
+              {{ statusLabel(selected.status) }}
             </span>
           </div>
 
@@ -184,16 +176,7 @@
                 </div>
               </div>
               
-              <div class="card info-card" style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                  <h3 style="margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Phân công xử lý</h3>
-                  <div style="display: flex; flex-direction: column; gap: 8px;">
-                      <CustomSelect
-                          v-model="form.assigned_to"
-                          :options="[{value: '', label: 'Chưa phân công'}, ...staff.map(s => ({value: s.id, label: s.full_name}))]"
-                      />
-                      <button @click="assignComplaint" class="btn primary" style="padding: 8px; border: none; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;" :disabled="saving">Lưu phân công</button>
-                  </div>
-              </div>
+
             </div>
 
             <!-- Main Panel: Timeline & Form -->
@@ -219,7 +202,7 @@
               </div>
 
               <!-- Admin action form -->
-              <div v-if="['open', 'processing'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
+              <div v-if="selected && selected.complaint_type === 'system' && ['open', 'processing'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Giải quyết khiếu nại</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div>
@@ -300,7 +283,7 @@ export default {
             staff: [],
             filters: {
                 keyword: "",
-                complaint_type: "",
+                complaint_type: "system",
                 status: "",
                 assigned_to: "",
                 date_from: "",
@@ -895,12 +878,35 @@ th.center, td.center {
     white-space: nowrap;
     padding-bottom: 8px; /* Room for scrollbar */
   }
-  .tab-btn {
-    flex-shrink: 0;
-  }
   .search-field {
     width: 100%;
     max-width: none;
   }
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--admin-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.tab-btn:hover {
+  background: var(--admin-surface-muted);
+}
+.tab-btn.active {
+  background: var(--admin-text);
+  color: white;
+  border-color: var(--admin-text);
+}
+.tab-btn.active .muted-icon {
+  color: white;
 }
 </style>

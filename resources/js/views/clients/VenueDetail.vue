@@ -51,7 +51,42 @@
             <span v-for="ct in venue.court_types" :key="ct.id" class="type-badge">{{ ct.name }}</span>
           </div>
 
-          <h1 class="venue-name">{{ venue.name }}</h1>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h1 class="venue-name" style="margin: 0;">{{ venue.name }}</h1>
+            
+            <div style="position: relative;" v-click-outside="() => showActionMenu = false">
+              <button 
+                class="btn-icon" 
+                style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 6px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" 
+                @click="showActionMenu = !showActionMenu"
+                title="Tùy chọn"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="5" r="1.5"></circle>
+                  <circle cx="12" cy="12" r="1.5"></circle>
+                  <circle cx="12" cy="19" r="1.5"></circle>
+                </svg>
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div 
+                v-if="showActionMenu" 
+                style="position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 160px; overflow: hidden;"
+              >
+                <button 
+                  style="width: 100%; text-align: left; padding: 12px 16px; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #ef4444; font-weight: 500;"
+                  @click="showReportModal = true; showActionMenu = false"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  Báo cáo vi phạm
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div class="venue-meta">
             <div class="meta-item" v-if="venue.address">
@@ -250,6 +285,8 @@
                 Nhắn tin với cụm sân
               </button>
 
+
+
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
             </div>
 
@@ -276,9 +313,53 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
+  </div>
+
+  <!-- Report Modal -->
+  <div v-if="showReportModal" class="modal-overlay" @click.self="showReportModal = false" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div class="modal-content" style="max-width: 500px; width: 90%; background: white; border-radius: 12px; padding: 24px; position: relative;">
+      <h3 style="font-size: 18px; font-weight: 600; margin-top: 0; margin-bottom: 16px; color: #000;">Báo cáo cụm sân</h3>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #000;">Lý do báo cáo *</label>
+        <select
+          v-model="reportForm.reason"
+          style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; color: #000; box-sizing: border-box; margin-bottom: 16px; background-color: #fff;"
+        >
+          <option value="spam">Spam / Quảng cáo rác</option>
+          <option value="offensive">Nội dung phản cảm</option>
+          <option value="fake">Thông tin giả mạo</option>
+          <option value="harassment">Quấy rối / Chửi bới</option>
+          <option value="other">Khác</option>
+        </select>
+
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #000;">Mô tả chi tiết (Tùy chọn)</label>
+        <textarea
+          v-model="reportForm.content"
+          placeholder="Mô tả chi tiết vi phạm..."
+          style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: vertical; box-sizing: border-box; font-family: inherit; font-size: 14px; color: #000;"
+        ></textarea>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #000;">Hình ảnh minh chứng (Tùy chọn)</label>
+        <input type="file" ref="reportEvidence" multiple accept="image/*" style="display: block; width: 100%; font-size: 14px; color: #000; padding: 8px; border: 1px dashed #94a3b8; border-radius: 6px; background: #f8fafc; box-sizing: border-box;" />
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn-outline" style="padding: 8px 16px; border-radius: 6px; cursor: pointer; border: 1px solid #e2e8f0; background: white; color: #000;" @click="showReportModal = false" :disabled="isSubmittingReport">Hủy</button>
+        <button class="btn-primary" style="padding: 8px 16px; border-radius: 6px; cursor: pointer; background: #ef4444; border: none; color: white; font-weight: 600;" @click="submitReport" :disabled="isSubmittingReport">
+          {{ isSubmittingReport ? 'Đang gửi...' : 'Gửi báo cáo' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Message -->
+  <div v-if="toastMessage" :class="['toast-notification', toastType]" style="position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; font-weight: 500; color: white; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s;" :style="{ backgroundColor: toastType === 'success' ? '#10b981' : '#ef4444' }">
+    {{ toastMessage }}
   </div>
 </template>
 
@@ -303,6 +384,16 @@ export default {
 
       bookDate: this.todayStr(),
       bookCourtType: '',
+
+      showReportModal: false,
+      showActionMenu: false,
+      reportForm: {
+        reason: 'other',
+        content: ''
+      },
+      isSubmittingReport: false,
+      toastMessage: null,
+      toastType: 'success'
     };
   },
 
@@ -427,6 +518,63 @@ export default {
     scrollToBooking() {
       const el = this.$refs.bookingPanelRef;
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    async submitReport() {
+      this.isSubmittingReport = true;
+      try {
+        const formData = new FormData();
+        formData.append('target_type', 'venue');
+        formData.append('target_id', this.venue.id);
+        formData.append('reason', this.reportForm.reason);
+        if (this.reportForm.content.trim()) {
+            formData.append('description', this.reportForm.content);
+        }
+
+        const files = this.$refs.reportEvidence?.files;
+        if (files && files.length > 0) {
+          // The backend expects 'evidence_image' as a single file, so we just take the first one
+          formData.append('evidence_image', files[0]);
+        }
+
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Vui lòng đăng nhập để gửi báo cáo.');
+            }
+            
+            if (response.status === 422) {
+                const data = await response.json();
+                const firstError = Object.values(data.errors)[0][0];
+                throw new Error(firstError || 'Thông tin không hợp lệ.');
+            }
+
+            throw new Error('Có lỗi xảy ra, vui lòng thử lại.');
+        }
+
+        this.toastMessage = 'Báo cáo của bạn đã được gửi thành công.';
+        this.toastType = 'success';
+        setTimeout(() => this.toastMessage = null, 3000);
+
+        this.showReportModal = false;
+        this.reportForm.content = '';
+        if (this.$refs.reportEvidence) this.$refs.reportEvidence.value = '';
+      } catch (err) {
+        this.toastMessage = err.message;
+        this.toastType = 'error';
+        setTimeout(() => this.toastMessage = null, 3000);
+      } finally {
+        this.isSubmittingReport = false;
+      }
     },
 
     goToBooking() {
