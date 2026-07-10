@@ -51,10 +51,29 @@
                         </label>
                         <label>
                             <span>Ngày chơi</span>
-                            <div class="date-control">
-                                <button type="button" aria-label="Ngày trước" @click="shiftDate(-1)">‹</button>
-                                <input v-model="bookingDate" type="date" :min="today" @change="changeDate" />
-                                <button type="button" aria-label="Ngày sau" @click="shiftDate(1)">›</button>
+                            <div class="date-picker-panel">
+                                <div class="date-control">
+                                    <button type="button" aria-label="Ngày trước" @click="shiftDate(-1)">‹</button>
+                                    <strong>{{ formatDate(bookingDate) }}</strong>
+                                    <button type="button" aria-label="Ngày sau" @click="shiftDate(1)">›</button>
+                                </div>
+                                <MiniCalendar
+                                    v-model="bookingDate"
+                                    :min-date="today"
+                                    @select="changeDate"
+                                />
+                                <div class="date-shortcuts">
+                                    <button
+                                        v-for="item in quickDateOptions"
+                                        :key="item.value"
+                                        type="button"
+                                        :class="{ active: bookingDate === item.value }"
+                                        @click="selectDate(item.value)"
+                                    >
+                                        <span>{{ item.label }}</span>
+                                        <strong>{{ formatShortDate(item.value) }}</strong>
+                                    </button>
+                                </div>
                             </div>
                         </label>
                         <label>
@@ -104,8 +123,8 @@
                                 :class="{ active: activePeriodKey === period.key }"
                                 @click="activePeriod = period.key"
                             >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
+                                <span class="period-label">{{ period.label }}</span>
+                                <span class="period-time">{{ period.range }}</span>
                             </button>
                         </div>
                     </div>
@@ -189,7 +208,7 @@
                             <strong>-{{ money(membershipDiscount) }}</strong>
                         </div>
                         <button type="button" @click="voucherOpen = !voucherOpen">
-                            <span>{{ selectedVoucherCount ? `${selectedVoucherCount} voucher đã chọn` : "Chọn voucher" }}</span>
+                            <span>{{ selectedVoucher ? `${selectedVoucher.code} đã chọn` : "Chọn voucher" }}</span>
                             <strong v-if="voucherDiscount">-{{ money(voucherDiscount) }}</strong>
                             <em v-else>{{ eligibleVouchers.length }} mã</em>
                         </button>
@@ -212,6 +231,9 @@
                         <h3>Hình thức thanh toán</h3>
                         <label v-for="option in paymentOptions" :key="option.value" :class="{ active: paymentOption === option.value }">
                             <input v-model="paymentOption" type="radio" :value="option.value" />
+                            <span class="payment-icon">
+                                <AppIcon :name="option.icon" size="17" />
+                            </span>
                             <span><strong>{{ option.label }}</strong><small>{{ option.hint }}</small></span>
                         </label>
                     </section>
@@ -236,13 +258,15 @@
 </template>
 
 <script>
+import AppIcon from "../../../components/AppIcon.vue";
+import MiniCalendar from "../../../components/MiniCalendar.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 
 export default {
     name: "ClientBookingWorkspace",
-    components: { PublicNavbar },
+    components: { AppIcon, MiniCalendar, PublicNavbar },
     data() {
         return {
             steps: [
@@ -282,6 +306,19 @@ export default {
     computed: {
         today() {
             return new Date().toLocaleDateString("en-CA");
+        },
+        quickDateOptions() {
+            const options = [
+                { label: "Hôm nay", value: this.today },
+                { label: "Ngày mai", value: this.addDays(this.today, 1) },
+                { label: "Cuối tuần", value: this.nextWeekendDate(this.today) },
+            ];
+            const seen = new Set();
+            return options.filter(item => {
+                if (!item.value || item.value < this.today || seen.has(item.value)) return false;
+                seen.add(item.value);
+                return true;
+            });
         },
         currentCluster() {
             return this.clusters.find(item => String(item.id) === String(this.clusterId)) || null;
@@ -428,8 +465,11 @@ export default {
         vipVouchers() {
             return this._vipVouchers || [];
         },
+        selectedVoucher() {
+            return this.venueVoucher || this.vipVoucher || null;
+        },
         selectedVoucherCount() {
-            return Number(Boolean(this.selectedVenueVoucherId)) + Number(Boolean(this.selectedVipVoucherId));
+            return this.selectedVoucher ? 1 : 0;
         },
         venueVoucher() {
             return this.venueVouchers.find(item => item.id === this.selectedVenueVoucherId);
@@ -438,8 +478,7 @@ export default {
             return this.vipVouchers.find(item => item.id === this.selectedVipVoucherId);
         },
         voucherDiscount() {
-            const venue = this.voucherValue(this.venueVoucher, this.afterMembership);
-            return venue + this.voucherValue(this.vipVoucher, Math.max(this.afterMembership - venue, 0));
+            return this.voucherValue(this.selectedVoucher, this.afterMembership);
         },
         total() {
             return Math.max(this.afterMembership - this.voucherDiscount, 0);
@@ -451,9 +490,9 @@ export default {
         },
         paymentOptions() {
             return [
-                this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Không cần trả trước" },
-                this.config.allow_deposit && { value: "deposit", label: `Đặt cọc ${this.config.deposit_percent || 30}%`, hint: "Giữ sân bằng tiền cọc" },
-                this.config.allow_full_payment !== false && { value: "full_payment", label: "Thanh toán toàn bộ", hint: "Thanh toán online 100%" },
+                this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Không cần trả trước", icon: "banknote" },
+                this.config.allow_deposit && { value: "deposit", label: `Đặt cọc ${this.config.deposit_percent || 30}%`, hint: "Giữ sân bằng tiền cọc", icon: "creditCard" },
+                this.config.allow_full_payment !== false && { value: "full_payment", label: "Thanh toán toàn bộ", hint: "Thanh toán online 100%", icon: "qrCode" },
             ].filter(Boolean);
         },
         canSubmit() {
@@ -509,7 +548,13 @@ export default {
             return this.dynamicTimePeriods.find(period => period.key === this.activePeriodKey)?.slotInfos || [];
         },
         gridStyle() {
-            return { gridTemplateColumns: `168px repeat(${Math.max(this.activePeriodSlots.length, 1)}, 64px)` };
+            const slotCount = Math.max(this.activePeriodSlots.length, 1);
+            const courtColumn = 168;
+            const slotColumn = 72;
+            return {
+                gridTemplateColumns: `${courtColumn}px repeat(${slotCount}, minmax(${slotColumn}px, 1fr))`,
+                "--timeline-min-width": `${courtColumn + slotCount * slotColumn}px`,
+            };
         },
         operatingHoursText() {
             if (!this.operatingHours?.is_open) return "Đóng cửa";
@@ -627,8 +672,25 @@ export default {
             date.setDate(date.getDate() + days);
             const next = date.toLocaleDateString("en-CA");
             if (next < this.today) return;
-            this.bookingDate = next;
+            this.selectDate(next);
+        },
+        selectDate(value) {
+            if (!value || value < this.today) return;
+            if (value === this.bookingDate) return;
+            this.bookingDate = value;
             this.changeDate();
+        },
+        addDays(value, days) {
+            const date = new Date(`${value}T00:00:00`);
+            date.setDate(date.getDate() + days);
+            return date.toLocaleDateString("en-CA");
+        },
+        nextWeekendDate(value) {
+            const date = new Date(`${value}T00:00:00`);
+            const day = date.getDay();
+            const daysToSaturday = day === 0 ? 6 : (6 - day + 7) % 7;
+            date.setDate(date.getDate() + daysToSaturday);
+            return date.toLocaleDateString("en-CA");
         },
         slotStatus(courtId, slot) {
             return this.statuses.find(item => String(item.venue_court_id) === String(courtId) && item.start_time === slot?.start_time);
@@ -756,11 +818,12 @@ export default {
                 : this.selectedVipVoucherId === voucher.id;
         },
         toggleVoucher(voucher) {
-            if (voucher.owner_type === "venue") {
-                this.selectedVenueVoucherId = this.selectedVenueVoucherId === voucher.id ? "" : voucher.id;
-            } else {
-                this.selectedVipVoucherId = this.selectedVipVoucherId === voucher.id ? "" : voucher.id;
-            }
+            const alreadySelected = this.voucherSelected(voucher);
+            this.selectedVenueVoucherId = "";
+            this.selectedVipVoucherId = "";
+            if (alreadySelected) return;
+            if (voucher.owner_type === "venue") this.selectedVenueVoucherId = voucher.id;
+            else this.selectedVipVoucherId = voucher.id;
         },
         voucherValue(voucher, amount = this.afterMembership) {
             if (!voucher) return 0;
@@ -878,6 +941,11 @@ export default {
             if (!value) return "-";
             const [year, month, day] = value.split("-");
             return `${day}/${month}/${year}`;
+        },
+        formatShortDate(value) {
+            if (!value) return "-";
+            const [, month, day] = value.split("-");
+            return `${day}/${month}`;
         },
         money(value) {
             return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -1055,7 +1123,7 @@ export default {
 
 .booking-filters {
     display: grid;
-    grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) minmax(180px, 0.9fr);
+    grid-template-columns: minmax(190px, 0.9fr) minmax(270px, 1.1fr) minmax(190px, 0.9fr);
     gap: 12px;
     margin: 18px 0 12px;
     padding: 12px;
@@ -1066,6 +1134,7 @@ export default {
 
 .booking-filters label {
     display: grid;
+    align-content: start;
     gap: 6px;
     min-width: 0;
 }
@@ -1098,9 +1167,12 @@ export default {
 .date-control {
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) 38px;
+    margin-bottom: 8px;
 }
 
 .date-control button {
+    display: grid;
+    place-items: center;
     border: 1px solid #cbd9cf;
     background: #fff;
     color: #13753d;
@@ -1120,6 +1192,70 @@ export default {
     border-right: 0;
     border-left: 0;
     border-radius: 0;
+}
+
+.date-control strong {
+    display: grid;
+    place-items: center;
+    min-height: 42px;
+    border-top: 1px solid #cbd9cf;
+    border-bottom: 1px solid #cbd9cf;
+    background: #fff;
+    color: #17251c;
+    font-size: 14px;
+    font-weight: 850;
+}
+
+.date-picker-panel {
+    display: grid;
+    gap: 8px;
+}
+
+.date-picker-panel :deep(.mini-cal) {
+    max-width: none;
+    padding: 9px;
+    border-color: #d7e4d9;
+    border-radius: 7px;
+}
+
+.date-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.date-shortcuts button {
+    display: grid;
+    gap: 2px;
+    min-height: 42px;
+    padding: 7px 8px;
+    border: 1px solid #d5e2d8;
+    border-radius: 7px;
+    background: #fff;
+    color: #33483b;
+    text-align: left;
+}
+
+.date-shortcuts button span {
+    color: #6a7b70;
+    font-size: 10.5px;
+    font-weight: 800;
+}
+
+.date-shortcuts button strong {
+    color: #17251c;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.date-shortcuts button.active {
+    border-color: #22a653;
+    background: #effbf2;
+}
+
+.date-shortcuts button.active span,
+.date-shortcuts button.active strong {
+    color: #13753d;
 }
 
 .booking-insights {
@@ -1223,10 +1359,11 @@ export default {
 
 .period-tabs button {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: center;
     gap: 7px;
     min-height: 42px;
+    min-width: 150px;
     padding: 0 16px;
     border: 1px solid #d5e2d8;
     border-radius: 7px;
@@ -1235,6 +1372,7 @@ export default {
     font-size: 15px;
     font-weight: 900;
     cursor: pointer;
+    line-height: 1;
 }
 
 .period-tabs button.active {
@@ -1244,11 +1382,17 @@ export default {
     box-shadow: 0 8px 18px rgba(34, 166, 83, 0.18);
 }
 
-.period-tabs button span {
+.period-label {
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.period-time {
     color: inherit;
     font-size: 12px;
     font-weight: 800;
     opacity: 0.74;
+    transform: translateY(1px);
 }
 
 .legend {
@@ -1288,7 +1432,8 @@ export default {
 
 .timeline {
     display: grid;
-    min-width: max-content;
+    width: 100%;
+    min-width: var(--timeline-min-width, max-content);
 }
 
 .timeline > * {
@@ -1542,10 +1687,15 @@ export default {
 
 .payment-section label {
     display: flex;
+    align-items: center;
     gap: 10px;
     padding: 11px;
     border: 1px solid #d7e3d8;
     border-radius: 7px;
+}
+
+.payment-section input {
+    margin: 0;
 }
 
 .payment-section label.active {
@@ -1553,9 +1703,28 @@ export default {
     background: #effbf2;
 }
 
-.payment-section label span {
+.payment-icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #d4e2d7;
+    border-radius: 8px;
+    background: #fff;
+    color: #13753d;
+}
+
+.payment-section label.active .payment-icon {
+    border-color: #22a653;
+    background: #22a653;
+    color: #fff;
+}
+
+.payment-section label > span:last-child {
     display: grid;
     gap: 2px;
+    min-width: 0;
 }
 
 .payment-section label small {
