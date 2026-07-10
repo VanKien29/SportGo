@@ -50,6 +50,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
+use App\Http\Controllers\Api\Public\SystemProfileController;
 use App\Http\Controllers\Api\Common\ChatController;
 
 // Broadcasting auth endpoint — must use Sanctum so Bearer token is accepted
@@ -58,6 +59,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 })->middleware('auth:sanctum');
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
+Route::get('/system-profile', [SystemProfileController::class, 'show']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);

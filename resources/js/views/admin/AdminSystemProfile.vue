@@ -151,6 +151,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { fetchSystemProfile, saveSystemProfile } from "../../services/adminSystemProfile.service.js";
+import { applySystemProfile } from "../../stores/systemProfile.js";
 
 const emptyForm = {
     system_name: "",
@@ -231,6 +232,7 @@ async function submit() {
     try {
         const response = await saveSystemProfile(buildFormData());
         assignForm(response.data);
+        applySystemProfile(response.data);
         files.logo = null;
         files.favicon = null;
         if (localLogoPreview.value) {

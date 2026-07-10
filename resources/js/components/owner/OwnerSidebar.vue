@@ -1,9 +1,12 @@
 <template>
   <aside class="sidebar" aria-label="Owner navigation">
     <RouterLink class="admin-brand" to="/owner/dashboard" @click="$emit('navigate')">
-      <span class="admin-brand-mark">SG</span>
+      <span class="admin-brand-mark">
+        <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+        <span v-else>{{ brandInitials }}</span>
+      </span>
       <span class="admin-brand-copy">
-        <strong>SportGo</strong>
+        <strong>{{ brandName }}</strong>
         <small>Owner Console</small>
       </span>
     </RouterLink>
@@ -74,6 +77,7 @@
 <script>
 import AppIcon from '../AppIcon.vue';
 import { getAuth } from '../../stores/auth.js';
+import { resolveSystemAsset, systemInitials, systemName, systemProfileState } from '../../stores/systemProfile.js';
 
 export default {
   name: 'OwnerSidebar',
@@ -110,6 +114,15 @@ export default {
     },
     roleLabel() {
       return 'Chủ sân';
+    },
+    brandName() {
+      return systemName();
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandInitials() {
+      return systemInitials();
     },
     selectedClusterName() {
       const cluster = this.clusters.find(c => String(c.id) === String(this.selectedClusterId));

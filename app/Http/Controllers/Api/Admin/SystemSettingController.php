@@ -10,29 +10,12 @@ use Illuminate\Support\Facades\Storage;
 
 class SystemSettingController extends Controller
 {
-    private const FIELDS = [
-        'system_name' => ['label' => 'Tên hệ thống', 'group' => 'identity', 'default' => 'SportGo'],
-        'company_name' => ['label' => 'Tên công ty', 'group' => 'legal', 'default' => 'Công ty SportGo'],
-        'company_short_name' => ['label' => 'Tên viết tắt', 'group' => 'identity', 'default' => 'SportGo'],
-        'representative_name' => ['label' => 'Người đại diện', 'group' => 'legal', 'default' => ''],
-        'representative_title' => ['label' => 'Chức vụ người đại diện', 'group' => 'legal', 'default' => ''],
-        'company_address' => ['label' => 'Địa chỉ công ty', 'group' => 'legal', 'default' => ''],
-        'tax_code' => ['label' => 'Mã số thuế', 'group' => 'legal', 'default' => ''],
-        'business_code' => ['label' => 'Mã số kinh doanh', 'group' => 'legal', 'default' => ''],
-        'business_license_number' => ['label' => 'Số giấy phép kinh doanh', 'group' => 'legal', 'default' => ''],
-        'support_email' => ['label' => 'Email hỗ trợ', 'group' => 'contact', 'default' => ''],
-        'support_phone' => ['label' => 'Số điện thoại hỗ trợ', 'group' => 'contact', 'default' => ''],
-        'website_url' => ['label' => 'Website', 'group' => 'contact', 'default' => ''],
-        'logo_url' => ['label' => 'Logo hệ thống', 'group' => 'identity', 'default' => ''],
-        'favicon_url' => ['label' => 'Favicon', 'group' => 'identity', 'default' => ''],
-    ];
-
     public function show(): JsonResponse
     {
         return response()->json([
-            'data' => $this->settingsPayload(),
+            'data' => SystemSetting::profilePayload(),
             'meta' => [
-                'fields' => self::FIELDS,
+                'fields' => SystemSetting::PROFILE_FIELDS,
             ],
         ]);
     }
@@ -74,7 +57,7 @@ class SystemSettingController extends Controller
             $data['favicon_url'] = Storage::url($request->file('favicon_file')->store('system', 'public'));
         }
 
-        foreach (self::FIELDS as $key => $meta) {
+        foreach (SystemSetting::PROFILE_FIELDS as $key => $meta) {
             SystemSetting::query()->updateOrCreate(
                 ['key' => $key],
                 [
@@ -88,23 +71,7 @@ class SystemSettingController extends Controller
 
         return response()->json([
             'message' => 'Đã lưu thông tin hệ thống.',
-            'data' => $this->settingsPayload(),
+            'data' => SystemSetting::profilePayload(),
         ]);
-    }
-
-    private function settingsPayload(): array
-    {
-        $stored = SystemSetting::query()
-            ->whereIn('key', array_keys(self::FIELDS))
-            ->get()
-            ->keyBy('key');
-
-        $payload = [];
-
-        foreach (self::FIELDS as $key => $meta) {
-            $payload[$key] = $stored->get($key)?->value ?? $meta['default'];
-        }
-
-        return $payload;
     }
 }
