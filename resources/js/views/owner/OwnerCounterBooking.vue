@@ -29,14 +29,6 @@
                     <AppIcon name="fileText" size="16" />
                     <span>Danh sách booking</span>
                 </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurringList' }"
-                    @click="setActiveTab('recurringList')"
-                >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách cố định</span>
-                </button>
             </div>
             <button class="secondary-btn" type="button" @click="refreshActiveTab">
                 <AppIcon name="refresh" size="16" />
@@ -1133,20 +1125,40 @@
                 <div>
                     <h2>Danh sách booking</h2>
                     <p>
-                        Theo dõi booking online và booking tại quầy theo ngày,
-                        sân, trạng thái và thanh toán.
+                        Theo dõi booking lẻ và booking cố định trong cùng một
+                        màn; lọc theo sân, ngày, trạng thái và thanh toán.
                     </p>
                 </div>
                 <button
                     class="icon-btn"
                     type="button"
                     title="Tải lại"
-                    @click="loadBookingList"
+                    @click="loadCurrentBookingList"
                 >
                     <AppIcon name="refresh" size="17" />
                 </button>
             </div>
 
+            <div class="booking-list-mode-tabs" role="tablist" aria-label="Loại danh sách booking">
+                <button
+                    type="button"
+                    :class="{ active: bookingListMode === 'single' }"
+                    @click="setBookingListMode('single')"
+                >
+                    <AppIcon name="calendar" size="15" />
+                    <span>Booking lẻ</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: bookingListMode === 'recurring' }"
+                    @click="setBookingListMode('recurring')"
+                >
+                    <AppIcon name="fileText" size="15" />
+                    <span>Booking cố định</span>
+                </button>
+            </div>
+
+            <template v-if="bookingListMode === 'single'">
             <div class="filters booking-list-filters">
                 <label>
                     <span>Sân con</span>
@@ -1319,10 +1331,10 @@
                     </tbody>
                 </table>
             </div>
-        </section>
+            </template>
 
-        <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
-            <div class="list-toolbar">
+            <template v-else>
+            <div class="list-toolbar compact-list-toolbar">
                 <div>
                     <h2>Danh sách booking cố định</h2>
                     <p>
@@ -1530,6 +1542,7 @@
                     </tbody>
                 </table>
             </div>
+            </template>
         </section>
 
         <Teleport to="body">
@@ -2188,6 +2201,7 @@ export default {
             selectedBusyBookingLoading: false,
             bookingActionLoading: false,
             bookingActionConfirm: null,
+            bookingListMode: "single",
             bookingList: [],
             bookingListLoading: false,
             bookingListDetail: null,
@@ -3153,26 +3167,30 @@ export default {
             this.clearVoucherSelection();
             this.syncPaymentOption();
 
-            if (tab === "recurringList") {
-                await this.loadRecurringGroups();
-                return;
-            }
-
             if (tab === "bookingList") {
-                await this.loadBookingList();
+                await this.loadCurrentBookingList();
                 return;
             }
 
             await this.loadSchedule();
         },
-        async refreshActiveTab() {
-            if (this.activeTab === "bookingList") {
-                await this.loadBookingList();
+        async setBookingListMode(mode) {
+            if (this.bookingListMode === mode) return;
+
+            this.bookingListMode = mode;
+            await this.loadCurrentBookingList();
+        },
+        async loadCurrentBookingList() {
+            if (this.bookingListMode === "recurring") {
+                await this.loadRecurringGroups();
                 return;
             }
 
-            if (this.activeTab === "recurringList") {
-                await this.loadRecurringGroups();
+            await this.loadBookingList();
+        },
+        async refreshActiveTab() {
+            if (this.activeTab === "bookingList") {
+                await this.loadCurrentBookingList();
                 return;
             }
 
@@ -3254,12 +3272,10 @@ export default {
 
             await Promise.all([this.loadClusterDetail(), this.loadCourts()]);
             this.syncPaymentOption();
-            if (this.activeTab === "recurringList") {
-                this.recurringGroupFilters.venue_court_id = "";
-                await this.loadRecurringGroups();
-            } else if (this.activeTab === "bookingList") {
+            if (this.activeTab === "bookingList") {
                 this.bookingListFilters.venue_court_id = "";
-                await this.loadBookingList();
+                this.recurringGroupFilters.venue_court_id = "";
+                await this.loadCurrentBookingList();
             } else {
                 await this.loadSchedule();
             }
@@ -5225,6 +5241,42 @@ export default {
     margin: 4px 0 0;
     color: #607267;
     font-size: 13px;
+}
+
+.compact-list-toolbar {
+    padding-top: 10px;
+    border-top: 1px solid #e4eee4;
+}
+
+.booking-list-mode-tabs {
+    display: inline-flex;
+    width: fit-content;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #d5e4d6;
+    border-radius: 8px;
+    background: #f6fbf7;
+}
+
+.booking-list-mode-tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    border: 0;
+    border-radius: 6px;
+    padding: 0 14px;
+    background: transparent;
+    color: #5d6d63;
+    font-size: 13px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.booking-list-mode-tabs button.active {
+    background: #16a34a;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(22, 163, 74, 0.16);
 }
 
 .recurring-list-filters {
