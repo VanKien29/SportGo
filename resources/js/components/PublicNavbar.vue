@@ -377,6 +377,17 @@ export default {
           }
         }
         this.showNotifDropdown = false;
+      } else if (notif.type === 'report_processed') {
+        if (notif.data && notif.data.target_type && (notif.data.target_type.includes('comment') || notif.data.target_type.includes('post'))) {
+          if (notif.data.post_slug) {
+            let url = `/community/${notif.data.post_slug}`;
+            if (notif.data.target_type.includes('comment') && notif.data.target_id) {
+              url += `?open_comment=${notif.data.target_id}`;
+            }
+            this.$router.push(url);
+          }
+        }
+        this.showNotifDropdown = false;
       }
     },
     async markAllAsRead() {

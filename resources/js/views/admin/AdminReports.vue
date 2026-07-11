@@ -104,7 +104,7 @@
                         {{ reasonLabel(report.reason) }}
                       </div>
                       <div class="mt-1" style="font-size: 13px; color: #334155;">
-                        {{ truncate(report.content, 50) }}
+                        {{ truncate(report.description, 50) }}
                       </div>
                     </div>
                   </td>
@@ -174,16 +174,7 @@
                 </div>
               </div>
               
-              <div class="card info-card" style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                  <h3 style="margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Phân công xử lý</h3>
-                  <div style="display: flex; flex-direction: column; gap: 8px;">
-                      <CustomSelect
-                          v-model="form.assigned_to"
-                          :options="[{value: '', label: 'Chưa phân công'}, ...staff.map(s => ({value: s.id, label: s.full_name}))]"
-                      />
-                      <button @click="assignReport" class="btn primary" style="padding: 8px; border: none; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; font-weight: 600;" :disabled="saving">Lưu phân công</button>
-                  </div>
-              </div>
+
             </div>
 
             <!-- Main Panel: Timeline & Form -->
@@ -199,7 +190,7 @@
                     <div style="font-size: 13px; color: #94a3b8;">{{ formatDateTime(selected.created_at) }}</div>
                   </div>
                 </div>
-                <div class="complaint-body" style="font-size: 15px; line-height: 1.6; color: #334155; white-space: pre-wrap;">{{ selected.content }}</div>
+                <div class="complaint-body" style="font-size: 15px; line-height: 1.6; color: #334155; white-space: pre-wrap;">{{ selected.description }}</div>
                 
                 <div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px;">
                   <strong>Đối tượng:</strong> {{ selected.target_label }}
@@ -210,19 +201,48 @@
               </div>
 
               <!-- Admin action form -->
-              <div v-if="['open', 'processing'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
+              <div v-if="['pending', 'reviewing'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Giải quyết báo cáo</h3>
+                
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div>
-                    <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">Ghi chú xử lý nội bộ</label>
-                    <textarea v-model="form.resolve_note" placeholder="Nhập ghi chú giải quyết..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <label style="display: block; font-size: 14px; font-weight: 600;">Ghi chú xử lý</label>
+                      <button @click="fillTemplateActionNote" class="btn ghost" style="padding: 4px 8px; font-size: 12px; background: #f1f5f9; color: #475569; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">Sử dụng văn mẫu</button>
+                    </div>
+                    <textarea v-model="form.action_note" placeholder="Nhập ghi chú giải quyết (nội dung này sẽ được gửi kèm thông báo cho người báo cáo)..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+                  </div>
+                  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <CustomSelect 
+                        v-model="form.action_taken" 
+                        :options="[{value: '', label: 'Chọn hình thức xử lý...'}, {value: 'warning', label: 'Cảnh cáo người dùng'}, {value: 'content_hidden', label: 'Ẩn nội dung'}, {value: 'content_deleted', label: 'Gỡ bỏ nội dung'}, {value: 'account_locked', label: 'Khóa tài khoản'}, {value: 'venue_locked', label: 'Khóa cụm sân'}]" 
+                    />
+                    <button @click="submitDecision('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving || !form.action_taken">Xác nhận xử lý</button>
+                    <button @click="submitDecision('dismissed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Bỏ qua (Báo cáo sai)</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional notification form -->
+              <div v-if="['resolved', 'dismissed'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 16px;">
+                <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Gửi thông báo bổ sung</h3>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                  <div style="display: flex; gap: 16px; align-items: center;">
+                    <label style="font-size: 14px; font-weight: 600;">Gửi cho:</label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
+                      <input type="radio" v-model="form.notify_recipient" value="reporter"> Người gửi báo cáo
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
+                      <input type="radio" v-model="form.notify_recipient" value="reported"> Người bị báo cáo
+                    </label>
+                  </div>
+                  <div>
+                    <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
                   </div>
                   <div style="display: flex; gap: 12px; align-items: center;">
-                    <CustomSelect 
-                        v-model="form.decision" 
-                        :options="[{value: 'take_down', label: 'Gỡ bỏ nội dung'}, {value: 'warn_user', label: 'Cảnh cáo người dùng'}, {value: 'ban_user', label: 'Khóa tài khoản'}, {value: 'ignore', label: 'Bỏ qua (báo cáo sai)'}]" 
-                    />
-                    <button @click="resolveReport" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Xác nhận xử lý</button>
+                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving || !form.notify_message">Gửi thông báo</button>
+                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Sử dụng văn mẫu</button>
+                    <button @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Gửi nhanh cho cả 2 (Văn mẫu)</button>
                   </div>
                 </div>
               </div>
@@ -242,7 +262,7 @@
                         <span style="font-size: 12px; color: #94a3b8;">{{ formatDateTime(log.created_at) }}</span>
                       </div>
                       <div style="font-size: 13px; color: #64748b; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px dashed #cbd5e1;">
-                        Hành động: {{ log.action }}
+                        Hành động: {{ auditLabel(log.action) }}
                       </div>
                     </div>
                   </div>
@@ -307,7 +327,7 @@ export default {
       saving: false,
       error: '',
       success: '',
-      form: { action_taken: '', action_note: '', lock_days: null },
+      form: { action_taken: '', action_note: '', lock_days: null, notify_message: '' },
       showAutoResolveModal: false,
       autoResolveLoading: false,
       autoResolveSaving: false,
@@ -371,9 +391,12 @@ export default {
         case 'post':
         case 'venue_post':
         case 'player_post':
-          return window.location.origin + '/community/' + slug;
+        case 'community_post':
+          return window.location.origin + '/community/' + (report.target?.post_slug || slug);
         case 'comment':
-          return window.location.origin + '/community/' + (report.target?.post?.slug || report.parent_id || slug);
+        case 'venue_post_comment':
+        case 'community_post_comment':
+          return window.location.origin + '/community/' + (report.target?.post_slug || report.target?.post?.slug || report.parent_id || slug) + '?admin_view=1&open_comment=' + slug;
         case 'user':
           return this.$router.resolve({ name: 'admin-user-detail', params: { id } }).href;
         case 'venue':
@@ -412,6 +435,8 @@ export default {
           action_taken: this.selected.action_taken || '',
           action_note: this.selected.action_note || '',
           lock_days: null,
+          notify_recipient: 'reporter',
+          notify_message: '',
         };
         
         if (this.selected.reported_user) {
@@ -429,30 +454,68 @@ export default {
         this.detailLoading = false;
       }
     },
+
     closeDetail() {
       this.detailOpen = false;
       this.selected = null;
     },
-    async takeReview() {
+    async submitDecision(decision) {
       this.saving = true;
       try {
-        await adminReportService.review(this.selected.id);
-        await this.refreshDetail();
-        this.success = 'Đã nhận kiểm duyệt báo cáo.';
+        const payload = {
+            decision,
+            action_note: this.form.action_note,
+        };
+        if (decision === 'resolved') {
+            payload.action_taken = this.form.action_taken;
+        }
+        const response = await adminReportService.resolve(this.selected.id, payload);
+        this.success = response.message;
         await this.loadReports();
+        await this.refreshDetail();
       } catch (error) {
         this.error = error.message;
       } finally {
         this.saving = false;
       }
     },
-    async submitDecision(decision) {
+    async sendAdditionalNotification() {
+      if (!this.form.notify_message || !this.selected) return;
       this.saving = true;
       try {
-        const response = await adminReportService.resolve(this.selected.id, { ...this.form, decision });
-        this.success = response.message;
-        await this.loadReports();
-        await this.refreshDetail();
+        const payload = {
+          message: this.form.notify_message,
+          recipient: this.form.notify_recipient || 'reporter',
+        };
+        await adminReportService.sendNotification(this.selected.id, payload);
+        this.success = 'Đã gửi thông báo thành công!';
+        this.form.notify_message = '';
+        this.loadDetail(this.selected.id); // Reload to get new audit logs
+      } catch (error) {
+        this.error = error.message;
+      } finally {
+        this.saving = false;
+      }
+    },
+    async sendToBothAuto() {
+      if (!this.selected) return;
+      this.saving = true;
+      try {
+        const reporterMsg = "Xin chào! Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã tiếp nhận và xử lý vi phạm liên quan đến nội dung này. Nếu bạn có thêm thông tin, vui lòng liên hệ qua trung tâm hỗ trợ. Chúc bạn một ngày tốt lành!";
+        await adminReportService.sendNotification(this.selected.id, {
+          recipient: 'reporter',
+          message: reporterMsg
+        });
+        
+        const reportedMsg = "Xin chào! Chúng tôi gửi thông báo này để nhắc nhở bạn về việc vi phạm chính sách của SportGo. Vui lòng rà soát lại các nội dung/hoạt động của bạn và tuân thủ đúng quy định. Nếu có thắc mắc, vui lòng liên hệ trung tâm hỗ trợ.";
+        await adminReportService.sendNotification(this.selected.id, {
+          recipient: 'reported',
+          message: reportedMsg
+        });
+
+        this.success = 'Đã gửi thông báo cho cả 2 bên thành công!';
+        this.form.notify_message = '';
+        this.loadDetail(this.selected.id);
       } catch (error) {
         this.error = error.message;
       } finally {
@@ -514,19 +577,45 @@ export default {
         venue_locked: 'Khóa cụm sân',
       }[value] || (value ? value : 'Chưa xử lý');
     },
-    auditLabel(value) {
-      return {
-        'report.reviewing': 'Nhận kiểm duyệt',
-        'report.resolved': 'Xử lý báo cáo',
-        'report.dismissed': 'Bỏ qua báo cáo',
+    auditLabel(action) {
+      if (!action) return '-';
+      const cleanAction = String(action).trim().toLowerCase();
+      const labels = {
+        'report.created': 'Tạo báo cáo',
+        'report.reviewing': 'Bắt đầu kiểm duyệt',
+        'report.resolved': 'Xác nhận vi phạm',
+        'report.dismissed': 'Bỏ qua báo (Báo cáo sai)',
+        'report.notified': 'Gửi thông báo',
+        'post.approved': 'Duyệt bài viết',
+        'post.rejected': 'Từ chối bài viết',
+        'venue_post.created': 'Đăng bài viết cụm sân',
+        'community_post.created': 'Đăng bài viết cộng đồng',
+        'player_post.created': 'Đăng bài kèo',
         'content.hidden': 'Ẩn nội dung',
         'content.deleted': 'Xóa nội dung',
+        'content.restored': 'Khôi phục nội dung',
+        'user.warned': 'Cảnh cáo người dùng',
+        'user.locked_by_admin': 'Khóa tài khoản',
         'user.locked_by_report': 'Khóa tài khoản',
+        'user.unlocked_by_admin': 'Mở khóa tài khoản',
+        'venue.locked_by_admin': 'Khóa cụm sân',
         'venue.locked_by_report': 'Khóa cụm sân',
-      }[value] || value;
+        'venue.unlocked_by_admin': 'Mở khóa cụm sân',
+      };
+      return labels[cleanAction] || action;
     },
     shortId(value) {
       return value ? `#${value.slice(0, 8)}` : '';
+    },
+    fillTemplateActionNote() {
+      this.form.action_note = "Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã xem xét nội dung và xác nhận vi phạm. Đội ngũ kiểm duyệt đã tiến hành xử lý nội dung/tài khoản vi phạm theo đúng chính sách của SportGo. Cảm ơn bạn đã góp phần giữ gìn cộng đồng an toàn và minh bạch!";
+    },
+    fillTemplateNotifyMessage() {
+      if (this.form.notify_recipient === 'reporter') {
+        this.form.notify_message = "Xin chào! Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã tiếp nhận và xử lý vi phạm liên quan đến nội dung này. Nếu bạn có thêm thông tin, vui lòng liên hệ qua trung tâm hỗ trợ. Chúc bạn một ngày tốt lành!";
+      } else {
+        this.form.notify_message = "Xin chào! Chúng tôi gửi thông báo này để nhắc nhở bạn về việc vi phạm chính sách của SportGo. Vui lòng rà soát lại các nội dung/hoạt động của bạn và tuân thủ đúng quy định. Nếu có thắc mắc, vui lòng liên hệ trung tâm hỗ trợ.";
+      }
     },
     formatDateTime(value) {
       return value ? new Date(value).toLocaleString('vi-VN') : '-';

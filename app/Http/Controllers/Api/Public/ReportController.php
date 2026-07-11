@@ -18,6 +18,8 @@ class ReportController extends Controller
         'comment' => VenuePostComment::class,
         'venue_post' => VenuePost::class,
         'player_post' => PlayerPost::class,
+        'community_post' => \App\Models\CommunityPost::class,
+        'community_post_comment' => \App\Models\CommunityPostComment::class,
         'user' => User::class,
         'venue' => VenueCluster::class,
     ];
@@ -25,7 +27,7 @@ class ReportController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'target_type' => ['required', 'string', 'in:post,comment,venue,user,player_post,venue_post'],
+            'target_type' => ['required', 'string', 'in:post,comment,venue,user,player_post,venue_post,community_post,community_post_comment'],
             'target_id' => ['required', 'string'],
             'reason' => ['required', 'string', 'in:spam,offensive,fake,harassment,other'],
             'description' => ['nullable', 'string', 'max:1000'],
