@@ -33,6 +33,15 @@
 
         <section class="article-body" v-html="post.content"></section>
 
+        <section v-if="galleryImages.length" class="article-gallery" aria-label="Ảnh bài viết">
+          <img
+            v-for="(image, index) in galleryImages"
+            :key="image.id || image.file_path"
+            :src="normalizeMediaUrl(image)"
+            :alt="`${post.title} - ảnh ${index + 1}`"
+          />
+        </section>
+
         <footer class="article-footer">
           <div>
             <strong>{{ post.venue_cluster?.name || "SportGo" }}</strong>
@@ -66,6 +75,13 @@ export default {
       loading: true,
       error: "",
     };
+  },
+  computed: {
+    galleryImages() {
+      return Array.isArray(this.post?.media)
+        ? this.post.media.filter((item) => item.collection === "gallery")
+        : [];
+    },
   },
   watch: {
     "$route.params.slug": {
@@ -259,6 +275,21 @@ export default {
   color: #0b7a46;
 }
 
+.article-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.article-gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
 .article-footer {
   display: flex;
   align-items: center;
@@ -316,6 +347,10 @@ export default {
   .article-body {
     padding: 22px;
     font-size: 16px;
+  }
+
+  .article-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .article-footer {
