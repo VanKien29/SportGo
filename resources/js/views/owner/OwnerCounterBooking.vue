@@ -5241,8 +5241,6 @@ export default {
     },
 };
 </script>
-<<<<<<< HEAD
-
 <style scoped>
 .owner-counter-page {
     display: grid;
@@ -8249,5 +8247,3 @@ input.invalid {
     }
 }
 </style>
-=======
->>>>>>> Css
