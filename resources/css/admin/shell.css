@@ -60,7 +60,7 @@
   border-radius: 9px;
   background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
   color: #fff;
-  font-size: 14px;
+  font-size: var(--admin-font-size-base, 14px);
   font-weight: 800;
   box-shadow: 0 12px 26px rgba(47, 158, 68, 0.22);
 }
@@ -72,13 +72,13 @@
 }
 
 .admin-brand-copy strong {
-  font-size: 16px;
+  font-size: var(--admin-font-size-lg, 16px);
   letter-spacing: 0;
 }
 
 .admin-brand-copy small {
   color: var(--admin-faint);
-  font-size: 11px;
+  font-size: var(--admin-font-size-xs, 11px);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -97,7 +97,7 @@
 .sg-shell-admin .nav-group {
   margin: 8px 10px 6px;
   color: var(--admin-faint);
-  font-size: 10px;
+  font-size: calc(var(--admin-font-size) - 4px);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -111,7 +111,7 @@
   padding: 10px 12px;
   border-radius: var(--admin-radius);
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: var(--admin-font-size-md, 13px);
   font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
@@ -262,7 +262,7 @@
   min-width: 0;
   gap: 8px;
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: var(--admin-font-size-md, 13px);
   font-weight: 600;
 }
 

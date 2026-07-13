@@ -244,7 +244,10 @@ export default {
         'Tổng quan': 'dashboard',
         'Vận hành sân': 'building',
         'Kinh doanh': 'banknote',
-        'Nhân sự': 'users'
+        'Nhân sự': 'users',
+        'Công việc': 'dashboard',
+        'Tin nhắn': 'messageSquare',
+        'Hệ thống': 'settings',
       };
       return iconMap[label] || 'alert';
     },

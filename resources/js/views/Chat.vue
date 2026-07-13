@@ -1309,7 +1309,7 @@ export default {
       return this.messages.filter(m => m.is_pinned);
     },
     isAdmin() {
-      return this.$route.path.startsWith('/admin') || this.$route.path.startsWith('/owner');
+      return this.$route.path.startsWith('/admin') || this.$route.path.startsWith('/owner') || this.$route.path.startsWith('/staff');
     },
     usesAdminChatTheme() {
       return true;

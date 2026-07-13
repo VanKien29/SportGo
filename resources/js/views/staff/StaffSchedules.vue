@@ -1,8 +1,7 @@
 <template>
   <section class="staff-schedules-page">
     <header class="staff-schedules-head">
-      <div>
-        <p class="staff-schedules-eyebrow">Lịch trực cá nhân</p>
+      <div class="staff-schedules-header-left">
         <div class="staff-view-switcher">
           <button
             type="button"
@@ -15,27 +14,29 @@
             @click="scheduleViewMode = 'day'"
           >Xem theo ngày</button>
         </div>
+        <p v-if="scheduleViewMode === 'week'" class="staff-week-label">{{ weekLabel }}</p>
+        <p v-else class="staff-week-label">{{ formattedSelectedDate }}</p>
       </div>
 
       <!-- Điều hướng tuần (cho chế độ xem tuần) -->
       <div v-if="scheduleViewMode === 'week'" class="staff-week-actions">
         <button type="button" title="Tuần trước" @click="shiftWeek(-1)">
-          <AppIcon name="chevronLeft" size="17" />
+          <AppIcon name="chevronLeft" size="14" />
         </button>
         <button type="button" class="staff-week-today" @click="goToCurrentWeek">Tuần này</button>
         <button type="button" title="Tuần sau" @click="shiftWeek(1)">
-          <AppIcon name="chevronRight" size="17" />
+          <AppIcon name="chevronRight" size="14" />
         </button>
       </div>
 
       <!-- Điều hướng ngày (cho chế độ xem ngày) -->
       <div v-if="scheduleViewMode === 'day'" class="staff-week-actions">
         <button type="button" title="Ngày trước" @click="shiftDay(-1)">
-          <AppIcon name="chevronLeft" size="17" />
+          <AppIcon name="chevronLeft" size="14" />
         </button>
         <button type="button" class="staff-week-today" @click="goToToday">Hôm nay</button>
         <button type="button" title="Ngày sau" @click="shiftDay(1)">
-          <AppIcon name="chevronRight" size="17" />
+          <AppIcon name="chevronRight" size="14" />
         </button>
       </div>
     </header>
@@ -46,10 +47,6 @@
     <template v-else>
       <!-- CHẾ ĐỘ XEM THEO TUẦN -->
       <div v-if="scheduleViewMode === 'week'">
-        <div class="staff-week-summary">
-          <span>{{ schedules.length }} ca trực</span>
-          <span>{{ uniqueVenues }} cụm sân</span>
-        </div>
         <div class="staff-week-grid" role="list" aria-label="Lịch trực trong tuần">
           <article v-for="day in weekDays" :key="day.iso" class="staff-day" :class="{ 'is-today': day.iso === today }" role="listitem">
             <header>
@@ -84,12 +81,6 @@
 
       <!-- CHẾ ĐỘ XEM THEO NGÀY (Dạng timeline 24h) -->
       <div v-else class="staff-day-view-container">
-        <div class="staff-day-view-header">
-          <div class="staff-day-title-row">
-            <h3 class="staff-day-title">{{ formattedSelectedDate }}</h3>
-            <input type="date" v-model="selectedDate" class="staff-date-picker-input" />
-          </div>
-        </div>
 
         <!-- Timeline Board -->
         <div class="shift-timeline-layout">
@@ -178,6 +169,7 @@ export default {
       error: '',
       scheduleViewMode: 'week',
       selectedDate: this.isoDate(new Date()),
+      selectedWeekDate: this.isoDate(new Date()),
     };
   },
   computed: {
@@ -282,11 +274,30 @@ export default {
       const next = new Date(this.weekStart);
       next.setDate(next.getDate() + (amount * 7));
       this.weekStart = next;
+      this.selectedWeekDate = this.isoDate(next);
       this.loadSchedules();
     },
     goToCurrentWeek() {
-      this.weekStart = this.getMonday(new Date());
+      const currentMonday = this.getMonday(new Date());
+      this.weekStart = currentMonday;
+      this.selectedWeekDate = this.isoDate(currentMonday);
       this.loadSchedules();
+    },
+    onWeekDateChange(event) {
+      const selected = new Date(event.target.value);
+      if (!isNaN(selected.getTime())) {
+        this.weekStart = this.getMonday(selected);
+        this.loadSchedules();
+      }
+    },
+    onWeekDateChangePicker(iso) {
+      if (!iso) return;
+      const selected = new Date(iso + 'T00:00:00');
+      if (!isNaN(selected.getTime())) {
+        this.weekStart = this.getMonday(selected);
+        this.selectedWeekDate = iso;
+        this.loadSchedules();
+      }
     },
     shiftDay(amount) {
       const next = new Date(this.selectedDate + 'T00:00:00');
@@ -345,19 +356,22 @@ export default {
   margin-bottom: 24px;
 }
 
-.staff-schedules-eyebrow {
-  color: var(--admin-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin: 0 0 6px 0;
+.staff-schedules-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-/* Switcher tabs */
+.staff-week-label {
+  font-size: var(--admin-font-size-base, 14px) !important;
+  font-weight: 500 !important;
+  color: var(--admin-text) !important;
+  margin: 0;
+}
 .staff-view-switcher {
   display: flex;
   gap: 8px;
-  border-bottom: 1.5px solid var(--admin-border-soft);
   padding-bottom: 4px;
 }
 
@@ -369,12 +383,33 @@ export default {
   font-weight: 600;
   padding: 6px 12px;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
 }
 
 .staff-view-switcher button.active {
   color: var(--admin-primary);
-  border-bottom-color: var(--admin-primary);
+}
+
+.staff-date-picker-input-mini {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text) !important;
+  -webkit-text-fill-color: var(--admin-text) !important;
+  padding: 4px 8px;
+  font-size: var(--admin-font-size-xs, 11px) !important;
+  font-weight: 500;
+  height: 36px !important;
+  box-sizing: border-box;
+  color-scheme: light !important;
+}
+
+.staff-date-picker-input-mini::-webkit-datetime-edit {
+  font-size: var(--admin-font-size-xs, 11px) !important;
+}
+
+:root[data-theme="dark"] .staff-date-picker-input-mini,
+[data-theme="dark"] .staff-date-picker-input-mini {
+  color-scheme: dark !important;
 }
 
 .staff-week-actions {
@@ -388,19 +423,20 @@ export default {
   align-items: center;
   justify-content: center;
   min-width: 32px;
-  height: 32px;
+  height: 36px !important;
+  min-height: 36px !important;
   padding: 0 8px;
   border: 1px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
   color: var(--admin-text);
-  font-size: 12px;
+  font-size: var(--admin-font-size-sm, 12px) !important;
   font-weight: 500;
   cursor: pointer;
 }
 
 .staff-week-today {
-  font-size: 12px;
+  font-size: var(--admin-font-size-sm, 12px) !important;
 }
 
 .staff-schedules-alert {
@@ -421,20 +457,11 @@ export default {
   font-size: 13px;
 }
 
-.staff-week-summary {
-  display: flex;
-  gap: 16px;
-  padding: 12px 0;
-  border-top: 1px solid var(--admin-border-soft);
-  border-bottom: 1px solid var(--admin-border-soft);
-  color: var(--admin-muted);
-  font-size: 13px;
-}
-
 /* Week grid styling */
 .staff-week-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--admin-border-soft);
   border-bottom: 1px solid var(--admin-border-soft);
 }
 
@@ -463,18 +490,18 @@ export default {
 
 .staff-day header span {
   color: var(--admin-muted);
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
 }
 
 .staff-day header strong {
-  font-size: 16px;
+  font-size: var(--admin-font-size-base, 14px);
   font-weight: 700;
   color: var(--admin-text);
 }
 
 .staff-day > p {
   color: var(--admin-faint);
-  font-size: 12px;
+  font-size: var(--admin-font-size-sm, 12px);
   margin: 0;
 }
 
@@ -491,24 +518,24 @@ export default {
 }
 
 .staff-day-time {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   font-weight: 700;
   color: var(--admin-text);
 }
 
 .staff-day-shift strong {
-  font-size: 12px;
+  font-size: var(--admin-font-size-md, 13px);
   font-weight: 600;
   color: var(--admin-text);
 }
 
 .staff-day-shift small {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   color: var(--admin-muted);
 }
 
 .staff-day-status {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   font-weight: 600;
   margin-top: 2px;
 }
@@ -611,10 +638,17 @@ export default {
   border: 1px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
-  color: var(--admin-text);
+  color: var(--admin-text) !important;
+  -webkit-text-fill-color: var(--admin-text) !important;
   padding: 4px 8px;
   font-size: 13px;
   font-weight: 500;
+  color-scheme: light !important;
+}
+
+:root[data-theme="dark"] .staff-date-picker-input,
+[data-theme="dark"] .staff-date-picker-input {
+  color-scheme: dark !important;
 }
 
 /* Shift Timeline View Styles */

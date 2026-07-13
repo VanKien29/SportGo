@@ -10,7 +10,6 @@
       <section class="staff-list-block">
         <div class="staff-block-title-row">
           <div>
-            <h2 class="staff-block-title">Lịch trực trong tuần</h2>
             <p class="staff-week-label">{{ weekLabel }}</p>
           </div>
           <div class="staff-week-actions">
@@ -54,9 +53,11 @@ export default {
   name: 'StaffDashboard',
   components: { AppIcon },
   data() {
+    const todayStr = new Date().toISOString().slice(0, 10);
     return {
       schedules: [],
       weekStart: this.getMonday(new Date()),
+      selectedWeekDate: todayStr,
       loading: true,
       error: '',
       success: '',
@@ -109,11 +110,30 @@ export default {
       const next = new Date(this.weekStart);
       next.setDate(next.getDate() + (amount * 7));
       this.weekStart = next;
+      this.selectedWeekDate = this.formatIsoDate(next);
       this.loadSchedules();
     },
     goToCurrentWeek() {
-      this.weekStart = this.getMonday(new Date());
+      const currentMonday = this.getMonday(new Date());
+      this.weekStart = currentMonday;
+      this.selectedWeekDate = this.formatIsoDate(currentMonday);
       this.loadSchedules();
+    },
+    onWeekDateChange(event) {
+      const selected = new Date(event.target.value);
+      if (!isNaN(selected.getTime())) {
+        this.weekStart = this.getMonday(selected);
+        this.loadSchedules();
+      }
+    },
+    onWeekDateChangePicker(iso) {
+      if (!iso) return;
+      const selected = new Date(iso + 'T00:00:00');
+      if (!isNaN(selected.getTime())) {
+        this.weekStart = this.getMonday(selected);
+        this.selectedWeekDate = iso;
+        this.loadSchedules();
+      }
     },
     async loadSchedules() {
       this.loading = true;
@@ -183,16 +203,10 @@ export default {
   margin-bottom: 16px;
 }
 
-.staff-block-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--admin-text);
-  margin: 0;
-}
 
 .staff-empty-text {
   color: var(--admin-muted);
-  font-size: 14px;
+  font-size: var(--admin-font-size-base, 14px);
   margin: 0;
 }
 
@@ -234,13 +248,13 @@ export default {
 }
 
 .staff-day-name {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   color: var(--admin-muted);
   font-weight: 600;
 }
 
 .staff-day-date {
-  font-size: 16px;
+  font-size: var(--admin-font-size-base, 14px);
   font-weight: 700;
   color: var(--admin-text);
 }
@@ -258,24 +272,24 @@ export default {
 }
 
 .staff-day-time {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   font-weight: 700;
   color: var(--admin-text);
 }
 
 .staff-day-name-val {
-  font-size: 12px;
+  font-size: var(--admin-font-size-md, 13px);
   font-weight: 600;
   color: var(--admin-text);
 }
 
 .staff-day-venue {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   color: var(--admin-muted);
 }
 
 .staff-day-status-text {
-  font-size: 11px;
+  font-size: var(--admin-font-size-sm, 12px);
   font-weight: 600;
   margin-top: 2px;
 }
@@ -318,22 +332,46 @@ export default {
   align-items: center;
   justify-content: center;
   min-width: 32px;
-  height: 32px;
+  height: 36px !important;
+  min-height: 36px !important;
   padding: 0 8px;
   border: 1px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
   background: var(--admin-surface);
   color: var(--admin-text);
-  font-size: 12px;
+  font-size: var(--admin-font-size-sm, 12px) !important;
   font-weight: 500;
   cursor: pointer;
 }
 
-.staff-week-label {
-  font-size: 13px;
-  color: var(--admin-muted);
-  margin: 4px 0 0 0;
+.staff-date-picker-input-mini {
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text) !important;
+  -webkit-text-fill-color: var(--admin-text) !important;
+  padding: 4px 8px;
+  font-size: var(--admin-font-size-xs, 11px) !important;
   font-weight: 500;
+  height: 36px !important;
+  box-sizing: border-box;
+  color-scheme: light !important;
+}
+
+.staff-date-picker-input-mini::-webkit-datetime-edit {
+  font-size: var(--admin-font-size-xs, 11px) !important;
+}
+
+:root[data-theme="dark"] .staff-date-picker-input-mini,
+[data-theme="dark"] .staff-date-picker-input-mini {
+  color-scheme: dark !important;
+}
+
+.staff-week-label {
+  font-size: var(--admin-font-size-base, 14px) !important;
+  font-weight: 500 !important;
+  color: var(--admin-text) !important;
+  margin: 0;
 }
 
 /* Responsive styles */

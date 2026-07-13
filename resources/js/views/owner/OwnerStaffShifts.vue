@@ -2518,7 +2518,14 @@ input[type='date'],
 input[type='time'] {
   color: var(--admin-text, #1e293b) !important;
   -webkit-text-fill-color: var(--admin-text, #1e293b) !important;
-  color-scheme: dark light !important;
+  color-scheme: light !important;
+}
+
+:root[data-theme="dark"] input[type='date'],
+[data-theme="dark"] input[type='date'],
+:root[data-theme="dark"] input[type='time'],
+[data-theme="dark"] input[type='time'] {
+  color-scheme: dark !important;
 }
 
 .check {

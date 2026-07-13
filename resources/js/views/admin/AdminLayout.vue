@@ -38,10 +38,12 @@ export default {
     },
   },
   async mounted() {
+    document.body?.classList.add('sg-admin-theme-scope');
     autoApproveStore.init();
     await this.syncUiSettings();
   },
   unmounted() {
+    document.body?.classList.remove('sg-admin-theme-scope');
     autoApproveStore.stop();
   },
   methods: {

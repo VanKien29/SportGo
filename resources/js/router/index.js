@@ -463,6 +463,16 @@ const routes = [
                 name: "staff-schedules",
                 component: () => import("../views/staff/StaffSchedules.vue"),
             },
+            {
+                path: "settings",
+                name: "staff-settings",
+                component: () => import("../views/owner/OwnerSettings.vue"),
+            },
+            {
+                path: "chat",
+                name: "staff-chat",
+                component: () => import("../views/Chat.vue"),
+            },
             { path: "profile", name: "staff-profile", component: Profile },
             { path: "", redirect: { name: "staff-dashboard" } },
         ],
