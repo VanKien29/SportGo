@@ -5,15 +5,15 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('slot_locks', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36)->comment('Cụm sân bị giữ/khóa; denormalized.');
-            $table->char('venue_court_id', 36)->nullable()->comment('Sân con bị giữ/khóa; nullable khi khóa cả cụm.');
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân bị giữ/khóa; denormalized.');
+            $table->unsignedBigInteger('venue_court_id')->nullable()->comment('Sân con bị giữ/khóa; nullable khi khóa cả cụm.');
             $table->enum('lock_scope', ['court', 'cluster'])->default('court')->comment('Phạm vi khóa.');
             $table->date('booking_date')->comment('Ngày bị giữ/khóa.');
             $table->time('start_time')->comment('Giờ bắt đầu.');
             $table->time('end_time')->comment('Giờ kết thúc.');
             $table->string('locked_by', 100)->comment('Định danh người/session tạo lock.');
-            $table->char('booking_id', 36)->nullable()->comment('Booking liên quan.');
+            $table->unsignedBigInteger('booking_id')->nullable()->comment('Booking liên quan.');
             $table->enum('lock_type', ['auto', 'manual'])->default('auto')->comment('Loại lock.');
             $table->timestamp('expires_at')->comment('Thời điểm lock hết hạn.');
             $table->timestamp('created_at')->nullable()->comment('Thời điểm tạo lock.');

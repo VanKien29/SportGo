@@ -30,7 +30,7 @@ class ScheduleLockController extends Controller
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
         ]);
 
@@ -289,9 +289,9 @@ class ScheduleLockController extends Controller
     private function validateLockPayload(Request $request, bool $requireReason): array
     {
         return $request->validate([
-            'venue_court_id' => ['nullable', 'required_without:slots', 'uuid', 'exists:venue_courts,id'],
+            'venue_court_id' => ['nullable', 'required_without:slots', 'integer', 'exists:venue_courts,id'],
             'slots' => ['nullable', 'required_without:venue_court_id', 'array', 'min:1', 'max:200'],
-            'slots.*.venue_court_id' => ['required', 'uuid', 'exists:venue_courts,id'],
+            'slots.*.venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
             'slots.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'slots.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'booking_date' => ['nullable', 'required_without:start_date', 'date_format:Y-m-d', 'after_or_equal:today'],
@@ -302,9 +302,9 @@ class ScheduleLockController extends Controller
             'reason' => [$requireReason ? 'required' : 'nullable', 'string', 'min:3', 'max:500'],
             'lock_type' => ['nullable', 'in:manual,emergency'],
             'resolutions' => ['nullable', 'array'],
-            'resolutions.*.booking_item_id' => ['required_with:resolutions', 'uuid', 'exists:booking_items,id'],
+            'resolutions.*.booking_item_id' => ['required_with:resolutions', 'integer', 'exists:booking_items,id'],
             'resolutions.*.action' => ['required_with:resolutions', 'in:switch,cancel,cash_refund'],
-            'resolutions.*.venue_court_id' => ['nullable', 'uuid', 'exists:venue_courts,id'],
+            'resolutions.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
         ]);
     }
 

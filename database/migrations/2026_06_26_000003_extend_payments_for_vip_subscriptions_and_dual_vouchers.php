@@ -15,7 +15,7 @@ return new class extends Migration
 
         if (Schema::hasTable('payments')) {
             if (DB::connection()->getDriverName() === 'mysql') {
-                DB::statement('ALTER TABLE payments MODIFY booking_id CHAR(36) NULL');
+                DB::statement('ALTER TABLE payments MODIFY booking_id BIGINT UNSIGNED NULL');
             }
 
             Schema::table('payments', function (Blueprint $table): void {
@@ -27,7 +27,7 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('payments', 'subscription_id')) {
-                    $table->char('subscription_id', 36)
+                    $table->unsignedBigInteger('subscription_id')
                         ->nullable()
                         ->after('booking_id')
                         ->comment('Subscription VIP duoc thanh toan neu payment_context=vip_subscription.');
@@ -50,7 +50,7 @@ return new class extends Migration
         if (Schema::hasTable('bookings')) {
             Schema::table('bookings', function (Blueprint $table): void {
                 if (! Schema::hasColumn('bookings', 'venue_voucher_id')) {
-                    $table->char('venue_voucher_id', 36)->nullable()->after('voucher_code_snapshot');
+                    $table->unsignedBigInteger('venue_voucher_id')->nullable()->after('voucher_code_snapshot');
                 }
 
                 if (! Schema::hasColumn('bookings', 'venue_voucher_code_snapshot')) {
@@ -58,7 +58,7 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('bookings', 'vip_voucher_id')) {
-                    $table->char('vip_voucher_id', 36)->nullable()->after('venue_voucher_code_snapshot');
+                    $table->unsignedBigInteger('vip_voucher_id')->nullable()->after('venue_voucher_code_snapshot');
                 }
 
                 if (! Schema::hasColumn('bookings', 'vip_voucher_code_snapshot')) {
@@ -146,7 +146,7 @@ return new class extends Migration
             });
 
             if (DB::connection()->getDriverName() === 'mysql') {
-                DB::statement('ALTER TABLE payments MODIFY booking_id CHAR(36) NOT NULL');
+                DB::statement('ALTER TABLE payments MODIFY booking_id BIGINT UNSIGNED NOT NULL');
             }
         }
 

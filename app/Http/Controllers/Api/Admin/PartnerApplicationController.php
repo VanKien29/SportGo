@@ -12,6 +12,7 @@ use App\Models\PartnerTerminationRequest;
 use App\Services\Partner\PartnerApplicationService;
 use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerDocumentSigningService;
+use App\Services\Partner\PartnerTerminationFlowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -21,10 +22,27 @@ use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationController extends Controller
 {
+    private const TERMINATING_STATUSES = [
+        'draft',
+        'submitted',
+        'reviewing',
+        'settlement_processing',
+        'settlement_completed',
+        'pending_signature',
+        'transition_period',
+        'draft_preview',
+        'cancellation_in_progress',
+        'future_bookings_processing',
+        'waiting_final_settlement',
+        'waiting_final_document_signature',
+        'terminating',
+    ];
+
     public function __construct(
         private readonly PartnerApplicationService $partners,
         private readonly PartnerDocumentService $documents,
         private readonly PartnerDocumentSigningService $signing,
+        private readonly PartnerTerminationFlowService $terminations,
     )
     {
     }
@@ -46,7 +64,7 @@ class PartnerApplicationController extends Controller
                 'pending_review' => $query->whereIn('status', ['pending', 'reviewing', 'submitted', 'need_supplement']),
                 'pending_signature' => $query->whereIn('status', ['contract_pending_owner_signature', 'contract_pending_sportgo_signature']),
                 'active' => $query->where('status', 'completed'),
-                'terminating' => $query->whereHas('terminationRequests', fn ($q) => $q->whereIn('status', ['submitted', 'reviewing', 'transition_period'])),
+                'terminating' => $query->whereHas('terminationRequests', fn ($q) => $q->whereIn('status', self::TERMINATING_STATUSES)),
                 'terminated' => $query->whereNotNull('terminated_at'),
                 'rejected' => $query->whereIn('status', ['rejected', 'cancelled']),
                 default => null,
@@ -165,7 +183,7 @@ class PartnerApplicationController extends Controller
     {
         $statuses = collect($applications)->pluck('status');
 
-        if ($termination && in_array($termination->status, ['submitted', 'reviewing', 'transition_period'], true)) {
+        if ($termination && in_array($termination->status, self::TERMINATING_STATUSES, true)) {
             return 'terminating';
         }
 
@@ -255,8 +273,8 @@ class PartnerApplicationController extends Controller
     public function signDocument(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
-            'document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
+            'contract_id' => ['nullable', 'integer', 'exists:partner_contracts,id'],
+            'document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
         ]);
 
@@ -322,6 +340,13 @@ class PartnerApplicationController extends Controller
     {
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
+            'detail_reason' => ['nullable', 'string', 'max:5000'],
+            'requested_effective_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'future_booking_policy' => ['nullable', Rule::in([
+                PartnerTerminationFlowService::POLICY_CANCEL_ALL,
+                PartnerTerminationFlowService::POLICY_SERVE_UNTIL_LAST,
+                PartnerTerminationFlowService::POLICY_MANUAL,
+            ])],
         ]);
 
         $application = PartnerApplication::findOrFail($id);
@@ -331,11 +356,11 @@ class PartnerApplicationController extends Controller
             ->latest()
             ->firstOrFail();
 
-        $termination = $this->partners->initiateUnilateralTermination($contract, $request->user(), $request, $data['reason']);
+        $termination = $this->terminations->previewUnilateralNotice($contract, $request->user(), $data, $request);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã khởi tạo chấm dứt hợp tác đơn phương.',
+            'message' => 'Đã tạo bản xem trước công văn. Công văn chưa được gửi cho chủ sân cho đến khi admin ký OTP.',
             'data' => $termination,
         ]);
     }
@@ -351,11 +376,11 @@ class PartnerApplicationController extends Controller
             ->latest()
             ->firstOrFail();
 
-        $termination = $this->partners->confirmTermination($termination, $request->user(), $request);
+        $termination = $this->terminations->confirmOwnerRequest($termination, $request->user(), $request);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã xác nhận yêu cầu chấm dứt và tạo quyết toán.',
+            'message' => 'Đã xác nhận yêu cầu chấm dứt. Hãy xử lý booking và nghĩa vụ tài chính trước khi ký biên bản cuối.',
             'data' => $termination,
         ]);
     }
@@ -501,7 +526,14 @@ class PartnerApplicationController extends Controller
             ]);
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
-        $payload['termination_requests'] = $application->terminationRequests;
+        $payload['termination_requests'] = $application->terminationRequests->map(function (PartnerTerminationRequest $termination): PartnerTerminationRequest {
+            $termination->loadMissing('venueCluster');
+            if ($termination->venueCluster) {
+                $termination->setAttribute('financial_summary', $this->terminations->financialSummary($termination->venueCluster));
+            }
+
+            return $termination;
+        });
 
         $payload['partner_summary'] = [
             'partner_code' => 'PTN-' . strtoupper(substr(str_replace('-', '', (string) $application->user_id), 0, 8)),

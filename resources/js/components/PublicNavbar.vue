@@ -4,13 +4,14 @@
       <div class="navbar-left">
         <router-link to="/" class="brand">
           <div class="brand-icon" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none">
+            <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+            <svg v-else viewBox="0 0 32 32" fill="none">
               <circle cx="16" cy="16" r="15" stroke="currentColor" stroke-width="2"/>
               <path d="m9 12 7-5 7 5-3 8h-8z" stroke="currentColor" stroke-width="1.7" fill="none"/>
               <path d="M9 12 4 15M23 12l5 3M12 20l-3 7M20 20l3 7" stroke="currentColor" stroke-width="1.5"/>
             </svg>
           </div>
-          <span class="brand-text">Sport<span>Go</span></span>
+          <span class="brand-text">{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></span>
         </router-link>
 
         <div class="nav-links">
@@ -182,6 +183,7 @@
 
 <script>
 import { getAuth, logout } from "../stores/auth.js";
+import { resolveSystemAsset, systemProfileState, systemName } from "../stores/systemProfile.js";
 import { notificationService } from "../services/notification.service.js";
 
 export default {
@@ -212,6 +214,21 @@ export default {
       if (this.theme === 'dark') return 'dark';
       if (this.theme === 'light') return 'light';
       return this.isDark ? 'dark' : 'light';
+    },
+    brandName() {
+      return systemName();
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandMain() {
+      const name = this.brandName || "SportGo";
+      const match = name.match(/^(.*?)(go)$/i);
+      return match ? match[1] : name;
+    },
+    brandAccent() {
+      const match = (this.brandName || "SportGo").match(/^(.*?)(go)$/i);
+      return match ? match[2] : "";
     },
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
@@ -359,6 +376,14 @@ export default {
 .brand-icon svg {
   width: 28px;
   height: 28px;
+}
+
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+  padding: 4px;
 }
 
 .brand-text {

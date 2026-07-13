@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Models\VenueCluster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
@@ -196,7 +195,6 @@ class ChatController extends Controller
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
             $now = now();
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'reply_to_id' => $request->input('reply_to_id'),
                 'sender_id' => $userId,
@@ -683,7 +681,6 @@ class ChatController extends Controller
             $conversation = DB::transaction(function () use ($userId, $targetUserId) {
                 $now = now();
                 $conv = Conversation::create([
-                    'id' => (string) Str::uuid(),
                     'type' => 'direct',
                     'created_by' => $userId,
                     'last_message_at' => $now,
@@ -750,7 +747,6 @@ class ChatController extends Controller
             $conversation = DB::transaction(function () use ($userId, $venueId, $participantIds) {
                 $now = now();
                 $conv = Conversation::create([
-                    'id' => (string) Str::uuid(),
                     'type' => 'venue_contact',
                     'reference_type' => 'venue_cluster',
                     'reference_id' => $venueId,
@@ -791,7 +787,6 @@ class ChatController extends Controller
             $conversation = DB::transaction(function () use ($userId) {
                 $now = now();
                 $conv = Conversation::create([
-                    'id' => (string) Str::uuid(),
                     'type' => 'direct',
                     'created_by' => $userId,
                     'last_message_at' => $now,

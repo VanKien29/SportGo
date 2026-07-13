@@ -10,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('venue_staff_assignments', function (Blueprint $table) {
             $table->id();
-            $table->char('user_id', 36);
-            $table->char('venue_cluster_id', 36);
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->enum('scope_type', ['all_cluster', 'court_type'])->default('all_cluster');
             $table->unsignedBigInteger('court_type_id')->nullable();
             $table->string('scope_key', 50)->default('all');
-            $table->char('assigned_by', 36)->nullable();
+            $table->unsignedBigInteger('assigned_by')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
 

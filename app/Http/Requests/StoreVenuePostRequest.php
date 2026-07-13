@@ -19,8 +19,8 @@ class StoreVenuePostRequest extends FormRequest
     {
         return [
             'venue_cluster_id' => [
-                'nullable', 
-                'uuid', 
+                'required', 
+                'integer', 
                 \Illuminate\Validation\Rule::exists('venue_clusters', 'id')->where(function ($query) {
                     $query->where('owner_id', $this->user()->id);
                 })

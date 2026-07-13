@@ -25,7 +25,10 @@ class VenueController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'court_type_id' => ['nullable', 'integer', 'exists:court_types,id'],
             'area' => ['nullable', 'string', 'max:100'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0'],
             'min_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            'sort' => ['nullable', 'in:recommended,name,price,courts,rating'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
             'start_time' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
@@ -100,8 +103,33 @@ class VenueController extends Controller
         }
 
         $clusters = $clusters
-            ->when(! empty($validated['limit']), fn (Collection $clusters) => $clusters->take((int) $validated['limit']))
-            ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster));
+            ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster))
+            ->filter(function (array $cluster) use ($validated) {
+                $price = $cluster['min_price'];
+
+                if (isset($validated['min_price']) && ($price === null || $price < (float) $validated['min_price'])) {
+                    return false;
+                }
+
+                if (isset($validated['max_price']) && ($price === null || $price > (float) $validated['max_price'])) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->sort(function (array $left, array $right) use ($validated) {
+                return match ($validated['sort'] ?? 'recommended') {
+                    'name' => strnatcasecmp($left['name'] ?? '', $right['name'] ?? ''),
+                    'price' => ($left['min_price'] ?? PHP_INT_MAX) <=> ($right['min_price'] ?? PHP_INT_MAX),
+                    'courts' => ((int) ($right['court_count'] ?? 0)) <=> ((int) ($left['court_count'] ?? 0)),
+                    'rating' => ((float) ($right['rating_avg'] ?? 0)) <=> ((float) ($left['rating_avg'] ?? 0)),
+                    default => ((float) ($right['rating_avg'] ?? 0)) <=> ((float) ($left['rating_avg'] ?? 0))
+                        ?: (($left['min_price'] ?? PHP_INT_MAX) <=> ($right['min_price'] ?? PHP_INT_MAX))
+                        ?: strnatcasecmp($left['name'] ?? '', $right['name'] ?? ''),
+                };
+            })
+            ->values()
+            ->when(! empty($validated['limit']), fn (Collection $clusters) => $clusters->take((int) $validated['limit']));
 
         return response()->json(['data' => $clusters]);
     }
@@ -151,6 +179,8 @@ class VenueController extends Controller
                 'amenities_detail' => $amenitiesDetail,
                 'services' => $cluster->services,
                 'booking_config' => $cluster->bookingConfig,
+                'operating_hours' => $this->operatingHoursPayload($cluster),
+                'policies' => $this->policyPayload($cluster),
                 'venue_courts' => $cluster->venueCourts,
                 'price_slots' => PriceSlot::query()
                     ->with('courtType:id,name,parent_id')
@@ -173,7 +203,7 @@ class VenueController extends Controller
                     ->get(),
                 'gallery' => $this->gallery($cluster),
                 'affiliate_products' => $cluster->affiliateProducts ?? [],
-                'reviews' => [],
+                'reviews' => $this->reviewPreview($cluster),
             ]),
         ]);
     }
@@ -256,7 +286,51 @@ class VenueController extends Controller
             'court_types' => $courtTypes,
             'min_price' => $minPrice,
             'image_path' => $this->coverImage($cluster),
+            'availability_hint' => $cluster->venueCourts->isNotEmpty() ? 'available' : 'closed',
         ];
+    }
+
+    private function operatingHoursPayload(VenueCluster $cluster): array
+    {
+        $config = $cluster->bookingConfig;
+
+        return [
+            'fixed_open_time' => $config?->fixed_open_time,
+            'fixed_close_time' => $config?->fixed_close_time,
+            'weekly_operating_hours' => $config?->weekly_operating_hours ?? [],
+            'min_duration_minutes' => $config?->min_duration_minutes,
+            'max_duration_minutes' => $config?->max_duration_minutes,
+        ];
+    }
+
+    private function policyPayload(VenueCluster $cluster): array
+    {
+        $config = $cluster->bookingConfig;
+
+        return [
+            'allow_full_payment' => (bool) ($config?->allow_full_payment ?? true),
+            'allow_deposit' => (bool) ($config?->allow_deposit ?? true),
+            'allow_no_prepay' => (bool) ($config?->allow_no_prepay ?? true),
+            'deposit_percent' => $config?->deposit_percent !== null ? (float) $config->deposit_percent : null,
+            'cancel_before_hours' => $config?->cancel_before_hours,
+            'refund_percent' => $config?->refund_percent,
+            'min_advance_booking_minutes' => $config?->min_advance_booking_minutes,
+            'slot_hold_minutes' => $config?->slot_hold_minutes,
+        ];
+    }
+
+    private function reviewPreview(VenueCluster $cluster): array
+    {
+        if ((int) $cluster->rating_count <= 0) {
+            return [];
+        }
+
+        return [[
+            'id' => 'summary',
+            'author_name' => 'SportGo',
+            'rating' => (float) $cluster->rating_avg,
+            'content' => 'Điểm đánh giá tổng hợp từ các lượt đặt sân đã hoàn tất.',
+        ]];
     }
 
     private function coverImage(VenueCluster $cluster): ?string

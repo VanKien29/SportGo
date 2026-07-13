@@ -20,7 +20,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('court_membership_tiers', 'voucher_id')) {
-                $table->char('voucher_id', 36)->nullable()->after('is_active')
+                $table->unsignedBigInteger('voucher_id')->nullable()->after('is_active')
                     ->comment('Voucher di kem hang thanh vien neu co.');
             }
         });

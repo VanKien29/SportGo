@@ -28,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 class BookingService
 {
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+    private const BLOCKED_CLUSTER_STATUSES = ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'];
 
     public function __construct(
         private readonly WalkInCustomerService $walkInCustomers,
@@ -41,8 +42,12 @@ class BookingService
      */
     public function checkAvailability(string $venueCourtId, string $bookingDate, string $startTime, string $endTime, ?string $ignoreBookingId = null): bool
     {
-        $court = VenueCourt::findOrFail($venueCourtId);
+        $court = VenueCourt::query()->with('venueCluster')->findOrFail($venueCourtId);
         $venueClusterId = $court->venue_cluster_id;
+
+        if ($court->status !== 'active' || $this->clusterBlocksNewBooking($court)) {
+            return false;
+        }
 
         if (! $this->isWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime)) {
             return false;
@@ -115,6 +120,10 @@ class BookingService
      */
     public function createBooking(array $data, string $customerId): Booking
     {
+        if (count($data['time_ranges'] ?? []) > 1) {
+            return $this->createOnlineRangeBooking($data, $customerId);
+        }
+
         return DB::transaction(function () use ($data, $customerId) {
             $venueCourtId = $data['venue_court_id'];
             $bookingDate = $data['booking_date'];
@@ -122,11 +131,15 @@ class BookingService
             $endTime = $data['end_time'];
             $paymentOption = $data['payment_option'];
 
-            $court = VenueCourt::query()->whereKey($venueCourtId)->lockForUpdate()->firstOrFail();
+            $court = VenueCourt::query()->with('venueCluster')->whereKey($venueCourtId)->lockForUpdate()->firstOrFail();
             $venueClusterId = $court->venue_cluster_id;
 
             if ($court->status !== 'active') {
                 throw new Exception('Sân này hiện không hoạt động.');
+            }
+
+            if ($this->clusterBlocksNewBooking($court)) {
+                throw new Exception($this->clusterBlockedMessage($court));
             }
 
             $this->assertWithinOperatingHours($venueClusterId, $bookingDate, $startTime, $endTime);
@@ -246,24 +259,56 @@ class BookingService
                 $this->recordVoucherUsage($voucher, $booking, $customerId);
             }
 
-            // 9. Nếu cần thanh toán trước, tự động giữ slot theo cấu hình cụm sân.
-            if ($status === 'pending_payment') {
-                $slotHoldMinutes = $config ? $config->slot_hold_minutes : 20;
-                SlotLock::create([
-                    'venue_cluster_id' => $venueClusterId,
-                    'venue_court_id' => $venueCourtId,
-                    'lock_scope' => 'court',
-                    'booking_date' => $bookingDate,
-                    'start_time' => $startTime,
-                    'end_time' => $endTime,
-                    'locked_by' => $customerId,
-                    'booking_id' => $booking->id,
-                    'lock_type' => 'auto',
-                    'expires_at' => Carbon::now()->addMinutes($slotHoldMinutes),
-                ]);
-            }
+            $this->ensurePendingPaymentLocks($booking, $customerId);
 
             return $booking;
+        });
+    }
+
+    private function createOnlineRangeBooking(array $data, string $customerId): Booking
+    {
+        return DB::transaction(function () use ($data, $customerId): Booking {
+            $actor = User::query()->findOrFail($customerId);
+            $court = $this->lockActiveCourt($data['venue_court_id']);
+            $timeRanges = $this->normalizeTimeRanges($data, $court->id);
+            $rangeCourts = $this->courtsForTimeRanges($timeRanges, $court);
+
+            $this->validateTimeRanges($timeRanges);
+            $this->ensureRangesAreNotInPast($data['booking_date'], $timeRanges, 'start_time');
+            $this->validateRangeDurationsAndPayment($court->venue_cluster_id, $timeRanges, $data['payment_option']);
+
+            foreach ($timeRanges as $range) {
+                $this->assertWithinOperatingHours(
+                    $court->venue_cluster_id,
+                    $data['booking_date'],
+                    $range['start_time'],
+                    $range['end_time'],
+                );
+                $this->assertMinimumAdvanceNotice($court->venue_cluster_id, $data['booking_date'], $range['start_time']);
+
+                if (! $this->checkAvailability($range['venue_court_id'], $data['booking_date'], $range['start_time'], $range['end_time'])) {
+                    throw ValidationException::withMessages([
+                        'time_ranges' => 'Một hoặc nhiều khung giờ vừa được đặt, giữ chỗ hoặc khóa bởi thao tác khác. Vui lòng tải lại lịch trước khi xác nhận.',
+                    ]);
+                }
+            }
+
+            return $this->createOperationalBooking(
+                $court,
+                array_merge($data, [
+                    'customer_id' => $customerId,
+                    'start_time' => $timeRanges[0]['start_time'],
+                    'end_time' => $timeRanges[array_key_last($timeRanges)]['end_time'],
+                    'time_ranges' => $timeRanges,
+                    'range_courts' => $rangeCourts,
+                    'source' => 'online',
+                    'initial_status' => $data['payment_option'] === 'no_prepay' ? 'pending_approval' : 'pending_payment',
+                    'create_counter_payment' => false,
+                ]),
+                $actor,
+                $data['booking_date'],
+                'single',
+            );
         });
     }
 
@@ -289,7 +334,7 @@ class BookingService
                     $errorKey = isset($data['time_ranges']) ? 'time_ranges' : 'start_time';
 
                     throw ValidationException::withMessages([
-                        $errorKey => 'Một hoặc nhiều khung giờ đã có booking hoặc đang được giữ chỗ.',
+                        $errorKey => 'Một hoặc nhiều khung giờ vừa được đặt, giữ chỗ hoặc khóa bởi thao tác khác. Vui lòng tải lại lịch trước khi xác nhận.',
                     ]);
                 }
             }
@@ -538,7 +583,7 @@ class BookingService
             ]);
         }
 
-        if ($court->venueCluster?->status === 'locked') {
+        if ($this->clusterBlocksNewBooking($court)) {
             throw ValidationException::withMessages([
                 'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
             ]);
@@ -772,7 +817,11 @@ class BookingService
 
     public function ensurePendingPaymentLocks(Booking $booking, string $lockedBy): Collection
     {
-        if ($booking->status !== 'pending_payment') {
+        if (! in_array($booking->status, ['pending_payment', 'pending_approval'], true)) {
+            return collect();
+        }
+
+        if ($booking->status === 'pending_approval' && $booking->payment_option !== 'no_prepay') {
             return collect();
         }
 
@@ -782,8 +831,9 @@ class BookingService
         }
 
         $booking->loadMissing('items');
-        $slotHoldMinutes = (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
+        $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
         $expiresAt = Carbon::now()->addMinutes($slotHoldMinutes);
+        $reason = $this->temporaryHoldReason($booking, $slotHoldMinutes);
         $items = $booking->items->isNotEmpty()
             ? $booking->items
             : collect([(object) [
@@ -804,9 +854,27 @@ class BookingService
             'booking_id' => $booking->id,
             'booking_item_id' => $item->id,
             'lock_type' => 'auto',
-            'reason' => "Giữ chỗ chờ thanh toán trong {$slotHoldMinutes} phút.",
+            'reason' => $reason,
             'expires_at' => $expiresAt,
         ]));
+    }
+
+    private function temporaryHoldMinutes(Booking $booking): int
+    {
+        if ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
+            return self::OWNER_APPROVAL_HOLD_MINUTES;
+        }
+
+        return (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
+    }
+
+    private function temporaryHoldReason(Booking $booking, int $minutes): string
+    {
+        if ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
+            return "Giữ chỗ chờ chủ sân duyệt trong {$minutes} phút.";
+        }
+
+        return "Giữ chỗ chờ thanh toán trong {$minutes} phút.";
     }
 
     public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false): array
@@ -842,16 +910,21 @@ class BookingService
         foreach ($courts as $court) {
             foreach ($timeSlots as $slot) {
                 $busyInterval = $this->overlappingInterval($busyIntervals, $court->id, $slot['start_time'], $slot['end_time']);
-                $isAvailable = $busyInterval === null;
+                $slotState = $this->slotAvailabilityState($busyInterval, $cluster->id, $bookingDate, $slot['start_time']);
                 $price = $this->resolveHourlyRate($cluster->id, $court->court_type_id, $bookingDate, $slot['start_time'], $slot['end_time'], $bookingType);
+                $durationHours = max(($this->timeToMinutes($slot['end_time']) - $this->timeToMinutes($slot['start_time'])) / 60, 0);
 
                 $slotStatuses[] = [
                     'venue_court_id' => $court->id,
                     'start_time' => $slot['start_time'],
                     'end_time' => $slot['end_time'],
-                    'is_available' => $isAvailable,
+                    'is_available' => $slotState['is_available'],
+                    'can_book' => $slotState['can_book'],
+                    'slot_status' => $slotState['slot_status'],
+                    'status_label' => $slotState['status_label'],
+                    'unavailable_reason' => $slotState['unavailable_reason'],
                     'hourly_rate' => $price['hourly_rate'],
-                    'price' => round($price['hourly_rate'] / 2, 2),
+                    'price' => round($price['hourly_rate'] * $durationHours, 2),
                     'price_source' => $price['source'],
                     'busy_source' => $busyInterval['source'] ?? null,
                     'busy_status' => $busyInterval['status'] ?? null,
@@ -890,6 +963,72 @@ class BookingService
             ->addMinutes($this->timeToMinutes($startTime));
 
         return now()->addMinutes($minimumMinutes)->lte($bookingStart);
+    }
+
+    private function slotAvailabilityState(?array $busyInterval, string $venueClusterId, string $bookingDate, string $startTime): array
+    {
+        if ($busyInterval !== null) {
+            return $this->busySlotState($busyInterval);
+        }
+
+        $bookingStart = Carbon::parse($bookingDate)
+            ->startOfDay()
+            ->addMinutes($this->timeToMinutes($startTime));
+
+        if ($bookingStart->lt(now())) {
+            return $this->unavailableSlotState(
+                'past',
+                'Đã qua giờ',
+                'Khung giờ này đã quá thời hạn đặt.',
+            );
+        }
+
+        if (! $this->meetsMinimumAdvanceNotice($venueClusterId, $bookingDate, $startTime)) {
+            $minimumMinutes = (int) ($this->bookingConfigForCluster($venueClusterId)?->min_advance_booking_minutes ?? 30);
+
+            return $this->unavailableSlotState(
+                'too_early',
+                'Chưa đủ thời gian đặt trước',
+                "Cần đặt trước tối thiểu {$minimumMinutes} phút.",
+            );
+        }
+
+        return [
+            'is_available' => true,
+            'can_book' => true,
+            'slot_status' => 'available',
+            'status_label' => 'Trống',
+            'unavailable_reason' => null,
+        ];
+    }
+
+    private function busySlotState(array $busyInterval): array
+    {
+        if (($busyInterval['source'] ?? null) === 'slot_lock') {
+            return $this->unavailableSlotState(
+                'locked',
+                'Khóa sân',
+                $busyInterval['reason'] ?: 'Khung giờ này đang bị khóa.',
+            );
+        }
+
+        return match ($busyInterval['status'] ?? null) {
+            'pending_approval' => $this->unavailableSlotState('pending_approval', 'Chờ xác nhận', 'Booking đang chờ chủ sân xác nhận.'),
+            'pending_payment' => $this->unavailableSlotState('pending_payment', 'Chờ thanh toán', 'Booking đang chờ khách thanh toán.'),
+            'confirmed', 'checked_in', 'completed' => $this->unavailableSlotState('booked', 'Đã đặt', 'Khung giờ này đã có booking.'),
+            default => $this->unavailableSlotState('busy', 'Không thể đặt', 'Khung giờ này không còn trống.'),
+        };
+    }
+
+    private function unavailableSlotState(string $status, string $label, string $reason): array
+    {
+        return [
+            'is_available' => false,
+            'can_book' => false,
+            'slot_status' => $status,
+            'status_label' => $label,
+            'unavailable_reason' => $reason,
+        ];
     }
 
     public function resolveOperatingHours(string $venueClusterId, string $bookingDate): array
@@ -1035,10 +1174,11 @@ class BookingService
         $discountAmount = round($membershipDiscountAmount + $voucherDiscountAmount, 2);
         $totalPrice = round(max($amountAfterMembership - $voucherDiscountAmount, 0), 2);
         $requiredPaymentAmount = $this->requiredPaymentAmount($court->venue_cluster_id, $totalPrice, $data['payment_option']);
+        $source = $data['source'] ?? 'counter';
         $isPaid = $requiredPaymentAmount <= 0 && $data['payment_option'] !== 'no_prepay'
             ? true
             : (bool) ($data['is_paid'] ?? false);
-        $status = $this->initialCounterStatus($data['payment_option'], $isPaid);
+        $status = $data['initial_status'] ?? $this->initialCounterStatus($data['payment_option'], $isPaid);
         $startTime = $timeRanges[0]['start_time'];
         $endTime = $timeRanges[array_key_last($timeRanges)]['end_time'];
 
@@ -1068,7 +1208,7 @@ class BookingService
             'vip_voucher_code_snapshot' => $vipVoucher['code'] ?? null,
             'payment_option' => $data['payment_option'],
             'required_payment_amount' => $requiredPaymentAmount,
-            'source' => 'counter',
+            'source' => $source,
             'booking_type' => $bookingType,
             'recurring_group_code' => $data['recurring_group_code'] ?? null,
             'recurring_start_date' => $data['recurring_start_date'] ?? null,
@@ -1098,7 +1238,9 @@ class BookingService
             $this->recordVoucherUsage($voucher, $booking, $customer->id);
         }
 
-        $payment = $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash');
+        $payment = ($data['create_counter_payment'] ?? ($source === 'counter'))
+            ? $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash')
+            : null;
 
         if ($payment && $payment->status === 'paid') {
             $this->recordSystemVoucherSubsidyForPayment($payment);
@@ -1303,7 +1445,7 @@ class BookingService
             ]);
         }
 
-        if ($court->venueCluster?->status === 'locked') {
+        if ($this->clusterBlocksNewBooking($court)) {
             throw ValidationException::withMessages([
                 'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
             ]);
@@ -1744,7 +1886,6 @@ class BookingService
         }
 
         DB::table('voucher_usages')->insert([
-            'id' => (string) Str::uuid(),
             'voucher_id' => $voucher['id'],
             'user_id' => $usageUserId,
             'booking_id' => $booking->id,
@@ -2357,7 +2498,7 @@ class BookingService
                 ]);
             }
 
-            if ($court->venueCluster?->status === 'locked') {
+            if ($this->clusterBlocksNewBooking($court)) {
                 throw ValidationException::withMessages([
                     'venue_cluster_id' => 'Cụm sân đang bị khóa. Vui lòng liên hệ quản trị viên.',
                 ]);
@@ -2365,6 +2506,18 @@ class BookingService
         }
 
         return $courts;
+    }
+
+    private function clusterBlocksNewBooking(VenueCourt $court): bool
+    {
+        return in_array($court->venueCluster?->status, self::BLOCKED_CLUSTER_STATUSES, true);
+    }
+
+    private function clusterBlockedMessage(VenueCourt $court): string
+    {
+        return in_array($court->venueCluster?->status, ['termination_locked', 'termination_processing', 'partner_terminated'], true)
+            ? 'Cum san dang trong quy trinh cham dut hop dong va khong nhan booking moi.'
+            : 'Cum san hien khong nhan booking moi.';
     }
 
     private function normalizeTimeRanges(array $data, ?string $defaultCourtId = null): array

@@ -27,7 +27,7 @@ class VipMembershipController extends Controller
     public function subscribe(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'package_id' => ['required', 'uuid', 'exists:membership_packages,id'],
+            'package_id' => ['required', 'integer', 'exists:membership_packages,id'],
             'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'yearly'])],
         ]);
 

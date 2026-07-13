@@ -175,7 +175,8 @@
 
 <script>
 import AppIcon from '../AppIcon.vue';
-import { getAuth, logout } from '../../stores/auth.js';
+import { getAuth } from '../../stores/auth.js';
+import { resolveSystemAsset, systemInitials, systemName, systemProfileState } from '../../stores/systemProfile.js';
 
 export default {
   name: 'OwnerSidebar',

@@ -260,7 +260,8 @@
       <footer class="site-footer">
         <div class="footer-brand">
           <div class="footer-logo">
-            <span>Sport<span>Go</span></span>
+            <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+            <span v-else>{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></span>
           </div>
           <p>Nền tảng đặt sân thể thao trực tuyến hàng đầu tại Việt Nam.</p>
         </div>
@@ -292,6 +293,7 @@
 import BookingDateTimePicker from "../components/BookingDateTimePicker.vue";
 import PublicNavbar from "../components/PublicNavbar.vue";
 import { api } from "../services/api.js";
+import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
 
 const heroImage = "/images/home/anhbia2.webp";
 const sportIconBase = "/images/home/sports-icons";
@@ -398,6 +400,21 @@ export default {
     };
   },
   computed: {
+    brandName() {
+      return systemName() || "SportGo";
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandMain() {
+      const name = this.brandName || "SportGo";
+      const match = name.match(/^(.*?)(go)$/i);
+      return match ? match[1] : name;
+    },
+    brandAccent() {
+      const match = (this.brandName || "SportGo").match(/^(.*?)(go)$/i);
+      return match ? match[2] : "";
+    },
     heroStats() {
       const venueCount = this.featuredVenues.length;
       const courtCount = this.featuredVenues.reduce((total, venue) => total + this.courtCount(venue), 0);
@@ -1453,6 +1470,13 @@ svg {
 
 .footer-logo span span {
   color: #0d8c51;
+}
+
+.footer-logo img {
+  display: block;
+  max-width: 150px;
+  max-height: 42px;
+  object-fit: contain;
 }
 
 .site-footer h3 {

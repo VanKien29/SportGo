@@ -55,7 +55,7 @@ class SepayPaymentTest extends TestCase
             'user_id' => $this->player->id,
             'role_id' => $userRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $this->owner = User::create([
@@ -71,7 +71,7 @@ class SepayPaymentTest extends TestCase
             'user_id' => $this->owner->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $courtType = CourtType::create([

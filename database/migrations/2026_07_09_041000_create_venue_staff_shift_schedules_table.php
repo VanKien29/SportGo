@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('venue_staff_shift_schedules', function (Blueprint $table) {
             $table->id();
-            $table->char('venue_cluster_id', 36);
-            $table->char('user_id', 36);
+            $table->unsignedBigInteger('venue_cluster_id');
+            $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('venue_staff_shift_id')->nullable();
             $table->date('date');
             $table->time('start_time');
@@ -20,7 +20,7 @@ return new class extends Migration
             $table->timestamp('check_in_at')->nullable();
             $table->timestamp('check_out_at')->nullable();
             $table->text('notes')->nullable();
-            $table->char('created_by', 36)->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
 
             $table->foreign('venue_cluster_id')

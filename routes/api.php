@@ -8,10 +8,12 @@ use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
 use App\Http\Controllers\Api\Admin\SystemWalletController as AdminSystemWalletController;
+use App\Http\Controllers\Api\Admin\SystemSettingController as AdminSystemSettingController;
 use App\Http\Controllers\Api\Admin\PlatformFeeLedgerController as AdminPlatformFeeLedgerController;
 use App\Http\Controllers\Api\Admin\PlatformFeeTierController as AdminPlatformFeeTierController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
+use App\Http\Controllers\Api\Admin\PartnerTerminationRequestController as AdminPartnerTerminationRequestController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
 use App\Http\Controllers\Api\Admin\MembershipPackageController as AdminMembershipPackageController;
@@ -24,6 +26,7 @@ use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingMa
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
 use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
+use App\Http\Controllers\Api\Owner\PartnerTerminationController as OwnerPartnerTerminationController;
 use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\Common\PolicyAcceptanceController;
@@ -55,6 +58,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
+use App\Http\Controllers\Api\Public\SystemProfileController;
 use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
@@ -64,6 +68,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 })->middleware('auth:sanctum');
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
+Route::get('/system-profile', [SystemProfileController::class, 'show']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
@@ -84,6 +89,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset']);
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
+    Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -108,6 +114,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::get('/pending-counts', [\App\Http\Controllers\Api\Admin\AdminPendingCountsController::class, 'index']);
+        Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'admin']);
+        Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::get('/users/auto-lock-config', [\App\Http\Controllers\Api\Admin\UserController::class, 'autoLockConfig']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
@@ -188,6 +197,20 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/partner-profiles/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
         Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-profiles/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
+
+        Route::get('/partner-termination-requests', [AdminPartnerTerminationRequestController::class, 'index']);
+        Route::get('/partner-termination-requests/settings', [AdminPartnerTerminationRequestController::class, 'settings']);
+        Route::put('/termination-settings', [AdminPartnerTerminationRequestController::class, 'updateSettings']);
+        Route::get('/partner-termination-requests/{id}', [AdminPartnerTerminationRequestController::class, 'show']);
+        Route::post('/partner-termination-requests/{id}/mark-ready-final-document', [AdminPartnerTerminationRequestController::class, 'markReadyFinalDocument']);
+        Route::post('/partner-termination-requests/{id}/final-document/preview', [AdminPartnerTerminationRequestController::class, 'previewFinalDocument']);
+        Route::post('/partner-termination-requests/{id}/final-document/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'finalDocumentSignSendOtp']);
+        Route::post('/partner-termination-requests/{id}/final-document/sign', [AdminPartnerTerminationRequestController::class, 'finalDocumentSign']);
+        Route::post('/partner-termination-requests/{id}/manual-resolve-booking', [AdminPartnerTerminationRequestController::class, 'manualResolveBooking']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'unilateralNoticeSignSendOtp']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/sign', [AdminPartnerTerminationRequestController::class, 'unilateralNoticeSign']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/withdraw', [AdminPartnerTerminationRequestController::class, 'withdrawUnilateralNotice']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/reconsideration/resolve', [AdminPartnerTerminationRequestController::class, 'resolveUnilateralReconsideration']);
 
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
@@ -340,6 +363,21 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
         Route::post('/contracts/{id}/request-termination', [OwnerPartnerContractController::class, 'requestTermination']);
 
+        Route::get('/venue-clusters/{id}/termination/eligibility', [OwnerPartnerTerminationController::class, 'eligibility']);
+        Route::post('/venue-clusters/{id}/termination/preview', [OwnerPartnerTerminationController::class, 'preview']);
+        Route::post('/venue-clusters/{id}/termination/send-otp', [OwnerPartnerTerminationController::class, 'sendOtp']);
+        Route::post('/venue-clusters/{id}/termination/submit', [OwnerPartnerTerminationController::class, 'submit']);
+        Route::get('/termination-requests/{id}', [OwnerPartnerTerminationController::class, 'show']);
+        Route::get('/termination-requests/{id}/future-bookings', [OwnerPartnerTerminationController::class, 'futureBookings']);
+        Route::post('/termination-requests/{id}/future-bookings/bulk-action', [OwnerPartnerTerminationController::class, 'bulkAction']);
+        Route::post('/termination-requests/{id}/withdrawals', [OwnerPartnerTerminationController::class, 'storeWithdrawal']);
+        Route::post('/termination-requests/{id}/cancel/send-otp', [OwnerPartnerTerminationController::class, 'cancelSendOtp']);
+        Route::post('/termination-requests/{id}/cancel', [OwnerPartnerTerminationController::class, 'cancel']);
+        Route::post('/termination-requests/{id}/final-document/sign/send-otp', [OwnerPartnerTerminationController::class, 'finalDocumentSignSendOtp']);
+        Route::post('/termination-requests/{id}/final-document/sign', [OwnerPartnerTerminationController::class, 'finalDocumentSign']);
+        Route::post('/termination-requests/{id}/unilateral-notice/acknowledge', [OwnerPartnerTerminationController::class, 'acknowledgeUnilateralNotice']);
+        Route::post('/termination-requests/{id}/unilateral-notice/reconsideration', [OwnerPartnerTerminationController::class, 'requestUnilateralReconsideration']);
+
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
         Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
@@ -479,6 +517,8 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
+        Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);
+        Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
         Route::get('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'store']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/cancel', [VenueUnlockRequestController::class, 'cancel']);
@@ -491,7 +531,7 @@ Route::middleware('auth:sanctum')
         Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
 
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
-        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereUuid('id');
+        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereNumber('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);

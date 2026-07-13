@@ -2,17 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
-    use HasFactory, HasUuids;
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
+    use HasFactory;
 
     protected $fillable = [
         'booking_code',
@@ -140,11 +135,11 @@ class Booking extends Model
 
     public function requestedVenueCourt()
     {
-        return $this->belongsTo(VenueCourt::class, 'requested_venue_court_id');
+        return $this->belongsTo(VenueCourt::class, 'requested_venue_court_id')->withTrashed();
     }
 
     public function venueCourt()
     {
-        return $this->belongsTo(VenueCourt::class, 'venue_court_id');
+        return $this->belongsTo(VenueCourt::class, 'venue_court_id')->withTrashed();
     }
 }

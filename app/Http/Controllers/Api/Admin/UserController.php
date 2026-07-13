@@ -1051,8 +1051,7 @@ class UserController extends Controller
 
     private function scopeLabel(?string $scopeType, ?string $scopeId): string
     {
-        $zeroUuid = '00000000-0000-0000-0000-000000000000';
-        if (! $scopeType || $scopeType === 'system' || ! $scopeId || $scopeId === $zeroUuid) {
+        if (! $scopeType || $scopeType === 'system' || ! $scopeId || (string) $scopeId === '0') {
             return 'Toàn hệ thống';
         }
 

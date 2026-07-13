@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_platform_fee_ledgers', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->unsignedBigInteger('tier_id')->nullable();
             $table->unsignedInteger('court_count');
             $table->enum('billing_cycle', ['monthly', 'yearly'])->default('monthly');

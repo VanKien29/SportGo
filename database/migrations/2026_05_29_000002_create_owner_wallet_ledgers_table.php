@@ -9,12 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('owner_wallet_ledgers', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('owner_wallet_id', 36)->comment('Ví chủ sân được ghi nhận.');
-            $table->char('owner_id', 36)->comment('Chủ sân được hưởng tiền.');
-            $table->char('venue_cluster_id', 36)->nullable()->comment('Cụm sân phát sinh doanh thu.');
-            $table->char('booking_id', 36)->nullable()->comment('Booking phát sinh doanh thu.');
-            $table->char('payment_id', 36)->nullable()->comment('Payment phát sinh dòng tiền.');
+            $table->id();
+            $table->unsignedBigInteger('owner_wallet_id')->comment('Ví chủ sân được ghi nhận.');
+            $table->unsignedBigInteger('owner_id')->comment('Chủ sân được hưởng tiền.');
+            $table->unsignedBigInteger('venue_cluster_id')->nullable()->comment('Cụm sân phát sinh doanh thu.');
+            $table->unsignedBigInteger('booking_id')->nullable()->comment('Booking phát sinh doanh thu.');
+            $table->unsignedBigInteger('payment_id')->nullable()->comment('Payment phát sinh dòng tiền.');
             $table->enum('type', ['credit', 'debit', 'hold', 'release'])->comment('Loại biến động số dư.');
             $table->decimal('amount', 14, 2)->comment('Số tiền biến động.');
             $table->decimal('balance_before', 14, 2)->comment('Số dư trước biến động.');

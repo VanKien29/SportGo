@@ -15,7 +15,7 @@
           <div class="card-title">
             <strong :title="report.target_label">{{ report.target_label }}</strong>
             <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
-              <span>{{ targetLabel(report.target_type) }} · {{ shortId(report.id) }}</span>
+              <span>{{ reportLabel(report) }}</span>
               <a v-if="getTargetUrl(report)" :href="getTargetUrl(report)" target="_blank" style="color: #2563eb; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 4px;">
                 <AppIcon name="external-link" size="14" /> Xem nội dung
               </a>
@@ -44,7 +44,7 @@
         <header class="detail-head">
           <div>
             <h3>Chi tiết báo cáo</h3>
-            <p>{{ selected ? `${targetLabel(selected.target_type)} · ${shortId(selected.id)}` : 'Đang tải...' }}</p>
+            <p>{{ selected ? reportLabel(selected) : 'Đang tải...' }}</p>
           </div>
           <ActionIconButton icon="x" label="Đóng" @click="closeDetail" />
         </header>
@@ -537,8 +537,11 @@ export default {
         'venue.locked_by_report': 'Khóa cụm sân',
       }[value] || value;
     },
-    shortId(value) {
-      return value ? `#${value.slice(0, 8)}` : '';
+    reportLabel(report) {
+      if (!report) return '';
+      const target = this.targetLabel(report.target_type);
+      const reason = this.reasonLabel(report.reason);
+      return reason ? `${target} · ${reason}` : target;
     },
     formatDateTime(value) {
       return value ? new Date(value).toLocaleString('vi-VN') : '-';

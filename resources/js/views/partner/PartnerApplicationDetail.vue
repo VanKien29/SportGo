@@ -288,8 +288,8 @@ const generatedDocuments = computed(() => {
 const uploadedDocuments = computed(() => application.value?.documents || application.value?.uploaded_documents || []);
 const generatedDocumentGroups = computed(() => groupDocuments(generatedDocuments.value, generatedDocumentGroupMeta));
 const uploadedDocumentGroups = computed(() => groupDocuments(uploadedDocuments.value, uploadedDocumentGroupMeta));
-const applicationForm = computed(() => generatedDocuments.value.find((doc) => doc.document_type === 'partner_application_form'));
-const contractDocument = computed(() => generatedDocuments.value.find((doc) => doc.document_type === 'partner_contract'));
+const applicationForm = computed(() => preferredGeneratedDocument('partner_application_form'));
+const contractDocument = computed(() => preferredGeneratedDocument('partner_contract'));
 
 const InfoBox = defineComponent({
   props: { title: String, items: Array },
@@ -368,6 +368,18 @@ function canOpenSigning(document) {
   return false;
 }
 
+function preferredGeneratedDocument(type) {
+  const docs = generatedDocuments.value.filter((doc) => doc.document_type === type);
+  return docs.find((doc) => doc.status === 'pending_owner_signature' && !hasOwnerSignature(doc))
+    || docs.find((doc) => doc.status !== 'cancelled')
+    || docs[0]
+    || null;
+}
+
+function hasOwnerSignature(document) {
+  return (document?.signatures || []).some((signature) => signature.signer_side === 'owner' && signature.status === 'signed');
+}
+
 async function downloadFile(url) {
   if (!url) return;
   try {
@@ -438,8 +450,8 @@ function statusLabel(status) {
 function documentTypeLabel(type) {
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
@@ -489,7 +501,7 @@ function generatedDocumentGroupMeta(document) {
     return { key: 'location_request', label: 'Đơn yêu cầu thay đổi vị trí' };
   }
   if (['termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
-    return { key: 'termination', label: 'Công văn, hủy yêu cầu đối tác' };
+    return { key: 'termination', label: 'Văn bản chấm dứt hợp tác' };
   }
   return { key: 'other', label: 'Văn bản khác' };
 }

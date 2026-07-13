@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('venue_post_likes', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->char('post_id', 36);
-            $table->char('user_id', 36);
+            $table->unsignedBigInteger('post_id');
+            $table->unsignedBigInteger('user_id');
             $table->timestamps();
 
             $table->unique(['post_id', 'user_id']);

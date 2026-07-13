@@ -2,17 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class VenueCluster extends Model
 {
-    use HasFactory, HasUuids;
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
+    use HasFactory;
 
     protected $fillable = [
         'owner_id',
@@ -136,8 +131,18 @@ class VenueCluster extends Model
         return $this->hasMany(AffiliateProduct::class, 'venue_cluster_id');
     }
 
-    public function services()
+    public function approvalRequests()
     {
-        return $this->hasMany(VenueClusterService::class, 'venue_cluster_id');
+        return $this->hasMany(VenueCourtApprovalRequest::class, 'venue_cluster_id');
+    }
+
+    public function locationChangeRequests()
+    {
+        return $this->hasMany(VenueLocationChangeRequest::class, 'venue_cluster_id');
+    }
+
+    public function unlockRequests()
+    {
+        return $this->hasMany(VenueUnlockRequest::class, 'venue_cluster_id');
     }
 }

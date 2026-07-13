@@ -13,19 +13,19 @@ return new class extends Migration
         }
 
         Schema::create('owner_withdrawal_requests', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('request_code', 30)->unique()->comment('Mã yêu cầu rút tiền để admin/owner tra cứu.');
-            $table->char('owner_id', 36)->comment('Chủ sân yêu cầu rút tiền.');
-            $table->char('owner_wallet_id', 36)->comment('Ví owner bị trừ/giữ tiền.');
-            $table->char('owner_bank_account_id', 36)->comment('Tài khoản nhận tiền owner chọn.');
+            $table->unsignedBigInteger('owner_id')->comment('Chủ sân yêu cầu rút tiền.');
+            $table->unsignedBigInteger('owner_wallet_id')->comment('Ví owner bị trừ/giữ tiền.');
+            $table->unsignedBigInteger('owner_bank_account_id')->comment('Tài khoản nhận tiền owner chọn.');
             $table->decimal('amount', 14, 2)->comment('Số tiền owner yêu cầu rút.');
             $table->enum('status', ['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])->default('pending')->comment('Trạng thái xử lý rút tiền.');
             $table->text('owner_note')->nullable()->comment('Ghi chú của owner khi gửi yêu cầu.');
-            $table->char('reviewed_by', 36)->nullable()->comment('Admin duyệt/từ chối yêu cầu.');
+            $table->unsignedBigInteger('reviewed_by')->nullable()->comment('Admin duyệt/từ chối yêu cầu.');
             $table->timestamp('reviewed_at')->nullable()->comment('Thời điểm duyệt/từ chối.');
             $table->text('review_note')->nullable()->comment('Ghi chú nội bộ khi duyệt.');
             $table->text('status_reason')->nullable()->comment('Lý do từ chối/hủy/thất bại.');
-            $table->char('completed_by', 36)->nullable()->comment('Admin xác nhận đã chuyển tiền.');
+            $table->unsignedBigInteger('completed_by')->nullable()->comment('Admin xác nhận đã chuyển tiền.');
             $table->timestamp('completed_at')->nullable()->comment('Thời điểm hoàn tất chuyển tiền.');
             $table->string('transfer_reference', 100)->nullable()->comment('Mã giao dịch chuyển khoản thực tế.');
             $table->json('metadata')->nullable()->comment('Dữ liệu phụ cho đối soát.');

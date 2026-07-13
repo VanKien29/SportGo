@@ -15,7 +15,7 @@ return new class extends Migration
 
             Schema::table('refunds', function (Blueprint $table): void {
                 if (! Schema::hasColumn('refunds', 'cash_refunded_by')) {
-                    $table->char('cash_refunded_by', 36)->nullable()->after('completed_at');
+                    $table->unsignedBigInteger('cash_refunded_by')->nullable()->after('completed_at');
                 }
                 if (! Schema::hasColumn('refunds', 'cash_refunded_at')) {
                     $table->timestamp('cash_refunded_at')->nullable()->after('cash_refunded_by');

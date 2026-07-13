@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('venue_platform_fee_ledgers', function (Blueprint $table): void {
-            $table->char('system_bank_account_id', 36)->nullable()->after('amount_paid');
+            $table->unsignedBigInteger('system_bank_account_id')->nullable()->after('amount_paid');
             $table->string('payment_code', 50)->nullable()->unique()->after('system_bank_account_id');
             $table->string('gateway_txn_id', 100)->nullable()->unique()->after('payment_code');
             $table->json('gateway_response')->nullable()->after('gateway_txn_id');

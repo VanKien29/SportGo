@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_transfer_requests', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('transfer_code', 50)->unique()->comment('Ma yeu cau chuyen giao cum san.');
-            $table->char('venue_cluster_id', 36)->comment('Cum san duoc chuyen giao.');
-            $table->char('from_owner_id', 36)->comment('Chu san hien tai.');
-            $table->char('to_owner_id', 36)->comment('Chu san tiep nhan.');
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cum san duoc chuyen giao.');
+            $table->unsignedBigInteger('from_owner_id')->comment('Chu san hien tai.');
+            $table->unsignedBigInteger('to_owner_id')->comment('Chu san tiep nhan.');
             $table->text('reason')->nullable()->comment('Ly do chuyen giao.');
             $table->enum('status', ['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])
                 ->default('pending')->comment('Trang thai yeu cau chuyen giao.');
-            $table->char('requested_by', 36)->comment('Nguoi tao yeu cau.');
-            $table->char('reviewed_by', 36)->nullable()->comment('Admin duyet yeu cau.');
+            $table->unsignedBigInteger('requested_by')->comment('Nguoi tao yeu cau.');
+            $table->unsignedBigInteger('reviewed_by')->nullable()->comment('Admin duyet yeu cau.');
             $table->text('status_reason')->nullable()->comment('Ly do tu choi hoac huy.');
             $table->date('effective_date')->nullable()->comment('Ngay chuyen giao co hieu luc.');
             $table->timestamp('completed_at')->nullable()->comment('Thoi diem hoan tat chuyen giao.');

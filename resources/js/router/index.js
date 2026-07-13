@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
 import {
+    clearAuth,
     consumeGoogleCallback,
     getAuth,
+    restoreAdminAuth,
+    restoreAuth,
 } from "../stores/auth.js";
 
 import Home from "../views/Home.vue";
@@ -304,6 +307,12 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "system-profile",
+                name: "admin-system-profile",
+                component: () =>
+                    import("../views/admin/AdminSystemProfile.vue"),
+            },
+            {
                 path: "settings",
                 name: "admin-settings",
                 component: () =>
@@ -341,6 +350,20 @@ const routes = [
                     import("../views/owner/OwnerVenueClusters.vue"),
             },
             {
+                path: "venue-clusters/:id/termination",
+                name: "owner-partner-termination",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "termination-requests/:id",
+                name: "owner-partner-termination-request",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "affiliate",
                 name: "owner-affiliate",
                 component: () =>
@@ -361,11 +384,16 @@ const routes = [
             {
                 path: "bookings",
                 name: "owner-bookings",
-                redirect: { name: "owner-counter-booking" },
+                redirect: { name: "owner-booking-list" },
             },
             {
                 path: "counter-booking",
                 name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
+            {
+                path: "booking-list",
+                name: "owner-booking-list",
                 component: () => import("../views/owner/OwnerCounterBooking.vue"),
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
@@ -497,16 +525,29 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
     if (to.name === "google-callback") {
-        const auth = await consumeGoogleCallback(to.query);
-        if (!auth) return next({ name: "login" });
-        return next(auth.redirect_to || "/");
+        const query = { ...to.query };
+        if (query.token || query.code) {
+            window.history.replaceState({}, document.title, to.path);
+        }
+
+        try {
+            const auth = await consumeGoogleCallback(query);
+            if (!auth) return next({ name: "login", replace: true });
+            return next({ path: auth.redirect_to || "/", replace: true });
+        } catch {
+            clearAuth();
+            return next({ name: "login", replace: true });
+        }
     }
 
     let auth = getAuth();
 
     if (to.meta.guestAdmin) {
-        if (auth?.role_group === "admin")
-            return next({ name: "admin-dashboard" });
+        if (auth?.role_group === "admin") {
+            const serverAuth = await restoreAdminAuth();
+            if (serverAuth?.role_group === "admin")
+                return next({ name: "admin-dashboard" });
+        }
         return next();
     }
 
@@ -530,6 +571,22 @@ router.beforeEach(async (to, from, next) => {
             );
         }
 
+        auth = requiredRole === "admin"
+            ? await restoreAdminAuth()
+            : await restoreAuth();
+
+        if (!auth) {
+            return next(
+                requiredRole === "admin"
+                    ? { name: "admin-login" }
+                    : { name: "login" },
+            );
+        }
+
+        if (to.name === "profile" && auth.role_group === "owner") {
+            return next({ name: "owner-profile" });
+        }
+
         if (requiredRole && auth.role_group !== requiredRole) {
             if (auth.role_group === "admin")
                 return next({ name: "admin-dashboard" });
@@ -543,6 +600,8 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (["login", "register"].includes(to.name) && auth) {
+        auth = await restoreAuth();
+        if (!auth) return next();
         if (auth.role_group === "admin")
             return next({ name: "admin-dashboard" });
         if (auth.role_group === "owner")

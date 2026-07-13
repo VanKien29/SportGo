@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('payments', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('payment_code', 50)->unique()->comment('Mã thanh toán nội bộ của hệ thống.');
-            $table->char('booking_id', 36)->comment('Booking được thanh toán.');
+            $table->unsignedBigInteger('booking_id')->comment('Booking được thanh toán.');
             $table->decimal('amount', 12, 2)->comment('Số tiền của lần thanh toán này.');
             $table->enum('payment_kind', ['full', 'deposit', 'partial'])->default('partial')->comment('Loại thanh toán.');
             $table->string('method', 50)->default('sepay')->comment('Phương thức thanh toán.');

@@ -14,9 +14,9 @@ return new class extends Migration
 
         Schema::create('partner_histories', function (Blueprint $table) {
             $table->id();
-            $table->char('partner_application_id', 36);
+            $table->unsignedBigInteger('partner_application_id');
             $table->string('action');
-            $table->char('actor_id', 36)->nullable();
+            $table->unsignedBigInteger('actor_id')->nullable();
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
             $table->string('ip_address')->nullable();

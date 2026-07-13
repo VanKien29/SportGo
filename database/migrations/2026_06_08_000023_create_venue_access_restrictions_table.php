@@ -13,14 +13,14 @@ return new class extends Migration
         }
 
         Schema::create('venue_access_restrictions', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->enum('restriction_type', ['platform_fee_overdue', 'contract_termination', 'admin_manual']);
             $table->enum('access_mode', ['full', 'limited', 'transition', 'blocked'])->default('limited');
             $table->text('reason');
             $table->timestamp('starts_at');
             $table->timestamp('ends_at')->nullable();
-            $table->char('created_by', 36)->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->enum('status', ['active', 'expired', 'cancelled'])->default('active');
             $table->timestamps();
 

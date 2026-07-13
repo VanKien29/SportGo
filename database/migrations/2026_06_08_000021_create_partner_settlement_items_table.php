@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::create('partner_settlement_items', function (Blueprint $table): void {
             $table->id();
-            $table->char('partner_settlement_id', 36);
+            $table->unsignedBigInteger('partner_settlement_id');
             $table->enum('item_type', ['owner_wallet_balance', 'pending_withdrawal', 'platform_fee_remaining_refund', 'unpaid_platform_fee', 'penalty', 'adjustment']);
             $table->text('description');
             $table->decimal('amount', 14, 2);

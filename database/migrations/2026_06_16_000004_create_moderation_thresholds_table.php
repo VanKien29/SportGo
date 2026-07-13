@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::create('moderation_thresholds', function (Blueprint $table): void {
             $table->id();
-            $table->char('system_policy_id', 36);
+            $table->unsignedBigInteger('system_policy_id');
             $table->string('target_type', 50);
             $table->unsignedSmallInteger('auto_hide_score')->default(10);
             $table->unsignedSmallInteger('admin_alert_score')->default(20);

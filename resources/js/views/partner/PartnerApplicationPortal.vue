@@ -88,9 +88,9 @@
             </div>
 
             <div class="app-list-actions">
-              <button v-if="needsChangeAppendixSignature(application)" type="button" class="btn btn-primary" title="Ky phu luc hop dong" @click="openApplicationDocument(changeAppendixWord(application), application)">
+              <button v-if="needsChangeAppendixSignature(application)" type="button" class="btn btn-primary" title="Ký phụ lục hợp đồng" @click="openApplicationDocument(changeAppendixWord(application), application)">
                 <AppIcon name="fileText" size="16" />
-                Ky phu luc
+                Ký phụ lục
               </button>
               <button type="button" class="btn btn-secondary action-detail" title="Xem chi tiết" @click="openApplicationDetail(application)">
                 <AppIcon name="eye" size="16" />
@@ -112,13 +112,13 @@
                 <AppIcon name="fileText" size="16" />
                 Ký hợp đồng
               </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" @click="submitSignedApplication(application)">
+              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" :disabled="actioningApplicationId === application.id" @click="submitSignedApplication(application)">
                 <AppIcon name="send" size="16" />
-                Gửi hồ sơ
+                {{ actioningApplicationId === application.id ? 'Đang gửi...' : 'Gửi hồ sơ' }}
               </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" @click="cancelApplication(application)">
+              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
                 <AppIcon name="trash" size="16" />
-                Hủy
+                {{ actioningApplicationId === application.id ? 'Đang hủy...' : 'Hủy' }}
               </button>
             </div>
           </article>
@@ -554,6 +554,7 @@ const existingDocuments = reactive(blankExistingDocuments());
 const uploadResetKey = ref(0);
 const confirmed = ref(false);
 const submitting = ref(false);
+const actioningApplicationId = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
@@ -700,7 +701,7 @@ function persistDraft(showMessage = false) {
   const payload = { ...form, editing_application_id: editingApplicationId.value || '', saved_at: new Date().toISOString() };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
   draft.value = payload;
-  if (showMessage) formBanner.value = '�? l�u nh�p h? s� tr�n tr?nh duy?t.';
+  if (showMessage) formBanner.value = 'Đã lưu nháp hồ sơ trên trình duyệt.';
 }
 
 function saveDraft() {
@@ -857,12 +858,12 @@ function streetFromVenueAddress(application) {
 function applicationCourtsForForm(application) {
   const rows = (application.courts || []).map((court, index) => ({
     local_id: localId(),
-    name: court.name || `S�n ${index + 1}`,
+    name: court.name || `Sân ${index + 1}`,
     court_type_id: court.court_type_id || '',
     note: court.note || '',
   }));
 
-  return rows.length ? rows : [{ local_id: localId(), name: 'S�n 1', court_type_id: '', note: '' }];
+  return rows.length ? rows : [{ local_id: localId(), name: 'Sân 1', court_type_id: '', note: '' }];
 }
 
 // ─── Input handlers ───────────────────────────────────────────────────────────
@@ -1063,7 +1064,7 @@ async function reverseCoordinates(latitude, longitude, options = {}) {
     await compareResolvedAddress(r.data || {}, options);
   } catch (e) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Kh�ng x�c minh ��?c T?nh/Th�nh ph? v� Ph�?ng/X? t? t?a �? n�y. Vui l?ng ch?n l?i v? tr� r? h�n tr�n b?n �?.' };
+    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
   } finally {
     mapReverseBusy.value = false;
   }
@@ -1080,7 +1081,7 @@ async function compareResolvedAddress(resolved, options = {}) {
 
   if (!rp || !rw) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Kh�ng x�c �?nh ��?c T?nh/Th�nh ph? v� Ph�?ng/X? t? t?a �? n�y. Vui l?ng ch?n l?i v? tr� r? h�n tr�n b?n �?.' };
+    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
     return;
   }
   
@@ -1174,7 +1175,7 @@ function validateForm() {
     fieldErrors.venue_coordinates = 'Tọa độ bản đồ chưa khớp với địa chỉ đã chọn.';
   }
   if (mapReverseBusy.value) {
-    fieldErrors.venue_coordinates = 'H? th?ng �ang c?p nh?t �?a ch? theo t?a �?. Vui l?ng ch? ho�n t?t r?i g?i l?i.';
+    fieldErrors.venue_coordinates = 'Hệ thống đang cập nhật địa chỉ theo tọa độ. Vui lòng chờ hoàn tất rồi gửi lại.';
   }
   const courtCount = Number(form.court_count_total);
   if (!Number.isInteger(courtCount) || courtCount < 1 || courtCount > 100) fieldErrors.court_count_total = 'Số lượng sân con phải từ 1 đến 100.';
@@ -1286,6 +1287,8 @@ async function submit() {
 
 // ─── Application actions ──────────────────────────────────────────────────────
 async function cancelApplication(application) {
+  if (!application?.id || actioningApplicationId.value) return;
+
   const ok = window.confirm([
     `Hủy hồ sơ đăng ký cho ${application.venue_name}?`,
     '',
@@ -1293,12 +1296,17 @@ async function cancelApplication(application) {
     'Các file đã nộp vẫn được lưu trong lịch sử để tra cứu khi cần.',
   ].join('\n'));
   if (!ok) return;
+
+  actioningApplicationId.value = application.id;
   try {
     await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
+    actioningApplicationId.value = '';
     alert('Đã hủy hồ sơ thành công.');
     await loadApplications();
   } catch (err) {
     alert(err.message || 'Không thể hủy hồ sơ lúc này.');
+  } finally {
+    actioningApplicationId.value = '';
   }
 }
 
@@ -1317,13 +1325,23 @@ function canSubmitSignedApplication(application) {
 }
 
 async function submitSignedApplication(application) {
-  if (!application?.id) return;
-  await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
-  await loadApplications();
+  if (!application?.id || actioningApplicationId.value) return;
+
+  actioningApplicationId.value = application.id;
+  try {
+    await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
+    actioningApplicationId.value = '';
+    await loadApplications();
+  } catch (err) {
+    alert(err.message || 'Không thể gửi hồ sơ lúc này.');
+  } finally {
+    actioningApplicationId.value = '';
+  }
 }
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 function needsApplicationSignature(application) {
+  if (application?.status !== 'draft') return false;
   const doc = applicationWord(application);
   if (!doc || doc.status === 'completed') return false;
   return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');

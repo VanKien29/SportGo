@@ -65,22 +65,22 @@ return new class extends Migration
 
             DB::table('user_roles')
                 ->whereNull('scope_id')
-                ->update(['scope_id' => '00000000-0000-0000-0000-000000000000']);
+                ->update(['scope_id' => 0]);
 
             Schema::table('user_roles', function (Blueprint $table) {
                 $table->enum('scope_type', ['system', 'venue'])->default('system')->change();
-                $table->char('scope_id', 36)->default('00000000-0000-0000-0000-000000000000')->change();
+                $table->unsignedBigInteger('scope_id')->default(0)->change();
             });
         }
 
         if (Schema::hasTable('user_permission_revokes')) {
             DB::table('user_permission_revokes')
                 ->whereNull('scope_id')
-                ->update(['scope_id' => '00000000-0000-0000-0000-000000000000']);
+                ->update(['scope_id' => 0]);
 
             Schema::table('user_permission_revokes', function (Blueprint $table) {
                 $table->enum('scope_type', ['system', 'venue'])->default('system')->change();
-                $table->char('scope_id', 36)->default('00000000-0000-0000-0000-000000000000')->change();
+                $table->unsignedBigInteger('scope_id')->default(0)->change();
             });
         }
 

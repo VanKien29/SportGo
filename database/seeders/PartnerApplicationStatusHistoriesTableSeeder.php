@@ -17,53 +17,19 @@ class PartnerApplicationStatusHistoriesTableSeeder extends Seeder
         }
 
         $admin = User::query()->where('username', 'admin')->first();
-        $staff = User::query()->where('username', 'systemstaff')->first();
 
         $rows = [
-            'SportGo Cầu Giấy' => [
+            'Green Sport Ba Đình' => [
                 [null, 'submitted', 'owner', 'Chủ sân gửi hồ sơ đăng ký đối tác.'],
                 ['submitted', 'reviewing', 'admin', 'Admin bắt đầu kiểm tra hồ sơ.'],
                 ['reviewing', 'approved_pending_contract', 'admin', 'Hồ sơ hợp lệ, chờ sinh hợp đồng.'],
                 ['approved_pending_contract', 'completed', 'admin', 'Hợp đồng đã đủ chữ ký hai bên và có hiệu lực.'],
             ],
-            'SportGo Thanh Xuân' => [
-                [null, 'submitted', 'user', 'Người dùng gửi hồ sơ đăng ký đối tác.'],
+            'Sun Sport Cầu Giấy' => [
+                [null, 'submitted', 'owner', 'Chủ sân gửi hồ sơ, đang chờ SportGo tiếp nhận.'],
             ],
-            'SportGo Mỹ Đình' => [
-                [null, 'submitted', 'user', 'Người dùng gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'reviewing', 'system_staff', 'Nhân viên hệ thống đang kiểm tra hồ sơ pháp lý.'],
-            ],
-            'SportGo Hồ Tây' => [
-                [null, 'submitted', 'user', 'Người dùng gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'reviewing', 'system_staff', 'Nhân viên hệ thống kiểm tra hồ sơ.'],
-                ['reviewing', 'need_supplement', 'system_staff', 'Cần bổ sung giấy tờ chứng minh quyền sử dụng mặt bằng.'],
-            ],
-            'SportGo Long Biên' => [
-                [null, 'submitted', 'user', 'Người dùng gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'reviewing', 'admin', 'Admin kiểm tra hồ sơ pháp lý.'],
-                ['reviewing', 'rejected', 'admin', 'Thông tin pháp lý và tài khoản nhận tiền không khớp.'],
-            ],
-            'SportGo Đống Đa' => [
-                [null, 'submitted', 'owner', 'Chủ sân gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'reviewing', 'admin', 'Admin kiểm tra hồ sơ.'],
-                ['reviewing', 'approved_pending_contract', 'admin', 'Hồ sơ hợp lệ, chờ sinh hợp đồng.'],
-                ['approved_pending_contract', 'contract_pending_owner_signature', 'admin', 'Hợp đồng đã sinh, đang chờ chủ sân ký.'],
-            ],
-            'SportGo Hà Đông' => [
-                [null, 'submitted', 'owner', 'Chủ sân gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'reviewing', 'admin', 'Admin kiểm tra hồ sơ.'],
-                ['reviewing', 'approved_pending_contract', 'admin', 'Hồ sơ hợp lệ, chờ sinh hợp đồng.'],
-            ],
-            'SportGo Ba Đình' => [
-                [null, 'submitted', 'owner', 'Chủ sân gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'reviewing', 'admin', 'Admin kiểm tra hồ sơ.'],
-                ['reviewing', 'approved_pending_contract', 'admin', 'Hồ sơ hợp lệ, chờ sinh hợp đồng.'],
-                ['approved_pending_contract', 'contract_pending_owner_signature', 'admin', 'Hợp đồng đã sinh, đang chờ chủ sân ký.'],
-                ['contract_pending_owner_signature', 'contract_pending_sportgo_signature', 'owner', 'Chủ sân đã ký, đang chờ SportGo ký xác nhận.'],
-            ],
-            'SportGo Tây Hồ' => [
-                [null, 'submitted', 'user', 'Người dùng gửi hồ sơ đăng ký đối tác.'],
-                ['submitted', 'cancelled', 'user', 'Người đăng ký hủy hồ sơ trước khi admin duyệt.'],
+            'Victory Sport Hà Đông' => [
+                [null, 'submitted', 'owner', 'Chủ sân gửi hồ sơ tham chiếu cho cụm sân mẫu.'],
             ],
         ];
 
@@ -83,7 +49,7 @@ class PartnerApplicationStatusHistoriesTableSeeder extends Seeder
                         'reason' => $reason,
                     ],
                     [
-                        'changed_by' => $actorType === 'system_staff' ? $staff?->id : ($actorType === 'admin' ? $admin?->id : $application->user_id),
+                        'changed_by' => $actorType === 'admin' ? $admin?->id : $application->user_id,
                         'actor_type' => $actorType,
                         'metadata' => ['source' => 'PartnerApplicationStatusHistoriesTableSeeder'],
                         'created_at' => now()->subDays(10),

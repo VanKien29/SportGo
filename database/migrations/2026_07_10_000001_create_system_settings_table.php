@@ -6,22 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('system_settings', function (Blueprint $table) {
+        Schema::create('system_settings', function (Blueprint $table): void {
             $table->id();
-            $table->string('key')->unique()->index();
+            $table->string('key')->unique();
             $table->longText('value')->nullable();
+            $table->string('type', 30)->default('string');
+            $table->string('group', 60)->default('general');
+            $table->string('label')->nullable();
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('system_settings');

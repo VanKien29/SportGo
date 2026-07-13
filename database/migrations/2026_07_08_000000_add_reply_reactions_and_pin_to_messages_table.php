@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            $table->char('reply_to_id', 36)->nullable()->after('conversation_id');
+            $table->unsignedBigInteger('reply_to_id')->nullable()->after('conversation_id');
             $table->json('reactions')->nullable()->after('reference_id');
             $table->boolean('is_pinned')->default(false)->after('reactions');
             
