@@ -7,11 +7,28 @@ const root = path.resolve(import.meta.dirname, '..', '..');
 const baseUrl = process.env.APP_URL || 'http://127.0.0.1:8000';
 const screenshotDir = path.join(root, 'storage', 'app', 'testing', 'browser');
 const password = process.env.TEST_PASSWORD || '12345678';
-const otp = '123456';
+const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 mkdirSync(screenshotDir, { recursive: true });
 
 function logStep(message, data = null) {
   process.stdout.write(`${message}${data ? ` ${JSON.stringify(data)}` : ''}\n`);
+}
+
+function unilateralDocumentProof(terminationId) {
+  const code = [
+    `require 'vendor/autoload.php';`,
+    `$app = require 'bootstrap/app.php';`,
+    `$app->make(\\Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();`,
+    `$document = \\App\\Models\\GeneratedDocument::query()->where('partner_termination_request_id', ${Number(terminationId)})->where('document_type', 'unilateral_termination_notice')->latest()->firstOrFail();`,
+    `$path = \\Illuminate\\Support\\Facades\\Storage::disk('local')->path($document->final_file_path ?: $document->generated_file_path);`,
+    `$zip = new \\ZipArchive(); $zip->open($path); $xml = $zip->getFromName('word/document.xml'); $mediaCount = 0; for ($index = 0; $index < $zip->numFiles; $index++) { if (str_starts_with((string) $zip->getNameIndex($index), 'word/media/')) $mediaCount++; } $zip->close();`,
+    `$signing = $document->signingRequests()->where('signer_side', 'sportgo')->where('status', 'signed')->latest()->first();`,
+    `echo 'QA_NOTICE:' . json_encode(['status' => $document->status, 'hasPlaceholder' => str_contains((string) $xml, '{{signature_'), 'mediaCount' => $mediaCount, 'signingChannel' => $signing?->otp_channel, 'otpSentAt' => $signing?->otp_sent_at]);`,
+  ].join(' ');
+  const output = execFileSync('php', ['-r', code], { cwd: root, encoding: 'utf8' });
+  const line = output.split(/\r?\n/).find((item) => item.startsWith('QA_NOTICE:'));
+  if (!line) throw new Error(`Missing unilateral document proof: ${output}`);
+  return JSON.parse(line.slice('QA_NOTICE:'.length));
 }
 
 async function clickButton(page, text) {
@@ -26,6 +43,22 @@ async function clickButton(page, text) {
 
 async function waitForText(page, text) {
   await page.waitForFunction((value) => document.body.innerText.includes(value), {}, text);
+}
+
+async function apiRequest(page, url, options = {}) {
+  return page.evaluate(async ({ requestUrl, requestOptions }) => {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(requestUrl, {
+      method: requestOptions.method || 'GET',
+      headers: {
+        Accept: 'application/json',
+        ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: requestOptions.body ? JSON.stringify(requestOptions.body) : undefined,
+    });
+    return { status: response.status, body: await response.json().catch(() => ({})) };
+  }, { requestUrl: url, requestOptions: options });
 }
 
 async function login(page, email) {
@@ -46,17 +79,7 @@ async function login(page, email) {
   await clickButton(page, 'Đăng nhập');
   const result = await response;
   if (!result.ok()) throw new Error(`Login ${email} failed with HTTP ${result.status()} payload=${result.request().postData()}: ${await result.text()}`);
-}
-
-function setKnownOtp(signingRequestId) {
-  const code = [
-    `$request = \\App\\Models\\DocumentSigningRequest::with('verificationCode')->findOrFail(${Number(signingRequestId)});`,
-    `$request->verificationCode->forceFill([`,
-    `'code' => \\Illuminate\\Support\\Facades\\Hash::make('${otp}'),`,
-    `'attempt_count' => 0, 'is_used' => false, 'expires_at' => now()->addMinutes(10),`,
-    `])->save();`,
-  ].join(' ');
-  execFileSync('php', ['artisan', 'tinker', `--execute=${code}`], { cwd: root, stdio: 'pipe' });
+  await page.waitForFunction(() => Boolean(localStorage.getItem('auth_token')));
 }
 
 async function drawSignature(page, selector) {
@@ -74,12 +97,8 @@ async function drawSignature(page, selector) {
 }
 
 async function closeDocumentModal(page) {
-  await page.evaluate(() => {
-    const backdrop = [...document.querySelectorAll('div')]
-      .find((item) => item.className.includes('bg-gray-900/70') && item.className.includes('fixed'));
-    backdrop?.click();
-  });
-  await page.waitForFunction(() => !document.body.innerText.includes('Thông tin chữ ký'));
+  await page.click('.document-close-button');
+  await page.waitForFunction(() => !document.querySelector('.document-modal-shell'));
 }
 
 async function fillInlineAction(page, buttonLabel, note, submitLabel) {
@@ -100,6 +119,14 @@ const browserErrors = [];
 let terminationId = null;
 
 try {
+  const guestContext = await browser.createBrowserContext();
+  const guestPage = await guestContext.newPage();
+  await guestPage.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
+  const guestAdminResponse = await apiRequest(guestPage, '/api/admin/partner-termination-requests');
+  if (guestAdminResponse.status !== 401) throw new Error(`Guest admin endpoint expected 401: ${JSON.stringify(guestAdminResponse)}`);
+  await guestContext.close();
+  logStep('PASS unauthenticated termination API is rejected', { status: guestAdminResponse.status });
+
   const adminContext = await browser.createBrowserContext();
   const adminPage = await adminContext.newPage();
   await adminPage.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
@@ -111,13 +138,14 @@ try {
   await login(adminPage, 'admin@sportgo.vn');
   await adminPage.goto(`${baseUrl}/admin/partner-applications/1?tab=settlement`, { waitUntil: 'domcontentloaded' });
   await waitForText(adminPage, 'Quyết toán và chấm dứt');
+  await adminPage.screenshot({ path: path.join(screenshotDir, 'unilateral-admin-detail-before-desktop.png'), fullPage: true });
   await clickButton(adminPage, 'Đơn phương chấm dứt');
   const modal = await adminPage.waitForSelector('.modal-panel', { visible: true });
   await modal.evaluate((form) => {
     const [reason, detail] = form.querySelectorAll('textarea');
     reason.value = 'Kiểm thử công văn chấm dứt qua Chrome 20260710';
     reason.dispatchEvent(new Event('input', { bubbles: true }));
-    detail.value = 'Kiểm tra quy trình tạo file, ký OTP, khóa sân, xác nhận tiếp nhận, xem xét lại và thu hồi công văn.';
+    detail.value = 'Kiểm tra quy trình tạo file, admin ký bằng phiên đăng nhập, khóa sân, xác nhận tiếp nhận, xem xét lại và thu hồi công văn.';
     detail.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
@@ -130,31 +158,63 @@ try {
   const createPayload = await createResponse.json();
   if (!createResponse.ok()) throw new Error(`Create notice failed: ${JSON.stringify(createPayload)}`);
   terminationId = createPayload.data.id;
-  await waitForText(adminPage, 'Ký và phát hành công văn');
+  await waitForText(adminPage, 'Công văn chấm dứt hợp tác');
   await waitForText(adminPage, 'Kiểm tra quy trình tạo file');
+
+  const adminExpectedErrorStart = browserErrors.length;
+  const adminOnOwnerRoute = await apiRequest(adminPage, `/api/owner/termination-requests/${terminationId}`);
+  if (adminOnOwnerRoute.status !== 403) throw new Error(`Admin owner endpoint expected 403: ${JSON.stringify(adminOnOwnerRoute)}`);
+
+  const legacyOtpResponse = await apiRequest(
+    adminPage,
+    `/api/admin/partner-termination-requests/${terminationId}/unilateral-notice/sign/send-otp`,
+    { method: 'POST', body: { signature_image: tinyPng } },
+  );
+  if (legacyOtpResponse.status !== 409) throw new Error(`Admin OTP endpoint expected 409: ${JSON.stringify(legacyOtpResponse)}`);
+
+  const missingConfirmationResponse = await apiRequest(
+    adminPage,
+    `/api/admin/partner-termination-requests/${terminationId}/unilateral-notice/sign`,
+    { method: 'POST', body: { signature_image: tinyPng } },
+  );
+  if (missingConfirmationResponse.status !== 422) throw new Error(`Missing admin confirmation expected 422: ${JSON.stringify(missingConfirmationResponse)}`);
+
+  const invalidSignatureResponse = await apiRequest(
+    adminPage,
+    `/api/admin/partner-termination-requests/${terminationId}/unilateral-notice/sign`,
+    { method: 'POST', body: { signature_image: 'not-a-png', confirmation: true } },
+  );
+  if (invalidSignatureResponse.status !== 422) throw new Error(`Invalid signature expected 422: ${JSON.stringify(invalidSignatureResponse)}`);
+  browserErrors.splice(adminExpectedErrorStart);
+  logStep('PASS admin signing API blocks OTP and validates confirmation/signature', {
+    crossRole: adminOnOwnerRoute.status,
+    otp: legacyOtpResponse.status,
+    confirmation: missingConfirmationResponse.status,
+    signature: invalidSignatureResponse.status,
+  });
+
   await adminPage.screenshot({ path: path.join(screenshotDir, 'unilateral-admin-preview-desktop.png'), fullPage: true });
   logStep('PASS admin creates DOCX preview', { terminationId });
 
   await drawSignature(adminPage, '.unilateral-sign-panel canvas');
   await adminPage.click('.unilateral-sign-panel input[type="checkbox"]');
-  const otpResponsePromise = adminPage.waitForResponse((response) => response.url().includes(`/partner-termination-requests/${terminationId}/unilateral-notice/sign/send-otp`));
-  await clickButton(adminPage, 'Gửi OTP ký công văn');
-  const otpResponse = await otpResponsePromise;
-  const otpPayload = await otpResponse.json();
-  if (!otpResponse.ok()) throw new Error(`Send OTP failed: ${JSON.stringify(otpPayload)}`);
-  setKnownOtp(otpPayload.data.signing_request_id);
-  await adminPage.type('.unilateral-otp-box input', otp);
-
   const issueResponsePromise = adminPage.waitForResponse((response) => (
     response.url().endsWith(`/partner-termination-requests/${terminationId}/unilateral-notice/sign`)
       && response.request().method() === 'POST'
   ));
-  await clickButton(adminPage, 'Ký và gửi công văn');
+  await clickButton(adminPage, 'Ký và phát hành công văn');
   const issueResponse = await issueResponsePromise;
   const issuePayload = await issueResponse.json();
   if (!issueResponse.ok()) throw new Error(`Issue notice failed: ${JSON.stringify(issuePayload)}`);
   await waitForText(adminPage, 'Chờ chủ sân xác nhận đã nhận');
-  logStep('PASS admin signs and issues notice', { status: issuePayload.data.status });
+  await adminPage.screenshot({ path: path.join(screenshotDir, 'unilateral-admin-detail-issued-desktop.png'), fullPage: true });
+  logStep('PASS admin signs and issues notice without email OTP', { status: issuePayload.data.status });
+
+  const noticeProof = unilateralDocumentProof(terminationId);
+  if (noticeProof.status !== 'completed' || noticeProof.hasPlaceholder || noticeProof.mediaCount < 1 || noticeProof.signingChannel !== 'session' || noticeProof.otpSentAt) {
+    throw new Error(`Unilateral signed DOCX/session proof failed: ${JSON.stringify(noticeProof)}`);
+  }
+  logStep('PASS unilateral DOCX embeds admin signature and sends no OTP email', noticeProof);
 
   const ownerContext = await browser.createBrowserContext();
   const ownerPage = await ownerContext.newPage();
@@ -165,6 +225,11 @@ try {
   });
 
   await login(ownerPage, 'owner@sportgo.vn');
+  const ownerExpectedErrorStart = browserErrors.length;
+  const ownerOnAdminRoute = await apiRequest(ownerPage, '/api/admin/partner-termination-requests');
+  if (ownerOnAdminRoute.status !== 403) throw new Error(`Owner admin endpoint expected 403: ${JSON.stringify(ownerOnAdminRoute)}`);
+  browserErrors.splice(ownerExpectedErrorStart);
+  logStep('PASS server rejects owner access to admin termination APIs', { status: ownerOnAdminRoute.status });
   await ownerPage.goto(`${baseUrl}/owner/termination-requests/${terminationId}`, { waitUntil: 'domcontentloaded' });
   await waitForText(ownerPage, 'Đọc và xác nhận đã nhận công văn');
   await ownerPage.screenshot({ path: path.join(screenshotDir, 'unilateral-owner-ack-desktop.png'), fullPage: true });

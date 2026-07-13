@@ -10,8 +10,7 @@ const otp = '123456';
 const labels = {
   login: '\u0110\u0103ng nh\u1eadp',
   openFinal: 'M\u1edf file v\u00e0 k\u00fd bi\u00ean b\u1ea3n',
-  adminSignTitle: 'K\u00fd bi\u00ean b\u1ea3n ch\u1ea5m d\u1ee9t cu\u1ed1i',
-  sendFinalOtp: 'G\u1eedi OTP k\u00fd bi\u00ean b\u1ea3n',
+  adminSignTitle: 'Bi\u00ean b\u1ea3n ch\u1ea5m d\u1ee9t cu\u1ed1i',
   signFinal: 'K\u00fd bi\u00ean b\u1ea3n',
   ownerAction: 'Ch\u1ee7 s\u00e2n k\u00fd bi\u00ean b\u1ea3n cu\u1ed1i',
   ownerOpen: 'Xem file v\u00e0 k\u00fd bi\u00ean b\u1ea3n',
@@ -118,6 +117,7 @@ function setKnownOtp(signingRequestId) {
     `'code' => \\Illuminate\\Support\\Facades\\Hash::make('${otp}'),`,
     `'attempt_count' => 0, 'is_used' => false, 'expires_at' => now()->addMinutes(10),`,
     `])->save();`,
+    `$request->verificationCode->refresh(); if (! \\Illuminate\\Support\\Facades\\Hash::check('${otp}', $request->verificationCode->code)) { throw new \\RuntimeException('Could not set deterministic browser OTP.'); }`,
   ].join(' ');
   runTinker(code);
 }
@@ -126,11 +126,19 @@ function finalDatabaseState(terminationId) {
   const code = [
     `$termination = \\App\\Models\\PartnerTerminationRequest::findOrFail(${Number(terminationId)});`,
     `$row = $termination->documents()->with('generatedDocument.signatures')->whereIn('document_type', ['settlement_minutes', 'final_termination_file'])->latest()->firstOrFail();`,
+    `$document = $row->generatedDocument;`,
+    `$path = \\Illuminate\\Support\\Facades\\Storage::disk('local')->path($document->final_file_path ?: $document->generated_file_path);`,
+    `$zip = new \\ZipArchive(); $zip->open($path); $xml = $zip->getFromName('word/document.xml'); $media = array_values(array_filter(range(0, $zip->numFiles - 1), fn ($index) => str_starts_with((string) $zip->getNameIndex($index), 'word/media/'))); $zip->close();`,
+    `$adminSigning = $document->signingRequests()->where('signer_side', 'sportgo')->where('status', 'signed')->latest()->first();`,
     `echo 'QA_STATE:' . json_encode([`,
     `'status' => $termination->status,`,
     `'documentStatus' => $row->generatedDocument->status,`,
     `'signedSides' => $row->generatedDocument->signatures->where('status', 'signed')->pluck('signer_side')->sort()->values()->all(),`,
     `'contractStatus' => $termination->contract()->value('status'),`,
+    `'hasSignaturePlaceholder' => str_contains((string) $xml, '{{signature_'),`,
+    `'embeddedMediaCount' => count($media),`,
+    `'adminSigningChannel' => $adminSigning?->otp_channel,`,
+    `'adminOtpSentAt' => $adminSigning?->otp_sent_at,`,
     `]);`,
   ].join(' ');
   return markerPayload(runTinker(code), 'QA_STATE:');
@@ -148,6 +156,12 @@ async function clickButton(page, text) {
 
 async function waitForText(page, text) {
   await page.waitForFunction((value) => document.body.innerText.includes(value), {}, text);
+}
+
+async function waitForDocumentText(page, text) {
+  await page.waitForFunction((value) => (
+    document.querySelector('.document-preview-docx')?.innerText.includes(value)
+  ), {}, text);
 }
 
 async function login(page, email) {
@@ -168,6 +182,7 @@ async function login(page, email) {
   await clickButton(page, labels.login);
   const response = await responsePromise;
   if (!response.ok()) throw new Error(`Login failed for ${email}: ${await response.text()}`);
+  await page.waitForFunction(() => Boolean(localStorage.getItem('auth_token')));
 }
 
 async function drawSignature(page, selector) {
@@ -208,12 +223,30 @@ try {
   await login(adminPage, 'admin@sportgo.vn');
   await adminPage.goto(`${baseUrl}/admin/partner-applications/${fixture.applicationId}?tab=settlement`, { waitUntil: 'domcontentloaded' });
   await waitForText(adminPage, labels.openFinal);
+  const finalOtpExpectedErrorStart = browserErrors.length;
+  const finalOtpStatus = await adminPage.evaluate(async (terminationId) => {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`/api/admin/partner-termination-requests/${terminationId}/final-document/sign/send-otp`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    return response.status;
+  }, fixture.terminationId);
+  if (finalOtpStatus !== 409) throw new Error(`Admin final OTP endpoint expected 409, received ${finalOtpStatus}.`);
+  browserErrors.splice(finalOtpExpectedErrorStart);
+  logStep('PASS final document admin OTP endpoint is disabled', { status: finalOtpStatus });
+  await adminPage.screenshot({ path: path.join(screenshotDir, 'termination-final-admin-detail-desktop.png'), fullPage: true });
   const previewResponsePromise = adminPage.waitForResponse((response) => response.url().endsWith(`/partner-termination-requests/${fixture.terminationId}/final-document/preview`));
   await clickButton(adminPage, labels.openFinal);
   const previewResponse = await previewResponsePromise;
   if (!previewResponse.ok()) throw new Error(`Admin final preview failed: ${await previewResponse.text()}`);
   await waitForText(adminPage, labels.adminSignTitle);
-  await waitForText(adminPage, fixture.venueName);
+  await waitForDocumentText(adminPage, fixture.venueName);
   const adminPreviewText = await adminPage.$eval('.document-preview-docx', (element) => element.innerText);
   if (adminPreviewText.includes('Ch\u01b0a cung c\u1ea5p') || adminPreviewText.includes('[Kh\u00f4ng/C\u00f3')) {
     throw new Error('Final DOCX still contains unresolved template placeholders.');
@@ -223,19 +256,11 @@ try {
 
   await drawSignature(adminPage, '.unilateral-sign-panel canvas');
   await adminPage.click('.unilateral-sign-panel input[type="checkbox"]');
-  const adminOtpResponsePromise = adminPage.waitForResponse((response) => response.url().endsWith(`/partner-termination-requests/${fixture.terminationId}/final-document/sign/send-otp`));
-  await clickButton(adminPage, labels.sendFinalOtp);
-  const adminOtpResponse = await adminOtpResponsePromise;
-  const adminOtpPayload = await adminOtpResponse.json();
-  if (!adminOtpResponse.ok()) throw new Error(`Admin final OTP failed: ${JSON.stringify(adminOtpPayload)}`);
-  setKnownOtp(adminOtpPayload.data.signing_request_id);
-  await adminPage.type('.unilateral-sign-panel input[autocomplete="one-time-code"]', otp);
-
   const adminSignResponsePromise = adminPage.waitForResponse((response) => response.url().endsWith(`/partner-termination-requests/${fixture.terminationId}/final-document/sign`));
   await clickButton(adminPage, labels.signFinal);
   const adminSignResponse = await adminSignResponsePromise;
   if (!adminSignResponse.ok()) throw new Error(`Admin final sign failed: ${await adminSignResponse.text()}`);
-  logStep('PASS admin signs final document with OTP');
+  logStep('PASS admin signs final document with authenticated session, without email OTP');
 
   const ownerContext = await browser.createBrowserContext();
   const ownerPage = await ownerContext.newPage();
@@ -248,9 +273,10 @@ try {
   await login(ownerPage, 'owner@sportgo.vn');
   await ownerPage.goto(`${baseUrl}/owner/termination-requests/${fixture.terminationId}`, { waitUntil: 'domcontentloaded' });
   await waitForText(ownerPage, labels.ownerAction);
+  await ownerPage.screenshot({ path: path.join(screenshotDir, 'termination-final-owner-detail-desktop.png'), fullPage: true });
   await clickButton(ownerPage, labels.ownerOpen);
-  await waitForText(ownerPage, 'SportGo \u0111\u00e3 k\u00fd, ch\u1ee7 s\u00e2n c\u1ea7n x\u00e1c nh\u1eadn');
-  await waitForText(ownerPage, fixture.venueName);
+  await waitForText(ownerPage, 'SportGo \u0111\u00e3 k\u00fd');
+  await waitForDocumentText(ownerPage, fixture.venueName);
   const ownerPreviewText = await ownerPage.$eval('.document-preview-docx', (element) => element.innerText);
   const signerNameOccurrences = ownerPreviewText.split('Admin V\u1eadn H\u00e0nh SportGo').length - 1;
   if (signerNameOccurrences > 2) {
@@ -295,7 +321,10 @@ try {
   if (state.documentStatus !== 'completed' || state.signedSides.join(',') !== 'owner,sportgo') {
     throw new Error(`Final document proof is incomplete: ${JSON.stringify(state)}`);
   }
-  logStep('PASS database stores both final signatures and document completion', state);
+  if (state.hasSignaturePlaceholder || state.embeddedMediaCount < 2 || state.adminSigningChannel !== 'session' || state.adminOtpSentAt) {
+    throw new Error(`Final signed DOCX/session proof is invalid: ${JSON.stringify(state)}`);
+  }
+  logStep('PASS final DOCX embeds both signatures and admin uses no OTP email', state);
 
   const relevantErrors = browserErrors.filter((message) => !message.includes('favicon'));
   if (relevantErrors.length) throw new Error(`Browser errors: ${relevantErrors.join(' | ')}`);
