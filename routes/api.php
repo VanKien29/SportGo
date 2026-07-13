@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeCont
 use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
 use App\Http\Controllers\Api\Owner\StaffShiftController;
+use App\Http\Controllers\Api\Owner\StaffDashboardController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
@@ -318,6 +319,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/staff-dashboard/overview', [StaffDashboardController::class, 'overview']);
         Route::get('/ui-settings', [OwnerUiSettingsController::class, 'getSettings']);
         Route::post('/ui-settings', [OwnerUiSettingsController::class, 'updateSettings']);
         Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);

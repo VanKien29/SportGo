@@ -586,7 +586,7 @@ export default {
 };
 </script>
 
-<style src="../../../css/admin/moderation.css" scoped></style>
+
 
 <style scoped>
 .floating-config-container {

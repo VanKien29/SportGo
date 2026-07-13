@@ -464,6 +464,16 @@ const routes = [
                 component: () => import("../views/staff/StaffSchedules.vue"),
             },
             {
+                path: "bookings",
+                name: "staff-bookings",
+                component: () => import("../views/staff/StaffBookings.vue"),
+            },
+            {
+                path: "counter-booking",
+                name: "staff-counter-booking",
+                component: () => import("../views/staff/StaffCounterBooking.vue"),
+            },
+            {
                 path: "settings",
                 name: "staff-settings",
                 component: () => import("../views/owner/OwnerSettings.vue"),

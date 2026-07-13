@@ -16,13 +16,20 @@ class VenueCourtController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'exists:venue_clusters,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive', 'maintenance'])],
         ]);
 
         $cluster = VenueCluster::query()->findOrFail($request->query('venue_cluster_id'));
 
-        if ($cluster->owner_id !== $request->user()->id) {
+        $isAccessible = $cluster->owner_id === $request->user()->id || 
+            DB::table('venue_staff_assignments')
+                ->where('user_id', $request->user()->id)
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('status', 'active')
+                ->exists();
+
+        if (! $isAccessible) {
             return response()->json(['message' => 'Bạn không có quyền xem sân con của cụm sân này.'], 403);
         }
 
@@ -40,7 +47,7 @@ class VenueCourtController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'exists:venue_clusters,id'],
             'court_type_id' => ['required', 'integer', 'exists:court_types,id'],
             'name' => ['required', 'string', 'max:100'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -125,9 +132,9 @@ class VenueCourtController extends Controller
     public function updateLayoutBulk(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'uuid', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'exists:venue_clusters,id'],
             'courts' => ['required', 'array'],
-            'courts.*.id' => ['required', 'uuid', 'exists:venue_courts,id'],
+            'courts.*.id' => ['required', 'exists:venue_courts,id'],
             'courts.*.layout_x' => ['nullable', 'numeric'],
             'courts.*.layout_y' => ['nullable', 'numeric'],
             'courts.*.layout_w' => ['nullable', 'numeric', 'min:10'],

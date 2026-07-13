@@ -38,10 +38,6 @@
                     <span>Danh sách cố định</span>
                 </button>
             </div>
-            <button class="secondary-btn" type="button" @click="refreshActiveTab">
-                <AppIcon name="refresh" size="16" />
-                <span>Tải lại lịch</span>
-            </button>
         </div>
 
         <section v-if="activeTab === 'counter'" class="counter-board">
@@ -51,14 +47,6 @@
                         <h2>Lịch sân trong ngày</h2>
                         <p>{{ currentScheduleLabel }}</p>
                     </div>
-                    <button
-                        class="icon-btn"
-                        type="button"
-                        title="Tải lại lịch"
-                        @click="loadSchedule"
-                    >
-                        <AppIcon name="refresh" size="17" />
-                    </button>
                 </div>
 
                 <div class="filters schedule-filters counter-toolbar">
