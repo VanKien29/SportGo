@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('venue_staff_shifts', function (Blueprint $table) {
             $table->id();
-            $table->char('venue_cluster_id', 36);
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->string('name', 100);
             $table->time('start_time');
             $table->time('end_time');
