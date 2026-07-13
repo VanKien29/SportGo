@@ -1,36 +1,14 @@
 <template>
   <div class="partner-page">
-    <header class="page-header">
+    <header class="partner-list-header">
       <div>
-        <h2>Quản lý hồ sơ đối tác</h2>
-        <p>Theo dõi hồ sơ, hợp đồng, chữ ký điện tử và chấm dứt hợp tác của chủ sân.</p>
+        <h1>Hồ sơ đối tác</h1>
+        <p>Duyệt hồ sơ, ký văn bản và theo dõi chấm dứt hợp tác tại một nơi.</p>
       </div>
       <button class="icon-btn" type="button" title="Làm mới" @click="refresh">
         <AppIcon name="refresh" size="16" />
       </button>
     </header>
-
-    <section class="partner-kpis">
-      <article v-for="card in summaryCards" :key="card.key" class="partner-kpi-card">
-        <span>{{ card.label }}</span>
-        <strong>{{ card.value }}</strong>
-        <small>{{ card.hint }}</small>
-      </article>
-    </section>
-
-    <div class="tabs">
-      <button
-        v-for="tab in listTabsUi"
-        :key="tab.value"
-        class="tab-btn"
-        :class="{ active: filters.tab === tab.value }"
-        type="button"
-        @click="selectListTab(tab.value)"
-      >
-        <span>{{ tab.label }}</span>
-        <strong>{{ listTabCount(tab.value) }}</strong>
-      </button>
-    </div>
 
     <div class="toolbar card">
       <label class="field">
@@ -39,11 +17,11 @@
       </label>
       <label class="field">
         <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadApplications(1)">
-          <option value="">Tất cả</option>
-          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        <select v-model="statusFilter" @change="applyStatusFilter">
+          <option v-for="option in statusFilterOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
       </label>
+      <span class="result-count">{{ pagination.total }} hồ sơ</span>
     </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -59,16 +37,33 @@
     </div>
 
     <div v-else class="table-card card">
-      <div class="table-scroll">
+      <div class="partner-mobile-list">
+        <article v-for="application in applications" :key="`mobile-${application.id}`" class="partner-mobile-row">
+          <div class="partner-mobile-heading">
+            <div>
+              <small>{{ application.partner_code }}</small>
+              <strong>{{ application.partner_name || '-' }}</strong>
+            </div>
+            <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
+          </div>
+          <p>{{ application.partner_phone || '-' }} · {{ application.partner_email || '-' }}</p>
+          <div class="partner-mobile-facts">
+            <span><small>Cụm sân</small><strong>{{ (application.venue_names || []).slice(0, 1).join(', ') || application.venue_name || 'Chưa có' }}</strong></span>
+            <span><small>Hợp đồng</small><strong>{{ contractStatusLabel(application.contract_status) }}</strong></span>
+          </div>
+          <button class="open-record-btn" type="button" @click="openDetail(application)">
+            Mở hồ sơ <AppIcon name="arrowRight" size="16" />
+          </button>
+        </article>
+      </div>
+      <div class="table-scroll partner-desktop-table">
         <table>
           <thead>
             <tr>
               <th>Mã đối tác</th>
               <th>Đối tác</th>
               <th>Cụm sân</th>
-              <th class="center">Trạng thái hồ sơ</th>
-              <th class="center">Trạng thái hợp đồng</th>
-              <th>Đăng ký gần nhất</th>
+              <th>Trạng thái</th>
               <th class="right">Thao tác</th>
             </tr>
           </thead>
@@ -86,25 +81,16 @@
                 <div class="strong">{{ application.managed_clusters_count || 0 }}</div>
                 <div class="muted">{{ (application.venue_names || []).slice(0, 2).join(', ') || application.venue_name || '-' }}</div>
               </td>
-              <td class="center">
-                <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
-              </td>
-              <td class="center">
-                <span class="status" :class="`status-${application.contract_status || 'none'}`">{{ contractStatusLabel(application.contract_status) }}</span>
-              </td>
-              <td>{{ formatDate(application.latest_registered_at || application.submitted_at) }}</td>
-              <td class="right">
-                <div class="actions">
-                  <button class="icon-btn" type="button" title="Chi tiết" @click="openDetail(application)">
-                    <AppIcon name="eye" size="16" />
-                  </button>
-                  <button v-if="isReviewable(application.status)" class="icon-btn approve" type="button" title="Mở hồ sơ để duyệt" @click="openDetail(application, 'approve')">
-                    <AppIcon name="check" size="16" />
-                  </button>
-                  <button v-if="isReviewable(application.status)" class="icon-btn danger" type="button" title="Mở hồ sơ để từ chối" @click="openDetail(application, 'reject')">
-                    <AppIcon name="x" size="16" />
-                  </button>
+              <td>
+                <div class="status-stack">
+                  <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
+                  <small>Hợp đồng: {{ contractStatusLabel(application.contract_status) }}</small>
                 </div>
+              </td>
+              <td class="right">
+                <button class="open-record-btn" type="button" @click="openDetail(application)">
+                  <AppIcon name="arrowRight" size="16" /> Mở hồ sơ
+                </button>
               </td>
             </tr>
           </tbody>
@@ -138,51 +124,21 @@ export default {
       error: '',
       message: '',
       filterTimer: null,
+      statusFilter: 'all',
       filters: { tab: 'all', search: '', status: '' },
       pagination: { current_page: 1, last_page: 1, total: 0 },
-      listTabs: [
-        { value: 'all', label: 'Tất cả đối tác' },
-        { value: 'pending_review', label: 'Chờ duyệt hồ sơ' },
-        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
-        { value: 'active', label: 'Đang hoạt động' },
-        { value: 'terminating', label: 'Đang yêu cầu chấm dứt' },
-        { value: 'terminated', label: 'Đã chấm dứt' },
-        { value: 'rejected', label: 'Đã từ chối' },
-      ],
-      statusOptions: [
-        { value: 'submitted', label: 'Chờ duyệt' },
-        { value: 'reviewing', label: 'Đang xem xét' },
-        { value: 'contract_pending_owner_signature', label: 'Chờ chủ sân ký' },
-        { value: 'contract_pending_sportgo_signature', label: 'Chờ SportGo ký' },
-        { value: 'completed', label: 'Đang hoạt động' },
-        { value: 'rejected', label: 'Từ chối' },
+      statusFilterOptions: [
+        { value: 'all', label: 'Tất cả trạng thái' },
+        { value: 'tab:pending_review', label: 'Cần duyệt hồ sơ' },
+        { value: 'status:reviewing', label: 'Đang xem xét' },
+        { value: 'status:contract_pending_owner_signature', label: 'Chờ chủ sân ký hợp đồng' },
+        { value: 'status:contract_pending_sportgo_signature', label: 'Chờ SportGo ký hợp đồng' },
+        { value: 'tab:active', label: 'Đang hoạt động' },
+        { value: 'tab:terminating', label: 'Đang chấm dứt' },
+        { value: 'tab:terminated', label: 'Đã chấm dứt' },
+        { value: 'status:rejected', label: 'Đã từ chối' },
       ],
     };
-  },
-  computed: {
-    listTabsUi() {
-      return [
-        { value: 'all', label: 'Tất cả' },
-        { value: 'pending_review', label: 'Chờ duyệt' },
-        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
-        { value: 'active', label: 'Đang hoạt động' },
-        { value: 'terminating', label: 'Đang chấm dứt' },
-        { value: 'terminated', label: 'Đã chấm dứt' },
-        { value: 'rejected', label: 'Từ chối' },
-      ];
-    },
-    summaryCards() {
-      const review = this.listTabCount('pending_review');
-      const signature = this.listTabCount('pending_signature');
-      const terminating = this.listTabCount('terminating');
-
-      return [
-        { key: 'total', label: 'Hồ sơ đang hiển thị', value: this.pagination.total || this.applications.length, hint: 'Theo bộ lọc hiện tại' },
-        { key: 'review', label: 'Cần duyệt', value: review, hint: 'Hồ sơ chờ admin xử lý' },
-        { key: 'signature', label: 'Chờ ký', value: signature, hint: 'Hợp đồng hoặc văn bản đang chờ ký' },
-        { key: 'terminating', label: 'Chấm dứt', value: terminating, hint: 'Hồ sơ đang thanh lý/chấm dứt' },
-      ];
-    },
   },
   mounted() {
     this.loadApplications();
@@ -206,9 +162,10 @@ export default {
         this.loading = false;
       }
     },
-    selectListTab(tab) {
-      this.filters.tab = tab;
-      this.filters.status = '';
+    applyStatusFilter() {
+      const [type, value] = this.statusFilter.split(':');
+      this.filters.tab = type === 'tab' ? value : 'all';
+      this.filters.status = type === 'status' ? value : '';
       this.loadApplications(1);
     },
     onFilterChange() {
@@ -225,24 +182,6 @@ export default {
         params: { id: application.latest_application_id || application.id },
         query: action ? { action } : {},
       });
-    },
-    isReviewable(status) {
-      return status === 'pending_review';
-    },
-    listTabCount(tab) {
-      if (tab === 'all') return this.pagination.total || this.applications.length;
-
-      return this.applications.filter((application) => {
-        const status = application.partner_status || application.status;
-        const contractStatus = application.contract_status || '';
-        if (tab === 'pending_signature') {
-          return status === 'pending_signature' || ['pending_owner_signature', 'pending_sportgo_signature'].includes(contractStatus);
-        }
-        if (tab === 'active') {
-          return status === 'active' || status === 'completed' || contractStatus === 'signed_active';
-        }
-        return status === tab;
-      }).length;
     },
     statusLabel(status) {
       return {
@@ -287,6 +226,26 @@ export default {
   margin: 0 auto;
 }
 
+.partner-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0 2px;
+}
+
+.partner-list-header h1 {
+  margin: 0 0 4px;
+  color: var(--admin-text);
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.partner-list-header p {
+  margin: 0;
+  color: var(--admin-muted);
+}
+
 .card {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
@@ -327,7 +286,6 @@ export default {
   font-size: 12px;
 }
 
-.tabs,
 .actions,
 .pagination {
   display: flex;
@@ -335,45 +293,22 @@ export default {
   gap: 8px;
 }
 
-.tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-muted);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.tab-btn strong {
-  min-width: 20px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
-  color: inherit;
-  font-size: 11px;
-  line-height: 20px;
-  text-align: center;
-}
-
-.tab-btn.active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #fff;
-}
-
-.tab-btn.active strong {
-  background: rgba(255, 255, 255, 0.22);
-}
-
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px);
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 300px) auto;
+  align-items: end;
   gap: 12px;
   padding: 14px;
+}
+
+.result-count {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--admin-muted);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .field {
@@ -457,11 +392,21 @@ export default {
   overflow-x: auto;
 }
 
+.partner-mobile-list {
+  display: none;
+}
+
 table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 820px;
   border-collapse: collapse;
 }
+
+th:nth-child(1) { width: 110px; }
+th:nth-child(2) { width: 31%; }
+th:nth-child(3) { width: 20%; }
+th:nth-child(4) { width: 22%; }
+th:last-child { width: 122px; }
 
 th,
 td {
@@ -491,6 +436,17 @@ th {
   font-weight: 900;
   background: var(--admin-border);
   color: var(--admin-text);
+}
+
+.status-stack {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+
+.status-stack small {
+  color: var(--admin-muted);
+  font-size: 11px;
 }
 
 .status-pending_review,
@@ -545,12 +501,35 @@ th {
 .icon-btn.approve { color: #15803d; }
 .icon-btn.danger { color: #dc2626; }
 
+.open-record-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid #b8d5c0;
+  border-radius: 8px;
+  background: #fff;
+  color: #176534;
+  cursor: pointer;
+  padding: 0 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.open-record-btn:hover {
+  background: #edf8f0;
+}
+
 .pagination {
   justify-content: flex-end;
   padding: 12px 16px;
 }
 
 @media (max-width: 900px) {
+  .partner-list-header {
+    align-items: flex-start;
+  }
   .partner-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -565,8 +544,92 @@ th {
 }
 
 @media (max-width: 560px) {
+  .partner-list-header h1 {
+    font-size: 24px;
+  }
+
   .partner-kpis {
     grid-template-columns: 1fr;
+  }
+
+  .table-card {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .partner-desktop-table {
+    display: none;
+  }
+
+  .partner-mobile-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .partner-mobile-row {
+    display: grid;
+    gap: 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: var(--admin-surface);
+    padding: 13px;
+  }
+
+  .partner-mobile-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .partner-mobile-heading > div,
+  .partner-mobile-facts > span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .partner-mobile-heading small,
+  .partner-mobile-facts small {
+    color: var(--admin-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .partner-mobile-heading strong,
+  .partner-mobile-facts strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--admin-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .partner-mobile-heading .status {
+    flex: 0 0 auto;
+    max-width: 48%;
+    white-space: normal;
+  }
+
+  .partner-mobile-row > p {
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .partner-mobile-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    border-top: 1px solid var(--admin-border);
+    padding-top: 9px;
+  }
+
+  .partner-mobile-row .open-record-btn {
+    width: 100%;
   }
 }
 </style>

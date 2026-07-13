@@ -108,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onUnmounted } from 'vue';
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { renderAsync } from 'docx-preview';
 import AppIcon from './AppIcon.vue';
 import { apiDownload, readToken } from '../services/api.js';
@@ -219,16 +219,21 @@ function updateDocumentScale() {
   container.style.setProperty('--document-scale', '1');
   const availableWidth = Math.max(0, scrollArea.clientWidth - 32);
   const documentWidth = section.offsetWidth || section.getBoundingClientRect().width;
-  const scale = documentWidth > 0 ? Math.min(1, Math.max(0.82, availableWidth / documentWidth)) : 1;
+  const scale = documentWidth > 0 ? Math.min(1, Math.max(0.32, availableWidth / documentWidth)) : 1;
   container.style.setProperty('--document-scale', scale.toFixed(3));
 
-  resizeObserver?.disconnect();
-  resizeObserver = new ResizeObserver(updateDocumentScale);
-  resizeObserver.observe(scrollArea);
+  if (!resizeObserver) {
+    resizeObserver = new ResizeObserver(updateDocumentScale);
+    resizeObserver.observe(scrollArea);
+  }
 }
 
+onMounted(() => window.addEventListener('resize', updateDocumentScale));
+
 onUnmounted(() => {
+  window.removeEventListener('resize', updateDocumentScale);
   resizeObserver?.disconnect();
+  resizeObserver = null;
   cleanup();
 });
 

@@ -8,7 +8,7 @@
       </span>
     </RouterLink>
 
-    <div class="owner-cluster-card">
+    <div class="owner-cluster-card" :class="`cluster-mode-${restrictionMode}`">
       <span>Cụm sân đang quản lý</span>
       <strong v-if="clusters.length <= 1">{{ selectedCluster?.name || 'Chưa có cụm sân' }}</strong>
       <div v-else class="custom-select-wrapper">
@@ -25,32 +25,47 @@
             v-for="cluster in clusters"
             :key="cluster.id"
             class="custom-option"
-            :class="{ selected: String(selectedClusterId) === String(cluster.id) }"
+            :class="{
+              selected: String(selectedClusterId) === String(cluster.id),
+              archived: clusterRestrictionMode(cluster) === 'archived',
+            }"
             @click="selectCluster(cluster.id)"
           >
-            {{ cluster.name }}
+            <span>{{ cluster.name }}</span>
+            <small>{{ clusterStatusLabel(cluster) }}</small>
           </div>
         </div>
       </div>
-      <p v-if="selectedCluster?.status === 'locked'">
-        Cụm sân đang bị khóa. Một số thao tác có thể bị chặn.
-      </p>
+      <small v-if="selectedCluster" class="cluster-state-label">{{ clusterStatusLabel(selectedCluster) }}</small>
+      <p v-if="restrictionHint">{{ restrictionHint }}</p>
     </div>
 
     <nav class="sidebar-nav">
       <section v-for="section in sections" :key="section.label" class="admin-nav-section">
         <p class="nav-group">{{ section.label }}</p>
-        <RouterLink
-          v-for="item in section.items"
-          :key="item.to"
-          class="nav-item"
-          :class="{ 'nav-active': isActive(item) }"
-          :to="item.to"
-          @click="$emit('navigate')"
-        >
-          <AppIcon :name="item.icon" size="17" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
+        <template v-for="item in section.items" :key="item.to">
+          <button
+            v-if="isItemDisabled(item)"
+            class="nav-item nav-disabled"
+            type="button"
+            disabled
+            :title="restrictionHint"
+          >
+            <AppIcon :name="item.icon" size="17" />
+            <span>{{ item.label }}</span>
+            <AppIcon name="lock" size="13" />
+          </button>
+          <RouterLink
+            v-else
+            class="nav-item"
+            :class="{ 'nav-active': isActive(item) }"
+            :to="item.to"
+            @click="$emit('navigate')"
+          >
+            <AppIcon :name="item.icon" size="17" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </template>
       </section>
     </nav>
 
@@ -74,6 +89,7 @@
 <script>
 import AppIcon from '../AppIcon.vue';
 import { getAuth } from '../../stores/auth.js';
+import { venueDisplayStatus, venuePartnerState } from '../../utils/venuePartnerState.js';
 
 export default {
   name: 'OwnerSidebar',
@@ -115,6 +131,21 @@ export default {
       const cluster = this.clusters.find(c => String(c.id) === String(this.selectedClusterId));
       return cluster ? cluster.name : 'Chọn cụm sân';
     },
+    restrictionMode() {
+      return venuePartnerState(this.selectedCluster);
+    },
+    restrictionHint() {
+      if (this.restrictionMode === 'archived') {
+        return 'Hợp đồng đã chấm dứt. Cụm sân được giữ để tra cứu, mọi thao tác vận hành đã khóa.';
+      }
+      if (this.restrictionMode === 'terminating') {
+        return 'Cụm sân đang chấm dứt hợp tác. Chỉ còn xử lý hồ sơ, hoàn/hủy và số dư.';
+      }
+      if (this.selectedCluster?.status === 'locked') {
+        return 'Cụm sân đang bị khóa. Mở trang cụm sân để xem lý do hoặc gửi giải trình.';
+      }
+      return '';
+    },
   },
   methods: {
     isActive(item) {
@@ -127,6 +158,28 @@ export default {
     selectCluster(clusterId) {
       this.$emit('cluster-change', clusterId);
       this.isOpen = false;
+    },
+    isItemDisabled(item) {
+      if (this.restrictionMode === 'normal') return false;
+
+      const viewOnly = ['/owner/dashboard', '/owner/partner-profile', '/owner/venue-clusters'];
+      if (this.restrictionMode === 'archived') return !viewOnly.includes(item.to);
+
+      return ![...viewOnly, '/owner/refunds', '/owner/finance'].includes(item.to);
+    },
+    clusterRestrictionMode(cluster) {
+      return venuePartnerState(cluster);
+    },
+    clusterStatusLabel(cluster) {
+      const status = venueDisplayStatus(cluster);
+      return {
+        pending: 'Chờ duyệt',
+        active: 'Đang hoạt động',
+        locked: 'Đang khóa',
+        termination_locked: 'Đang chấm dứt',
+        termination_processing: 'Đang chấm dứt',
+        partner_terminated: 'Đã chấm dứt',
+      }[status] || 'Chưa xác định';
     },
     handleOutsideClick(e) {
       if (this.isOpen && !this.$el.querySelector('.custom-select-wrapper')?.contains(e.target)) {
@@ -144,17 +197,37 @@ export default {
   margin: 16px 14px 2px;
   padding: 12px;
   border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-lg);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(226, 246, 232, 0.72));
+  border-radius: 8px;
+  background: #fff;
   box-shadow: var(--admin-shadow-sm);
 }
 
-.owner-cluster-card span {
+.owner-cluster-card.cluster-mode-terminating {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.owner-cluster-card.cluster-mode-archived {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  filter: saturate(.35);
+}
+
+.owner-cluster-card > span {
   color: var(--admin-faint);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.selected-text,
+.custom-option > span {
+  color: var(--admin-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .owner-cluster-card strong {
@@ -230,6 +303,31 @@ export default {
   text-align: left;
 }
 
+.custom-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-option > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-option small,
+.cluster-state-label {
+  color: var(--admin-faint, #64748b);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.custom-option.archived {
+  background: #f8fafc;
+  color: #64748b;
+}
+
 .custom-option:hover {
   background: var(--admin-surface, #f1f5f9);
 }
@@ -246,5 +344,17 @@ export default {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.nav-disabled {
+  width: 100%;
+  border: 0;
+  opacity: .45;
+  cursor: not-allowed;
+  text-align: left;
+}
+
+.nav-disabled span {
+  flex: 1;
 }
 </style>

@@ -11,6 +11,7 @@ use App\Models\GeneratedDocument;
 use App\Models\Notification;
 use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
+use App\Models\OwnerWalletLedger;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\PartnerContract;
 use App\Models\PartnerTerminationBookingAction;
@@ -22,6 +23,7 @@ use App\Models\Role;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Models\UserWallet;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
@@ -1112,7 +1114,8 @@ class PartnerTerminationFlowService
 
             $termination = $this->refreshAmounts($termination);
 
-            if ($termination->status === self::STATUS_TERMINATING && $termination->owner_access_view_until && $termination->owner_access_view_until->isPast()) {
+            $accessDeadline = $termination->owner_access_view_until ?: $termination->transition_end_at;
+            if ($termination->status === self::STATUS_TERMINATING && $accessDeadline && $accessDeadline->isPast()) {
                 $this->revokeOwnerScope($termination);
                 return $termination->fresh();
             }
@@ -1149,6 +1152,8 @@ class PartnerTerminationFlowService
             if ($termination->owner_access_revoked_at) {
                 return;
             }
+
+            $transferredAmount = $this->transferRemainingOwnerBalanceToUserWallet($termination);
 
             $roleId = Role::query()->where('name', 'venue_owner')->value('id');
             if ($roleId && $termination->venue_cluster_id) {
@@ -1187,8 +1192,111 @@ class PartnerTerminationFlowService
                 ->where('venue_cluster_id', $termination->venue_cluster_id)
                 ->update(['status' => 'inactive']);
 
-            $this->history($termination, $oldStatus, self::STATUS_TERMINATED, null, 'system', 'Thu hoi quyen owner sau thoi gian cau hinh.');
+            $note = 'Thu hồi quyền chủ sân sau thời gian cấu hình.';
+            if ($transferredAmount > 0) {
+                $note .= ' Số dư chưa rút đã được chuyển sang số dư người dùng của cùng tài khoản.';
+            }
+            $this->history($termination, $oldStatus, self::STATUS_TERMINATED, null, 'system', $note);
         });
+    }
+
+    private function transferRemainingOwnerBalanceToUserWallet(PartnerTerminationRequest $termination): float
+    {
+        $ownerWallet = OwnerWallet::query()
+            ->where('owner_id', $termination->owner_id)
+            ->where('venue_cluster_id', $termination->venue_cluster_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $ownerWallet) {
+            return 0;
+        }
+
+        $ownerTransactionCode = 'OWT-'.substr(hash('sha256', "partner-termination:{$termination->id}:{$ownerWallet->id}"), 0, 32);
+        $existingOwnerLedger = OwnerWalletLedger::query()
+            ->where('transaction_code', $ownerTransactionCode)
+            ->first();
+
+        if ($existingOwnerLedger) {
+            return (float) $existingOwnerLedger->amount;
+        }
+
+        $amount = round((float) $ownerWallet->available_balance, 2);
+        if ($amount <= 0) {
+            return 0;
+        }
+
+        $userWallet = UserWallet::query()->firstOrCreate(
+            ['user_id' => $termination->owner_id],
+            ['balance' => 0, 'locked_balance' => 0, 'status' => 'active'],
+        );
+        $userWallet = UserWallet::query()->whereKey($userWallet->id)->lockForUpdate()->firstOrFail();
+
+        $ownerBalanceBefore = (float) $ownerWallet->available_balance;
+        $ownerWallet->available_balance = 0;
+        $ownerWallet->total_withdrawn = (float) $ownerWallet->total_withdrawn + $amount;
+        $ownerWallet->save();
+
+        $ownerLedger = OwnerWalletLedger::query()->create([
+            'owner_wallet_id' => $ownerWallet->id,
+            'owner_id' => $termination->owner_id,
+            'venue_cluster_id' => $termination->venue_cluster_id,
+            'type' => 'debit',
+            'direction' => 'debit',
+            'amount' => $amount,
+            'balance_before' => $ownerBalanceBefore,
+            'balance_after' => 0,
+            'status' => 'completed',
+            'reference_code' => $termination->termination_code,
+            'reference_type' => 'partner_termination_balance_transfer',
+            'reference_id' => $termination->id,
+            'transaction_code' => $ownerTransactionCode,
+            'description' => 'Chuyển số dư chủ sân chưa rút sang số dư người dùng khi hết thời gian xem hồ sơ chấm dứt.',
+            'note' => 'Tài khoản vẫn giữ nguyên tiền dưới vai trò người dùng SportGo.',
+            'metadata' => [
+                'source' => 'partner_termination_grace_expired',
+                'termination_code' => $termination->termination_code,
+                'destination_user_wallet_id' => $userWallet->id,
+            ],
+        ]);
+
+        $userBalanceBefore = (float) $userWallet->balance;
+        $userBalanceAfter = $userBalanceBefore + $amount;
+        $userWallet->balance = $userBalanceAfter;
+        $userWallet->save();
+
+        $userLedgerId = DB::table('user_wallet_ledgers')->insertGetId([
+            'user_wallet_id' => $userWallet->id,
+            'transaction_code' => 'UWT-'.substr(hash('sha256', "partner-termination:{$termination->id}:{$userWallet->id}"), 0, 32),
+            'type' => 'adjustment',
+            'direction' => 'credit',
+            'amount' => $amount,
+            'balance_before' => $userBalanceBefore,
+            'balance_after' => $userBalanceAfter,
+            'reference_type' => 'partner_termination_balance_transfer',
+            'reference_id' => $termination->id,
+            'status' => 'completed',
+            'note' => 'Nhận số dư chủ sân chưa rút sau khi hoàn tất chấm dứt hợp tác.',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->fillTermination($termination, [
+            'owner_balance_total' => round((float) $ownerWallet->pending_withdrawal_balance, 2),
+            'withdrawable_amount' => 0,
+            'metadata' => array_merge($termination->metadata ?: [], [
+                'remaining_balance_transfer' => [
+                    'amount' => $amount,
+                    'owner_wallet_ledger_id' => $ownerLedger->id,
+                    'user_wallet_id' => $userWallet->id,
+                    'user_wallet_ledger_id' => $userLedgerId,
+                    'transferred_at' => now()->toIso8601String(),
+                ],
+            ]),
+        ])->save();
+
+        return $amount;
     }
 
     public function refreshAmounts(PartnerTerminationRequest $termination): PartnerTerminationRequest
@@ -1463,12 +1571,6 @@ class PartnerTerminationFlowService
     private function generateFinalDocumentIfReady(PartnerTerminationRequest $termination, ?User $actor, bool $adminOverride = false): GeneratedDocument
     {
         $termination = $termination->fresh(['contract.application.user', 'venueCluster']);
-        if (! $this->readyForFinalDocument($termination, $adminOverride)) {
-            throw ValidationException::withMessages([
-                'termination' => 'Chưa đủ điều kiện sinh biên bản chấm dứt cuối.',
-            ]);
-        }
-
         $existing = PartnerTerminationDocument::query()
             ->with('generatedDocument')
             ->where('partner_termination_request_id', $termination->id)
@@ -1482,6 +1584,12 @@ class PartnerTerminationFlowService
             }
 
             return $existing->generatedDocument;
+        }
+
+        if (! $this->readyForFinalDocument($termination, $adminOverride)) {
+            throw ValidationException::withMessages([
+                'termination' => 'Chưa đủ điều kiện sinh biên bản chấm dứt cuối.',
+            ]);
         }
 
         $document = $this->documents->generateDocument('settlement_minutes', $termination, $this->finalDocumentRenderData($termination), $actor, [

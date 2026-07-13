@@ -89,7 +89,7 @@ class PartnerDocumentService
         if ($documentType === 'termination_cancellation_request') {
             $this->renderTerminationCancellationDocument($targetPath, $renderData);
         } else {
-            $this->renderDocxTemplate($sourcePath, $targetPath, $renderData, $documentType);
+            $this->renderDocxTemplateWithRetry($sourcePath, $targetPath, $renderData, $documentType);
         }
         $this->normalizeRequiredDocxParts($targetPath);
         if (! $this->isUsableDocx($targetPath)) {
@@ -634,6 +634,31 @@ class PartnerDocumentService
         $this->replaceResidualTemplateBlanks($targetPath, $documentType);
         $this->polishUnsignedSignaturePlaceholders($targetPath, $documentType);
         $this->normalizeRequiredDocxParts($targetPath);
+    }
+
+    private function renderDocxTemplateWithRetry(string $sourcePath, string $targetPath, array $data, string $documentType): void
+    {
+        $attempts = 3;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                $this->renderDocxTemplate($sourcePath, $targetPath, $data, $documentType);
+
+                return;
+            } catch (Throwable $exception) {
+                $isTransientWindowsLock = str_contains($exception->getMessage(), 'Renaming temporary file failed')
+                    || str_contains($exception->getMessage(), 'Permission denied');
+
+                if (! $isTransientWindowsLock || $attempt === $attempts) {
+                    throw $exception;
+                }
+
+                clearstatcache(true, $targetPath);
+                @unlink($targetPath);
+                @unlink($targetPath.'.tmp.docx');
+                usleep(150000 * $attempt);
+            }
+        }
     }
 
     private function normalizeRequiredDocxParts(string $docxPath): void
@@ -1654,13 +1679,35 @@ XML;
             }
         }
 
-        if (in_array($documentType, ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
+        if (in_array($documentType, [
+            'partner_contract',
+            'venue_scale_appendix',
+            'venue_location_appendix',
+            'mutual_liquidation_minutes',
+            'settlement_minutes',
+        ], true)) {
             $tables = $xpath->query('//w:tbl');
             $signatureTable = $tables->item(max(0, $tables->length - 1));
             if ($signatureTable) {
                 $changed = $this->ensureDocxTableBorders($signatureTable) || $changed;
                 $changed = $this->centerDocxTableParagraphs($signatureTable, $xpath) || $changed;
                 $rows = $xpath->query('./w:tr', $signatureTable);
+
+                if (in_array($documentType, ['mutual_liquidation_minutes', 'settlement_minutes'], true)) {
+                    $headingRow = $rows->item(0);
+                    if ($headingRow) {
+                        $headingCells = $xpath->query('./w:tc', $headingRow);
+                        $leftHeading = $headingCells->length >= 1
+                            ? Str::ascii($this->normalizeDocxLabel($this->docxNodeText($headingCells->item(0), $xpath)))
+                            : '';
+
+                        if ($headingCells->length >= 2 && str_contains($leftHeading, 'daidienbena')) {
+                            $changed = $this->replaceDocxCellText($headingCells->item(0), $xpath, 'ĐẠI DIỆN BÊN A - SPORTGO') || $changed;
+                            $changed = $this->replaceDocxCellText($headingCells->item(1), $xpath, 'ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN') || $changed;
+                        }
+                    }
+                }
+
                 $targetRow = $rows->item(2) ?: $rows->item($rows->length - 1);
                 if ($targetRow) {
                     $cells = $xpath->query('./w:tc', $targetRow);
@@ -2188,6 +2235,12 @@ XML;
             foreach ($xpath->query('./w:tr', $table) as $row) {
                 $cells = $xpath->query('./w:tc', $row);
                 if ($cells->length < 2) {
+                    continue;
+                }
+
+                $firstCellKey = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($cells->item(0), $xpath)));
+                $secondCellKey = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($cells->item(1), $xpath)));
+                if (str_contains($firstCellKey, 'daidienbena') && str_contains($secondCellKey, 'daidienbenb')) {
                     continue;
                 }
 

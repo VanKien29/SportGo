@@ -79,7 +79,7 @@ export const ownerNavigationSections = [
         activeNames: ['owner-refunds'],
       },
       {
-        label: 'Ví tài chính',
+        label: 'Tài chính & số dư',
         icon: 'banknote',
         to: '/owner/finance',
         activeNames: ['owner-finance'],
@@ -142,7 +142,7 @@ export const ownerRouteTitles = {
   'owner-booking-settings': 'Cấu hình đặt sân',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',
   'owner-platform-fees': 'Phí nền tảng',
-  'owner-finance': 'Ví tài chính',
+  'owner-finance': 'Tài chính & số dư',
   'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',
   'owner-vouchers': 'Voucher của sân',

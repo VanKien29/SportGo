@@ -16,10 +16,6 @@
         </div>
 
         <div class="partner-doc-actions">
-          <button v-if="document" class="btn btn-primary" type="button" :disabled="!document.download_url" @click="scrollToDocument">
-            <AppIcon name="eye" size="16" />
-            Xem file
-          </button>
           <button v-if="document?.download_url" class="btn btn-secondary" type="button" @click="downloadFile(document.download_url)">
             <AppIcon name="download" size="16" />
             Tải file
@@ -84,10 +80,15 @@
               <div class="partner-card-head">
                 <div>
                   <h3>Ký điện tử</h3>
-                  <p>OTP chỉ gửi sau khi bạn đã mở file và bấm ký xác nhận.</p>
+                  <p>OTP được gửi tới email tài khoản chủ sân ở bước cuối.</p>
                 </div>
               </div>
               <div class="partner-card-body partner-action-stack">
+                <div class="partner-sign-steps" aria-label="Ba bước ký văn bản">
+                  <span :class="{ done: hasViewedFile }">1. Xem file</span>
+                  <span :class="{ done: !signatureEmpty }">2. Ký tên</span>
+                  <span :class="{ done: otpSent }">3. Xác thực OTP</span>
+                </div>
                 <div v-if="!hasViewedFile" class="partner-alert">
                   <strong>Cần xem file trước</strong>
                   <p>Vui lòng kiểm tra nội dung văn bản đang hiển thị ở khung bên trái trước khi ký.</p>
@@ -132,7 +133,7 @@
                     @click="requestSignatureOtp"
                   >
                     <AppIcon name="pencil" size="16" />
-                    {{ saving ? 'Đang gửi OTP...' : 'Ký xác nhận' }}
+                    {{ saving ? 'Đang gửi OTP...' : 'Gửi OTP để ký' }}
                   </button>
                   <button
                     v-else
@@ -142,7 +143,7 @@
                     @click="verifySignatureOtp"
                   >
                     <AppIcon name="check" size="16" />
-                    {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
+                    {{ saving ? 'Đang xác thực...' : 'Xác nhận OTP và ký' }}
                   </button>
                 </div>
               </div>
@@ -540,6 +541,30 @@ function formatDate(value) {
 
 .partner-inline-document-viewer .document-preview-pane {
   min-height: 100%;
+}
+
+.partner-sign-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.partner-sign-steps span {
+  min-width: 0;
+  border: 1px solid #dbe3df;
+  border-radius: 7px;
+  background: #f8faf9;
+  color: #64748b;
+  padding: 8px 6px;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.partner-sign-steps span.done {
+  border-color: #86b894;
+  background: #edf8f0;
+  color: #176534;
 }
 
 @media (max-width: 980px) {

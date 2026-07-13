@@ -15,7 +15,7 @@
     </div>
 
     <template v-else>
-      <section class="panel summary-panel">
+      <section class="panel summary-panel" :class="{ archived: hasArchivedTermination }">
         <div>
           <p class="eyebrow">{{ cluster?.name || termination?.venue_cluster?.name || 'Cụm sân' }}</p>
           <h2>{{ summaryStatusTitle }}</h2>
@@ -127,7 +127,7 @@
         <p v-if="termination.workflow_state?.reconsideration_pending" class="pending-note">SportGo đang xem xét phản hồi gần nhất của chủ sân.</p>
       </section>
 
-      <section v-if="(!termination || editingDraft) && !isUnilateralNotice" class="panel form-panel">
+      <section v-if="((!termination && !hasArchivedTermination) || editingDraft) && !isUnilateralNotice" class="panel form-panel">
         <div class="section-title">
           <div>
             <p class="eyebrow">Bước 1</p>
@@ -204,8 +204,13 @@
 
       <section v-if="showBookingWorkspace" class="panel">
         <div class="section-title">
-          <h2>2. Xử lý booking tương lai</h2>
-          <button class="btn btn-outline" type="button" @click="loadFutureBookings">Làm mới</button>
+          <div>
+            <h2>2. Xử lý booking tương lai</h2>
+            <p class="hint">Chọn booking cần xử lý, sau đó áp dụng một phương án.</p>
+          </div>
+          <label v-if="futureBookings.length" class="select-all-bookings">
+            <input v-model="allFutureBookingsSelected" type="checkbox" /> Chọn tất cả ({{ futureBookings.length }})
+          </label>
         </div>
 
         <div v-if="futureBookings.length" class="booking-list">
@@ -219,17 +224,22 @@
             <em>{{ money(booking.paid_online_amount) }} · {{ booking.action_status || booking.status }}</em>
           </label>
         </div>
-        <div v-if="futureBookings.length" class="actions">
-          <button class="btn btn-primary" type="button" :disabled="working || !futureBookings.length" @click="bulkAction('cancel_all_refund_to_user_balance')">
-            Hủy và hoàn tiền
-          </button>
-          <button class="btn btn-outline" type="button" :disabled="working || !futureBookings.length" @click="bulkAction('serve_until_last_booking')">
-            Phục vụ đến booking cuối
-          </button>
-          <button class="btn btn-outline" type="button" :disabled="working || !futureBookings.length" @click="bulkAction('manual_per_booking')">
-            Xử lý thủ công
-          </button>
+        <div v-if="futureBookings.length" class="booking-bulk-bar">
+          <label>
+            Phương án xử lý
+            <select v-model="bookingActionChoice">
+              <option value="">Chọn phương án</option>
+              <option v-for="policy in policies" :key="policy.value" :value="policy.value">{{ policy.label }}</option>
+            </select>
+          </label>
+          <div>
+            <span>{{ selectedBookingIds.length }} booking đã chọn</span>
+            <button class="btn btn-primary" type="button" :disabled="working || !selectedBookingIds.length || !bookingActionChoice" @click="bulkAction(bookingActionChoice)">
+              Áp dụng phương án
+            </button>
+          </div>
         </div>
+        <p v-else class="empty-copy">Không còn booking tương lai cần xử lý.</p>
       </section>
 
       <section v-if="showSettlementWorkspace" class="panel">
@@ -239,19 +249,34 @@
           </div>
           <div class="form-grid">
             <label>
-              Mã số dư chủ sân
-              <input v-model.trim="withdrawal.owner_wallet_id" inputmode="numeric" />
+              Nguồn số dư
+              <select v-model="withdrawal.owner_wallet_id">
+                <option value="">Chọn nguồn số dư</option>
+                <option v-for="wallet in ownerWallets" :key="wallet.id" :value="wallet.id">
+                  {{ wallet.venue_cluster?.name || cluster?.name || 'Số dư chủ sân' }} - {{ money(wallet.available_balance) }}
+                </option>
+              </select>
             </label>
             <label>
-              Mã tài khoản ngân hàng nhận tiền
-              <input v-model.trim="withdrawal.owner_bank_account_id" inputmode="numeric" />
+              Tài khoản nhận tiền
+              <select v-model="withdrawal.owner_bank_account_id">
+                <option value="">Chọn tài khoản ngân hàng</option>
+                <option v-for="account in bankAccounts" :key="account.id" :value="account.id">
+                  {{ account.bank_name }} - {{ maskAccountNumber(account.account_number) }} - {{ account.account_holder_name }}
+                </option>
+              </select>
             </label>
             <label>
               Số tiền
-              <input v-model.number="withdrawal.amount" type="number" min="50000" step="1000" />
+              <input v-model.number="withdrawal.amount" type="number" min="50000" :max="summary.withdrawable_amount" step="1000" />
+              <small>Tối đa {{ money(summary.withdrawable_amount) }}</small>
             </label>
           </div>
-          <button class="btn btn-primary" type="button" :disabled="working" @click="storeWithdrawal">
+          <p v-if="!ownerWallets.length || !bankAccounts.length" class="withdrawal-help">
+            Chưa có nguồn số dư hoặc tài khoản ngân hàng hợp lệ.
+            <RouterLink :to="{ name: 'owner-finance' }">Mở trang tài chính để kiểm tra</RouterLink>.
+          </p>
+          <button class="btn btn-primary" type="button" :disabled="working || !canSubmitWithdrawal" @click="storeWithdrawal">
             Gửi yêu cầu rút tiền
           </button>
         </div>
@@ -460,6 +485,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { ownerPartnerTerminationService } from '../../services/ownerPartnerTermination.js';
+import { api } from '../../services/api.js';
 
 const route = useRoute();
 const loading = ref(true);
@@ -470,6 +496,9 @@ const eligibility = ref(null);
 const termination = ref(null);
 const futureBookings = ref([]);
 const selectedBookingIds = ref([]);
+const bookingActionChoice = ref('');
+const ownerWallets = ref([]);
+const bankAccounts = ref([]);
 const showFutureBookingConfirm = ref(false);
 const showPreviewModal = ref(false);
 const previewPurpose = ref('document');
@@ -520,9 +549,25 @@ const summary = computed(() => eligibility.value?.data?.summary || termination.v
   future_booking_count: termination.value?.future_booking_count || 0,
 });
 const policies = computed(() => eligibility.value?.data?.policies || []);
+const allFutureBookingsSelected = computed({
+  get: () => futureBookings.value.length > 0 && selectedBookingIds.value.length === futureBookings.value.length,
+  set: (checked) => {
+    selectedBookingIds.value = checked ? futureBookings.value.map((booking) => booking.id) : [];
+  },
+});
+const canSubmitWithdrawal = computed(() => {
+  const amount = Number(withdrawal.amount || 0);
+  return Boolean(
+    withdrawal.owner_wallet_id
+    && withdrawal.owner_bank_account_id
+    && amount >= 50000
+    && amount <= Number(summary.value.withdrawable_amount || 0)
+  );
+});
 const canPreview = computed(() => Boolean(eligibility.value?.data?.eligible));
 const latestClosedRequest = computed(() => eligibility.value?.data?.latest_closed_request || null);
 const latestClosedDocuments = computed(() => requestDocuments(latestClosedRequest.value));
+const hasArchivedTermination = computed(() => isTerminatedStatus(latestClosedRequest.value?.status));
 const documents = computed(() => requestDocuments(termination.value));
 const displayDocuments = computed(() => {
   const currentByType = new Map();
@@ -564,12 +609,19 @@ const effectiveFutureBookingCount = computed(() => Number(termination.value?.fut
 const selectedPolicyLabel = computed(() => policyLabel(termination.value?.future_booking_policy || form.future_booking_policy));
 const isUnilateralNotice = computed(() => termination.value?.termination_type === 'unilateral_by_sportgo');
 const summaryStatusTitle = computed(() => {
-  if (!termination.value) return statusLabel('eligible');
+  if (!termination.value) {
+    return hasArchivedTermination.value
+      ? statusLabel(latestClosedRequest.value?.status)
+      : statusLabel('eligible');
+  }
   if (isUnilateralNotice.value && isSubmittedRequest(termination.value.status)) return 'Công văn chờ chủ sân xác nhận';
   if (isUnilateralNotice.value && isOwnerCancelledStatus(termination.value.status)) return 'SportGo đã thu hồi công văn';
   return statusLabel(termination.value.status);
 });
 const summaryStatusDescription = computed(() => {
+  if (!termination.value && hasArchivedTermination.value) {
+    return 'Hợp đồng đã chấm dứt. Cụm sân và toàn bộ booking, thanh toán, văn bản được giữ lại để tra cứu; mọi thao tác vận hành đã khóa.';
+  }
   if (isUnilateralNotice.value && isSubmittedRequest(termination.value?.status)) {
     return 'SportGo đã ký và gửi công văn. Chủ sân cần đọc file, xác nhận đã nhận rồi xử lý booking/công nợ.';
   }
@@ -715,12 +767,24 @@ async function load() {
         await loadFutureBookings();
       }
     }
+    syncSelectedCluster();
+    await loadFinancialAccounts();
   } catch (err) {
     loadError.value = err.message || 'Không thể tải hồ sơ chấm dứt.';
   } finally {
     loading.value = false;
   }
   prepareSignaturePads();
+}
+
+function syncSelectedCluster() {
+  const selected = cluster.value;
+  if (!selected?.id) return;
+
+  localStorage.setItem('selected_cluster', String(selected.id));
+  window.dispatchEvent(new CustomEvent('owner-cluster-changed', {
+    detail: selected,
+  }));
 }
 
 async function loadRequest(id) {
@@ -738,12 +802,35 @@ async function loadFutureBookings() {
   selectedBookingIds.value = futureBookings.value.map((booking) => booking.id);
 }
 
+async function loadFinancialAccounts() {
+  try {
+    const response = await api('/api/owner/finance/wallets');
+    ownerWallets.value = (response.data || []).filter((wallet) => (
+      !currentClusterId.value || String(wallet.venue_cluster_id) === String(currentClusterId.value)
+    ));
+    if (!ownerWallets.value.length) ownerWallets.value = response.data || [];
+    bankAccounts.value = response.bank_accounts || [];
+
+    const defaultWallet = ownerWallets.value.find((wallet) => String(wallet.venue_cluster_id) === String(currentClusterId.value)) || ownerWallets.value[0];
+    const defaultAccount = bankAccounts.value.find((account) => account.is_default) || bankAccounts.value[0];
+    withdrawal.owner_wallet_id ||= defaultWallet?.id || '';
+    withdrawal.owner_bank_account_id ||= defaultAccount?.id || '';
+    if (!withdrawal.amount && Number(summary.value.withdrawable_amount) >= 50000) {
+      withdrawal.amount = Number(summary.value.withdrawable_amount);
+    }
+  } catch {
+    ownerWallets.value = [];
+    bankAccounts.value = [];
+  }
+}
+
 function hydrateForm(request) {
   form.reason = request.reason || form.reason;
   form.detail_reason = request.detail_reason || form.detail_reason;
   form.requested_effective_date = request.requested_effective_date || '';
   form.future_booking_policy = request.future_booking_policy || form.future_booking_policy;
   form.warning_accepted = Boolean(request.owner_warning_accepted_at || form.warning_accepted);
+  bookingActionChoice.value = request.future_booking_policy || bookingActionChoice.value;
 }
 
 function buildOwnerSteps() {
@@ -941,10 +1028,13 @@ async function submit() {
 }
 
 async function bulkAction(action) {
+  if (!selectedBookingIds.value.length) {
+    actionError.value = 'Vui lòng chọn ít nhất một booking cần xử lý.';
+    return;
+  }
   await run(async () => {
-    const ids = selectedBookingIds.value.length ? selectedBookingIds.value : futureBookings.value.map((booking) => booking.id);
     const response = await ownerPartnerTerminationService.bulkAction(termination.value.id, {
-      booking_ids: ids,
+      booking_ids: selectedBookingIds.value,
       action,
       reason: 'Xử lý booking trong hồ sơ chấm dứt hợp đồng.',
     });
@@ -1166,6 +1256,12 @@ function signatureImage(pad) {
 
 function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value) || 0);
+}
+
+function maskAccountNumber(value) {
+  const digits = String(value || '');
+  if (digits.length <= 4) return digits || '-';
+  return `•••• ${digits.slice(-4)}`;
 }
 
 function statusLabel(status) {
@@ -1657,6 +1753,69 @@ textarea {
   gap: 8px;
 }
 
+.select-all-bookings {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.select-all-bookings input,
+.booking-row input,
+.check-row input {
+  width: auto;
+}
+
+.booking-bulk-bar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.booking-bulk-bar > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.booking-bulk-bar > div > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.form-grid label small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.empty-copy {
+  margin: 16px 0 0;
+  color: #64748b;
+  text-align: center;
+}
+
+.withdrawal-help {
+  margin: 12px 0;
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.withdrawal-help a {
+  color: #166534;
+  font-weight: 800;
+}
+
 .document-list {
   display: grid;
   gap: 10px;
@@ -1859,6 +2018,15 @@ textarea {
 
   .acknowledgement-band {
     grid-template-columns: 1fr;
+  }
+
+  .booking-bulk-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-bulk-bar > div {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .archive-documents {

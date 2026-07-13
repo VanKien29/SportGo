@@ -3,12 +3,13 @@
 
         <header class="owner-page-header">
             <div>
-                <p class="eyebrow">Chu san</p>
-                <h1>Quan ly cum san</h1>
-                <p>Theo doi van hanh, san con, yeu cau thay doi va ho so doi tac trong mot man hinh.</p>
+                <p class="eyebrow">Chủ sân</p>
+                <h1>Quản lý cụm sân</h1>
+                <p>Chọn một cụm sân, sau đó xử lý đúng một nhóm công việc bên dưới.</p>
             </div>
             <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
-                Ho so doi tac
+                <AppIcon name="fileText" size="16" />
+                Hồ sơ đối tác
             </button>
         </header>
 
@@ -33,21 +34,27 @@
 
         <!-- Main Grid -->
         <div v-else class="clusters-grid">
-            <section class="owner-command-center card">
-                <article v-for="card in ownerDashboardCards" :key="card.key" class="owner-stat-card">
-                    <span>{{ card.label }}</span>
-                    <strong>{{ card.value }}</strong>
-                    <small>{{ card.hint }}</small>
-                </article>
-            </section>
-
             <!-- Cluster List Sidebar -->
             <div class="clusters-list card">
-                <div
-                    v-for="cluster in clusters"
+                <div class="cluster-list-tools">
+                    <label>
+                        <span class="sr-only">Tìm cụm sân</span>
+                        <input v-model.trim="clusterSearch" type="search" placeholder="Tìm tên hoặc địa chỉ" />
+                    </label>
+                    <select v-model="clusterStatusFilter" aria-label="Lọc trạng thái cụm sân">
+                        <option value="">Tất cả</option>
+                        <option value="active">Đang hoạt động</option>
+                        <option value="attention">Cần xử lý</option>
+                        <option value="archived">Đã chấm dứt</option>
+                    </select>
+                </div>
+                <button
+                    v-for="cluster in filteredClusters"
                     :key="cluster.id"
                     class="cluster-item"
                     :class="{ active: selectedCluster?.id === cluster.id }"
+                    type="button"
+                    :aria-selected="selectedCluster?.id === cluster.id"
                     @click="selectCluster(cluster)"
                 >
                     <div class="cluster-info">
@@ -56,87 +63,69 @@
                             {{ formatFullAddress(cluster) }}
                         </p>
                         <div class="cluster-meta-line">
-                            <span class="cluster-status-pill" :class="`cluster-status-${cluster.status}`">{{ clusterStatusLabel(cluster.status) }}</span>
-                            <span>{{ clusterCourtCount(cluster) }} san</span>
+                            <span class="cluster-status-pill" :class="`cluster-status-${clusterDisplayStatus(cluster)}`">{{ clusterStatusLabel(cluster) }}</span>
+                            <span>{{ clusterCourtCount(cluster) }} sân</span>
                         </div>
                     </div>
                     <span v-if="clusterSignalCount(cluster)" class="cluster-alert-count">{{ clusterSignalCount(cluster) }}</span>
-                </div>
+                </button>
+                <p v-if="filteredClusters.length === 0" class="cluster-list-empty">Không có cụm sân phù hợp.</p>
             </div>
 
             <!-- Cluster Detail with Tabs -->
-            <div v-if="selectedCluster" class="cluster-detail">
+            <div
+                v-if="selectedCluster"
+                class="cluster-detail"
+                :class="{ 'is-archived': isClusterArchived, 'is-terminating': isTerminationRestricted }"
+            >
                 <section class="selected-cluster-hero card">
                     <div class="selected-cluster-main">
-                        <p class="eyebrow">Cum san dang quan ly</p>
+                        <p class="eyebrow">Cụm sân đang chọn</p>
                         <h2>{{ selectedCluster.name }}</h2>
                         <p>{{ formatFullAddress(selectedCluster) }}</p>
-                        <span class="cluster-status-pill" :class="`cluster-status-${selectedCluster.status}`">{{ clusterStatusLabel(selectedCluster.status) }}</span>
+                        <span class="cluster-status-pill" :class="`cluster-status-${clusterDisplayStatus(selectedCluster)}`">{{ clusterStatusLabel(selectedCluster) }}</span>
                     </div>
                     <div class="selected-cluster-facts">
                         <div>
-                            <span>San con</span>
+                            <span>Sân con</span>
                             <strong>{{ selectedClusterCourtCount }}</strong>
                         </div>
                         <div>
-                            <span>Viec cho xu ly</span>
+                            <span>Việc chờ xử lý</span>
                             <strong>{{ selectedTodoCount }}</strong>
                         </div>
                         <div>
-                            <span>Trang thai</span>
-                            <strong>{{ clusterStatusLabel(selectedCluster.status) }}</strong>
+                            <span>Trạng thái</span>
+                            <strong>{{ clusterStatusLabel(selectedCluster) }}</strong>
                         </div>
                     </div>
                     <div class="selected-cluster-actions">
-                        <button type="button" class="btn btn-primary btn-sm" @click="activeTab = 'courts'">
-                            Quan ly san con
+                        <button type="button" class="btn btn-outline btn-sm" @click="$router.push({ name: 'owner-partner-profile' })">
+                            <AppIcon name="fileText" size="15" /> Hồ sơ
                         </button>
-                        <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'approvals'">
-                            Yeu cau quy mo
-                        </button>
-                        <button type="button" class="btn btn-outline btn-sm" @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })">
-                            Cham dut hop dong
+                        <button
+                            v-if="selectedCluster.status !== 'pending'"
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })"
+                        >
+                            {{ isClusterArchived || isTerminationRestricted ? 'Xem hồ sơ chấm dứt' : 'Chấm dứt hợp tác' }}
                         </button>
                     </div>
                 </section>
 
-                <div class="owner-flow-bridge card">
-                    <div class="owner-flow-block">
-                        <span class="owner-flow-kicker">Quản lý cụm sân</span>
-                        <strong>{{ selectedCluster.name }}</strong>
-                        <p>Điều chỉnh vận hành, danh sách sân con, yêu cầu thay đổi quy mô và vị trí của cụm sân này.</p>
-                        <div class="owner-flow-actions">
-                            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'approvals'">
-                                Quy mô sân
-                                <span v-if="pendingApprovalCount > 0" class="inline-count">{{ pendingApprovalCount }}</span>
-                            </button>
-                            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'location'">
-                                Vị trí cụm sân
-                                <span v-if="pendingLocationCount > 0" class="inline-count">{{ pendingLocationCount }}</span>
-                            </button>
-                        </div>
+                <section v-if="isTerminationRestricted || isClusterArchived" class="cluster-restriction-banner" :class="{ archived: isClusterArchived }">
+                    <AppIcon :name="isClusterArchived ? 'archive' : 'lock'" size="20" />
+                    <div>
+                        <strong>{{ isClusterArchived ? 'Cụm sân đã chấm dứt hợp tác' : 'Cụm sân đang trong quy trình chấm dứt' }}</strong>
+                        <p v-if="isClusterArchived">Dữ liệu, sân con và lịch sử vẫn được lưu để tra cứu. Toàn bộ thao tác vận hành đã bị khóa.</p>
+                        <p v-else>Quản lý thông thường đã khóa. Hãy dùng hồ sơ chấm dứt để xử lý booking, hoàn tiền, rút tiền và ký văn bản.</p>
                     </div>
-                    <div class="owner-flow-block partner-flow">
-                        <span class="owner-flow-kicker">Hồ sơ & hợp đồng đối tác</span>
-                        <strong>Hợp đồng, phụ lục, chấm dứt</strong>
-                        <p>Xem/ký hợp đồng, phụ lục phát sinh từ yêu cầu đã duyệt và xử lý yêu cầu hủy/chấm dứt hợp tác.</p>
-                        <div class="owner-flow-actions">
-                            <button type="button" class="btn btn-outline btn-sm" @click="$router.push({ name: 'owner-partner-profile' })">
-                                Mở hồ sơ đối tác
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="termination-shortcut card">
-                    <button type="button" class="btn btn-primary btn-sm" @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })">
-                        Yeu cau cham dut hop dong
-                    </button>
-                </div>
+                </section>
 
                 <!-- Tabs -->
-                <div class="detail-tabs card" style="display: flex; justify-content: space-between; align-items: center; padding-right: 16px; position: relative;">
-                    <div style="display: flex; gap: 8px;">
+                <div class="detail-tabs card">
+                    <div class="detail-tab-list">
                         <button
                             v-for="tab in tabs"
                             :key="tab.key"
@@ -188,12 +177,13 @@
 
                 </div>
 
+                <fieldset class="cluster-operation-zone" :disabled="isTerminationRestricted || isClusterArchived">
                 <!-- ═══════════════════════════════════════════════════
                      TAB 1: THÔNG TIN CHUNG
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'info'" class="cluster-edit card">
 
-                    <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 20px;">
+                    <div v-if="isModerationLocked" class="alert alert-danger" style="margin-bottom: 20px;">
                         Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
@@ -1161,7 +1151,15 @@
 
                     <!-- Quy mô hiện tại -->
                     <div class="card current-scale-card">
-                        <h4 class="card-section-title">Quy mô hiện tại</h4>
+                        <div class="request-section-head">
+                            <div>
+                                <h4 class="card-section-title">Quy mô hiện tại</h4>
+                                <p>Thêm hoặc loại bỏ sân con phải đi qua đơn, bản xem trước và chữ ký.</p>
+                            </div>
+                            <button type="button" class="btn btn-primary" :disabled="isClusterLocked" @click="openCreateApprovalModal">
+                                <AppIcon name="plus" size="16" /> Tạo yêu cầu thay đổi
+                            </button>
+                        </div>
                         <div class="scale-summary-grid">
                             <div class="scale-stat-item">
                                 <span class="scale-stat-label">Tổng số sân con:</span>
@@ -1183,51 +1181,13 @@
                     <div class="card">
                         <div class="approval-list-header">
                             <h3 class="section-title">Lịch sử yêu cầu quy mô</h3>
-                            <div class="approval-filter-tabs">
-                                <button
-                                    class="tab-sm"
-                                    :class="{ active: approvalFilter === '' }"
-                                    @click="setApprovalFilter('')"
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'pending',
-                                    }"
-                                    @click="setApprovalFilter('pending')"
-                                >
-                                    Chờ duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'approved',
-                                    }"
-                                    @click="setApprovalFilter('approved')"
-                                >
-                                    Đã duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'rejected',
-                                    }"
-                                    @click="setApprovalFilter('rejected')"
-                                >
-                                    Từ chối
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'cancelled',
-                                    }"
-                                    @click="setApprovalFilter('cancelled')"
-                                >
-                                    Đã hủy
-                                </button>
-                            </div>
+                            <select v-model="approvalFilter" class="history-filter" aria-label="Lọc yêu cầu quy mô">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="pending">Chờ duyệt</option>
+                                <option value="approved">Đã duyệt</option>
+                                <option value="rejected">Từ chối</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
                         </div>
 
                         <div
@@ -1323,7 +1283,7 @@
                                             </button>
                                         </div>
                                         <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
-                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
+                                            SportGo đã ký phụ lục. Bấm "Ký phụ lục" để hoàn tất thay đổi.
                                         </div>
                                         <div
                                             v-if="
@@ -1527,7 +1487,15 @@
 
                     <!-- Thông tin vị trí hiện tại -->
                     <div class="card location-current-card">
-                        <h3 class="section-title">Vị trí hiện tại</h3>
+                        <div class="request-section-head">
+                            <div>
+                                <h3 class="section-title">Vị trí hiện tại</h3>
+                                <p>Vị trí mới chỉ được áp dụng sau khi phụ lục được hai bên ký.</p>
+                            </div>
+                            <button type="button" class="btn btn-primary" :disabled="isClusterLocked" @click="openLocationChangeModal">
+                                <AppIcon name="mapPin" size="16" /> Tạo yêu cầu thay đổi
+                            </button>
+                        </div>
                         <div class="location-current-grid">
                             <div class="location-info-row">
                                 <span class="location-label">Tỉnh/TP:</span
@@ -1557,51 +1525,13 @@
                             <h3 class="section-title">
                                 Lịch sử yêu cầu thay đổi vị trí
                             </h3>
-                            <div class="approval-filter-tabs">
-                                <button
-                                    class="tab-sm"
-                                    :class="{ active: locationFilter === '' }"
-                                    @click="setLocationFilter('')"
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'pending',
-                                    }"
-                                    @click="setLocationFilter('pending')"
-                                >
-                                    Chờ duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'approved',
-                                    }"
-                                    @click="setLocationFilter('approved')"
-                                >
-                                    Đã duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'rejected',
-                                    }"
-                                    @click="setLocationFilter('rejected')"
-                                >
-                                    Từ chối
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'cancelled',
-                                    }"
-                                    @click="setLocationFilter('cancelled')"
-                                >
-                                    Đã hủy
-                                </button>
-                            </div>
+                            <select v-model="locationFilter" class="history-filter" aria-label="Lọc yêu cầu vị trí">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="pending">Chờ duyệt</option>
+                                <option value="approved">Đã duyệt</option>
+                                <option value="rejected">Từ chối</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
                         </div>
 
                         <div
@@ -1697,7 +1627,7 @@
                                             </button>
                                         </div>
                                         <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
-                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
+                                            SportGo đã ký phụ lục. Bấm "Ký phụ lục" để hoàn tất thay đổi.
                                         </div>
                                         <div
                                             v-if="
@@ -1859,7 +1789,7 @@
                         </div>
                     </div>
                 </div>
-
+                </fieldset>
             </div>
         </div>
 
@@ -1944,13 +1874,21 @@
         >
             <div class="modal card modal-scale">
                 <div class="modal-header">
-                    <h3>Gửi yêu cầu mở rộng quy mô</h3>
+                    <div>
+                        <p class="modal-kicker">Thay đổi quy mô</p>
+                        <h3>Tạo đơn yêu cầu</h3>
+                    </div>
                     <button class="btn-close" @click="closeCreateApprovalModal">
                         <AppIcon name="x" size="18" />
                     </button>
                 </div>
-                <form @submit.prevent="handleCreateApproval">
+                <form @submit.prevent="handleCreateApproval" novalidate>
                     <div class="modal-body">
+                        <div class="request-flow-steps" aria-label="Quy trình gửi yêu cầu">
+                            <span class="active"><strong>1</strong> Nhập thay đổi</span>
+                            <span><strong>2</strong> Xem file</span>
+                            <span><strong>3</strong> Ký và gửi</span>
+                        </div>
                         <div v-if="newReqError" class="alert alert-danger">
                             {{ newReqError }}
                         </div>
@@ -2147,12 +2085,13 @@
                             <p v-else class="section-desc">Chưa có sân con đang hoạt động để chọn xóa bớt.</p>
                         </div>
                         <div class="form-group">
-                            <label>Ghi chú/Lý do mở rộng</label>
+                            <label>Lý do thay đổi quy mô</label>
                             <textarea
                                 v-model="newReqForm.note"
                                 class="form-control"
                                 rows="3"
-                                placeholder="Mô tả lý do bạn muốn mở rộng thêm sân con..."
+                                maxlength="1000"
+                                placeholder="Nêu ngắn gọn lý do thêm hoặc bỏ sân con..."
                             ></textarea>
                         </div>
                         <div class="form-group">
@@ -2289,11 +2228,11 @@
                             class="btn btn-primary"
                             :disabled="creatingReq"
                         >
-                            <AppIcon name="send" size="16" />
+                            <AppIcon name="fileText" size="16" />
                             {{
                                 creatingReq
-                                    ? "Đang gửi..."
-                                    : "Gửi yêu cầu"
+                                    ? "Đang tạo đơn..."
+                                    : "Tạo đơn để xem và ký"
                             }}
                         </button>
                     </div>
@@ -2309,13 +2248,21 @@
         >
             <div class="modal card modal-location">
                 <div class="modal-header">
-                    <h3>Yêu cầu thay đổi vị trí cụm sân</h3>
+                    <div>
+                        <p class="modal-kicker">Thay đổi vị trí</p>
+                        <h3>Tạo đơn yêu cầu</h3>
+                    </div>
                     <button class="btn-close" @click="closeLocationChangeModal">
                         <AppIcon name="x" size="18" />
                     </button>
                 </div>
-                <form @submit.prevent="handleLocationChangeSubmit">
+                <form @submit.prevent="handleLocationChangeSubmit" novalidate>
                     <div class="modal-body">
+                        <div class="request-flow-steps" aria-label="Quy trình gửi yêu cầu">
+                            <span class="active"><strong>1</strong> Nhập vị trí</span>
+                            <span><strong>2</strong> Xem file</span>
+                            <span><strong>3</strong> Ký và gửi</span>
+                        </div>
                         <div
                             v-if="locationModalError"
                             class="alert alert-danger"
@@ -2358,29 +2305,19 @@
                                 v-model="locationForm.new_address"
                                 type="text"
                                 class="form-control"
+                                maxlength="255"
                                 placeholder="Số nhà, tên đường..."
-                                required
                             />
                         </div>
                         <div class="form-group">
-                            <label>Link Google Maps mới</label>
-                            <div class="map-input-group">
-                                <input
-                                    v-model="locationForm.new_map_url"
-                                    type="url"
-                                    class="form-control"
-                                    placeholder="https://maps.google.com/..."
-                                />
-                                <button
-                                    type="button"
-                                    class="btn btn-outline btn-extract"
-                                    :disabled="resolvingLocationMap"
-                                    @click="useCurrentLocationForChange"
-                                >
-                                    <AppIcon name="mapPin" size="15" />
-                                    Lấy vị trí hiện tại
-                                </button>
-                            </div>
+                            <label>Ghim vị trí mới trên bản đồ <span class="required">*</span></label>
+                            <p class="map-help-text">
+                                Chạm bản đồ hoặc kéo ghim đến đúng vị trí. Tọa độ và đường dẫn bản đồ được lưu tự động.
+                            </p>
+                            <div
+                                id="location-change-modal-map"
+                                class="map-container"
+                            ></div>
                             <p
                                 v-if="locationMapMsg"
                                 :class="[
@@ -2391,45 +2328,6 @@
                                 {{ locationMapMsg.text }}
                             </p>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label
-                                    >Vĩ độ (Latitude) mới
-                                    <span class="required">*</span></label
-                                >
-                                <input
-                                    v-model.number="locationForm.new_latitude"
-                                    type="number"
-                                    step="0.0000001"
-                                    class="form-control"
-                                    required
-                                />
-                            </div>
-                            <div class="form-group">
-                                <label
-                                    >Kinh độ (Longitude) mới
-                                    <span class="required">*</span></label
-                                >
-                                <input
-                                    v-model.number="locationForm.new_longitude"
-                                    type="number"
-                                    step="0.0000001"
-                                    class="form-control"
-                                    required
-                                />
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Chọn vị trí mới trên bản đồ</label>
-                            <p class="map-help-text">
-                                Kéo marker hoặc click lên bản đồ để chọn vị trí
-                                chính xác.
-                            </p>
-                            <div
-                                id="location-change-modal-map"
-                                class="map-container"
-                            ></div>
-                        </div>
                         <div class="form-group">
                             <label
                                 >Lý do thay đổi vị trí
@@ -2439,8 +2337,8 @@
                                 v-model="locationForm.note"
                                 class="form-control"
                                 rows="3"
+                                maxlength="1000"
                                 placeholder="Mô tả lý do bạn muốn đổi vị trí..."
-                                required
                             ></textarea>
                         </div>
                         <div class="form-group">
@@ -2546,10 +2444,11 @@
                             class="btn btn-primary"
                             :disabled="locationSubmitting"
                         >
+                            <AppIcon name="fileText" size="16" />
                             {{
                                 locationSubmitting
-                                    ? "Đang gửi..."
-                                    : "Gửi yêu cầu"
+                                    ? "Đang tạo đơn..."
+                                    : "Tạo đơn để xem và ký"
                             }}
                         </button>
                     </div>
@@ -2946,8 +2845,6 @@
             </div>
         </div>
 
-        <!-- Nut noi hanh dong cum san -->
-        <ClusterActionFloating :is-locked="isClusterLocked" @action="triggerAction" />
         <PartnerFilePreviewDialog
             :show="documentPreviewOpen"
             :document="previewDocument"
@@ -2963,7 +2860,6 @@ import ActionIconButton from "../../components/ActionIconButton.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
 import FloatAddButton from "../../components/FloatAddButton.vue";
-import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
 import PartnerFilePreviewDialog from "../../components/partner/PartnerFilePreviewDialog.vue";
 import BaseCombobox from "../../components/BaseCombobox.vue";
 import { venueClusterService } from "../../services/venueClusters";
@@ -2971,15 +2867,18 @@ import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
 import { api, apiDownload } from "../../services/api";
+import { venueDisplayStatus, venuePartnerState } from "../../utils/venuePartnerState.js";
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating, PartnerFilePreviewDialog, BaseCombobox },
+    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, PartnerFilePreviewDialog, BaseCombobox },
     data() {
         return {
             // Cluster list
             clusters: [],
             selectedCluster: null,
+            clusterSearch: "",
+            clusterStatusFilter: "",
             loading: true,
             error: null,
             documentPreviewOpen: false,
@@ -2987,11 +2886,6 @@ export default {
  
             // Tabs
             activeTab: "info",
-            tabs: [
-                { key: "info", label: "Thông tin chung" },
-                { key: "approvals", label: "Yêu cầu quy mô" },
-                { key: "location", label: "Yêu cầu vị trí" },
-            ],
  
             // Info tab form
             updating: false,
@@ -3175,20 +3069,37 @@ export default {
     },
 
     computed: {
-        isClusterLocked() {
-            return this.selectedCluster && this.selectedCluster.status === 'locked';
+        isModerationLocked() {
+            return this.selectedCluster?.status === "locked" && this.selectedPartnerState === "normal";
         },
-        ownerDashboardCards() {
-            const active = this.clusters.filter((cluster) => cluster.status === "active").length;
-            const locked = this.clusters.filter((cluster) => cluster.status === "locked").length;
-            const terminating = this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+        selectedPartnerState() {
+            return venuePartnerState(this.selectedCluster);
+        },
+        isTerminationRestricted() {
+            return this.selectedPartnerState === "terminating";
+        },
+        isClusterArchived() {
+            return this.selectedPartnerState === "archived";
+        },
+        isClusterLocked() {
+            return this.isModerationLocked || this.isTerminationRestricted || this.isClusterArchived;
+        },
+        filteredClusters() {
+            const query = this.searchToken(this.clusterSearch);
+            return this.clusters.filter((cluster) => {
+                const matchesQuery = !query || this.searchToken([
+                    cluster.name,
+                    cluster.address,
+                    cluster.ward,
+                    cluster.province,
+                ].filter(Boolean).join(" ")).includes(query);
 
-            return [
-                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Dang gan voi tai khoan owner" },
-                { key: "active", label: "Dang hoat dong", value: active, hint: "Co the nhan booking" },
-                { key: "attention", label: "Can xu ly", value: locked + terminating + this.selectedTodoCount, hint: "Khoa, cham dut hoac yeu cau treo" },
-                { key: "terminated", label: "Da cham dut", value: this.clusters.filter((cluster) => cluster.status === "partner_terminated").length, hint: "Da tat van hanh doi tac" },
-            ];
+                if (!matchesQuery || !this.clusterStatusFilter) return matchesQuery;
+                const partnerState = venuePartnerState(cluster);
+                if (this.clusterStatusFilter === "active") return cluster.status === "active" && partnerState === "normal";
+                if (this.clusterStatusFilter === "archived") return partnerState === "archived";
+                return partnerState === "terminating" || ["pending", "locked"].includes(cluster.status);
+            });
         },
         selectedTodoCount() {
             return this.pendingApprovalCount + this.pendingLocationCount + this.pendingInfoCount + this.pendingUnlockCount;
@@ -3198,13 +3109,13 @@ export default {
         },
         tabs() {
             const list = [
-                { key: "courts", label: "San con" },
-                { key: "info", label: "Thông tin chung" },
-                { key: "info_requests", label: "Yêu cầu thông tin" },
-                { key: "approvals", label: "Yêu cầu quy mô" },
-                { key: "location", label: "Yêu cầu vị trí" },
+                { key: "info", label: "Tổng quan" },
+                { key: "courts", label: "Sân con" },
+                { key: "info_requests", label: "Thông tin" },
+                { key: "approvals", label: "Quy mô" },
+                { key: "location", label: "Vị trí" },
             ];
-            if (this.isClusterLocked) {
+            if (this.isModerationLocked) {
                 list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
             }
             return list;
@@ -3452,7 +3363,9 @@ export default {
                 const res = await venueClusterService.getClusters();
                 this.clusters = res.data || [];
                 if (this.clusters.length > 0) {
-                    this.selectCluster(this.clusters[0]);
+                    const requestedId = this.$route.query.cluster || localStorage.getItem("selected_cluster");
+                    const selected = this.clusters.find((cluster) => String(cluster.id) === String(requestedId)) || this.clusters[0];
+                    this.selectCluster(selected);
                 }
             } catch (err) {
                 this.error = err.message || "Lỗi khi tải danh sách cụm sân.";
@@ -3472,7 +3385,7 @@ export default {
 
         selectCluster(cluster) {
             this.selectedCluster = cluster;
-            if (cluster && cluster.status === "locked") {
+            if (cluster && cluster.status === "locked" && venuePartnerState(cluster) === "normal") {
                 this.activeTab = "unlock";
             } else {
                 this.activeTab = "info";
@@ -3558,14 +3471,19 @@ export default {
             if (cluster) this.selectCluster(cluster);
         },
 
-        clusterStatusLabel(status) {
+        clusterDisplayStatus(cluster) {
+            return venueDisplayStatus(cluster);
+        },
+
+        clusterStatusLabel(cluster) {
+            const status = venueDisplayStatus(cluster);
             return {
-                pending: "Cho duyet",
-                active: "Dang hoat dong",
-                locked: "Da khoa",
-                termination_locked: "Khoa cham dut",
-                termination_processing: "Dang cham dut",
-                partner_terminated: "Da cham dut",
+                pending: "Chờ duyệt",
+                active: "Đang hoạt động",
+                locked: "Đã khóa",
+                termination_locked: "Đang chấm dứt",
+                termination_processing: "Đang chấm dứt",
+                partner_terminated: "Đã chấm dứt",
             }[status] || status || "-";
         },
 
@@ -3577,7 +3495,8 @@ export default {
         clusterSignalCount(cluster) {
             if (!cluster) return 0;
             let count = 0;
-            if (["locked", "termination_locked", "termination_processing"].includes(cluster.status)) count += 1;
+            const partnerState = venuePartnerState(cluster);
+            if (partnerState === "terminating" || (partnerState === "normal" && cluster.status === "locked")) count += 1;
             if (this.selectedCluster?.id === cluster.id) count += this.selectedTodoCount;
             return count;
         },
@@ -3625,7 +3544,7 @@ export default {
         },
 
         openEditClusterModal() {
-            if (!this.selectedCluster) return;
+            if (!this.selectedCluster || this.isClusterLocked) return;
             this.editClusterError = null;
             this.editClusterForm = {
                 name: this.selectedCluster.name,
@@ -5448,8 +5367,8 @@ export default {
         },
 
         requestDocumentActionLabel(document) {
-            if (document?.status === "pending_owner_signature" && ["venue_scale_appendix", "venue_location_appendix"].includes(document.document_type)) return "Ky phu luc";
-            if (document?.status === "pending_owner_signature" && ["venue_scale_request", "venue_location_change_request"].includes(document.document_type)) return "Ky don";
+            if (document?.status === "pending_owner_signature" && ["venue_scale_appendix", "venue_location_appendix"].includes(document.document_type)) return "Ký phụ lục";
+            if (document?.status === "pending_owner_signature" && ["venue_scale_request", "venue_location_change_request"].includes(document.document_type)) return "Ký đơn";
             return document?.status === "pending_owner_signature" ? "Ký" : "Xem";
         },
 
@@ -5682,10 +5601,7 @@ export default {
         },
 
         async previewLocationRequest() {
-            if (!this.locationSupplementFiles.length) {
-                this.locationModalError = "Vui lòng tải lên giấy tờ/hình ảnh minh chứng vị trí mới.";
-                return;
-            }
+            if (!this.validateLocationRequestForSubmit()) return;
             this.locationPreviewing = true;
             this.locationModalError = null;
             try {
@@ -5706,6 +5622,7 @@ export default {
         },
 
         async openCreateApprovalModal() {
+            if (this.isClusterLocked) return;
             this.newReqForm = this.defaultScaleRequestForm();
             if (this.selectedCluster && !this.courts.length) {
                 await this.fetchCourts(this.selectedCluster.id);
@@ -5758,7 +5675,7 @@ export default {
                     formData,
                 );
                 this.newReqSuccess =
-                    "Gửi yêu cầu thành công! Admin sẽ xem xét và phê duyệt sớm.";
+                    "Đã tạo đơn. Vui lòng kiểm tra nội dung, ký và gửi yêu cầu.";
                 this.approvalRequests.unshift(res.data);
                 this.newReqForm = this.defaultScaleRequestForm();
                 this.removeEvidence();
@@ -5796,9 +5713,9 @@ export default {
         },
 
         approvalStatusLabel(status) {
-            if (status === "approved_pending_appendix") return "Da duyet, cho SportGo ky phu luc";
+            if (status === "approved_pending_appendix") return "Đã duyệt, chờ SportGo ký phụ lục";
             if (status === "pending_owner_signature") return "Chờ chủ sân ký";
-            if (status === "completed") return "Hoan tat thay doi";
+            if (status === "completed") return "Hoàn tất thay đổi";
 
             return (
                 {
@@ -5832,6 +5749,7 @@ export default {
         },
 
         async openLocationChangeModal() {
+            if (this.isClusterLocked) return;
             this.locationModalError = null;
             this.locationMapMsg = null;
             this.clearLocationSupplementFiles();
@@ -5880,16 +5798,52 @@ export default {
             this.locationSignatureDirty = false;
         },
 
-        async handleLocationChangeSubmit() {
+        showLocationModalError(message) {
+            this.locationModalError = message;
+            this.$nextTick(() => {
+                document
+                    .querySelector(".modal-location .alert-danger")
+                    ?.scrollIntoView({ block: "nearest" });
+            });
+            return false;
+        },
+
+        validateLocationRequestForSubmit() {
             this.locationModalError = null;
             if (!this.locationForm.new_province_code || !this.locationForm.new_ward_code) {
-                this.locationModalError = "Vui lòng chọn Tỉnh/Thành phố và Phường/Xã từ danh sách.";
-                return;
+                return this.showLocationModalError(
+                    "Vui lòng chọn Tỉnh/Thành phố và Phường/Xã từ danh sách.",
+                );
+            }
+            if (!this.locationForm.new_address?.trim()) {
+                return this.showLocationModalError("Vui lòng nhập địa chỉ cụ thể mới.");
+            }
+
+            const latitude = Number(this.locationForm.new_latitude);
+            const longitude = Number(this.locationForm.new_longitude);
+            if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+                return this.showLocationModalError(
+                    "Vị trí trên bản đồ chưa hợp lệ. Vui lòng đặt lại ghim.",
+                );
+            }
+            if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+                return this.showLocationModalError(
+                    "Vị trí trên bản đồ chưa hợp lệ. Vui lòng đặt lại ghim.",
+                );
+            }
+            if (!this.locationForm.note?.trim()) {
+                return this.showLocationModalError("Vui lòng nhập lý do muốn thay đổi vị trí.");
             }
             if (!this.locationSupplementFiles.length) {
-                this.locationModalError = "Vui lòng tải lên giấy tờ/hình ảnh minh chứng vị trí mới.";
-                return;
+                return this.showLocationModalError(
+                    "Vui lòng tải lên giấy tờ hoặc hình ảnh minh chứng vị trí mới.",
+                );
             }
+            return true;
+        },
+
+        async handleLocationChangeSubmit() {
+            if (!this.validateLocationRequestForSubmit()) return;
             this.locationSubmitting = true;
             try {
                 const formData = this.buildLocationRequestFormData(false);
@@ -6122,6 +6076,7 @@ export default {
     flex-direction: column;
     gap: 20px;
     max-width: 1200px;
+    min-width: 0;
     margin: 0 auto;
 }
 
@@ -6156,7 +6111,7 @@ export default {
 
 .card {
     background: var(--admin-surface, #ffffff);
-    border-radius: 12px;
+    border-radius: 8px;
     border: 1px solid var(--admin-border, #e5e7eb);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     padding: 24px;
@@ -6165,9 +6120,10 @@ export default {
 /* ─── Layout ─── */
 .clusters-grid {
     display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 20px;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    gap: 16px;
     align-items: start;
+    min-width: 0;
 }
 
 .owner-command-center {
@@ -6204,7 +6160,7 @@ export default {
     font-size: 12px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
     .clusters-grid {
         grid-template-columns: 1fr;
     }
@@ -6227,7 +6183,35 @@ export default {
     flex-direction: column;
     gap: 8px;
     position: sticky;
-    top: 20px;
+    top: 76px;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+}
+
+.cluster-list-tools {
+    display: grid;
+    gap: 8px;
+    position: sticky;
+    top: -12px;
+    z-index: 2;
+    margin: -12px -12px 2px;
+    padding: 12px;
+    border-bottom: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-surface, #fff);
+}
+
+.cluster-list-tools input,
+.cluster-list-tools select,
+.history-filter {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid var(--admin-border, #dbe3df);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #0f172a);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 13px;
 }
 
 .cluster-item {
@@ -6240,6 +6224,9 @@ export default {
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.2s ease;
+    width: 100%;
+    background: transparent;
+    text-align: left;
 }
 .cluster-info {
     min-width: 0;
@@ -6324,13 +6311,19 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
 }
 
 .selected-cluster-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.9fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 16px;
+    padding: 18px;
+}
+
+.selected-cluster-facts {
+    grid-column: 1 / -1;
 }
 
 .selected-cluster-main h2 {
@@ -6374,8 +6367,54 @@ export default {
 
 .selected-cluster-actions {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 8px;
+}
+
+.cluster-restriction-banner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #78350f;
+    padding: 14px 16px;
+}
+
+.cluster-restriction-banner.archived {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.cluster-restriction-banner strong {
+    display: block;
+}
+
+.cluster-restriction-banner p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.cluster-operation-zone {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.cluster-detail.is-archived .cluster-operation-zone,
+.cluster-detail.is-terminating .cluster-operation-zone {
+    opacity: .58;
+    filter: saturate(.35);
+}
+
+.cluster-operation-zone:disabled {
+    cursor: not-allowed;
 }
 
 .owner-flow-bridge {
@@ -6448,6 +6487,13 @@ export default {
     gap: 4px;
     padding: 8px;
     background: var(--admin-surface, #ffffff);
+    overflow-x: auto;
+}
+
+.detail-tab-list {
+    display: flex;
+    gap: 4px;
+    min-width: max-content;
 }
 
 .tab-btn {
@@ -8934,5 +8980,116 @@ export default {
     display: flex;
     justify-content: flex-end;
     margin: 12px 0;
+}
+
+.request-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.request-section-head h3,
+.request-section-head h4 {
+    margin: 0 0 6px;
+}
+
+.request-section-head p {
+    max-width: 720px;
+    margin: 0;
+    color: var(--admin-text-muted, #64748b);
+    line-height: 1.5;
+}
+
+.request-flow-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 18px;
+}
+
+.request-flow-steps span {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--admin-border, #dbe5dc);
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #f8fafc);
+    color: var(--admin-text-muted, #64748b);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.request-flow-steps span:first-child {
+    border-color: #86b894;
+    background: #eef8f0;
+    color: #176534;
+}
+
+.modal-kicker {
+    margin: 0 0 4px;
+    color: #1f7a3f;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cluster-list-empty {
+    margin: 12px 4px;
+    color: var(--admin-text-muted, #64748b);
+    font-size: 13px;
+    text-align: center;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.modal-scale,
+.modal-location {
+    width: min(920px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+}
+
+@media (max-width: 720px) {
+    .request-section-head,
+    .cluster-hero,
+    .cluster-hero-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .request-section-head .btn,
+    .cluster-hero-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .request-flow-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .cluster-hero {
+        display: flex;
+    }
+
+    .cluster-list-panel {
+        position: static;
+        max-height: none;
+    }
+
+    .modal-scale,
+    .modal-location {
+        width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+    }
 }
 </style>

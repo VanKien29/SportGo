@@ -40,32 +40,27 @@
             Duyệt
           </button>
           <button
-            v-if="canReviewApplication"
-            class="btn danger"
-            type="button"
-            @click="actionMode = 'reject'"
-          >
-            <AppIcon name="x" size="16" />
-            Từ chối
-          </button>
-          <button
-            v-if="canReviewApplication"
-            class="btn warning"
-            type="button"
-            @click="actionMode = 'supplement'"
-          >
-            <AppIcon name="fileText" size="16" />
-            Bổ sung
-          </button>
-          <button
             v-if="pendingSportgoDocument"
             class="btn primary"
             type="button"
             @click="openDocument(pendingSportgoDocument)"
           >
             <AppIcon name="pencil" size="16" />
-            Ký hợp đồng
+            Xem và ký văn bản
           </button>
+          <details v-if="canReviewApplication" class="review-more">
+            <summary class="btn ghost">
+              Thao tác khác <AppIcon name="chevronDown" size="15" />
+            </summary>
+            <div class="review-more-menu">
+              <button type="button" @click="actionMode = 'supplement'">
+                <AppIcon name="fileText" size="15" /> Yêu cầu bổ sung
+              </button>
+              <button class="danger" type="button" @click="actionMode = 'reject'">
+                <AppIcon name="x" size="15" /> Từ chối hồ sơ
+              </button>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -318,7 +313,10 @@
 
       <section v-if="activeTab === 'signing'" class="content-card">
         <div class="card-head">
-          <h3>Nhật ký ký số / OTP</h3>
+          <div>
+            <h3>Nhật ký chữ ký điện tử</h3>
+            <p class="muted">OTP chỉ áp dụng cho bước xác nhận của chủ sân; admin ký trực tiếp bằng tài khoản đang đăng nhập.</p>
+          </div>
           <span>{{ signingLogs.length }} giao dịch</span>
         </div>
 
@@ -349,7 +347,7 @@
               </dl>
             </div>
           </article>
-          <p v-if="!signingLogs.length" class="empty-text">Chưa có giao dịch OTP/ký số nào.</p>
+          <p v-if="!signingLogs.length" class="empty-text">Chưa có giao dịch chữ ký nào.</p>
         </div>
       </section>
 
@@ -801,7 +799,7 @@ const tabs = [
   { value: 'overview', label: 'Tổng quan' },
   { value: 'courts', label: 'Sân quản lý' },
   { value: 'documents', label: 'Tài liệu & văn bản' },
-  { value: 'signing', label: 'Nhật ký ký số / OTP' },
+  { value: 'signing', label: 'Chữ ký điện tử' },
   { value: 'history', label: 'Lịch sử' },
   { value: 'settlement', label: 'Hủy/chấm dứt & quyết toán' },
 ];
@@ -1316,7 +1314,7 @@ function terminationNextAction(request) {
   if (isUnilateralNotice(request) && isTerminationDraftStatus(request.status)) {
     return {
       title: 'Cần admin xem và ký công văn',
-      description: 'File mới là bản xem trước. Mở văn bản, ký và nhập OTP để phát hành; trước đó cụm sân chưa bị khóa bởi công văn này.',
+      description: 'File mới là bản xem trước. Admin mở văn bản, ký trực tiếp và phát hành; trước đó cụm sân chưa bị khóa bởi công văn này.',
     };
   }
   if (isUnilateralNotice(request) && isTerminationSubmittedStatus(request.status)) {
@@ -1933,7 +1931,60 @@ function dateOnly(value) {
 
 .action-buttons,
 .row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.review-more {
+  position: relative;
+}
+
+.review-more > summary {
+  list-style: none;
+}
+
+.review-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.review-more-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 190px;
+  gap: 4px;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--admin-surface, #fff);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
+  padding: 6px;
+}
+
+.review-more-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-text, #0f172a);
+  cursor: pointer;
+  padding: 9px 10px;
+  font-weight: 750;
+  text-align: left;
+}
+
+.review-more-menu button:hover {
+  background: var(--admin-surface-muted, #f8fafc);
+}
+
+.review-more-menu button.danger {
+  color: #b91c1c;
 }
 
 .tabs {
@@ -1956,8 +2007,8 @@ function dateOnly(value) {
 }
 
 .tabs button.active {
-  border-color: #0f172a;
-  background: #0f172a;
+  border-color: #16844a;
+  background: #16844a;
   color: #fff;
 }
 
