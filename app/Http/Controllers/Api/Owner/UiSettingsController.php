@@ -21,6 +21,7 @@ class UiSettingsController extends Controller
             'active_theme_id' => 'owner-zinc',
             'sidebar_style' => 'one-level',
             'radius' => '8px',
+            'font_size' => '14px',
             'presets' => [
                 [
                     'id' => 'owner-zinc',
@@ -53,6 +54,7 @@ class UiSettingsController extends Controller
             'active_theme_id' => ['required', 'string', 'max:80'],
             'sidebar_style' => ['required', 'string', Rule::in(['one-level', 'two-level'])],
             'radius' => ['required', 'string', Rule::in(['0px', '4px', '8px', '12px', '16px'])],
+            'font_size' => ['nullable', 'string', Rule::in(['12px', '13px', '14px', '15px', '16px'])],
             'presets' => ['nullable', 'array'],
             'custom_themes' => ['nullable', 'array'],
         ]);

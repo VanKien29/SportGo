@@ -415,5 +415,3 @@ export default {
   },
 };
 </script>
-
-<style src="../../../css/owner/dashboard.css" scoped></style>

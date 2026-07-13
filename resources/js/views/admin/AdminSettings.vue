@@ -138,6 +138,21 @@
             </button>
           </div>
 
+          <!-- Font Size Section -->
+          <div class="settings-section-title">Cỡ chữ</div>
+          <div class="radius-selector-group">
+            <button
+              v-for="f in fontSizeOptions"
+              :key="f.value"
+              type="button"
+              class="radius-btn"
+              :class="{ active: selectedFontSize === f.value }"
+              @click="selectedFontSize = f.value"
+            >
+              {{ f.label }}
+            </button>
+          </div>
+
           <!-- Color Customizer Section -->
           <div class="settings-section-title">Chỉnh sửa bảng màu</div>
           
@@ -438,9 +453,9 @@ export default {
   data() {
     return {
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
-      successMessage: '',
       selectedPresetId: 'zinc',
       selectedRadius: '8px',
+      selectedFontSize: '14px',
       newThemeName: '',
       activeModeTab: 'light',
       activePickerColorKey: null,
@@ -452,6 +467,13 @@ export default {
         { label: '4px', value: '4px' },
         { label: '8px', value: '8px' },
         { label: '12px', value: '12px' },
+        { label: '16px', value: '16px' },
+      ],
+      fontSizeOptions: [
+        { label: '12px', value: '12px' },
+        { label: '13px', value: '13px' },
+        { label: '14px', value: '14px' },
+        { label: '15px', value: '15px' },
         { label: '16px', value: '16px' },
       ],
       defaultPresets: PRESETS,
@@ -721,6 +743,7 @@ export default {
           if (parsed.light) this.theme.light = { ...PRESETS[0].light, ...parsed.light };
           if (parsed.dark) this.theme.dark = { ...PRESETS[0].dark, ...parsed.dark };
           if (parsed.radius) this.selectedRadius = parsed.radius;
+          if (parsed.font_size) this.selectedFontSize = parsed.font_size;
           
           // Match preset if possible
           const matched = this.allPresets.find(p => 
@@ -753,6 +776,7 @@ export default {
         this.theme.dark = { ...defaultPreset.dark };
         this.selectedPresetId = 'zinc';
         this.selectedRadius = '8px';
+        this.selectedFontSize = '14px';
       }
     },
     async fetchUiSettingsFromDb() {
@@ -761,6 +785,7 @@ export default {
         if (data) {
           this.sidebarStyle = data.sidebar_style || 'one-level';
           this.selectedRadius = data.radius || '8px';
+          this.selectedFontSize = data.font_size || '14px';
           
           if (data.presets && data.presets.length > 0) {
             this.defaultPresets = data.presets;
@@ -788,7 +813,8 @@ export default {
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
-        radius: this.selectedRadius
+        radius: this.selectedRadius,
+        font_size: this.selectedFontSize
       };
       localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
       localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
@@ -803,6 +829,7 @@ export default {
           active_theme_id: this.selectedPresetId,
           sidebar_style: this.sidebarStyle,
           radius: this.selectedRadius,
+          font_size: this.selectedFontSize,
           presets: this.defaultPresets,
           custom_themes: this.userPresets,
         };
@@ -853,7 +880,7 @@ export default {
 
 /* Titles and labels */
 .settings-section-title {
-  font-size: 13px;
+  font-size: var(--admin-font-size-md, 13px);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;

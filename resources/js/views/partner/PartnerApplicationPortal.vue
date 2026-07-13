@@ -383,7 +383,7 @@
 </template>
 
 <style scoped>
-@import "../../../css/partner/partner.css";
+
 
 .form-group {
   min-width: 0;

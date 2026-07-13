@@ -2,7 +2,7 @@
   <div class="bookings-page">
     <!-- Floating Add Button -->
     <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
-      <router-link class="btn-float-add" to="/owner/counter-booking" title="Tạo booking tại quầy">
+      <router-link class="btn-float-add" to="/staff/counter-booking" title="Tạo booking tại quầy">
         <AppIcon name="plus" size="20" />
         <span class="btn-float-text">Tạo booking</span>
       </router-link>

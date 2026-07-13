@@ -23,6 +23,7 @@ export const OWNER_THEME_DEFAULTS = {
   active_theme_id: 'owner-zinc',
   sidebar_style: 'one-level',
   radius: '8px',
+  font_size: '14px',
   presets: [
     {
       id: 'owner-zinc',
@@ -43,6 +44,7 @@ export function mergeOwnerThemeSettings(settings = {}) {
     custom_themes: Array.isArray(settings.custom_themes) ? settings.custom_themes : [],
     radius: settings.radius || OWNER_THEME_DEFAULTS.radius,
     sidebar_style: settings.sidebar_style || OWNER_THEME_DEFAULTS.sidebar_style,
+    font_size: settings.font_size || OWNER_THEME_DEFAULTS.font_size,
   };
 }
 
@@ -122,6 +124,14 @@ export function buildOwnerThemeCss(settings = {}) {
   const merged = mergeOwnerThemeSettings(settings);
   const preset = getOwnerThemePreset(merged);
   const radius = merged.radius || '8px';
+  const fontSize = merged.font_size || '14px';
+
+  let fontScale = '1';
+  if (fontSize === '12px') fontScale = '0.857';
+  else if (fontSize === '13px') fontScale = '0.929';
+  else if (fontSize === '15px') fontScale = '1.071';
+  else if (fontSize === '16px') fontScale = '1.143';
+
   const light = cssVarsForMode(preset.light || OWNER_THEME_DEFAULTS.presets[0].light);
   const dark = cssVarsForMode(preset.dark || OWNER_THEME_DEFAULTS.presets[0].dark);
   const ownerScope = '.sg-shell-owner,\nbody.' + OWNER_THEME_SCOPE_CLASS;
@@ -131,7 +141,7 @@ export function buildOwnerThemeCss(settings = {}) {
   const ownerDarkScope = '[data-theme="dark"] .sg-shell-owner,\n'
     + '[data-theme="dark"] body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
     + 'body.' + OWNER_THEME_SCOPE_CLASS + '[data-theme="dark"]';
-  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n}\n'
+  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n  --admin-font-size: ' + fontSize + ' !important;\n  --admin-font-size-scale: ' + fontScale + ' !important;\n  zoom: var(--admin-font-size-scale, 1) !important;\n}\n'
     + ownerLightScope + ' {\n  ' + light + '\n}\n'
     + ownerDarkScope + ' {\n  ' + dark + '\n}\n';
 }

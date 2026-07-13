@@ -507,7 +507,7 @@ function formatDate(value) {
 </script>
 
 <style scoped>
-@import "../../../css/partner/partner.css";
+
 
 .partner-document-card .partner-card-body {
   min-height: 760px;

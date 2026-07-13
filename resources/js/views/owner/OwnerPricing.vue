@@ -645,5 +645,3 @@ export default {
   },
 };
 </script>
-
-<style src="../../../css/owner/pricing.css" scoped></style>

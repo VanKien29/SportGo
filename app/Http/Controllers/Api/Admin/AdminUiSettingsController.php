@@ -17,6 +17,7 @@ class AdminUiSettingsController extends Controller
             'active_theme_id' => 'zinc',
             'sidebar_style' => 'one-level',
             'radius' => '8px',
+            'font_size' => '14px',
             'presets' => [
                 [
                     'id' => 'zinc',
@@ -69,6 +70,7 @@ class AdminUiSettingsController extends Controller
             'active_theme_id' => ['required', 'string'],
             'sidebar_style' => ['required', 'string'],
             'radius' => ['required', 'string'],
+            'font_size' => ['nullable', 'string'],
             'presets' => ['nullable', 'array'],
             'custom_themes' => ['nullable', 'array'],
         ]);
