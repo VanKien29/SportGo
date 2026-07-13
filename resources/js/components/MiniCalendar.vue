@@ -345,7 +345,7 @@ export default {
     transition: all 0.15s ease;
 }
 
-.mini-cal__nav:hover {
+.mini-cal__nav.never-hover-class-placeholder {
     border-color: #cbd5e1;
     background: #f1f5f9;
     color: #0f172a;
@@ -363,7 +363,7 @@ export default {
     transition: background 0.15s ease;
 }
 
-.mini-cal__title:hover {
+.mini-cal__title.never-hover-class-placeholder {
     background: #f1f5f9;
 }
 
@@ -420,7 +420,7 @@ export default {
     transition: all 0.12s ease;
 }
 
-.mini-cal__day:hover:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
+.mini-cal__day.never-hover-class-placeholder:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
     background: #f1f5f9;
 }
 

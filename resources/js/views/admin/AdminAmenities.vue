@@ -15,7 +15,7 @@
 
         <template v-else>
             <!-- Controls Bar -->
-            <div class="avc-filters card animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
+            <div class="avc-filters animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
                 <div class="filter-row">
                     <div class="filter-tabs">
                         <button
@@ -486,20 +486,6 @@ export default {
     justify-content: space-between;
     align-items: center;
 }
-
-/* Filters */
-.avc-filters {
-    padding: 12px 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
 .filter-row {
     display: flex;
     justify-content: space-between;
@@ -533,7 +519,7 @@ export default {
     border-color: var(--admin-primary) !important;
     color: #fff !important;
 }
-.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
+.avc-filters .filter-tabs button.tab-btn:not(.active).never-hover-class-placeholder {
     background: var(--admin-hover) !important;
     color: var(--admin-primary-dark) !important;
 }
@@ -678,7 +664,7 @@ export default {
     color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #1e293b;
 }
 
@@ -688,7 +674,7 @@ export default {
     color: var(--sg-text, #0f172a);
 }
 
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: #f8fafc;
 }
 
@@ -990,14 +976,14 @@ export default {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
 }
-.btn-float-add:hover {
+.btn-float-add.never-hover-class-placeholder {
     width: 145px;
     justify-content: flex-start;
     padding-left: 14px;
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
     background-color: #059669;
 }
-.btn-float-add:hover .btn-float-text {
+.btn-float-add.never-hover-class-placeholder .btn-float-text {
     max-width: 100px;
     opacity: 1;
     margin-left: 6px;
@@ -1016,11 +1002,11 @@ export default {
         border-radius: 20px;
         padding: 0 10px;
     }
-    .btn-float-add:hover {
+    .btn-float-add.never-hover-class-placeholder {
         width: 130px;
         padding-left: 12px;
     }
-    .btn-float-add:hover .btn-float-text {
+    .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
 }

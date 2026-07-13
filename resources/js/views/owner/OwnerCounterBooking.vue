@@ -6122,7 +6122,7 @@ export default {
     cursor: pointer;
 }
 
-.date-stepper button:hover {
+.date-stepper button.never-hover-class-placeholder {
     border-color: #22c55e;
     background: #f0fdf4;
     color: #166534;
@@ -6564,7 +6564,7 @@ input.invalid {
         box-shadow 0.16s ease;
 }
 
-.time-slot:hover:not(:disabled) {
+.time-slot.never-hover-class-placeholder:not(:disabled) {
     background: var(--admin-hover, #f3f4f6);
     box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
 }
@@ -7606,7 +7606,7 @@ input.invalid {
     cursor: pointer;
 }
 
-.weekday-planner-actions button:hover:not(:disabled) {
+.weekday-planner-actions button.never-hover-class-placeholder:not(:disabled) {
     border-color: #22c55e;
     background: #f0fdf4;
 }
@@ -7634,7 +7634,7 @@ input.invalid {
         transform 0.15s ease;
 }
 
-.weekday-plan-card:hover {
+.weekday-plan-card.never-hover-class-placeholder {
     transform: translateY(-1px);
     border-color: #86d19a;
 }
@@ -7718,7 +7718,7 @@ input.invalid {
         transform 0.16s ease;
 }
 
-.day-grid label:hover {
+.day-grid label.never-hover-class-placeholder {
     border-color: #86efac;
     background: #f0fdf4;
     transform: translateY(-1px);
@@ -7798,7 +7798,7 @@ input.invalid {
     cursor: pointer;
 }
 
-.month-day-actions button:hover {
+.month-day-actions button.never-hover-class-placeholder {
     border-color: #22c55e;
     background: #f0fdf4;
 }
@@ -7821,7 +7821,7 @@ input.invalid {
     cursor: pointer;
 }
 
-.month-day-grid button:hover {
+.month-day-grid button.never-hover-class-placeholder {
     border-color: #86efac;
     background: #f0fdf4;
 }

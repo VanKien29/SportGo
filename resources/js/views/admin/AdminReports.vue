@@ -5,43 +5,7 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <nav class="page-tabs" style="margin-bottom: 20px; display: flex; gap: 12px;">
-      <button class="tab-btn" :class="{ active: filters.target_group === 'content' }" @click="setTargetGroup('content')">Bài viết & Bình luận</button>
-      <button class="tab-btn" :class="{ active: filters.target_group === 'user' }" @click="setTargetGroup('user')">Tài khoản</button>
-      <button class="tab-btn" :class="{ active: filters.target_group === 'venue' }" @click="setTargetGroup('venue')">Cụm sân</button>
-    </nav>
 
-    <section class="filter-panel">
-      <div class="filter-bar">
-        <label class="search-box">
-          <AppIcon name="search" size="17" />
-          <input v-model.trim="filters.keyword" placeholder="Tìm người gửi, nội dung hoặc mã đối tượng" @keyup.enter="loadReports" />
-        </label>
-        <CustomSelect 
-          v-if="filters.target_group === 'content'"
-          v-model="filters.target_type" 
-          :options="[{value: '', label: 'Tất cả đối tượng'}, ...filteredTargetTypes]" 
-          @change="loadReports" 
-        />
-        <CustomSelect 
-          v-model="filters.reason" 
-          :options="[{value: '', label: 'Tất cả lý do'}, ...reasons]" 
-          @change="loadReports" 
-        />
-        <CustomSelect 
-          v-model="filters.status" 
-          :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]" 
-          @change="loadReports" 
-        />
-        <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" />
-        <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" />
-        <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadReports" />
-        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadReports" />
-      </div>
-    </section>
-
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
 
     <div v-if="loading" class="empty-state">Đang tải danh sách báo cáo...</div>
     <div v-else-if="reports.length === 0" class="empty-state">Không có báo cáo phù hợp.</div>
@@ -107,12 +71,13 @@
 
             <section class="detail-section">
               <h4>Đối tượng bị báo cáo</h4>
-              <p class="content-box">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
-              <div v-if="getTargetUrl(selected)" style="margin-top: 10px;">
-                <a :href="getTargetUrl(selected)" target="_blank" class="btn primary" style="text-decoration: none; display: inline-flex; gap: 8px; font-weight: 700; background: #2563eb; color: white;">
-                  <AppIcon name="external-link" size="16" /> Xem chi tiết đối tượng vi phạm
+              <div v-if="getTargetUrl(selected)" class="content-box target-box" style="display: flex; flex-direction: column; gap: 8px;">
+                <p style="margin: 0;">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
+                <a :href="getTargetUrl(selected)" target="_blank" style="font-size: 13px; font-weight: 600; color: #2563eb; display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                  <AppIcon name="external-link" size="14" /> Xem trực tiếp trên hệ thống
                 </a>
               </div>
+              <p v-else class="content-box">{{ selected.target?.title || selected.target?.content || selected.target?.label || 'Đối tượng không còn tồn tại.' }}</p>
             </section>
 
             <section class="detail-section">
@@ -412,14 +377,15 @@ export default {
     getTargetUrl(report) {
       if (!report || !report.target_id) return null;
       const id = report.target_id;
+      const slug = report.target?.slug || id;
       
       switch (report.target_type) {
         case 'post':
         case 'venue_post':
         case 'player_post':
-          return this.$router.resolve({ name: 'admin-post-detail', params: { id } }).href;
+          return window.location.origin + '/community/' + slug;
         case 'comment':
-          return report.parent_id ? this.$router.resolve({ name: 'admin-post-detail', params: { id: report.parent_id } }).href : null;
+          return window.location.origin + '/community/' + (report.target?.post?.slug || report.parent_id || slug);
         case 'user':
           return this.$router.resolve({ name: 'admin-user-detail', params: { id } }).href;
         case 'venue':
@@ -666,7 +632,7 @@ export default {
   display: inline-block;
 }
 
-.floating-config-btn:hover {
+.floating-config-btn.never-hover-class-placeholder {
   width: 215px;
   justify-content: flex-start;
   padding-left: 14px;
@@ -675,7 +641,7 @@ export default {
   background-color: #f8fafc;
 }
 
-.floating-config-btn:hover .floating-config-text {
+.floating-config-btn.never-hover-class-placeholder .floating-config-text {
   max-width: 170px;
   opacity: 1;
   margin-left: 6px;

@@ -506,7 +506,7 @@ function formatDate(value) {
 }
 </script>
 
-<style>
+<style scoped>
 @import "../../../css/partner/partner.css";
 
 .partner-document-card .partner-card-body {

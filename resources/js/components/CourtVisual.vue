@@ -362,7 +362,7 @@ export default {
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.5) !important;
 }
 
-.has-hover:hover {
+.has-hover.never-hover-class-placeholder {
   transform: scale(1.03) !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   cursor: pointer;

@@ -106,15 +106,29 @@
               </div>
             </section>
 
-            <section class="detail-section">
-              <h2>Khung giờ hoạt động</h2>
-              <div class="hours-grid">
-                <article v-for="item in operatingHours" :key="item.day">
-                  <strong>{{ item.day }}</strong>
-                  <span>{{ item.value }}</span>
-                </article>
+          <!-- On-site Services & Products -->
+          <section class="detail-section" v-if="groupedServices.length">
+            <h2 class="section-title">Dịch vụ & Sản phẩm tại sân</h2>
+            <div class="services-by-category-container">
+              <div v-for="group in groupedServices" :key="group.key" class="service-category-block" style="margin-bottom: 20px;">
+                <h3 class="service-category-label" style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+                  {{ group.label }}
+                </h3>
+                <div class="services-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
+                  <div v-for="item in group.items" :key="item.id" class="service-product-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="flex: 1; padding-right: 8px;">
+                      <span class="product-name" style="font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.8); display: block;">{{ item.name }}</span>
+                      <span v-if="item.description" class="product-desc" style="font-size: 11.5px; color: rgba(255,255,255,0.35); margin-top: 2px; display: block;">{{ item.description }}</span>
+                    </div>
+                    <div style="text-align: right; white-space: nowrap;">
+                      <span class="product-price" style="font-size: 13.5px; font-weight: 700; color: #f59e0b; display: block;">{{ formatPrice(item.price) }}</span>
+                      <span class="product-unit" style="font-size: 11px; color: rgba(255,255,255,0.35); display: block; margin-top: 1px;">/ {{ item.unit }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </section>
+            </div>
+          </section>
 
             <section class="detail-section">
               <h2>Chính sách sân</h2>
@@ -167,6 +181,7 @@
             </section>
           </div>
 
+          <aside class="booking-panel" ref="bookingPanelRef">
             <div class="booking-form">
               <div class="booking-flow">
                 <span class="active">1. Chọn ngày</span>
@@ -247,13 +262,14 @@
               </button>
 
               <button
-                class="btn-outline btn-full chat-owner-btn"
-                @click="chatWithOwner"
+                class="btn-outline btn-full flex items-center justify-center gap-2"
+                style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
+                @click="chatWithVenue"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                Nhắn tin hỏi chủ sân
+                Nhắn tin với cụm sân
               </button>
 
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
@@ -332,44 +348,32 @@ export default {
       });
       return Object.values(groups);
     },
-    operatingHours() {
-      const hours = this.venue?.operating_hours || {};
-      const weekly = hours.weekly_operating_hours || {};
 
-      if (hours.fixed_open_time && hours.fixed_close_time) {
-        return [{ day: "Mỗi ngày", value: `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}` }];
-      }
-
-      if (Object.keys(weekly).length) {
-        return dayLabels.map((day, index) => {
-          const value = weekly[index] || weekly[String(index)] || {};
-          if (value.is_open === false) return { day, value: "Đóng cửa" };
-          return { day, value: `${this.timeLabel(value.open_time || "05:00:00")} - ${this.timeLabel(value.close_time || "22:00:00")}` };
-        });
-      }
-
-      return [{ day: "Mỗi ngày", value: "05:00 - 22:00" }];
+    groupedServices() {
+      const services = this.venue?.services || [];
+      const groups = {};
+      
+      services.forEach(item => {
+        const catId = item.category_id || 'other';
+        const catName = item.category?.name || 'Dịch vụ khác';
+        if (!groups[catId]) {
+          groups[catId] = {
+            key: catId,
+            label: catName,
+            items: []
+          };
+        }
+        groups[catId].items.push(item);
+      });
+      
+      return Object.values(groups);
     },
-    policies() {
-      const policy = this.venue?.policies || {};
-      const payment = [
-        policy.allow_full_payment ? "trả đủ" : "",
-        policy.allow_deposit ? `đặt cọc${policy.deposit_percent ? ` ${Number(policy.deposit_percent)}%` : ""}` : "",
-        policy.allow_no_prepay ? "trả sau" : "",
-      ].filter(Boolean).join(", ");
 
-      return [
-        { label: "Thanh toán", value: payment || "Theo cấu hình của sân" },
-        { label: "Đặt trước tối thiểu", value: policy.min_advance_booking_minutes ? `${policy.min_advance_booking_minutes} phút` : "30 phút" },
-        { label: "Giữ chỗ thanh toán", value: policy.slot_hold_minutes ? `${policy.slot_hold_minutes} phút` : "Theo hệ thống" },
-        { label: "Hủy sân", value: policy.cancel_before_hours ? `Trước ${policy.cancel_before_hours} giờ, hoàn ${policy.refund_percent || 0}%` : "Theo chính sách sân" },
-      ];
+    priceSlots() {
+      return this.venue?.price_slots || [];
     },
     basePrices() {
       return this.venue?.base_prices || [];
-    },
-    priceSlots() {
-      return this.venue?.price_slots || [];
     },
     reviews() {
       return this.venue?.reviews || [];
@@ -548,29 +552,13 @@ export default {
       if (slot?.end_time) query.end_time = slot.end_time;
       this.$router.push({ name: 'booking-create', query });
     },
-    chatWithOwner() {
-      this.$router.push({ name: "chat", query: { venueId: this.venue.id } });
-    },
-    imageUrl(path) {
-      if (!path) return "";
-      if (/^https?:\/\//.test(path)) return path;
-      return `/storage/${path}`;
-    },
-    initials(name = "") {
-      return String(name).trim().slice(0, 2).toUpperCase() || "SG";
-    },
-    todayStr() {
-      return new Date().toISOString().slice(0, 10);
-    },
-    timeLabel(time) {
-      return String(time || "").slice(0, 5);
-    },
-    formatCurrency(amount) {
-      return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-        maximumFractionDigits: 0,
-      }).format(Number(amount || 0));
+
+    chatWithVenue() {
+      if (!this.venue) return;
+      this.$router.push({
+        path: '/chat',
+        query: { venueId: this.venue.id }
+      });
     },
   },
 };
@@ -609,18 +597,40 @@ main {
 
 .breadcrumbs {
   gap: 8px;
-  margin-bottom: 22px;
-  color: rgba(255, 255, 255, .72);
-  font-size: 13px;
-  font-weight: 800;
+  padding: 12px 24px;
+  background: #ffffff;
+  color: #09090b;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-
-.breadcrumbs a {
-  color: inherit;
-  text-decoration: none;
+.btn-primary.never-hover-class-placeholder { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-primary.btn-full { width: 100%; justify-content: center; border-radius: 10px; }
+.btn-outline {
+  padding: 10px 22px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 9999px;
+  color: rgba(255,255,255,0.7);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
+.btn-outline.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); color: #fff; }
 
-.hero-grid {
+/* ─── Hero ─── */
+.hero {
+  padding-top: 72px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr);
   gap: 32px;
@@ -666,13 +676,27 @@ main {
   height: 58px;
   overflow: hidden;
   border: 2px solid transparent;
-  border-radius: 8px;
-  flex: 0 0 auto;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  padding: 0;
+  background: none;
 }
+.thumb-btn img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-btn.active { border-color: #ffffff; }
+.thumb-btn.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); }
 
-.gallery-thumbs button.active {
-  border-color: #fff;
+/* Hero Info */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.2s;
 }
+.back-link.never-hover-class-placeholder { color: #ffffff; }
 
 .type-row {
   gap: 8px;

@@ -149,6 +149,9 @@ class VenueController extends Controller
                 'affiliateProducts' => function ($query) {
                     $query->where('is_active', true)->latest();
                 },
+                'services' => function ($query) {
+                    $query->with('category')->where('status', 'active')->latest();
+                },
             ])
             ->where('status', 'active')
             ->where(function ($query) use ($id) {
@@ -174,6 +177,7 @@ class VenueController extends Controller
                 'layout_decorations' => $cluster->layout_decorations,
                 'amenities' => $cluster->amenities ?? [],
                 'amenities_detail' => $amenitiesDetail,
+                'services' => $cluster->services,
                 'booking_config' => $cluster->bookingConfig,
                 'operating_hours' => $this->operatingHoursPayload($cluster),
                 'policies' => $this->policyPayload($cluster),

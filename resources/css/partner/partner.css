@@ -63,7 +63,7 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
-  .portal-card:hover {
+  .portal-card.never-hover-class-placeholder {
     box-shadow: var(--shadow-md);
     border-color: #cbd5e1;
   }
@@ -136,7 +136,7 @@
     box-shadow: var(--shadow-sm);
   }
   
-  .btn-primary:hover:not(:disabled) {
+  .btn-primary.never-hover-class-placeholder:not(:disabled) {
     background: var(--primary-hover);
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
@@ -149,7 +149,7 @@
     box-shadow: var(--shadow-sm);
   }
   
-  .btn-secondary:hover:not(:disabled) {
+  .btn-secondary.never-hover-class-placeholder:not(:disabled) {
     background: var(--bg-color);
     border-color: #cbd5e1;
   }
@@ -160,7 +160,7 @@
     border-color: var(--border-color);
   }
   
-  .btn-outline:hover:not(:disabled) {
+  .btn-outline.never-hover-class-placeholder:not(:disabled) {
     background: var(--bg-color);
   }
   
@@ -397,7 +397,7 @@
     transition: all 0.3s;
   }
   
-  .app-list-item:hover {
+  .app-list-item.never-hover-class-placeholder {
     border-color: #cbd5e1;
     box-shadow: var(--shadow-md);
   }
@@ -508,7 +508,7 @@
     border: none;
     background: transparent;
   }
-  .combo-item:hover {
+  .combo-item.never-hover-class-placeholder {
     background: var(--bg-color);
   }
   .combo-item.active {

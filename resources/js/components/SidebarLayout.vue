@@ -176,7 +176,7 @@ export default {
   text-decoration: none;
 }
 
-:deep(.nav-item:hover) {
+:deep(.nav-item.never-hover-class-placeholder) {
   background: rgba(0, 0, 0, 0.03) !important;
   color: #000000 !important;
 }
@@ -210,7 +210,7 @@ export default {
   transition: all 0.2s ease;
 }
 
-.view-user-btn:hover {
+.view-user-btn.never-hover-class-placeholder {
   background: rgba(0, 0, 0, 0.05);
   color: #000000;
   border-color: rgba(0, 0, 0, 0.15);
@@ -241,7 +241,7 @@ export default {
   transition: all 0.2s ease;
 }
 
-.user-trigger:hover {
+.user-trigger.never-hover-class-placeholder {
   background: rgba(0, 0, 0, 0.03);
 }
 
@@ -306,7 +306,7 @@ export default {
   transition: all 0.2s ease;
 }
 
-.dd-item:hover {
+.dd-item.never-hover-class-placeholder {
   background: rgba(0, 0, 0, 0.03);
   color: #000000;
 }
@@ -316,7 +316,7 @@ export default {
   border-top: 1px solid #e5e7eb;
 }
 
-.dd-logout:hover {
+.dd-logout.never-hover-class-placeholder {
   background: rgba(239, 68, 68, 0.05);
   color: #ef4444;
 }

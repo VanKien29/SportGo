@@ -24,7 +24,9 @@ class RoleRedirectService
         'staff_manager',
     ];
 
-    private const OWNER_ROLES = ['venue_owner', 'venue_staff'];
+    private const OWNER_ROLES = ['venue_owner'];
+
+    private const STAFF_ROLES = ['venue_staff'];
 
     public function __construct(
         private readonly VenueMembershipService $venueMemberships,
@@ -51,6 +53,10 @@ class RoleRedirectService
             return 'owner';
         }
 
+        if (array_intersect($roles, self::STAFF_ROLES)) {
+            return 'staff';
+        }
+
         return 'user';
     }
 
@@ -64,6 +70,7 @@ class RoleRedirectService
         return match ($roleGroup) {
             'admin' => '/admin/dashboard',
             'owner' => '/owner/dashboard',
+            'staff' => '/staff/dashboard',
             default => '/',
         };
     }

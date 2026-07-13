@@ -1442,7 +1442,7 @@ export default {
   transition: outline 0.12s ease;
 }
 
-.timeline-block:hover,
+.timeline-block.never-hover-class-placeholder,
 .timeline-block.active {
   outline: 2px solid rgba(22, 163, 74, 0.28);
   outline-offset: 2px;
@@ -1580,7 +1580,7 @@ export default {
   transition: all 0.12s ease;
 }
 
-.drawer-close:hover {
+.drawer-close.never-hover-class-placeholder {
   background: #f1f5f9;
   color: #0f172a;
 }
@@ -1644,7 +1644,7 @@ export default {
   transition: all 0.12s ease;
 }
 
-.drawer-action:hover {
+.drawer-action.never-hover-class-placeholder {
   background: #f1f5f9;
 }
 
@@ -1954,9 +1954,9 @@ input, select, textarea {
   cursor: pointer;
 }
 
-.row-action-menu button:hover { background: #eef8ef; color: #216b34; }
+.row-action-menu button.never-hover-class-placeholder { background: #eef8ef; color: #216b34; }
 .row-action-menu button.danger { color: #b42318; }
-.row-action-menu button.danger:hover { background: #fef2f2; }
+.row-action-menu button.danger.never-hover-class-placeholder { background: #fef2f2; }
 
 /* ===== Responsive ===== */
 @media (max-width: 980px) {

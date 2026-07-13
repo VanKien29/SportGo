@@ -38,7 +38,7 @@
   box-shadow: var(--admin-shadow-sm);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.cluster-badge:hover {
+.cluster-badge.never-hover-class-placeholder {
   border-color: var(--admin-text);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
@@ -78,7 +78,7 @@
   box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.section-box:hover {
+.section-box.never-hover-class-placeholder {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
 }
 .section-header-row {
@@ -116,7 +116,7 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
 }
-.section-action-btn:hover {
+.section-action-btn.never-hover-class-placeholder {
   background: var(--admin-hover);
   color: var(--admin-text);
   border-color: var(--admin-faint);
@@ -144,7 +144,7 @@
   border: 1px solid var(--admin-border);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.wallet-premium-card:hover {
+.wallet-premium-card.never-hover-class-placeholder {
   transform: translateY(-3px);
   box-shadow: var(--admin-shadow-lg);
 }
@@ -210,7 +210,7 @@
   align-items: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.wallet-subcard:hover {
+.wallet-subcard.never-hover-class-placeholder {
   border-color: var(--admin-faint);
   background: var(--admin-surface);
   transform: translateY(-2px);
@@ -248,7 +248,7 @@
   min-width: 0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.stat-card:hover {
+.stat-card.never-hover-class-placeholder {
   border-color: var(--admin-faint);
   box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.08);
   transform: translateY(-3px);
@@ -530,7 +530,7 @@
   background: #f9fafb;
 }
 
-.post-open-link:hover {
+.post-open-link.never-hover-class-placeholder {
   border-color: #9ca3af;
   background: #ffffff;
 }
@@ -570,7 +570,7 @@
   color: var(--admin-text);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.premium-table tbody tr:hover {
+.premium-table tbody tr.never-hover-class-placeholder {
   background-color: var(--admin-hover);
 }
 .premium-table tbody tr:last-child td {

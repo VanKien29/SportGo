@@ -74,7 +74,7 @@
   transition: background-color 150ms ease;
 }
 
-.theme-mode-reset-btn:hover {
+.theme-mode-reset-btn.never-hover-class-placeholder {
   background: var(--admin-primary-soft);
 }
 
@@ -138,7 +138,7 @@
   transition: transform 150ms ease, border-color 150ms ease;
 }
 
-.color-picker-input:hover {
+.color-picker-input.never-hover-class-placeholder {
   transform: scale(1.1);
   border-color: var(--admin-primary);
 }
@@ -207,7 +207,7 @@
   transition: background-color 150ms ease, transform 150ms ease;
 }
 
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
   background: var(--admin-primary-dark);
   transform: translateY(-1px);
 }
@@ -227,7 +227,7 @@
   transition: background-color 150ms ease, transform 150ms ease;
 }
 
-.btn-secondary:hover {
+.btn-secondary.never-hover-class-placeholder {
   background: var(--admin-hover);
   transform: translateY(-1px);
 }
@@ -255,7 +255,7 @@
   transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
 
-.sidebar-type-card:hover {
+.sidebar-type-card.never-hover-class-placeholder {
   transform: translateY(-2px);
   border-color: var(--admin-primary-light);
   box-shadow: var(--admin-shadow-card);

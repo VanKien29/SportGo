@@ -1,17 +1,19 @@
 <template>
     <section class="ledger-page">
-        <PlatformFeeSubnav />
+        <div class="pf-header-bar">
+            <PlatformFeeSubnav />
 
-        <!-- Action bar with reminder check button -->
-        <div class="action-bar-layout" style="margin-bottom: 12px; display: flex; justify-content: flex-end;">
-            <button
-                class="btn secondary icon-text"
-                type="button"
-                @click="runReminderCheck"
-            >
-                <AppIcon name="bell" size="18" />
-                <span>Chạy kiểm tra nhắc phí</span>
-            </button>
+            <!-- Action bar with reminder check button -->
+            <div class="header-actions">
+                <button
+                    class="btn secondary icon-text run-reminder-btn"
+                    type="button"
+                    @click="runReminderCheck"
+                >
+                    <AppIcon name="bell" size="18" />
+                    <span>Chạy kiểm tra nhắc phí</span>
+                </button>
+            </div>
         </div>
 
         <!-- Floating Add Button -->
@@ -24,7 +26,7 @@
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
-        <section class="panel filter-grid">
+        <AdminFilterPanel panel-class="filter-grid" :show-refresh="false">
             <select v-model="filters.venue_cluster_id" @change="loadLedgers">
                 <option value="">Tất cả cụm sân</option>
                 <option
@@ -100,12 +102,15 @@
                 />
                 <span>Chỉ xem quá hạn</span>
             </label>
-            <input
-                v-model.trim="filters.keyword"
-                placeholder="Tìm mã kỳ phí, cụm sân, owner"
-                @input="loadLedgers"
-            />
-        </section>
+            <label class="search-box">
+                <AppIcon name="search" size="18" />
+                <input
+                    v-model.trim="filters.keyword"
+                    placeholder="Tìm mã kỳ phí, cụm sân, owner"
+                    @input="loadLedgers"
+                />
+            </label>
+        </AdminFilterPanel>
 
         <section class="kpi-grid">
             <router-link
@@ -458,6 +463,7 @@
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
+import AdminFilterPanel from "../../components/AdminFilterPanel.vue";
 import {
     calculateLedgerPreview,
     cancelLedger,
@@ -494,7 +500,7 @@ function today() {
 
 export default {
     name: "AdminPlatformFeeLedgers",
-    components: { AppIcon, PlatformFeeSubnav },
+    components: { AppIcon, PlatformFeeSubnav, AdminFilterPanel },
     data() {
         return {
             ledgers: [],
@@ -924,6 +930,23 @@ textarea {
     padding: 10px 12px;
     font: inherit;
 }
+.pf-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.run-reminder-btn {
+    transition: all 0.2s ease-in-out;
+}
+.run-reminder-btn.never-hover-class-placeholder {
+    background: var(--admin-primary-soft, #f0fdf4) !important;
+    color: var(--admin-primary, #22a653) !important;
+    border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent) !important;
+    transform: translateY(-1px);
+}
 .check-row {
     flex-direction: row;
     align-items: center;
@@ -1105,7 +1128,7 @@ th:nth-child(8) { width: 62px; }
     width: 34px;
     height: 34px;
 }
-.icon-btn:hover:not(:disabled) {
+.icon-btn.never-hover-class-placeholder:not(:disabled) {
     background: #eef2f7;
 }
 .icon-btn.success {
@@ -1157,7 +1180,7 @@ th:nth-child(8) { width: 62px; }
     text-align: left;
     cursor: pointer;
 }
-.ledger-action-menu button:hover:not(:disabled) {
+.ledger-action-menu button.never-hover-class-placeholder:not(:disabled) {
     background: #f1f5f9;
 }
 .ledger-action-menu button.danger {
@@ -1174,7 +1197,7 @@ th:nth-child(8) { width: 62px; }
     border: 0;
     border-radius: 8px;
     padding: 10px 14px;
-    font-weight: 900;
+    font-weight: 600;
     cursor: pointer;
 }
 .btn.primary {

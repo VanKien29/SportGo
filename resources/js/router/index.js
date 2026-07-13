@@ -30,6 +30,7 @@ import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
+import StaffLayout from "../views/staff/StaffLayout.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
@@ -38,13 +39,13 @@ import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
-import NewsDetail from "../views/clients/NewsDetail.vue";
+import CommunityPostDetail from "../views/clients/NewsDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
-    { path: "/news/:slug", name: "news-detail", component: NewsDetail },
+    { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -70,6 +71,12 @@ const routes = [
         meta: { requiresAuth: false, title: "Tin tức" },
     },
     {
+        path: "/community",
+        name: "ClientCommunityList",
+        component: () => import("@/views/clients/community/CommunityList.vue"),
+        meta: { requiresAuth: false, title: "Cộng đồng" },
+    },
+    {
         path: "/news/:slug",
         name: "ClientNewsDetail",
         component: () => import("@/views/clients/news/NewsDetail.vue"),
@@ -78,7 +85,7 @@ const routes = [
     {
         path: "/chat",
         name: "chat",
-        component: () => import("../views/Chat.vue"),
+        component: () => import("../views/clients/ClientChat.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -247,6 +254,12 @@ const routes = [
                     import("../views/admin/AdminAmenities.vue"),
             },
             {
+                path: "service-categories",
+                name: "admin-service-categories",
+                component: () =>
+                    import("../views/admin/AdminServiceCategories.vue"),
+            },
+            {
                 path: "venue-clusters",
                 name: "admin-venue-clusters",
                 component: () =>
@@ -340,6 +353,12 @@ const routes = [
                     import("../views/owner/OwnerAffiliate.vue"),
             },
             {
+                path: "services",
+                name: "owner-services",
+                component: () =>
+                    import("../views/owner/OwnerServices.vue"),
+            },
+            {
                 path: "venue-courts",
                 name: "owner-venue-courts",
                 component: () =>
@@ -367,6 +386,11 @@ const routes = [
                 component: () => import("../views/owner/OwnerBookingSettings.vue"),
             },
             {
+                path: "settings",
+                name: "owner-settings",
+                component: () => import("../views/owner/OwnerSettings.vue"),
+            },
+            {
                 path: "platform-fees",
                 name: "owner-platform-fees",
                 component: () => import("../views/owner/OwnerPlatformFees.vue"),
@@ -382,6 +406,11 @@ const routes = [
                 component: () => import("../views/owner/OwnerVenuePosts.vue"),
             },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
+            {
+                path: "staff-shifts",
+                name: "owner-staff-shifts",
+                component: () => import("../views/owner/OwnerStaffShifts.vue"),
+            },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
@@ -407,6 +436,11 @@ const routes = [
                 component: () => import("../views/owner/OwnerPartnerProfile.vue"),
             },
             {
+                path: "chat",
+                name: "owner-chat",
+                component: () => import("../views/owner/OwnerChat.vue"),
+            },
+            {
                 path: "partner-documents/:id/:documentId",
                 name: "owner-partner-document",
                 component: PartnerApplicationDocumentPage,
@@ -423,6 +457,25 @@ const routes = [
                 component: () => import("../views/owner/OwnerRefundRequests.vue"),
             },
             { path: "", redirect: { name: "owner-dashboard" } },
+        ],
+    },
+    {
+        path: "/staff",
+        component: StaffLayout,
+        meta: { requiresAuth: true, role: "staff" },
+        children: [
+            {
+                path: "dashboard",
+                name: "staff-dashboard",
+                component: () => import("../views/staff/StaffDashboard.vue"),
+            },
+            {
+                path: "schedules",
+                name: "staff-schedules",
+                component: () => import("../views/staff/StaffSchedules.vue"),
+            },
+            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "", redirect: { name: "staff-dashboard" } },
         ],
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },
@@ -452,6 +505,10 @@ router.beforeEach(async (to, from, next) => {
         return next({ name: "owner-profile" });
     }
 
+    if (to.name === "profile" && auth?.role_group === "staff") {
+        return next({ name: "staff-profile" });
+    }
+
     if (to.matched.some((route) => route.meta.requiresAuth)) {
         const requiredRole = to.matched.find((route) => route.meta.role)?.meta
             .role;
@@ -469,6 +526,8 @@ router.beforeEach(async (to, from, next) => {
                 return next({ name: "admin-dashboard" });
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
+            if (auth.role_group === "staff")
+                return next({ name: "staff-dashboard" });
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
         }
@@ -479,6 +538,8 @@ router.beforeEach(async (to, from, next) => {
             return next({ name: "admin-dashboard" });
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
+        if (auth.role_group === "staff")
+            return next({ name: "staff-dashboard" });
         return next({ name: "home" });
     }
 

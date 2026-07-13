@@ -908,7 +908,7 @@ export default {
 
 .content-list { display: grid; gap: 12px; }
 .content-card { display: flex; justify-content: space-between; gap: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow 0.2s; }
-.content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.content-card.never-hover-class-placeholder { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
 .content-card-body { display: grid; gap: 8px; flex: 1; min-width: 0; }
 .content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
@@ -932,11 +932,11 @@ export default {
 .btn.danger { background: #fee2e2; color: #b91c1c; }
 .btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; color: #334155; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .btn-sm.danger { border-color: #fecaca; background: #fee2e2; color: #b91c1c; }
-.btn-sm.danger:hover { background: #fef2f2; }
+.btn-sm.danger.never-hover-class-placeholder { background: #fef2f2; }
 .btn-sm.icon-btn { padding: 8px; border-radius: 8px; color: #64748b; background: transparent; border-color: transparent; }
-.btn-sm.icon-btn:hover { color: #1e293b; background: #f1f5f9; }
+.btn-sm.icon-btn.never-hover-class-placeholder { color: #1e293b; background: #f1f5f9; }
 .btn-sm.icon-btn.danger { background: transparent; border-color: transparent; color: #ef4444; }
-.btn-sm.icon-btn.danger:hover { background: #fef2f2; color: #b91c1c; }
+.btn-sm.icon-btn.danger.never-hover-class-placeholder { background: #fef2f2; color: #b91c1c; }
 
 .status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
 .status.active, .status.visible, .status.published { background: #dcfce7; color: #166534; }
@@ -998,7 +998,7 @@ textarea { resize: vertical; }
   cursor: pointer; color: #64748b; 
   transition: all 0.2s; 
 }
-.fb-close-btn:hover { background: #e2e8f0; color: #1e293b; }
+.fb-close-btn.never-hover-class-placeholder { background: #e2e8f0; color: #1e293b; }
 
 /* Body Area */
 .fb-body {
@@ -1042,8 +1042,8 @@ textarea { resize: vertical; }
 /* Post Actions (Icons Only) */
 .fb-actions { display: flex; gap: 16px; justify-content: flex-end; padding-top: 8px; }
 .fb-action-item { display: flex; justify-content: center; align-items: center; border: 0; border-radius: 6px; background: transparent !important; cursor: pointer; color: #64748b; transition: color 0.2s; padding: 4px; }
-.fb-action-item:hover { color: #1e293b; }
-.fb-action-item.danger:hover { color: #b91c1c; }
+.fb-action-item.never-hover-class-placeholder { color: #1e293b; }
+.fb-action-item.danger.never-hover-class-placeholder { color: #b91c1c; }
 
 /* Comments Section */
 .fb-comments { padding: 16px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid #e2e8f0; }
@@ -1076,11 +1076,11 @@ textarea { resize: vertical; }
 .fb-bubble-status.hidden { color: #b91c1c; background: #fee2e2; }
 
 .fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 600; cursor: default; }
-.fb-comment-footer span:hover { text-decoration: underline; cursor: pointer; }
+.fb-comment-footer span.never-hover-class-placeholder { text-decoration: underline; cursor: pointer; }
 .fb-comment-tools { display: flex; gap: 14px; margin-left: 8px; }
 .fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; }
-.fb-comment-tools button:hover { color: #1e293b; }
-.fb-comment-tools button.tool-danger:hover { color: #b91c1c; }
+.fb-comment-tools button.never-hover-class-placeholder { color: #1e293b; }
+.fb-comment-tools button.tool-danger.never-hover-class-placeholder { color: #b91c1c; }
 
 .fb-no-comments { text-align: center; color: #64748b; padding: 20px 0; font-size: 15px; }
 

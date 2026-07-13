@@ -134,6 +134,12 @@ export const adminNavigationSections = [
         activeNames: ['admin-amenities'],
       },
       {
+        label: 'Danh mục dịch vụ',
+        icon: 'shopping-bag',
+        to: '/admin/service-categories',
+        activeNames: ['admin-service-categories'],
+      },
+      {
         label: 'Banner',
         icon: 'image',
         to: '/admin/banners',
@@ -189,6 +195,7 @@ export const adminRouteTitles = {
   'admin-reports-complaints': 'Báo cáo & Khiếu nại',
   'admin-court-types': 'Quản lý loại sân',
   'admin-amenities': 'Quản lý tiện ích',
+  'admin-service-categories': 'Quản lý danh mục dịch vụ',
   'admin-venue-clusters': 'Quản lý cụm sân',
   'admin-venue-cluster-detail': 'Chi tiết cụm sân',
   'admin-platform-fee-tiers': 'Cấu hình bậc phí nền tảng',

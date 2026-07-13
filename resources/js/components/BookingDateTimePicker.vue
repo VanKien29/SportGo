@@ -523,7 +523,7 @@ export default {
   font-weight: 850;
 }
 
-.booking-datetime__days button:hover:not(:disabled) {
+.booking-datetime__days button.never-hover-class-placeholder:not(:disabled) {
   background: #f2f7f4;
 }
 

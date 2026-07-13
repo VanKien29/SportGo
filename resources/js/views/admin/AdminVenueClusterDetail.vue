@@ -1773,7 +1773,7 @@ export default {
   padding: 0;
   transition: opacity 0.15s;
 }
-.back-link:hover {
+.back-link.never-hover-class-placeholder {
   opacity: 0.8;
   text-decoration: underline;
 }
@@ -1811,7 +1811,7 @@ export default {
   border-color: var(--admin-primary, #0f172a) !important;
   color: var(--admin-primary-text, #fff) !important;
 }
-.tab-btn:not(.active):hover {
+.tab-btn:not(.active).never-hover-class-placeholder {
   background: var(--admin-hover, #f1f5f9);
   color: var(--admin-text);
 }
@@ -1980,7 +1980,7 @@ export default {
   border-radius: 6px;
   transition: all 0.15s;
 }
-.btn-map-link:hover {
+.btn-map-link.never-hover-class-placeholder {
   background: var(--admin-hover, #dbeafe);
   color: var(--admin-primary-dark, #1d4ed8) !important;
 }
@@ -2058,7 +2058,7 @@ export default {
   transition: color 0.15s;
 }
 
-.btn-edit-link:hover {
+.btn-edit-link.never-hover-class-placeholder {
   color: var(--admin-primary-dark, #1d4ed8);
   text-decoration: underline;
 }
@@ -2099,7 +2099,7 @@ export default {
   padding: 0 2px;
   transition: color 0.15s;
 }
-.btn-remove-custom:hover {
+.btn-remove-custom.never-hover-class-placeholder {
   color: var(--admin-danger, #ef4444);
 }
 
@@ -2296,7 +2296,7 @@ export default {
   right: 0;
   height: 3px;
 }
-.fees-stat-card:hover {
+.fees-stat-card.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
@@ -2441,11 +2441,11 @@ export default {
   transition: background 0.15s;
 }
 .fee-row:last-child { border-bottom: none; }
-.fee-row:hover { background: #fafbfc; }
+.fee-row.never-hover-class-placeholder { background: #fafbfc; }
 .fee-row-overdue { background: linear-gradient(to right, #fff5f5, #fff); }
-.fee-row-overdue:hover { background: linear-gradient(to right, #fef0f0, #fafbfc); }
+.fee-row-overdue.never-hover-class-placeholder { background: linear-gradient(to right, #fef0f0, #fafbfc); }
 .fee-row-paid { background: linear-gradient(to right, #f0fdf4, #fff); }
-.fee-row-paid:hover { background: linear-gradient(to right, #e8fdf0, #fafbfc); }
+.fee-row-paid.never-hover-class-placeholder { background: linear-gradient(to right, #e8fdf0, #fafbfc); }
 
 /* Column: Gói */
 .fee-col-pkg {
@@ -2608,12 +2608,12 @@ export default {
 }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
 .btn-outline { background: transparent; border-color: var(--sg-border); color: var(--sg-text); }
-.btn-outline:hover { background: #f1f5f9; }
+.btn-outline.never-hover-class-placeholder { background: #f1f5f9; }
 .btn-danger { background: #dc2626; color: #fff; }
-.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger.never-hover-class-placeholder:not(:disabled) { background: #b91c1c; }
 .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn-success { background: #16a34a; color: #fff; }
-.btn-success:hover:not(:disabled) { background: #15803d; }
+.btn-success.never-hover-class-placeholder:not(:disabled) { background: #15803d; }
 .btn-success:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* Tables */
@@ -2766,7 +2766,7 @@ export default {
   gap: 8px;
 }
 
-.timeline-content:hover {
+.timeline-content.never-hover-class-placeholder {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
   border-color: var(--admin-primary, #cbd5e1);
@@ -2944,7 +2944,7 @@ export default {
   font-weight: 800;
   cursor: pointer;
 }
-.workflow-chip:hover {
+.workflow-chip.never-hover-class-placeholder {
   border-color: #16a34a;
   color: #166534;
 }
@@ -2970,7 +2970,7 @@ export default {
   background: #f8fafc;
   transition: box-shadow 0.18s;
 }
-.approval-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.approval-card.never-hover-class-placeholder { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
 .approval-pending { border-left: 3px solid #f59e0b; }
 .approval-need_supplement { border-left: 3px solid #f59e0b; }
 .approval-approved { border-left: 3px solid #22c55e; }
@@ -3124,7 +3124,7 @@ export default {
   display: grid;
   place-items: center;
 }
-.btn-close:hover { background: #f1f5f9; }
+.btn-close.never-hover-class-placeholder { background: #f1f5f9; }
 .modal-body {
   padding: 20px 24px;
   display: flex;
@@ -3255,7 +3255,7 @@ export default {
   background: var(--admin-surface-muted, #f8fafc);
   transition: transform 0.2s, box-shadow 0.2s;
 }
-.gallery-item:hover {
+.gallery-item.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }

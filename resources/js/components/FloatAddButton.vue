@@ -92,7 +92,7 @@ export default {
   color: #fff;
 }
 
-.sg-btn-float-add:hover:not(:disabled) {
+.sg-btn-float-add.never-hover-class-placeholder:not(:disabled) {
   max-width: 300px;
   padding-left: 14px;
   padding-right: 16px;
@@ -100,7 +100,7 @@ export default {
   background-color: #059669;
 }
 
-.sg-btn-float-add:hover:not(:disabled) .btn-float-text {
+.sg-btn-float-add.never-hover-class-placeholder:not(:disabled) .btn-float-text {
   max-width: 240px;
   opacity: 1;
   margin-left: 6px;
@@ -120,13 +120,13 @@ export default {
     padding: 0 10px;
   }
 
-  .sg-btn-float-add:hover:not(:disabled) {
+  .sg-btn-float-add.never-hover-class-placeholder:not(:disabled) {
     max-width: 220px;
     padding-left: 12px;
     padding-right: 14px;
   }
 
-  .sg-btn-float-add:hover:not(:disabled) .btn-float-text {
+  .sg-btn-float-add.never-hover-class-placeholder:not(:disabled) .btn-float-text {
     max-width: 160px;
   }
 }
