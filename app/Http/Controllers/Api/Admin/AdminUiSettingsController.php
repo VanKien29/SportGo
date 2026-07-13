@@ -18,6 +18,11 @@ class AdminUiSettingsController extends Controller
             'sidebar_style' => 'one-level',
             'radius' => '8px',
             'font_size' => '14px',
+            'font_family' => "'Outfit', sans-serif",
+            'sidebar_width' => '272px',
+            'sidebar_collapsed_width' => '78px',
+            'transition_fast' => '180ms',
+            'transition_normal' => '250ms',
             'presets' => [
                 [
                     'id' => 'zinc',
@@ -71,6 +76,11 @@ class AdminUiSettingsController extends Controller
             'sidebar_style' => ['required', 'string'],
             'radius' => ['required', 'string'],
             'font_size' => ['nullable', 'string'],
+            'font_family' => ['nullable', 'string', 'max:100'],
+            'sidebar_width' => ['nullable', 'string', 'max:20'],
+            'sidebar_collapsed_width' => ['nullable', 'string', 'max:20'],
+            'transition_fast' => ['nullable', 'string', 'max:20'],
+            'transition_normal' => ['nullable', 'string', 'max:20'],
             'presets' => ['nullable', 'array'],
             'custom_themes' => ['nullable', 'array'],
         ]);

@@ -14,11 +14,8 @@
 
     <SaaSFilterBar
       v-model="selectedTab"
-      v-model:search="searchQuery"
       :tabs="listTabs"
       class="partner-filter-bar"
-      search-id="search-partner-application"
-      search-placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân"
     >
       <template #actions>
         <select

@@ -46,11 +46,7 @@
               <option value="completed">Hoàn thành</option>
               <option value="cancelled">Đã hủy</option>
               <option value="rejected">Từ chối</option>
-            </select>
           </label>
-          <button class="icon-btn" type="button" title="Tải lại" aria-label="Tải lại" @click="loadBookings">
-            <AppIcon name="refresh" size="17" />
-          </button>
         </section>
 
         <div class="metric-row">

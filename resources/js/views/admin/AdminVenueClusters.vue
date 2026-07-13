@@ -15,14 +15,10 @@
         </div>
 
         <template v-else>
-            <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
             <SaaSFilterBar
                 v-if="clusters.length > 0"
                 v-model="filterStatus"
-                v-model:search="searchText"
                 :tabs="statusTabs"
-                search-id="search-venue-cluster"
-                search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
             />
 
             <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
