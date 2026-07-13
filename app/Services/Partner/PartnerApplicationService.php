@@ -44,6 +44,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -810,7 +811,7 @@ class PartnerApplicationService
 
     public function detailRelations(): array
     {
-        return [
+        $relations = [
             'user:id,full_name,username,email,phone,status',
             'reviewedBy:id,full_name,username,email',
             'approvedVenueCluster:id,name,status,slug,address,status_reason',
@@ -822,10 +823,20 @@ class PartnerApplicationService
             'contracts.generatedDocument.signatures.signer:id,full_name,email',
             'contracts.terminations.documents.generatedDocument',
             'contracts.terminations.settlement.items',
-            'terminationRequests.documents.generatedDocument',
+            'terminationRequests.documents.generatedDocument.signatures.signer:id,full_name,email',
+            'terminationRequests.documents.generatedDocument.signingRequests',
+            'terminationRequests.statusHistories.changedBy:id,full_name,username,email',
             'terminationRequests.settlement.items',
             'terminationRequests.settlement.withdrawalRequests',
         ];
+
+        if (Schema::hasTable('partner_termination_booking_actions')) {
+            $relations[] = 'terminationRequests.bookingActions.booking.customer:id,full_name,username,email,phone';
+            $relations[] = 'terminationRequests.bookingActions.booking.payments';
+            $relations[] = 'terminationRequests.bookingActions.processedBy:id,full_name,username,email';
+        }
+
+        return $relations;
     }
 
     private function documentHasSignature(GeneratedDocument $document, string $side): bool

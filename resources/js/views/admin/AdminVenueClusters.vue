@@ -15,6 +15,24 @@
         </div>
 
         <template v-else>
+            <section class="avc-header card animate-fade-in">
+                <div class="avc-title">
+                    <p class="eyebrow">Quan ly cum san</p>
+                    <h1>Toan canh van hanh cum san</h1>
+                    <p>Theo doi trang thai, chu san, phi nen tang va cac cum san dang can xu ly.</p>
+                </div>
+                <button class="btn btn-outline" type="button" @click="loadClusters">
+                    Lam moi
+                </button>
+            </section>
+
+            <section v-if="clusters.length > 0" class="avc-kpis animate-fade-in">
+                <article v-for="card in summaryCards" :key="card.key" class="kpi-card">
+                    <span>{{ card.label }}</span>
+                    <strong>{{ card.value }}</strong>
+                    <small>{{ card.hint }}</small>
+                </article>
+            </section>
             <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
             <SaaSFilterBar
                 v-if="clusters.length > 0"
@@ -49,7 +67,12 @@
                     <!-- Tên cụm sân & Address -->
                     <template #name="{ row }">
                         <div class="name-col-cell">
-                            <span class="cluster-name-text">{{ row.name }}</span>
+                            <div class="cluster-name-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                                <span class="cluster-name-text">{{ row.name }}</span>
+                                <div v-if="row.has_pending_requests" class="pending-indicator" title="Có yêu cầu đang chờ duyệt" style="display: flex; align-items: center; color: #ef4444;">
+                                    <AppIcon name="alertCircle" size="14" />
+                                </div>
+                            </div>
                             <span class="cluster-address-text">{{ formatFullAddress(row) }}</span>
                         </div>
                     </template>
@@ -134,10 +157,39 @@ export default {
         };
     },
     computed: {
+        statusTabsUi() {
+            return [
+                { value: "", label: "Tất cả" },
+                { value: "has_pending_requests", label: "Có thay đổi chờ duyệt" },
+                { value: "pending", label: "Chờ duyệt mới" },
+                { value: "active", label: "Hoạt động" },
+                { value: "locked", label: "Đã khóa" },
+                { value: "termination_processing", label: "Đang chấm dứt" },
+                { value: "partner_terminated", label: "Đã chấm dứt" },
+            ];
+        },
+        summaryCards() {
+            const locked = this.statusTabCount("locked");
+            const terminating = this.statusTabCount("termination_processing");
+            const feeAttention = this.clusters.filter((cluster) => ["pending", "overdue"].includes(cluster.fee_status)).length;
+
+            return [
+                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Tat ca ho so san dang quan ly" },
+                { key: "active", label: "Dang hoat dong", value: this.statusTabCount("active"), hint: "Co the nhan booking" },
+                { key: "attention", label: "Can chu y", value: locked + terminating + feeAttention, hint: "Khoa, cham dut hoac phi treo" },
+                { key: "terminated", label: "Da cham dut", value: this.statusTabCount("partner_terminated"), hint: "Da tat van hanh doi tac" },
+            ];
+        },
         filteredClusters() {
             let list = this.clusters;
             if (this.filterStatus) {
-                list = list.filter((c) => c.status === this.filterStatus);
+                if (this.filterStatus === "has_pending_requests") {
+                    list = list.filter((c) => c.has_pending_requests);
+                } else if (this.filterStatus === "termination_processing") {
+                    list = list.filter((c) => ["termination_locked", "termination_processing"].includes(c.status));
+                } else {
+                    list = list.filter((c) => c.status === this.filterStatus);
+                }
             }
             if (this.searchText.trim()) {
                 const q = this.searchText.trim().toLowerCase();
@@ -169,12 +221,27 @@ export default {
         },
 
         statusLabel(status) {
+            if (status === "termination_locked") return "Khoa cham dut";
+            if (status === "termination_processing") return "Dang cham dut";
+            if (status === "partner_terminated") return "Da cham dut";
+
             const map = {
                 pending: "Chờ duyệt",
                 active: "Hoạt động",
                 locked: "Đã khóa",
             };
             return map[status] || status;
+        },
+
+        statusTabCount(status) {
+            if (status === "") return this.clusters.length;
+            if (status === "has_pending_requests") {
+                return this.clusters.filter((c) => c.has_pending_requests).length;
+            }
+            if (status === "termination_processing") {
+                return this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+            }
+            return this.clusters.filter((cluster) => cluster.status === status).length;
         },
 
         feeStatusLabel(status) {
@@ -211,10 +278,78 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1000px;
+    max-width: 1180px;
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+}
+
+.avc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 0 12px;
+}
+
+.avc-title {
+    min-width: 0;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.avc-title h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.avc-title p:last-child {
+    margin: 6px 0 0;
+    color: var(--admin-muted, #64748b);
+    font-size: 14px;
+}
+
+.avc-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.kpi-card {
+    display: grid;
+    gap: 4px;
+    min-height: 106px;
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    padding: 16px;
+}
+
+.kpi-card span {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.kpi-card strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 28px;
+    line-height: 1;
+}
+
+.kpi-card small {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
 }
 
 

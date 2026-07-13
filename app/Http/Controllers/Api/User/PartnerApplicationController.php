@@ -298,7 +298,7 @@ class PartnerApplicationController extends Controller
         ]);
 
         $data = $request->validate([
-            'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'contract_id' => ['nullable', 'integer', 'exists:partner_contracts,id'],
             'signature_image' => ['required', 'string'],
         ], $this->messages(), $this->attributes());
 
@@ -321,7 +321,7 @@ class PartnerApplicationController extends Controller
     public function requestContractSignatureOtp(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'contract_id' => ['nullable', 'integer', 'exists:partner_contracts,id'],
             'document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
             'confirmed' => ['accepted'],
@@ -340,7 +340,7 @@ class PartnerApplicationController extends Controller
                 $document,
                 $request->user(),
                 'owner',
-                'Ky phu luc hop dong doi tac SportGo',
+                'Ký phụ lục hợp đồng đối tác SportGo',
                 $data['confirmation_text'],
                 $data['signature_image'],
                 $request

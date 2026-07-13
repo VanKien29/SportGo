@@ -34,4 +34,9 @@ class PartnerTerminationStatusHistory extends Model
     {
         return $this->belongsTo(PartnerTerminationRequest::class, 'partner_termination_request_id');
     }
+
+    public function changedBy()
+    {
+        return $this->belongsTo(User::class, 'changed_by');
+    }
 }

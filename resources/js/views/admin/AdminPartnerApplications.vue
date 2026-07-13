@@ -1,7 +1,5 @@
 <template>
   <div class="partner-page">
-<<<<<<< HEAD
-=======
     <header class="page-header">
       <div>
         <h2>Quản lý hồ sơ đối tác</h2>
@@ -12,26 +10,41 @@
       </button>
     </header>
 
-    <SaaSFilterBar
-      v-model="selectedTab"
-      v-model:search="searchQuery"
-      :tabs="listTabs"
-      class="partner-filter-bar"
-      search-id="search-partner-application"
-      search-placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân"
-    >
-      <template #actions>
-        <select
-          v-model="filters.status"
-          class="partner-status-filter"
-          aria-label="Trạng thái hồ sơ"
-          @change="loadApplications(1)"
-        >
-          <option value="">Tất cả trạng thái</option>
+    <section class="partner-kpis">
+      <article v-for="card in summaryCards" :key="card.key" class="partner-kpi-card">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.hint }}</small>
+      </article>
+    </section>
+
+    <div class="tabs">
+      <button
+        v-for="tab in listTabsUi"
+        :key="tab.value"
+        class="tab-btn"
+        :class="{ active: filters.tab === tab.value }"
+        type="button"
+        @click="selectListTab(tab.value)"
+      >
+        <span>{{ tab.label }}</span>
+        <strong>{{ listTabCount(tab.value) }}</strong>
+      </button>
+    </div>
+
+    <div class="toolbar card">
+      <label class="field">
+        <span>Tìm kiếm</span>
+        <input v-model.trim="filters.search" type="search" placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân" @input="onFilterChange" />
+      </label>
+      <label class="field">
+        <span>Trạng thái</span>
+        <select v-model="filters.status" @change="loadApplications(1)">
+          <option value="">Tất cả</option>
           <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
-      </template>
-    </SaaSFilterBar>
+      </label>
+    </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -148,22 +161,28 @@ export default {
     };
   },
   computed: {
-    selectedTab: {
-      get() {
-        return this.filters.tab;
-      },
-      set(tab) {
-        this.selectListTab(tab);
-      },
+    listTabsUi() {
+      return [
+        { value: 'all', label: 'Tất cả' },
+        { value: 'pending_review', label: 'Chờ duyệt' },
+        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
+        { value: 'active', label: 'Đang hoạt động' },
+        { value: 'terminating', label: 'Đang chấm dứt' },
+        { value: 'terminated', label: 'Đã chấm dứt' },
+        { value: 'rejected', label: 'Từ chối' },
+      ];
     },
-    searchQuery: {
-      get() {
-        return this.filters.search;
-      },
-      set(value) {
-        this.filters.search = value.trim();
-        this.onFilterChange();
-      },
+    summaryCards() {
+      const review = this.listTabCount('pending_review');
+      const signature = this.listTabCount('pending_signature');
+      const terminating = this.listTabCount('terminating');
+
+      return [
+        { key: 'total', label: 'Hồ sơ đang hiển thị', value: this.pagination.total || this.applications.length, hint: 'Theo bộ lọc hiện tại' },
+        { key: 'review', label: 'Cần duyệt', value: review, hint: 'Hồ sơ chờ admin xử lý' },
+        { key: 'signature', label: 'Chờ ký', value: signature, hint: 'Hợp đồng hoặc văn bản đang chờ ký' },
+        { key: 'terminating', label: 'Chấm dứt', value: terminating, hint: 'Hồ sơ đang thanh lý/chấm dứt' },
+      ];
     },
   },
   mounted() {
@@ -210,6 +229,21 @@ export default {
     },
     isReviewable(status) {
       return status === 'pending_review';
+    },
+    listTabCount(tab) {
+      if (tab === 'all') return this.pagination.total || this.applications.length;
+
+      return this.applications.filter((application) => {
+        const status = application.partner_status || application.status;
+        const contractStatus = application.contract_status || '';
+        if (tab === 'pending_signature') {
+          return status === 'pending_signature' || ['pending_owner_signature', 'pending_sportgo_signature'].includes(contractStatus);
+        }
+        if (tab === 'active') {
+          return status === 'active' || status === 'completed' || contractStatus === 'signed_active';
+        }
+        return status === tab;
+      }).length;
     },
     statusLabel(status) {
       return {
@@ -260,6 +294,41 @@ export default {
   border-radius: 8px;
 }
 
+.partner-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.partner-kpi-card {
+  display: grid;
+  gap: 4px;
+  min-height: 104px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  padding: 14px;
+}
+
+.partner-kpi-card span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.partner-kpi-card strong {
+  color: var(--admin-text);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.partner-kpi-card small {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.tabs,
 .actions,
 .pagination {
   display: flex;
@@ -267,14 +336,64 @@ export default {
   gap: 8px;
 }
 
-.partner-filter-bar :deep(.filter-tabs) {
-  flex-wrap: wrap;
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-weight: 800;
+  cursor: pointer;
 }
 
-.partner-status-filter {
-  width: 220px;
-  height: 38px;
-  border: 1px solid #cbd5e1;
+.tab-btn strong {
+  min-width: 20px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: inherit;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.tab-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.tab-btn.active strong {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px);
+  gap: 12px;
+  padding: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
   padding: 0 12px;
   color: var(--admin-text);
@@ -434,8 +553,22 @@ th {
 }
 
 @media (max-width: 900px) {
-  .partner-status-filter {
-    width: 100%;
+  .partner-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .field.full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .partner-kpis {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -248,8 +248,8 @@ export default {
       }[this.decision] || 'Xác nhận';
     },
   },
-  mounted() {
-    this.loadRefunds();
+  async mounted() {
+    await this.loadRefunds();
   },
   methods: {
     async loadRefunds(page = 1) {
@@ -264,6 +264,11 @@ export default {
         const response = await api(`/api/owner/refunds?${params.toString()}`);
         this.refunds = response.data || [];
         this.meta = response.meta || this.meta;
+        const focusId = String(this.$route.query.focus || '');
+        if (focusId) {
+          const focused = this.refunds.find((refund) => String(refund.id) === focusId);
+          if (focused) this.openDetail(focused);
+        }
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách yêu cầu.';
       } finally {

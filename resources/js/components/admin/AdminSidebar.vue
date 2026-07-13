@@ -85,6 +85,7 @@
               @click="setSection(idx)"
             >
               <AppIcon :name="getSectionIcon(sec.label)" size="18" />
+              <span v-if="sectionTotalBadge(sec)" class="rail-badge-dot"></span>
             </button>
           </div>
 
@@ -189,6 +190,20 @@ export default {
         sec.items.some(item => item.activeNames?.includes(this.activeRouteName))
       );
       return idx >= 0 ? idx : 0;
+    },
+    // Tổng badge của một section (dùng cho rail icon dot)
+    sectionTotalBadge() {
+      return (sec) => {
+        let total = 0;
+        for (const item of sec.items) {
+          if (item.badge) {
+            const n = parseInt(item.badge);
+            if (!isNaN(n)) total += n;
+            else if (item.badge === '99+') total += 1;
+          }
+        }
+        return total > 0;
+      };
     },
   },
   created() {

@@ -1,6 +1,16 @@
 <template>
     <div class="venue-clusters-container">
 
+        <header class="owner-page-header">
+            <div>
+                <p class="eyebrow">Chu san</p>
+                <h1>Quan ly cum san</h1>
+                <p>Theo doi van hanh, san con, yeu cau thay doi va ho so doi tac trong mot man hinh.</p>
+            </div>
+            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
+                Ho so doi tac
+            </button>
+        </header>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -1227,7 +1237,12 @@
                                         </div>
                                         <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
                                             <span>Phụ lục hợp đồng:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm"
+                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
+                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
+                                            >
                                                 <AppIcon name="eye" size="14" />
                                                 {{ requestDocumentActionLabel(req.appendix_document) }}
                                             </button>
@@ -1235,6 +1250,9 @@
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
+                                        </div>
+                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
+                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
                                         </div>
                                         <div
                                             v-if="
@@ -1593,14 +1611,22 @@
                                         </div>
                                         <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
                                             <span>Phụ lục hợp đồng:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
-                                                <AppIcon name="eye" size="14" />
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm"
+                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
+                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
+                                            >
+                                                <AppIcon :name="req.appendix_document?.status === 'pending_owner_signature' ? 'pencil' : 'eye'" size="14" />
                                                 {{ requestDocumentActionLabel(req.appendix_document) }}
                                             </button>
                                             <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
+                                        </div>
+                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
+                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
                                         </div>
                                         <div
                                             v-if="
@@ -1845,7 +1871,7 @@
             class="modal-backdrop"
             @click.self="closeCreateApprovalModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-scale">
                 <div class="modal-header">
                     <h3>Gửi yêu cầu mở rộng quy mô</h3>
                     <button class="btn-close" @click="closeCreateApprovalModal">
@@ -2278,19 +2304,6 @@
                                     type="button"
                                     class="btn btn-outline btn-extract"
                                     :disabled="resolvingLocationMap"
-                                    @click="handleExtractLocationCoords"
-                                >
-                                    <AppIcon name="search" size="15" />
-                                    {{
-                                        resolvingLocationMap
-                                            ? "Đang trích xuất..."
-                                            : "Trích xuất tọa độ"
-                                    }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-outline btn-extract"
-                                    :disabled="resolvingLocationMap"
                                     @click="useCurrentLocationForChange"
                                 >
                                     <AppIcon name="mapPin" size="15" />
@@ -2658,7 +2671,7 @@
             class="modal-backdrop"
             @click.self="closeEditClusterModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-edit-cluster">
                 <div class="modal-header">
                     <h3>Yêu cầu chỉnh sửa thông tin cụm sân</h3>
                     <button class="btn-close" @click="closeEditClusterModal">
@@ -3094,8 +3107,27 @@ export default {
         isClusterLocked() {
             return this.selectedCluster && this.selectedCluster.status === 'locked';
         },
+        ownerDashboardCards() {
+            const active = this.clusters.filter((cluster) => cluster.status === "active").length;
+            const locked = this.clusters.filter((cluster) => cluster.status === "locked").length;
+            const terminating = this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+
+            return [
+                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Dang gan voi tai khoan owner" },
+                { key: "active", label: "Dang hoat dong", value: active, hint: "Co the nhan booking" },
+                { key: "attention", label: "Can xu ly", value: locked + terminating + this.selectedTodoCount, hint: "Khoa, cham dut hoac yeu cau treo" },
+                { key: "terminated", label: "Da cham dut", value: this.clusters.filter((cluster) => cluster.status === "partner_terminated").length, hint: "Da tat van hanh doi tac" },
+            ];
+        },
+        selectedTodoCount() {
+            return this.pendingApprovalCount + this.pendingLocationCount + this.pendingInfoCount + this.pendingUnlockCount;
+        },
+        selectedClusterCourtCount() {
+            return this.clusterCourtCount(this.selectedCluster);
+        },
         tabs() {
             const list = [
+                { key: "courts", label: "San con" },
                 { key: "info", label: "Thông tin chung" },
                 { key: "info_requests", label: "Yêu cầu thông tin" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
@@ -5381,6 +5413,8 @@ export default {
         },
 
         requestDocumentActionLabel(document) {
+            if (document?.status === "pending_owner_signature" && ["venue_scale_appendix", "venue_location_appendix"].includes(document.document_type)) return "Ky phu luc";
+            if (document?.status === "pending_owner_signature" && ["venue_scale_request", "venue_location_change_request"].includes(document.document_type)) return "Ky don";
             return document?.status === "pending_owner_signature" ? "Ký" : "Xem";
         },
 
@@ -6060,6 +6094,35 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     margin: 0 auto;
 }
 
+.owner-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.owner-page-header h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.owner-page-header p:last-child {
+    margin: 6px 0 0;
+    color: var(--admin-muted, #64748b);
+    font-size: 14px;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
 .card {
     background: transparent;
     border-radius: 0;
@@ -6090,6 +6153,40 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     align-items: start;
+}
+
+.owner-command-center {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
+
+.owner-stat-card {
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.owner-stat-card span {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.owner-stat-card strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 26px;
+    line-height: 1;
+}
+
+.owner-stat-card small {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
 }
 
 .clusters-rail {
@@ -6562,6 +6659,15 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     gap: 16px;
 }
 @media (max-width: 576px) {
+    .owner-command-center,
+    .selected-cluster-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .selected-cluster-actions {
+        width: 100%;
+    }
+
     .form-row {
         grid-template-columns: 1fr;
     }
@@ -7876,10 +7982,13 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    overflow: hidden;
 }
 .modal-scale .modal-body {
     overflow-y: auto;
     overflow-x: hidden;
+    flex: 1;
 }
 .modal-location form {
     display: flex;
@@ -7889,6 +7998,19 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     min-height: 0;
 }
 .modal-location .modal-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+}
+
+.modal-edit-cluster form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.modal-edit-cluster .modal-body {
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;

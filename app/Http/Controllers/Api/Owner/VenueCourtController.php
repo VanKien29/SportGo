@@ -86,10 +86,16 @@ class VenueCourtController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $court = VenueCourt::query()->findOrFail($id);
+        $court = VenueCourt::withTrashed()->findOrFail($id);
         $cluster = $court->venueCluster;
 
-        if ($cluster->owner_id !== $request->user()->id) {
+        if ($cluster && $cluster->owner_id === $request->user()->id && $court->trashed()) {
+            return response()->json([
+                'message' => 'Sân con đã hủy theo phụ lục/hợp đồng, không thể chỉnh sửa trạng thái hoặc cấu hình lại.',
+            ], 409);
+        }
+
+        if (! $cluster || $cluster->owner_id !== $request->user()->id) {
             return response()->json(['message' => 'Bạn không có quyền chỉnh sửa sân con này.'], 403);
         }
 
@@ -115,10 +121,16 @@ class VenueCourtController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
-        $court = VenueCourt::query()->findOrFail($id);
+        $court = VenueCourt::withTrashed()->findOrFail($id);
         $cluster = $court->venueCluster;
 
-        if ($cluster->owner_id !== $request->user()->id) {
+        if ($cluster && $cluster->owner_id === $request->user()->id && $court->trashed()) {
+            return response()->json([
+                'message' => 'Sân con đã hủy theo phụ lục/hợp đồng, không thể xóa hoặc chỉnh sửa lại.',
+            ], 409);
+        }
+
+        if (! $cluster || $cluster->owner_id !== $request->user()->id) {
             return response()->json(['message' => 'Bạn không có quyền xóa sân con này.'], 403);
         }
 
@@ -157,8 +169,14 @@ class VenueCourtController extends Controller
             return response()->json(['message' => 'Bạn không có quyền chỉnh sửa cụm sân này.'], 403);
         }
 
-        $courtIds = collect($data['courts'])->pluck('id');
+        $courtIds = collect($data['courts'])->pluck('id')->unique()->values();
         $courts = VenueCourt::query()->whereIn('id', $courtIds)->get();
+
+        if ($courts->count() !== $courtIds->count()) {
+            return response()->json([
+                'message' => 'Sân con đã hủy theo phụ lục/hợp đồng, không thể sắp xếp hoặc cấu hình lại.',
+            ], 409);
+        }
 
         foreach ($courts as $court) {
             if ($court->venue_cluster_id !== $cluster->id) {

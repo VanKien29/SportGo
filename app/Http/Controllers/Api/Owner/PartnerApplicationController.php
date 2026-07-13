@@ -71,7 +71,7 @@ class PartnerApplicationController extends Controller
     public function requestTermination(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'contract_id' => ['nullable', 'string', 'exists:partner_contracts,id'],
+            'contract_id' => ['nullable', 'integer', 'exists:partner_contracts,id'],
             'reason' => ['required', 'string', 'max:2000'],
             'signature_image' => ['nullable', 'string'],
         ]);
