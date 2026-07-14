@@ -21,7 +21,8 @@ class VenueClusterController extends Controller
 
         if ($request->boolean('compact')) {
             $clusters = VenueCluster::query()
-                ->select(['id', 'name'])
+                ->select(['id', 'name', 'status', 'status_reason'])
+                ->withCount(['venueCourts as court_count'])
                 ->whereIn('id', $clusterIds)
                 ->orderBy('name')
                 ->get();
@@ -31,6 +32,7 @@ class VenueClusterController extends Controller
 
         $clusters = VenueCluster::query()
             ->with(['media', 'amenityCatalog'])
+            ->withCount(['venueCourts as court_count'])
             ->whereIn('id', $clusterIds)
             ->latest()
             ->get();

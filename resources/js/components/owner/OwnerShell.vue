@@ -15,7 +15,12 @@
             :workspace-label="workspaceLabel"
             :home-url="homeUrl"
             :show-utility-navigation="showUtilityNavigation"
+            :clusters="clusters"
+            :selected-cluster-id="selectedClusterId"
+            :selected-cluster="selectedCluster"
+            :cluster-loading="clusterLoading"
             @navigate="closeSidebar"
+            @cluster-change="$emit('cluster-change', $event)"
         />
         <button
             v-if="sidebarOpen"

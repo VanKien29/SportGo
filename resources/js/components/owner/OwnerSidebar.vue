@@ -3,30 +3,56 @@
     <!-- One-Level Sidebar -->
     <template v-if="sidebarStyle === 'one-level'">
       <RouterLink v-if="showUtilityNavigation" class="admin-brand" :to="homeUrl" @click="$emit('navigate')">
-        <span class="admin-brand-mark">SG</span>
+        <span class="admin-brand-mark">
+          <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+          <span v-else>{{ brandInitials }}</span>
+        </span>
         <span v-if="!collapsed" class="admin-brand-copy">
-          <strong>SportGo</strong>
+          <strong>{{ brandName }}</strong>
           <small>{{ workspaceLabel }}</small>
         </span>
       </RouterLink>
 
 
 
+      <div
+        v-if="selectedCluster && restrictionHint && !collapsed"
+        class="owner-cluster-card"
+        :class="`cluster-mode-${restrictionMode}`"
+      >
+        <span>Trạng thái hợp tác</span>
+        <strong>{{ selectedCluster.name }}</strong>
+        <small class="cluster-state-label">{{ clusterStatusLabel(selectedCluster) }}</small>
+        <p>{{ restrictionHint }}</p>
+      </div>
+
       <nav class="sidebar-nav">
         <section v-for="section in sections" :key="section.label" class="admin-nav-section">
           <p v-if="!collapsed" class="nav-group">{{ section.label }}</p>
           <div v-else class="nav-group-dot"></div>
-          <RouterLink
-            v-for="item in section.items"
-            :key="item.to"
-            class="nav-item"
-            :class="{ 'nav-active': isActive(item) }"
-            :to="item.to"
-            @click="$emit('navigate')"
-          >
-            <AppIcon :name="item.icon" size="17" />
-            <span v-if="!collapsed">{{ item.label }}</span>
-          </RouterLink>
+          <template v-for="item in section.items" :key="item.to">
+            <button
+              v-if="isItemDisabled(item)"
+              class="nav-item nav-disabled"
+              type="button"
+              :title="restrictionHint"
+              disabled
+            >
+              <AppIcon :name="item.icon" size="17" />
+              <span v-if="!collapsed">{{ item.label }}</span>
+              <AppIcon v-if="!collapsed" name="lock" size="13" />
+            </button>
+            <RouterLink
+              v-else
+              class="nav-item"
+              :class="{ 'nav-active': isActive(item) }"
+              :to="item.to"
+              @click="$emit('navigate')"
+            >
+              <AppIcon :name="item.icon" size="17" />
+              <span v-if="!collapsed">{{ item.label }}</span>
+            </RouterLink>
+          </template>
         </section>
       </nav>
 
@@ -155,17 +181,29 @@
 
           
           <div class="detail-sidebar-nav">
-            <RouterLink
-              v-for="item in sections[currentSectionIndex].items"
-              :key="item.to"
-              class="nav-item"
-              :class="{ 'nav-active': isActive(item) }"
-              :to="item.to"
-              @click="$emit('navigate')"
-            >
-              <AppIcon :name="item.icon" size="17" />
-              <span>{{ item.label }}</span>
-            </RouterLink>
+            <template v-for="item in sections[currentSectionIndex].items" :key="item.to">
+              <button
+                v-if="isItemDisabled(item)"
+                class="nav-item nav-disabled"
+                type="button"
+                :title="restrictionHint"
+                disabled
+              >
+                <AppIcon :name="item.icon" size="17" />
+                <span>{{ item.label }}</span>
+                <AppIcon name="lock" size="13" />
+              </button>
+              <RouterLink
+                v-else
+                class="nav-item"
+                :class="{ 'nav-active': isActive(item) }"
+                :to="item.to"
+                @click="$emit('navigate')"
+              >
+                <AppIcon :name="item.icon" size="17" />
+                <span>{{ item.label }}</span>
+              </RouterLink>
+            </template>
           </div>
         </div>
       </div>
@@ -175,8 +213,9 @@
 
 <script>
 import AppIcon from '../AppIcon.vue';
-import { getAuth } from '../../stores/auth.js';
+import { getAuth, logout } from '../../stores/auth.js';
 import { resolveSystemAsset, systemInitials, systemName, systemProfileState } from '../../stores/systemProfile.js';
+import { venueDisplayStatus, venuePartnerState } from '../../utils/venuePartnerState.js';
 
 export default {
   name: 'OwnerSidebar',
@@ -189,6 +228,10 @@ export default {
     workspaceLabel: { type: String, default: 'Owner Console' },
     homeUrl: { type: String, default: '/owner/dashboard' },
     showUtilityNavigation: { type: Boolean, default: true },
+    clusters: { type: Array, default: () => [] },
+    selectedClusterId: { type: [String, Number], default: '' },
+    selectedCluster: { type: Object, default: null },
+    clusterLoading: { type: Boolean, default: false },
   },
   emits: ['cluster-change', 'navigate'],
   data() {
@@ -215,6 +258,27 @@ export default {
     },
     roleLabel() {
       return this.userRoleLabel || 'Chủ sân';
+    },
+    brandName() {
+      return systemName();
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandInitials() {
+      return systemInitials();
+    },
+    restrictionMode() {
+      return venuePartnerState(this.selectedCluster);
+    },
+    restrictionHint() {
+      if (this.restrictionMode === 'archived') {
+        return 'Cụm sân đã chấm dứt hợp tác và chỉ còn chế độ tra cứu.';
+      }
+      if (this.restrictionMode === 'terminating') {
+        return 'Chỉ được xử lý booking, hoàn tiền, số dư và hồ sơ chấm dứt.';
+      }
+      return '';
     },
     currentSectionIndex() {
       if (this.localActiveSectionIndex !== null) {
@@ -252,6 +316,31 @@ export default {
       };
       return iconMap[label] || 'alert';
     },
+    isItemDisabled(item) {
+      if (this.restrictionMode === 'normal') return false;
+
+      const allowed = [
+        '/owner/dashboard',
+        '/owner/partner-profile',
+        '/owner/venue-clusters',
+        '/owner/booking-list',
+        '/owner/refunds',
+        '/owner/finance',
+      ];
+
+      return !allowed.includes(item.to);
+    },
+    clusterStatusLabel(cluster) {
+      const status = venueDisplayStatus(cluster);
+      return {
+        pending: 'Chờ duyệt',
+        active: 'Đang hoạt động',
+        locked: 'Đang khóa',
+        termination_locked: 'Đang chấm dứt',
+        termination_processing: 'Đang chấm dứt',
+        partner_terminated: 'Đã chấm dứt',
+      }[status] || 'Chưa xác định';
+    },
     setSection(idx) {
       this.localActiveSectionIndex = idx;
       const targetItem = this.sections[idx].items[0];
@@ -280,6 +369,16 @@ export default {
   box-shadow: var(--admin-shadow-sm);
 }
 
+.owner-cluster-card.cluster-mode-terminating {
+  border-color: color-mix(in srgb, var(--admin-danger) 35%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-danger) 7%, var(--admin-surface));
+}
+
+.owner-cluster-card.cluster-mode-archived {
+  border-color: var(--admin-border);
+  background: var(--admin-surface-muted);
+}
+
 .owner-cluster-card span {
   color: var(--admin-faint);
   font-size: 10px;
@@ -292,6 +391,25 @@ export default {
   color: var(--admin-text);
   font-size: 13px;
   font-weight: 800;
+}
+
+.cluster-state-label {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.nav-disabled {
+  width: 100%;
+  border: 0;
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.admin-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .custom-select-wrapper {

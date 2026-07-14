@@ -3,9 +3,9 @@
 
         <header class="owner-page-header">
             <div>
-                <p class="eyebrow">Chu san</p>
-                <h1>Quan ly cum san</h1>
-                <p>Theo doi van hanh, san con, yeu cau thay doi va ho so doi tac trong mot man hinh.</p>
+                <p class="eyebrow">Chủ sân</p>
+                <h1>Quản lý cụm sân</h1>
+                <p>Theo dõi vận hành, sân con, yêu cầu thay đổi và hồ sơ đối tác trong một màn hình.</p>
             </div>
             <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
                 Ho so doi tac
@@ -34,7 +34,11 @@
         <!-- Main Grid -->
         <div v-else class="clusters-workspace">
             <!-- Cluster Detail with Tabs -->
-            <div v-if="selectedCluster" class="cluster-detail">
+            <div
+                v-if="selectedCluster"
+                class="cluster-detail"
+                :class="{ 'is-archived': isClusterArchived, 'is-terminating': isTerminationRestricted }"
+            >
                 <section class="cluster-hero surface-card">
                     <div class="cluster-hero-copy">
                         <div class="cluster-hero-kicker">
@@ -46,11 +50,11 @@
                         <h1>{{ selectedCluster.name }}</h1>
                         <p>{{ formatFullAddress(selectedCluster) }}</p>
                         <div class="cluster-hero-actions">
-                            <button type="button" class="btn btn-primary" @click="activeTab = 'courts'">
+                            <button type="button" class="btn btn-primary" :disabled="isClusterLocked" @click="activeTab = 'courts'">
                                 <AppIcon name="court" size="15" />
                                 <span>Quản lý sân con</span>
                             </button>
-                            <button type="button" class="btn btn-outline" @click="activeTab = 'approvals'">
+                            <button type="button" class="btn btn-outline" :disabled="isClusterLocked" @click="activeTab = 'approvals'">
                                 <AppIcon name="plus" size="15" />
                                 <span>Yêu cầu quy mô</span>
                                 <span v-if="pendingApprovalCount > 0" class="inline-count">{{ pendingApprovalCount }}</span>
@@ -58,6 +62,15 @@
                             <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
                                 <AppIcon name="fileText" size="15" />
                                 <span>Hồ sơ đối tác</span>
+                            </button>
+                            <button
+                                v-if="selectedCluster.status !== 'pending'"
+                                type="button"
+                                class="btn btn-outline"
+                                @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })"
+                            >
+                                <AppIcon :name="isClusterArchived || isTerminationRestricted ? 'fileText' : 'logOut'" size="15" />
+                                <span>{{ isClusterArchived || isTerminationRestricted ? 'Xem hồ sơ chấm dứt' : 'Chấm dứt hợp tác' }}</span>
                             </button>
                         </div>
                     </div>
@@ -71,6 +84,19 @@
                             <AppIcon name="building" size="30" />
                             <span>Chưa có ảnh đại diện</span>
                         </div>
+                    </div>
+                </section>
+
+                <section
+                    v-if="isTerminationRestricted || isClusterArchived"
+                    class="cluster-restriction-banner surface-card"
+                    :class="{ archived: isClusterArchived }"
+                >
+                    <AppIcon :name="isClusterArchived ? 'archive' : 'lock'" size="20" />
+                    <div>
+                        <strong>{{ isClusterArchived ? 'Cụm sân đã chấm dứt hợp tác' : 'Cụm sân đang trong quy trình chấm dứt' }}</strong>
+                        <p v-if="isClusterArchived">Dữ liệu và lịch sử được giữ để tra cứu; các thao tác vận hành đã khóa.</p>
+                        <p v-else>Chỉ xử lý booking, hoàn tiền, số dư và hồ sơ chấm dứt tại các màn được phép.</p>
                     </div>
                 </section>
 
@@ -90,7 +116,7 @@
                         <strong>{{ pendingLocationCount }} chờ duyệt</strong>
                         <small>Địa chỉ và tọa độ cụm sân</small>
                     </button>
-                    <button v-if="isClusterLocked" type="button" class="quick-stat surface-card danger" @click="activeTab = 'unlock'">
+                    <button v-if="isModerationLocked" type="button" class="quick-stat surface-card danger" @click="activeTab = 'unlock'">
                         <span class="quick-stat-label">Mở khóa</span>
                         <strong>{{ pendingUnlockCount }} yêu cầu</strong>
                         <small>Gửi giải trình để kích hoạt lại</small>
@@ -114,12 +140,13 @@
                         </span>
                     </button>
                 </nav>
+                <fieldset class="cluster-operation-zone" :disabled="isTerminationRestricted || isClusterArchived">
                 <!-- ═══════════════════════════════════════════════════
                      TAB 1: THÔNG TIN CHUNG
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'info'" class="cluster-edit card">
 
-                    <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 20px;">
+                    <div v-if="isModerationLocked" class="alert alert-danger" style="margin-bottom: 20px;">
                         Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
@@ -1788,7 +1815,7 @@
                         </div>
                     </div>
                 </div>
-
+                </fieldset>
             </div>
         </div>
 
@@ -2900,6 +2927,7 @@ import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
 import { api, apiDownload } from "../../services/api";
+import { venueDisplayStatus, venuePartnerState } from "../../utils/venuePartnerState";
 
 export default {
     name: "OwnerVenueClusters",
@@ -3104,8 +3132,17 @@ export default {
     },
 
     computed: {
+        isModerationLocked() {
+            return this.selectedCluster?.status === "locked";
+        },
+        isTerminationRestricted() {
+            return venuePartnerState(this.selectedCluster) === "terminating";
+        },
+        isClusterArchived() {
+            return venuePartnerState(this.selectedCluster) === "archived";
+        },
         isClusterLocked() {
-            return this.selectedCluster && this.selectedCluster.status === 'locked';
+            return this.isModerationLocked || this.isTerminationRestricted || this.isClusterArchived;
         },
         ownerDashboardCards() {
             const active = this.clusters.filter((cluster) => cluster.status === "active").length;
@@ -3133,7 +3170,7 @@ export default {
                 { key: "approvals", label: "Yêu cầu quy mô" },
                 { key: "location", label: "Yêu cầu vị trí" },
             ];
-            if (this.isClusterLocked) {
+            if (this.isModerationLocked) {
                 list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
             }
             return list;
@@ -3507,18 +3544,21 @@ export default {
         },
 
         clusterStatusLabel(cluster) {
-            const status = cluster?.status || "active";
+            const status = venueDisplayStatus(cluster);
             return {
                 active: "Đang hoạt động",
                 inactive: "Tạm khóa",
                 locked: "Đang khóa",
                 maintenance: "Bảo trì",
                 pending: "Chờ duyệt",
+                termination_locked: "Đang chấm dứt",
+                termination_processing: "Đang chấm dứt",
+                partner_terminated: "Đã chấm dứt",
             }[status] || status;
         },
 
         clusterStatusClass(cluster) {
-            return `status-${cluster?.status || "active"}`;
+            return `status-${venueDisplayStatus(cluster) || "active"}`;
         },
 
         clusterPrimaryImage(cluster) {
@@ -9538,5 +9578,42 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-primary-text, #101c15) !important;
     border-color: var(--admin-primary, #16351f) !important;
     outline-color: transparent !important;
+}
+
+.cluster-restriction-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border-color: color-mix(in srgb, var(--admin-danger) 28%, var(--admin-border));
+    background: color-mix(in srgb, var(--admin-danger) 6%, var(--admin-surface));
+    color: var(--admin-text);
+}
+
+.cluster-restriction-banner.archived {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+}
+
+.cluster-restriction-banner strong {
+    display: block;
+    font-weight: 600;
+}
+
+.cluster-restriction-banner p {
+    margin: 4px 0 0;
+    color: var(--admin-muted);
+    line-height: 1.5;
+}
+
+.cluster-operation-zone {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.cluster-operation-zone:disabled {
+    opacity: 1;
 }
 </style>

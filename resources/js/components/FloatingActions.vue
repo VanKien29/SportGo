@@ -58,3 +58,9 @@ export default {
   }
 }
 </style>
+
+<style>
+body:has(.modal-backdrop, .document-viewer-overlay, [aria-modal="true"]) .floating-actions {
+  display: none;
+}
+</style>
