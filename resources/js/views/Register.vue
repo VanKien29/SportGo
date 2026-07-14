@@ -3,7 +3,7 @@
     :title="step === 'register' ? 'Đăng ký tài khoản' : 'Xác thực OTP'"
     :subtitle="step === 'register' ? 'Nhập thông tin bên dưới để đăng ký tài khoản' : 'Nhập mã OTP gồm 6 chữ số đã được gửi tới email của bạn'"
     imageSrc="https://i.ibb.co/HTZ6DPsS/original-33b8479c324a5448d6145b3cad7c51e7-removebg-preview.png"
-    quoteText="Vkien bán 32tv giá 1l :D"
+    quoteText="Tạo tài khoản để tìm sân, đặt lịch và kết nối cùng cộng đồng thể thao."
     backTo="/"
   >
     <!-- STEP 1: REGISTER FORM -->

@@ -11,6 +11,7 @@ use App\Services\VenuePostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 
 class VenuePostController extends Controller
 {
@@ -39,16 +40,22 @@ class VenuePostController extends Controller
 
     public function show(string $slug)
     {
-        $post = VenuePost::with([
+        $likesAvailable = Schema::hasTable('venue_post_likes');
+        $relations = [
             'media', 
             'author:id,full_name,username', 
             'venueCluster:id,name', 
             'hashtags', 
-            'likers:id,full_name,username,avatar_url',
             'topLevelComments' => function ($query) {
                 $query->with(['user:id,full_name,username,avatar_url', 'replies.user:id,full_name,username,avatar_url']);
             }
-        ])
+        ];
+
+        if ($likesAvailable) {
+            $relations[] = 'likers:id,full_name,username,avatar_url';
+        }
+
+        $post = VenuePost::with($relations)
             ->where('slug', $slug)
             ->orWhere('id', $slug)
             ->firstOrFail();
@@ -58,6 +65,11 @@ class VenuePostController extends Controller
         }
 
         $post->increment('view_count');
+        $post->setAttribute('likes_available', $likesAvailable);
+
+        if (! $likesAvailable) {
+            $post->setRelation('likers', collect());
+        }
 
         return response()->json(['data' => $post]);
     }
@@ -128,6 +140,12 @@ class VenuePostController extends Controller
 
     public function toggleLike(Request $request, string $id)
     {
+        if (! Schema::hasTable('venue_post_likes')) {
+            return response()->json([
+                'message' => 'Chức năng thích bài viết đang chờ hoàn tất cập nhật dữ liệu hệ thống.',
+            ], 503);
+        }
+
         $post = VenuePost::where('status', 'published')->findOrFail($id);
         $userId = $request->user()->id;
 

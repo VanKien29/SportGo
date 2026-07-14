@@ -96,16 +96,32 @@
         </div>
       </section>
     </main>
+
+    <ConfirmActionModal
+      :is-open="Boolean(cancelTarget)"
+      title="Hủy booking này?"
+      :description="cancelDescription"
+      confirm-text="Xác nhận hủy"
+      require-reason
+      reason-label="Lý do hủy"
+      reason-placeholder="Nêu ngắn gọn lý do để sân và SportGo hỗ trợ đúng chính sách"
+      initial-reason="Khách hàng thay đổi kế hoạch"
+      :loading="Boolean(cancellingId)"
+      :error="cancelError"
+      @close="closeCancelModal"
+      @confirm="confirmCancellation"
+    />
   </div>
 </template>
 
 <script>
+import ConfirmActionModal from "../../../components/ConfirmActionModal.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
   name: "BookingHistory",
-  components: { PublicNavbar },
+  components: { ConfirmActionModal, PublicNavbar },
   data() {
     return {
       bookings: [],
@@ -115,6 +131,8 @@ export default {
       page: Number(this.$route.query.page || 1),
       lastPage: 1,
       cancellingId: "",
+      cancelTarget: null,
+      cancelError: "",
       statusFilters: [
         { value: "all", label: "Tất cả" },
         { value: "upcoming", label: "Sắp tới" },
@@ -132,6 +150,12 @@ export default {
         this.loadBookings();
       },
       immediate: true,
+    },
+  },
+  computed: {
+    cancelDescription() {
+      if (!this.cancelTarget) return "";
+      return `Booking #${this.cancelTarget.booking_code} tại ${this.clusterName(this.cancelTarget)} sẽ được hủy và hoàn tiền theo chính sách hiện hành.`;
     },
   },
   methods: {
@@ -165,18 +189,26 @@ export default {
         query: { status_group: this.statusGroup, page },
       });
     },
-    async cancelBooking(booking) {
-      const reason = window.prompt("Nhập lý do hủy booking:", "Khách hàng yêu cầu hủy");
-      if (reason === null) return;
-
-      this.cancellingId = booking.id;
-      this.error = "";
+    cancelBooking(booking) {
+      this.cancelTarget = booking;
+      this.cancelError = "";
+    },
+    closeCancelModal() {
+      if (this.cancellingId) return;
+      this.cancelTarget = null;
+      this.cancelError = "";
+    },
+    async confirmCancellation(reason) {
+      if (!this.cancelTarget || this.cancellingId) return;
+      this.cancellingId = this.cancelTarget.id;
+      this.cancelError = "";
 
       try {
-        await bookingService.cancelBooking(booking.id, reason.trim());
+        await bookingService.cancelBooking(this.cancelTarget.id, reason);
+        this.cancelTarget = null;
         await this.loadBookings();
-      } catch (error) {
-        this.error = error.message || "Không thể hủy booking này.";
+      } catch (requestError) {
+        this.cancelError = requestError.message || "Không thể hủy booking này.";
       } finally {
         this.cancellingId = "";
       }

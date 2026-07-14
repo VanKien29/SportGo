@@ -211,7 +211,7 @@
                                     class="btn-cancel-payment btn-cancel-standalone"
                                     type="button"
                                     :disabled="cancellingPayment"
-                                    @click="cancelPayment"
+                                    @click="showCancelPaymentModal = true"
                                 >
                                     {{
                                         cancellingPayment
@@ -292,7 +292,7 @@
                                         class="btn-cancel-payment"
                                         type="button"
                                         :disabled="cancellingPayment"
-                                        @click="cancelPayment"
+                                        @click="showCancelPaymentModal = true"
                                     >
                                         {{
                                             cancellingPayment
@@ -307,7 +307,8 @@
                 </div>
             </div>
             <div class="detail-empty" v-else>
-                <p>Không tìm thấy thông tin đơn đặt sân.</p>
+                <p>{{ loadError || "Không tìm thấy thông tin đơn đặt sân." }}</p>
+                <button v-if="loadError" type="button" class="btn-back" @click="loadBooking">Thử lại</button>
                 <router-link to="/booking" class="btn-back"
                     >Quay lại đặt sân</router-link
                 >
@@ -319,20 +320,33 @@
             <div class="spinner"></div>
             <p>Đang tải thông tin đơn đặt sân...</p>
         </main>
+
+        <ConfirmActionModal
+            :is-open="showCancelPaymentModal"
+            title="Hủy thanh toán và booking?"
+            description="Sân đang được giữ cho giao dịch này. Nếu tiếp tục, thanh toán chờ sẽ bị hủy và khung giờ được giải phóng cho người khác."
+            confirm-text="Hủy thanh toán"
+            :loading="cancellingPayment"
+            :error="sepayError"
+            @close="showCancelPaymentModal = false"
+            @confirm="cancelPayment"
+        />
     </div>
 </template>
 
 <script>
+import ConfirmActionModal from "../../../components/ConfirmActionModal.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
     name: "BookingDetail",
-    components: { PublicNavbar },
+    components: { ConfirmActionModal, PublicNavbar },
     data() {
         return {
             booking: null,
             loading: true,
+            loadError: "",
             creatingSepay: false,
             cancellingPayment: false,
             sepayPayment: null,
@@ -340,6 +354,7 @@ export default {
             timeLeft: 0,
             timerInterval: null,
             paymentPollInterval: null,
+            showCancelPaymentModal: false,
         };
     },
     computed: {
@@ -362,6 +377,9 @@ export default {
                 confirmed: "Đặt Sân Thành Công!",
                 pending_payment: "Đơn Chờ Thanh Toán",
                 pending_approval: "Chờ Chủ Sân Duyệt",
+                checked_in: "Đã Check-in",
+                completed: "Buổi Chơi Đã Hoàn Tất",
+                rejected: "Booking Bị Từ Chối",
                 expired: "Đơn Đã Hết Hạn",
                 cancelled: "Đơn Đã Bị Hủy",
             };
@@ -375,6 +393,9 @@ export default {
                 pending_payment: "Vui lòng hoàn tất thanh toán để giữ chỗ.",
                 pending_approval:
                     "Chủ sân đang kiểm tra thông tin cấu hình và duyệt đơn đặt của bạn.",
+                checked_in: "Bạn đã check-in tại sân. Chúc bạn có buổi chơi hiệu quả.",
+                completed: "Buổi chơi đã hoàn tất. Cảm ơn bạn đã sử dụng SportGo.",
+                rejected: "Booking không được sân chấp nhận. Vui lòng chọn khung giờ khác.",
                 expired:
                     "Bạn đã quá hạn thanh toán 20 phút. Sân đã được giải phóng.",
                 cancelled:
@@ -388,6 +409,9 @@ export default {
                 confirmed: "Đã xác nhận",
                 pending_payment: "Chờ thanh toán",
                 pending_approval: "Chờ duyệt",
+                checked_in: "Đã check-in",
+                completed: "Hoàn tất",
+                rejected: "Bị từ chối",
                 expired: "Hết hạn",
                 cancelled: "Đã hủy",
             };
@@ -416,6 +440,7 @@ export default {
         async loadBooking() {
             const id = this.$route.params.id;
             this.loading = true;
+            this.loadError = "";
             try {
                 const res = await bookingService.getBooking(id);
                 this.booking = res;
@@ -430,7 +455,8 @@ export default {
                     this.clearTimer();
                 }
             } catch (err) {
-                console.error(err);
+                this.booking = null;
+                this.loadError = err.message || "Không thể tải thông tin booking.";
             } finally {
                 this.loading = false;
             }
@@ -505,11 +531,6 @@ export default {
         async cancelPayment() {
             if (!this.booking || this.cancellingPayment) return;
 
-            const confirmed = window.confirm(
-                "Bạn chắc chắn muốn hủy thanh toán và hủy đơn đặt sân này?",
-            );
-            if (!confirmed) return;
-
             this.cancellingPayment = true;
             this.sepayError = "";
 
@@ -518,6 +539,7 @@ export default {
                 this.booking = res.booking || this.booking;
                 this.timeLeft = 0;
                 this.sepayPayment = null;
+                this.showCancelPaymentModal = false;
                 this.clearTimer();
                 this.clearPaymentPolling();
             } catch (err) {

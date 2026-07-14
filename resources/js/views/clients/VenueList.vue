@@ -104,14 +104,6 @@
             <button class="apply-side" type="button" @click="applyFilters">Áp dụng bộ lọc</button>
           </section>
 
-          <section class="filter-panel compact-panel">
-            <h2>Luồng client</h2>
-            <router-link :to="{ name: 'home' }">Trang chủ</router-link>
-            <router-link :to="{ name: 'venues', query: cleanQuery() }">Tìm sân</router-link>
-            <router-link :to="{ name: 'booking-create', query: bookingQueryFromFilters() }">Booking</router-link>
-            <router-link :to="{ name: 'chat' }">Tin nhắn</router-link>
-            <router-link :to="{ name: 'ClientNewsList' }">Bài viết</router-link>
-          </section>
         </aside>
 
         <section class="results-panel">
@@ -129,29 +121,19 @@
                 <option value="name">Tên A-Z</option>
               </select>
               <div class="view-toggle" aria-label="Che do xem">
-                <button type="button" :class="{ active: viewMode === 'list' }" @click="setViewMode('list')">☰</button>
-                <button type="button" :class="{ active: viewMode === 'map' }" @click="setViewMode('map')">⌖</button>
+                <button type="button" :class="{ active: viewMode === 'list' }" aria-label="Xem danh sách" @click="setViewMode('list')">
+                  <AppIcon name="menu" size="17" />
+                </button>
+                <button type="button" :class="{ active: viewMode === 'map' }" aria-label="Xem bản đồ" @click="setViewMode('map')">
+                  <AppIcon name="mapPin" size="17" />
+                </button>
               </div>
             </div>
           </div>
 
           <div v-if="viewMode === 'map'" class="map-panel">
-            <div class="map-surface">
-              <button
-                v-for="venue in venuesWithLocation"
-                :key="venue.id"
-                type="button"
-                class="map-pin"
-                :style="pinStyle(venue)"
-                @click="goDetail(venue)"
-                :title="venue.name"
-              >
-                {{ initials(venue.name) }}
-              </button>
-              <div v-if="!venuesWithLocation.length" class="map-empty">
-                Chưa có tọa độ cho các sân trong bộ lọc này.
-              </div>
-            </div>
+            <VenueResultsMap v-if="venuesWithLocation.length" :venues="venuesWithLocation" @select="goDetail" />
+            <div v-else class="map-empty">Chưa có tọa độ cho các sân trong bộ lọc này.</div>
             <button class="back-list" type="button" @click="setViewMode('list')">Quay lại danh sách</button>
           </div>
 
@@ -207,8 +189,10 @@
 </template>
 
 <script>
+import AppIcon from "../../components/AppIcon.vue";
 import BookingDateTimePicker from "../../components/BookingDateTimePicker.vue";
 import PublicNavbar from "../../components/PublicNavbar.vue";
+import VenueResultsMap from "../../components/VenueResultsMap.vue";
 import { courtTypeService } from "../../services/courtTypes.js";
 import { venueService } from "../../services/venues.js";
 
@@ -216,7 +200,7 @@ const fallbackImage = "/images/home/badminton-cover.webp";
 
 export default {
   name: "VenueList",
-  components: { BookingDateTimePicker, PublicNavbar },
+  components: { AppIcon, BookingDateTimePicker, PublicNavbar, VenueResultsMap },
   data() {
     const today = new Date().toISOString().slice(0, 10);
     return {
@@ -316,6 +300,11 @@ export default {
       }
     },
     applyFilters() {
+      if (this.filters.min_price !== "" && this.filters.max_price !== ""
+        && Number(this.filters.max_price) < Number(this.filters.min_price)) {
+        this.error = "Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.";
+        return;
+      }
       this.filters.start_time = this.normalizeTime(this.filters.start_time);
       this.filters.end_time = this.endTimeFromStart(this.filters.start_time);
       this.$router.replace({ name: "venues", query: this.cleanQuery() });
@@ -416,14 +405,6 @@ export default {
     formatRating(venue) {
       const rating = Number(venue.rating_avg || venue.average_rating || 0);
       return rating > 0 ? `${rating.toFixed(1)} ★` : "Mới";
-    },
-    pinStyle(venue) {
-      const lat = Math.abs(Number(venue.latitude || 0));
-      const lng = Math.abs(Number(venue.longitude || 0));
-      return {
-        left: `${12 + (lng % 76)}%`,
-        top: `${12 + (lat % 68)}%`,
-      };
     },
   },
 };

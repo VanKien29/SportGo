@@ -15,7 +15,10 @@
 
             <nav class="flow-steps" aria-label="Tiến trình đặt sân">
                 <div v-for="step in steps" :key="step.id" :class="{ active: activeStep === step.id, done: activeStep > step.id }">
-                    <span>{{ activeStep > step.id ? "✓" : step.id }}</span>
+                    <span>
+                        <AppIcon v-if="activeStep > step.id" name="check" :size="14" aria-hidden="true" />
+                        <template v-else>{{ step.id }}</template>
+                    </span>
                     <section>
                         <strong>{{ step.label }}</strong>
                         <small>{{ step.hint }}</small>

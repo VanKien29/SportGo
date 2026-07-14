@@ -1,311 +1,515 @@
 <template>
   <div class="matchmaking-manage-page">
     <PublicNavbar />
-    <div class="manage-content">
-      <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải dữ liệu...</p>
+
+    <main class="manage-content">
+      <router-link :to="{ name: 'ClientCommunityList' }" class="back-link">
+        <AppIcon name="chevronLeft" size="16" />
+        Cộng đồng
+      </router-link>
+
+      <div v-if="loading" class="page-state">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Đang tải yêu cầu tham gia...</p>
       </div>
-      
-      <!-- Error State -->
-      <div v-else-if="error" class="error-state">
-        <i class="fas fa-exclamation-circle"></i>
+
+      <div v-else-if="error" class="page-state error" role="alert">
+        <AppIcon name="alert" size="26" />
+        <strong>Không thể tải bài giao lưu</strong>
         <p>{{ error }}</p>
-        <button class="btn primary" @click="fetchParticipants">Thử lại</button>
+        <button type="button" @click="fetchParticipants()">Thử lại</button>
       </div>
 
-      <template v-else>
-        <!-- Header Info -->
-        <div class="post-header">
-          <h2>Quản lý yêu cầu ghép kèo</h2>
-          <div class="post-info" v-if="post">
-            <p><i class="fas fa-map-marker-alt"></i> {{ post.venue_name }}</p>
-            <p><i class="far fa-clock"></i> {{ post.time }}</p>
-            <p>
-              <i class="fas fa-users"></i> Đang cần tuyển: 
-              <strong>{{ post.needed_players }} người</strong>
-            </p>
+      <template v-else-if="post">
+        <header class="page-header">
+          <div>
+            <span class="eyebrow">Quản lý bài giao lưu</span>
+            <h1>Yêu cầu tham gia</h1>
+            <p>Duyệt người chơi phù hợp với buổi giao lưu của bạn.</p>
           </div>
-        </div>
+          <span class="post-status" :class="post.status">{{ postStatusLabel }}</span>
+        </header>
 
-        <!-- Participants List -->
-        <div class="participants-section">
-          <h3>Danh sách xin tham gia ({{ participants.length }})</h3>
-          
-          <div v-if="participants.length === 0" class="empty-state">
-            <i class="fas fa-user-friends"></i>
-            <p>Hiện chưa có ai gửi yêu cầu tham gia.</p>
+        <section class="booking-summary">
+          <div>
+            <AppIcon name="mapPin" size="18" />
+            <span><small>Cụm sân</small><strong>{{ post.venue_name }}</strong></span>
+          </div>
+          <div>
+            <AppIcon name="clock" size="18" />
+            <span><small>Thời gian</small><strong>{{ post.time }}</strong></span>
+          </div>
+          <div>
+            <AppIcon name="users" size="18" />
+            <span><small>Còn cần</small><strong>{{ post.needed_players }} người</strong></span>
+          </div>
+        </section>
+
+        <section class="participants-panel">
+          <header>
+            <div>
+              <h2>Người xin tham gia</h2>
+              <p>{{ participants.length }} yêu cầu đã gửi đến bài giao lưu này.</p>
+            </div>
+            <button type="button" class="refresh-button" :disabled="refreshing" @click="fetchParticipants(true)">
+              <AppIcon name="refresh" size="16" />
+              {{ refreshing ? 'Đang tải' : 'Làm mới' }}
+            </button>
+          </header>
+
+          <div v-if="!participants.length" class="empty-state">
+            <AppIcon name="users" size="28" />
+            <strong>Chưa có yêu cầu tham gia</strong>
+            <span>Các yêu cầu mới sẽ xuất hiện tại đây.</span>
           </div>
 
           <div v-else class="participant-list">
-            <div class="participant-card" v-for="p in participants" :key="p.user_id">
-              <div class="p-info">
-                <div class="p-avatar">
-                  <img v-if="p.avatar" :src="getAvatarUrl(p.avatar)" alt="avatar" />
-                  <div v-else class="p-avatar-placeholder">{{ p.name.charAt(0).toUpperCase() }}</div>
+            <article v-for="participant in participants" :key="participant.user_id" class="participant-card">
+              <div class="participant-info">
+                <div class="avatar">
+                  <img v-if="participant.avatar" :src="getAvatarUrl(participant.avatar)" :alt="participant.name" />
+                  <span v-else>{{ initial(participant.name) }}</span>
                 </div>
-                <div class="p-details">
-                  <span class="p-name">{{ p.name }}</span>
-                  <span class="p-time">{{ formatTime(p.created_at) }}</span>
+                <div>
+                  <router-link :to="`/user/${participant.user_id}`">{{ participant.name }}</router-link>
+                  <small>Gửi lúc {{ formatTime(participant.created_at) }}</small>
                 </div>
               </div>
-              
-              <div class="p-actions" v-if="p.status === 'pending'">
-                <button class="btn-approve" @click="approve(p.user_id)" :disabled="processingId === p.user_id">
-                  <i class="fas fa-check"></i> Đồng ý
+
+              <div v-if="participant.status === 'pending'" class="participant-actions">
+                <button
+                  type="button"
+                  class="approve-button"
+                  :disabled="processingId === participant.user_id || post.status !== 'open'"
+                  @click="approve(participant.user_id)"
+                >
+                  <AppIcon name="check" size="16" />
+                  Đồng ý
                 </button>
-                <button class="btn-reject" @click="reject(p.user_id)" :disabled="processingId === p.user_id">
-                  <i class="fas fa-times"></i> Từ chối
+                <button
+                  type="button"
+                  class="reject-button"
+                  :disabled="processingId === participant.user_id"
+                  @click="reject(participant.user_id)"
+                >
+                  <AppIcon name="close" size="16" />
+                  Từ chối
                 </button>
               </div>
-              <div class="p-status" v-else>
-                <span class="status-badge approved" v-if="p.status === 'approved'">Đã chấp nhận</span>
-                <span class="status-badge rejected" v-if="p.status === 'rejected'">Đã từ chối</span>
-              </div>
-            </div>
+              <span v-else class="participant-status" :class="participant.status">
+                {{ participantStatusLabel(participant.status) }}
+              </span>
+            </article>
           </div>
-        </div>
+        </section>
       </template>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useToast } from 'vue-toastification';
+import AppIcon from '@/components/AppIcon.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import { api } from '@/services/api.js';
-import { useToast } from 'vue-toastification';
 
 const route = useRoute();
 const toast = useToast();
-const postId = route.params.id;
-
 const loading = ref(true);
-const error = ref(null);
+const refreshing = ref(false);
+const error = ref('');
 const post = ref(null);
 const participants = ref([]);
 const processingId = ref(null);
 
-const fetchParticipants = async () => {
-  loading.value = true;
-  error.value = null;
+const postStatusLabel = computed(() => ({
+  open: 'Đang tuyển',
+  full: 'Đã đủ người',
+  closed: 'Đã đóng',
+  cancelled: 'Đã hủy',
+}[post.value?.status] || post.value?.status || 'Không xác định'));
+
+async function fetchParticipants(silent = false) {
+  if (silent) refreshing.value = true;
+  else loading.value = true;
+  error.value = '';
   try {
-    const res = await api(`/api/matchmaking-posts/${postId}/participants`);
-    post.value = res.post;
-    participants.value = res.participants;
-  } catch (err) {
-    error.value = err.message || 'Lỗi tải dữ liệu.';
+    const response = await api(`/api/matchmaking-posts/${route.params.id}/participants`);
+    post.value = response.post;
+    participants.value = Array.isArray(response.participants) ? response.participants : [];
+  } catch (requestError) {
+    error.value = requestError.message || 'Không thể tải dữ liệu.';
   } finally {
     loading.value = false;
+    refreshing.value = false;
   }
-};
+}
 
-const approve = async (userId) => {
+async function updateParticipant(userId, action) {
+  if (processingId.value) return;
   processingId.value = userId;
   try {
-    await api(`/api/matchmaking-posts/${postId}/participants/${userId}/approve`, { method: 'POST' });
-    toast.success('Đã chấp nhận người chơi này.');
-    const p = participants.value.find(x => x.user_id === userId);
-    if (p) p.status = 'approved';
-  } catch (err) {
-    toast.error(err.message || 'Lỗi thao tác.');
+    await api(`/api/matchmaking-posts/${route.params.id}/participants/${userId}/${action}`, { method: 'POST' });
+    toast.success(action === 'approve' ? 'Đã chấp nhận người chơi.' : 'Đã từ chối yêu cầu.');
+    await fetchParticipants(true);
+  } catch (requestError) {
+    toast.error(requestError.message || 'Không thể cập nhật yêu cầu.');
   } finally {
     processingId.value = null;
   }
-};
+}
 
-const reject = async (userId) => {
-  processingId.value = userId;
-  try {
-    await api(`/api/matchmaking-posts/${postId}/participants/${userId}/reject`, { method: 'POST' });
-    toast.success('Đã từ chối yêu cầu.');
-    const p = participants.value.find(x => x.user_id === userId);
-    if (p) p.status = 'rejected';
-  } catch (err) {
-    toast.error(err.message || 'Lỗi thao tác.');
-  } finally {
-    processingId.value = null;
-  }
-};
+const approve = (userId) => updateParticipant(userId, 'approve');
+const reject = (userId) => updateParticipant(userId, 'reject');
 
-const formatTime = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
-};
+function participantStatusLabel(status) {
+  return {
+    approved: 'Đã chấp nhận',
+    rejected: 'Đã từ chối',
+    cancelled: 'Đã rút yêu cầu',
+  }[status] || status;
+}
 
-const getAvatarUrl = (path) => {
-  if (!path) return '';
-  if (/^https?:\/\//.test(path)) return path;
-  if (path.startsWith('/')) return path;
+function formatTime(value) {
+  if (!value) return 'không rõ';
+  return new Date(value).toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function getAvatarUrl(path) {
+  if (!path || /^https?:\/\//.test(path) || path.startsWith('/')) return path || '';
   return `/storage/${path}`;
-};
+}
 
-onMounted(() => {
-  fetchParticipants();
-});
+function initial(name) {
+  return String(name || 'N').charAt(0).toUpperCase();
+}
+
+watch(() => route.params.id, () => fetchParticipants());
+onMounted(() => fetchParticipants());
 </script>
 
 <style scoped>
 .matchmaking-manage-page {
-  background-color: #f8fafc;
   min-height: 100vh;
-  padding-top: 80px;
-}
-.manage-content {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-}
-.post-header {
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  margin-bottom: 24px;
-}
-.post-header h2 {
-  margin: 0 0 16px 0;
-  font-size: 1.5rem;
-  color: #1e293b;
-}
-.post-info p {
-  margin: 8px 0;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.post-info i {
-  color: #3b82f6;
-  width: 20px;
+  background: var(--admin-bg);
+  color: var(--admin-text);
 }
 
-.participants-section h3 {
-  font-size: 1.2rem;
-  margin-bottom: 16px;
-  color: #334155;
+.manage-content {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 92px 24px 56px;
+}
+
+.back-link,
+.page-header,
+.booking-summary > div,
+.participants-panel > header,
+.participant-card,
+.participant-info,
+.participant-actions,
+.refresh-button,
+.approve-button,
+.reject-button {
+  display: flex;
+  align-items: center;
+}
+
+.back-link {
+  width: fit-content;
+  gap: 5px;
+  margin-bottom: 18px;
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--admin-primary-dark);
+}
+
+.page-header {
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--admin-primary);
+  font-size: var(--admin-font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-header h1,
+.participants-panel h2 {
+  margin: 0;
+}
+
+.page-header h1 {
+  font-size: var(--admin-font-size-2xl);
+}
+
+.page-header p,
+.participants-panel header p {
+  margin: 6px 0 0;
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-base);
+}
+
+.post-status,
+.participant-status {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-sm);
+  font-weight: 600;
+}
+
+.post-status.open,
+.participant-status.approved {
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
+}
+
+.participant-status.rejected,
+.post-status.cancelled {
+  background: color-mix(in srgb, var(--admin-danger) 10%, var(--admin-surface));
+  color: var(--admin-danger-text);
+}
+
+.booking-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.booking-summary > div {
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  color: var(--admin-primary-dark);
+}
+
+.booking-summary span {
+  display: grid;
+  gap: 3px;
+}
+
+.booking-summary small {
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-xs);
+}
+
+.booking-summary strong {
+  color: var(--admin-text);
+  font-size: var(--admin-font-size-base);
+}
+
+.participants-panel {
+  padding: 18px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+}
+
+.participants-panel > header {
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--admin-border-soft);
+}
+
+.participants-panel h2 {
+  font-size: var(--admin-font-size-lg);
+}
+
+.refresh-button,
+.approve-button,
+.reject-button,
+.page-state button {
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.refresh-button,
+.reject-button {
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+}
+
+.approve-button,
+.page-state button {
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
+}
+
+.reject-button {
+  border-color: color-mix(in srgb, var(--admin-danger) 35%, var(--admin-border));
+  color: var(--admin-danger-text);
+}
+
+.refresh-button:disabled,
+.approve-button:disabled,
+.reject-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.participant-list {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
 }
 
 .participant-card {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg-soft);
 }
-.p-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+
+.participant-info {
+  min-width: 0;
+  gap: 11px;
 }
-.p-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+
+.avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
   overflow: hidden;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
+  font-weight: 600;
 }
-.p-avatar img {
+
+.avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.p-avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: #3b82f6;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  font-weight: bold;
+
+.participant-info > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
 }
-.p-details {
-  display: flex;
-  flex-direction: column;
-}
-.p-name {
+
+.participant-info a {
+  overflow: hidden;
+  color: var(--admin-text);
+  font-size: var(--admin-font-size-base);
   font-weight: 600;
-  color: #1e293b;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.p-time {
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-top: 4px;
+
+.participant-info small {
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-sm);
 }
-.p-actions {
-  display: flex;
+
+.participant-actions {
+  flex: 0 0 auto;
   gap: 8px;
 }
-.btn-approve, .btn-reject {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+
+.empty-state,
+.page-state {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  color: var(--admin-muted);
+  text-align: center;
 }
-.btn-approve {
-  background: #10b981;
-  color: white;
-}
-.btn-approve:hover:not(:disabled) { background: #059669; }
-.btn-reject {
-  background: #ef4444;
-  color: white;
-}
-.btn-reject:hover:not(:disabled) { background: #dc2626; }
-.btn-approve:disabled, .btn-reject:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.status-badge.approved {
-  background: #d1fae5;
-  color: #047857;
-}
-.status-badge.rejected {
-  background: #fee2e2;
-  color: #b91c1c;
-}
+
 .empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #64748b;
-  background: white;
-  border-radius: 12px;
+  min-height: 210px;
 }
-.empty-state i {
-  font-size: 3rem;
-  color: #cbd5e1;
-  margin-bottom: 16px;
+
+.empty-state span,
+.page-state p {
+  margin: 0;
+  font-size: var(--admin-font-size-base);
 }
-.loading-state, .error-state {
-  text-align: center;
-  padding: 40px;
+
+.page-state {
+  min-height: 420px;
 }
+
+.page-state.error {
+  color: var(--admin-danger-text);
+}
+
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #3b82f6;
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--admin-border);
+  border-top-color: var(--admin-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .manage-content {
+    padding: 84px 16px 40px;
+  }
+
+  .page-header,
+  .participant-card {
+    align-items: flex-start;
+  }
+
+  .booking-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .participant-card {
+    flex-direction: column;
+  }
+
+  .participant-actions {
+    width: 100%;
+  }
+
+  .participant-actions button {
+    flex: 1;
+  }
+}
 </style>

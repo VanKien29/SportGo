@@ -532,6 +532,14 @@ function formatDate(value) {
 
 .partner-document-card .partner-card-body {
   min-height: 760px;
+  min-width: 0;
+}
+
+.partner-sign-layout,
+.partner-document-card,
+.partner-inline-document-viewer {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .partner-inline-document-viewer {
@@ -540,7 +548,10 @@ function formatDate(value) {
 }
 
 .partner-inline-document-viewer .document-preview-pane {
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
+  box-sizing: border-box;
 }
 
 .partner-sign-steps {
@@ -568,6 +579,10 @@ function formatDate(value) {
 }
 
 @media (max-width: 980px) {
+  .partner-sign-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .partner-inline-document-viewer {
     height: auto;
     min-height: 620px;

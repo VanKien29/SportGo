@@ -59,7 +59,7 @@
 
               <!-- Media -->
               <div v-if="thumbnailImage" class="fb-media-container fb-media-container--cover">
-                <img :src="normalizeImage(thumbnailImage)" :alt="post.title || 'Ảnh bài viết'" loading="lazy" />
+                <img :src="normalizeImage(thumbnailImage)" :alt="post.title || 'Ảnh bài viết'" loading="lazy" @error="handleImageError" />
               </div>
 
               <section v-if="galleryImages.length" class="article-gallery" aria-label="Ảnh bài viết">
@@ -69,12 +69,13 @@
                   :src="normalizeImage(image)"
                   :alt="`${post.title || 'Bài viết'} - ảnh ${index + 1}`"
                   loading="lazy"
+                  @error="handleImageError"
                 />
               </section>
 
               <!-- Stats & Interactions -->
               <div class="fb-stats-row">
-                <div class="fb-stats-left" @click="post.like_count > 0 ? showLikersModal = true : null" :class="{ 'clickable': post.like_count > 0 }">
+                <div class="fb-stats-left" @click="likesAvailable && post.like_count > 0 ? showLikersModal = true : null" :class="{ 'clickable': likesAvailable && post.like_count > 0 }">
                   <div class="like-avatars">
                     <span class="liker-count">{{ post.like_count || 0 }} lượt thích</span>
                   </div>
@@ -87,7 +88,13 @@
 
               <!-- Actions -->
               <div class="fb-actions-row">
-                <button class="action-btn" :class="{ 'liked': isLiked }" @click="toggleLike" :disabled="isSubmittingLike">
+                <button
+                  v-if="likesAvailable"
+                  class="action-btn"
+                  :class="{ 'liked': isLiked }"
+                  @click="toggleLike"
+                  :disabled="isSubmittingLike"
+                >
                   <svg viewBox="0 0 24 24" width="20" height="20" :fill="isLiked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                   </svg>
@@ -252,6 +259,9 @@ export default {
       if (!this.currentUser || !this.post || !this.post.likers) return false;
       return this.post.likers.some(liker => liker.id === this.currentUser.id);
     },
+    likesAvailable() {
+      return this.post?.likes_available !== false;
+    },
     thumbnailImage() {
       const media = Array.isArray(this.post?.media) ? this.post.media : [];
       return media.find((item) => item.collection === "thumbnail") || null;
@@ -322,7 +332,7 @@ export default {
           this.post.like_count++;
         }
       } catch (error) {
-        console.error("Failed to toggle like:", error);
+        this.showToastMessage(error.message || "Không thể cập nhật lượt thích.");
       } finally {
         this.isSubmittingLike = false;
       }
@@ -331,17 +341,26 @@ export default {
       if (!this.newComment.trim() || this.isSubmittingComment || !this.currentUser) return;
 
       this.isSubmittingComment = true;
+      const content = this.newComment.trim();
       try {
-        await api(`/api/venue-posts/${this.post.id}/comments`, {
+        const response = await api(`/api/venue-posts/${this.post.id}/comments`, {
           method: "POST",
-          body: JSON.stringify({ content: this.newComment.trim() }),
+          body: JSON.stringify({ content }),
         });
-        
+
+        if (!Array.isArray(this.post.top_level_comments)) this.post.top_level_comments = [];
+        this.post.top_level_comments.unshift({
+          id: response.data?.id || `local-${Date.now()}`,
+          content,
+          created_at: new Date().toISOString(),
+          user: this.currentUser,
+        });
+        this.post.comment_count = Number(this.post.comment_count || 0) + 1;
         this.newComment = "";
         this.$refs.commentInput.style.height = 'auto';
+        this.showToastMessage('Bình luận đã được đăng.');
       } catch (error) {
-        console.error("Failed to post comment:", error);
-        alert(error.response?.data?.message || error.message || "Không thể gửi bình luận.");
+        this.showToastMessage(error.message || "Không thể gửi bình luận.");
       } finally {
         this.isSubmittingComment = false;
       }
@@ -362,11 +381,7 @@ export default {
     },
     copyLink() {
       navigator.clipboard.writeText(window.location.href);
-      this.toastMessage = 'Đã sao chép liên kết bài viết!';
-      this.showToast = true;
-      setTimeout(() => {
-        this.showToast = false;
-      }, 3000);
+      this.showToastMessage('Đã sao chép liên kết bài viết!');
     },
     autoResizeTextarea(e) {
       const el = e.target;
@@ -375,6 +390,12 @@ export default {
     },
     normalizeImage(media) {
       return normalizeMediaUrl(media) || normalizeMediaUrl({ file_path: this.post.thumbnail || this.post.image_path || this.post.cover_image }) || fallbackImage;
+    },
+    handleImageError(event) {
+      const image = event.currentTarget;
+      if (image?.getAttribute('src') !== fallbackImage) {
+        image.src = fallbackImage;
+      }
     },
     categoryLabel(type) {
       const labels = {
@@ -499,6 +520,9 @@ export default {
 }
 
 .fb-modal {
+  width: 100%;
+  height: auto;
+  min-height: 0;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -506,10 +530,14 @@ export default {
 }
 
 .fb-body {
+  flex: none;
+  overflow: visible;
   padding: 0;
 }
 
 .fb-post {
+  display: block;
+  gap: 0;
   padding: 16px 0 0 0;
 }
 

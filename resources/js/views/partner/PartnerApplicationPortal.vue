@@ -352,6 +352,16 @@
     </main>
 
     <FloatingActions />
+    <ConfirmActionModal
+      :is-open="Boolean(cancelTarget)"
+      title="Hủy hồ sơ đăng ký?"
+      :description="cancelTarget ? `Hồ sơ ${cancelTarget.venue_name || ''} sẽ ngừng xử lý. Các tài liệu đã nộp vẫn được lưu để tra cứu.` : ''"
+      confirm-text="Hủy hồ sơ"
+      :loading="Boolean(cancelTarget && actioningApplicationId === cancelTarget.id)"
+      :error="cancelError"
+      @close="closeCancelConfirmation"
+      @confirm="confirmCancelApplication"
+    />
   </div>
 </template>
 
@@ -452,11 +462,13 @@
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import PublicNavbar from '../../components/PublicNavbar.vue';
+import ConfirmActionModal from '../../components/ConfirmActionModal.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
 import BackButton from '../../components/BackButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
@@ -512,6 +524,7 @@ const FormField = defineComponent({
 // ─── State ───────────────────────────────────────────────────────────────────
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 const user = getAuth();
 
 const loading = ref(false);
@@ -532,6 +545,8 @@ const uploadResetKey = ref(0);
 const confirmed = ref(false);
 const submitting = ref(false);
 const actioningApplicationId = ref('');
+const cancelTarget = ref(null);
+const cancelError = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
@@ -940,11 +955,11 @@ function getCurrentLocation() {
         }
       },
       () => {
-        alert('Không thể lấy được vị trí. Vui lòng kiểm tra quyền truy cập vị trí của trình duyệt.');
+        mapError.value = 'Không thể lấy vị trí. Hãy kiểm tra quyền truy cập vị trí của trình duyệt.';
       }
     );
   } else {
-    alert('Trình duyệt của bạn không hỗ trợ tính năng định vị.');
+    mapError.value = 'Trình duyệt này không hỗ trợ định vị. Bạn vẫn có thể chọn vị trí trực tiếp trên bản đồ.';
   }
 }
 
@@ -1268,25 +1283,30 @@ async function submit() {
 }
 
 // ─── Application actions ──────────────────────────────────────────────────────
-async function cancelApplication(application) {
+function cancelApplication(application) {
   if (!application?.id || actioningApplicationId.value) return;
+  cancelTarget.value = application;
+  cancelError.value = '';
+}
 
-  const ok = window.confirm([
-    `Hủy hồ sơ đăng ký cho ${application.venue_name}?`,
-    '',
-    'Sau khi hủy, hồ sơ sẽ ngừng xử lý và không được cấp quyền chủ sân từ hồ sơ này.',
-    'Các file đã nộp vẫn được lưu trong lịch sử để tra cứu khi cần.',
-  ].join('\n'));
-  if (!ok) return;
+function closeCancelConfirmation() {
+  if (actioningApplicationId.value) return;
+  cancelTarget.value = null;
+  cancelError.value = '';
+}
+
+async function confirmCancelApplication() {
+  const application = cancelTarget.value;
+  if (!application?.id || actioningApplicationId.value) return;
 
   actioningApplicationId.value = application.id;
   try {
     await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
-    actioningApplicationId.value = '';
-    alert('Đã hủy hồ sơ thành công.');
+    cancelTarget.value = null;
+    toast.success('Đã hủy hồ sơ thành công.');
     await loadApplications();
   } catch (err) {
-    alert(err.message || 'Không thể hủy hồ sơ lúc này.');
+    cancelError.value = err.message || 'Không thể hủy hồ sơ lúc này.';
   } finally {
     actioningApplicationId.value = '';
   }
@@ -1312,10 +1332,10 @@ async function submitSignedApplication(application) {
   actioningApplicationId.value = application.id;
   try {
     await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
-    actioningApplicationId.value = '';
+    toast.success('Hồ sơ đã được gửi để SportGo xét duyệt.');
     await loadApplications();
   } catch (err) {
-    alert(err.message || 'Không thể gửi hồ sơ lúc này.');
+    toast.error(err.message || 'Không thể gửi hồ sơ lúc này.');
   } finally {
     actioningApplicationId.value = '';
   }

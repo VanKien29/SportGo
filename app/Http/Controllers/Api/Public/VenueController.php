@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class VenueController extends Controller
 {
@@ -35,6 +36,20 @@ class VenueController extends Controller
             'end_time' => ['nullable', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
         ]);
 
+        if (isset($validated['min_price'], $validated['max_price'])
+            && (float) $validated['max_price'] < (float) $validated['min_price']) {
+            throw ValidationException::withMessages([
+                'max_price' => 'Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.',
+            ]);
+        }
+
+        if (! empty($validated['start_time']) && ! empty($validated['end_time'])
+            && $this->timeToMinutes($validated['end_time']) <= $this->timeToMinutes($validated['start_time'])) {
+            throw ValidationException::withMessages([
+                'end_time' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.',
+            ]);
+        }
+
         $query = VenueCluster::query()
             ->with(['venueCourts' => function ($query) {
                 $query->with('courtType:id,name,parent_id')
@@ -48,12 +63,19 @@ class VenueController extends Controller
             $keyword = $validated['q'];
             $query->where(function ($query) use ($keyword) {
                 $query->where('name', 'like', "%{$keyword}%")
-                    ->orWhere('address', 'like', "%{$keyword}%");
+                    ->orWhere('address', 'like', "%{$keyword}%")
+                    ->orWhere('ward', 'like', "%{$keyword}%")
+                    ->orWhere('province', 'like', "%{$keyword}%");
             });
         }
 
         if (! empty($validated['area'])) {
-            $query->where('address', 'like', '%'.$validated['area'].'%');
+            $area = $validated['area'];
+            $query->where(function ($areaQuery) use ($area) {
+                $areaQuery->where('address', 'like', "%{$area}%")
+                    ->orWhere('ward', 'like', "%{$area}%")
+                    ->orWhere('province', 'like', "%{$area}%");
+            });
         }
 
         if (isset($validated['min_rating'])) {
@@ -376,6 +398,13 @@ class VenueController extends Controller
         }
 
         return array_values(array_unique($ids));
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
+
+        return $hour * 60 + $minute;
     }
 
     private function courtTypeIdsWithAncestors(Collection $courtTypeIds): array
