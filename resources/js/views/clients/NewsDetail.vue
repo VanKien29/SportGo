@@ -58,9 +58,19 @@
               <div class="fb-post-text article-body" v-html="post.content"></div>
 
               <!-- Media -->
-              <div v-if="post.media && post.media.length" class="fb-media-container">
-                <img v-for="m in post.media" :key="m.id" :src="m.file_path || m.url || normalizeImage(m)" loading="lazy" />
+              <div v-if="thumbnailImage" class="fb-media-container fb-media-container--cover">
+                <img :src="normalizeImage(thumbnailImage)" :alt="post.title || 'Ảnh bài viết'" loading="lazy" />
               </div>
+
+              <section v-if="galleryImages.length" class="article-gallery" aria-label="Ảnh bài viết">
+                <img
+                  v-for="(image, index) in galleryImages"
+                  :key="image.id || image.file_path"
+                  :src="normalizeImage(image)"
+                  :alt="`${post.title || 'Bài viết'} - ảnh ${index + 1}`"
+                  loading="lazy"
+                />
+              </section>
 
               <!-- Stats & Interactions -->
               <div class="fb-stats-row">
@@ -239,7 +249,16 @@ export default {
     isLiked() {
       if (!this.currentUser || !this.post || !this.post.likers) return false;
       return this.post.likers.some(liker => liker.id === this.currentUser.id);
-    }
+    },
+    thumbnailImage() {
+      const media = Array.isArray(this.post?.media) ? this.post.media : [];
+      return media.find((item) => item.collection === "thumbnail") || null;
+    },
+    galleryImages() {
+      return Array.isArray(this.post?.media)
+        ? this.post.media.filter((item) => item.collection === "gallery")
+        : [];
+    },
   },
   watch: {
     "$route.params.slug": {
@@ -474,6 +493,22 @@ export default {
 
 .fb-post {
   padding: 16px 0 0 0;
+}
+
+.article-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.article-gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--admin-border, #dfe8e2);
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .fb-post-header {
@@ -866,5 +901,11 @@ export default {
   font-weight: 600;
   font-size: 15px;
   color: #050505;
+}
+
+@media (max-width: 640px) {
+  .article-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

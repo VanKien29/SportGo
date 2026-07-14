@@ -253,6 +253,40 @@
                 <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.thumbnail[0] }}</p>
               </div>
 
+              <div class="field" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh bài viết</span>
+                  <span style="font-size: 12px; color: #64748b;">{{ galleryImageCount }}/{{ MAX_GALLERY_IMAGES }}</span>
+                </div>
+                <input
+                  ref="galleryInputRef"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  style="display: none;"
+                  @change="handleGalleryUpload"
+                />
+                <button
+                  v-if="editingPostStatus !== 'pending_review' && galleryImageCount < MAX_GALLERY_IMAGES"
+                  class="btn ghost compact"
+                  type="button"
+                  @click="galleryInputRef?.click()"
+                >
+                  <AppIcon name="image" size="16" /> Thêm ảnh
+                </button>
+                <div v-if="existingGallery.length || galleryFiles.length" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                  <div v-for="media in existingGallery" :key="media.id" style="position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <img :src="normalizeMediaUrl(media)" alt="Ảnh bài viết" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <button v-if="editingPostStatus !== 'pending_review'" type="button" class="icon-btn" title="Xóa ảnh" @click="removeExistingGallery(media)" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.9); color: #fff;"><AppIcon name="trash" size="14" /></button>
+                  </div>
+                  <div v-for="item in galleryFiles" :key="item.preview" style="position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <img :src="item.preview" alt="Ảnh mới chọn" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <button type="button" class="icon-btn" title="Xóa ảnh" @click="removeGalleryFile(item)" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.9); color: #fff;"><AppIcon name="trash" size="14" /></button>
+                  </div>
+                </div>
+                <p class="error-msg" v-if="errors.gallery" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.gallery[0] }}</p>
+              </div>
+
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
                 <CustomSelect v-model="form.venue_cluster_id" :options="clusterOptions" placeholder="-- Chọn cụm sân --" :class="{ 'is-invalid': errors.venue_cluster_id }" disabled />
@@ -347,8 +381,13 @@ const isEditing = ref(false);
 const editingPostId = ref(null);
 const editingPostStatus = ref('');
 const fileInputRef = ref(null);
+const galleryInputRef = ref(null);
 
 const thumbnailPreview = ref('');
+const galleryFiles = ref([]);
+const existingGallery = ref([]);
+const removedGalleryMediaIds = ref([]);
+const MAX_GALLERY_IMAGES = 10;
 const deletingPost = ref(null);
 
 const categoryOptions = [
@@ -362,6 +401,8 @@ const categoryOptions = [
 const clusterOptions = computed(() => {
   return venueClusters.value.map(c => ({ label: c.name, value: c.id }));
 });
+
+const galleryImageCount = computed(() => existingGallery.value.length + galleryFiles.value.length);
 
 const pagination = reactive({
   current_page: 1,
@@ -513,6 +554,43 @@ const handleFileUpload = async (e) => {
   }
 };
 
+const handleGalleryUpload = (event) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const files = Array.from(event.target.files || []);
+  const availableSlots = MAX_GALLERY_IMAGES - galleryImageCount.value;
+  const accepted = files.filter((file) => allowedTypes.includes(file.type) && file.size <= MAX_SOURCE_IMAGE_BYTES).slice(0, availableSlots);
+
+  if (accepted.length !== files.length) {
+    errors.value.gallery = ['Chỉ nhận tối đa 10 ảnh JPG, PNG hoặc WEBP, mỗi ảnh không quá 5MB.'];
+    toast.error('Kiểm tra lại số lượng, định dạng hoặc dung lượng ảnh bài viết.');
+  } else {
+    errors.value.gallery = null;
+  }
+
+  galleryFiles.value.push(...accepted.map((file) => ({ file, preview: URL.createObjectURL(file) })));
+  event.target.value = '';
+};
+
+const removeGalleryFile = (item) => {
+  URL.revokeObjectURL(item.preview);
+  galleryFiles.value = galleryFiles.value.filter((candidate) => candidate !== item);
+};
+
+const removeExistingGallery = (media) => {
+  existingGallery.value = existingGallery.value.filter((candidate) => candidate.id !== media.id);
+  if (!removedGalleryMediaIds.value.includes(media.id)) {
+    removedGalleryMediaIds.value.push(media.id);
+  }
+};
+
+const resetGallery = () => {
+  galleryFiles.value.forEach((item) => URL.revokeObjectURL(item.preview));
+  galleryFiles.value = [];
+  existingGallery.value = [];
+  removedGalleryMediaIds.value = [];
+  if (galleryInputRef.value) galleryInputRef.value.value = '';
+};
+
 const compressImage = (file, maxBytes) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -571,6 +649,7 @@ const clearThumbnail = () => {
 const openForm = (post = null) => {
   errors.value = {};
   clearThumbnail();
+  resetGallery();
 
   if (post) {
     isEditing.value = true;
@@ -591,6 +670,7 @@ const openForm = (post = null) => {
     
     // Existing image preview
     thumbnailPreview.value = getThumbnail(post);
+    existingGallery.value = Array.isArray(post.media) ? post.media.filter((media) => media.collection === 'gallery') : [];
   } else {
     isEditing.value = false;
     editingPostId.value = null;
@@ -665,6 +745,12 @@ const submitForm = async () => {
   
   if (form.thumbnail) {
     formData.append('thumbnail', form.thumbnail);
+  }
+  for (const { file: image } of galleryFiles.value) {
+    formData.append('gallery[]', image);
+  }
+  for (const mediaId of removedGalleryMediaIds.value) {
+    formData.append('removed_gallery_media_ids[]', mediaId);
   }
   
   try {
