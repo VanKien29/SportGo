@@ -11,6 +11,7 @@ use App\Models\GeneratedDocument;
 use App\Models\Notification;
 use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
+use App\Models\OwnerWalletLedger;
 use App\Models\OwnerWithdrawalRequest;
 use App\Models\PartnerContract;
 use App\Models\PartnerTerminationBookingAction;
@@ -22,6 +23,7 @@ use App\Models\Role;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Models\UserWallet;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
@@ -108,6 +110,12 @@ class PartnerTerminationFlowService
         $contract = $this->activeContractForCluster($cluster, $owner);
         $activeRequest = $this->activeRequestForCluster($cluster->id, true);
         $activeRequestPayload = $activeRequest?->load($this->requestRelations());
+        $latestClosedRequest = PartnerTerminationRequest::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->whereIn('status', [self::STATUS_OWNER_CANCELLED, self::STATUS_ADMIN_REJECTED, self::STATUS_TERMINATED])
+            ->latest('updated_at')
+            ->first()
+            ?->load($this->requestRelations());
         $summary = $this->financialSummary($cluster);
 
         return [
@@ -116,6 +124,7 @@ class PartnerTerminationFlowService
             'cluster' => $cluster,
             'contract' => $contract,
             'active_request' => $activeRequestPayload,
+            'latest_closed_request' => $latestClosedRequest,
             'summary' => $summary,
             'policies' => $this->futureBookingPolicies(),
             'warning' => 'Khi gửi yêu cầu chấm dứt, cụm sân sẽ bị khóa thao tác quản lý bình thường. Chủ sân chỉ còn quyền xử lý booking, hoàn tiền, yêu cầu rút tiền và theo dõi hồ sơ chấm dứt.',
@@ -456,13 +465,52 @@ class PartnerTerminationFlowService
         });
     }
 
-    public function sendOwnerCancelOtp(PartnerTerminationRequest $termination, User $owner, string $signatureImage, Request $request): DocumentSigningRequest
+    public function previewOwnerCancellation(PartnerTerminationRequest $termination, User $owner, string $reason): GeneratedDocument
     {
         $this->assertOwner($termination, $owner);
         $this->assertCanOwnerCancel($termination);
+        $termination->loadMissing(['owner', 'venueCluster', 'contract']);
+        $originalDocument = $this->latestOwnerRequestGeneratedDocument($termination);
+
+        return $this->documents->generateDocument(
+            'termination_cancellation_request',
+            $termination,
+            [
+                'document_place' => 'Hà Nội',
+                'document_day' => now()->format('d'),
+                'document_month' => now()->format('m'),
+                'document_year' => now()->format('Y'),
+                'owner_name' => $this->ownerSignerName($termination),
+                'owner_email' => $owner->email,
+                'owner_phone' => $owner->phone,
+                'venue_name' => $termination->venueCluster?->name,
+                'contract_code' => $termination->contract?->contract_code ?: $termination->contract?->contract_number,
+                'termination_code' => $termination->termination_code,
+                'original_document_code' => $originalDocument->document_code,
+                'cancellation_reason' => $reason,
+                'cancellation_requested_at' => now()->format('d/m/Y H:i'),
+            ],
+            $owner,
+            [
+                'title' => 'Đơn xác nhận hủy yêu cầu chấm dứt hợp tác ' . ($termination->venueCluster?->name ?: ''),
+                'status' => 'pending_owner_signature',
+                'partner_application_id' => $termination->partner_application_id,
+                'partner_contract_id' => $termination->partner_contract_id,
+                'partner_termination_request_id' => $termination->id,
+                'owner_id' => $owner->id,
+                'venue_cluster_id' => $termination->venue_cluster_id,
+            ]
+        );
+    }
+
+    public function sendOwnerCancelOtp(PartnerTerminationRequest $termination, User $owner, int $generatedDocumentId, string $signatureImage, Request $request): DocumentSigningRequest
+    {
+        $this->assertOwner($termination, $owner);
+        $this->assertCanOwnerCancel($termination);
+        $document = $this->cancellationGeneratedDocument($termination, $generatedDocumentId);
 
         return $this->signing->requestOtp(
-            $this->latestOwnerRequestGeneratedDocument($termination),
+            $document,
             $owner,
             'owner',
             'owner_cancel_partner_termination_request',
@@ -478,17 +526,23 @@ class PartnerTerminationFlowService
             $this->assertOwner($termination, $owner);
             $this->assertCanOwnerCancel($termination);
 
-            $document = $this->latestOwnerRequestGeneratedDocument($termination);
             $signingRequest = DocumentSigningRequest::query()
+                ->with('document')
                 ->whereKey($signingRequestId)
-                ->where('generated_document_id', $document->id)
                 ->where('signer_side', 'owner')
                 ->where('action', 'owner_cancel_partner_termination_request')
                 ->firstOrFail();
+            $document = $signingRequest->document;
+            if (! $document
+                || $document->document_type !== 'termination_cancellation_request'
+                || (int) $document->partner_termination_request_id !== (int) $termination->id) {
+                throw ValidationException::withMessages([
+                    'document' => 'Văn bản hủy không thuộc hồ sơ chấm dứt này.',
+                ]);
+            }
 
             $verified = $this->signing->verifyOtp($signingRequest, $owner, $otp);
             $signature = $this->documents->signDocument($document, $owner, 'owner', $verified->signature_image, $request, [
-                'signature_method' => 'typed_confirm',
                 'signer_full_name' => $this->ownerSignerName($termination),
             ]);
             $this->signing->markSigned($verified, $signature);
@@ -626,11 +680,12 @@ class PartnerTerminationFlowService
     public function signAndIssueUnilateralNotice(
         PartnerTerminationRequest $termination,
         User $admin,
-        int $signingRequestId,
-        string $otp,
-        Request $request
+        ?int $signingRequestId,
+        ?string $otp,
+        Request $request,
+        ?string $signatureImage = null
     ): PartnerTerminationRequest {
-        return DB::transaction(function () use ($termination, $admin, $signingRequestId, $otp, $request): PartnerTerminationRequest {
+        return DB::transaction(function () use ($termination, $admin, $signingRequestId, $otp, $request, $signatureImage): PartnerTerminationRequest {
             $termination = PartnerTerminationRequest::query()
                 ->with(['contract.application.user', 'venueCluster', 'owner'])
                 ->whereKey($termination->id)
@@ -639,14 +694,22 @@ class PartnerTerminationFlowService
             $this->assertUnilateralNoticeDraft($termination);
 
             $document = $this->latestUnilateralNoticeGeneratedDocument($termination);
-            $signingRequest = DocumentSigningRequest::query()
-                ->whereKey($signingRequestId)
-                ->where('generated_document_id', $document->id)
-                ->where('signer_side', 'sportgo')
-                ->where('action', 'admin_sign_unilateral_termination_notice')
-                ->firstOrFail();
-            $verified = $this->signing->verifyOtp($signingRequest, $admin, $otp);
+            if (! $signatureImage) {
+                throw ValidationException::withMessages([
+                    'signature_image' => 'Admin cần ký trực tiếp bằng phiên đăng nhập hiện tại.',
+                ]);
+            }
+            $verified = $this->signing->approveWithAuthenticatedSession(
+                $document,
+                $admin,
+                'sportgo',
+                'admin_sign_unilateral_termination_notice',
+                'Tôi xác nhận đã kiểm tra toàn bộ công văn và ký với vai trò đại diện SportGo được ủy quyền.',
+                $signatureImage,
+                $request
+            );
             $signature = $this->documents->signDocument($document, $admin, 'sportgo', $verified->signature_image, $request, [
+                'signature_method' => 'drawn',
                 'signer_full_name' => $admin->full_name ?: $admin->username,
                 'signer_title' => 'Đại diện SportGo',
                 'signer_organization' => 'SportGo',
@@ -896,19 +959,36 @@ class PartnerTerminationFlowService
         );
     }
 
-    public function signFinalDocument(PartnerTerminationRequest $termination, User $signer, string $signerSide, int $signingRequestId, string $otp, Request $request): PartnerTerminationRequest
+    public function signFinalDocument(PartnerTerminationRequest $termination, User $signer, string $signerSide, ?int $signingRequestId, ?string $otp, Request $request, ?string $signatureImage = null): PartnerTerminationRequest
     {
-        return DB::transaction(function () use ($termination, $signer, $signerSide, $signingRequestId, $otp, $request): PartnerTerminationRequest {
+        return DB::transaction(function () use ($termination, $signer, $signerSide, $signingRequestId, $otp, $request, $signatureImage): PartnerTerminationRequest {
             $this->assertFinalSigner($termination, $signer, $signerSide);
             $document = $this->latestFinalGeneratedDocument($termination);
-            $signingRequest = DocumentSigningRequest::query()
-                ->whereKey($signingRequestId)
-                ->where('generated_document_id', $document->id)
-                ->where('signer_side', $signerSide)
-                ->firstOrFail();
-
-            $verified = $this->signing->verifyOtp($signingRequest, $signer, $otp);
+            if ($signerSide === 'sportgo') {
+                if (! $signatureImage) {
+                    throw ValidationException::withMessages([
+                        'signature_image' => 'Admin cần ký trực tiếp bằng phiên đăng nhập hiện tại.',
+                    ]);
+                }
+                $verified = $this->signing->approveWithAuthenticatedSession(
+                    $document,
+                    $signer,
+                    $signerSide,
+                    'admin_sign_partner_final_termination_document',
+                    'Tôi xác nhận đại diện SportGo đã kiểm tra và ký biên bản chấm dứt hợp đồng cuối cùng.',
+                    $signatureImage,
+                    $request
+                );
+            } else {
+                $signingRequest = DocumentSigningRequest::query()
+                    ->whereKey($signingRequestId)
+                    ->where('generated_document_id', $document->id)
+                    ->where('signer_side', $signerSide)
+                    ->firstOrFail();
+                $verified = $this->signing->verifyOtp($signingRequest, $signer, (string) $otp);
+            }
             $signature = $this->documents->signDocument($document, $signer, $signerSide, $verified->signature_image, $request, [
+                'signature_method' => 'drawn',
                 'signer_full_name' => $signerSide === 'owner' ? $this->ownerSignerName($termination) : ($signer->full_name ?: $signer->username),
                 'signer_title' => $signerSide === 'owner'
                     ? ($termination->contract?->application?->representative_position ?: 'Chủ sân')
@@ -1034,7 +1114,8 @@ class PartnerTerminationFlowService
 
             $termination = $this->refreshAmounts($termination);
 
-            if ($termination->status === self::STATUS_TERMINATING && $termination->owner_access_view_until && $termination->owner_access_view_until->isPast()) {
+            $accessDeadline = $termination->owner_access_view_until ?: $termination->transition_end_at;
+            if ($termination->status === self::STATUS_TERMINATING && $accessDeadline && $accessDeadline->isPast()) {
                 $this->revokeOwnerScope($termination);
                 return $termination->fresh();
             }
@@ -1071,6 +1152,8 @@ class PartnerTerminationFlowService
             if ($termination->owner_access_revoked_at) {
                 return;
             }
+
+            $transferredAmount = $this->transferRemainingOwnerBalanceToUserWallet($termination);
 
             $roleId = Role::query()->where('name', 'venue_owner')->value('id');
             if ($roleId && $termination->venue_cluster_id) {
@@ -1109,8 +1192,111 @@ class PartnerTerminationFlowService
                 ->where('venue_cluster_id', $termination->venue_cluster_id)
                 ->update(['status' => 'inactive']);
 
-            $this->history($termination, $oldStatus, self::STATUS_TERMINATED, null, 'system', 'Thu hoi quyen owner sau thoi gian cau hinh.');
+            $note = 'Thu hồi quyền chủ sân sau thời gian cấu hình.';
+            if ($transferredAmount > 0) {
+                $note .= ' Số dư chưa rút đã được chuyển sang số dư người dùng của cùng tài khoản.';
+            }
+            $this->history($termination, $oldStatus, self::STATUS_TERMINATED, null, 'system', $note);
         });
+    }
+
+    private function transferRemainingOwnerBalanceToUserWallet(PartnerTerminationRequest $termination): float
+    {
+        $ownerWallet = OwnerWallet::query()
+            ->where('owner_id', $termination->owner_id)
+            ->where('venue_cluster_id', $termination->venue_cluster_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $ownerWallet) {
+            return 0;
+        }
+
+        $ownerTransactionCode = 'OWT-'.substr(hash('sha256', "partner-termination:{$termination->id}:{$ownerWallet->id}"), 0, 32);
+        $existingOwnerLedger = OwnerWalletLedger::query()
+            ->where('transaction_code', $ownerTransactionCode)
+            ->first();
+
+        if ($existingOwnerLedger) {
+            return (float) $existingOwnerLedger->amount;
+        }
+
+        $amount = round((float) $ownerWallet->available_balance, 2);
+        if ($amount <= 0) {
+            return 0;
+        }
+
+        $userWallet = UserWallet::query()->firstOrCreate(
+            ['user_id' => $termination->owner_id],
+            ['balance' => 0, 'locked_balance' => 0, 'status' => 'active'],
+        );
+        $userWallet = UserWallet::query()->whereKey($userWallet->id)->lockForUpdate()->firstOrFail();
+
+        $ownerBalanceBefore = (float) $ownerWallet->available_balance;
+        $ownerWallet->available_balance = 0;
+        $ownerWallet->total_withdrawn = (float) $ownerWallet->total_withdrawn + $amount;
+        $ownerWallet->save();
+
+        $ownerLedger = OwnerWalletLedger::query()->create([
+            'owner_wallet_id' => $ownerWallet->id,
+            'owner_id' => $termination->owner_id,
+            'venue_cluster_id' => $termination->venue_cluster_id,
+            'type' => 'debit',
+            'direction' => 'debit',
+            'amount' => $amount,
+            'balance_before' => $ownerBalanceBefore,
+            'balance_after' => 0,
+            'status' => 'completed',
+            'reference_code' => $termination->termination_code,
+            'reference_type' => 'partner_termination_balance_transfer',
+            'reference_id' => $termination->id,
+            'transaction_code' => $ownerTransactionCode,
+            'description' => 'Chuyển số dư chủ sân chưa rút sang số dư người dùng khi hết thời gian xem hồ sơ chấm dứt.',
+            'note' => 'Tài khoản vẫn giữ nguyên tiền dưới vai trò người dùng SportGo.',
+            'metadata' => [
+                'source' => 'partner_termination_grace_expired',
+                'termination_code' => $termination->termination_code,
+                'destination_user_wallet_id' => $userWallet->id,
+            ],
+        ]);
+
+        $userBalanceBefore = (float) $userWallet->balance;
+        $userBalanceAfter = $userBalanceBefore + $amount;
+        $userWallet->balance = $userBalanceAfter;
+        $userWallet->save();
+
+        $userLedgerId = DB::table('user_wallet_ledgers')->insertGetId([
+            'user_wallet_id' => $userWallet->id,
+            'transaction_code' => 'UWT-'.substr(hash('sha256', "partner-termination:{$termination->id}:{$userWallet->id}"), 0, 32),
+            'type' => 'adjustment',
+            'direction' => 'credit',
+            'amount' => $amount,
+            'balance_before' => $userBalanceBefore,
+            'balance_after' => $userBalanceAfter,
+            'reference_type' => 'partner_termination_balance_transfer',
+            'reference_id' => $termination->id,
+            'status' => 'completed',
+            'note' => 'Nhận số dư chủ sân chưa rút sau khi hoàn tất chấm dứt hợp tác.',
+            'created_by' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->fillTermination($termination, [
+            'owner_balance_total' => round((float) $ownerWallet->pending_withdrawal_balance, 2),
+            'withdrawable_amount' => 0,
+            'metadata' => array_merge($termination->metadata ?: [], [
+                'remaining_balance_transfer' => [
+                    'amount' => $amount,
+                    'owner_wallet_ledger_id' => $ownerLedger->id,
+                    'user_wallet_id' => $userWallet->id,
+                    'user_wallet_ledger_id' => $userLedgerId,
+                    'transferred_at' => now()->toIso8601String(),
+                ],
+            ]),
+        ])->save();
+
+        return $amount;
     }
 
     public function refreshAmounts(PartnerTerminationRequest $termination): PartnerTerminationRequest
@@ -1173,6 +1359,8 @@ class PartnerTerminationFlowService
             'contract.application.user',
             'documents.generatedDocument.signatures.signer',
             'documents.generatedDocument.signingRequests',
+            'generatedDocuments.signatures.signer',
+            'generatedDocuments.signingRequests',
             'statusHistories.changedBy:id,full_name,username,email',
         ];
 
@@ -1383,12 +1571,6 @@ class PartnerTerminationFlowService
     private function generateFinalDocumentIfReady(PartnerTerminationRequest $termination, ?User $actor, bool $adminOverride = false): GeneratedDocument
     {
         $termination = $termination->fresh(['contract.application.user', 'venueCluster']);
-        if (! $this->readyForFinalDocument($termination, $adminOverride)) {
-            throw ValidationException::withMessages([
-                'termination' => 'Chưa đủ điều kiện sinh biên bản chấm dứt cuối.',
-            ]);
-        }
-
         $existing = PartnerTerminationDocument::query()
             ->with('generatedDocument')
             ->where('partner_termination_request_id', $termination->id)
@@ -1402,6 +1584,12 @@ class PartnerTerminationFlowService
             }
 
             return $existing->generatedDocument;
+        }
+
+        if (! $this->readyForFinalDocument($termination, $adminOverride)) {
+            throw ValidationException::withMessages([
+                'termination' => 'Chưa đủ điều kiện sinh biên bản chấm dứt cuối.',
+            ]);
         }
 
         $document = $this->documents->generateDocument('settlement_minutes', $termination, $this->finalDocumentRenderData($termination), $actor, [
@@ -1661,6 +1849,25 @@ class PartnerTerminationFlowService
 
         if (! $document) {
             throw ValidationException::withMessages(['document' => 'Không tìm thấy đơn yêu cầu chấm dứt để ký.']);
+        }
+
+        return $document;
+    }
+
+    private function cancellationGeneratedDocument(PartnerTerminationRequest $termination, int $documentId): GeneratedDocument
+    {
+        $document = GeneratedDocument::query()
+            ->whereKey($documentId)
+            ->where('partner_termination_request_id', $termination->id)
+            ->where('document_type', 'termination_cancellation_request')
+            ->whereNull('locked_at')
+            ->latest()
+            ->first();
+
+        if (! $document) {
+            throw ValidationException::withMessages([
+                'document' => 'Không tìm thấy bản xem trước hủy yêu cầu hoặc văn bản đã được ký.',
+            ]);
         }
 
         return $document;

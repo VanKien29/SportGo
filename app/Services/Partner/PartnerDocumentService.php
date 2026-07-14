@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\TemplateProcessor;
 use RuntimeException;
@@ -28,6 +29,7 @@ class PartnerDocumentService
         'partner_application_form' => 'Mau_01_Don_de_nghi_dang_ky_doi_tac_chu_san_SportGo_DA_SUA.docx',
         'partner_contract' => 'Mau_02_Hop_dong_hop_tac_doi_tac_SportGo_DA_SUA.docx',
         'termination_request' => 'Mau_03_Don_yeu_cau_cham_dut_hop_tac_SportGo_DA_SUA.docx',
+        'termination_cancellation_request' => 'Mau_03_Don_yeu_cau_cham_dut_hop_tac_SportGo_DA_SUA.docx',
         'mutual_liquidation_minutes' => 'Mau_04_Bien_ban_thanh_ly_hop_dong_hai_ben_SportGo_DA_SUA.docx',
         'unilateral_termination_notice' => 'Mau_05_Cong_van_cham_dut_hop_dong_don_phuong_SportGo_DA_SUA.docx',
         'settlement_minutes' => 'Mau_06_Bien_ban_quyet_toan_cham_dut_hop_tac_SportGo_DA_SUA.docx',
@@ -41,6 +43,7 @@ class PartnerDocumentService
         'partner_application_form' => 'DKDT',
         'partner_contract' => 'HDHT',
         'termination_request' => 'DYCCD',
+        'termination_cancellation_request' => 'HUYCCD',
         'mutual_liquidation_minutes' => 'BBTL',
         'unilateral_termination_notice' => 'CVCD',
         'settlement_minutes' => 'BBQT',
@@ -83,7 +86,11 @@ class PartnerDocumentService
 
         $targetPath = Storage::disk('local')->path($filePath);
         $this->ensureLocalDirectory($targetPath);
-        $this->renderDocxTemplate($sourcePath, $targetPath, $renderData, $documentType);
+        if ($documentType === 'termination_cancellation_request') {
+            $this->renderTerminationCancellationDocument($targetPath, $renderData);
+        } else {
+            $this->renderDocxTemplateWithRetry($sourcePath, $targetPath, $renderData, $documentType);
+        }
         $this->normalizeRequiredDocxParts($targetPath);
         if (! $this->isUsableDocx($targetPath)) {
             throw new RuntimeException("Không thể sinh file DOCX hợp lệ cho {$documentType}.");
@@ -148,34 +155,36 @@ class PartnerDocumentService
             // Inject signature into DOCX
             try {
                 $filePath = Storage::disk('local')->path($document->generated_file_path);
-                if (file_exists($filePath)) {
-                    $this->fixSplitMacrosInDocx($filePath);
-                    $processor = new \PhpOffice\PhpWord\TemplateProcessor($filePath);
-                    $processor->setMacroChars('{{', '}}');
-                    $placeholder = 'signature_' . $signerSide;
-                    $processor->setImageValue($placeholder, [
-                        'path' => Storage::disk('public')->path($media->file_path),
-                        'width' => 120,
-                    ]);
-                    $processor->setValue($signerSide . '_signer_name', $signature->signer_full_name);
-                    $processor->saveAs($filePath);
-                    $this->normalizeRequiredDocxParts($filePath);
-                    $this->replaceSignedTextPlaceholders($filePath, $signature, $signerSide);
-                    $this->restoreSignedSignatureTextStyle($filePath, $signature);
-                    $this->polishSignedDocumentFile($document->fresh());
-                    $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
-                    $this->restoreSignedSignatureTextStyle($filePath, $signature);
-                    $this->ensureSignerNameVisible($document->fresh(), $signature->fresh(), $signerSide);
-                    $this->normalizeRequiredDocxParts($filePath);
-                    $document->forceFill([
-                        'file_hash' => hash_file('sha256', $filePath),
-                    ])->save();
+                if (! file_exists($filePath)) {
+                    throw new RuntimeException('Không tìm thấy file DOCX cần ký.');
                 }
+
+                $this->fixSplitMacrosInDocx($filePath);
+                $this->replaceSignedTextPlaceholders($filePath, $signature, $signerSide);
+                $this->restoreSignedSignatureTextStyle($filePath, $signature);
+                $this->injectSignatureFallback($document->fresh(), $signature->fresh(), $signerSide, $media);
+                $this->polishSignedDocumentFile($document->fresh());
+                $this->restoreSignedSignatureTextStyle($filePath, $signature);
+                $this->ensureSignerNameVisible($document->fresh(), $signature->fresh(), $signerSide);
+                $this->normalizeRequiredDocxParts($filePath);
+
+                if ($this->containsSignaturePlaceholder($filePath, $signerSide)
+                    || ! $this->hasEmbeddedSignature($filePath, $signerSide, (int) $signature->id)) {
+                    throw new RuntimeException('Không thể nhúng ảnh chữ ký vào file DOCX.');
+                }
+
+                $document->forceFill([
+                    'file_hash' => hash_file('sha256', $filePath),
+                ])->save();
             } catch (\Throwable $e) {
                 Log::error('Failed to inject partner document signature image.', [
                     'document_id' => $document->id,
                     'signer_side' => $signerSide,
                     'error' => $e->getMessage(),
+                ]);
+
+                throw ValidationException::withMessages([
+                    'signature_image' => 'Không thể chèn chữ ký vào văn bản. Hồ sơ chưa được đánh dấu hoàn tất.',
                 ]);
             }
         }
@@ -214,7 +223,7 @@ class PartnerDocumentService
             ->pluck('signer_side')
             ->all();
 
-        if (in_array($document->document_type, ['partner_application_form', 'venue_scale_request', 'venue_location_change_request', 'termination_request', 'owner_termination_request'], true)) {
+        if (in_array($document->document_type, ['partner_application_form', 'venue_scale_request', 'venue_location_change_request', 'termination_request', 'owner_termination_request', 'termination_cancellation_request'], true)) {
             return in_array('owner', $signedSides, true);
         }
 
@@ -243,7 +252,7 @@ class PartnerDocumentService
             return 'completed';
         }
 
-        if (in_array($document->document_type, ['termination_request', 'owner_termination_request'], true) && $signerSide === 'owner') {
+        if (in_array($document->document_type, ['termination_request', 'owner_termination_request', 'termination_cancellation_request'], true) && $signerSide === 'owner') {
             return 'completed';
         }
 
@@ -503,6 +512,87 @@ class PartnerDocumentService
         }
     }
 
+    /** @param array<string, mixed> $data */
+    private function renderTerminationCancellationDocument(string $targetPath, array $data): void
+    {
+        $word = new \PhpOffice\PhpWord\PhpWord();
+        $word->setDefaultFontName('Times New Roman');
+        $word->setDefaultFontSize(13);
+        $section = $word->addSection([
+            'marginTop' => 850,
+            'marginRight' => 900,
+            'marginBottom' => 850,
+            'marginLeft' => 900,
+        ]);
+        $center = ['alignment' => 'center', 'spaceAfter' => 0];
+        $section->addText('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', ['bold' => true], $center);
+        $section->addText('Độc lập - Tự do - Hạnh phúc', ['bold' => true], $center);
+        $section->addText('----------------', [], $center);
+        $section->addTextBreak();
+        $section->addText(
+            sprintf(
+                '%s, ngày %s tháng %s năm %s',
+                $data['document_place'] ?? 'Hà Nội',
+                $data['document_day'] ?? now()->format('d'),
+                $data['document_month'] ?? now()->format('m'),
+                $data['document_year'] ?? now()->format('Y')
+            ),
+            [],
+            ['alignment' => 'right']
+        );
+        $section->addText('ĐƠN XÁC NHẬN HỦY YÊU CẦU CHẤM DỨT HỢP TÁC', ['bold' => true, 'size' => 15], $center);
+        $section->addText('Kính gửi: Công ty TNHH SportGo', ['bold' => true], ['spaceBefore' => 180, 'spaceAfter' => 180]);
+        $section->addText(
+            'Tôi là chủ sân/đối tác đã gửi yêu cầu chấm dứt hợp tác, nay xác nhận hủy yêu cầu đó với các thông tin dưới đây:',
+            [],
+            ['alignment' => 'both', 'spaceAfter' => 160]
+        );
+
+        $table = $section->addTable([
+            'borderSize' => 6,
+            'borderColor' => 'B7C4BC',
+            'cellMargin' => 100,
+            'width' => 9000,
+            'unit' => 'dxa',
+        ]);
+        $rows = [
+            ['Chủ sân/đối tác', $data['owner_name'] ?? 'Chưa cung cấp'],
+            ['Email / Số điện thoại', trim(($data['owner_email'] ?? '') . ' / ' . ($data['owner_phone'] ?? ''), ' /') ?: 'Chưa cung cấp'],
+            ['Cụm sân', $data['venue_name'] ?? 'Chưa cung cấp'],
+            ['Hợp đồng', $data['contract_code'] ?? 'Chưa cung cấp'],
+            ['Mã hồ sơ chấm dứt', $data['termination_code'] ?? 'Chưa cung cấp'],
+            ['Đơn yêu cầu gốc', $data['original_document_code'] ?? 'Chưa cung cấp'],
+            ['Lý do hủy yêu cầu', $data['cancellation_reason'] ?? 'Chưa cung cấp'],
+            ['Thời điểm xác nhận', $data['cancellation_requested_at'] ?? now()->format('d/m/Y H:i')],
+        ];
+        foreach ($rows as [$label, $value]) {
+            $table->addRow();
+            $table->addCell(2700, ['bgColor' => 'F2F7F3'])->addText((string) $label, ['bold' => true]);
+            $table->addCell(6300)->addText((string) $value, [], ['alignment' => 'left']);
+        }
+
+        $section->addText('XÁC NHẬN VÀ CAM KẾT', ['bold' => true], ['spaceBefore' => 220, 'spaceAfter' => 80]);
+        foreach ([
+            'Tôi xác nhận tự nguyện hủy yêu cầu chấm dứt hợp tác nêu trên.',
+            'Cụm sân chỉ được mở lại hoạt động bình thường khi hệ thống xác nhận không có xử lý không thể đảo ngược.',
+            'Đơn gốc, chữ ký, lịch sử xử lý và chứng từ đã phát sinh tiếp tục được lưu để đối soát; dữ liệu không bị xóa.',
+            'Các booking, hoàn tiền, rút tiền hoặc thao tác thủ công đã hoàn tất không tự động rollback.',
+        ] as $commitment) {
+            $section->addText('• ' . $commitment, [], ['alignment' => 'both', 'spaceAfter' => 60]);
+        }
+
+        $signatureTable = $section->addTable(['borderSize' => 0, 'width' => 9000, 'unit' => 'dxa']);
+        $signatureTable->addRow();
+        $signatureTable->addCell(4500)->addText('');
+        $signatureCell = $signatureTable->addCell(4500);
+        $signatureCell->addText('CHỦ SÂN/ĐỐI TÁC', ['bold' => true], $center);
+        $signatureCell->addText('(Ký và ghi rõ họ tên)', ['italic' => true], $center);
+        $signatureCell->addText('{{signature_owner}}', [], $center);
+        $signatureCell->addText('{{owner_signer_name}}', ['bold' => true], $center);
+
+        \PhpOffice\PhpWord\IOFactory::createWriter($word, 'Word2007')->save($targetPath);
+    }
+
     private function renderDocxTemplate(string $sourcePath, string $targetPath, array $data, string $documentType): void
     {
         $tempPath = $targetPath . '.tmp.docx';
@@ -544,6 +634,31 @@ class PartnerDocumentService
         $this->replaceResidualTemplateBlanks($targetPath, $documentType);
         $this->polishUnsignedSignaturePlaceholders($targetPath, $documentType);
         $this->normalizeRequiredDocxParts($targetPath);
+    }
+
+    private function renderDocxTemplateWithRetry(string $sourcePath, string $targetPath, array $data, string $documentType): void
+    {
+        $attempts = 3;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            try {
+                $this->renderDocxTemplate($sourcePath, $targetPath, $data, $documentType);
+
+                return;
+            } catch (Throwable $exception) {
+                $isTransientWindowsLock = str_contains($exception->getMessage(), 'Renaming temporary file failed')
+                    || str_contains($exception->getMessage(), 'Permission denied');
+
+                if (! $isTransientWindowsLock || $attempt === $attempts) {
+                    throw $exception;
+                }
+
+                clearstatcache(true, $targetPath);
+                @unlink($targetPath);
+                @unlink($targetPath.'.tmp.docx');
+                usleep(150000 * $attempt);
+            }
+        }
     }
 
     private function normalizeRequiredDocxParts(string $docxPath): void
@@ -661,28 +776,36 @@ XML;
             $changed = true;
         }
 
-        if (str_contains($documentXml, $signaturePlaceholder)) {
-            $mediaFileName = 'signature-' . $signerSide . '-' . $signature->id . '.png';
-            $mediaTarget = 'word/media/' . $mediaFileName;
-            $zip->addFromString($mediaTarget, file_get_contents($imagePath));
-            $this->ensurePngContentType($zip);
+        $mediaFileName = 'signature-' . $signerSide . '-' . $signature->id . '.png';
+        $mediaTarget = 'word/media/' . $mediaFileName;
+        $zip->addFromString($mediaTarget, file_get_contents($imagePath));
+        $this->ensurePngContentType($zip);
 
-            $relationshipId = $this->ensureImageRelationship($zip, 'media/' . $mediaFileName);
-            if ($relationshipId) {
+        $relationshipId = $this->ensureImageRelationship($zip, 'media/' . $mediaFileName);
+        if ($relationshipId) {
+            $embedMarker = 'r:embed="' . $relationshipId . '"';
+            if (! str_contains($documentXml, $embedMarker)) {
                 $drawingRun = $this->signatureDrawingRunXml($relationshipId, $mediaFileName, $imagePath);
+                $drawingParagraph = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' . $drawingRun . '</w:p>';
                 $pattern = '~<w:r\b[^>]*>(?:(?!</w:r>).)*<w:t\b[^>]*>\{\{signature_' . preg_quote($signerSide, '~') . '\}\}</w:t>(?:(?!</w:r>).)*</w:r>~s';
                 $documentXml = preg_replace($pattern, $drawingRun, $documentXml, 1, $count);
                 if (! $count) {
                     $paragraphPattern = '~<w:p\b[^>]*>.*?' . preg_quote($signaturePlaceholder, '~') . '.*?</w:p>~s';
-                    $replacementParagraph = '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' . $drawingRun . '</w:p>';
-                    $documentXml = preg_replace($paragraphPattern, $replacementParagraph, $documentXml, 1, $paragraphCount);
+                    $documentXml = preg_replace($paragraphPattern, $drawingParagraph, $documentXml, 1, $paragraphCount);
                     if (! $paragraphCount) {
-                        $documentXml = str_replace($signaturePlaceholder, '', $documentXml);
-                        $documentXml = preg_replace('~(<w:p\b[^>]*>)~', '$1' . $drawingRun, $documentXml, 1);
+                        $signerName = $this->xmlText((string) $signature->signer_full_name);
+                        $nameParagraphPattern = '~(<w:p\b[^>]*>.*?' . preg_quote($signerName, '~') . '.*?</w:p>)~s';
+                        $documentXml = preg_replace($nameParagraphPattern, $drawingParagraph . '$1', $documentXml, 1, $nameParagraphCount);
+                        if (! $nameParagraphCount) {
+                            $documentXml = str_replace('<w:sectPr', $drawingParagraph . '<w:sectPr', $documentXml, $sectionCount);
+                            if (! $sectionCount) {
+                                $documentXml = str_replace('</w:body>', $drawingParagraph . '</w:body>', $documentXml);
+                            }
+                        }
                     }
                 }
-                $changed = true;
             }
+            $changed = true;
         }
 
         if ($changed) {
@@ -880,6 +1003,53 @@ XML;
         return $path ? Storage::disk('public')->path(ltrim($path, '/')) : null;
     }
 
+    private function containsSignaturePlaceholder(string $docxPath, string $signerSide): bool
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return true;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return true;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        return $xml === false || str_contains($xml, '{{signature_' . $signerSide . '}}');
+    }
+
+    private function hasEmbeddedSignature(string $docxPath, string $signerSide, int $signatureId): bool
+    {
+        if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
+            return false;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return false;
+        }
+
+        $mediaName = 'signature-' . $signerSide . '-' . $signatureId . '.png';
+        $mediaEntry = 'word/media/' . $mediaName;
+        $documentXml = $zip->getFromName('word/document.xml');
+        $relationshipsXml = $zip->getFromName('word/_rels/document.xml.rels');
+        $hasMedia = $zip->locateName($mediaEntry) !== false;
+        $zip->close();
+
+        if (! $hasMedia || $documentXml === false || $relationshipsXml === false) {
+            return false;
+        }
+
+        $target = 'media/' . preg_quote($mediaName, '~');
+        if (! preg_match('~<Relationship\s+[^>]*Id="([^"]+)"[^>]*Target="' . $target . '"~', $relationshipsXml, $match)) {
+            return false;
+        }
+
+        return str_contains($documentXml, 'r:embed="' . $match[1] . '"');
+    }
+
     private function xmlText(string $value): string
     {
         return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
@@ -1037,7 +1207,7 @@ XML;
             return;
         }
 
-        $this->fillTwoColumnTemplateBodyFields($docxPath, $fields);
+        $this->fillTwoColumnTemplateBodyFields($docxPath, $fields, $documentType);
         $this->fillVenueChangeStructuredTables($docxPath, $data, $documentType);
         if (in_array($documentType, [
             'partner_application_form',
@@ -1509,13 +1679,35 @@ XML;
             }
         }
 
-        if (in_array($documentType, ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'], true)) {
+        if (in_array($documentType, [
+            'partner_contract',
+            'venue_scale_appendix',
+            'venue_location_appendix',
+            'mutual_liquidation_minutes',
+            'settlement_minutes',
+        ], true)) {
             $tables = $xpath->query('//w:tbl');
             $signatureTable = $tables->item(max(0, $tables->length - 1));
             if ($signatureTable) {
                 $changed = $this->ensureDocxTableBorders($signatureTable) || $changed;
                 $changed = $this->centerDocxTableParagraphs($signatureTable, $xpath) || $changed;
                 $rows = $xpath->query('./w:tr', $signatureTable);
+
+                if (in_array($documentType, ['mutual_liquidation_minutes', 'settlement_minutes'], true)) {
+                    $headingRow = $rows->item(0);
+                    if ($headingRow) {
+                        $headingCells = $xpath->query('./w:tc', $headingRow);
+                        $leftHeading = $headingCells->length >= 1
+                            ? Str::ascii($this->normalizeDocxLabel($this->docxNodeText($headingCells->item(0), $xpath)))
+                            : '';
+
+                        if ($headingCells->length >= 2 && str_contains($leftHeading, 'daidienbena')) {
+                            $changed = $this->replaceDocxCellText($headingCells->item(0), $xpath, 'ĐẠI DIỆN BÊN A - SPORTGO') || $changed;
+                            $changed = $this->replaceDocxCellText($headingCells->item(1), $xpath, 'ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN') || $changed;
+                        }
+                    }
+                }
+
                 $targetRow = $rows->item(2) ?: $rows->item($rows->length - 1);
                 if ($targetRow) {
                     $cells = $xpath->query('./w:tc', $targetRow);
@@ -1994,7 +2186,7 @@ XML;
      *
      * @param  array<string, mixed>  $fields
      */
-    private function fillTwoColumnTemplateBodyFields(string $docxPath, array $fields): void
+    private function fillTwoColumnTemplateBodyFields(string $docxPath, array $fields, string $documentType): void
     {
         if (! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
             return;
@@ -2046,6 +2238,12 @@ XML;
                     continue;
                 }
 
+                $firstCellKey = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($cells->item(0), $xpath)));
+                $secondCellKey = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($cells->item(1), $xpath)));
+                if (str_contains($firstCellKey, 'daidienbena') && str_contains($secondCellKey, 'daidienbenb')) {
+                    continue;
+                }
+
                 for ($cellIndex = 0; $cellIndex < $cells->length - 1; $cellIndex++) {
                     $label = $this->normalizeDocxLabel($this->docxNodeText($cells->item($cellIndex), $xpath));
                     if ($label === '') {
@@ -2054,7 +2252,11 @@ XML;
 
                     $matchedValue = $this->matchedDocxFieldValue($label, $normalizedFields);
                     if ($matchedValue !== null) {
-                        $changed = $this->replaceDocxCellText($cells->item($cellIndex + 1), $xpath, $matchedValue) || $changed;
+                        $valueCell = $cells->item($cellIndex + 1);
+                        $changed = $this->replaceDocxCellText($valueCell, $xpath, $matchedValue) || $changed;
+                        if ($documentType === 'settlement_minutes') {
+                            $changed = $this->alignDocxCellParagraphs($valueCell, $xpath, 'left') || $changed;
+                        }
                         break;
                     }
                 }
@@ -2066,6 +2268,44 @@ XML;
         }
 
         $zip->close();
+    }
+
+    private function alignDocxCellParagraphs(\DOMNode $cell, \DOMXPath $xpath, string $alignment): bool
+    {
+        $document = $cell->ownerDocument;
+        if (! $document) {
+            return false;
+        }
+
+        $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $changed = false;
+        foreach ($xpath->query('.//w:p', $cell) as $paragraph) {
+            $paragraphProperties = null;
+            foreach ($paragraph->childNodes as $child) {
+                if ($child instanceof \DOMElement && $child->localName === 'pPr') {
+                    $paragraphProperties = $child;
+                    break;
+                }
+            }
+
+            if (! $paragraphProperties) {
+                $paragraphProperties = $document->createElementNS($namespace, 'w:pPr');
+                $paragraph->insertBefore($paragraphProperties, $paragraph->firstChild);
+            }
+
+            foreach (iterator_to_array($paragraphProperties->childNodes) as $child) {
+                if ($child instanceof \DOMElement && $child->localName === 'jc') {
+                    $paragraphProperties->removeChild($child);
+                }
+            }
+
+            $justification = $document->createElementNS($namespace, 'w:jc');
+            $justification->setAttributeNS($namespace, 'w:val', $alignment);
+            $paragraphProperties->appendChild($justification);
+            $changed = true;
+        }
+
+        return $changed;
     }
 
     /**
@@ -3577,6 +3817,7 @@ XML;
             'partner_application_form' => 'Đơn đăng ký đối tác ' . ($renderData['venue_name'] ?? ''),
             'partner_contract' => 'Hợp đồng hợp tác ' . ($renderData['venue_name'] ?? ''),
             'termination_request' => 'Đơn yêu cầu chấm dứt hợp tác',
+            'termination_cancellation_request' => 'Đơn xác nhận hủy yêu cầu chấm dứt hợp tác',
             'mutual_liquidation_minutes' => 'Biên bản thanh lý hợp đồng',
             'unilateral_termination_notice' => 'Công văn chấm dứt hợp đồng',
             'settlement_minutes' => 'Biên bản quyết toán chấm dứt hợp tác',

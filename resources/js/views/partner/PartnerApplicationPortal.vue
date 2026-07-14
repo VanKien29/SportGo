@@ -17,24 +17,6 @@
           </button>
         </div>
 
-        <div class="stat-grid">
-          <div class="stat-card">
-            <p class="stat-label">Tổng hồ sơ</p>
-            <p class="stat-value">{{ applications.length }}</p>
-            <p class="stat-label" style="color: var(--primary-color);">Đã gửi</p>
-          </div>
-          <div class="stat-card">
-            <p class="stat-label">Đang xét duyệt</p>
-            <p class="stat-value">{{ reviewingCount }}</p>
-            <p class="stat-label" style="color: #b45309;">Chờ phản hồi</p>
-          </div>
-          <div class="stat-card">
-            <p class="stat-label">Hồ sơ nháp</p>
-            <p class="stat-value">{{ draft ? 1 : 0 }}</p>
-            <p class="stat-label">Chưa gửi</p>
-          </div>
-        </div>
-
         <div v-if="draft" class="draft-banner">
           <div>
             <p class="title">{{ draft.venue_name || 'Chưa đặt tên cụm sân' }} <span style="font-weight: 400; color: #b45309;">— đang lưu nháp</span></p>
@@ -83,43 +65,34 @@
                 <strong style="color: #92400e;">Cần bổ sung hồ sơ:</strong> <span style="color: #b45309;">{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</span>
               </div>
               <div v-if="application.status === 'contract_pending_owner_signature'" style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
-                <strong style="color: #065f46;">🎉 Hồ sơ đã được duyệt!</strong> <span style="color: #047857;">Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất quá trình đăng ký.</span>
+                <strong style="color: #065f46;">Hồ sơ đã được duyệt.</strong> <span style="color: #047857;">Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất đăng ký.</span>
               </div>
             </div>
 
             <div class="app-list-actions">
-              <button v-if="needsChangeAppendixSignature(application)" type="button" class="btn btn-primary" title="Ký phụ lục hợp đồng" @click="openApplicationDocument(changeAppendixWord(application), application)">
-                <AppIcon name="fileText" size="16" />
-                Ký phụ lục
+              <button
+                v-if="applicationPrimaryAction(application)"
+                type="button"
+                class="btn btn-primary"
+                :disabled="actioningApplicationId === application.id"
+                @click="runApplicationPrimaryAction(application)"
+              >
+                <AppIcon :name="applicationPrimaryAction(application).icon" size="16" />
+                {{ actioningApplicationId === application.id ? 'Đang xử lý...' : applicationPrimaryAction(application).label }}
               </button>
-              <button type="button" class="btn btn-secondary action-detail" title="Xem chi tiết" @click="openApplicationDetail(application)">
-                <AppIcon name="eye" size="16" />
-                Chi tiết
+              <button type="button" class="btn btn-secondary action-detail" @click="openApplicationDetail(application)">
+                <AppIcon name="eye" size="16" /> Chi tiết
               </button>
-              <button v-if="application.status === 'need_supplement'" type="button" class="btn btn-primary action-document" title="Bổ sung/chỉnh sửa hồ sơ" @click="editApplication(application)">
-                <AppIcon name="edit" size="16" />
-                Bổ sung
-              </button>
-              <button v-if="application.status === 'rejected'" type="button" class="btn btn-secondary action-document" title="Tạo bản sao hồ sơ đăng ký" @click="duplicateApplication(application)">
-                <AppIcon name="copy" size="16" />
-                Tạo bản sao
-              </button>
-              <button v-if="needsApplicationSignature(application)" type="button" class="btn btn-secondary action-document" title="Ký đơn đăng ký" @click="openApplicationDocument(applicationWord(application), application)">
-                <AppIcon name="edit" size="16" />
-                Ký đơn
-              </button>
-              <button v-if="needsContractSignature(application)" type="button" class="btn btn-primary" title="Ký hợp đồng" @click="openApplicationDocument(contractWord(application), application)">
-                <AppIcon name="fileText" size="16" />
-                Ký hợp đồng
-              </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" :disabled="actioningApplicationId === application.id" @click="submitSignedApplication(application)">
-                <AppIcon name="send" size="16" />
-                {{ actioningApplicationId === application.id ? 'Đang gửi...' : 'Gửi hồ sơ' }}
-              </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
-                <AppIcon name="trash" size="16" />
-                {{ actioningApplicationId === application.id ? 'Đang hủy...' : 'Hủy' }}
-              </button>
+              <details v-if="canCancel(application)" class="application-more">
+                <summary class="icon-action" title="Thao tác khác" aria-label="Thao tác khác">
+                  <AppIcon name="moreHorizontal" size="18" />
+                </summary>
+                <div class="application-more-menu">
+                  <button type="button" class="danger-menu-action" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
+                    <AppIcon name="trash" size="15" /> Hủy hồ sơ
+                  </button>
+                </div>
+              </details>
             </div>
           </article>
         </div>
@@ -143,7 +116,7 @@
 
               <!-- STEP 1: Cá nhân -->
               <div class="step-content">
-                <FormSection title="Thông tin người đăng ký / đại diện">
+                <FormSection title="Thông tin người đăng ký / đại diện" :open="true">
                   <div class="form-grid">
                     <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
                       <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
@@ -383,7 +356,7 @@
 </template>
 
 <style scoped>
-
+@import "../../../css/partner/partner.css";
 
 .form-group {
   min-width: 0;
@@ -502,13 +475,17 @@ const BANK_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 const FormSection = defineComponent({
   name: 'FormSection',
-  props: { title: { type: String, required: true } },
-  setup(props, { slots }) {
-    return () => h('section', { class: 'portal-card' }, [
-      h('div', { class: '' }, [
+  props: {
+    title: { type: String, required: true },
+    open: { type: Boolean, default: false },
+  },
+  setup(props, { slots, attrs }) {
+    return () => h('details', { ...attrs, class: ['portal-card', 'form-section', attrs.class], open: props.open }, [
+      h('summary', { class: 'form-section-summary' }, [
         h('h2', { class: 'form-section-title' }, props.title),
+        h('span', { class: 'form-section-chevron', 'aria-hidden': 'true' }, '⌄'),
       ]),
-      slots.default?.(),
+      h('div', { class: 'form-section-body' }, slots.default?.()),
     ]);
   },
 });
@@ -1199,6 +1176,11 @@ function validateForm() {
 async function focusFirstError() {
   await nextTick();
   const first = document.querySelector('.border-red-400, .border-red-300, .has-error, .upload-box--error, .form-error');
+  const section = first?.closest('details.form-section');
+  if (section) {
+    section.open = true;
+    await nextTick();
+  }
   if (first && typeof first.focus === 'function') first.focus({ preventScroll: false });
   first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
@@ -1340,6 +1322,27 @@ async function submitSignedApplication(application) {
 }
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
+function applicationPrimaryAction(application) {
+  if (needsChangeAppendixSignature(application)) return { type: 'appendix', icon: 'fileText', label: 'Xem và ký phụ lục' };
+  if (needsApplicationSignature(application)) return { type: 'application', icon: 'pencil', label: 'Xem và ký đơn' };
+  if (needsContractSignature(application)) return { type: 'contract', icon: 'fileText', label: 'Xem và ký hợp đồng' };
+  if (canSubmitSignedApplication(application)) return { type: 'submit', icon: 'send', label: 'Gửi hồ sơ' };
+  if (application?.status === 'need_supplement') return { type: 'supplement', icon: 'edit', label: 'Bổ sung hồ sơ' };
+  if (application?.status === 'rejected') return { type: 'duplicate', icon: 'copy', label: 'Tạo hồ sơ mới từ bản này' };
+  return null;
+}
+
+function runApplicationPrimaryAction(application) {
+  const action = applicationPrimaryAction(application);
+  if (!action) return;
+  if (action.type === 'appendix') return openApplicationDocument(changeAppendixWord(application), application);
+  if (action.type === 'application') return openApplicationDocument(applicationWord(application), application);
+  if (action.type === 'contract') return openApplicationDocument(contractWord(application), application);
+  if (action.type === 'submit') return submitSignedApplication(application);
+  if (action.type === 'supplement') return editApplication(application);
+  if (action.type === 'duplicate') return duplicateApplication(application);
+}
+
 function needsApplicationSignature(application) {
   if (application?.status !== 'draft') return false;
   const doc = applicationWord(application);
@@ -1417,7 +1420,9 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n);
 }
 </script>
-<style scoped>
+<style>
+@import "../../../css/partner/partner.css";
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

@@ -15,7 +15,7 @@
     </div>
 
     <template v-else>
-      <section class="panel summary-panel">
+      <section class="panel summary-panel" :class="{ archived: hasArchivedTermination }">
         <div>
           <p class="eyebrow">{{ cluster?.name || termination?.venue_cluster?.name || 'Cụm sân' }}</p>
           <h2>{{ summaryStatusTitle }}</h2>
@@ -41,6 +41,26 @@
         </div>
       </section>
 
+      <section v-if="!termination && latestClosedRequest" class="archive-band">
+        <div>
+          <p class="eyebrow">Hồ sơ gần nhất</p>
+          <h2>{{ statusLabel(latestClosedRequest.status) }}</h2>
+          <p class="hint">{{ latestClosedRequest.reason }}</p>
+        </div>
+        <div class="archive-documents">
+          <span>{{ latestClosedDocuments.length }} văn bản được lưu</span>
+          <button
+            v-for="document in latestClosedDocuments"
+            :key="document.id"
+            class="btn btn-outline"
+            type="button"
+            @click="openDocumentPreview(document)"
+          >
+            Xem {{ documentTypeLabel(document.document_type).toLowerCase() }}
+          </button>
+        </div>
+      </section>
+
       <nav v-if="termination && !isOwnerCancelledStatus(termination.status)" class="workflow-strip" aria-label="Tiến độ chấm dứt hợp tác">
         <div v-for="(step, index) in ownerSteps" :key="step.key" class="workflow-step" :class="step.state">
           <span class="workflow-marker">{{ step.state === 'done' ? '✓' : index + 1 }}</span>
@@ -60,6 +80,9 @@
         </div>
         <div v-else-if="isUnilateralNotice && isSubmittedRequest(termination.status)" class="actions compact-actions">
           <button class="btn btn-primary" type="button" @click="openUnilateralNotice">Mở công văn</button>
+        </div>
+        <div v-else-if="canOwnerSignFinal" class="actions compact-actions">
+          <button class="btn btn-primary" type="button" @click="openFinalPreview">Xem file và ký biên bản</button>
         </div>
       </section>
 
@@ -104,7 +127,7 @@
         <p v-if="termination.workflow_state?.reconsideration_pending" class="pending-note">SportGo đang xem xét phản hồi gần nhất của chủ sân.</p>
       </section>
 
-      <section v-if="(!termination || editingDraft) && !isUnilateralNotice" class="panel form-panel">
+      <section v-if="((!termination && !hasArchivedTermination) || editingDraft) && !isUnilateralNotice" class="panel form-panel">
         <div class="section-title">
           <div>
             <p class="eyebrow">Bước 1</p>
@@ -164,15 +187,15 @@
               <small>{{ documentMeta(document) }}</small>
             </div>
             <div class="document-actions">
-              <span class="status-pill">{{ documentStatusLabel(document.status) }}</span>
+              <span class="status-pill">{{ documentProgressLabel(document) }}</span>
               <button
-                v-if="document.generated_document?.id"
+                v-if="document.generated_document?.id && !(canOwnerSignFinal && isFinalDocument(document))"
                 class="btn btn-outline"
                 type="button"
                 :disabled="working"
-                @click="openDocumentPreview(document)"
+                @click="isPendingCancellationDocument(document) ? openCancellationPreview(document) : openDocumentPreview(document)"
               >
-                Xem file
+                {{ isPendingCancellationDocument(document) ? 'Xem file và ký' : 'Xem file' }}
               </button>
             </div>
           </div>
@@ -181,8 +204,13 @@
 
       <section v-if="showBookingWorkspace" class="panel">
         <div class="section-title">
-          <h2>2. Xử lý booking tương lai</h2>
-          <button class="btn btn-outline" type="button" @click="loadFutureBookings">Làm mới</button>
+          <div>
+            <h2>2. Xử lý booking tương lai</h2>
+            <p class="hint">Chọn booking cần xử lý, sau đó áp dụng một phương án.</p>
+          </div>
+          <label v-if="futureBookings.length" class="select-all-bookings">
+            <input v-model="allFutureBookingsSelected" type="checkbox" /> Chọn tất cả ({{ futureBookings.length }})
+          </label>
         </div>
 
         <div v-if="futureBookings.length" class="booking-list">
@@ -196,60 +224,63 @@
             <em>{{ money(booking.paid_online_amount) }} · {{ booking.action_status || booking.status }}</em>
           </label>
         </div>
-        <div v-if="futureBookings.length" class="actions">
-          <button class="btn btn-primary" type="button" :disabled="working || !futureBookings.length" @click="bulkAction('cancel_all_refund_to_user_balance')">
-            Hủy và hoàn tiền
-          </button>
-          <button class="btn btn-outline" type="button" :disabled="working || !futureBookings.length" @click="bulkAction('serve_until_last_booking')">
-            Phục vụ đến booking cuối
-          </button>
-          <button class="btn btn-outline" type="button" :disabled="working || !futureBookings.length" @click="bulkAction('manual_per_booking')">
-            Xử lý thủ công
-          </button>
+        <div v-if="futureBookings.length" class="booking-bulk-bar">
+          <label>
+            Phương án xử lý
+            <select v-model="bookingActionChoice">
+              <option value="">Chọn phương án</option>
+              <option v-for="policy in policies" :key="policy.value" :value="policy.value">{{ policy.label }}</option>
+            </select>
+          </label>
+          <div>
+            <span>{{ selectedBookingIds.length }} booking đã chọn</span>
+            <button class="btn btn-primary" type="button" :disabled="working || !selectedBookingIds.length || !bookingActionChoice" @click="bulkAction(bookingActionChoice)">
+              Áp dụng phương án
+            </button>
+          </div>
         </div>
+        <p v-else class="empty-copy">Không còn booking tương lai cần xử lý.</p>
       </section>
 
-      <section v-if="showSettlementWorkspace || showFinalWorkspace" class="panel split-panel" :class="{ 'single-column': !(showSettlementWorkspace && showFinalWorkspace) }">
-        <div v-if="showSettlementWorkspace">
+      <section v-if="showSettlementWorkspace" class="panel">
+        <div>
           <div class="section-title">
             <h2>3. Rút tiền quyết toán</h2>
           </div>
           <div class="form-grid">
             <label>
-              Mã số dư chủ sân
-              <input v-model.trim="withdrawal.owner_wallet_id" inputmode="numeric" />
+              Nguồn số dư
+              <select v-model="withdrawal.owner_wallet_id">
+                <option value="">Chọn nguồn số dư</option>
+                <option v-for="wallet in ownerWallets" :key="wallet.id" :value="wallet.id">
+                  {{ wallet.venue_cluster?.name || cluster?.name || 'Số dư chủ sân' }} - {{ money(wallet.available_balance) }}
+                </option>
+              </select>
             </label>
             <label>
-              Mã tài khoản ngân hàng nhận tiền
-              <input v-model.trim="withdrawal.owner_bank_account_id" inputmode="numeric" />
+              Tài khoản nhận tiền
+              <select v-model="withdrawal.owner_bank_account_id">
+                <option value="">Chọn tài khoản ngân hàng</option>
+                <option v-for="account in bankAccounts" :key="account.id" :value="account.id">
+                  {{ account.bank_name }} - {{ maskAccountNumber(account.account_number) }} - {{ account.account_holder_name }}
+                </option>
+              </select>
             </label>
             <label>
               Số tiền
-              <input v-model.number="withdrawal.amount" type="number" min="50000" step="1000" />
+              <input v-model.number="withdrawal.amount" type="number" min="50000" :max="summary.withdrawable_amount" step="1000" />
+              <small>Tối đa {{ money(summary.withdrawable_amount) }}</small>
             </label>
           </div>
-          <button class="btn btn-primary" type="button" :disabled="working" @click="storeWithdrawal">
+          <p v-if="!ownerWallets.length || !bankAccounts.length" class="withdrawal-help">
+            Chưa có nguồn số dư hoặc tài khoản ngân hàng hợp lệ.
+            <RouterLink :to="{ name: 'owner-finance' }">Mở trang tài chính để kiểm tra</RouterLink>.
+          </p>
+          <button class="btn btn-primary" type="button" :disabled="working || !canSubmitWithdrawal" @click="storeWithdrawal">
             Gửi yêu cầu rút tiền
           </button>
         </div>
 
-        <div v-if="showFinalWorkspace">
-          <div class="section-title">
-            <h2>4. Biên bản cuối</h2>
-          </div>
-          <p class="hint">
-            Khi admin sinh biên bản cuối và ký SportGo, chủ sân sẽ nhận OTP để ký xác nhận.
-          </p>
-          <p v-if="!isFinalSignatureStatus(termination.status)" class="hint">
-            Biên bản cuối chỉ ký sau khi booking và công nợ đã xử lý xong.
-          </p>
-          <p v-else-if="!finalAdminSigned" class="hint">
-            Đang chờ SportGo ký trước khi chủ sân ký xác nhận.
-          </p>
-          <button v-if="canOwnerSignFinal" class="btn btn-primary" type="button" @click="openFinalPreview">
-            Xem file và ký biên bản
-          </button>
-        </div>
       </section>
 
       <details v-if="canOwnerCancelRequest" class="panel cancel-panel">
@@ -266,79 +297,61 @@
           Lý do hủy yêu cầu
           <textarea v-model.trim="cancelForm.reason" rows="3" maxlength="1000" />
         </label>
-        <div class="signature-panel compact">
-          <canvas
-            ref="cancelSignatureCanvas"
-            class="signature-pad"
-            width="620"
-            height="190"
-            @pointerdown="startSignature($event, 'cancel')"
-            @pointermove="drawSignature($event, 'cancel')"
-            @pointerup="stopSignature"
-            @pointerleave="stopSignature"
-          ></canvas>
-          <label class="check-row">
-            <input v-model="cancelSignatureAccepted" type="checkbox" />
-            <span>Tôi xác nhận muốn hủy yêu cầu chấm dứt và hiểu rằng dữ liệu xử lý đã phát sinh không tự động rollback.</span>
-          </label>
-          <div class="actions">
-            <button class="btn btn-outline" type="button" @click="clearSignaturePad('cancel')">Ký lại</button>
-            <button
-              class="btn btn-danger"
-              type="button"
-              :disabled="working || !cancelForm.reason || cancelSignatureEmpty || !cancelSignatureAccepted"
-              @click="sendCancelOtp"
-            >
-              Gửi OTP hủy yêu cầu
-            </button>
-          </div>
-        </div>
-        <div v-if="cancelSigning.requestId" class="otp-box">
-          <p>OTP đã gửi. Mã đối soát file: <strong>{{ cancelSigning.hashShort }}</strong></p>
-          <label>
-            OTP
-            <input v-model.trim="cancelSigning.otp" inputmode="numeric" maxlength="6" />
-          </label>
-          <button class="btn btn-danger" type="button" :disabled="working || cancelSigning.otp.length !== 6" @click="cancelRequest">
-            Xác nhận hủy yêu cầu
+        <div class="actions">
+          <span class="hint">{{ cancelForm.reason.length }}/1000 ký tự</span>
+          <button class="btn btn-danger" type="button" :disabled="working || cancelForm.reason.length < 10" @click="previewCancellation">
+            Tạo văn bản hủy và ký
           </button>
         </div>
         </div>
       </details>
     </template>
 
-    <DocumentViewerModal :show="showPreviewModal" :document="previewDocument" @close="closePreviewModal">
+    <DocumentViewerModal
+      :show="showPreviewModal"
+      :document="previewDocument"
+      :action-mode="['request', 'cancel', 'final'].includes(previewPurpose)"
+      @close="closePreviewModal"
+    >
       <template #actions>
+        <div v-if="actionError" class="inline-error modal-action-error" role="alert">
+          <strong>Chưa thể thực hiện thao tác</strong>
+          <p>{{ actionError }}</p>
+        </div>
         <div v-if="previewPurpose === 'request'" class="preview-signing-panel">
-          <div>
-            <p class="eyebrow">Ký đơn yêu cầu</p>
-            <strong>Đọc file bên trái trước khi ký</strong>
-            <p class="hint">Chữ ký và OTP xác nhận đúng phiên bản file đang hiển thị.</p>
+          <div class="signing-context">
+            <span>Đơn yêu cầu chấm dứt</span>
+            <p>Chữ ký và OTP sẽ xác nhận đúng phiên bản file đang mở.</p>
           </div>
-          <canvas
-            ref="requestSignatureCanvas"
-            class="signature-pad modal-signature"
-            width="620"
-            height="150"
-            @pointerdown="startSignature($event, 'request')"
-            @pointermove="drawSignature($event, 'request')"
-            @pointerup="stopSignature"
-            @pointerleave="stopSignature"
-          ></canvas>
+          <div class="signature-field">
+            <div class="signature-field-head">
+              <strong>Chữ ký chủ sân</strong>
+              <button type="button" @click="clearSignaturePad('request')">Xóa</button>
+            </div>
+            <canvas
+              ref="requestSignatureCanvas"
+              class="signature-pad modal-signature"
+              width="620"
+              height="150"
+              @pointerdown="startSignature($event, 'request')"
+              @pointermove="drawSignature($event, 'request')"
+              @pointerup="stopSignature"
+              @pointerleave="stopSignature"
+            ></canvas>
+          </div>
           <label class="check-row">
             <input v-model="requestSignatureAccepted" type="checkbox" />
             <span>Tôi xác nhận nội dung file đúng và hiểu ảnh hưởng tới booking, số dư, quyền quản lý cụm sân.</span>
           </label>
-          <div v-if="!signing.requestId" class="actions compact-actions">
-            <button class="btn btn-outline" type="button" @click="clearSignaturePad('request')">Ký lại</button>
+          <div v-if="!signing.requestId" class="actions signing-submit-row">
             <button class="btn btn-primary" type="button" :disabled="working || requestSignatureEmpty || !requestSignatureAccepted" @click="confirmBeforeOtp">
-              Gửi OTP
+              Gửi OTP xác nhận
             </button>
           </div>
           <div v-else class="otp-box">
-            <p>Mã đối soát: <strong>{{ signing.hashShort }}</strong></p>
+            <p><strong>Nhập OTP email chủ sân</strong><small>Mã đối soát {{ signing.hashShort }}</small></p>
             <label>
-              OTP email
+              Mã OTP gồm 6 số
               <input v-model.trim="signing.otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
             </label>
             <button class="btn btn-primary" type="button" :disabled="working || signing.otp.length !== 6" @click="submit">
@@ -347,36 +360,82 @@
           </div>
         </div>
 
-        <div v-else-if="previewPurpose === 'final'" class="preview-signing-panel">
-          <div>
-            <p class="eyebrow">Ký biên bản cuối</p>
-            <strong>SportGo đã ký, chủ sân cần xác nhận</strong>
-            <p class="hint">Kiểm tra kết quả booking và quyết toán trong file trước khi ký.</p>
+        <div v-else-if="previewPurpose === 'cancel'" class="preview-signing-panel">
+          <div class="signing-context warning">
+            <span>Hủy yêu cầu chấm dứt</span>
+            <p>Đơn cũ vẫn được lưu; chữ ký này chỉ áp dụng cho văn bản hủy đang mở.</p>
           </div>
-          <canvas
-            ref="finalSignatureCanvas"
-            class="signature-pad modal-signature"
-            width="620"
-            height="150"
-            @pointerdown="startSignature($event, 'final')"
-            @pointermove="drawSignature($event, 'final')"
-            @pointerup="stopSignature"
-            @pointerleave="stopSignature"
-          ></canvas>
+          <div class="signature-field">
+            <div class="signature-field-head">
+              <strong>Chữ ký chủ sân</strong>
+              <button type="button" @click="clearSignaturePad('cancel')">Xóa</button>
+            </div>
+            <canvas
+              ref="cancelSignatureCanvas"
+              class="signature-pad modal-signature"
+              width="620"
+              height="150"
+              @pointerdown="startSignature($event, 'cancel')"
+              @pointermove="drawSignature($event, 'cancel')"
+              @pointerup="stopSignature"
+              @pointerleave="stopSignature"
+            ></canvas>
+          </div>
+          <label class="check-row">
+            <input v-model="cancelSignatureAccepted" type="checkbox" />
+            <span>Tôi xác nhận nội dung văn bản hủy đúng và hiểu dữ liệu đã xử lý không tự động rollback.</span>
+          </label>
+          <div v-if="!cancelSigning.requestId" class="actions signing-submit-row">
+            <button class="btn btn-danger" type="button" :disabled="working || cancelSignatureEmpty || !cancelSignatureAccepted" @click="sendCancelOtp">
+              Gửi OTP xác nhận hủy
+            </button>
+          </div>
+          <div v-else class="otp-box">
+            <p><strong>Nhập OTP email chủ sân</strong><small>Mã đối soát {{ cancelSigning.hashShort }}</small></p>
+            <label>
+              Mã OTP gồm 6 số
+              <input v-model.trim="cancelSigning.otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
+            </label>
+            <button class="btn btn-danger" type="button" :disabled="working || cancelSigning.otp.length !== 6" @click="cancelRequest">
+              Ký và xác nhận hủy yêu cầu
+            </button>
+          </div>
+        </div>
+
+        <div v-else-if="previewPurpose === 'final'" class="preview-signing-panel">
+          <div class="signing-context">
+            <span>Biên bản chấm dứt cuối</span>
+            <p>SportGo đã ký. Chủ sân kiểm tra booking và quyết toán trước khi xác nhận.</p>
+          </div>
+          <div class="signature-field">
+            <div class="signature-field-head">
+              <strong>Chữ ký chủ sân</strong>
+              <button type="button" @click="clearSignaturePad('final')">Xóa</button>
+            </div>
+            <canvas
+              ref="finalSignatureCanvas"
+              class="signature-pad modal-signature"
+              width="620"
+              height="150"
+              @pointerdown="startSignature($event, 'final')"
+              @pointermove="drawSignature($event, 'final')"
+              @pointerup="stopSignature"
+              @pointerleave="stopSignature"
+            ></canvas>
+          </div>
           <label class="check-row">
             <input v-model="finalSignatureAccepted" type="checkbox" />
             <span>Tôi xác nhận đã đọc biên bản cuối và đồng ý hoàn tất chấm dứt hợp tác.</span>
           </label>
-          <div v-if="!finalSigning.requestId" class="actions compact-actions">
-            <button class="btn btn-outline" type="button" @click="clearSignaturePad('final')">Ký lại</button>
+          <div v-if="!finalSigning.requestId" class="actions signing-submit-row">
             <button class="btn btn-primary" type="button" :disabled="working || finalSignatureEmpty || !finalSignatureAccepted" @click="sendFinalOtp">
-              Gửi OTP
+              Gửi OTP xác nhận
             </button>
           </div>
           <div v-else class="otp-box">
-            <p>Mã đối soát: <strong>{{ finalSigning.hashShort }}</strong></p>
+            <p><strong>Nhập OTP email chủ sân</strong><small>Mã đối soát {{ finalSigning.hashShort }}</small></p>
             <label>
-              OTP email
+              Mã OTP gồm 6 số
               <input v-model.trim="finalSigning.otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
             </label>
             <button class="btn btn-primary" type="button" :disabled="working || finalSigning.otp.length !== 6" @click="signFinal">
@@ -426,6 +485,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { ownerPartnerTerminationService } from '../../services/ownerPartnerTermination.js';
+import { api } from '../../services/api.js';
 
 const route = useRoute();
 const loading = ref(true);
@@ -436,6 +496,9 @@ const eligibility = ref(null);
 const termination = ref(null);
 const futureBookings = ref([]);
 const selectedBookingIds = ref([]);
+const bookingActionChoice = ref('');
+const ownerWallets = ref([]);
+const bankAccounts = ref([]);
 const showFutureBookingConfirm = ref(false);
 const showPreviewModal = ref(false);
 const previewPurpose = ref('document');
@@ -486,8 +549,26 @@ const summary = computed(() => eligibility.value?.data?.summary || termination.v
   future_booking_count: termination.value?.future_booking_count || 0,
 });
 const policies = computed(() => eligibility.value?.data?.policies || []);
+const allFutureBookingsSelected = computed({
+  get: () => futureBookings.value.length > 0 && selectedBookingIds.value.length === futureBookings.value.length,
+  set: (checked) => {
+    selectedBookingIds.value = checked ? futureBookings.value.map((booking) => booking.id) : [];
+  },
+});
+const canSubmitWithdrawal = computed(() => {
+  const amount = Number(withdrawal.amount || 0);
+  return Boolean(
+    withdrawal.owner_wallet_id
+    && withdrawal.owner_bank_account_id
+    && amount >= 50000
+    && amount <= Number(summary.value.withdrawable_amount || 0)
+  );
+});
 const canPreview = computed(() => Boolean(eligibility.value?.data?.eligible));
-const documents = computed(() => termination.value?.documents || []);
+const latestClosedRequest = computed(() => eligibility.value?.data?.latest_closed_request || null);
+const latestClosedDocuments = computed(() => requestDocuments(latestClosedRequest.value));
+const hasArchivedTermination = computed(() => isTerminatedStatus(latestClosedRequest.value?.status));
+const documents = computed(() => requestDocuments(termination.value));
 const displayDocuments = computed(() => {
   const currentByType = new Map();
   [...documents.value]
@@ -528,12 +609,19 @@ const effectiveFutureBookingCount = computed(() => Number(termination.value?.fut
 const selectedPolicyLabel = computed(() => policyLabel(termination.value?.future_booking_policy || form.future_booking_policy));
 const isUnilateralNotice = computed(() => termination.value?.termination_type === 'unilateral_by_sportgo');
 const summaryStatusTitle = computed(() => {
-  if (!termination.value) return statusLabel('eligible');
+  if (!termination.value) {
+    return hasArchivedTermination.value
+      ? statusLabel(latestClosedRequest.value?.status)
+      : statusLabel('eligible');
+  }
   if (isUnilateralNotice.value && isSubmittedRequest(termination.value.status)) return 'Công văn chờ chủ sân xác nhận';
   if (isUnilateralNotice.value && isOwnerCancelledStatus(termination.value.status)) return 'SportGo đã thu hồi công văn';
   return statusLabel(termination.value.status);
 });
 const summaryStatusDescription = computed(() => {
+  if (!termination.value && hasArchivedTermination.value) {
+    return 'Hợp đồng đã chấm dứt. Cụm sân và toàn bộ booking, thanh toán, văn bản được giữ lại để tra cứu; mọi thao tác vận hành đã khóa.';
+  }
   if (isUnilateralNotice.value && isSubmittedRequest(termination.value?.status)) {
     return 'SportGo đã ký và gửi công văn. Chủ sân cần đọc file, xác nhận đã nhận rồi xử lý booking/công nợ.';
   }
@@ -600,7 +688,6 @@ const showBookingWorkspace = computed(() => Boolean(
   && (isFutureBookingStatus(termination.value.status) || futureBookings.value.length > 0)
 ));
 const showSettlementWorkspace = computed(() => Boolean(termination.value?.id && isSettlementStatus(termination.value.status)));
-const showFinalWorkspace = computed(() => Boolean(termination.value?.id && isFinalSignatureStatus(termination.value.status)));
 const ownerSteps = computed(() => buildOwnerSteps());
 const ownerNextAction = computed(() => {
   if (!termination.value) {
@@ -610,7 +697,7 @@ const ownerNextAction = computed(() => {
   const status = termination.value.status;
   if (isUnilateralNotice.value) {
     if (isDraftRequest(status)) {
-      return { title: 'Chờ SportGo ký công văn', description: 'Bản xem trước đang chờ admin ký OTP. Công văn chưa được gửi và cụm sân chưa bị khóa bởi hồ sơ này.' };
+      return { title: 'Chờ SportGo ký công văn', description: 'Bản xem trước đang chờ admin ký. Công văn chưa được gửi và cụm sân chưa bị khóa bởi hồ sơ này.' };
     }
     if (isSubmittedRequest(status)) {
       return { title: 'Đọc và xác nhận đã nhận công văn', description: 'Mở file công văn, kiểm tra lý do, thời hạn và nghĩa vụ cần xử lý rồi xác nhận đã nhận.' };
@@ -680,12 +767,24 @@ async function load() {
         await loadFutureBookings();
       }
     }
+    syncSelectedCluster();
+    await loadFinancialAccounts();
   } catch (err) {
     loadError.value = err.message || 'Không thể tải hồ sơ chấm dứt.';
   } finally {
     loading.value = false;
   }
   prepareSignaturePads();
+}
+
+function syncSelectedCluster() {
+  const selected = cluster.value;
+  if (!selected?.id) return;
+
+  localStorage.setItem('selected_cluster', String(selected.id));
+  window.dispatchEvent(new CustomEvent('owner-cluster-changed', {
+    detail: selected,
+  }));
 }
 
 async function loadRequest(id) {
@@ -703,12 +802,35 @@ async function loadFutureBookings() {
   selectedBookingIds.value = futureBookings.value.map((booking) => booking.id);
 }
 
+async function loadFinancialAccounts() {
+  try {
+    const response = await api('/api/owner/finance/wallets');
+    ownerWallets.value = (response.data || []).filter((wallet) => (
+      !currentClusterId.value || String(wallet.venue_cluster_id) === String(currentClusterId.value)
+    ));
+    if (!ownerWallets.value.length) ownerWallets.value = response.data || [];
+    bankAccounts.value = response.bank_accounts || [];
+
+    const defaultWallet = ownerWallets.value.find((wallet) => String(wallet.venue_cluster_id) === String(currentClusterId.value)) || ownerWallets.value[0];
+    const defaultAccount = bankAccounts.value.find((account) => account.is_default) || bankAccounts.value[0];
+    withdrawal.owner_wallet_id ||= defaultWallet?.id || '';
+    withdrawal.owner_bank_account_id ||= defaultAccount?.id || '';
+    if (!withdrawal.amount && Number(summary.value.withdrawable_amount) >= 50000) {
+      withdrawal.amount = Number(summary.value.withdrawable_amount);
+    }
+  } catch {
+    ownerWallets.value = [];
+    bankAccounts.value = [];
+  }
+}
+
 function hydrateForm(request) {
   form.reason = request.reason || form.reason;
   form.detail_reason = request.detail_reason || form.detail_reason;
   form.requested_effective_date = request.requested_effective_date || '';
   form.future_booking_policy = request.future_booking_policy || form.future_booking_policy;
   form.warning_accepted = Boolean(request.owner_warning_accepted_at || form.warning_accepted);
+  bookingActionChoice.value = request.future_booking_policy || bookingActionChoice.value;
 }
 
 function buildOwnerSteps() {
@@ -835,6 +957,16 @@ async function openFinalPreview() {
   prepareSignaturePad('final');
 }
 
+async function openCancellationPreview(document) {
+  selectedPreviewRow.value = document;
+  cancelForm.reason = cancelForm.reason || document?.generated_document?.render_data?.cancellation_reason || '';
+  previewPurpose.value = 'cancel';
+  showPreviewModal.value = true;
+  resetCancelSigning();
+  await nextTick();
+  prepareSignaturePad('cancel');
+}
+
 function openDocumentPreview(document) {
   selectedPreviewRow.value = document;
   previewPurpose.value = 'document';
@@ -851,6 +983,7 @@ function closePreviewModal() {
     finalSigning.otp = '';
     finalSignatureAccepted.value = false;
   }
+  if (previewPurpose.value === 'cancel') resetCancelSigning();
   previewPurpose.value = 'document';
 }
 
@@ -895,10 +1028,13 @@ async function submit() {
 }
 
 async function bulkAction(action) {
+  if (!selectedBookingIds.value.length) {
+    actionError.value = 'Vui lòng chọn ít nhất một booking cần xử lý.';
+    return;
+  }
   await run(async () => {
-    const ids = selectedBookingIds.value.length ? selectedBookingIds.value : futureBookings.value.map((booking) => booking.id);
     const response = await ownerPartnerTerminationService.bulkAction(termination.value.id, {
-      booking_ids: ids,
+      booking_ids: selectedBookingIds.value,
       action,
       reason: 'Xử lý booking trong hồ sơ chấm dứt hợp đồng.',
     });
@@ -948,6 +1084,7 @@ async function signFinal() {
 async function sendCancelOtp() {
   await run(async () => {
     const response = await ownerPartnerTerminationService.cancelSendOtp(termination.value.id, {
+      generated_document_id: previewDocument.value?.id,
       signature_image: signatureImage('cancel'),
     });
     cancelSigning.requestId = response.data.signing_request_id;
@@ -961,11 +1098,30 @@ async function cancelRequest() {
     const response = await ownerPartnerTerminationService.cancel(termination.value.id, {
       signing_request_id: cancelSigning.requestId,
       otp: cancelSigning.otp,
-      reason: cancelForm.reason,
+      reason: cancelForm.reason || previewDocument.value?.render_data?.cancellation_reason || '',
     });
     termination.value = response.data;
     resetCancelSigning();
+    showPreviewModal.value = false;
+    previewPurpose.value = 'document';
     await loadFutureBookings();
+  });
+}
+
+async function previewCancellation() {
+  await run(async () => {
+    const response = await ownerPartnerTerminationService.cancelPreview(termination.value.id, {
+      reason: cancelForm.reason,
+    });
+    selectedPreviewRow.value = {
+      document_type: 'termination_cancellation_request',
+      generated_document: response.data.document,
+    };
+    previewPurpose.value = 'cancel';
+    showPreviewModal.value = true;
+    resetCancelSigning();
+    await nextTick();
+    prepareSignaturePad('cancel');
   });
 }
 
@@ -1102,6 +1258,12 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value) || 0);
 }
 
+function maskAccountNumber(value) {
+  const digits = String(value || '');
+  if (digits.length <= 4) return digits || '-';
+  return `•••• ${digits.slice(-4)}`;
+}
+
 function statusLabel(status) {
   return {
     eligible: 'Có thể tạo yêu cầu',
@@ -1131,9 +1293,24 @@ function policyLabel(value) {
   return policies.value.find((policy) => policy.value === value)?.label || value || '-';
 }
 
+function requestDocuments(request) {
+  const linked = request?.documents || [];
+  const cancellationDocuments = (request?.generated_documents || [])
+    .filter((document) => document.document_type === 'termination_cancellation_request')
+    .map((document) => ({
+      id: `generated-${document.id}`,
+      document_type: document.document_type,
+      status: document.status,
+      generated_document: document,
+    }));
+
+  return [...linked, ...cancellationDocuments];
+}
+
 function documentTypeLabel(type) {
   return {
     owner_termination_request: 'Đơn yêu cầu chấm dứt của chủ sân',
+    termination_cancellation_request: 'Đơn xác nhận hủy yêu cầu chấm dứt',
     unilateral_notice: 'Công văn chấm dứt từ SportGo',
     unilateral_termination_notice: 'Công văn chấm dứt từ SportGo',
     settlement_minutes: 'Biên bản chấm dứt cuối',
@@ -1144,17 +1321,54 @@ function documentTypeLabel(type) {
 function documentStatusLabel(status) {
   return {
     pending_signature: 'Chờ ký',
+    pending_owner_signature: 'Chờ chủ sân ký',
+    pending_sportgo_signature: 'Chờ SportGo ký',
     generated: 'Đã tạo',
     signed: 'Đã ký',
     completed: 'Hoàn tất',
   }[status] || status || 'Đã tạo';
 }
 
+function isFinalDocument(document) {
+  return ['settlement_minutes', 'final_termination_file'].includes(
+    document?.document_type || document?.generated_document?.document_type,
+  );
+}
+
+function documentProgressLabel(document) {
+  const generated = document?.generated_document || {};
+  const signatures = generated.signatures || [];
+  const ownerSigned = signatures.some((signature) => signature.signer_side === 'owner' && signature.status === 'signed');
+  const sportgoSigned = signatures.some((signature) => signature.signer_side === 'sportgo' && signature.status === 'signed');
+  const type = document?.document_type || generated.document_type;
+
+  if (isFinalDocument(document)) {
+    if (ownerSigned && sportgoSigned) return 'Hoàn tất';
+    if (sportgoSigned) return 'Chờ chủ sân ký';
+    return 'Chờ SportGo ký';
+  }
+  if (['unilateral_notice', 'unilateral_termination_notice'].includes(type)) {
+    return sportgoSigned ? 'Đã ký' : 'Chờ SportGo ký';
+  }
+  if (['owner_termination_request', 'termination_request', 'termination_cancellation_request'].includes(type)) {
+    return ownerSigned ? 'Đã ký' : 'Chờ chủ sân ký';
+  }
+
+  return documentStatusLabel(generated.status || document?.status);
+}
+
+function isPendingCancellationDocument(document) {
+  const generated = document?.generated_document;
+  return document?.document_type === 'termination_cancellation_request'
+    && generated?.status === 'pending_owner_signature'
+    && !(generated?.signatures || []).some((signature) => signature.signer_side === 'owner' && signature.status === 'signed');
+}
+
 function documentMeta(document) {
   const generated = document.generated_document || {};
   return [
     generated.document_code,
-    documentStatusLabel(generated.status),
+    documentProgressLabel(document),
     generated.signatures?.length ? `${generated.signatures.length} chữ ký` : null,
   ].filter(Boolean).join(' - ');
 }
@@ -1162,6 +1376,8 @@ function documentMeta(document) {
 
 <style scoped>
 .termination-page {
+  --primary-color: #168447;
+  --primary-hover: #116b3a;
   display: grid;
   gap: 18px;
 }
@@ -1243,6 +1459,28 @@ function documentMeta(document) {
 .split-panel {
   display: grid;
   gap: 14px;
+}
+
+.archive-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #dfe7e2;
+  padding: 0 0 18px;
+}
+
+.archive-band h2,
+.archive-band p {
+  margin-top: 0;
+}
+
+.archive-documents {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .workflow-strip {
@@ -1397,11 +1635,71 @@ function documentMeta(document) {
 
 .preview-signing-panel {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .preview-signing-panel p {
-  margin-top: 0;
+  margin: 0;
+}
+
+.signing-context {
+  border-left: 3px solid #16a34a;
+  background: #f0fdf4;
+  padding: 10px 12px;
+}
+
+.signing-context.warning {
+  border-left-color: #dc2626;
+  background: #fef2f2;
+}
+
+.signing-context span {
+  display: block;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.signing-context.warning span {
+  color: #991b1b;
+}
+
+.signing-context p {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.signature-field {
+  display: grid;
+  gap: 7px;
+}
+
+.signature-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.signature-field-head button {
+  border: 0;
+  background: transparent;
+  color: #15803d;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.signing-submit-row .btn {
+  width: 100%;
+}
+
+.modal-action-error {
+  margin-bottom: 12px;
 }
 
 .modal-signature {
@@ -1416,6 +1714,10 @@ function documentMeta(document) {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: #fff;
+}
+
+.preview-signing-panel .modal-signature {
+  height: 140px;
 }
 
 .form-grid,
@@ -1449,6 +1751,69 @@ textarea {
 .booking-list {
   display: grid;
   gap: 8px;
+}
+
+.select-all-bookings {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.select-all-bookings input,
+.booking-row input,
+.check-row input {
+  width: auto;
+}
+
+.booking-bulk-bar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  margin-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.booking-bulk-bar > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.booking-bulk-bar > div > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.form-grid label small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.empty-copy {
+  margin: 16px 0 0;
+  color: #64748b;
+  text-align: center;
+}
+
+.withdrawal-help {
+  margin: 12px 0;
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.withdrawal-help a {
+  color: #166534;
+  font-weight: 800;
 }
 
 .document-list {
@@ -1555,6 +1920,16 @@ textarea {
   background: #f8fafc;
 }
 
+.preview-signing-panel .otp-box p {
+  display: grid;
+  gap: 2px;
+}
+
+.preview-signing-panel .otp-box small {
+  color: #64748b;
+  font-size: 11px;
+}
+
 .single-column {
   grid-template-columns: 1fr;
 }
@@ -1580,6 +1955,25 @@ textarea {
   border-radius: 8px;
 }
 
+.btn-primary {
+  border: 1px solid var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+}
+
+.btn-primary:disabled {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #475569;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
 .btn-danger {
   border: 1px solid #dc2626;
   background: #dc2626;
@@ -1588,6 +1982,7 @@ textarea {
 
 @media (max-width: 860px) {
   .summary-panel,
+  .archive-band,
   .form-grid,
   .split-panel,
   .money-grid,
@@ -1596,7 +1991,24 @@ textarea {
   }
 
   .workflow-strip {
-    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    grid-template-columns: 1fr;
+    gap: 8px;
+    overflow: visible;
+    padding: 12px;
+  }
+
+  .workflow-step {
+    min-width: 0;
+    padding-right: 0;
+  }
+
+  .workflow-step:not(:last-child)::after {
+    top: 28px;
+    right: auto;
+    bottom: -8px;
+    left: 13px;
+    width: 1px;
+    height: auto;
   }
 
   .next-action-panel {
@@ -1606,6 +2018,20 @@ textarea {
 
   .acknowledgement-band {
     grid-template-columns: 1fr;
+  }
+
+  .booking-bulk-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-bulk-bar > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .archive-documents {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .money-grid div {

@@ -562,8 +562,8 @@ function dateOnly(value) {
 }
 </script>
 
-<style scoped>
-
+<style>
+@import "../../../css/partner/partner.css";
 
 .partner-doc-group {
   display: grid;
