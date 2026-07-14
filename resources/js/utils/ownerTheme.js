@@ -94,12 +94,19 @@ function cssVarsForMode(mode) {
     '--admin-primary: ' + primary + ' !important;',
     '--admin-primary-text: ' + primaryText + ' !important;',
     '--admin-blue: ' + secondary + ' !important;',
+    '--admin-blue-text: ' + contrastColor(secondary) + ' !important;',
+    '--admin-blue-soft: color-mix(in srgb, ' + secondary + ' 14%, transparent) !important;',
+    '--admin-info: ' + secondary + ' !important;',
+    '--admin-info-soft: color-mix(in srgb, ' + secondary + ' 14%, transparent) !important;',
+    '--admin-warning: color-mix(in srgb, ' + primary + ' 62%, ' + secondary + ') !important;',
+    '--admin-warning-soft: color-mix(in srgb, ' + primary + ' 14%, transparent) !important;',
     '--admin-hover: ' + accent + ' !important;',
     '--admin-text: ' + text + ' !important;',
     '--sg-text: var(--admin-text) !important;',
     '--admin-muted: ' + muted + ' !important;',
     '--admin-faint: color-mix(in srgb, ' + muted + ' 78%, transparent) !important;',
     '--admin-danger: ' + danger + ' !important;',
+    '--admin-danger-soft: color-mix(in srgb, ' + danger + ' 14%, transparent) !important;',
     '--admin-danger-text: ' + danger + ' !important;',
     '--admin-border: ' + border + ' !important;',
     '--admin-border-soft: color-mix(in srgb, ' + border + ' 58%, transparent) !important;',
@@ -157,7 +164,7 @@ export function buildOwnerThemeCss(settings = {}) {
   const ownerDarkScope = '[data-theme="dark"] .sg-shell-owner,\n'
     + '[data-theme="dark"] body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
     + 'body.' + OWNER_THEME_SCOPE_CLASS + '[data-theme="dark"]';
-  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n  --admin-font-size: ' + fontSize + ' !important;\n  --admin-font-size-scale: ' + fontScale + ' !important;\n  --admin-font-family: ' + fontFamily + ' !important;\n  --admin-sidebar-width: ' + sidebarWidth + ' !important;\n  --admin-sidebar-collapsed-width: ' + sidebarCollapsedWidth + ' !important;\n  --admin-transition-fast: ' + transitionFast + ' !important;\n  --admin-transition-normal: ' + transitionNormal + ' !important;\n  zoom: var(--admin-font-size-scale, 1) !important;\n}\n'
+  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-sm: max(0px, calc(' + radius + ' - 2px)) !important;\n  --admin-radius-md: calc(' + radius + ' + 2px) !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n  --admin-font-size: ' + fontSize + ' !important;\n  --admin-font-size-scale: ' + fontScale + ' !important;\n  --admin-font-family: ' + fontFamily + ' !important;\n  --admin-sidebar-width: ' + sidebarWidth + ' !important;\n  --admin-sidebar-collapsed-width: ' + sidebarCollapsedWidth + ' !important;\n  --admin-transition-fast: ' + transitionFast + ' !important;\n  --admin-transition-normal: ' + transitionNormal + ' !important;\n  zoom: var(--admin-font-size-scale, 1) !important;\n}\n'
     + ownerLightScope + ' {\n  ' + light + '\n}\n'
     + ownerDarkScope + ' {\n  ' + dark + '\n}\n';
 }

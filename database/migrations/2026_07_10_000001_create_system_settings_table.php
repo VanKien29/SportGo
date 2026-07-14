@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::dropIfExists('system_settings');
         Schema::create('system_settings', function (Blueprint $table): void {
             $table->id();
             $table->string('key')->unique();

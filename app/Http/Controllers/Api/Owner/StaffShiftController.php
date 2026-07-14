@@ -41,7 +41,7 @@ class StaffShiftController extends Controller
     public function storeShift(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'exists:venue_clusters,id'],
             'name' => ['required', 'string', 'max:100'],
             'start_time' => ['required', 'date_format:H:i', 'before:end_time'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
@@ -149,9 +149,9 @@ class StaffShiftController extends Controller
     public function storeSchedules(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
+            'venue_cluster_id' => ['required', 'exists:venue_clusters,id'],
             'user_ids' => ['required', 'array'],
-            'user_ids.*' => ['required', 'string', 'exists:users,id'],
+            'user_ids.*' => ['required', 'exists:users,id'],
             'dates' => ['required', 'array'],
             'dates.*' => ['required', 'date_format:Y-m-d'],
             'venue_staff_shift_id' => ['nullable', 'integer', 'exists:venue_staff_shifts,id'],

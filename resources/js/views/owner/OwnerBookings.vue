@@ -2,7 +2,7 @@
   <div class="bookings-page">
     <!-- Floating Add Button -->
     <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
-      <router-link class="btn-float-add" to="/owner/counter-booking" title="Tạo booking tại quầy">
+      <router-link class="btn-float-add" :to="counterBookingPath" title="Tạo booking tại quầy">
         <AppIcon name="plus" size="20" />
         <span class="btn-float-text">Tạo booking</span>
       </router-link>
@@ -20,34 +20,28 @@
 
       <!-- Right: Filters + Metrics -->
       <div class="top-right">
-        <section class="filters">
-          <label>
-            <span>Cụm sân</span>
-            <select v-model="filters.venue_cluster_id" @change="onClusterChange">
-              <option value="">Tất cả</option>
-              <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-            </select>
-          </label>
-          <label>
-            <span>Sân con</span>
-            <select v-model="filters.venue_court_id" @change="loadBookings">
-              <option value="">Tất cả</option>
-              <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
-            </select>
-          </label>
-          <label>
-            <span>Trạng thái</span>
-            <select v-model="filters.status" @change="loadBookings">
-              <option value="">Tất cả</option>
-              <option value="pending_approval">Chờ duyệt</option>
-              <option value="pending_payment">Chờ thanh toán</option>
-              <option value="confirmed">Đã xác nhận</option>
-              <option value="checked_in">Đã check-in</option>
-              <option value="completed">Hoàn thành</option>
-              <option value="cancelled">Đã hủy</option>
-              <option value="rejected">Từ chối</option>
-          </label>
-        </section>
+        <SaaSFilterBar
+          :model-value="filters.status"
+          @update:model-value="val => { filters.status = val; loadBookings(); }"
+          :tabs="statusTabs"
+        >
+          <template #actions>
+            <label class="toolbar-select-label">
+              <span>Cụm sân</span>
+              <select v-model="filters.venue_cluster_id" @change="onClusterChange">
+                <option value="">Tất cả</option>
+                <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+              </select>
+            </label>
+            <label class="toolbar-select-label">
+              <span>Sân con</span>
+              <select v-model="filters.venue_court_id" @change="loadBookings">
+                <option value="">Tất cả</option>
+                <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
+              </select>
+            </label>
+          </template>
+        </SaaSFilterBar>
 
         <div class="metric-row">
           <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
@@ -233,10 +227,10 @@
 
     <div v-if="changeCourtBooking" class="modal-backdrop" @click.self="closeChangeCourt">
       <form class="modal-panel" @submit.prevent="saveChangeCourt">
-        <header>
+        <div class="modal-head">
           <h2>Đổi sân thực tế</h2>
           <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeChangeCourt" />
-        </header>
+        </div>
         <label>
           <span>Sân mới</span>
           <select v-model="changeCourtForm.venue_court_id" required>
@@ -256,13 +250,13 @@
 
     <div v-if="collectBooking" class="modal-backdrop" @click.self="closeCollectPayment">
       <form class="modal-panel collect-panel" @submit.prevent="submitCollectPayment">
-        <header>
+        <div class="modal-head">
           <div>
             <h2>Thu tiền booking</h2>
             <p>{{ collectBooking.booking_code }} · {{ customerName(collectBooking) }}</p>
           </div>
           <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeCollectPayment" />
-        </header>
+        </div>
 
         <dl class="collect-summary">
           <div>
@@ -325,13 +319,13 @@
 
     <div v-if="statusActionBooking" class="modal-backdrop" @click.self="closeStatusAction">
       <form class="modal-panel status-action-panel" @submit.prevent="submitStatusAction">
-        <header>
+        <div class="modal-head">
           <div>
             <h2>{{ statusActionTitle() }}</h2>
             <p>{{ statusActionBooking.booking_code }} · {{ customerName(statusActionBooking) }}</p>
           </div>
           <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeStatusAction" />
-        </header>
+        </div>
         <p class="status-action-warning">
           {{ statusAction === 'reject'
             ? 'Booking sẽ bị từ chối và giải phóng khung sân.'
@@ -358,6 +352,7 @@ import { venueClusterService } from '../../services/venueClusters.js';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import MiniCalendar from '../../components/MiniCalendar.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 
 function localIsoDate(date = new Date()) {
   const year = date.getFullYear();
@@ -368,7 +363,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'OwnerBookings',
-  components: { ActionIconButton, AppIcon, MiniCalendar },
+  components: { ActionIconButton, AppIcon, MiniCalendar, SaaSFilterBar },
   data() {
     return {
       clusters: [],
@@ -418,15 +413,88 @@ export default {
       statusActionReason: '',
       updatingStatus: false,
       showScrollTop: false,
-      timePeriods: [
-        { key: 'business', label: 'Cả ngày', start: 360, end: 1320, range: '06:00 - 22:00' },
-        { key: 'morning', label: 'Sáng', start: 360, end: 720, range: '06:00 - 12:00' },
-        { key: 'afternoon', label: 'Chiều', start: 720, end: 1080, range: '12:00 - 18:00' },
-        { key: 'evening', label: 'Tối', start: 1080, end: 1320, range: '18:00 - 22:00' },
-      ],
+      scheduleOpenTime: '06:00',
+      scheduleCloseTime: '22:00',
+      scheduleMorningEndTime: '12:00',
+      scheduleAfternoonEndTime: '18:00',
     };
   },
   computed: {
+    isStaffRoute() {
+      return this.$route.path.startsWith('/staff');
+    },
+    counterBookingPath() {
+      return this.isStaffRoute ? '/staff/counter-booking' : '/owner/counter-booking';
+    },
+    statusTabs() {
+      return [
+        { label: 'Tất cả', value: '' },
+        { label: 'Chờ duyệt', value: 'pending_approval' },
+        { label: 'Chờ thanh toán', value: 'pending_payment' },
+        { label: 'Đã xác nhận', value: 'confirmed' },
+        { label: 'Đã check-in', value: 'checked_in' },
+        { label: 'Hoàn thành', value: 'completed' },
+        { label: 'Đã hủy', value: 'cancelled' },
+        { label: 'Từ chối', value: 'rejected' },
+      ];
+    },
+    timePeriods() {
+      const openMin = this.timeToMinutes(this.scheduleOpenTime);
+      const closeMin = this.timeToMinutes(this.scheduleCloseTime);
+      const morningEndMin = this.timeToMinutes(this.scheduleMorningEndTime);
+      const afternoonEndMin = this.timeToMinutes(this.scheduleAfternoonEndTime);
+
+      const morningStart = openMin;
+      const morningEnd = Math.min(morningEndMin, closeMin);
+
+      const afternoonStart = Math.max(openMin, morningEndMin);
+      const afternoonEnd = Math.min(afternoonEndMin, closeMin);
+
+      const eveningStart = Math.max(openMin, afternoonEndMin);
+      const eveningEnd = closeMin;
+
+      const periods = [
+        {
+          key: 'business',
+          label: 'Cả ngày',
+          start: openMin,
+          end: closeMin,
+          range: `${this.scheduleOpenTime} - ${this.scheduleCloseTime}`,
+        },
+      ];
+
+      if (morningStart < morningEnd) {
+        periods.push({
+          key: 'morning',
+          label: 'Sáng',
+          start: morningStart,
+          end: morningEnd,
+          range: `${this.minutesToTime(morningStart)} - ${this.minutesToTime(morningEnd)}`,
+        });
+      }
+
+      if (afternoonStart < afternoonEnd) {
+        periods.push({
+          key: 'afternoon',
+          label: 'Chiều',
+          start: afternoonStart,
+          end: afternoonEnd,
+          range: `${this.minutesToTime(afternoonStart)} - ${this.minutesToTime(afternoonEnd)}`,
+        });
+      }
+
+      if (eveningStart < eveningEnd) {
+        periods.push({
+          key: 'evening',
+          label: 'Tối',
+          start: eveningStart,
+          end: eveningEnd,
+          range: `${this.minutesToTime(eveningStart)} - ${this.minutesToTime(eveningEnd)}`,
+        });
+      }
+
+      return periods;
+    },
     activePeriod() {
       return this.timePeriods.find((period) => period.key === this.activeTimePeriod) || this.timePeriods[0];
     },
@@ -645,11 +713,54 @@ export default {
         this.scheduleCourts = courts;
         this.scheduleBusyIntervals = intervals;
         this.scheduleSlotStatuses = statuses;
+
+        let minOpen = 24 * 60;
+        let maxClose = 0;
+        let minMorningEnd = 12 * 60;
+        let maxAfternoonEnd = 18 * 60;
+        let hasCustomSplit = false;
+
+        responses.forEach((res) => {
+          if (res.operating_hours) {
+            const openMin = this.timeToMinutes(res.operating_hours.open_time);
+            const closeMin = this.timeToMinutes(res.operating_hours.close_time);
+            if (openMin < minOpen) minOpen = openMin;
+            if (closeMin > maxClose) maxClose = closeMin;
+
+            if (res.operating_hours.morning_end_time && res.operating_hours.afternoon_end_time) {
+              const morningEnd = this.timeToMinutes(res.operating_hours.morning_end_time);
+              const afternoonEnd = this.timeToMinutes(res.operating_hours.afternoon_end_time);
+              if (morningEnd < minMorningEnd) minMorningEnd = morningEnd;
+              if (afternoonEnd > maxAfternoonEnd) maxAfternoonEnd = afternoonEnd;
+              hasCustomSplit = true;
+            }
+          }
+        });
+
+        if (maxClose > minOpen) {
+          this.scheduleOpenTime = this.minutesToTime(minOpen);
+          this.scheduleCloseTime = this.minutesToTime(maxClose);
+        } else {
+          this.scheduleOpenTime = '06:00';
+          this.scheduleCloseTime = '22:00';
+        }
+
+        if (hasCustomSplit) {
+          this.scheduleMorningEndTime = this.minutesToTime(minMorningEnd);
+          this.scheduleAfternoonEndTime = this.minutesToTime(maxAfternoonEnd);
+        } else {
+          this.scheduleMorningEndTime = '12:00';
+          this.scheduleAfternoonEndTime = '18:00';
+        }
       } catch (error) {
         this.scheduleSlots = [];
         this.scheduleCourts = [];
         this.scheduleBusyIntervals = [];
         this.scheduleSlotStatuses = [];
+        this.scheduleOpenTime = '06:00';
+        this.scheduleCloseTime = '22:00';
+        this.scheduleMorningEndTime = '12:00';
+        this.scheduleAfternoonEndTime = '18:00';
         this.scheduleError = error.message || 'Không thể tải lịch sân.';
       } finally {
         this.scheduleLoading = false;
@@ -1123,3 +1234,4 @@ export default {
   },
 };
 </script>
+<style scoped>/* UI rules */.bookings-page .top-strip{gap:16px}.bookings-page .metric-row{border:0;background:transparent}.bookings-page .metric-card{border:0;border-radius:0;background:var(--admin-surface);box-shadow:none}.bookings-page .schedule-card{border:0;border-radius:0;background:var(--admin-surface);box-shadow:none}.bookings-page .timeline-board{border:0;box-shadow:none}.bookings-page .drawer-panel{border:0;border-radius:0;box-shadow:var(--admin-shadow-lg)}.bookings-page h2,.bookings-page h3{font-weight:500}.bookings-page strong,.bookings-page button{font-weight:500}.bookings-page .status-chip,.bookings-page .payment-chip,.bookings-page .status-badge{border-radius:4px;font-weight:500}.bookings-page .period-row button{border-radius:4px;font-weight:500}.bookings-page .legend i{border-radius:3px}.bookings-page .modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:12px;border-bottom:1px solid var(--admin-border-soft)}.bookings-page .modal-head h2{margin:0;font-weight:500}.bookings-page .modal-head p{margin:4px 0 0;color:var(--admin-muted);font-weight:400}</style>

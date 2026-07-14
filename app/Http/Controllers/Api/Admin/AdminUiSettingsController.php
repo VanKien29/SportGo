@@ -69,6 +69,36 @@ class AdminUiSettingsController extends Controller
         return response()->json($setting->value);
     }
 
+    /**
+     * The auth screens are rendered before an admin token exists. Expose only
+     * the active visual theme so those screens can match the configured UI
+     * without exposing any admin-only settings or requiring authentication.
+     */
+    public function getPublicTheme(): JsonResponse
+    {
+        $setting = SystemSetting::where('key', self::SETTING_KEY)->first();
+        $settings = array_replace_recursive(
+            $this->getDefaultSettings(),
+            $setting?->value ?? [],
+        );
+
+        $presets = array_merge(
+            $settings['presets'] ?? [],
+            $settings['custom_themes'] ?? [],
+        );
+        $activePreset = collect($presets)->firstWhere('id', $settings['active_theme_id'])
+            ?? ($presets[0] ?? null);
+
+        return response()->json([
+            'active_theme_id' => $activePreset['id'] ?? 'zinc',
+            'radius' => $settings['radius'] ?? '8px',
+            'font_size' => $settings['font_size'] ?? '14px',
+            'font_family' => $settings['font_family'] ?? "'Outfit', sans-serif",
+            'light' => $activePreset['light'] ?? null,
+            'dark' => $activePreset['dark'] ?? null,
+        ]);
+    }
+
     public function updateSettings(Request $request): JsonResponse
     {
         $data = $request->validate([

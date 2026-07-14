@@ -9,6 +9,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueStaffShiftSchedule;
 use App\Services\BookingService;
+use App\Services\VenueStaffAccessService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,8 @@ use Illuminate\Support\Facades\DB;
 class StaffDashboardController extends Controller
 {
     public function __construct(
-        private readonly BookingService $bookingService
+        private readonly BookingService $bookingService,
+        private readonly VenueStaffAccessService $venueStaffAccess
     ) {}
 
     public function overview(Request $request): JsonResponse
@@ -52,21 +54,25 @@ class StaffDashboardController extends Controller
             ]);
         }
 
+        $allowedCourtTypeIds = $this->venueStaffAccess->allowedCourtTypeIds($request->user(), (string) $clusterId);
+
         $today = Carbon::now('Asia/Ho_Chi_Minh')->toDateString();
         $nowTime = Carbon::now('Asia/Ho_Chi_Minh')->toTimeString();
 
         // 1. Số sân đang hoạt động
-        $totalCourts = VenueCourt::where('venue_cluster_id', $clusterId)->count();
-        $activeCourts = VenueCourt::where('venue_cluster_id', $clusterId)->where('status', 'active')->count();
+        $totalCourts = VenueCourt::where('venue_cluster_id', $clusterId)->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereIn('court_type_id', $allowedCourtTypeIds))->count();
+        $activeCourts = VenueCourt::where('venue_cluster_id', $clusterId)->where('status', 'active')->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereIn('court_type_id', $allowedCourtTypeIds))->count();
 
         // 2. Số đơn đặt hôm nay
         $todayBookingsCount = Booking::where('venue_cluster_id', $clusterId)
+            ->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereHas('venueCourt', fn ($courtQuery) => $courtQuery->whereIn('court_type_id', $allowedCourtTypeIds)))
             ->whereDate('booking_date', $today)
             ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'])
             ->count();
 
         // 3. Số khách đang chơi (trong khung giờ hiện tại)
         $playingNowCount = Booking::where('venue_cluster_id', $clusterId)
+            ->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereHas('venueCourt', fn ($courtQuery) => $courtQuery->whereIn('court_type_id', $allowedCourtTypeIds)))
             ->whereDate('booking_date', $today)
             ->whereIn('status', ['confirmed', 'checked_in'])
             ->where('start_time', '<=', $nowTime)
@@ -75,6 +81,7 @@ class StaffDashboardController extends Controller
 
         // 4. Số khách sắp đến (ngày hôm nay, start_time > now)
         $upcomingBookingsCount = Booking::where('venue_cluster_id', $clusterId)
+            ->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereHas('venueCourt', fn ($courtQuery) => $courtQuery->whereIn('court_type_id', $allowedCourtTypeIds)))
             ->whereDate('booking_date', $today)
             ->whereIn('status', ['confirmed', 'pending_payment', 'pending_approval'])
             ->where('start_time', '>', $nowTime)
@@ -92,6 +99,7 @@ class StaffDashboardController extends Controller
         $courts = VenueCourt::with('courtType')
             ->where('venue_cluster_id', $clusterId)
             ->where('status', 'active')
+            ->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereIn('court_type_id', $allowedCourtTypeIds))
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -100,10 +108,12 @@ class StaffDashboardController extends Controller
         $openMins = $this->timeToMinutes($operatingHours['open_time'] ?? '06:00');
         $closeMins = $this->timeToMinutes($operatingHours['close_time'] ?? '22:00');
 
-        $bookings = Booking::where('venue_cluster_id', $clusterId)
+        $bookings = Booking::with('customer:id,full_name,username,phone')
+            ->where('venue_cluster_id', $clusterId)
             ->whereDate('booking_date', $today)
             ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'])
-            ->get(['venue_court_id', 'start_time', 'end_time']);
+            ->when($allowedCourtTypeIds !== null, fn ($q) => $q->whereHas('venueCourt', fn ($courtQuery) => $courtQuery->whereIn('court_type_id', $allowedCourtTypeIds)))
+            ->get(['id', 'booking_code', 'venue_court_id', 'customer_id', 'walk_in_name', 'walk_in_phone', 'start_time', 'end_time', 'status']);
 
         $courtLocks = SlotLock::where('venue_cluster_id', $clusterId)
             ->where('booking_date', $today)
@@ -115,6 +125,19 @@ class StaffDashboardController extends Controller
                   });
             })
             ->get(['venue_court_id', 'lock_scope', 'start_time', 'end_time']);
+
+        $currentBookings = $bookings
+            ->filter(fn ($booking) => in_array($booking->status, ['confirmed', 'checked_in'], true)
+                && $booking->start_time <= $nowTime
+                && $booking->end_time >= $nowTime)
+            ->keyBy('venue_court_id');
+
+        $nextBookings = $bookings
+            ->filter(fn ($booking) => in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed'], true)
+                && $booking->start_time > $nowTime)
+            ->sortBy('start_time')
+            ->groupBy('venue_court_id')
+            ->map(fn ($courtBookings) => $courtBookings->first());
 
         $courtAvailabilities = [];
 
@@ -181,6 +204,8 @@ class StaffDashboardController extends Controller
                 'court_type' => $court->courtType?->name ?? 'Mặc định',
                 'free_slots' => $freeSlots,
                 'is_fully_booked' => empty($freeSlots),
+                'current_booking' => $this->bookingSummary($currentBookings->get($court->id)),
+                'next_booking' => $this->bookingSummary($nextBookings->get($court->id)),
             ];
         }
 
@@ -215,6 +240,24 @@ class StaffDashboardController extends Controller
         ]);
     }
 
+    private function bookingSummary(?Booking $booking): ?array
+    {
+        if (!$booking) {
+            return null;
+        }
+
+        return [
+            'id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'customer_name' => $booking->customer?->full_name
+                ?: $booking->customer?->username
+                ?: $booking->walk_in_name
+                ?: 'Khách vãng lai',
+            'customer_phone' => $booking->customer?->phone ?: $booking->walk_in_phone,
+            'start_time' => substr((string) $booking->start_time, 0, 5),
+            'end_time' => substr((string) $booking->end_time, 0, 5),
+        ];
+    }
     private function visibleClusterIds(string $userId)
     {
         $ownedClusterIds = DB::table('venue_clusters')

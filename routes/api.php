@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
 use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureOwnerRole;
+use App\Http\Middleware\EnsureVenueStaffAccess;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
 use App\Http\Controllers\Api\Admin\SystemPostController as AdminSystemPostController;
@@ -69,6 +70,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/system-profile', [SystemProfileController::class, 'show']);
+Route::get('/ui-theme', [AdminUiSettingsController::class, 'getPublicTheme']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
@@ -338,7 +340,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffAccess::class, EnforceVenueAccessRestrictions::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
@@ -514,7 +516,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/venue-services/{id}/toggle-status', [OwnerVenueServiceController::class, 'toggleStatus']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffAccess::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);

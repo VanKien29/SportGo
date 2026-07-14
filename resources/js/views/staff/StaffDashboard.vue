@@ -568,7 +568,7 @@ export default {
   height: 36px;
   padding: 0 14px;
   background: var(--admin-primary);
-  color: #fff;
+  color: var(--admin-primary-text, #fff);
   font-size: 13px;
   font-weight: 600;
   border-radius: var(--admin-radius);
@@ -620,23 +620,23 @@ export default {
   opacity: 0.08;
 }
 .stat-ring-blue  { background: var(--admin-primary); }
-.stat-ring-purple { background: rgb(139, 92, 246); }
-.stat-ring-green  { background: rgb(34, 197, 94); }
-.stat-ring-orange { background: rgb(249, 115, 22); }
+.stat-ring-purple { background: var(--admin-blue); }
+.stat-ring-green  { background: var(--admin-success); }
+.stat-ring-orange { background: var(--admin-warning); }
 
 .stat-icon-area {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--admin-radius);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 .stat-blue  .stat-icon-area { background: var(--admin-primary-soft);      color: var(--admin-primary); }
-.stat-purple .stat-icon-area { background: rgba(139, 92, 246, 0.1);        color: rgb(139, 92, 246); }
-.stat-green  .stat-icon-area { background: rgba(34, 197, 94, 0.1);         color: rgb(22, 163, 74); }
-.stat-orange .stat-icon-area { background: rgba(249, 115, 22, 0.1);        color: rgb(234, 88, 12); }
+.stat-purple .stat-icon-area { background: var(--admin-blue-soft); color: var(--admin-blue); }
+.stat-green  .stat-icon-area { background: var(--admin-success-soft); color: var(--admin-success-text); }
+.stat-orange .stat-icon-area { background: var(--admin-warning-soft); color: var(--admin-warning); }
 
 .stat-body {
   display: flex;
@@ -690,14 +690,14 @@ export default {
 .panel-header-icon {
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--admin-radius-sm, var(--admin-radius));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 .panel-icon-primary { background: var(--admin-primary-soft); color: var(--admin-primary); }
-.panel-icon-bell    { background: rgba(139, 92, 246, 0.1);  color: rgb(109, 40, 217); }
+.panel-icon-bell    { background: var(--admin-blue-soft); color: var(--admin-blue); }
 
 .panel-title {
   font-size: 14px;
@@ -739,7 +739,7 @@ export default {
 .panel-empty-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--admin-radius-lg);
   background: var(--admin-bg-soft);
   display: flex;
   align-items: center;
@@ -781,12 +781,12 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 9px 12px;
-  border-radius: 8px;
+  border-radius: var(--admin-radius);
   font-size: 12px;
   font-weight: 600;
 }
 .shift-status-bar.shift-status-scheduled   { background: var(--admin-bg-soft);            color: var(--admin-muted); }
-.shift-status-bar.shift-status-checked_in  { background: rgba(34, 197, 94, 0.1);          color: rgb(21, 128, 61); }
+.shift-status-bar.shift-status-checked_in  { background: var(--admin-success-soft); color: var(--admin-success-text); }
 .shift-status-bar.shift-status-checked_out { background: var(--admin-bg-soft);            color: var(--admin-muted); }
 .shift-status-bar.shift-status-absent      { background: var(--admin-danger-soft);        color: var(--admin-danger); }
 .shift-status-bar.shift-status-cancelled   { background: var(--admin-bg-soft);            color: var(--admin-muted); }
@@ -857,7 +857,7 @@ export default {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.timeline-in  .timeline-dot { background: rgb(34, 197, 94); }
+.timeline-in  .timeline-dot { background: var(--admin-success); }
 .timeline-out .timeline-dot { background: var(--admin-muted); }
 .timeline-label { color: var(--admin-muted); flex: 1; }
 .timeline-time {
@@ -892,7 +892,7 @@ export default {
 
 .action-btn-checkin {
   background: var(--admin-primary);
-  color: #fff;
+  color: var(--admin-primary-text, #fff);
 }
 .action-btn-checkin:hover:not(:disabled) { background: var(--admin-primary-dark); }
 
@@ -908,10 +908,10 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  color: rgb(21, 128, 61);
+  color: var(--admin-success-text);
   font-size: 13px;
   font-weight: 600;
-  background: rgba(34, 197, 94, 0.08);
+  background: var(--admin-success-soft);
   border-radius: var(--admin-radius);
   padding: 9px 12px;
 }
@@ -940,9 +940,9 @@ export default {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9px;
+  border-radius: var(--admin-radius);
   background: var(--admin-primary);
-  color: #fff;
+  color: var(--admin-primary-text, #fff);
   font-size: 10px;
   font-weight: 700;
   display: inline-flex;
@@ -1087,7 +1087,7 @@ export default {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.pill-free { background: rgba(34, 197, 94, 0.12); color: rgb(21, 128, 61); }
+.pill-free { background: rgba(34, 197, 94, 0.12); color: var(--admin-success-text); }
 .pill-full { background: var(--admin-border-soft);  color: var(--admin-muted); }
 
 .court-card-body { display: flex; flex-direction: column; gap: 6px; flex: 1; }

@@ -35,6 +35,7 @@
   --admin-success-text: #15733a;
   --admin-blue: #2563eb;
   --admin-blue-soft: #eff6ff;
+  --admin-blue-text: #ffffff;
   --admin-danger: #dc2626;
   --admin-danger-text: #991b1b;
   --admin-radius: 8px;
@@ -83,6 +84,7 @@
   --admin-success-text: #34d399;
   --admin-blue: #3b82f6;
   --admin-blue-soft: #1e293b;
+  --admin-blue-text: #ffffff;
   --admin-danger: #ef4444;
   --admin-danger-text: #fca5a5;
   --admin-bg-gradient: linear-gradient(180deg, #18181b, #09090b);
@@ -4961,6 +4963,14 @@ td small {
   white-space: nowrap;
 }
 
+.axis-tick[style*="left: 0%"] {
+  transform: translate(0, -50%) !important;
+}
+
+.axis-tick[style*="left: 100%"] {
+  transform: translate(-100%, -50%) !important;
+}
+
 .timeline-row {
   min-height: 76px;
   border-bottom: 1px solid var(--admin-border);
@@ -5080,7 +5090,7 @@ td small {
 .block-playing {
   background: var(--admin-blue-soft);
   border-color: color-mix(in srgb, var(--admin-blue) 35%, transparent);
-  color: var(--admin-blue);
+  color: var(--admin-blue-text, var(--admin-text));
 }
 
 .block-muted {
@@ -5651,6 +5661,49 @@ input, select, textarea {
         rgba(255, 255, 255, 0.05) 50%,
         rgba(30, 41, 59, 0) 100%
     );
+}
+
+/* Shared Bookings Page SaaSFilterBar Styles */
+.bookings-page .avc-filters .filter-actions {
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 12px !important;
+}
+
+.bookings-page .toolbar-select-label {
+  display: grid !important;
+  gap: 5px !important;
+}
+
+.bookings-page .toolbar-select-label span {
+  color: color-mix(in srgb, var(--admin-text) 60%, transparent) !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  font-size: var(--admin-font-size-xs) !important;
+  letter-spacing: 0.04em !important;
+}
+
+.bookings-page .toolbar-select-label select {
+  border-color: var(--admin-border) !important;
+  background: var(--admin-bg-soft) !important;
+  color: var(--admin-text) !important;
+  border-radius: var(--admin-radius) !important;
+  font-size: var(--admin-font-size-md) !important;
+  height: 38px !important;
+  min-width: 140px !important;
+  padding: 8px 12px !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.bookings-page .toolbar-select-label select:focus {
+  border-color: var(--admin-primary) !important;
+  outline: none !important;
+}
+
+.bookings-page .metric-row {
+  border-radius: var(--admin-radius-lg) !important;
+  border-color: var(--admin-border-soft) !important;
+  overflow: hidden !important;
 }
 /* --- END OF bookings.css --- */
 
@@ -6460,15 +6513,41 @@ input, select, textarea {
 }
 
 .schedule-filters {
-    width: 100%;
-    max-width: 100%;
+    display: grid;
     grid-template-columns: minmax(180px, 220px) minmax(320px, 400px) minmax(180px, 220px);
     align-items: end;
     justify-content: space-between;
     padding: 12px;
-    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border: 1px solid var(--admin-border-soft, #cfe3cf);
     border-radius: 8px;
-    background: #fbfdfb;
+    background: var(--admin-surface-muted, #fbfdfb);
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+}
+
+/* Adapt schedule-filters when used on SaaSFilterBar component */
+.avc-filters.schedule-filters {
+    display: block !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.avc-filters.schedule-filters .filter-row {
+    display: block !important;
+}
+
+.avc-filters.schedule-filters .filter-actions {
+    display: grid !important;
+    grid-template-columns: minmax(180px, 220px) minmax(320px, 400px) minmax(180px, 220px) !important;
+    align-items: end !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    padding: 12px !important;
+    border: 1px solid var(--admin-border-soft, #cfe3cf) !important;
+    border-radius: 8px !important;
+    background: var(--admin-surface-muted, #fbfdfb) !important;
 }
 
 .counter-toolbar .schedule-filter-field {
@@ -8492,69 +8571,560 @@ input.invalid {
     );
 }
 
-/* Dark Theme Custom Slot Backgrounds */
-[data-theme="dark"] .time-slot.busy {
-    background: color-mix(in srgb, var(--admin-surface) 60%, #1e293b);
-}
-[data-theme="dark"] .time-slot.booked-paid {
-    background: #064e3b;
-}
-[data-theme="dark"] .time-slot.booked-online {
-    background: #1e3a8a;
-}
-[data-theme="dark"] .time-slot.booked-counter {
-    background: #3b0764;
-}
-[data-theme="dark"] .time-slot.pay-later {
-    background: #78350f;
-}
-[data-theme="dark"] .time-slot.overdue {
-    background: #7f1d1d;
-}
-[data-theme="dark"] .time-slot.locked {
-    background: #374151;
+[data-theme="dark"] .schedule-filters,
+[data-theme="dark"] .avc-filters.schedule-filters .filter-actions {
+    background: var(--admin-surface) !important;
+    border-color: var(--admin-border) !important;
 }
 
-[data-theme="dark"] .legend i.booked-paid {
-    background: #064e3b;
-    border-color: #065f46;
+[data-theme="dark"] .skeleton-matrix {
+    background: var(--admin-surface-muted);
 }
-[data-theme="dark"] .legend i.booked-online {
-    background: #1e3a8a;
-    border-color: #1e40af;
+
+[data-theme="dark"] .recurring-occurrence-panel {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
 }
-[data-theme="dark"] .legend i.booked-counter {
-    background: #3b0764;
-    border-color: #581c87;
+
+[data-theme="dark"] .recurring-group-card {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
 }
-[data-theme="dark"] .legend i.pay-later {
-    background: #78350f;
-    border-color: #92400e;
+
+[data-theme="dark"] .group-money-grid > div {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
 }
-[data-theme="dark"] .legend i.overdue {
-    background: #7f1d1d;
-    border-color: #991b1b;
+
+[data-theme="dark"] .recurring-weekday-planner {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
 }
-[data-theme="dark"] .legend i.locked {
-    background: #374151;
-    border-color: #4b5563;
+
+[data-theme="dark"] .weekday-plan-card {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+    color: var(--admin-text);
 }
-[data-theme="dark"] .skeleton-summary span,
-[data-theme="dark"] .skeleton-tabs span,
-[data-theme="dark"] .skeleton-matrix span,
-[data-theme="dark"] .table-skeleton-row span {
-    background: #1e293b;
+
+[data-theme="dark"] .weekday-plan-card.selected {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: var(--admin-success);
 }
-[data-theme="dark"] .skeleton-summary span::after,
-[data-theme="dark"] .skeleton-tabs span::after,
-[data-theme="dark"] .skeleton-matrix span::after,
-[data-theme="dark"] .table-skeleton-row span::after {
-    background: linear-gradient(
-        90deg,
-        rgba(30, 41, 59, 0) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        rgba(30, 41, 59, 0) 100%
-    );
+
+[data-theme="dark"] .weekday-plan-card.active {
+    border-color: var(--admin-success);
+    box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
+}
+
+[data-theme="dark"] .weekday-plan-card .weekday-name {
+    background: rgba(52, 211, 153, 0.2);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .weekday-plan-card strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .active-weekday-note {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="dark"] .active-weekday-note strong {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .active-weekday-note span {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .day-grid label {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .day-grid label.selected {
+    background: var(--admin-primary);
+    border-color: var(--admin-primary);
+    color: var(--admin-primary-text);
+}
+
+[data-theme="dark"] .weekday-planner-actions button,
+[data-theme="dark"] .month-day-actions button {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .weekday-planner-actions button.never-hover-class-placeholder,
+[data-theme="dark"] .month-day-actions button.never-hover-class-placeholder {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: var(--admin-success);
+}
+
+[data-theme="dark"] .month-day-picker {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .month-day-grid button {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .month-day-grid button.active {
+    background: var(--admin-success);
+    border-color: var(--admin-success);
+    color: var(--admin-primary-text);
+    box-shadow: 0 8px 16px rgba(52, 211, 153, 0.2);
+}
+
+[data-theme="dark"] .recurring-detail-box {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .preview-head {
+    border-bottom-color: var(--admin-border);
+}
+
+[data-theme="dark"] .preview-head > span {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .preview-dates > strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .preview-stat-grid > div {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .preview-stat-grid .ok strong {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .preview-stat-grid .danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="dark"] .preview-stat-grid .danger strong {
+    color: var(--admin-danger);
+}
+
+[data-theme="dark"] .preview-warning {
+    background: rgba(249, 115, 22, 0.15);
+    border-color: rgba(249, 115, 22, 0.3);
+    color: #f97316;
+}
+
+[data-theme="dark"] .recurring-preview-list article {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .recurring-preview-list .status-available {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="dark"] .recurring-preview-list .status-available > span {
+    background: rgba(52, 211, 153, 0.2);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .recurring-preview-list .status-conflict {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="dark"] .recurring-preview-list .status-conflict > span {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--admin-danger);
+}
+
+[data-theme="dark"] .preview-list span {
+    background: rgba(52, 211, 153, 0.2);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .recurring-summary-list div {
+    border-bottom-color: var(--admin-border-soft);
+}
+
+[data-theme="dark"] .counter-bottom-bar {
+    background: rgba(24, 24, 27, 0.95);
+    border-color: rgba(52, 211, 153, 0.4);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .counter-bottom-bar strong {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .counter-bottom-bar span {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .occupied-detail .summary-list div {
+    border-bottom-color: var(--admin-border-soft);
+}
+
+[data-theme="dark"] .occupied-detail .summary-list dt {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .occupied-detail .summary-list dd {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .booking-status-strip {
+    border-bottom-color: var(--admin-border-soft);
+}
+
+[data-theme="dark"] .recurring-detail-modal .confirm-summary div {
+    background: var(--admin-surface-muted);
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .recurring-detail-modal .modal-actions {
+    border-top-color: var(--admin-border);
+}
+
+/* Specific standard input type=date dark scheme override */
+[data-theme="dark"] input[type='date'],
+[data-theme="dark"] input[type='time'],
+[data-theme="dark"] input[type='datetime-local'],
+[data-theme="dark"] input[type='month'],
+[data-theme="dark"] input[type='week'] {
+    color: var(--admin-text, #f4f4f5) !important;
+    -webkit-text-fill-color: var(--admin-text, #f4f4f5) !important;
+    color-scheme: dark;
+}
+
+/* Status Badges Dark Theme */
+[data-theme="dark"] .status-badge.tone-paid {
+    border-color: rgba(52, 211, 153, 0.3);
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .status-badge.tone-online {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+[data-theme="dark"] .status-badge.tone-counter {
+    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.15);
+    color: #c084fc;
+}
+
+[data-theme="dark"] .status-badge.tone-later {
+    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .status-badge.tone-overdue {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--admin-danger);
+}
+
+[data-theme="dark"] .status-badge.tone-pending {
+    border-color: rgba(249, 115, 22, 0.3);
+    background: rgba(249, 115, 22, 0.15);
+    color: #fb923c;
+}
+
+[data-theme="dark"] .status-badge.tone-confirmed {
+    border-color: rgba(52, 211, 153, 0.3);
+    background: rgba(52, 211, 153, 0.1);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .status-badge.tone-cancelled {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .empty-summary {
+    border-color: var(--admin-border);
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .recurring-table-card th {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .recurring-table-card td {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .recurring-table-card td > strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .group-code {
+    background: rgba(52, 211, 153, 0.2);
+    color: var(--admin-success) !important;
+}
+
+[data-theme="dark"] .source-pill.online {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+[data-theme="dark"] .source-pill.counter {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .fixed-date-chips span {
+    background: rgba(52, 211, 153, 0.2);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .fixed-date-chips span.issue {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--admin-danger);
+}
+
+[data-theme="dark"] .fixed-date-chips span.partial {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .fixed-date-chips em {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .legend {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .legend i {
+    background: var(--admin-surface);
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .legend i.selected {
+    background: var(--admin-primary);
+    border-color: var(--admin-primary);
+}
+
+[data-theme="dark"] .date-stepper button {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .date-stepper button.never-hover-class-placeholder {
+    border-color: var(--admin-success);
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .date-stepper input {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .readonly-field {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+}
+
+[data-theme="dark"] .readonly-field span {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .readonly-field strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .booking-picker {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+}
+
+[data-theme="dark"] .duration-pill,
+[data-theme="dark"] .selection-help {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+}
+
+[data-theme="dark"] .duration-pill span,
+[data-theme="dark"] .selection-help span,
+[data-theme="dark"] .duration-pill strong,
+[data-theme="dark"] .selection-help strong,
+[data-theme="dark"] .selection-help small {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .duration-pill.active {
+    border-color: var(--admin-primary);
+    background: var(--admin-primary-soft);
+}
+
+[data-theme="dark"] label span,
+[data-theme="dark"] .summary-list dt {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .field-error {
+    color: var(--admin-danger);
+}
+
+[data-theme="dark"] .selection-error {
+    color: var(--admin-danger);
+}
+
+[data-theme="dark"] .selected-court-strip {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+}
+
+[data-theme="dark"] .selected-court-strip span {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .selected-court-strip strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .period-tabs button {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .period-tabs button.active {
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
+    color: var(--admin-primary-text);
+}
+
+[data-theme="dark"] .time-slot {
+    border-right-color: var(--admin-border-soft);
+    border-bottom-color: var(--admin-border-soft);
+}
+
+[data-theme="dark"] .time-slot.selected {
+    box-shadow: inset 0 0 0 1px var(--admin-primary);
+}
+
+[data-theme="dark"] .time-slot.viewing {
+    box-shadow: inset 0 0 0 2px var(--admin-success);
+}
+
+[data-theme="dark"] .booking-side {
+    border-left-color: var(--admin-border);
+    box-shadow: -16px 0 46px rgba(0, 0, 0, 0.46);
+}
+
+[data-theme="dark"] .drawer-close-btn {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .voucher-code-row input {
+    border-color: var(--admin-border);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .voucher-list button {
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .voucher-list button.active {
+    border-color: var(--admin-success);
+    background: rgba(52, 211, 153, 0.15);
+}
+
+[data-theme="dark"] .voucher-list strong {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .voucher-list em {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .segmented-field > span {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .segmented-field button {
+    border-color: var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .segmented-field button.active {
+    border-color: var(--admin-primary);
+    background: var(--admin-primary);
+    color: var(--admin-primary-text);
+}
+
+[data-theme="dark"] .qr-section img,
+[data-theme="dark"] .qr-modal > img {
+    border-color: var(--admin-border);
+}
+
+[data-theme="dark"] .qr-info div {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .qr-info button {
+    color: var(--admin-success);
+}
+
+[data-theme="dark"] .qr-info strong {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .confirm-reason-field span {
+    color: var(--admin-text);
+}
+
+[data-theme="dark"] .confirm-reason-field textarea {
+    border-color: var(--admin-border);
+    color: var(--admin-text);
+    background: var(--admin-surface);
+}
+
+[data-theme="dark"] .confirm-reason-field textarea:focus {
+    border-color: var(--admin-primary);
+    box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+[data-theme="dark"] .confirm-reason-field small {
+    color: var(--admin-muted);
+}
+
+[data-theme="dark"] .secondary-btn.danger {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--admin-danger);
+}
+
+/* Dark mode overrides for MiniCalendar */
+[data-theme="dark"] .mini-cal__title:hover {
+    background: var(--admin-hover);
+}
+[data-theme="dark"] .mini-cal__day:not(:disabled):not(.selected):not(.range-start):not(.range-end):hover {
+    background: var(--admin-hover);
 }
 /* --- END OF counter-booking.css --- */
 

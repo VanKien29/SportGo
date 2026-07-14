@@ -63,6 +63,8 @@ class OwnerBookingConfigTest extends TestCase
                 'min_advance_booking_minutes' => 90,
                 'fixed_open_time' => '08:00',
                 'fixed_close_time' => '22:00',
+                'morning_end_time' => '12:00',
+                'afternoon_end_time' => '18:00',
                 'special_operating_hours' => [[
                     'start_date' => '2026-06-22',
                     'end_date' => '2026-06-25',
@@ -79,6 +81,8 @@ class OwnerBookingConfigTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.min_duration_minutes', 60)
             ->assertJsonPath('data.min_advance_booking_minutes', 90)
+            ->assertJsonPath('data.morning_end_time', '12:00')
+            ->assertJsonPath('data.afternoon_end_time', '18:00')
             ->assertJsonPath('data.deposit_percent', '40.00')
             ->assertJsonPath('data.reset_membership_progress_on_upgrade', false);
 
@@ -87,6 +91,8 @@ class OwnerBookingConfigTest extends TestCase
             'min_duration_minutes' => 60,
             'max_duration_minutes' => 180,
             'min_advance_booking_minutes' => 90,
+            'morning_end_time' => '12:00:00',
+            'afternoon_end_time' => '18:00:00',
             'slot_hold_minutes' => 25,
             'reminder_before_minutes' => 60,
             'allow_no_prepay' => false,
@@ -97,6 +103,36 @@ class OwnerBookingConfigTest extends TestCase
             'action' => 'booking_config.updated',
             'entity_id' => $this->cluster->id,
         ]);
+    }
+
+    public function test_booking_config_rejects_overlapping_shift_times(): void
+    {
+        // morning_end_time before open_time
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'morning_end_time' => '07:00',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['morning_end_time']);
+
+        // afternoon_end_time before morning_end_time
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'afternoon_end_time' => '11:00',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['afternoon_end_time']);
+
+        // afternoon_end_time after close_time
+        $this->actingAs($this->owner, 'sanctum')
+            ->putJson('/api/owner/booking-configs/'.$this->cluster->id, [
+                ...$this->validPayload(),
+                'afternoon_end_time' => '23:00',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['afternoon_end_time']);
     }
 
     public function test_duration_must_follow_30_minute_steps(): void
@@ -257,6 +293,8 @@ class OwnerBookingConfigTest extends TestCase
             'min_advance_booking_minutes' => 30,
             'fixed_open_time' => '08:00',
             'fixed_close_time' => '22:00',
+            'morning_end_time' => '12:00',
+            'afternoon_end_time' => '18:00',
             'special_operating_hours' => [],
             'slot_hold_minutes' => 20,
             'reminder_before_minutes' => 30,

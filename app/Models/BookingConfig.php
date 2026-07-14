@@ -34,6 +34,8 @@ class BookingConfig extends Model
         'reset_membership_progress_on_upgrade',
         'cancel_before_hours',
         'refund_percent',
+        'morning_end_time',
+        'afternoon_end_time',
     ];
 
     protected function casts(): array

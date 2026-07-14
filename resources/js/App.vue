@@ -15,7 +15,7 @@ import SetPasswordModal from './components/SetPasswordModal.vue';
 import FloatingActions from './components/FloatingActions.vue';
 import { getAuth, needsPasswordSetup } from './stores/auth.js';
 import { policyService } from './services/policies.js';
-import { applyCustomThemeStyles } from './utils/theme.js';
+import { applyAuthThemeStyles, applyCustomThemeStyles } from './utils/theme.js';
 import { applyOwnerThemeFromStorage } from './utils/ownerTheme.js';
 
 export default {
@@ -31,6 +31,7 @@ export default {
   mounted() {
     // Apply custom theme configuration globally on load/refresh
     applyCustomThemeStyles();
+    applyAuthThemeStyles();
     applyOwnerThemeFromStorage();
     this.showSetPasswordModal = needsPasswordSetup();
     this.checkRequiredPolicies();

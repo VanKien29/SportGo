@@ -2,14 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\CourtType;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
+use App\Models\VenueCourt;
 use App\Models\VenueStaffAssignment;
+use App\Services\VenueStaffAccessService;
 use App\Models\VenueStaffShift;
 use App\Models\VenueStaffShiftSchedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class StaffShiftTest extends TestCase
@@ -228,5 +232,44 @@ class StaffShiftTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.status', 'checked_out');
+    }
+
+    public function test_staff_only_sees_assigned_court_types_and_cannot_access_other_types(): void
+    {
+        $assignedType = CourtType::query()->create(['name' => 'Badminton']);
+        $otherType = CourtType::query()->create(['name' => 'Tennis']);
+
+        $assignedCourt = VenueCourt::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $assignedType->id,
+            'name' => 'Sân Badminton 1',
+            'status' => 'active',
+        ]);
+        $otherCourt = VenueCourt::query()->create([
+            'venue_cluster_id' => $this->cluster->id,
+            'court_type_id' => $otherType->id,
+            'name' => 'Sân Tennis 1',
+            'status' => 'active',
+        ]);
+
+        VenueStaffAssignment::query()
+            ->where('user_id', $this->staff->id)
+            ->where('venue_cluster_id', $this->cluster->id)
+            ->update([
+                'scope_type' => 'court_type',
+                'court_type_id' => $assignedType->id,
+                'scope_key' => 'court_type:' . $assignedType->id,
+            ]);
+
+        $response = $this->actingAs($this->staff, 'sanctum')
+            ->getJson('/api/owner/venue-courts?venue_cluster_id=' . $this->cluster->id);
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $assignedCourt->id);
+
+        $this->expectException(ValidationException::class);
+
+        app(VenueStaffAccessService::class)->assertCourtAccess($this->staff, $otherCourt);
     }
 }
