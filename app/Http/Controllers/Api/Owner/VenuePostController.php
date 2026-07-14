@@ -10,10 +10,20 @@ use App\Services\VenuePostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class VenuePostController extends Controller
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+
+class VenuePostController extends Controller implements HasMiddleware
 {
     public function __construct(private VenuePostService $venuePostService)
     {
+    }
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('throttle:5,1', only: ['store']),
+        ];
     }
 
     public function index(Request $request)

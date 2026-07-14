@@ -210,6 +210,29 @@ class AdminComplaintController extends Controller
         ]);
     }
 
+    public function sendNotification(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'complaint.handle');
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $complaint = Complaint::query()->with(['customer', 'venueCluster.owner'])->findOrFail($id);
+
+        $this->audit->log($request, 'complaint', 'complaint.notified', 'complaints', $complaint->id, [], [], [
+            'reason' => $data['message'],
+            'severity' => 'info',
+        ]);
+
+        $this->notify($complaint->customer, $complaint, 'Thông báo bổ sung về khiếu nại', $data['message']);
+
+        return response()->json([
+            'message' => 'Đã gửi thông báo bổ sung thành công.',
+            'data' => $this->detailPayload($complaint->fresh($this->detailRelations())),
+        ]);
+    }
+
     private function listPayload(Complaint $complaint): array
     {
         return [
@@ -316,7 +339,8 @@ class AdminComplaintController extends Controller
                     'type' => 'log',
                     'id' => $log->id,
                     'action' => $log->action,
-                    'details' => $log->new_values,
+                    'details' => $log->new_values ?? [],
+                    'reason' => $log->reason,
                     'user' => $log->actor,
                     'created_at' => $log->created_at,
                 ]);

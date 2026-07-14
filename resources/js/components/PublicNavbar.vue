@@ -118,6 +118,19 @@
                 Trò chuyện
               </router-link>
 
+              <button
+                v-if="user.role === 'user'"
+                class="dd-item"
+                @click="openComplaintModal"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Gửi khiếu nại
+              </button>
+
               <router-link
                 v-if="user.role === 'user'"
                 to="/partner-application"
@@ -165,8 +178,26 @@
                 Quay lại quản trị
               </button>
 
+              <button class="dd-item" @click="toggleThemeMode">
+                <svg v-if="!isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5"/>
+                  <line x1="12" y1="1" x2="12" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/>
+                  <line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                {{ isDark ? 'Chế độ sáng' : 'Chế độ tối' }}
+              </button>
+
               <button class="dd-item dd-logout" @click="handleLogout">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                   <polyline points="16 17 21 12 16 7"/>
                   <line x1="21" y1="12" x2="9" y2="12"/>
@@ -179,15 +210,31 @@
       </div>
     </div>
   </nav>
+
+  <ComplaintModal 
+    :is-open="showComplaintModal" 
+    @close="showComplaintModal = false" 
+    @success="onComplaintSuccess" 
+  />
 </template>
 
 <script>
 import { getAuth, logout } from "../stores/auth.js";
 import { resolveSystemAsset, systemProfileState, systemName } from "../stores/systemProfile.js";
 import { notificationService } from "../services/notification.service.js";
+import ComplaintModal from "./ComplaintModal.vue";
+
+import { useToast } from "vue-toastification";
 
 export default {
   name: "PublicNavbar",
+  components: {
+    ComplaintModal
+  },
+  setup() {
+    const toast = useToast();
+    return { toast };
+  },
   data() {
     return {
       user: getAuth(),
@@ -198,6 +245,8 @@ export default {
       notifications: [],
       unreadCount: 0,
       notifPollTimer: null,
+      showComplaintModal: false,
+      isDark: document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark',
     };
   },
   mounted() {
@@ -244,6 +293,22 @@ export default {
     },
   },
   methods: {
+    toggleThemeMode() {
+      const isCurrentlyDark = document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isCurrentlyDark) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+        this.isDark = false;
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+        this.isDark = true;
+      }
+    },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
@@ -261,6 +326,14 @@ export default {
       } else if (role === "owner") {
         this.$router.push("/owner/dashboard");
       }
+    },
+    openComplaintModal() {
+      this.showDropdown = false;
+      this.showComplaintModal = true;
+    },
+    onComplaintSuccess() {
+      this.showComplaintModal = false;
+      this.toast.success("Cảm ơn bạn đã gửi khiếu nại. Chúng tôi sẽ xem xét trong thời gian sớm nhất.");
     },
     async handleLogout() {
       await logout();
@@ -295,6 +368,43 @@ export default {
         } catch (e) {
           console.error(e);
         }
+      }
+      
+      // Navigation handling
+      if (notif.type === 'matchmaking_join_request') {
+        this.$router.push(`/matchmaking-posts/${notif.reference_id}/manage`);
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'matchmaking_join_approved' || notif.type === 'matchmaking_join_rejected') {
+        this.$router.push('/community');
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'post_approved') {
+        if (notif.reference_type === 'venue_posts') {
+          if (notif.data && notif.data.slug) {
+            this.$router.push(`/community/${notif.data.slug}`);
+          } else {
+            this.$router.push('/owner/venue-posts');
+          }
+        } else if (notif.reference_type === 'community_posts') {
+          this.$router.push('/community');
+        } else if (notif.reference_type === 'system_posts') {
+          if (notif.data && notif.data.slug) {
+            this.$router.push(`/news/${notif.data.slug}`);
+          } else {
+            this.$router.push('/news');
+          }
+        }
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'report_processed') {
+        if (notif.data && notif.data.target_type && (notif.data.target_type.includes('comment') || notif.data.target_type.includes('post'))) {
+          if (notif.data.post_slug) {
+            let url = `/community/${notif.data.post_slug}`;
+            if (notif.data.target_type.includes('comment') && notif.data.target_id) {
+              url += `?open_comment=${notif.data.target_id}`;
+            }
+            this.$router.push(url);
+          }
+        }
+        this.showNotifDropdown = false;
       }
     },
     async markAllAsRead() {

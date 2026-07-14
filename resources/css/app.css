@@ -1,7 +1,7 @@
 @import './portals.css';
 
 @import 'tailwindcss';
-
+@custom-variant dark (&:where(.dark, .dark *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -29,16 +29,14 @@
 }
 
 .auth-layout input,
-.dark input,
-.modal-overlay input {
+.dark input {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff;
 }
 
 .auth-layout input::selection,
-.dark input::selection,
-.modal-overlay input::selection {
+.dark input::selection {
     color: #fff;
     background: rgba(34, 197, 94, .35);
 }
@@ -50,11 +48,7 @@
 .dark input:-webkit-autofill,
 .dark input:-webkit-autofill.never-hover-class-placeholder,
 .dark input:-webkit-autofill:focus,
-.dark input:-webkit-autofill:active,
-.modal-overlay input:-webkit-autofill,
-.modal-overlay input:-webkit-autofill.never-hover-class-placeholder,
-.modal-overlay input:-webkit-autofill:focus,
-.modal-overlay input:-webkit-autofill:active {
+.dark input:-webkit-autofill:active {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff !important;
@@ -64,8 +58,7 @@
 }
 
 .auth-layout input:autofill,
-.dark input:autofill,
-.modal-overlay input:autofill {
+.dark input:autofill {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     box-shadow: 0 0 0 1000px #09090b inset !important;

@@ -1,262 +1,453 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay" @click.self="close">
-    <div class="modal-container report-modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Báo cáo nội dung</h3>
-        <button class="close-btn" @click="close">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+  <div
+    v-if="isOpen"
+    class="modal-overlay"
+    role="presentation"
+    @click.self="close"
+  >
+    <section
+      class="moderation-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="report-modal-title"
+    >
+      <header class="modal-header">
+        <div>
+          <span class="modal-kicker">An toàn cộng đồng</span>
+          <h2 id="report-modal-title">Báo cáo nội dung</h2>
+        </div>
+        <button type="button" class="icon-button" aria-label="Đóng" @click="close">
+          <AppIcon name="close" size="18" />
         </button>
-      </div>
-      
+      </header>
+
       <div class="modal-body">
-        <p class="report-desc">Vui lòng chọn lý do báo cáo để chúng tôi xem xét nội dung này. Báo cáo của bạn được ẩn danh.</p>
-        
-        <form @submit.prevent="submit" class="report-form">
-          <div class="radio-group">
-            <label v-for="option in reasonOptions" :key="option.value" class="radio-label">
-              <input type="radio" v-model="form.reason" :value="option.value" required />
-              <div class="radio-text">
+        <p class="modal-description">
+          Chọn lý do phù hợp để đội ngũ SportGo kiểm tra. Danh tính người báo cáo không hiển thị với đối tượng bị báo cáo.
+        </p>
+
+        <div v-if="targetName" class="target-summary">
+          <span>Đối tượng</span>
+          <strong>{{ targetName }}</strong>
+        </div>
+
+        <form class="moderation-form" @submit.prevent="submit">
+          <fieldset class="reason-list">
+            <legend>Lý do báo cáo</legend>
+            <label
+              v-for="option in reasonOptions"
+              :key="option.value"
+              class="reason-option"
+              :class="{ selected: form.reason === option.value }"
+            >
+              <input v-model="form.reason" type="radio" :value="option.value" required />
+              <span>
                 <strong>{{ option.label }}</strong>
-                <p v-if="option.desc">{{ option.desc }}</p>
-              </div>
+                <small>{{ option.description }}</small>
+              </span>
             </label>
-          </div>
+          </fieldset>
 
-          <div class="input-area" v-if="form.reason">
-            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Chi tiết thêm (không bắt buộc):</label>
-            <textarea 
-              v-model="form.description" 
-              class="content-input" 
-              rows="3" 
-              placeholder="Mô tả rõ hơn về vi phạm..."
+          <label class="field-block">
+            <span>Thông tin bổ sung <small>Không bắt buộc</small></span>
+            <textarea
+              v-model.trim="form.description"
+              class="field-control"
+              rows="3"
+              maxlength="1000"
+              placeholder="Mô tả ngắn gọn nội dung hoặc hành vi cần kiểm tra"
             ></textarea>
-          </div>
+            <small class="character-count">{{ form.description.length }}/1000</small>
+          </label>
 
-          <div v-if="errorMsg" class="error-alert">
-            {{ errorMsg }}
-          </div>
+          <label class="field-block">
+            <span>Ảnh minh chứng <small>JPG, PNG hoặc WebP, tối đa 5 MB</small></span>
+            <input
+              ref="fileInput"
+              class="field-control file-control"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              @change="onImageSelected"
+            />
+          </label>
 
-          <div class="form-actions">
-            <button type="button" class="btn secondary" @click="close" :disabled="isSubmitting">Hủy</button>
-            <button type="submit" class="btn primary submit-btn" :disabled="isSubmitting || !form.reason">
-              <span v-if="isSubmitting" class="spinner"></span>
-              <span v-else>Gửi báo cáo</span>
+          <div v-if="imagePreview" class="image-preview">
+            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" />
+            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeImage">
+              <AppIcon name="trash" size="16" />
             </button>
           </div>
+
+          <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
+
+          <footer class="form-actions">
+            <SgButton type="secondary" :disabled="isSubmitting" @click="close">Hủy</SgButton>
+            <SgButton native-type="submit" type="primary" :loading="isSubmitting" :disabled="!form.reason">
+              Gửi báo cáo
+            </SgButton>
+          </footer>
         </form>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { api } from '@/services/api';
+import { onBeforeUnmount, reactive, ref, watch } from 'vue';
+import AppIcon from './AppIcon.vue';
+import SgButton from './common/SgButton.vue';
+import { apiFormData } from '@/services/api';
 
 const props = defineProps({
-  isOpen: Boolean,
-  targetType: String,
-  targetId: String,
+  isOpen: { type: Boolean, default: false },
+  targetType: { type: String, required: true },
+  targetId: { type: [String, Number], required: true },
+  targetName: { type: String, default: '' },
 });
 
 const emit = defineEmits(['close', 'success']);
-
-const form = ref({
-  reason: '',
-  description: ''
-});
-
+const form = reactive({ reason: '', description: '', imageFile: null });
 const isSubmitting = ref(false);
 const errorMsg = ref('');
+const imagePreview = ref('');
+const fileInput = ref(null);
 
 const reasonOptions = [
-  { value: 'spam', label: 'Spam', desc: 'Nội dung quảng cáo, lừa đảo, hoặc đăng lặp lại nhiều lần.' },
-  { value: 'offensive', label: 'Nội dung phản cảm', desc: 'Sử dụng ngôn từ gây thù ghét, thô tục hoặc nhạy cảm.' },
-  { value: 'fake', label: 'Giả mạo / Thông tin sai lệch', desc: 'Thông tin không đúng sự thật hoặc mạo danh người khác.' },
-  { value: 'harassment', label: 'Quấy rối / Bắt nạt', desc: 'Công kích cá nhân, xúc phạm hoặc đe dọa.' },
-  { value: 'other', label: 'Lý do khác', desc: 'Vi phạm các chính sách khác của hệ thống.' }
+  { value: 'spam', label: 'Spam', description: 'Quảng cáo, lừa đảo hoặc đăng lặp lại nhiều lần.' },
+  { value: 'offensive', label: 'Nội dung phản cảm', description: 'Ngôn từ thù ghét, thô tục hoặc nội dung nhạy cảm.' },
+  { value: 'fake', label: 'Thông tin sai lệch', description: 'Thông tin không đúng sự thật hoặc giả mạo.' },
+  { value: 'harassment', label: 'Quấy rối hoặc bắt nạt', description: 'Công kích, xúc phạm hoặc đe dọa cá nhân.' },
+  { value: 'other', label: 'Lý do khác', description: 'Dấu hiệu vi phạm khác cần SportGo kiểm tra.' },
 ];
 
-const close = () => {
-  form.value.reason = '';
-  form.value.description = '';
-  errorMsg.value = '';
-  emit('close');
-};
+function revokePreview() {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
+  imagePreview.value = '';
+}
 
-const submit = async () => {
-  if (!form.value.reason) return;
-  
+function removeImage() {
+  form.imageFile = null;
+  revokePreview();
+  if (fileInput.value) fileInput.value.value = '';
+}
+
+function reset() {
+  form.reason = '';
+  form.description = '';
+  removeImage();
+  errorMsg.value = '';
+}
+
+function close() {
+  if (isSubmitting.value) return;
+  reset();
+  emit('close');
+}
+
+function onImageSelected(event) {
+  const file = event.target.files?.[0];
+  removeImage();
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    errorMsg.value = 'Ảnh minh chứng phải nhỏ hơn hoặc bằng 5 MB.';
+    return;
+  }
+  form.imageFile = file;
+  imagePreview.value = URL.createObjectURL(file);
+  errorMsg.value = '';
+}
+
+async function submit() {
+  if (!form.reason || isSubmitting.value) return;
+  if (!props.targetType || props.targetId === '' || props.targetId === null) {
+    errorMsg.value = 'Không xác định được đối tượng cần báo cáo.';
+    return;
+  }
+
   isSubmitting.value = true;
   errorMsg.value = '';
-
   try {
-    await api('/api/reports', {
-      method: 'POST',
-      body: JSON.stringify({
-        target_type: props.targetType,
-        target_id: props.targetId,
-        reason: form.value.reason,
-        description: form.value.description
-      })
-    });
-    
-    emit('success');
-    close();
-  } catch (err) {
-    errorMsg.value = err.message || 'Đã xảy ra lỗi khi gửi báo cáo.';
+    const payload = new FormData();
+    payload.append('target_type', props.targetType);
+    payload.append('target_id', String(props.targetId));
+    payload.append('reason', form.reason);
+    if (form.description) payload.append('description', form.description);
+    if (form.imageFile) payload.append('evidence_image', form.imageFile);
+
+    const response = await apiFormData('/api/reports', payload);
+    emit('success', response);
+    reset();
+    emit('close');
+  } catch (error) {
+    errorMsg.value = error.message || 'Không thể gửi báo cáo. Vui lòng thử lại.';
   } finally {
     isSubmitting.value = false;
   }
-};
+}
+
+watch(() => props.isOpen, (isOpen) => {
+  if (!isOpen && !isSubmitting.value) reset();
+});
+
+onBeforeUnmount(revokePreview);
 </script>
 
 <style scoped>
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 1000;
+  display: grid;
+  place-items: center;
   padding: 20px;
+  background: rgba(9, 9, 11, 0.64);
 }
-.modal-container {
-  background: #ffffff;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 500px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+
+.moderation-modal {
+  width: min(100%, 560px);
   max-height: 90vh;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  color: var(--admin-text);
 }
-.modal-header {
+
+.modal-header,
+.form-actions,
+.target-summary,
+.image-preview {
   display: flex;
   align-items: center;
+}
+
+.modal-header {
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e4e6eb;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--admin-border-soft);
 }
-.modal-title {
+
+.modal-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--admin-primary);
+  font-size: var(--admin-font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-header h2 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1c1e21;
+  font-size: var(--admin-font-size-xl);
 }
-.close-btn {
-  background: #e4e6eb;
-  border: none;
+
+.icon-button,
+.remove-image {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.icon-button {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #65676b;
-  transition: background 0.2s;
 }
-.close-btn.never-hover-class-placeholder {
-  background: #d8dadf;
+
+.icon-button:hover,
+.remove-image:hover {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary-dark);
 }
+
 .modal-body {
-  padding: 20px;
+  max-height: calc(90vh - 74px);
   overflow-y: auto;
+  padding: 20px;
 }
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
+
+.modal-description {
+  margin: 0 0 16px;
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-base);
+  line-height: 1.55;
+}
+
+.target-summary {
+  justify-content: space-between;
   gap: 12px;
-  margin-top: 24px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg-soft);
+  font-size: var(--admin-font-size-sm);
 }
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
+
+.target-summary span,
+.field-block small,
+.reason-option small {
+  color: var(--admin-muted);
+}
+
+.moderation-form,
+.reason-list,
+.field-block {
+  display: grid;
+  gap: 10px;
+}
+
+.reason-list {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.reason-list legend,
+.field-block > span {
+  margin-bottom: 2px;
+  color: var(--admin-text);
+  font-size: var(--admin-font-size-base);
   font-weight: 600;
-  cursor: pointer;
-  border: none;
-  font-size: 15px;
-  transition: all 0.2s;
 }
-.btn.secondary {
-  background: #e4e6eb;
-  color: #050505;
-}
-.btn.secondary.never-hover-class-placeholder:not(:disabled) {
-  background: #d8dadf;
-}
-.btn.primary {
-  background: #1877f2;
-  color: #fff;
-}
-.btn.primary.never-hover-class-placeholder:not(:disabled) {
-  background: #166fe5;
-}
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.report-modal {
-  max-width: 500px;
-}
-.report-desc {
-  font-size: 14px;
-  color: #65676b;
-  margin-bottom: 16px;
-}
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.radio-label {
+
+.reason-option {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
   cursor: pointer;
-  padding: 12px;
-  border: 1px solid #e4e6eb;
-  border-radius: 8px;
-  transition: all 0.2s;
 }
-.radio-label.never-hover-class-placeholder {
-  background: #f0f2f5;
+
+.reason-option.selected {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
 }
-.radio-label input[type="radio"] {
-  margin-top: 4px;
+
+.reason-option input {
+  margin-top: 3px;
+  accent-color: var(--admin-primary);
 }
-.radio-text strong {
-  display: block;
-  font-size: 15px;
-  color: #1c1e21;
+
+.reason-option span {
+  display: grid;
+  gap: 2px;
 }
-.radio-text p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #65676b;
+
+.reason-option strong {
+  font-size: var(--admin-font-size-base);
 }
-.content-input {
+
+.reason-option small,
+.field-block small,
+.character-count {
+  font-size: var(--admin-font-size-sm);
+}
+
+.field-block {
+  margin-top: 8px;
+}
+
+.field-block > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-control {
   width: 100%;
-  border: 1px solid #ced0d4;
-  border-radius: 6px;
-  padding: 12px;
-  font-family: inherit;
+  box-sizing: border-box;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  font-size: var(--admin-font-size-base);
+  outline: none;
+}
+
+textarea.field-control {
+  min-height: 88px;
+  padding: 10px 12px;
   resize: vertical;
 }
-.content-input:focus {
-  outline: none;
-  border-color: #1877f2;
+
+.file-control {
+  padding: 8px;
 }
-.error-alert {
-  background: #ffebe8;
-  color: #fa3e3e;
-  padding: 12px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-size: 14px;
+
+.field-control:focus {
+  border-color: var(--admin-primary);
+}
+
+.character-count {
+  justify-self: end;
+  color: var(--admin-faint);
+}
+
+.image-preview {
+  position: relative;
+  width: min(100%, 240px);
+  margin-top: 4px;
+}
+
+.image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+}
+
+.remove-image {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  color: var(--admin-danger);
+}
+
+.form-error {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-danger);
+  border-radius: var(--admin-radius);
+  background: color-mix(in srgb, var(--admin-danger) 8%, var(--admin-surface));
+  color: var(--admin-danger-text);
+  font-size: var(--admin-font-size-sm);
+}
+
+.form-actions {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--admin-border-soft);
+}
+
+@media (max-width: 560px) {
+  .modal-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .moderation-modal {
+    max-height: 94vh;
+    border-radius: var(--admin-radius-lg) var(--admin-radius-lg) 0 0;
+  }
+
+  .modal-body {
+    max-height: calc(94vh - 74px);
+  }
 }
 </style>

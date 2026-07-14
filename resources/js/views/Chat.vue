@@ -35,13 +35,13 @@
         <!-- Drawer Profile Header -->
         <div class="tg-drawer-header">
           <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-semibold text-sm text-white select-none">
-            {{ currentUser.full_name?.charAt(0).toUpperCase() }}
+            {{ (currentUser?.full_name || currentUser?.username || 'U').charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex items-center justify-between mt-1.5">
             <div class="min-w-0">
-              <div class="font-semibold text-[13px] tg-drawer-header-name truncate">{{ currentUser.full_name }}</div>
-              <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser.email || currentUser.phone || '' }}</div>
+              <div class="font-semibold text-[13px] tg-drawer-header-name truncate">{{ currentUser?.full_name }}</div>
+              <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser?.email || currentUser?.phone || '' }}</div>
             </div>
           </div>
         </div>
@@ -142,7 +142,7 @@
             class="tg-conv-item w-full transition-all"
           >
             <div class="tg-avatar tg-avatar-small">
-              {{ user.full_name.charAt(0).toUpperCase() }}
+              {{ (user?.full_name || 'U').charAt(0).toUpperCase() }}
             </div>
             <div class="flex-1 min-w-0">
               <div class="font-medium text-sm text-zinc-200 truncate">{{ user.full_name }}</div>
@@ -172,7 +172,7 @@
           >
             <!-- Avatar -->
             <div class="tg-avatar">
-              {{ conv.title.charAt(0).toUpperCase() }}
+              {{ (conv.title || 'U').charAt(0).toUpperCase() }}
             </div>
 
             <!-- Content -->
@@ -183,7 +183,7 @@
               </div>
               <div class="flex items-center justify-between gap-2">
                 <div class="text-xs text-zinc-400 truncate flex-1">
-                  <span v-if="conv.last_message?.sender_id === currentUser.id" class="text-green-500">Bạn: </span>
+                  <span v-if="conv.last_message?.sender_id === currentUser?.id" class="text-green-500">Bạn: </span>
                   {{ conv.last_message?.content || 'Chưa có tin nhắn' }}
                 </div>
                 <!-- Badge count -->
@@ -570,7 +570,7 @@
                        <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
 
                        <!-- Read checkmarks logic for sent messages -->
-                       <span v-if="msg.sender_id === currentUser.id" class="bubble-ticks inline-flex">
+                       <span v-if="msg.sender_id === currentUser?.id" class="bubble-ticks inline-flex">
                          <!-- Read (Double check) -->
                          <svg v-if="isMessageRead(msg)" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -2896,7 +2896,9 @@ export default {
   background: var(--tg-border);
   border-radius: 0;
 }
-
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tg-meta);
+}
 
 /* ── Avatars ────────────────────────────────── */
 .tg-avatar {

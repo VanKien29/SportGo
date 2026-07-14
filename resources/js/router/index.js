@@ -40,6 +40,8 @@ import BookingHistory from "../views/clients/booking/BookingHistory.vue";
 import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
 import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
+import NewsList from '../views/clients/news/NewsList.vue';
+import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
 import CommunityPostDetail from "../views/clients/NewsDetail.vue";
@@ -80,10 +82,21 @@ const routes = [
         meta: { requiresAuth: false, title: "Cộng đồng" },
     },
     {
+      path: '/user/:id',
+      name: 'user.profile',
+      component: UserProfile
+    },
+    {
         path: "/news/:slug",
         name: "ClientNewsDetail",
         component: () => import("@/views/clients/news/NewsDetail.vue"),
         meta: { requiresAuth: false, title: "Chi tiết tin tức" },
+    },
+    {
+        path: "/matchmaking-posts/:id/manage",
+        name: "ClientMatchmakingManage",
+        component: () => import("@/views/clients/community/MatchmakingManage.vue"),
+        meta: { requiresAuth: true, title: "Quản lý bài giao lưu" },
     },
     {
         path: "/chat",

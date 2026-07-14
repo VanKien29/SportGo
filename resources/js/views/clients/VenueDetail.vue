@@ -68,7 +68,7 @@
 
                 <div class="hero-actions">
                   <button type="button" class="primary-action" @click="goToBooking">Đặt sân</button>
-                  <button type="button" class="ghost-action" @click="chatWithOwner">Nhắn tin</button>
+                  <button type="button" class="ghost-action" @click="chatWithVenue">Nhắn tin</button>
                   <router-link class="ghost-action" :to="{ name: 'venues', query: searchQuery }">Đổi sân</router-link>
                 </div>
               </div>
@@ -110,19 +110,19 @@
           <section class="detail-section" v-if="groupedServices.length">
             <h2 class="section-title">Dịch vụ & Sản phẩm tại sân</h2>
             <div class="services-by-category-container">
-              <div v-for="group in groupedServices" :key="group.key" class="service-category-block" style="margin-bottom: 20px;">
-                <h3 class="service-category-label" style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+              <div v-for="group in groupedServices" :key="group.key" class="service-category-block">
+                <h3 class="service-category-label">
                   {{ group.label }}
                 </h3>
-                <div class="services-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
-                  <div v-for="item in group.items" :key="item.id" class="service-product-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px;">
-                    <div style="flex: 1; padding-right: 8px;">
-                      <span class="product-name" style="font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.8); display: block;">{{ item.name }}</span>
-                      <span v-if="item.description" class="product-desc" style="font-size: 11.5px; color: rgba(255,255,255,0.35); margin-top: 2px; display: block;">{{ item.description }}</span>
+                <div class="services-list-grid">
+                  <div v-for="item in group.items" :key="item.id" class="service-product-item">
+                    <div class="product-copy">
+                      <span class="product-name">{{ item.name }}</span>
+                      <span v-if="item.description" class="product-desc">{{ item.description }}</span>
                     </div>
-                    <div style="text-align: right; white-space: nowrap;">
-                      <span class="product-price" style="font-size: 13.5px; font-weight: 700; color: #f59e0b; display: block;">{{ formatPrice(item.price) }}</span>
-                      <span class="product-unit" style="font-size: 11px; color: rgba(255,255,255,0.35); display: block; margin-top: 1px;">/ {{ item.unit }}</span>
+                    <div class="product-value">
+                      <span class="product-price">{{ formatPrice(item.price) }}</span>
+                      <span class="product-unit">/ {{ item.unit }}</span>
                     </div>
                   </div>
                 </div>
@@ -262,8 +262,7 @@
               </button>
 
               <button
-                class="btn-outline btn-full flex items-center justify-center gap-2"
-                style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
+                class="btn-outline btn-full chat-action"
                 @click="chatWithVenue"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -273,24 +272,57 @@
               </button>
 
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
+
+              <div class="support-actions" aria-label="Hỗ trợ và an toàn">
+                <button type="button" @click="openComplaint">
+                  <AppIcon name="messageWarning" size="16" />
+                  Khiếu nại sân
+                </button>
+                <button type="button" @click="openReport">
+                  <AppIcon name="alert" size="16" />
+                  Báo cáo sân
+                </button>
+              </div>
             </div>
           </aside>
         </section>
       </template>
     </main>
+
+    <ComplaintModal
+      :is-open="showComplaintModal"
+      initial-type="venue"
+      :initial-venue-id="venue?.id || ''"
+      :initial-venue-name="venue?.name || ''"
+      @close="showComplaintModal = false"
+      @success="onComplaintSuccess"
+    />
+    <ReportModal
+      :is-open="showReportModal"
+      target-type="venue"
+      :target-id="venue?.id || ''"
+      :target-name="venue?.name || ''"
+      @close="showReportModal = false"
+      @success="onReportSuccess"
+    />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
+import AppIcon from "../../components/AppIcon.vue";
+import ComplaintModal from "../../components/ComplaintModal.vue";
+import ReportModal from "../../components/ReportModal.vue";
 import { venueService } from "../../services/venues.js";
-
-const fallbackImage = "/images/home/badminton-cover.webp";
-const dayLabels = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+import { getAuth } from "../../stores/auth.js";
+import { useToast } from "vue-toastification";
 
 export default {
   name: "VenueDetail",
-  components: { PublicNavbar },
+  components: { PublicNavbar, AppIcon, ComplaintModal, ReportModal },
+  setup() {
+    return { toast: useToast() };
+  },
   data() {
     return {
       venue: null,
@@ -307,6 +339,8 @@ export default {
         courts: [],
         slot_statuses: [],
       },
+      showComplaintModal: false,
+      showReportModal: false,
     };
   },
   computed: {
@@ -374,6 +408,41 @@ export default {
     },
     basePrices() {
       return this.venue?.base_prices || [];
+    },
+    policies() {
+      const policy = this.venue?.policies || {};
+      const hours = this.venue?.operating_hours || {};
+      const paymentMethods = [];
+      if (policy.allow_full_payment) paymentMethods.push("Thanh toán toàn bộ");
+      if (policy.allow_deposit) {
+        paymentMethods.push(policy.deposit_percent
+          ? `Đặt cọc ${Number(policy.deposit_percent).toLocaleString("vi-VN")}%`
+          : "Đặt cọc");
+      }
+      if (policy.allow_no_prepay) paymentMethods.push("Thanh toán tại sân");
+
+      return [
+        {
+          label: "Giờ hoạt động",
+          value: hours.fixed_open_time && hours.fixed_close_time
+            ? `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}`
+            : "Theo lịch từng ngày",
+        },
+        {
+          label: "Đặt trước tối thiểu",
+          value: this.durationLabel(policy.min_advance_booking_minutes),
+        },
+        {
+          label: "Hủy và hoàn tiền",
+          value: policy.cancel_before_hours !== null && policy.cancel_before_hours !== undefined
+            ? `Trước ${policy.cancel_before_hours} giờ · hoàn ${Number(policy.refund_percent || 0).toLocaleString("vi-VN")}%`
+            : "Theo chính sách hiện hành",
+        },
+        {
+          label: "Hình thức thanh toán",
+          value: paymentMethods.join(", ") || "Theo cấu hình của sân",
+        },
+      ];
     },
     reviews() {
       return this.venue?.reviews || [];
@@ -451,6 +520,37 @@ export default {
   },
 
   methods: {
+    initials(name) {
+      return String(name || "SG")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("");
+    },
+
+    formatCurrency(value) {
+      const amount = Number(value);
+      if (!Number.isFinite(amount)) return "Đang cập nhật";
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(amount);
+    },
+
+    timeLabel(value) {
+      return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    durationLabel(minutes) {
+      const total = Number(minutes);
+      if (!Number.isFinite(total) || total <= 0) return "Không yêu cầu";
+      if (total % 1440 === 0) return `${total / 1440} ngày`;
+      if (total % 60 === 0) return `${total / 60} giờ`;
+      return `${total} phút`;
+    },
+
     async fetchVenue() {
       this.loading = true;
       this.error = "";
@@ -559,6 +659,38 @@ export default {
         path: '/chat',
         query: { venueId: this.venue.id }
       });
+    },
+
+    requirePlayer() {
+      const auth = getAuth();
+      if (!auth) {
+        this.toast.info("Vui lòng đăng nhập để sử dụng chức năng hỗ trợ.");
+        this.$router.push({ name: "login" });
+        return false;
+      }
+      if (auth.role_group !== "user") {
+        this.toast.info("Chức năng này dành cho tài khoản người dùng.");
+        return false;
+      }
+      return true;
+    },
+
+    openComplaint() {
+      if (this.requirePlayer()) this.showComplaintModal = true;
+    },
+
+    openReport() {
+      if (this.requirePlayer()) this.showReportModal = true;
+    },
+
+    onComplaintSuccess() {
+      this.showComplaintModal = false;
+      this.toast.success("Khiếu nại đã được ghi nhận. SportGo sẽ phản hồi sau khi kiểm tra.");
+    },
+
+    onReportSuccess() {
+      this.showReportModal = false;
+      this.toast.success("Báo cáo đã được ghi nhận để đội ngũ SportGo kiểm tra.");
     },
   },
 };
@@ -1375,6 +1507,113 @@ main {
   margin-top: 2px;
   font-weight: 700;
 }
+
+.service-category-block {
+  margin-bottom: 20px;
+}
+
+.service-category-label {
+  margin: 0 0 10px;
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.services-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.service-product-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius);
+  background: var(--admin-bg-soft);
+}
+
+.product-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-name,
+.product-desc,
+.product-price,
+.product-unit {
+  display: block;
+}
+
+.product-name,
+.product-price {
+  color: var(--admin-text);
+  font-size: var(--admin-font-size-base);
+  font-weight: 600;
+}
+
+.product-desc,
+.product-unit {
+  margin-top: 2px;
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-sm);
+}
+
+.product-value {
+  flex: 0 0 auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.product-price {
+  color: var(--admin-primary-dark);
+}
+
+.chat-action {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+.support-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-border-soft);
+}
+
+.support-actions button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-size: var(--admin-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.support-actions button:hover {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-dark);
+}
+
 @media (max-width: 1024px) {
   .hero {
     padding-top: 82px;
@@ -1386,6 +1625,9 @@ main {
   }
   .detail-section {
     padding: 16px;
+  }
+  .support-actions {
+    grid-template-columns: 1fr;
   }
 }
 </style>

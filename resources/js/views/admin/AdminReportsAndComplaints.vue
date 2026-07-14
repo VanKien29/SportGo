@@ -1,6 +1,13 @@
 <template>
   <div class="moderation-page">
-
+    <div style="display: flex; gap: 12px; margin-bottom: 24px; margin-top: 10px;">
+      <button class="tab-btn" :class="{ active: activeModuleTab === 'reports' }" @click="selectModuleTab('reports')">
+        <AppIcon name="flag" size="18" /> Báo cáo
+      </button>
+      <button class="tab-btn" :class="{ active: activeModuleTab === 'complaints' }" @click="selectModuleTab('complaints')">
+        <AppIcon name="message-square" size="18" /> Khiếu nại
+      </button>
+    </div>
 
     <!-- Render tab tương ứng -->
     <keep-alive>

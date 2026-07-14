@@ -23,12 +23,12 @@
             <div class="fb-post">
               <!-- Author Header -->
               <div class="fb-post-header">
-                <div class="fb-post-avatar">
+                <div class="fb-post-avatar cursor-pointer hover:opacity-80 transition-opacity" @click.stop="post.author && post.author.id ? $router.push('/user/' + post.author.id) : null" :title="post.author && post.author.id ? 'Xem trang cá nhân' : ''">
                   <img v-if="post.author?.avatar_url" :src="post.author.avatar_url" />
                   <div v-else class="fb-avatar-text">{{ initials(post.author?.full_name || post.author?.username || '?') }}</div>
                 </div>
                 <div class="fb-post-meta">
-                  <strong>{{ post.author?.full_name || post.author?.username || 'Ban biên tập SportGo' }}</strong>
+                  <strong class="cursor-pointer hover:underline" @click.stop="post.author && post.author.id ? $router.push('/user/' + post.author.id) : null" :title="post.author && post.author.id ? 'Xem trang cá nhân' : ''">{{ post.author?.full_name || post.author?.username || 'Ban biên tập SportGo' }}</strong>
                   <div class="meta-sub">
                     <span>{{ formatDate(post.created_at) }}</span>
                     <span v-if="post.venueCluster?.name" class="meta-dot">·</span>
@@ -44,7 +44,7 @@
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
                   </button>
                   <div v-if="showPostOptions" class="options-dropdown" style="position: absolute; right: 0; top: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 8px; z-index: 10; min-width: 180px;">
-                    <button @click="openReportModal('post', post.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
+                    <button @click="openReportModal('community_post', post.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> 
                       Báo cáo bài viết
                     </button>
@@ -135,33 +135,35 @@
 
                 <!-- Comments List -->
                 <div class="comments-list" v-if="post.top_level_comments && post.top_level_comments.length">
-                  <div v-for="comment in post.top_level_comments" :key="comment.id" class="comment-item">
+                  <div v-for="comment in post.top_level_comments" :key="comment.id" class="comment-item" :id="'comment-' + comment.id">
                     <div class="fb-post-avatar comment-avatar">
                       <img v-if="comment.user?.avatar_url" :src="comment.user.avatar_url" />
                       <div v-else class="fb-avatar-text">{{ initials(comment.user?.full_name || comment.user?.username || '?') }}</div>
                     </div>
-                    <div class="comment-content-wrapper" @mouseenter="hoverComment = comment.id" @mouseleave="hoverComment = null">
-                      <div class="comment-bubble">
-                        <strong>{{ comment.user?.full_name || comment.user?.username || 'Người dùng' }}</strong>
-                        <p>{{ comment.content }}</p>
-                      </div>
-                      
-                      <!-- Comment Options -->
-                      <div class="comment-options" v-show="hoverComment === comment.id || activeCommentOptions === comment.id" style="position: absolute; right: -32px; top: 50%; transform: translateY(-50%);">
-                        <button @click="toggleCommentOptions(comment.id)" class="action-btn" style="padding: 4px; border-radius: 50%; color: #65676b; border: none; background: transparent; cursor: pointer;">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
-                        </button>
-                        <div v-if="activeCommentOptions === comment.id" class="options-dropdown" style="position: absolute; left: 100%; top: 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 8px; z-index: 10; min-width: 160px; margin-left: 8px;">
-                          <button @click="openReportModal('comment', comment.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                            Báo cáo bình luận
-                          </button>
+                    <div class="comment-content-wrapper">
+                      <div @mouseenter="hoverComment = comment.id" @mouseleave="hoverComment = null" style="position: relative; display: inline-flex; align-items: center; padding-right: 36px; margin-right: -36px;">
+                        <div class="comment-bubble">
+                          <strong>{{ comment.user?.full_name || comment.user?.username || 'Người dùng' }}</strong>
+                          <p>{{ comment.content }}</p>
                         </div>
+                        
+                        <!-- Comment Options -->
+                        <div class="comment-options" v-show="hoverComment === comment.id || activeCommentOptions === comment.id" style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); z-index: 10;">
+                          <button @click="toggleCommentOptions(comment.id)" class="action-btn" style="padding: 4px; border-radius: 50%; color: #65676b; border: none; background: transparent; cursor: pointer;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
+                          </button>
+                          <div v-if="activeCommentOptions === comment.id" class="options-dropdown" style="position: absolute; left: 100%; top: 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 4px; z-index: 20; margin-left: 8px; width: max-content;">
+                            <button @click="openReportModal('community_post_comment', comment.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 12px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500; font-size: 13px; white-space: nowrap;">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                              Báo cáo bình luận
+                            </button>
+                          </div>
                       </div>
+                    </div>
 
-                      <div class="comment-actions">
-                        <span>{{ timeAgo(comment.created_at) }}</span>
-                      </div>
+                    <div class="comment-actions">
+                      <span>{{ timeAgo(comment.created_at) }}</span>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -276,6 +278,22 @@ export default {
       try {
         const response = await api(`/api/venue-posts/${this.$route.params.slug}`);
         this.post = response.data;
+        
+        if (this.$route.query.open_comment) {
+          this.showComments = true;
+        }
+        
+        this.$nextTick(() => {
+          const openId = this.$route.query.open_comment;
+          if (openId) {
+            setTimeout(() => {
+              const commentEl = document.getElementById('comment-' + openId);
+              if (commentEl) {
+                commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 500);
+          }
+        });
       } catch (error) {
         this.post = null;
         this.error = error.message || "Không thể tải bài viết.";
