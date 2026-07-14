@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Models\VenueCluster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
@@ -164,11 +166,21 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        $request->validate([
+        $rules = [
             'content' => 'nullable|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
-            'reply_to_id' => 'nullable|uuid|exists:messages,id',
-        ]);
+        ];
+
+        $replySupported = Schema::hasColumn('messages', 'reply_to_id');
+        if ($replySupported) {
+            $rules['reply_to_id'] = 'nullable|integer|exists:messages,id';
+        } elseif ($request->filled('reply_to_id')) {
+            return response()->json([
+                'message' => 'Chức năng trả lời tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
+        $request->validate($rules);
 
         if (!$request->filled('content') && !$request->hasFile('image')) {
             return response()->json(['message' => 'Nội dung tin nhắn hoặc hình ảnh là bắt buộc.'], 400);
@@ -194,16 +206,19 @@ class ChatController extends Controller
 
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
             $now = now();
-            $msg = Message::create([
+            $messageData = [
                 'conversation_id' => $conversationId,
-                'reply_to_id' => $request->input('reply_to_id'),
                 'sender_id' => $userId,
                 'content' => $request->input('content') ?: '[Hình ảnh]',
                 'is_system' => false,
                 'reference_type' => $imagePath ? 'image' : null,
                 'reference_id' => $imagePath ?: null,
                 'created_at' => $now,
-            ]);
+            ];
+            if (Schema::hasColumn('messages', 'reply_to_id')) {
+                $messageData['reply_to_id'] = $request->input('reply_to_id');
+            }
+            $msg = Message::create($messageData);
 
             Conversation::where('id', $conversationId)->update([
                 'last_message_at' => $now,
@@ -229,6 +244,12 @@ class ChatController extends Controller
      */
     public function reactToMessage(Request $request, $messageId)
     {
+        if (! Schema::hasColumn('messages', 'reactions')) {
+            return response()->json([
+                'message' => 'Chức năng cảm xúc tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
         $request->validate([
             'emoji' => 'required|string|max:50',
         ]);
@@ -287,6 +308,12 @@ class ChatController extends Controller
      */
     public function togglePinMessage(Request $request, $messageId)
     {
+        if (! Schema::hasColumn('messages', 'is_pinned')) {
+            return response()->json([
+                'message' => 'Chức năng ghim tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
         $user = $request->user();
         $message = Message::findOrFail($messageId);
 
@@ -402,7 +429,7 @@ class ChatController extends Controller
     public function sendBooking(Request $request, $conversationId)
     {
         $validated = $request->validate([
-            'booking_id' => 'required|uuid|exists:bookings,id',
+            'booking_id' => 'required|integer|exists:bookings,id',
         ]);
 
         $conversation = $this->participantConversation($conversationId, $request->user()->id);
@@ -446,7 +473,6 @@ class ChatController extends Controller
         $message = DB::transaction(function () use ($conversationId, $request, $booking) {
             $now = now();
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $request->user()->id,
                 'content' => 'Da gui booking #'.$booking->booking_code,
@@ -476,7 +502,7 @@ class ChatController extends Controller
     public function createBookingSupportRequest(Request $request, $conversationId)
     {
         $validated = $request->validate([
-            'booking_id' => 'required|uuid|exists:bookings,id',
+            'booking_id' => 'required|integer|exists:bookings,id',
             'request_type' => 'required|string|in:reschedule,change_court,cancel_booking,payment,late_arrival,refund,other',
             'note' => 'nullable|string|max:1000',
         ]);
@@ -511,7 +537,6 @@ class ChatController extends Controller
             ]);
 
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $request->user()->id,
                 'content' => 'Yeu cau ho tro booking #'.$booking->booking_code,
@@ -564,7 +589,6 @@ class ChatController extends Controller
             ]);
 
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $supportRequest->conversation_id,
                 'sender_id' => $request->user()->id,
                 'content' => 'Cap nhat yeu cau booking #'.$supportRequest->booking?->booking_code,

@@ -28,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 class BookingService
 {
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+    private const OWNER_APPROVAL_HOLD_MINUTES = 15;
     private const BLOCKED_CLUSTER_STATUSES = ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'];
 
     public function __construct(
