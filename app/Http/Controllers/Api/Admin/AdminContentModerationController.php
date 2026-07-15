@@ -206,7 +206,8 @@ class AdminContentModerationController extends Controller
             'Bài viết của bạn đã được duyệt',
             'Bài viết của bạn đã được phê duyệt và hiển thị công khai.',
             $tableName,
-            $post->id
+            $post->id,
+            isset($post->slug) ? ['slug' => $post->slug] : null
         );
 
         // Ghi Audit Log
@@ -561,7 +562,8 @@ class AdminContentModerationController extends Controller
         string $title,
         string $body,
         ?string $refType = null,
-        ?string $refId = null
+        ?string $refId = null,
+        ?array $data = null
     ): void {
         if (! Schema::hasTable('notifications')) {
             return;
@@ -574,7 +576,7 @@ class AdminContentModerationController extends Controller
             'body' => $body,
             'reference_type' => $refType,
             'reference_id' => $refId,
-            'data' => null,
+            'data' => $data,
             'is_read' => false,
         ]);
     }
