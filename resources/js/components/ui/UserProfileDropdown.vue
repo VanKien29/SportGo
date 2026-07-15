@@ -26,7 +26,7 @@
         </RouterLink>
 
         <!-- Item: Billing -->
-        <RouterLink class="menu-item" :to="billingUrl" @click="isOpen = false">
+        <RouterLink v-if="showBilling" class="menu-item" :to="billingUrl" @click="isOpen = false">
           <span class="menu-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
           </span>
@@ -34,7 +34,7 @@
         </RouterLink>
 
         <!-- Item: Settings -->
-        <RouterLink class="menu-item" :to="settingsUrl" @click="isOpen = false">
+        <RouterLink v-if="showSettings" class="menu-item" :to="settingsUrl" @click="isOpen = false">
           <span class="menu-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.52a2 2 0 0 1-1 1.72l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.72v-.52a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
           </span>
@@ -42,7 +42,7 @@
         </RouterLink>
 
         <!-- Dòng kẻ phân cách -->
-        <div class="menu-divider"></div>
+        <div v-if="showBilling || showSettings" class="menu-divider"></div>
 
         <!-- Item: Log out -->
         <button class="menu-item logout" type="button" @click="triggerLogout">
@@ -64,6 +64,8 @@ export default {
     profileUrl: { type: String, default: '/profile' },
     billingUrl: { type: String, default: '/billing' },
     settingsUrl: { type: String, default: '/settings' },
+    showBilling: { type: Boolean, default: true },
+    showSettings: { type: Boolean, default: true },
   },
   emits: ['logout'],
   data() {

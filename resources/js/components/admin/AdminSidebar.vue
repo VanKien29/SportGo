@@ -2,6 +2,17 @@
   <aside class="sidebar" :class="sidebarStyle" aria-label="Admin navigation">
     <!-- One-Level Sidebar -->
     <template v-if="sidebarStyle === 'one-level'">
+      <RouterLink class="admin-brand" to="/admin/dashboard" @click="$emit('navigate')">
+        <span class="admin-brand-mark">
+          <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+          <span v-else>{{ brandInitials }}</span>
+        </span>
+        <span v-if="!collapsed" class="admin-brand-copy">
+          <strong>{{ brandName }}</strong>
+          <small>Admin Console</small>
+        </span>
+      </RouterLink>
+
       <!-- Navigation -->
       <nav class="sidebar-nav">
         <section v-for="section in sections" :key="section.label" class="admin-nav-section">
@@ -59,6 +70,10 @@
       <div class="sidebar-two-level-container">
         <!-- Left Rail -->
         <div class="icon-nav-rail">
+          <RouterLink class="rail-logo" to="/admin/dashboard" title="Bảng điều hành">
+            <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+            <span v-else>{{ brandInitials }}</span>
+          </RouterLink>
           <div class="rail-icons">
             <button
               v-for="(sec, idx) in sections"
@@ -70,6 +85,7 @@
               @click="setSection(idx)"
             >
               <AppIcon :name="getSectionIcon(sec.label)" size="18" />
+              <span v-if="sectionTotalBadge(sec)" class="rail-badge-dot"></span>
             </button>
           </div>
 
@@ -121,6 +137,7 @@
 import AppIcon from '../AppIcon.vue';
 import AdminNavItem from './AdminNavItem.vue';
 import { getAuth, adminLogout } from '../../stores/auth.js';
+import { resolveSystemAsset, systemInitials, systemName, systemProfileState } from '../../stores/systemProfile.js';
 
 export default {
   name: 'AdminSidebar',
@@ -156,6 +173,15 @@ export default {
       };
       return labels[role] || 'Admin';
     },
+    brandName() {
+      return systemName();
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandInitials() {
+      return systemInitials();
+    },
     currentSectionIndex() {
       if (this.localActiveSectionIndex !== null) {
         return this.localActiveSectionIndex;
@@ -164,6 +190,20 @@ export default {
         sec.items.some(item => item.activeNames?.includes(this.activeRouteName))
       );
       return idx >= 0 ? idx : 0;
+    },
+    // Tổng badge của một section (dùng cho rail icon dot)
+    sectionTotalBadge() {
+      return (sec) => {
+        let total = 0;
+        for (const item of sec.items) {
+          if (item.badge) {
+            const n = parseInt(item.badge);
+            if (!isNaN(n)) total += n;
+            else if (item.badge === '99+') total += 1;
+          }
+        }
+        return total > 0;
+      };
     },
   },
   created() {

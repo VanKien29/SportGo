@@ -45,7 +45,7 @@ class PartnerDocumentSigningService
 
         $this->cancelOpenRequests($document, $signer, $signerSide);
 
-        $nonce = (string) Str::uuid();
+        $nonce = Str::random(40);
         $otpType = 'partner_document_signature:' . $nonce;
         $verificationType = 'email_verify';
         $otp = $this->otpService->generate();
@@ -236,6 +236,7 @@ class PartnerDocumentSigningService
             'partner_contract:owner' => 'Khối ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN / placeholder {{signature_owner}}',
             'owner_termination_request:owner',
             'termination_request:owner' => 'Khối NGƯỜI LÀM ĐƠN / placeholder {{signature_owner}}',
+            'unilateral_termination_notice:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
             'mutual_liquidation_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
             'mutual_liquidation_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
             'settlement_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',

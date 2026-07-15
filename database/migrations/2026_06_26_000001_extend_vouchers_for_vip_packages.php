@@ -12,7 +12,7 @@ return new class extends Migration
         if (Schema::hasTable('vouchers')) {
             Schema::table('vouchers', function (Blueprint $table): void {
                 if (! Schema::hasColumn('vouchers', 'assigned_user_id')) {
-                    $table->char('assigned_user_id', 36)->nullable()->after('subscription_id')
+                    $table->unsignedBigInteger('assigned_user_id')->nullable()->after('subscription_id')
                         ->comment('User được gán riêng voucher VIP nếu có.');
                 }
             });

@@ -31,7 +31,7 @@ class AdminComplaintController extends Controller
             'status' => ['nullable', Rule::in(['open', 'processing', 'resolved', 'rejected', 'closed'])],
             'assigned_to' => ['nullable', Rule::when(
                 $request->query('assigned_to') !== 'unassigned',
-                ['uuid', 'exists:users,id']
+                ['integer', 'exists:users,id']
             )],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
@@ -126,7 +126,7 @@ class AdminComplaintController extends Controller
         $this->authorizePermission($request, 'complaint.handle');
 
         $data = $request->validate([
-            'assigned_to' => ['nullable', 'uuid', 'exists:users,id'],
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $assigneeId = $data['assigned_to'] ?? $request->user()->id;

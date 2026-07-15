@@ -165,6 +165,19 @@
       </div>
     </main>
 
+        <section v-if="galleryImages.length" class="article-gallery" aria-label="Ảnh bài viết">
+          <img
+            v-for="(image, index) in galleryImages"
+            :key="image.id || image.file_path"
+            :src="normalizeMediaUrl(image)"
+            :alt="`${post.title} - ảnh ${index + 1}`"
+          />
+        </section>
+
+        <footer class="article-footer">
+          <div>
+            <strong>{{ post.venue_cluster?.name || "SportGo" }}</strong>
+            <span>{{ post.author?.full_name || post.author?.username || "Ban biên tập SportGo" }}</span>
     <!-- Toast Notification -->
     <div class="toast-notification" :class="{ 'show': showToast }">
       {{ toastMessage }}
@@ -234,6 +247,11 @@ export default {
     };
   },
   computed: {
+    galleryImages() {
+      return Array.isArray(this.post?.media)
+        ? this.post.media.filter((item) => item.collection === "gallery")
+        : [];
+    },
     currentUser() {
       const auth = getAuth();
       return auth ? auth.user : null;
@@ -570,6 +588,22 @@ export default {
   word-break: break-word;
 }
 
+.article-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.article-gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.article-footer {
 .article-body :deep(p) { margin: 0 0 12px; }
 .article-body :deep(img) { max-width: 100%; border-radius: 8px; margin: 12px 0; }
 .article-body :deep(a) { color: #0866FF; text-decoration: none; }
@@ -780,6 +814,14 @@ export default {
   word-break: break-word;
 }
 
+  .article-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .article-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 .comment-actions {
   display: flex;
   gap: 12px;

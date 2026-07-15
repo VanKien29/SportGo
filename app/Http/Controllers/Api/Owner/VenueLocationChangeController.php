@@ -87,7 +87,7 @@ class VenueLocationChangeController extends Controller
 
         $previewRequest = new VenueLocationChangeRequest();
         $previewRequest->forceFill([
-            'id' => (string) Str::uuid(),
+            'id' => 0,
             'venue_cluster_id' => $cluster->id,
             'requested_by' => $request->user()->id,
             'status' => 'draft_preview',
@@ -111,7 +111,7 @@ class VenueLocationChangeController extends Controller
 
         $document = $this->documents->generateDocument('venue_location_change_request', $cluster, $renderData, $request->user(), [
             'reference_type' => 'venue_location_change_request_preview',
-            'reference_id' => (string) Str::uuid(),
+            'reference_id' => 'venue_location_preview_'.$cluster->id.'_'.now()->timestamp,
             'owner_id' => $cluster->owner_id,
             'venue_cluster_id' => $cluster->id,
             'entity_type' => VenueCluster::class,
@@ -162,7 +162,7 @@ class VenueLocationChangeController extends Controller
             'note'          => ['required', 'string', 'max:1000'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'preview_document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
+            'preview_document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
         ], [
             'new_address.required'   => 'Vui lòng nhập địa chỉ mới.',
             'new_province.required'  => 'Vui lòng nhập tỉnh/thành phố mới.',
@@ -243,7 +243,7 @@ class VenueLocationChangeController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'preview_document_id' => ['nullable', 'uuid', 'exists:generated_documents,id'],
+            'preview_document_id' => ['nullable', 'integer', 'exists:generated_documents,id'],
         ], [
             'supplementary_documents.required' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
             'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',

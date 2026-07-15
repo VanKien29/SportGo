@@ -23,7 +23,7 @@ return new class extends Migration
 
         Schema::create('venue_cluster_services', function (Blueprint $table) {
             $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36)->comment('ID của cụm sân chứa dịch vụ này.');
+            $table->unsignedBigInteger('venue_cluster_id')->comment('ID của cụm sân chứa dịch vụ này.');
             $table->char('category_id', 36)->comment('ID của danh mục dịch vụ liên kết.');
             $table->string('name', 255)->comment('Tên dịch vụ/sản phẩm.');
             $table->decimal('price', 15, 2)->comment('Giá bán hoặc cho thuê (VND).');

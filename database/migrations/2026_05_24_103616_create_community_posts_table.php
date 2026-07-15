@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('community_posts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('author_id', 36)->comment('User tạo bài đăng tự do.');
+            $table->id();
+            $table->unsignedBigInteger('author_id')->comment('User tạo bài đăng tự do.');
             $table->longText('content')->comment('Nội dung bài đăng cộng đồng.');
             $table->enum('status', ['pending_review', 'published', 'rejected', 'hidden'])->default('pending_review')->comment('Trạng thái kiểm duyệt bài cộng đồng.');
-            $table->char('reviewed_by', 36)->nullable()->comment('Admin/nhân viên kiểm duyệt bài.');
+            $table->unsignedBigInteger('reviewed_by')->nullable()->comment('Admin/nhân viên kiểm duyệt bài.');
             $table->timestamp('reviewed_at')->nullable()->comment('Thời điểm kiểm duyệt bài.');
             $table->text('status_reason')->nullable()->comment('Lý do từ chối hoặc ẩn bài.');
             $table->unsignedBigInteger('view_count')->default(0)->comment('Số lượt xem bài cộng đồng.');

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('partner_application_courts', function (Blueprint $table) {
             $table->id();
-            $table->char('partner_application_id', 36);
+            $table->unsignedBigInteger('partner_application_id');
             $table->unsignedBigInteger('court_type_id');
             $table->string('name', 100);
             $table->integer('sort_order')->default(0);

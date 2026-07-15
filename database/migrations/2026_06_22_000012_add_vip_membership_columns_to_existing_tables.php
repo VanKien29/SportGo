@@ -15,7 +15,7 @@ return new class extends Migration {
                 }
 
                 if (!Schema::hasColumn('vouchers', 'subscription_id')) {
-                    $table->char('subscription_id', 36)->nullable()->after('source')
+                    $table->unsignedBigInteger('subscription_id')->nullable()->after('source')
                         ->comment('FK den user_subscriptions neu source=vip_subscription');
                 }
             });

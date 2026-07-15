@@ -918,7 +918,7 @@ export default {
             const type = ledger.reference_type
                 ? String(ledger.reference_type).toUpperCase()
                 : "-";
-            return `${type} · ${ledger.reference_id || "-"}`;
+            return ledger.reference_label || type;
         },
         inputDate(value) {
             if (!value) return "";

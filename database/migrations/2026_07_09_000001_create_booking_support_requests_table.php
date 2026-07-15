@@ -10,14 +10,14 @@ return new class extends Migration
     {
         Schema::create('booking_support_requests', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
-            $table->char('conversation_id', 36);
-            $table->char('booking_id', 36);
-            $table->char('customer_id', 36);
-            $table->char('venue_cluster_id', 36);
+            $table->unsignedBigInteger('conversation_id');
+            $table->unsignedBigInteger('booking_id');
+            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->string('request_type', 40);
             $table->text('note')->nullable();
             $table->string('status', 30)->default('pending');
-            $table->char('handled_by', 36)->nullable();
+            $table->unsignedBigInteger('handled_by')->nullable();
             $table->timestamp('handled_at')->nullable();
             $table->text('resolution_note')->nullable();
             $table->timestamps();

@@ -8,6 +8,8 @@
     :selected-cluster-id="selectedClusterId"
     :selected-cluster="selectedCluster"
     :cluster-loading="clusterLoading"
+    workspace-label="Chủ sân"
+    role-label="Chủ sân"
     @cluster-change="changeCluster"
   >
     <router-view />
@@ -22,7 +24,7 @@ import {
   ownerRouteTitles,
 } from '../../config/ownerNavigation.js';
 import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
-import { applyOwnerTheme, clearOwnerTheme } from '../../utils/ownerTheme.js';
+import { applyOwnerTheme, clearOwnerTheme, enableOwnerThemeScope } from '../../utils/ownerTheme.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
@@ -50,6 +52,8 @@ export default {
     },
   },
   async mounted() {
+    enableOwnerThemeScope();
+    applyOwnerTheme();
     window.addEventListener('owner-cluster-changed', this.syncExternalCluster);
     window.addEventListener('owner-theme-updated', this.syncOwnerTheme);
     await this.loadOwnerTheme();
@@ -70,7 +74,7 @@ export default {
         }
         window.dispatchEvent(new Event('owner-sidebar-style-changed'));
       } catch {
-        clearOwnerTheme();
+        applyOwnerTheme();
       }
     },
     syncOwnerTheme(event) {

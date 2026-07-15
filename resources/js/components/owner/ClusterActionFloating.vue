@@ -130,7 +130,7 @@ export default {
 }
 
 .btn-floating:focus-visible {
-  outline: 2px solid var(--admin-primary, #22c55e);
+  outline: 2px solid var(--admin-primary, #18181b);
   outline-offset: 3px;
 }
 
@@ -170,7 +170,7 @@ export default {
 }
 
 .floating-dropdown button:focus-visible {
-  outline: 2px solid var(--admin-primary, #22c55e);
+  outline: 2px solid var(--admin-primary, #18181b);
   outline-offset: -2px;
 }
 

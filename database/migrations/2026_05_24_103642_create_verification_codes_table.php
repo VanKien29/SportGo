@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('verification_codes', function (Blueprint $table) {
             $table->id();
-            $table->char('user_id', 36)->nullable()->comment('User liên quan nếu đã có tài khoản; nullable cho reset hoặc pre-register.; VD: 10000000-0000-0000-0000-000000000001');
+            $table->unsignedBigInteger('user_id')->nullable()->comment('User liên quan nếu đã có tài khoản; nullable cho reset hoặc pre-register.; VD: 10000000-0000-0000-0000-000000000001');
             $table->string('identifier', 255)->comment('Email hoặc phone nhận mã.; VD: giá trị mẫu');
             $table->string('type')->comment('Mục đích mã: register, reset_password, phone_verify, email_verify. Giá trị enum: register=đăng ký; reset_password=đặt lại mật khẩu; phone_verify=xác thực phone; email_verify=xác thực email.; VD: booking_reminder');
             $table->string('channel')->comment('Kênh gửi mã: email hoặc sms. Giá trị enum: email=email; sms=tin nhắn SMS.; VD: giá trị mẫu');

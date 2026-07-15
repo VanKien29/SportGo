@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::create('penalty_escalation_rules', function (Blueprint $table): void {
             $table->id();
-            $table->char('system_policy_id', 36);
+            $table->unsignedBigInteger('system_policy_id');
             $table->string('target_type', 50);
             $table->unsignedTinyInteger('violation_count');
             $table->boolean('is_catch_all')->default(false);

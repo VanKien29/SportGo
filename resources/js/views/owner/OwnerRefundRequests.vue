@@ -55,7 +55,7 @@
             <tr v-for="refund in refunds" :key="refund.id">
               <td data-label="Booking / Khách">
                 <button class="code-link" type="button" @click="openDetail(refund)">
-                  {{ refund.booking?.booking_code || shortId(refund.id) }}
+                  {{ refund.booking?.booking_code || refund.payment?.payment_code || statusLabel(refund.status) }}
                 </button>
                 <small>{{ customerName(refund) }} · {{ refund.customer?.phone || refund.customer?.email || '-' }}</small>
               </td>
@@ -248,8 +248,8 @@ export default {
       }[this.decision] || 'Xác nhận';
     },
   },
-  mounted() {
-    this.loadRefunds();
+  async mounted() {
+    await this.loadRefunds();
   },
   methods: {
     async loadRefunds(page = 1) {
@@ -264,6 +264,11 @@ export default {
         const response = await api(`/api/owner/refunds?${params.toString()}`);
         this.refunds = response.data || [];
         this.meta = response.meta || this.meta;
+        const focusId = String(this.$route.query.focus || '');
+        if (focusId) {
+          const focused = this.refunds.find((refund) => String(refund.id) === focusId);
+          if (focused) this.openDetail(focused);
+        }
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách yêu cầu.';
       } finally {
@@ -366,9 +371,6 @@ export default {
     },
     formatTime(value) {
       return value ? String(value).slice(0, 5) : '--:--';
-    },
-    shortId(value) {
-      return value ? String(value).slice(0, 8).toUpperCase() : '-';
     },
   },
 };

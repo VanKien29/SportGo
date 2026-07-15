@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('marketplace_listings', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('seller_id', 36)->comment('User dang ban/pass do.');
+            $table->id();
+            $table->unsignedBigInteger('seller_id')->comment('User dang ban/pass do.');
             $table->string('title', 255)->comment('Tieu de tin dang.');
             $table->text('description')->nullable()->comment('Mo ta chi tiet.');
             $table->decimal('price', 12, 2)->comment('Gia de nghi.');
@@ -19,11 +19,11 @@ return new class extends Migration
                 ->comment('Tinh trang san pham.');
             $table->string('category', 100)->comment('Danh muc san pham.');
             $table->unsignedBigInteger('court_type_id')->nullable()->comment('Mon the thao lien quan.');
-            $table->char('preferred_venue_cluster_id', 36)->nullable()->comment('Dia diem giao hang uu tien.');
+            $table->unsignedBigInteger('preferred_venue_cluster_id')->nullable()->comment('Dia diem giao hang uu tien.');
             $table->text('pickup_address')->nullable()->comment('Dia chi lay hang neu khong giao tai san.');
             $table->enum('status', ['draft', 'active', 'sold', 'expired', 'hidden', 'rejected'])->default('draft')
                 ->comment('Trang thai tin dang.');
-            $table->char('reviewed_by', 36)->nullable()->comment('Admin kiem duyet.');
+            $table->unsignedBigInteger('reviewed_by')->nullable()->comment('Admin kiem duyet.');
             $table->timestamp('reviewed_at')->nullable();
             $table->text('status_reason')->nullable();
             $table->unsignedBigInteger('view_count')->default(0);

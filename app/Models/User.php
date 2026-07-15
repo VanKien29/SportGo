@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -10,11 +9,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasUuids, Notifiable;
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'username',
@@ -97,7 +92,8 @@ class User extends Authenticatable
             'policy_manager',
             'staff_manager',
         ];
-        $ownerRoles = ['venue_owner', 'venue_staff'];
+        $ownerRoles = ['venue_owner'];
+        $staffRoles = ['venue_staff'];
 
         if (array_intersect($roles, $adminRoles)) {
             return 'admin';
@@ -105,6 +101,10 @@ class User extends Authenticatable
 
         if (array_intersect($roles, $ownerRoles)) {
             return 'owner';
+        }
+
+        if (array_intersect($roles, $staffRoles)) {
+            return 'staff';
         }
 
         return 'user';
@@ -124,10 +124,9 @@ class User extends Authenticatable
                     'user_id' => $user->id,
                     'role_id' => $role->id,
                     'scope_type' => 'system',
-                    'scope_id' => '00000000-0000-0000-0000-000000000000',
+                    'scope_id' => 0,
                 ]);
             }
         });
     }
 }
-

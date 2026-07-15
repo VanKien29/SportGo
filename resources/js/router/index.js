@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
 import {
+    clearAuth,
     consumeGoogleCallback,
     getAuth,
+    restoreAdminAuth,
+    restoreAuth,
 } from "../stores/auth.js";
 
 import Home from "../views/Home.vue";
@@ -30,6 +33,7 @@ import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
+import StaffLayout from "../views/staff/StaffLayout.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
@@ -316,6 +320,12 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "system-profile",
+                name: "admin-system-profile",
+                component: () =>
+                    import("../views/admin/AdminSystemProfile.vue"),
+            },
+            {
                 path: "settings",
                 name: "admin-settings",
                 component: () =>
@@ -353,6 +363,20 @@ const routes = [
                     import("../views/owner/OwnerVenueClusters.vue"),
             },
             {
+                path: "venue-clusters/:id/termination",
+                name: "owner-partner-termination",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "termination-requests/:id",
+                name: "owner-partner-termination-request",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "affiliate",
                 name: "owner-affiliate",
                 component: () =>
@@ -373,11 +397,16 @@ const routes = [
             {
                 path: "bookings",
                 name: "owner-bookings",
-                redirect: { name: "owner-counter-booking" },
+                redirect: { name: "owner-booking-list" },
             },
             {
                 path: "counter-booking",
                 name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
+            {
+                path: "booking-list",
+                name: "owner-booking-list",
                 component: () => import("../views/owner/OwnerCounterBooking.vue"),
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
@@ -460,6 +489,45 @@ const routes = [
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },
+    {
+        path: "/staff",
+        component: StaffLayout,
+        meta: { requiresAuth: true, role: "staff" },
+        children: [
+            {
+                path: "dashboard",
+                name: "staff-dashboard",
+                component: () => import("../views/staff/StaffDashboard.vue"),
+            },
+            {
+                path: "schedules",
+                name: "staff-schedules",
+                component: () => import("../views/staff/StaffSchedules.vue"),
+            },
+            {
+                path: "bookings",
+                name: "staff-bookings",
+                component: () => import("../views/staff/StaffBookings.vue"),
+            },
+            {
+                path: "counter-booking",
+                name: "staff-counter-booking",
+                component: () => import("../views/staff/StaffCounterBooking.vue"),
+            },
+            {
+                path: "settings",
+                name: "staff-settings",
+                component: () => import("../views/owner/OwnerSettings.vue"),
+            },
+            {
+                path: "chat",
+                name: "staff-chat",
+                component: () => import("../views/Chat.vue"),
+            },
+            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "", redirect: { name: "staff-dashboard" } },
+        ],
+    },
     { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
@@ -470,21 +538,38 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
     if (to.name === "google-callback") {
-        const auth = await consumeGoogleCallback(to.query);
-        if (!auth) return next({ name: "login" });
-        return next(auth.redirect_to || "/");
+        const query = { ...to.query };
+        if (query.token || query.code) {
+            window.history.replaceState({}, document.title, to.path);
+        }
+
+        try {
+            const auth = await consumeGoogleCallback(query);
+            if (!auth) return next({ name: "login", replace: true });
+            return next({ path: auth.redirect_to || "/", replace: true });
+        } catch {
+            clearAuth();
+            return next({ name: "login", replace: true });
+        }
     }
 
     let auth = getAuth();
 
     if (to.meta.guestAdmin) {
-        if (auth?.role_group === "admin")
-            return next({ name: "admin-dashboard" });
+        if (auth?.role_group === "admin") {
+            const serverAuth = await restoreAdminAuth();
+            if (serverAuth?.role_group === "admin")
+                return next({ name: "admin-dashboard" });
+        }
         return next();
     }
 
     if (to.name === "profile" && auth?.role_group === "owner") {
         return next({ name: "owner-profile" });
+    }
+
+    if (to.name === "profile" && auth?.role_group === "staff") {
+        return next({ name: "staff-profile" });
     }
 
     if (to.matched.some((route) => route.meta.requiresAuth)) {
@@ -499,21 +584,43 @@ router.beforeEach(async (to, from, next) => {
             );
         }
 
+        auth = requiredRole === "admin"
+            ? await restoreAdminAuth()
+            : await restoreAuth();
+
+        if (!auth) {
+            return next(
+                requiredRole === "admin"
+                    ? { name: "admin-login" }
+                    : { name: "login" },
+            );
+        }
+
+        if (to.name === "profile" && auth.role_group === "owner") {
+            return next({ name: "owner-profile" });
+        }
+
         if (requiredRole && auth.role_group !== requiredRole) {
             if (auth.role_group === "admin")
                 return next({ name: "admin-dashboard" });
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
+            if (auth.role_group === "staff")
+                return next({ name: "staff-dashboard" });
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
         }
     }
 
     if (["login", "register"].includes(to.name) && auth) {
+        auth = await restoreAuth();
+        if (!auth) return next();
         if (auth.role_group === "admin")
             return next({ name: "admin-dashboard" });
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
+        if (auth.role_group === "staff")
+            return next({ name: "staff-dashboard" });
         return next({ name: "home" });
     }
 

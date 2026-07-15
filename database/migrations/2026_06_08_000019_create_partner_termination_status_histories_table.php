@@ -14,10 +14,10 @@ return new class extends Migration
 
         Schema::create('partner_termination_status_histories', function (Blueprint $table): void {
             $table->id();
-            $table->char('partner_termination_request_id', 36);
+            $table->unsignedBigInteger('partner_termination_request_id');
             $table->string('old_status', 50)->nullable();
             $table->string('new_status', 50);
-            $table->char('changed_by', 36)->nullable();
+            $table->unsignedBigInteger('changed_by')->nullable();
             $table->string('actor_type', 50)->default('admin');
             $table->text('reason')->nullable();
             $table->json('metadata')->nullable();

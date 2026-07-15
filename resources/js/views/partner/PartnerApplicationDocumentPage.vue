@@ -215,13 +215,28 @@ const requiredSides = computed(() => {
     ? [{ key: 'sportgo', label: 'SportGo' }, { key: 'owner', label: 'Chủ sân' }]
     : [{ key: 'owner', label: isVenueChangeRequest.value ? 'Chủ sân' : 'Người đăng ký' }];
 });
-const canSign = computed(() => (
-  isGeneratedDocument.value
-  && isOwnerSignableDocument.value
-  && document.value?.status === 'pending_owner_signature'
-  && Boolean(document.value?.download_url)
-  && !signatureBySide('owner')
-));
+const canSign = computed(() => {
+  if (
+    !isGeneratedDocument.value
+    || !isOwnerSignableDocument.value
+    || document.value?.status !== 'pending_owner_signature'
+    || !document.value?.download_url
+    || signatureBySide('owner')
+  ) {
+    return false;
+  }
+
+  if (isApplicationForm.value) {
+    return application.value?.status === 'draft';
+  }
+
+  if (isContract.value) {
+    return application.value?.status === 'contract_pending_owner_signature'
+      && Boolean(document.value.partner_contract_id || contract.value?.id);
+  }
+
+  return true;
+});
 const confirmationText = computed(() => {
   if (isTwoPartyDocument.value) {
     return 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.';
@@ -386,6 +401,11 @@ function resetOtpState() {
 
 async function requestSignatureOtp() {
   if (!canvas.value || !document.value) return;
+  if (isContract.value && !(document.value.partner_contract_id || contract.value?.id)) {
+    otpError.value = 'Không tìm thấy hợp đồng liên kết với văn bản này. Vui lòng quay lại hồ sơ và mở lại hợp đồng cần ký.';
+    return;
+  }
+
   saving.value = true;
   otpError.value = '';
 
@@ -489,8 +509,8 @@ function statusLabel(status) {
 function documentTypeLabel(type, source) {
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   if (source === 'uploaded') return 'Tài liệu phụ lục';
   return {
@@ -507,7 +527,7 @@ function formatDate(value) {
 </script>
 
 <style scoped>
-@import "../../../css/partner/partner.css";
+
 
 .partner-document-card .partner-card-body {
   min-height: 760px;

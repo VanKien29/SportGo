@@ -1,12 +1,12 @@
 <template>
-  <aside class="sidebar" :class="sidebarStyle" aria-label="Owner navigation">
+  <aside class="sidebar" :class="sidebarStyle" :aria-label="`${workspaceLabel} navigation`">
     <!-- One-Level Sidebar -->
     <template v-if="sidebarStyle === 'one-level'">
-      <RouterLink class="admin-brand" to="/owner/dashboard" @click="$emit('navigate')">
+      <RouterLink v-if="showUtilityNavigation" class="admin-brand" :to="homeUrl" @click="$emit('navigate')">
         <span class="admin-brand-mark">SG</span>
         <span v-if="!collapsed" class="admin-brand-copy">
           <strong>SportGo</strong>
-          <small>Owner Console</small>
+          <small>{{ workspaceLabel }}</small>
         </span>
       </RouterLink>
 
@@ -31,10 +31,11 @@
       </nav>
 
       <!-- Bottom Actions matching mockup -->
-      <div class="sidebar-bottom">
+      <div v-if="showUtilityNavigation" class="sidebar-bottom">
         <div class="sidebar-divider"></div>
         
         <RouterLink
+          v-if="showUtilityNavigation"
           class="nav-item"
           :class="{ 'nav-active': activeRouteName === 'owner-chat' }"
           to="/owner/chat"
@@ -47,6 +48,7 @@
         </RouterLink>
 
         <RouterLink
+          v-if="showUtilityNavigation"
           class="nav-item"
           to="/"
           @click="$emit('navigate')"
@@ -58,6 +60,7 @@
         </RouterLink>
 
         <RouterLink
+          v-if="showUtilityNavigation"
           class="nav-item"
           :class="{ 'nav-active': activeRouteName === 'owner-settings' }"
           to="/owner/settings"
@@ -77,7 +80,7 @@
         </button>
       </div>
 
-      <div class="sidebar-user">
+      <div v-if="showUtilityNavigation" class="sidebar-user">
         <div class="user-avatar">{{ userInitial }}</div>
         <div v-if="!collapsed" class="user-info">
           <div class="user-name">{{ userName }}</div>
@@ -105,8 +108,9 @@
             </button>
           </div>
 
-          <div class="rail-bottom">
+          <div v-if="showUtilityNavigation" class="rail-bottom">
             <RouterLink
+              v-if="showUtilityNavigation"
               class="rail-icon-btn"
               :class="{ active: activeRouteName === 'owner-chat' }"
               to="/owner/chat"
@@ -115,6 +119,7 @@
               <AppIcon name="messageSquare" size="18" />
             </RouterLink>
             <RouterLink
+              v-if="showUtilityNavigation"
               class="rail-icon-btn"
               to="/"
               title="Xem trang khách"
@@ -122,6 +127,7 @@
               <AppIcon name="eye" size="18" />
             </RouterLink>
             <RouterLink
+              v-if="showUtilityNavigation"
               class="rail-icon-btn"
               :class="{ active: activeRouteName === 'owner-settings' }"
               to="/owner/settings"
@@ -169,7 +175,8 @@
 
 <script>
 import AppIcon from '../AppIcon.vue';
-import { getAuth, logout } from '../../stores/auth.js';
+import { getAuth } from '../../stores/auth.js';
+import { resolveSystemAsset, systemInitials, systemName, systemProfileState } from '../../stores/systemProfile.js';
 
 export default {
   name: 'OwnerSidebar',
@@ -178,6 +185,10 @@ export default {
     sections: { type: Array, required: true },
     activeRouteName: { type: String, default: '' },
     collapsed: { type: Boolean, default: false },
+    userRoleLabel: { type: String, default: '' },
+    workspaceLabel: { type: String, default: 'Owner Console' },
+    homeUrl: { type: String, default: '/owner/dashboard' },
+    showUtilityNavigation: { type: Boolean, default: true },
   },
   emits: ['cluster-change', 'navigate'],
   data() {
@@ -203,7 +214,7 @@ export default {
       return this.userName.charAt(0).toUpperCase();
     },
     roleLabel() {
-      return 'Chủ sân';
+      return this.userRoleLabel || 'Chủ sân';
     },
     currentSectionIndex() {
       if (this.localActiveSectionIndex !== null) {
@@ -234,7 +245,10 @@ export default {
         'Tổng quan': 'dashboard',
         'Vận hành sân': 'building',
         'Kinh doanh': 'banknote',
-        'Nhân sự': 'users'
+        'Nhân sự': 'users',
+        'Công việc': 'dashboard',
+        'Tin nhắn': 'messageSquare',
+        'Hệ thống': 'settings',
       };
       return iconMap[label] || 'alert';
     },

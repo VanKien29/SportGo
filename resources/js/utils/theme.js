@@ -32,6 +32,23 @@ export function applyCustomThemeStyles() {
 }
 `;
     }
+
+    if (themeData.font_size) {
+      const fontSize = themeData.font_size || '14px';
+      let fontScale = '1';
+      if (fontSize === '12px') fontScale = '0.857';
+      else if (fontSize === '13px') fontScale = '0.929';
+      else if (fontSize === '15px') fontScale = '1.071';
+      else if (fontSize === '16px') fontScale = '1.143';
+      cssContent += `
+.sg-shell-admin,
+body.sg-admin-theme-scope {
+  --admin-font-size: ${fontSize} !important;
+  --admin-font-size-scale: ${fontScale} !important;
+  zoom: var(--admin-font-size-scale, 1) !important;
+}
+`;
+    }
     
     if (themeData.light) {
       const l = themeData.light;

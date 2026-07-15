@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class VouchersTableSeeder extends Seeder
 {
@@ -19,7 +18,7 @@ class VouchersTableSeeder extends Seeder
         $systemVoucherId = $this->upsertVoucher([
             'code' => 'SPORTGO10',
             'name' => 'SportGo giảm 10%',
-            'description' => 'Voucher hệ thống giảm 10%, tối đa 50.000đ cho đơn từ 200.000đ.',
+            'description' => 'Voucher hệ thống giảm 10%, tối đa 50.000đ cho đơn từ 100.000đ.',
             'owner_type' => 'system',
             'owner_id' => null,
             'funded_by' => 'system',
@@ -27,7 +26,7 @@ class VouchersTableSeeder extends Seeder
             'discount_type' => 'percent',
             'discount_value' => 10,
             'max_discount_amount' => 50000,
-            'min_order_amount' => 200000,
+            'min_order_amount' => 100000,
             'total_quantity' => 1000,
             'used_quantity' => 0,
             'per_user_limit' => 1,
@@ -49,9 +48,9 @@ class VouchersTableSeeder extends Seeder
         }
 
         $venueVoucherId = $this->upsertVoucher([
-            'code' => 'VENUE20',
-            'name' => 'Sân giảm 20.000đ',
-            'description' => 'Voucher demo của cụm sân, giảm cố định 20.000đ.',
+            'code' => 'GREEN20',
+            'name' => 'Green Sport giảm 20.000đ',
+            'description' => 'Voucher của Green Sport Ba Đình, giảm cố định 20.000đ.',
             'owner_type' => 'venue',
             'owner_id' => $venueCluster->id,
             'funded_by' => 'venue',
@@ -101,11 +100,8 @@ class VouchersTableSeeder extends Seeder
             return $existingId;
         }
 
-        $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
-        DB::table('vouchers')->insert($payload);
-
-        return $payload['id'];
+        return (string) DB::table('vouchers')->insertGetId($payload);
     }
 
     private function upsertScope(string $voucherId, string $scopeType, ?string $scopeId): void
@@ -132,7 +128,6 @@ class VouchersTableSeeder extends Seeder
             return;
         }
 
-        $payload['id'] = (string) Str::uuid();
         $payload['created_at'] = now();
         DB::table('voucher_scopes')->insert($payload);
     }

@@ -11,6 +11,10 @@
             :sections="sections"
             :active-route-name="activeRouteName"
             :collapsed="sidebarCollapsed"
+            :user-role-label="roleLabel"
+            :workspace-label="workspaceLabel"
+            :home-url="homeUrl"
+            :show-utility-navigation="showUtilityNavigation"
             @navigate="closeSidebar"
         />
         <button
@@ -30,6 +34,11 @@
                 :selected-cluster-id="selectedClusterId"
                 :selected-cluster="selectedCluster"
                 :cluster-loading="clusterLoading"
+                :workspace-label="workspaceLabel"
+                :profile-url="profileUrl"
+                :billing-url="billingUrl"
+                :settings-url="settingsUrl"
+                :show-account-links="showAccountLinks"
                 @toggle-sidebar="toggleSidebar"
                 @toggle-collapse="toggleCollapse"
                 @cluster-change="$emit('cluster-change', $event)"
@@ -57,6 +66,14 @@ export default {
         selectedClusterId: { type: [String, Number], default: "" },
         selectedCluster: { type: Object, default: null },
         clusterLoading: { type: Boolean, default: false },
+        workspaceLabel: { type: String, default: 'Owner' },
+        roleLabel: { type: String, default: 'Chủ sân' },
+        homeUrl: { type: String, default: '/owner/dashboard' },
+        profileUrl: { type: String, default: '/owner/profile' },
+        billingUrl: { type: String, default: '/owner/billing' },
+        settingsUrl: { type: String, default: '/owner/settings' },
+        showUtilityNavigation: { type: Boolean, default: true },
+        showAccountLinks: { type: Boolean, default: true },
     },
     emits: ["cluster-change"],
     data() {

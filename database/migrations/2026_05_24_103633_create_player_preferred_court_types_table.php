@@ -6,7 +6,7 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('player_preferred_court_types', function (Blueprint $table) {
             $table->id();
-            $table->char('user_id', 36)->comment('Người chơi chọn loại sân yêu thích.');
+            $table->unsignedBigInteger('user_id')->comment('Người chơi chọn loại sân yêu thích.');
             $table->unsignedBigInteger('court_type_id')->comment('Loại sân được yêu thích.');
             $table->integer('sort_order')->default(0)->comment('Thứ tự ưu tiên.');
             $table->timestamps();

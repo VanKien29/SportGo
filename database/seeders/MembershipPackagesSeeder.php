@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class MembershipPackagesSeeder extends Seeder
 {
@@ -27,7 +26,6 @@ class MembershipPackagesSeeder extends Seeder
                 continue;
             }
 
-            $payload['id'] = (string) Str::uuid();
             $payload['created_at'] = now();
             DB::table('membership_packages')->insert($payload);
         }

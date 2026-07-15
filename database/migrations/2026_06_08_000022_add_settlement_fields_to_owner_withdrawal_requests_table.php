@@ -17,10 +17,10 @@ return new class extends Migration
                 $table->enum('source', ['manual', 'partner_termination_settlement'])->nullable()->after('request_code');
             }
             if (! Schema::hasColumn('owner_withdrawal_requests', 'partner_settlement_id')) {
-                $table->char('partner_settlement_id', 36)->nullable()->after('source');
+                $table->unsignedBigInteger('partner_settlement_id')->nullable()->after('source');
             }
             if (! Schema::hasColumn('owner_withdrawal_requests', 'partner_termination_request_id')) {
-                $table->char('partner_termination_request_id', 36)->nullable()->after('partner_settlement_id');
+                $table->unsignedBigInteger('partner_termination_request_id')->nullable()->after('partner_settlement_id');
             }
             if (! Schema::hasColumn('owner_withdrawal_requests', 'auto_created')) {
                 $table->boolean('auto_created')->default(false)->after('partner_termination_request_id');

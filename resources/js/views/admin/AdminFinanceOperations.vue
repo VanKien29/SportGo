@@ -841,8 +841,8 @@
                                                 aria-hidden="true"
                                             ></span>
                                             <span
-                                                >Đang chờ SePay xác nhận giao
-                                                dịch tiền ra...</span
+                                                >Đang chờ xác nhận giao dịch
+                                                tiền ra...</span
                                             >
                                         </div>
                                     </div>
@@ -1018,6 +1018,12 @@ export default {
         },
     },
     mounted() {
+        if (["refunds", "withdrawals"].includes(String(this.$route.query.tab))) {
+            this.tab = String(this.$route.query.tab);
+        }
+        if (["owner", "user"].includes(String(this.$route.query.scope))) {
+            this.withdrawalScope = String(this.$route.query.scope);
+        }
         this.loadData(1);
     },
     beforeUnmount() {

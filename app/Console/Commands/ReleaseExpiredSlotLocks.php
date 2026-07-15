@@ -7,6 +7,7 @@ use App\Models\BookingConfig;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\SlotLock;
+use App\Models\ViolationRecord;
 use App\Services\BookingService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -48,43 +49,22 @@ class ReleaseExpiredSlotLocks extends Command
         }
 
         $processedCount = 0;
+        $handledBookingIds = [];
 
         foreach ($expiredLocks as $lock) {
-            DB::transaction(function () use ($lock, &$processedCount) {
+            DB::transaction(function () use ($lock, &$processedCount, &$handledBookingIds) {
                 // Nếu lock có liên kết với một Booking
                 if ($lock->booking_id) {
                     $booking = Booking::find($lock->booking_id);
-                    // Nếu booking vẫn ở trạng thái chờ thanh toán (pending_payment), chuyển sang hết hạn (expired)
-                    if ($booking && $booking->status === 'pending_payment') {
-                        $slotHoldMinutes = (int) (BookingConfig::query()
-                            ->where('venue_cluster_id', $booking->venue_cluster_id)
-                            ->value('slot_hold_minutes') ?? 20);
-                        $reason = "Thanh toán quá hạn {$slotHoldMinutes} phút.";
 
-                        $booking->update([
-                            'status' => 'expired',
-                            'status_reason' => $reason,
-                        ]);
+                    if ($booking && ! in_array($booking->id, $handledBookingIds, true)) {
+                        $handledBookingIds[] = $booking->id;
 
-                        app(BookingService::class)->releaseVoucherUsageForBooking($booking, 'cancelled');
-
-                        Payment::query()
-                            ->where('booking_id', $booking->id)
-                            ->where('status', 'pending')
-                            ->lockForUpdate()
-                            ->get()
-                            ->each(function (Payment $payment) use ($reason): void {
-                                $payment->update(['status' => 'failed']);
-
-                                PaymentLog::query()->create([
-                                    'payment_id' => $payment->id,
-                                    'event_type' => 'payment_hold_expired',
-                                    'status_before' => 'pending',
-                                    'status_after' => 'failed',
-                                    'error_code' => 'slot_hold_expired',
-                                    'error_message' => $reason,
-                                ]);
-                            });
+                        if ($booking->status === 'pending_payment') {
+                            $this->expirePendingPaymentBooking($booking);
+                        } elseif ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
+                            $this->expirePendingApprovalBooking($booking);
+                        }
                     }
                 }
 
@@ -97,5 +77,66 @@ class ReleaseExpiredSlotLocks extends Command
         $this->info("Đã giải phóng thành công {$processedCount} slot locks hết hạn.");
 
         return 0;
+    }
+
+    private function expirePendingPaymentBooking(Booking $booking): void
+    {
+        $slotHoldMinutes = (int) (BookingConfig::query()
+            ->where('venue_cluster_id', $booking->venue_cluster_id)
+            ->value('slot_hold_minutes') ?? 20);
+        $reason = "Thanh toán quá hạn {$slotHoldMinutes} phút.";
+
+        $booking->update([
+            'status' => 'expired',
+            'status_reason' => $reason,
+        ]);
+
+        app(BookingService::class)->releaseVoucherUsageForBooking($booking, 'cancelled');
+
+        Payment::query()
+            ->where('booking_id', $booking->id)
+            ->where('status', 'pending')
+            ->lockForUpdate()
+            ->get()
+            ->each(function (Payment $payment) use ($reason): void {
+                $payment->update(['status' => 'failed']);
+
+                PaymentLog::query()->create([
+                    'payment_id' => $payment->id,
+                    'event_type' => 'payment_hold_expired',
+                    'status_before' => 'pending',
+                    'status_after' => 'failed',
+                    'error_code' => 'slot_hold_expired',
+                    'error_message' => $reason,
+                ]);
+            });
+    }
+
+    private function expirePendingApprovalBooking(Booking $booking): void
+    {
+        $reason = 'Chủ sân không duyệt booking thu sau trong 15 phút. Slot đã được giải phóng.';
+
+        $booking->update([
+            'status' => 'expired',
+            'status_reason' => $reason,
+        ]);
+
+        app(BookingService::class)->releaseVoucherUsageForBooking($booking, 'cancelled');
+
+        if (! $booking->customer_id) {
+            return;
+        }
+
+        $record = ViolationRecord::query()->firstOrCreate(
+            ['target_type' => 'user', 'target_id' => (int) $booking->customer_id],
+            ['violation_count' => 0]
+        );
+
+        $record->forceFill([
+            'violation_count' => $record->violation_count + 1,
+            'last_violation_at' => now(),
+            'last_action_type' => 'booking_approval_timeout',
+            'last_action_expires_at' => null,
+        ])->save();
     }
 }

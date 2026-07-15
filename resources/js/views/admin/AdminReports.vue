@@ -604,8 +604,11 @@ export default {
       };
       return labels[cleanAction] || action;
     },
-    shortId(value) {
-      return value ? `#${value.slice(0, 8)}` : '';
+    reportLabel(report) {
+      if (!report) return '';
+      const target = this.targetLabel(report.target_type);
+      const reason = this.reasonLabel(report.reason);
+      return reason ? `${target} · ${reason}` : target;
     },
     fillTemplateActionNote() {
       this.form.action_note = "Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã xem xét nội dung và xác nhận vi phạm. Đội ngũ kiểm duyệt đã tiến hành xử lý nội dung/tài khoản vi phạm theo đúng chính sách của SportGo. Cảm ơn bạn đã góp phần giữ gìn cộng đồng an toàn và minh bạch!";

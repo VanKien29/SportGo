@@ -927,7 +927,7 @@ export default {
 </script>
 
 <style scoped>
-@import "../../../css/admin/moderation.css";
+
 
 .moderation-page {
   display: flex;

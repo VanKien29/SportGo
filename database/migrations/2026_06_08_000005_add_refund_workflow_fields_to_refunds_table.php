@@ -22,13 +22,13 @@ return new class extends Migration
                 $table->timestamp('completed_at')->nullable()->after('admin_confirmed_at');
             }
             if (! Schema::hasColumn('refunds', 'policy_id')) {
-                $table->char('policy_id', 36)->nullable()->after('owner_wallet_ledger_id');
+                $table->unsignedBigInteger('policy_id')->nullable()->after('owner_wallet_ledger_id');
             }
             if (! Schema::hasColumn('refunds', 'policy_rule_id')) {
-                $table->char('policy_rule_id', 36)->nullable()->after('policy_id');
+                $table->unsignedBigInteger('policy_rule_id')->nullable()->after('policy_id');
             }
             if (! Schema::hasColumn('refunds', 'policy_evaluation_log_id')) {
-                $table->char('policy_evaluation_log_id', 36)->nullable()->after('policy_rule_id');
+                $table->unsignedBigInteger('policy_evaluation_log_id')->nullable()->after('policy_rule_id');
             }
         });
 

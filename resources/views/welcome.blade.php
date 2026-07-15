@@ -1,10 +1,25 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    @php
+        $systemProfile = \App\Models\SystemSetting::profilePayload();
+        $systemName = $systemProfile['system_name'] ?: 'SportGo';
+        $systemFavicon = $systemProfile['favicon_url'] ?: $systemProfile['logo_url'];
+        $systemFaviconUrl = $systemFavicon
+            ? (\Illuminate\Support\Str::startsWith($systemFavicon, ['http://', 'https://', '//', 'data:'])
+                ? $systemFavicon
+                : asset(ltrim($systemFavicon, '/')))
+            : null;
+    @endphp
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SportGo - Đặt sân thể thao online</title>
-    <meta name="description" content="SportGo - Nền tảng đặt sân thể thao online">
+    <title>{{ $systemName }} - Đặt sân thể thao online</title>
+    <meta name="description" content="{{ $systemName }} - Nền tảng đặt sân thể thao online">
+    @if($systemFaviconUrl)
+        <link rel="icon" href="{{ $systemFaviconUrl }}">
+        <link rel="shortcut icon" href="{{ $systemFaviconUrl }}">
+        <link rel="apple-touch-icon" href="{{ $systemFaviconUrl }}">
+    @endif
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">

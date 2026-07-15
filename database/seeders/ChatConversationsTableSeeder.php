@@ -18,12 +18,9 @@ class ChatConversationsTableSeeder extends Seeder
             return;
         }
 
-        // Clean existing chat data first to ensure clean run
-        Schema::disableForeignKeyConstraints();
-        Message::truncate();
-        ConversationParticipant::truncate();
-        Conversation::truncate();
-        Schema::enableForeignKeyConstraints();
+        Message::query()->delete();
+        ConversationParticipant::query()->delete();
+        Conversation::query()->delete();
 
         // Get key users
         $superadmin = User::where('username', 'superadmin')->first();
@@ -46,7 +43,9 @@ class ChatConversationsTableSeeder extends Seeder
         }
 
         // Helper function to create conversation and messages
-        $createChat = function ($type, $title, array $participants, array $messages, $refType = null, $refId = null) {
+        $chatIndex = 0;
+        $createChat = function ($type, $title, array $participants, array $messages, $refType = null, $refId = null) use (&$chatIndex) {
+            $chatIndex++;
             $conversation = Conversation::create([
                 'type' => $type,
                 'title' => $title,
@@ -56,18 +55,18 @@ class ChatConversationsTableSeeder extends Seeder
                 'last_message_at' => now(),
             ]);
 
-            foreach ($participants as $p) {
+            foreach ($participants as $participantIndex => $p) {
                 ConversationParticipant::create([
                     'conversation_id' => $conversation->id,
                     'user_id' => $p->id,
-                    'last_read_at' => now()->subMinutes(rand(1, 10)),
+                    'last_read_at' => now()->subMinutes(($chatIndex * 10) + $participantIndex + 1),
                     'joined_at' => now()->subDays(5),
                 ]);
             }
 
-            $lastMsgAt = now()->subDays(2);
-            foreach ($messages as $msgData) {
-                $lastMsgAt = $lastMsgAt->addHours(rand(1, 4));
+            $lastMsgAt = now()->subDays(2)->addHours($chatIndex);
+            foreach ($messages as $messageIndex => $msgData) {
+                $lastMsgAt = $lastMsgAt->addHours($messageIndex + 1);
                 Message::create([
                     'conversation_id' => $conversation->id,
                     'sender_id' => $msgData['sender_id'],
@@ -86,9 +85,9 @@ class ChatConversationsTableSeeder extends Seeder
             $user->full_name,
             [$user, $owner],
             [
-                ['sender_id' => $user->id, 'content' => 'Chào anh/chị, cho em hỏi sân SportGo Cầu Giấy tối nay còn slot 18h-20h không ạ?'],
-                ['sender_id' => $owner->id, 'content' => 'Chào em, tối nay slot 18h-20h sân số 1 và 2 đều đã có người đặt rồi. Sân số 3 còn trống từ 19h-21h em có muốn đổi giờ không?'],
-                ['sender_id' => $user->id, 'content' => 'Dạ thế em đặt sân số 3 từ 19h nhé ạ.'],
+                ['sender_id' => $user->id, 'content' => 'Chào anh/chị, cho em hỏi Green Sport Ba Đình tối nay còn slot 18h-20h không ạ?'],
+                ['sender_id' => $owner->id, 'content' => 'Chào em, tối nay sân A1 và A2 đã có người đặt. Sân pickleball P1 còn trống từ 19h-20h em có muốn đổi giờ không?'],
+                ['sender_id' => $user->id, 'content' => 'Dạ em kiểm tra lại lịch nhóm rồi đặt trực tiếp trên app nhé ạ.'],
                 ['sender_id' => $owner->id, 'content' => 'Ok em, em book trực tiếp trên app giúp anh/chị nha.'],
             ]
         );

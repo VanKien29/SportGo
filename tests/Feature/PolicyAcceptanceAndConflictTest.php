@@ -59,14 +59,14 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'user_id' => $this->user->id,
             'role_id' => $userRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         UserRole::create([
             'user_id' => $this->admin->id,
             'role_id' => $adminRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
     }
 

@@ -8,11 +8,11 @@ use App\Models\PolicyRule;
 use App\Models\Report;
 use App\Models\SystemPolicy;
 use App\Models\User;
+use App\Models\VenueCluster;
 use App\Services\Policies\ModerationReportPolicyService;
 use App\Services\Policies\RefundCancellationPolicyService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PolicyWorkflowEvaluatorTest extends TestCase
@@ -24,9 +24,26 @@ class PolicyWorkflowEvaluatorTest extends TestCase
         $service = app(RefundCancellationPolicyService::class);
         $this->seedCancellationAndRefundPolicies($service);
 
+        $owner = User::query()->create([
+            'username' => 'policy_owner',
+            'full_name' => 'Policy Owner',
+            'email' => 'policy-owner@sportgo.test',
+            'password' => bcrypt('secret'),
+            'status' => 'active',
+        ]);
+        $cluster = VenueCluster::query()->create([
+            'owner_id' => $owner->id,
+            'name' => 'Policy Test Venue',
+            'slug' => 'policy-test-venue',
+            'address' => 'Ha Noi',
+            'latitude' => 21.0278,
+            'longitude' => 105.8342,
+            'status' => 'active',
+        ]);
+
         $booking = Booking::query()->create([
             'booking_code' => 'BKPOL001',
-            'venue_cluster_id' => (string) Str::uuid(),
+            'venue_cluster_id' => $cluster->id,
             'booking_date' => '2026-01-10',
             'start_time' => '12:00:00',
             'end_time' => '13:00:00',

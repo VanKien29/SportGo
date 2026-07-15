@@ -27,10 +27,7 @@ class GeneratedDocumentsTableSeeder extends Seeder
         }
 
         $this->seedPartnerApplicationFormDocument($admin);
-        $this->seedPartnerContractDocument('DOC-HD-SG-CG-001', 'HD-SG-CG-001', 'SportGo Cầu Giấy', 'completed', $admin, now()->subDays(10), true);
-        $this->seedPartnerContractDocument('DOC-HD-SG-DD-001', 'HD-SG-DD-001', 'SportGo Đống Đa', 'pending_owner_signature', $admin, now()->subDays(4), false);
-        $this->seedPartnerContractDocument('DOC-HD-SG-BD-001', 'HD-SG-BD-001', 'SportGo Ba Đình', 'pending_sportgo_signature', $admin, now()->subDays(3), false);
-        $this->seedPartnerContractDocument('DOC-HD-SG-CG-OLD', 'HD-SG-CG-OLD', 'SportGo Cầu Giấy', 'completed', $admin, now()->subMonths(8), true);
+        $this->seedPartnerContractDocument('DOC_CONTRACT_0001', 'CONTRACT_GREEN_0001', 'Green Sport Ba Đình', 'completed', $admin, now()->subDays(10), true);
 
         $this->seedTerminationRequestDocument('DOC-DYCCD-CG-001', 'TERM-OWNER-CG-001', 'signed', $admin, now()->subDays(12), true);
         $this->seedTerminationDocument('DOC-BBTL-CG-001', 'mutual_liquidation_minutes', 'mutual_liquidation_minutes', 'TERM-MUTUAL-CG-001', 'completed', $admin, now()->subDays(6), true);
@@ -45,19 +42,19 @@ class GeneratedDocumentsTableSeeder extends Seeder
     private function seedPartnerApplicationFormDocument(User $admin): void
     {
         $template = $this->template('partner_application_form');
-        $application = PartnerApplication::query()->where('venue_name', 'SportGo Cầu Giấy')->first();
+        $application = PartnerApplication::query()->where('venue_name', 'Green Sport Ba Đình')->first();
 
         if (! $template || ! $application) {
             return;
         }
 
         $this->saveDocument(
-            'DOC-DKDT-CG-001',
+            'DOC_APPLICATION_GREEN_0001',
             'partner_application_form',
             $template,
             PartnerApplication::class,
             $application->id,
-            'Đơn đăng ký đối tác SportGo Cầu Giấy',
+            'Đơn đăng ký đối tác Green Sport Ba Đình',
             'completed',
             [
                 'applicant_full_name' => $application->applicant_full_name,
@@ -68,8 +65,8 @@ class GeneratedDocumentsTableSeeder extends Seeder
                 'account_number' => $application->account_number,
                 'template_version' => 1,
             ],
-            'generated-documents/DOC-DKDT-CG-001.docx',
-            'generated-documents/DOC-DKDT-CG-001-final.pdf',
+            'generated-documents/DOC_APPLICATION_GREEN_0001.docx',
+            'generated-documents/DOC_APPLICATION_GREEN_0001-final.pdf',
             $admin,
             now()->subDays(14),
             true,

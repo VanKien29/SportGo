@@ -23,16 +23,8 @@ class GeneratedDocumentSignaturesTableSeeder extends Seeder
             return;
         }
 
-        $this->signed('DOC-HD-SG-CG-001', 'owner', $owner, $owner->full_name, 'Chủ sân', 'Hộ kinh doanh SportGo Cầu Giấy', now()->subDays(9));
-        $this->signed('DOC-HD-SG-CG-001', 'sportgo', $admin, 'SportGo Admin', 'Đại diện SportGo', 'SportGo', now()->subDays(8));
-
-        $this->pending('DOC-HD-SG-DD-001', 'owner', $owner, $owner->full_name, 'Chủ sân', 'Hộ kinh doanh SportGo Đống Đa');
-
-        $this->signed('DOC-HD-SG-BD-001', 'owner', $owner, $owner->full_name, 'Chủ sân', 'Hộ kinh doanh SportGo Ba Đình', now()->subDays(2));
-        $this->pending('DOC-HD-SG-BD-001', 'sportgo', $admin, 'SportGo Admin', 'Đại diện SportGo', 'SportGo');
-
-        $this->signed('DOC-HD-SG-CG-OLD', 'owner', $owner, $owner->full_name, 'Chủ sân', 'Hộ kinh doanh SportGo Cầu Giấy', now()->subMonths(8)->addDay());
-        $this->signed('DOC-HD-SG-CG-OLD', 'sportgo', $admin, 'SportGo Admin', 'Đại diện SportGo', 'SportGo', now()->subMonths(8)->addDays(2));
+        $this->signed('DOC_CONTRACT_0001', 'owner', $owner, $owner->full_name, 'Chủ sân', 'Hộ kinh doanh Green Sport Ba Đình', now()->subDays(9));
+        $this->signed('DOC_CONTRACT_0001', 'sportgo', $admin, 'SportGo Admin', 'Đại diện SportGo', 'SportGo', now()->subDays(8));
 
         $this->signed('DOC-DYCCD-CG-001', 'owner', $owner, $owner->full_name, 'Chủ sân', 'Đối tác chủ sân', now()->subDays(11));
 
