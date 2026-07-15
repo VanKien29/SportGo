@@ -36,6 +36,14 @@ function extractError(data, fallback) {
   return fallback;
 }
 
+function makeApiError(response, data, fallback) {
+  const error = new Error(extractError(data, fallback));
+  error.status = response.status;
+  error.data = data;
+  error.response = { status: response.status, data };
+  return error;
+}
+
 export async function api(path, options = {}) {
   const headers = {
     Accept: 'application/json',
@@ -51,19 +59,15 @@ export async function api(path, options = {}) {
 
   if (response.status === 401) {
     clearAuthStorage();
-    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    throw makeApiError(response, data, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
 
   if (response.status === 403) {
-    throw new Error(extractError(data, 'Bạn không có quyền thực hiện thao tác này.'));
+    throw makeApiError(response, data, 'Bạn không có quyền thực hiện thao tác này.');
   }
 
   if (!response.ok) {
-    const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
-    error.status = response.status;
-    error.data = data;
-    error.response = { status: response.status, data };
-    throw error;
+    throw makeApiError(response, data, 'Có lỗi xảy ra. Vui lòng thử lại.');
   }
 
   return data;
@@ -88,19 +92,15 @@ export async function apiFormData(path, formData, options = {}) {
 
   if (response.status === 401) {
     clearAuthStorage();
-    throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    throw makeApiError(response, data, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
 
   if (response.status === 403) {
-    throw new Error(extractError(data, 'Bạn không có quyền thực hiện thao tác này.'));
+    throw makeApiError(response, data, 'Bạn không có quyền thực hiện thao tác này.');
   }
 
   if (!response.ok) {
-    const error = new Error(extractError(data, 'Có lỗi xảy ra. Vui lòng thử lại.'));
-    error.status = response.status;
-    error.data = data;
-    error.response = { status: response.status, data };
-    throw error;
+    throw makeApiError(response, data, 'Có lỗi xảy ra. Vui lòng thử lại.');
   }
 
   return data;
@@ -127,7 +127,10 @@ export async function apiDownload(path, options = {}) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(extractError(data, 'Không thể tải file.'));
+    if (response.status === 401) {
+      clearAuthStorage();
+    }
+    throw makeApiError(response, data, 'Không thể tải file.');
   }
 
   const blob = await response.blob();

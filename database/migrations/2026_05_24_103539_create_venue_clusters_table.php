@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_clusters', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('owner_id', 36)->comment('Chủ sân sở hữu cụm này, trỏ users.id.');
+            $table->id();
+            $table->unsignedBigInteger('owner_id')->comment('Chủ sân sở hữu cụm này, trỏ users.id.');
             $table->string('name', 255)->comment('Tên cụm sân hiển thị cho user.');
             $table->string('slug', 255)->unique()->comment('Định danh URL/SEO duy nhất của cụm sân.');
             $table->text('description')->nullable()->comment('Mô tả cụm sân, tiện ích hoặc ghi chú.');
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->text('status_reason')->nullable()->comment('Lý do khóa cụm sân để chủ sân biết.');
             $table->timestamp('locked_at')->nullable()->comment('Thời điểm cụm sân bị khóa.');
             $table->timestamp('locked_until')->nullable()->comment('Thời điểm hết khóa tạm thời của cụm sân.');
-            $table->char('locked_by', 36)->nullable()->comment('Admin/nhân viên khóa cụm sân.');
+            $table->unsignedBigInteger('locked_by')->nullable()->comment('Admin/nhân viên khóa cụm sân.');
             $table->decimal('rating_avg', 3, 2)->default(0.00)->comment('Điểm trung bình sân, tính từ reviews.');
             $table->unsignedInteger('rating_count')->default(0)->comment('Số lượt review sân.');
             $table->timestamps();

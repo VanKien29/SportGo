@@ -29,5 +29,5 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
  * Only allow the user themselves to subscribe to their own channel.
  */
 Broadcast::channel('user.{userId}', function ($user, $userId) {
-    return (int) $user->id === (int) $userId;
+    return (string) $user->id === (string) $userId;
 });

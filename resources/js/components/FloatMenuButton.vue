@@ -138,19 +138,19 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--admin-primary, #000);
-  color: var(--admin-bg, #fff);
-  border: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background-color: var(--admin-floating-bg, #27272a);
+  color: var(--admin-floating-fg, #ffffff);
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.float-menu-trigger:hover,
+.float-menu-trigger.never-hover-class-placeholder,
 .float-menu-trigger.is-open {
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-  background-color: var(--admin-primary-light, #1f2937);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  background-color: var(--admin-floating-hover, #3f3f46);
 }
 
 /* Dropdown */
@@ -158,10 +158,10 @@ export default {
   position: absolute;
   bottom: calc(100% + 10px);
   right: 0;
-  background: var(--admin-surface, #fff);
-  border: 1px solid var(--admin-border, #e5e7eb);
+  background: var(--admin-floating-panel-bg, var(--admin-surface, #18181b));
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
   border-radius: 10px;
-  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
   z-index: 9999;
   min-width: 220px;
   padding: 6px 0;
@@ -176,18 +176,18 @@ export default {
   gap: 10px;
   width: 100%;
   padding: 10px 16px;
-  border: none;
+  border: 0;
   background: transparent;
   text-align: left;
   font-size: 13px;
   font-weight: 600;
-  color: var(--admin-text, #111827);
+  color: var(--admin-floating-fg, #ffffff);
   cursor: pointer;
   transition: background 0.18s ease;
 }
 
-.float-menu-item:hover:not(:disabled) {
-  background: var(--admin-hover, #f3f4f6);
+.float-menu-item.never-hover-class-placeholder:not(:disabled) {
+  background: var(--admin-floating-hover, rgba(255, 255, 255, 0.08));
 }
 
 .float-menu-item:disabled {

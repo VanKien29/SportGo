@@ -40,7 +40,7 @@ class VenueUnlockRequestTest extends TestCase
             'user_id' => $this->admin->id,
             'role_id' => $adminRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $this->owner1 = User::create([
@@ -55,7 +55,7 @@ class VenueUnlockRequestTest extends TestCase
             'user_id' => $this->owner1->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $this->owner2 = User::create([
@@ -70,7 +70,7 @@ class VenueUnlockRequestTest extends TestCase
             'user_id' => $this->owner2->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         // 3. Tạo Cụm sân cho owner 1

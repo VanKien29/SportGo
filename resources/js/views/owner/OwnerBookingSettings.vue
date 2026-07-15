@@ -510,7 +510,7 @@ export default {
       return time ? String(time).slice(0, 5) : fallback;
     },
     specialKey() {
-      return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     },
     validOperatingRange(openTime, closeTime) {
       const duration = this.timeToMinutes(closeTime) - this.timeToMinutes(openTime);

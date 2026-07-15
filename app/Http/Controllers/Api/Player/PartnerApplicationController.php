@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Player;
 use App\Http\Controllers\Controller;
 use App\Models\PartnerApplication;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class PartnerApplicationController extends Controller
 {
@@ -74,7 +73,6 @@ class PartnerApplicationController extends Controller
         }
 
         $applicationData = array_merge($validated, [
-            'id' => Str::uuid()->toString(),
             'user_id' => $user->id,
             'type' => 'new_partner',
             'status' => 'pending',

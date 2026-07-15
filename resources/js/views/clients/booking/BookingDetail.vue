@@ -135,7 +135,10 @@
                     </div>
 
                     <!-- Cột phải: Thanh toán & Đếm ngược -->
-                    <div class="payment-section">
+                    <div
+                        class="payment-section"
+                        :class="{ 'has-qr': sepayPayment }"
+                    >
                         <!-- Đếm ngược giữ chỗ (Nếu đang chờ thanh toán) -->
                         <div
                             class="card countdown-card"
@@ -195,7 +198,7 @@
                                     {{
                                         creatingSepay
                                             ? "Đang tạo QR..."
-                                            : "Tạo QR thanh toán SePay"
+                                            : "Tạo QR thanh toán"
                                     }}
                                 </button>
 
@@ -560,14 +563,20 @@ export default {
 <style scoped>
 .detail-container {
     min-height: 100vh;
-    background: #09090b;
-    color: #ffffff;
+    background:
+        radial-gradient(
+            circle at top left,
+            rgba(34, 197, 94, 0.1),
+            transparent 28rem
+        ),
+        #f5faf6;
+    color: #14231a;
 }
 
 .detail-main {
-    max-width: 1000px;
+    max-width: 1180px;
     margin: 0 auto;
-    padding: 100px 24px 60px;
+    padding: 84px 24px 48px;
 }
 
 .detail-content {
@@ -581,34 +590,34 @@ export default {
     display: flex;
     align-items: center;
     gap: 20px;
-    padding: 24px;
+    padding: 20px 22px;
     border-radius: var(--sg-radius);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: none;
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #d8e8dc;
+    box-shadow: 0 14px 35px rgba(17, 53, 31, 0.08);
+    background: #ffffff;
 }
 
 .status-banner.confirmed {
-    border-left: 4px solid #ffffff;
+    border-left: 4px solid #16a34a;
 }
 .status-banner.confirmed .banner-icon {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    background: #dcfce7;
+    color: #15803d;
 }
 
 .status-banner.pending_payment {
-    border-left: 4px solid #facc15;
+    border-left: 4px solid #f59e0b;
 }
 .status-banner.pending_payment .banner-icon {
-    background: rgba(250, 204, 21, 0.1);
-    color: #facc15;
+    background: #fef3c7;
+    color: #b45309;
 }
 
 .status-banner.pending_approval {
     border-left: 4px solid #3b82f6;
 }
 .status-banner.pending_approval .banner-icon {
-    background: rgba(59, 130, 246, 0.1);
+    background: #dbeafe;
     color: #3b82f6;
 }
 
@@ -618,7 +627,7 @@ export default {
 }
 .status-banner.expired .banner-icon,
 .status-banner.cancelled .banner-icon {
-    background: rgba(239, 68, 68, 0.1);
+    background: #fee2e2;
     color: #ef4444;
 }
 
@@ -635,29 +644,29 @@ export default {
 .banner-text h2 {
     font-size: 20px;
     font-weight: 800;
-    color: #ffffff;
+    color: #102017;
 }
 
 .banner-text p {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.4);
+    color: #647067;
     margin-top: 4px;
 }
 
 /* Detail Grid */
 .detail-grid {
     display: grid;
-    grid-template-columns: 3fr 2fr;
+    grid-template-columns: minmax(0, 1fr) 420px;
     gap: 24px;
     align-items: start;
 }
 
 .card {
-    background: rgba(255, 255, 255, 0.03);
+    background: #ffffff;
     border-radius: var(--sg-radius);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 24px;
-    box-shadow: none;
+    border: 1px solid #d8e8dc;
+    padding: 22px;
+    box-shadow: 0 18px 44px rgba(17, 53, 31, 0.08);
 }
 
 .card-header-simple {
@@ -669,7 +678,7 @@ export default {
 .card-header-simple h2 {
     font-size: 18px;
     font-weight: 800;
-    color: #ffffff;
+    color: #102017;
 }
 
 .badge {
@@ -680,12 +689,12 @@ export default {
 }
 
 .badge.confirmed {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    background: #dcfce7;
+    color: #15803d;
 }
 .badge.pending_payment {
-    background: rgba(250, 204, 21, 0.1);
-    color: #facc15;
+    background: #fef3c7;
+    color: #b45309;
 }
 .badge.pending_approval {
     background: rgba(59, 130, 246, 0.1);
@@ -702,7 +711,7 @@ export default {
 
 .divider {
     height: 1px;
-    background: rgba(255, 255, 255, 0.08);
+    background: #e0ebe3;
     margin: 16px 0;
 }
 
@@ -719,11 +728,11 @@ export default {
 }
 
 .info-item .label {
-    color: rgba(255, 255, 255, 0.4);
+    color: #657369;
 }
 
 .info-item .val {
-    color: #ffffff;
+    color: #13241a;
     font-weight: 500;
     max-width: 60%;
     text-align: right;
@@ -733,39 +742,77 @@ export default {
 .payment-section {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
+    position: sticky;
+    top: 88px;
+}
+
+.payment-section.has-qr {
+    gap: 12px;
+}
+
+.payment-section.has-qr .price-card {
+    padding: 18px;
+}
+
+.payment-section.has-qr .price-card .divider {
+    margin: 12px 0;
+}
+
+.payment-section.has-qr .countdown-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    text-align: left;
+    padding: 14px 16px;
+}
+
+.payment-section.has-qr .countdown-card h3 {
+    max-width: 150px;
+    line-height: 1.35;
+}
+
+.payment-section.has-qr .countdown-card .timer {
+    margin: 0;
+    font-size: 28px;
+}
+
+.payment-section.has-qr .countdown-card .timer-desc {
+    display: none;
 }
 
 .countdown-card {
     text-align: center;
-    border: 1px solid rgba(250, 204, 21, 0.2);
-    background: rgba(250, 204, 21, 0.05);
+    border: 1px solid #fde68a;
+    background: #fffbeb;
+    padding: 18px;
 }
 
 .countdown-card h3 {
-    font-size: 14px;
-    color: #facc15;
+    font-size: 12px;
+    color: #a16207;
     font-weight: 700;
     text-transform: uppercase;
 }
 
 .countdown-card .timer {
-    font-size: 36px;
+    font-size: 34px;
     font-weight: 900;
-    color: #facc15;
-    margin: 10px 0;
+    color: #d97706;
+    margin: 8px 0;
     font-family: monospace;
 }
 
 .countdown-card .timer-desc {
     font-size: 12px;
-    color: rgba(250, 204, 21, 0.7);
+    color: #92400e;
 }
 
 .price-card h3 {
     font-size: 16px;
     font-weight: 700;
-    color: #ffffff;
+    color: #102017;
 }
 
 .price-rows {
@@ -778,25 +825,27 @@ export default {
     display: flex;
     justify-content: space-between;
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.4);
+    color: #657369;
+    gap: 14px;
 }
 
 .price-row .val {
-    color: #ffffff;
+    color: #102017;
     font-weight: 600;
+    text-align: right;
 }
 
 .price-row.highlighted {
     margin-top: 8px;
     padding-top: 12px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    border-top: 1px dashed #d9e7dd;
+    color: #102017;
     font-weight: 700;
 }
 
 .price-row.highlighted .price {
     font-size: 22px;
-    color: #ffffff;
+    color: #15803d;
     font-weight: 800;
 }
 
@@ -809,15 +858,15 @@ export default {
     width: 100%;
     min-height: 44px;
     border-radius: var(--sg-radius-sm);
-    color: #09090b;
     font-size: 14px;
     font-weight: 800;
     transition: var(--sg-transition);
 }
 
 .btn-sepay {
-    background: #ffffff;
-    color: #09090b;
+    background: #16a34a;
+    color: #ffffff;
+    border: 1px solid #16a34a;
 }
 
 .btn-cancel-payment {
@@ -829,12 +878,12 @@ export default {
     margin-top: 12px;
 }
 
-.btn-sepay:hover:not(:disabled) {
+.btn-sepay.never-hover-class-placeholder:not(:disabled) {
     background: rgba(255, 255, 255, 0.88);
     transform: translateY(-1px);
 }
 
-.btn-cancel-payment:hover:not(:disabled) {
+.btn-cancel-payment.never-hover-class-placeholder:not(:disabled) {
     filter: brightness(1.05);
     transform: translateY(-1px);
 }
@@ -848,22 +897,26 @@ export default {
 .sepay-panel {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 
 .qr-wrap {
     display: flex;
     justify-content: center;
-    padding: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px;
+    border: 1px solid #d9e7dd;
     border-radius: var(--sg-radius-sm);
     background: #ffffff;
 }
 
 .qr-wrap img {
-    width: min(220px, 100%);
+    width: min(200px, 100%);
     aspect-ratio: 1;
     object-fit: contain;
+}
+
+.payment-section.has-qr .qr-wrap img {
+    width: min(184px, 100%);
 }
 
 .transfer-info {
@@ -878,18 +931,18 @@ export default {
     align-items: center;
     gap: 12px;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.4);
+    color: #657369;
 }
 
 .transfer-row strong {
-    color: #ffffff;
+    color: #102017;
     text-align: right;
     word-break: break-word;
 }
 
 .copy-value {
     max-width: 60%;
-    color: #ffffff;
+    color: #047857;
     font-weight: 900;
     text-align: right;
     word-break: break-word;
@@ -903,8 +956,9 @@ export default {
     gap: 10px;
     padding: 12px;
     border-radius: var(--sg-radius-sm);
-    background: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #047857;
     font-size: 13px;
     font-weight: 700;
     line-height: 1.45;
@@ -913,8 +967,8 @@ export default {
 .mini-spinner {
     width: 18px;
     height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #ffffff;
+    border: 2px solid #bbf7d0;
+    border-top-color: #16a34a;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     flex: 0 0 auto;
@@ -930,15 +984,15 @@ export default {
 .detail-empty {
     text-align: center;
     padding: 60px 0;
-    color: rgba(255, 255, 255, 0.4);
+    color: #657369;
 }
 
 .btn-back {
     display: inline-block;
     margin-top: 16px;
     padding: 10px 24px;
-    background: #ffffff;
-    color: #09090b;
+    background: #16a34a;
+    color: #ffffff;
     border-radius: var(--sg-radius);
     font-weight: 600;
 }
@@ -950,14 +1004,14 @@ export default {
     align-items: center;
     justify-content: center;
     padding: 120px 0;
-    color: rgba(255, 255, 255, 0.4);
+    color: #657369;
 }
 
 .spinner {
     width: 44px;
     height: 44px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #ffffff;
+    border: 3px solid #d9e7dd;
+    border-top-color: #16a34a;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin-bottom: 16px;
@@ -972,6 +1026,20 @@ export default {
 @media (max-width: 800px) {
     .detail-grid {
         grid-template-columns: 1fr;
+    }
+
+    .payment-section {
+        position: static;
+    }
+}
+
+@media (min-width: 801px) and (max-width: 1100px) {
+    .detail-main {
+        max-width: 980px;
+    }
+
+    .detail-grid {
+        grid-template-columns: minmax(0, 1fr) 360px;
     }
 }
 </style>

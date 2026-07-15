@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->char('id', 36)->primary()->comment('UUID định danh user, dùng làm khóa chính và tham chiếu từ các bảng quyền, booking, chat, bài viết.');
+            $table->id()->comment('ID so tu tang dinh danh user, dung lam khoa chinh va tham chieu tu cac bang quyen, booking, chat, bai viet.');
             $table->string('username', 50)->unique()->comment('Tên tài khoản dùng để đăng nhập, khác với họ tên hiển thị; phải unique.');
             $table->string('full_name', 255)->comment('Họ tên hiển thị trong hồ sơ, booking, chat, đánh giá.');
             $table->string('phone', 20)->unique()->nullable()->comment('Số điện thoại chính khi đăng ký thường và đặt sân; Google login có thể chưa có phone.');
@@ -28,7 +28,7 @@ return new class extends Migration
             $table->text('status_reason')->nullable()->comment('Lý do khóa/hủy/ngừng tài khoản để hiển thị cho user và phục vụ audit.');
             $table->timestamp('locked_at')->nullable()->comment('Thời điểm tài khoản bị khóa.');
             $table->timestamp('locked_until')->nullable()->comment('Thời điểm hết khóa tạm thời; null khi không khóa hoặc khóa vĩnh viễn tùy lock_type.');
-            $table->char('locked_by', 36)->nullable()->comment('Admin/nhân viên khóa tài khoản, trỏ users.id.');
+            $table->unsignedBigInteger('locked_by')->nullable()->comment('Admin/nhân viên khóa tài khoản, trỏ users.id.');
             $table->string('remember_token', 100)->nullable()->comment('Token remember me mặc định của Laravel.');
             $table->timestamps();
 
@@ -45,7 +45,7 @@ return new class extends Migration
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->char('user_id', 36)->nullable()->index();
+            $table->unsignedBigInteger('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');

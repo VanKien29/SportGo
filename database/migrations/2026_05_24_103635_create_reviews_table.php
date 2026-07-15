@@ -5,10 +5,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('reviews', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('booking_id', 36)->unique()->comment('Booking được review; unique.');
-            $table->char('customer_id', 36)->comment('User đã đặt sân, denormalized.');
-            $table->char('venue_cluster_id', 36)->comment('Cụm sân được review, denormalized.');
+            $table->id();
+            $table->unsignedBigInteger('booking_id')->unique()->comment('Booking được review; unique.');
+            $table->unsignedBigInteger('customer_id')->comment('User đã đặt sân, denormalized.');
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân được review, denormalized.');
             $table->unsignedTinyInteger('rating')->comment('Điểm đánh giá.');
             $table->text('comment')->nullable()->comment('Nội dung review.');
             $table->text('reply_content')->nullable()->comment('Phản hồi của chủ sân.');

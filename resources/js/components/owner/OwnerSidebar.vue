@@ -1,79 +1,182 @@
 <template>
-  <aside class="sidebar" aria-label="Owner navigation">
-    <RouterLink class="admin-brand" to="/owner/dashboard" @click="$emit('navigate')">
-      <span class="admin-brand-mark">SG</span>
-      <span class="admin-brand-copy">
-        <strong>SportGo</strong>
-        <small>Owner Console</small>
-      </span>
-    </RouterLink>
+  <aside class="sidebar" :class="sidebarStyle" :aria-label="`${workspaceLabel} navigation`">
+    <!-- One-Level Sidebar -->
+    <template v-if="sidebarStyle === 'one-level'">
+      <RouterLink v-if="showUtilityNavigation" class="admin-brand" :to="homeUrl" @click="$emit('navigate')">
+        <span class="admin-brand-mark">SG</span>
+        <span v-if="!collapsed" class="admin-brand-copy">
+          <strong>SportGo</strong>
+          <small>{{ workspaceLabel }}</small>
+        </span>
+      </RouterLink>
 
-    <div class="owner-cluster-card">
-      <span>Cụm sân đang quản lý</span>
-      <strong v-if="clusters.length <= 1">{{ selectedCluster?.name || 'Chưa có cụm sân' }}</strong>
-      <div v-else class="custom-select-wrapper">
-        <div
-          class="custom-select-trigger"
-          :class="{ active: isOpen }"
-          @click.stop="toggleDropdown"
-        >
-          <span class="selected-text">{{ selectedClusterName }}</span>
-          <span class="arrow" :class="{ open: isOpen }">▼</span>
-        </div>
-        <div v-if="isOpen" class="custom-options-container">
-          <div
-            v-for="cluster in clusters"
-            :key="cluster.id"
-            class="custom-option"
-            :class="{ selected: String(selectedClusterId) === String(cluster.id) }"
-            @click="selectCluster(cluster.id)"
+
+
+      <nav class="sidebar-nav">
+        <section v-for="section in sections" :key="section.label" class="admin-nav-section">
+          <p v-if="!collapsed" class="nav-group">{{ section.label }}</p>
+          <div v-else class="nav-group-dot"></div>
+          <RouterLink
+            v-for="item in section.items"
+            :key="item.to"
+            class="nav-item"
+            :class="{ 'nav-active': isActive(item) }"
+            :to="item.to"
+            @click="$emit('navigate')"
           >
-            {{ cluster.name }}
+            <AppIcon :name="item.icon" size="17" />
+            <span v-if="!collapsed">{{ item.label }}</span>
+          </RouterLink>
+        </section>
+      </nav>
+
+      <!-- Bottom Actions matching mockup -->
+      <div v-if="showUtilityNavigation" class="sidebar-bottom">
+        <div class="sidebar-divider"></div>
+        
+        <RouterLink
+          v-if="showUtilityNavigation"
+          class="nav-item"
+          :class="{ 'nav-active': activeRouteName === 'owner-chat' }"
+          to="/owner/chat"
+          @click="$emit('navigate')"
+        >
+          <span class="nav-item-left">
+            <AppIcon name="messageSquare" size="17" />
+            <span v-if="!collapsed" class="nav-item-label">Tin nhắn</span>
+          </span>
+        </RouterLink>
+
+        <RouterLink
+          v-if="showUtilityNavigation"
+          class="nav-item"
+          to="/"
+          @click="$emit('navigate')"
+        >
+          <span class="nav-item-left">
+            <AppIcon name="eye" size="17" />
+            <span v-if="!collapsed" class="nav-item-label">Xem trang khách</span>
+          </span>
+        </RouterLink>
+
+        <RouterLink
+          v-if="showUtilityNavigation"
+          class="nav-item"
+          :class="{ 'nav-active': activeRouteName === 'owner-settings' }"
+          to="/owner/settings"
+          @click="$emit('navigate')"
+        >
+          <span class="nav-item-left">
+            <AppIcon name="settings" size="17" />
+            <span v-if="!collapsed" class="nav-item-label">Cài đặt giao diện</span>
+          </span>
+        </RouterLink>
+
+        <button class="nav-item logout-btn" type="button" @click="handleLogout">
+          <span class="nav-item-left">
+            <AppIcon name="logOut" size="17" />
+            <span v-if="!collapsed" class="nav-item-label">Đăng xuất</span>
+          </span>
+        </button>
+      </div>
+
+      <div v-if="showUtilityNavigation" class="sidebar-user">
+        <div class="user-avatar">{{ userInitial }}</div>
+        <div v-if="!collapsed" class="user-info">
+          <div class="user-name">{{ userName }}</div>
+          <div class="user-role">{{ roleLabel }}</div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Two-Level Sidebar -->
+    <template v-else>
+      <div class="sidebar-two-level-container">
+        <!-- Left Rail -->
+        <div class="icon-nav-rail">
+          <div class="rail-icons">
+            <button
+              v-for="(sec, idx) in sections"
+              :key="sec.label"
+              type="button"
+              class="rail-icon-btn"
+              :class="{ active: currentSectionIndex === idx }"
+              :title="sec.label"
+              @click="setSection(idx)"
+            >
+              <AppIcon :name="getSectionIcon(sec.label)" size="18" />
+            </button>
+          </div>
+
+          <div v-if="showUtilityNavigation" class="rail-bottom">
+            <RouterLink
+              v-if="showUtilityNavigation"
+              class="rail-icon-btn"
+              :class="{ active: activeRouteName === 'owner-chat' }"
+              to="/owner/chat"
+              title="Tin nhắn"
+            >
+              <AppIcon name="messageSquare" size="18" />
+            </RouterLink>
+            <RouterLink
+              v-if="showUtilityNavigation"
+              class="rail-icon-btn"
+              to="/"
+              title="Xem trang khách"
+            >
+              <AppIcon name="eye" size="18" />
+            </RouterLink>
+            <RouterLink
+              v-if="showUtilityNavigation"
+              class="rail-icon-btn"
+              :class="{ active: activeRouteName === 'owner-settings' }"
+              to="/owner/settings"
+              title="Cấu hình giao diện"
+            >
+              <AppIcon name="settings" size="18" />
+            </RouterLink>
+            <button
+              type="button"
+              class="rail-icon-btn"
+              title="Đăng xuất"
+              @click="handleLogout"
+            >
+              <AppIcon name="logOut" size="18" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Detail Sidebar -->
+        <div v-if="!collapsed" class="detail-sidebar">
+          <div class="detail-sidebar-header-title">
+            <span>{{ sections[currentSectionIndex].label }}</span>
+          </div>
+
+
+          
+          <div class="detail-sidebar-nav">
+            <RouterLink
+              v-for="item in sections[currentSectionIndex].items"
+              :key="item.to"
+              class="nav-item"
+              :class="{ 'nav-active': isActive(item) }"
+              :to="item.to"
+              @click="$emit('navigate')"
+            >
+              <AppIcon :name="item.icon" size="17" />
+              <span>{{ item.label }}</span>
+            </RouterLink>
           </div>
         </div>
       </div>
-      <p v-if="selectedCluster?.status === 'locked'">
-        Cụm sân đang bị khóa. Một số thao tác có thể bị chặn.
-      </p>
-    </div>
-
-    <nav class="sidebar-nav">
-      <section v-for="section in sections" :key="section.label" class="admin-nav-section">
-        <p class="nav-group">{{ section.label }}</p>
-        <RouterLink
-          v-for="item in section.items"
-          :key="item.to"
-          class="nav-item"
-          :class="{ 'nav-active': isActive(item) }"
-          :to="item.to"
-          @click="$emit('navigate')"
-        >
-          <AppIcon :name="item.icon" size="17" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
-      </section>
-    </nav>
-
-    <div class="sidebar-view-user">
-      <RouterLink class="view-user-btn" to="/" @click="$emit('navigate')">
-        <AppIcon name="eye" size="16" />
-        <span>Xem trang khách</span>
-      </RouterLink>
-    </div>
-
-    <div class="sidebar-user">
-      <div class="user-avatar">{{ userInitial }}</div>
-      <div class="user-info">
-        <div class="user-name">{{ userName }}</div>
-        <div class="user-role">{{ roleLabel }}</div>
-      </div>
-    </div>
+    </template>
   </aside>
 </template>
 
 <script>
 import AppIcon from '../AppIcon.vue';
 import { getAuth } from '../../stores/auth.js';
+import { resolveSystemAsset, systemInitials, systemName, systemProfileState } from '../../stores/systemProfile.js';
 
 export default {
   name: 'OwnerSidebar',
@@ -81,22 +184,24 @@ export default {
   props: {
     sections: { type: Array, required: true },
     activeRouteName: { type: String, default: '' },
-    clusters: { type: Array, default: () => [] },
-    selectedClusterId: { type: [String, Number], default: '' },
-    selectedCluster: { type: Object, default: null },
-    clusterLoading: { type: Boolean, default: false },
+    collapsed: { type: Boolean, default: false },
+    userRoleLabel: { type: String, default: '' },
+    workspaceLabel: { type: String, default: 'Owner Console' },
+    homeUrl: { type: String, default: '/owner/dashboard' },
+    showUtilityNavigation: { type: Boolean, default: true },
   },
   emits: ['cluster-change', 'navigate'],
   data() {
     return {
-      isOpen: false,
+      sidebarStyle: localStorage.getItem('owner-sidebar-style') || 'one-level',
+      localActiveSectionIndex: null,
     };
   },
   mounted() {
-    document.addEventListener('click', this.handleOutsideClick);
+    window.addEventListener('owner-sidebar-style-changed', this.loadSidebarStyle);
   },
   beforeUnmount() {
-    document.removeEventListener('click', this.handleOutsideClick);
+    window.removeEventListener('owner-sidebar-style-changed', this.loadSidebarStyle);
   },
   computed: {
     user() {
@@ -109,30 +214,56 @@ export default {
       return this.userName.charAt(0).toUpperCase();
     },
     roleLabel() {
-      return 'Chủ sân';
+      return this.userRoleLabel || 'Chủ sân';
     },
-    selectedClusterName() {
-      const cluster = this.clusters.find(c => String(c.id) === String(this.selectedClusterId));
-      return cluster ? cluster.name : 'Chọn cụm sân';
+    currentSectionIndex() {
+      if (this.localActiveSectionIndex !== null) {
+        return this.localActiveSectionIndex;
+      }
+      const idx = this.sections.findIndex(sec => 
+        sec.items.some(item => item.activeNames?.includes(this.activeRouteName))
+      );
+      return idx >= 0 ? idx : 0;
     },
   },
   methods: {
+    async handleLogout() {
+      if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+        await logout();
+        this.$router.push('/login');
+      }
+    },
     isActive(item) {
       return item.activeNames?.includes(this.activeRouteName);
     },
-    toggleDropdown() {
-      if (this.clusterLoading) return;
-      this.isOpen = !this.isOpen;
+    loadSidebarStyle() {
+      this.sidebarStyle = localStorage.getItem('owner-sidebar-style') || 'one-level';
+      this.localActiveSectionIndex = null;
     },
-    selectCluster(clusterId) {
-      this.$emit('cluster-change', clusterId);
-      this.isOpen = false;
+    getSectionIcon(label) {
+      const iconMap = {
+        'Tổng quan': 'dashboard',
+        'Vận hành sân': 'building',
+        'Kinh doanh': 'banknote',
+        'Nhân sự': 'users',
+        'Công việc': 'dashboard',
+        'Tin nhắn': 'messageSquare',
+        'Hệ thống': 'settings',
+      };
+      return iconMap[label] || 'alert';
     },
-    handleOutsideClick(e) {
-      if (this.isOpen && !this.$el.querySelector('.custom-select-wrapper')?.contains(e.target)) {
-        this.isOpen = false;
+    setSection(idx) {
+      this.localActiveSectionIndex = idx;
+      const targetItem = this.sections[idx].items[0];
+      if (targetItem && targetItem.to) {
+        const isCurrentSection = this.sections[idx].items.some(item => 
+          item.activeNames?.includes(this.activeRouteName)
+        );
+        if (!isCurrentSection) {
+          this.$router.push(targetItem.to);
+        }
       }
-    },
+    }
   },
 };
 </script>
@@ -143,9 +274,9 @@ export default {
   gap: 8px;
   margin: 16px 14px 2px;
   padding: 12px;
-  border: 1px solid var(--admin-border);
+  border: 1px solid var(--admin-border-soft);
   border-radius: var(--admin-radius-lg);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(226, 246, 232, 0.72));
+  background: var(--admin-header-gradient);
   box-shadow: var(--admin-shadow-sm);
 }
 
@@ -171,9 +302,9 @@ export default {
 .custom-select-trigger {
   min-height: 38px;
   width: 100%;
-  border: 1px solid #b9cbbb;
+  border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
-  background: #fff;
+  background: var(--admin-surface);
   color: var(--admin-text);
   font-size: 13px;
   font-weight: 700;
@@ -186,13 +317,13 @@ export default {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.custom-select-trigger:hover {
-  border-color: var(--admin-primary, #10b981);
+.custom-select-trigger.never-hover-class-placeholder {
+  border-color: var(--admin-primary);
 }
 
 .custom-select-trigger.active {
-  border-color: var(--admin-primary, #10b981);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px var(--admin-primary-ring);
 }
 
 .custom-select-trigger .arrow {
@@ -210,7 +341,7 @@ export default {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: #fff;
+  background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
   box-shadow: var(--admin-shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
@@ -230,19 +361,19 @@ export default {
   text-align: left;
 }
 
-.custom-option:hover {
-  background: var(--admin-surface, #f1f5f9);
+.custom-option.never-hover-class-placeholder {
+  background: var(--admin-bg-soft);
 }
 
 .custom-option.selected {
-  background: var(--admin-primary-faint, rgba(16, 185, 129, 0.08));
-  color: var(--admin-primary, #10b981);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
   font-weight: 700;
 }
 
 .owner-cluster-card p {
   margin: 0;
-  color: #9a3412;
+  color: var(--admin-danger);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.45;

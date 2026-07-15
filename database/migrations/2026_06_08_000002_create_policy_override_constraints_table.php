@@ -14,8 +14,8 @@ return new class extends Migration
 
         Schema::create('policy_override_constraints', function (Blueprint $table): void {
             $table->id();
-            $table->char('system_policy_id', 36);
-            $table->char('policy_rule_id', 36)->nullable();
+            $table->unsignedBigInteger('system_policy_id');
+            $table->unsignedBigInteger('policy_rule_id')->nullable();
             $table->string('rule_code', 100);
             $table->string('constraint_key', 100);
             $table->string('constraint_name', 255);

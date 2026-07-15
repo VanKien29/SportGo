@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user_court_memberships', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('user_id', 36)->comment('User tich luy hang tai cum san.');
-            $table->char('venue_cluster_id', 36)->comment('Cum san ap dung hang thanh vien.');
+            $table->id();
+            $table->unsignedBigInteger('user_id')->comment('User tich luy hang tai cum san.');
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cum san ap dung hang thanh vien.');
             $table->enum('tier', ['standard', 'silver', 'gold', 'diamond'])->default('standard')
                 ->comment('Hang hien tai.');
             $table->unsignedInteger('total_bookings')->default(0)->comment('Tong booking da hoan thanh.');

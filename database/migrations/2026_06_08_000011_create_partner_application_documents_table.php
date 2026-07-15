@@ -14,15 +14,15 @@ return new class extends Migration
 
         Schema::create('partner_application_documents', function (Blueprint $table): void {
             $table->id();
-            $table->char('partner_application_id', 36);
-            $table->char('media_id', 36)->nullable();
+            $table->unsignedBigInteger('partner_application_id');
+            $table->unsignedBigInteger('media_id')->nullable();
             $table->string('document_type', 100);
             $table->string('document_group', 100);
             $table->string('title', 255);
             $table->text('description')->nullable();
             $table->string('file_path', 1000)->nullable();
             $table->enum('status', ['uploaded', 'verified', 'rejected'])->default('uploaded');
-            $table->char('reviewed_by', 36)->nullable();
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->timestamp('reviewed_at')->nullable();
             $table->text('reject_reason')->nullable();
             $table->unsignedInteger('sort_order')->default(0);

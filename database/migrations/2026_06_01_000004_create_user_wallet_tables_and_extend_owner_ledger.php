@@ -10,8 +10,8 @@ return new class extends Migration
     {
         if (! Schema::hasTable('user_wallets')) {
             Schema::create('user_wallets', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('user_id', 36)->unique()->comment('User sở hữu ví.');
+                $table->id();
+                $table->unsignedBigInteger('user_id')->unique()->comment('User sở hữu ví.');
                 $table->decimal('balance', 14, 2)->default(0.00)->comment('Số dư có thể sử dụng.');
                 $table->decimal('locked_balance', 14, 2)->default(0.00)->comment('Số dư đang bị giữ/chờ xử lý.');
                 $table->enum('status', ['active', 'locked', 'suspended'])->default('active')
@@ -26,8 +26,8 @@ return new class extends Migration
 
         if (! Schema::hasTable('user_wallet_ledgers')) {
             Schema::create('user_wallet_ledgers', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('user_wallet_id', 36)->comment('Ví user được ghi nhận biến động.');
+                $table->id();
+                $table->unsignedBigInteger('user_wallet_id')->comment('Ví user được ghi nhận biến động.');
                 $table->string('transaction_code', 50)->unique()->comment('Mã giao dịch ví nội bộ.');
                 $table->enum('type', ['deposit', 'payment', 'refund', 'withdrawal', 'adjustment'])
                     ->comment('Loại biến động ví user.');
@@ -40,7 +40,7 @@ return new class extends Migration
                 $table->enum('status', ['pending', 'completed', 'failed', 'cancelled'])->default('completed')
                     ->comment('Trạng thái giao dịch ví.');
                 $table->text('note')->nullable()->comment('Ghi chú nghiệp vụ.');
-                $table->char('created_by', 36)->nullable()->comment('User/admin tạo biến động; nullable nếu system.');
+                $table->unsignedBigInteger('created_by')->nullable()->comment('User/admin tạo biến động; nullable nếu system.');
                 $table->timestamps();
 
                 $table->index(['user_wallet_id', 'created_at'], 'user_wallet_ledgers_wallet_created_index');
@@ -55,8 +55,8 @@ return new class extends Migration
 
         if (! Schema::hasTable('user_payout_accounts')) {
             Schema::create('user_payout_accounts', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('user_id', 36)->comment('User sở hữu tài khoản nhận tiền.');
+                $table->id();
+                $table->unsignedBigInteger('user_id')->comment('User sở hữu tài khoản nhận tiền.');
                 $table->string('bank_name', 100)->comment('Tên ngân hàng.');
                 $table->string('bank_account_number', 50)->comment('Số tài khoản nhận tiền.');
                 $table->string('bank_account_holder', 150)->comment('Tên chủ tài khoản.');
@@ -75,16 +75,16 @@ return new class extends Migration
 
         if (! Schema::hasTable('user_withdrawal_requests')) {
             Schema::create('user_withdrawal_requests', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('user_wallet_id', 36)->comment('Ví user bị giữ/trừ tiền.');
-                $table->char('user_id', 36)->comment('User yêu cầu rút tiền.');
-                $table->char('payout_account_id', 36)->comment('Tài khoản nhận tiền user chọn.');
+                $table->id();
+                $table->unsignedBigInteger('user_wallet_id')->comment('Ví user bị giữ/trừ tiền.');
+                $table->unsignedBigInteger('user_id')->comment('User yêu cầu rút tiền.');
+                $table->unsignedBigInteger('payout_account_id')->comment('Tài khoản nhận tiền user chọn.');
                 $table->decimal('amount', 14, 2)->comment('Số tiền user yêu cầu rút.');
                 $table->enum('status', ['pending', 'approved', 'rejected', 'paid', 'cancelled'])->default('pending')
                     ->comment('Trạng thái yêu cầu rút tiền user.');
                 $table->text('rejected_reason')->nullable()->comment('Lý do từ chối.');
-                $table->char('approved_by', 36)->nullable()->comment('Admin duyệt yêu cầu.');
-                $table->char('paid_by', 36)->nullable()->comment('Admin xác nhận đã chi trả.');
+                $table->unsignedBigInteger('approved_by')->nullable()->comment('Admin duyệt yêu cầu.');
+                $table->unsignedBigInteger('paid_by')->nullable()->comment('Admin xác nhận đã chi trả.');
                 $table->timestamp('requested_at')->useCurrent()->comment('Thời điểm user gửi yêu cầu.');
                 $table->timestamp('approved_at')->nullable()->comment('Thời điểm duyệt.');
                 $table->timestamp('paid_at')->nullable()->comment('Thời điểm chi trả.');

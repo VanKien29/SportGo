@@ -3,72 +3,7 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
 
-        <section class="filter-panel">
-            <div class="filter-bar">
-                <label class="search-box">
-                    <AppIcon name="search" size="17" />
-                    <input
-                        v-model.trim="filters.keyword"
-                        placeholder="Tìm khách hàng, booking, cụm sân hoặc nội dung"
-                        @keyup.enter="loadComplaints"
-                    />
-                </label>
-                <select
-                    v-model="filters.complaint_type"
-                    @change="loadComplaints"
-                >
-                    <option value="">Tất cả loại</option>
-                    <option value="venue">Khiếu nại cụm sân</option>
-                    <option value="system">Khiếu nại hệ thống</option>
-                </select>
-                <select v-model="filters.status" @change="loadComplaints">
-                    <option value="">Tất cả trạng thái</option>
-                    <option
-                        v-for="item in statuses"
-                        :key="item.value"
-                        :value="item.value"
-                    >
-                        {{ item.label }}
-                    </option>
-                </select>
-                <select v-model="filters.assigned_to" @change="loadComplaints">
-                    <option value="">Tất cả người xử lý</option>
-                    <option value="unassigned">Chưa phân công</option>
-                    <option
-                        v-for="member in staff"
-                        :key="member.id"
-                        :value="member.id"
-                    >
-                        {{ member.full_name }}
-                    </option>
-                </select>
-                <input
-                    v-model="filters.date_from"
-                    type="date"
-                    aria-label="Từ ngày"
-                    @change="loadComplaints"
-                />
-                <input
-                    v-model="filters.date_to"
-                    type="date"
-                    aria-label="Đến ngày"
-                    :min="filters.date_from || undefined"
-                    @change="loadComplaints"
-                />
-                <ActionIconButton
-                    icon="filter"
-                    label="Lọc danh sách"
-                    variant="primary"
-                    @click="loadComplaints"
-                />
-                <ActionIconButton
-                    icon="refresh"
-                    label="Tải lại"
-                    :disabled="loading"
-                    @click="loadComplaints"
-                />
-            </div>
-        </section>
+
 
         <div v-if="loading" class="empty-state">
             Đang tải danh sách khiếu nại...
@@ -87,10 +22,7 @@
                         <strong>{{
                             complaint.customer?.full_name || "Khách hàng"
                         }}</strong>
-                        <span
-                            >{{ typeLabel(complaint.complaint_type) }} ·
-                            {{ shortId(complaint.id) }}</span
-                        >
+                        <span>{{ complaintLabel(complaint) }}</span>
                     </div>
                     <div class="badge-row">
                         <span class="badge">{{
@@ -149,11 +81,7 @@
                     <div>
                         <h3>Chi tiết khiếu nại</h3>
                         <p>
-                            {{
-                                selected
-                                    ? `${typeLabel(selected.complaint_type)} · ${shortId(selected.id)}`
-                                    : "Đang tải..."
-                            }}
+                            {{ selected ? complaintLabel(selected) : "Đang tải..." }}
                         </p>
                     </div>
                     <ActionIconButton
@@ -1007,8 +935,15 @@ export default {
                 currency: "VND",
             }).format(value || 0);
         },
-        shortId(value) {
-            return value ? `#${value.slice(0, 8)}` : "";
+        complaintLabel(complaint) {
+            if (!complaint) return "";
+            if (complaint.booking?.booking_code) {
+                return complaint.booking.booking_code;
+            }
+            if (complaint.venue_cluster?.name) {
+                return `${this.typeLabel(complaint.complaint_type)} · ${complaint.venue_cluster.name}`;
+            }
+            return this.typeLabel(complaint.complaint_type);
         },
         formatDate(value) {
             return value ? new Date(value).toLocaleDateString("vi-VN") : "-";
@@ -1028,7 +963,7 @@ export default {
 };
 </script>
 
-<style src="../../../css/admin/moderation.css" scoped></style>
+
 
 <style scoped>
 .floating-config-container {
@@ -1071,7 +1006,7 @@ export default {
     display: inline-block;
 }
 
-.floating-config-btn:hover {
+.floating-config-btn.never-hover-class-placeholder {
     width: 215px;
     justify-content: flex-start;
     padding-left: 14px;
@@ -1079,7 +1014,7 @@ export default {
     background-color: #f8fafc;
 }
 
-.floating-config-btn:hover .floating-config-text {
+.floating-config-btn.never-hover-class-placeholder .floating-config-text {
     max-width: 170px;
     opacity: 1;
     margin-left: 6px;

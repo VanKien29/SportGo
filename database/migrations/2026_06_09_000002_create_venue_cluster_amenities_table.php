@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('venue_cluster_amenities', function (Blueprint $table) {
             $table->id();
-            $table->char('venue_cluster_id', 36);
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->unsignedBigInteger('amenity_id');
             $table->text('description')->nullable();
             $table->boolean('is_visible')->default(true);

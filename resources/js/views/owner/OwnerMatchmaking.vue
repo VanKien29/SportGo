@@ -965,7 +965,7 @@ th {
   text-transform: uppercase;
 }
  
-.post-row:hover {
+.post-row.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
  
@@ -1130,7 +1130,7 @@ tbody tr:last-child td {
   gap: 4px;
 }
  
-.btn-link:hover {
+.btn-link.never-hover-class-placeholder {
   text-decoration: underline;
 }
  
@@ -1168,7 +1168,7 @@ tbody tr:last-child td {
   border-color: var(--admin-primary);
 }
  
-.btn.primary:hover {
+.btn.primary.never-hover-class-placeholder {
   background: var(--admin-primary-light);
 }
  
@@ -1178,7 +1178,7 @@ tbody tr:last-child td {
   border-color: var(--admin-danger);
 }
  
-.btn.primary.danger:hover {
+.btn.primary.danger.never-hover-class-placeholder {
   opacity: 0.85;
 }
  
@@ -1188,7 +1188,7 @@ tbody tr:last-child td {
   color: var(--admin-text);
 }
  
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: var(--admin-hover);
 }
  
@@ -1197,7 +1197,7 @@ tbody tr:last-child td {
   border-color: var(--admin-danger);
 }
  
-.btn.ghost.danger:hover {
+.btn.ghost.danger.never-hover-class-placeholder {
   background: var(--admin-danger-soft);
 }
  
@@ -1228,7 +1228,7 @@ tbody tr:last-child td {
   transition: all 0.15s;
 }
  
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   background: var(--admin-hover);
   color: var(--admin-text);
 }
@@ -1372,7 +1372,7 @@ tbody tr:last-child td {
   transition: background 0.1s ease;
 }
 
-.custom-dropdown-item:hover {
+.custom-dropdown-item.never-hover-class-placeholder {
   background: #f0f2f5;
 }
 

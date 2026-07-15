@@ -319,9 +319,10 @@ export default {
     width: 100%;
     max-width: 276px;
     padding: 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 12px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #0f172a);
     user-select: none;
 }
 
@@ -337,15 +338,15 @@ export default {
     place-items: center;
     width: 30px;
     height: 30px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 8px;
-    background: #fff;
-    color: #475569;
+    background: var(--admin-bg-soft, #fff);
+    color: var(--admin-muted, #475569);
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
-.mini-cal__nav:hover {
+.mini-cal__nav.never-hover-class-placeholder {
     border-color: #cbd5e1;
     background: #f1f5f9;
     color: #0f172a;
@@ -363,18 +364,18 @@ export default {
     transition: background 0.15s ease;
 }
 
-.mini-cal__title:hover {
+.mini-cal__title.never-hover-class-placeholder {
     background: #f1f5f9;
 }
 
 .mini-cal__month {
-    color: #0f172a;
+    color: var(--admin-text, #0f172a);
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 .mini-cal__year {
-    color: #64748b;
+    color: var(--admin-muted, #64748b);
     font-size: 13px;
     font-weight: 750;
 }
@@ -390,9 +391,9 @@ export default {
     display: grid;
     place-items: center;
     height: 24px;
-    color: #94a3b8;
+    color: var(--admin-faint, #94a3b8);
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 500;
     letter-spacing: 0.03em;
 }
 
@@ -412,25 +413,25 @@ export default {
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: #1e293b;
+    color: inherit;
     font: inherit;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.12s ease;
 }
 
-.mini-cal__day:hover:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
+.mini-cal__day.never-hover-class-placeholder:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
     background: #f1f5f9;
 }
 
 .mini-cal__day:disabled {
-    color: #cbd5e1;
+    color: var(--admin-faint, #cbd5e1);
     cursor: not-allowed;
 }
 
 .mini-cal__day.outside {
-    color: #cbd5e1;
+    color: var(--admin-faint, #cbd5e1);
 }
 
 .mini-cal__day.today .mini-cal__day-num {
@@ -446,16 +447,18 @@ export default {
     width: 14px;
     height: 2px;
     border-radius: 2px;
-    background: var(--admin-primary, #16a34a);
+    background: var(--admin-success, var(--admin-primary, #22a653));
 }
 
 .mini-cal__day.selected,
 .mini-cal__day.range-start,
 .mini-cal__day.range-end {
-    background: var(--admin-primary, #16a34a);
-    color: #fff;
-    font-weight: 900;
-    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+    background: transparent;
+    background-color: transparent;
+    color: inherit;
+    font-weight: 400;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+    border-radius: 8px;
 }
 
 .mini-cal__day.selected .mini-cal__day-num::after,

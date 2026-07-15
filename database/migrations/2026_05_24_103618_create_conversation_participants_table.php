@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('conversation_participants', function (Blueprint $table) {
             $table->id();
-            $table->char('conversation_id', 36);
-            $table->char('user_id', 36);
+            $table->unsignedBigInteger('conversation_id');
+            $table->unsignedBigInteger('user_id');
             $table->timestamp('last_read_at')->nullable();
             $table->timestamp('joined_at')->useCurrent();
 

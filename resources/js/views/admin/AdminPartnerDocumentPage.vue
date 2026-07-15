@@ -1,7 +1,7 @@
 <template>
   <div class="partner-document-page">
     <header class="page-head">
-      <button class="btn ghost" type="button" @click="router.push({ name: 'admin-partner-application-detail', params: { id: route.params.id } })">
+      <button class="btn ghost" type="button" @click="goBack">
         <AppIcon name="arrowLeft" size="16" />
         Quay lại hồ sơ
       </button>
@@ -166,6 +166,15 @@ const readonlyHint = computed(() => {
 onMounted(loadData);
 watch(() => [route.params.id, route.params.documentId, route.query.type], loadData);
 
+function goBack() {
+  if (route.query.from === 'venue-cluster' && route.query.clusterId) {
+    router.push({ name: 'admin-venue-cluster-detail', params: { id: route.query.clusterId } });
+    return;
+  }
+
+  router.push({ name: 'admin-partner-application-detail', params: { id: route.params.id } });
+}
+
 async function loadData() {
   loading.value = true;
   error.value = '';
@@ -299,8 +308,8 @@ async function submitSignature() {
 }
 
 function documentTypeLabel(type) {
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   return {
     partner_application_form: 'Đơn đăng ký đối tác',

@@ -61,22 +61,22 @@ export default {
     background: #fff;
     color: var(--admin-muted, #334155);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
     text-decoration: none;
 }
 
-.subnav-item:hover {
-    border-color: rgba(34, 166, 83, 0.35);
+.subnav-item.never-hover-class-placeholder {
+    border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent);
     background: var(--admin-primary-soft, #f0fdf4);
     color: var(--admin-primary-dark, #166534);
 }
 
 .subnav-active,
-.subnav-active:hover {
+.subnav-active.never-hover-class-placeholder {
     border-color: var(--admin-primary, #22a653);
     background: var(--admin-primary, #22a653);
     color: #fff;
-    box-shadow: 0 10px 22px rgba(34, 166, 83, 0.2);
+    box-shadow: 0 10px 22px color-mix(in srgb, var(--admin-primary, #22a653) 20%, transparent);
 }
 
 @media (max-width: 720px) {

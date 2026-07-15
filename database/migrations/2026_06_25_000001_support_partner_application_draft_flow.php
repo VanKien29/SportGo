@@ -26,18 +26,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (Schema::hasColumn('notifications', 'type')) {
-            DB::statement("ALTER TABLE notifications MODIFY type VARCHAR(50) NOT NULL COMMENT 'Loai thong bao.'");
-        }
-
-        if (Schema::hasColumn('partner_applications', 'submitted_at')) {
-            DB::statement("ALTER TABLE partner_applications MODIFY submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Thoi diem user gui ho so.'");
-        }
-
-        if (Schema::hasTable('partner_applications') && Schema::hasColumn('partner_applications', 'terminated_at')) {
-            Schema::table('partner_applications', function (Blueprint $table): void {
-                $table->dropColumn('terminated_at');
-            });
-        }
+        // These compatibility changes cannot be narrowed safely once draft
+        // applications and longer notification types have been stored.
     }
 };

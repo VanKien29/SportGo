@@ -67,7 +67,7 @@ export default {
   box-shadow: 0 0 0 3px rgba(47, 158, 68, .18);
 }
 
-.action-icon-button:hover:not(:disabled) {
+.action-icon-button.never-hover-class-placeholder:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08);
 }
@@ -84,7 +84,7 @@ export default {
   color: var(--admin-text);
 }
 
-.variant-secondary:hover:not(:disabled) {
+.variant-secondary.never-hover-class-placeholder:not(:disabled) {
   border-color: rgba(47, 158, 68, 0.3);
   background: var(--admin-hover);
   color: var(--admin-primary-dark);

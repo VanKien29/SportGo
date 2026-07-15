@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('media', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('mediable_type', 100)->comment('Loại đối tượng sở hữu file; polymorphic.');
             $table->string('mediable_id', 100)->comment('ID đối tượng sở hữu file.');
             $table->string('collection', 50)->default('default')->comment('Nhóm file theo nghiệp vụ.');

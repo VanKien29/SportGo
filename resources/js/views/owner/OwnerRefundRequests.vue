@@ -55,7 +55,7 @@
             <tr v-for="refund in refunds" :key="refund.id">
               <td data-label="Booking / Khách">
                 <button class="code-link" type="button" @click="openDetail(refund)">
-                  {{ refund.booking?.booking_code || shortId(refund.id) }}
+                  {{ refund.booking?.booking_code || refund.payment?.payment_code || statusLabel(refund.status) }}
                 </button>
                 <small>{{ customerName(refund) }} · {{ refund.customer?.phone || refund.customer?.email || '-' }}</small>
               </td>
@@ -248,8 +248,8 @@ export default {
       }[this.decision] || 'Xác nhận';
     },
   },
-  mounted() {
-    this.loadRefunds();
+  async mounted() {
+    await this.loadRefunds();
   },
   methods: {
     async loadRefunds(page = 1) {
@@ -264,6 +264,11 @@ export default {
         const response = await api(`/api/owner/refunds?${params.toString()}`);
         this.refunds = response.data || [];
         this.meta = response.meta || this.meta;
+        const focusId = String(this.$route.query.focus || '');
+        if (focusId) {
+          const focused = this.refunds.find((refund) => String(refund.id) === focusId);
+          if (focused) this.openDetail(focused);
+        }
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách yêu cầu.';
       } finally {
@@ -367,9 +372,6 @@ export default {
     formatTime(value) {
       return value ? String(value).slice(0, 5) : '--:--';
     },
-    shortId(value) {
-      return value ? String(value).slice(0, 8).toUpperCase() : '-';
-    },
   },
 };
 </script>
@@ -412,19 +414,19 @@ export default {
 .status-tabs button {
   min-height: 38px;
   padding: 0 14px;
-  border: 1px solid #d5e3d6;
+  border: 1px solid var(--admin-border);
   border-radius: 7px;
-  background: #fff;
-  color: #344238;
-  font-weight: 700;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .status-tabs button.active {
-  border-color: #2f9e44;
-  background: #2f9e44;
-  color: #fff;
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
 }
 
 .filters {

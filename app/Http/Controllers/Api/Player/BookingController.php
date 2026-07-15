@@ -132,17 +132,20 @@ class BookingController extends Controller
             'booking_date' => 'required|date_format:Y-m-d',
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'amount' => 'nullable|numeric|min:0',
         ]);
         $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
 
         $court = VenueCourt::findOrFail($validated['venue_court_id']);
-        $amount = $this->bookingService->calculateTotalPrice(
-            $court,
-            $validated['booking_date'],
-            $validated['start_time'],
-            $validated['end_time'],
-            'single',
-        );
+        $amount = isset($validated['amount'])
+            ? (float) $validated['amount']
+            : $this->bookingService->calculateTotalPrice(
+                $court,
+                $validated['booking_date'],
+                $validated['start_time'],
+                $validated['end_time'],
+                'single',
+            );
 
         $vouchers = $this->bookingService->eligibleVouchersForCounterBooking([
             ...$validated,
@@ -205,14 +208,21 @@ class BookingController extends Controller
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => 'required|in:full_payment,deposit,no_prepay',
-            'voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'voucher_id' => 'nullable|integer|exists:vouchers,id',
             'voucher_code' => 'nullable|string|max:50',
-            'venue_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'venue_voucher_id' => 'nullable|integer|exists:vouchers,id',
             'venue_voucher_code' => 'nullable|string|max:50',
-            'vip_voucher_id' => 'nullable|uuid|exists:vouchers,id',
+            'vip_voucher_id' => 'nullable|integer|exists:vouchers,id',
             'vip_voucher_code' => 'nullable|string|max:50',
+            'time_ranges' => 'nullable|array',
+            'time_ranges.*.venue_court_id' => 'required_with:time_ranges|exists:venue_courts,id',
+            'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
         ]);
         $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
+        foreach ($validated['time_ranges'] ?? [] as $range) {
+            $this->ensureValidTimeRange($range['start_time'], $range['end_time']);
+        }
 
         try {
             $booking = $this->bookingService->createBooking($validated, auth()->id());

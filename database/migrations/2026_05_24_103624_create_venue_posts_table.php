@@ -9,12 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_posts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36);
-            $table->char('author_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
+            $table->unsignedBigInteger('author_id');
             $table->longText('content');
             $table->enum('status', ['pending_review', 'published', 'rejected', 'hidden'])->default('pending_review');
-            $table->char('reviewed_by', 36)->nullable();
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->timestamp('reviewed_at')->nullable();
             $table->text('status_reason')->nullable();
             $table->unsignedBigInteger('view_count')->default(0);

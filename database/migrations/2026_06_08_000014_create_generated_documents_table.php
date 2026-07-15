@@ -13,31 +13,31 @@ return new class extends Migration
         }
 
         Schema::create('generated_documents', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('document_code', 50)->unique();
             $table->string('document_type', 100);
-            $table->char('template_id', 36);
+            $table->unsignedBigInteger('template_id');
             $table->unsignedInteger('template_version');
             $table->string('reference_type', 100)->nullable();
             $table->string('reference_id', 100)->nullable();
             $table->string('entity_type', 100)->nullable();
             $table->string('entity_id', 100)->nullable();
-            $table->char('partner_application_id', 36)->nullable();
-            $table->char('partner_contract_id', 36)->nullable();
-            $table->char('partner_termination_request_id', 36)->nullable();
-            $table->char('partner_settlement_id', 36)->nullable();
-            $table->char('owner_id', 36)->nullable();
-            $table->char('venue_cluster_id', 36)->nullable();
+            $table->unsignedBigInteger('partner_application_id')->nullable();
+            $table->unsignedBigInteger('partner_contract_id')->nullable();
+            $table->unsignedBigInteger('partner_termination_request_id')->nullable();
+            $table->unsignedBigInteger('partner_settlement_id')->nullable();
+            $table->unsignedBigInteger('owner_id')->nullable();
+            $table->unsignedBigInteger('venue_cluster_id')->nullable();
             $table->string('title', 255)->nullable();
             $table->enum('status', ['draft', 'generated', 'pending_owner_signature', 'pending_sportgo_signature', 'signed', 'completed', 'cancelled'])->default('generated');
             $table->json('render_data');
-            $table->char('generated_file_media_id', 36)->nullable();
-            $table->char('signed_file_media_id', 36)->nullable();
-            $table->char('final_file_media_id', 36)->nullable();
+            $table->unsignedBigInteger('generated_file_media_id')->nullable();
+            $table->unsignedBigInteger('signed_file_media_id')->nullable();
+            $table->unsignedBigInteger('final_file_media_id')->nullable();
             $table->string('generated_file_path', 1000)->nullable();
             $table->string('final_file_path', 1000)->nullable();
             $table->string('file_hash', 128)->nullable();
-            $table->char('generated_by', 36)->nullable();
+            $table->unsignedBigInteger('generated_by')->nullable();
             $table->timestamp('generated_at')->nullable();
             $table->timestamp('locked_at')->nullable();
             $table->timestamp('completed_at')->nullable();

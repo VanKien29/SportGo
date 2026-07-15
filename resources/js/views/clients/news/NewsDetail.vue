@@ -141,7 +141,7 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.breadcrumb a:hover {
+.breadcrumb a.never-hover-class-placeholder {
   text-decoration: underline;
 }
 

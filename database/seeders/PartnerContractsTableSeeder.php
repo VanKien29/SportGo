@@ -24,10 +24,7 @@ class PartnerContractsTableSeeder extends Seeder
             return;
         }
 
-        $this->seedContract('HD-SG-CG-001', 'SportGo Cầu Giấy', 'signed_active', 'DOC-HD-SG-CG-001', $owner, $admin, now()->subDays(9), now()->subDays(8), now()->subDays(8), null);
-        $this->seedContract('HD-SG-DD-001', 'SportGo Đống Đa', 'pending_owner_signature', 'DOC-HD-SG-DD-001', $owner, $admin, null, null, null, null);
-        $this->seedContract('HD-SG-BD-001', 'SportGo Ba Đình', 'pending_sportgo_signature', 'DOC-HD-SG-BD-001', $owner, $admin, now()->subDays(2), null, null, null);
-        $this->seedContract('HD-SG-CG-OLD', 'SportGo Cầu Giấy', 'terminated', 'DOC-HD-SG-CG-OLD', $owner, $admin, now()->subMonths(8)->addDay(), now()->subMonths(8)->addDays(2), now()->subMonths(8), now()->subDay());
+        $this->seedContract('CONTRACT_GREEN_0001', 'Green Sport Ba Đình', 'signed_active', 'DOC_CONTRACT_0001', $owner, $admin, now()->subDays(9), now()->subDays(8), now()->subDays(8), null);
     }
 
     private function seedContract(
@@ -45,11 +42,11 @@ class PartnerContractsTableSeeder extends Seeder
         $application = PartnerApplication::query()->where('venue_name', $venueName)->first();
         $document = GeneratedDocument::query()->where('document_code', $documentCode)->first();
 
-        if (! $application || ! $document) {
+        if (! $application) {
             return;
         }
 
-        PartnerContract::query()->updateOrCreate(
+        $contract = PartnerContract::query()->updateOrCreate(
             ['contract_code' => $contractCode],
             [
                 'partner_application_id' => $application->id,
@@ -57,7 +54,7 @@ class PartnerContractsTableSeeder extends Seeder
                 'venue_cluster_id' => $application->approved_venue_cluster_id,
                 'contract_title' => 'Hợp đồng hợp tác đối tác ' . $venueName,
                 'status' => $status,
-                'generated_document_id' => $document->id,
+                'generated_document_id' => $document?->id,
                 'generated_by' => $admin->id,
                 'approved_by' => $admin->id,
                 'owner_signed_at' => $ownerSignedAt,
@@ -74,5 +71,7 @@ class PartnerContractsTableSeeder extends Seeder
                 },
             ],
         );
+
+        $application->forceFill(['current_contract_id' => $contract->id])->save();
     }
 }

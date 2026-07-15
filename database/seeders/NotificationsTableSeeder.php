@@ -20,37 +20,42 @@ class NotificationsTableSeeder extends Seeder
         }
 
         $owner = User::query()->where('username', 'owner')->first();
-        $user = User::query()->where('username', 'user')->first();
+        $ownerSun = User::query()->where('username', 'owner_sun')->first();
+        $customer = User::query()->where('username', 'user')->first();
 
-        if (! $user) {
+        if (! $customer) {
             return;
         }
 
-        $this->notify(
-            $user->id,
-            'partner_application.reviewing',
-            'Hồ sơ chủ sân đang được xem xét',
-            'Hồ sơ SportGo Thanh Xuân đã được chuyển sang trạng thái đang xem xét.',
-            PartnerApplication::class,
-            PartnerApplication::query()->where('venue_name', 'SportGo Thanh Xuân')->value('id')
-        );
+        if ($ownerSun) {
+            $this->notify(
+                $ownerSun->id,
+                'partner_application.pending',
+                'Hồ sơ đối tác đang chờ duyệt',
+                'Hồ sơ Sun Sport Cầu Giấy đã được ghi nhận và đang chờ SportGo duyệt.',
+                PartnerApplication::class,
+                PartnerApplication::query()->where('venue_name', 'Sun Sport Cầu Giấy')->value('id'),
+            );
+        }
 
         $this->notify(
-            $user->id,
-            'refund.pending',
+            $customer->id,
+            'refund.pending_owner_confirmation',
             'Yêu cầu hoàn tiền đang chờ xác nhận',
-            'Yêu cầu hoàn tiền của bạn đang chờ admin xác nhận.',
+            'Yêu cầu hoàn tiền cho BOOKING_0003 đang chờ chủ sân xác nhận theo quy trình hiện tại.',
             Refund::class,
-            Refund::query()->value('id')
+            Refund::query()
+                ->whereHas('booking', fn ($query) => $query->where('booking_code', 'BOOKING_0003'))
+                ->value('id'),
         );
 
         $this->notify(
-            $user->id,
-            'complaint.processing',
-            'Khiếu nại đang được xử lý',
-            'Khiếu nại của bạn đã được nhân viên hệ thống tiếp nhận.',
+            $customer->id,
+            'complaint.open',
+            'Khiếu nại hệ thống đang chờ xử lý',
+            'SportGo đã ghi nhận khiếu nại của bạn và sẽ phản hồi sau khi kiểm tra.',
             Complaint::class,
-            Complaint::query()->where('status', 'processing')->value('id')
+            Complaint::query()->where('status', 'open')->value('id'),
         );
 
         if ($owner) {
@@ -58,9 +63,9 @@ class NotificationsTableSeeder extends Seeder
                 $owner->id,
                 'withdrawal.completed',
                 'Yêu cầu rút tiền đã hoàn tất',
-                'SportGo đã ghi nhận hoàn tất yêu cầu rút tiền WRADMCOMP1.',
+                'SportGo đã ghi nhận hoàn tất yêu cầu rút tiền WD_OWNER_0002.',
                 OwnerWithdrawalRequest::class,
-                OwnerWithdrawalRequest::query()->where('request_code', 'WRADMCOMP1')->value('id')
+                OwnerWithdrawalRequest::query()->where('request_code', 'WD_OWNER_0002')->value('id'),
             );
         }
     }
@@ -84,7 +89,7 @@ class NotificationsTableSeeder extends Seeder
                 'data' => ['source' => 'seed'],
                 'is_read' => false,
                 'read_at' => null,
-            ]
+            ],
         );
     }
 }

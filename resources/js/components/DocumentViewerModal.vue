@@ -2,17 +2,17 @@
   <div v-if="show" class="fixed inset-0 z-[600] flex items-center justify-center p-4 sm:p-6">
     <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm transition-opacity" @click="$emit('close')"></div>
 
-    <div class="relative w-full h-full max-h-[90vh] max-w-6xl flex flex-col md:flex-row overflow-hidden rounded-xl bg-[var(--admin-surface)] shadow-2xl transition-all">
+    <div class="document-modal-shell relative flex flex-col md:flex-row overflow-hidden rounded-lg bg-[var(--admin-surface)] shadow-2xl transition-all">
       <!-- Document Area -->
       <div class="flex-1 flex flex-col min-w-0 bg-gray-100 border-r border-[var(--admin-border)]">
         <div class="border-b border-[var(--admin-border)] px-4 py-3 bg-[var(--admin-surface)] flex justify-between items-center shrink-0">
           <h3 class="text-base font-semibold text-[var(--admin-text)] truncate pr-4">{{ document?.title || 'Xem trước văn bản' }}</h3>
           <div class="flex items-center gap-2">
-            <button v-if="document?.download_url" @click="downloadDocument" class="text-[var(--admin-muted)] hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md text-sm font-medium transition">
-              Tải xuống
+            <button v-if="document?.download_url" title="Tải văn bản" @click="downloadDocument" class="inline-flex items-center gap-1.5 text-[var(--admin-muted)] hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md text-sm font-medium transition">
+              <AppIcon name="download" size="16" /> <span>Tải xuống</span>
             </button>
-            <button @click="$emit('close')" class="text-[var(--admin-faint)] hover:text-gray-600 md:hidden">
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            <button title="Đóng" @click="$emit('close')" class="text-[var(--admin-faint)] hover:text-gray-600 md:hidden">
+              <AppIcon name="x" size="22" />
             </button>
           </div>
         </div>
@@ -31,7 +31,7 @@
             </button>
           </div>
           
-          <div v-show="fileType === 'docx'" ref="docxContainer" class="bg-[var(--admin-surface)] shadow-sm ring-1 ring-gray-900/5 min-h-[800px] w-full max-w-[800px] p-0" :class="{ 'opacity-0': loading }"></div>
+          <div v-show="fileType === 'docx'" ref="docxContainer" class="document-preview-docx bg-[var(--admin-surface)] shadow-sm ring-1 ring-gray-900/5 min-h-[800px] p-0" :class="{ 'opacity-0': loading }"></div>
           
           <iframe v-if="fileType === 'pdf'" :src="fileUrl" class="w-full min-h-[800px] border-0 rounded bg-[var(--admin-surface)] shadow-sm ring-1 ring-gray-900/5" :class="{ 'opacity-0': loading }"></iframe>
           
@@ -51,11 +51,11 @@
       </div>
       
       <!-- Info & Signatures Area -->
-      <div class="w-full md:w-80 bg-[var(--admin-surface)] flex flex-col shrink-0">
+      <div class="w-full md:w-80 md:border-l border-[var(--admin-border)] bg-[var(--admin-surface)] flex flex-col shrink-0">
         <div class="border-b border-[var(--admin-border)] px-5 py-4 flex justify-between items-center shrink-0">
           <h3 class="text-base font-semibold text-[var(--admin-text)]">Thông tin chữ ký</h3>
-          <button @click="$emit('close')" class="text-[var(--admin-faint)] hover:text-[var(--admin-muted)] hidden md:block">
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          <button title="Đóng" @click="$emit('close')" class="text-[var(--admin-faint)] hover:text-[var(--admin-muted)] hidden md:block">
+            <AppIcon name="x" size="22" />
           </button>
         </div>
         
@@ -96,7 +96,7 @@
           </div>
         </div>
         
-        <div v-if="$slots.actions" class="p-4 border-t border-[var(--admin-border)] bg-[var(--admin-surface-muted)] mt-auto shrink-0">
+        <div v-if="$slots.actions" class="max-h-[55vh] overflow-y-auto p-4 border-t border-[var(--admin-border)] bg-[var(--admin-surface-muted)] mt-auto shrink-0">
           <slot name="actions"></slot>
         </div>
       </div>
@@ -107,6 +107,7 @@
 <script setup>
 import { ref, watch, nextTick, onUnmounted } from 'vue';
 import { renderAsync } from 'docx-preview';
+import AppIcon from './AppIcon.vue';
 import { apiDownload, readToken } from '../services/api.js';
 
 const props = defineProps({
@@ -172,8 +173,8 @@ async function loadDocument() {
         await renderAsync(blob, docxContainer.value, null, {
           className: 'docx',
           inWrapper: true,
-          ignoreWidth: true,
-          ignoreHeight: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
           ignoreFonts: false,
           breakPages: true,
           ignoreLastRenderedPageBreak: true,
@@ -220,12 +221,32 @@ function formatDate(dateString) {
 
 <style>
 /* Custom overrides for docx-preview if needed */
+.document-modal-shell {
+  width: min(1500px, calc(100vw - 32px));
+  height: min(1000px, 92vh);
+}
 .docx-wrapper {
+  display: flex !important;
+  width: max-content !important;
+  min-width: 100% !important;
+  flex-direction: column !important;
+  align-items: center !important;
   background: transparent !important;
   padding: 0 !important;
 }
 .docx {
+  flex: none !important;
   box-shadow: none !important;
-  margin-bottom: 0 !important;
+  margin: 0 auto 16px !important;
+}
+.document-preview-docx {
+  width: max-content;
+  min-width: 100%;
+}
+@media (max-width: 640px) {
+  .document-modal-shell {
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+  }
 }
 </style>

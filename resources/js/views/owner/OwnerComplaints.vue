@@ -404,7 +404,7 @@ th.center, td.center {
   text-align: center;
 }
 
-.complaint-row:hover {
+.complaint-row.never-hover-class-placeholder {
   background: var(--admin-surface-muted);
 }
 

@@ -138,6 +138,21 @@
             </button>
           </div>
 
+          <!-- Font Size Section -->
+          <div class="settings-section-title">Cỡ chữ</div>
+          <div class="radius-selector-group">
+            <button
+              v-for="f in fontSizeOptions"
+              :key="f.value"
+              type="button"
+              class="radius-btn"
+              :class="{ active: selectedFontSize === f.value }"
+              @click="selectedFontSize = f.value"
+            >
+              {{ f.label }}
+            </button>
+          </div>
+
           <!-- Color Customizer Section -->
           <div class="settings-section-title">Chỉnh sửa bảng màu</div>
           
@@ -262,7 +277,7 @@
               <span class="preview-mode-tag">Giao diện Sáng</span>
               <div :style="previewCardStyle" class="preview-card-body">
                 <div class="preview-card-title">Tiêu đề Khối</div>
-                <p class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</p>
+                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
                 <div class="preview-btn-row">
                   <button type="button" :style="lightBtnPrimaryStyle" class="preview-btn">Primary</button>
                   <button type="button" :style="lightBtnDestructiveStyle" class="preview-btn">Danger</button>
@@ -275,7 +290,7 @@
               <span class="preview-mode-tag dark">Giao diện Tối</span>
               <div :style="previewCardStyle" class="preview-card-body">
                 <div class="preview-card-title">Tiêu đề Khối</div>
-                <p class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</p>
+                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
                 <div class="preview-btn-row">
                   <button type="button" :style="darkBtnPrimaryStyle" class="preview-btn">Primary</button>
                   <button type="button" :style="darkBtnDestructiveStyle" class="preview-btn">Danger</button>
@@ -302,33 +317,9 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import { applyCustomThemeStyles } from '../../utils/theme.js';
+import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 
 const PRESETS = [
-  {
-    id: 'emerald',
-    name: 'Emerald',
-    color: '#22a653',
-    light: {
-      primary: '#22a653',
-      secondary: '#2563eb',
-      accent: '#edf7ed',
-      muted: '#2f3d34',
-      destructive: '#dc2626',
-      border: '#cfded1',
-      card: '#ffffff',
-      background: '#eef6f0',
-    },
-    dark: {
-      primary: '#2ebc63',
-      secondary: '#3b82f6',
-      accent: '#263d2e',
-      muted: '#a6c0ae',
-      destructive: '#ef4444',
-      border: '#2c4736',
-      card: '#1a291f',
-      background: '#0d1510',
-    }
-  },
   {
     id: 'zinc',
     name: 'Zinc',
@@ -462,9 +453,9 @@ export default {
   data() {
     return {
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
-      successMessage: '',
-      selectedPresetId: 'emerald',
+      selectedPresetId: 'zinc',
       selectedRadius: '8px',
+      selectedFontSize: '14px',
       newThemeName: '',
       activeModeTab: 'light',
       activePickerColorKey: null,
@@ -476,6 +467,13 @@ export default {
         { label: '4px', value: '4px' },
         { label: '8px', value: '8px' },
         { label: '12px', value: '12px' },
+        { label: '16px', value: '16px' },
+      ],
+      fontSizeOptions: [
+        { label: '12px', value: '12px' },
+        { label: '13px', value: '13px' },
+        { label: '14px', value: '14px' },
+        { label: '15px', value: '15px' },
         { label: '16px', value: '16px' },
       ],
       defaultPresets: PRESETS,
@@ -553,9 +551,10 @@ export default {
       return { background: this.theme.dark.destructive, color: '#ffffff', borderRadius: `calc(${this.selectedRadius} - 4px)` };
     },
   },
-  created() {
+  async created() {
     this.loadUserPresets();
     this.loadSavedTheme();
+    await this.fetchUiSettingsFromDb();
   },
   beforeUnmount() {
     document.removeEventListener('click', this.closeCustomPicker);
@@ -744,6 +743,7 @@ export default {
           if (parsed.light) this.theme.light = { ...PRESETS[0].light, ...parsed.light };
           if (parsed.dark) this.theme.dark = { ...PRESETS[0].dark, ...parsed.dark };
           if (parsed.radius) this.selectedRadius = parsed.radius;
+          if (parsed.font_size) this.selectedFontSize = parsed.font_size;
           
           // Match preset if possible
           const matched = this.allPresets.find(p => 
@@ -767,29 +767,76 @@ export default {
       } else {
         this.theme.dark = { ...defaultPreset.dark };
       }
-      this.selectedPresetId = 'emerald';
+      this.selectedPresetId = 'zinc';
     },
     resetAll() {
       if (confirm('Bạn có chắc chắn muốn khôi phục tất cả cài đặt và độ bo góc về mặc định?')) {
         const defaultPreset = PRESETS[0];
         this.theme.light = { ...defaultPreset.light };
         this.theme.dark = { ...defaultPreset.dark };
-        this.selectedPresetId = 'emerald';
+        this.selectedPresetId = 'zinc';
         this.selectedRadius = '8px';
+        this.selectedFontSize = '14px';
       }
     },
-    saveTheme() {
+    async fetchUiSettingsFromDb() {
+      try {
+        const data = await adminUiSettingsService.getSettings();
+        if (data) {
+          this.sidebarStyle = data.sidebar_style || 'one-level';
+          this.selectedRadius = data.radius || '8px';
+          this.selectedFontSize = data.font_size || '14px';
+          
+          if (data.presets && data.presets.length > 0) {
+            this.defaultPresets = data.presets;
+          }
+          if (data.custom_themes) {
+            this.userPresets = data.custom_themes;
+          }
+
+          // Find and set active preset
+          const activePreset = this.allPresets.find(p => p.id === data.active_theme_id);
+          if (activePreset) {
+            this.selectedPresetId = activePreset.id;
+            this.theme.light = { ...activePreset.light };
+            this.theme.dark = { ...activePreset.dark };
+            this.newThemeName = activePreset.name;
+          } else {
+            this.selectedPresetId = data.active_theme_id || 'zinc';
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch UI settings from DB', e);
+      }
+    },
+    async saveTheme() {
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
-        radius: this.selectedRadius
+        radius: this.selectedRadius,
+        font_size: this.selectedFontSize
       };
       localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
       localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
+      localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
       applyCustomThemeStyles();
       
       // Dispatch style change event to let AdminShell re-render immediately
       window.dispatchEvent(new Event('sidebar-style-changed'));
+
+      try {
+        const payloadDb = {
+          active_theme_id: this.selectedPresetId,
+          sidebar_style: this.sidebarStyle,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize,
+          presets: this.defaultPresets,
+          custom_themes: this.userPresets,
+        };
+        await adminUiSettingsService.updateSettings(payloadDb);
+      } catch (e) {
+        console.error('Failed to save UI settings to DB', e);
+      }
       
       this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -833,7 +880,7 @@ export default {
 
 /* Titles and labels */
 .settings-section-title {
-  font-size: 13px;
+  font-size: var(--admin-font-size-md, 13px);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -867,7 +914,7 @@ export default {
   box-sizing: border-box;
 }
 
-.preset-card:hover {
+.preset-card.never-hover-class-placeholder {
   border-color: var(--admin-primary);
   transform: scale(1.04);
 }
@@ -918,7 +965,7 @@ export default {
   padding: 0;
 }
 
-.preset-card:hover .delete-preset-btn {
+.preset-card.never-hover-class-placeholder .delete-preset-btn {
   display: flex;
 }
 
@@ -947,7 +994,7 @@ export default {
   transition: all 120ms ease;
 }
 
-.radius-btn:hover {
+.radius-btn.never-hover-class-placeholder {
   background: var(--admin-hover);
   border-color: var(--admin-primary);
 }
@@ -987,7 +1034,7 @@ export default {
   user-select: none !important;
 }
 
-.toggle-tab-btn:hover {
+.toggle-tab-btn.never-hover-class-placeholder {
   color: var(--admin-text);
 }
 
@@ -1028,7 +1075,7 @@ export default {
   transition: all 120ms ease;
 }
 
-.figma-color-row:hover {
+.figma-color-row.never-hover-class-placeholder {
   opacity: 0.8;
 }
 
@@ -1080,7 +1127,7 @@ export default {
   min-height: auto !important;
 }
 
-.figma-hex-text-input:hover {
+.figma-hex-text-input.never-hover-class-placeholder {
   border-color: var(--admin-muted);
 }
 
@@ -1371,7 +1418,7 @@ export default {
 .preview-card-text {
   font-size: 11px;
   margin: 0;
-  color: var(--preview-muted);
+  color: var(--preview-muted) !important;
   line-height: 1.4;
 }
 

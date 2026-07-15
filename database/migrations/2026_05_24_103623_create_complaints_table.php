@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('complaints', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->enum('complaint_type', ['venue', 'system'])->comment('Loại khiếu nại: venue với sân hoặc system với hệ thống.');
-            $table->char('booking_id', 36)->nullable()->comment('Booking liên quan nếu khiếu nại phát sinh từ booking.');
-            $table->char('venue_cluster_id', 36)->nullable()->comment('Cụm sân liên quan nếu là khiếu nại với sân.');
-            $table->char('customer_id', 36)->comment('User gửi khiếu nại.');
+            $table->unsignedBigInteger('booking_id')->nullable()->comment('Booking liên quan nếu khiếu nại phát sinh từ booking.');
+            $table->unsignedBigInteger('venue_cluster_id')->nullable()->comment('Cụm sân liên quan nếu là khiếu nại với sân.');
+            $table->unsignedBigInteger('customer_id')->comment('User gửi khiếu nại.');
             $table->text('content')->comment('Nội dung khiếu nại.');
             $table->enum('status', ['open', 'processing', 'resolved', 'rejected', 'closed'])->default('open')->comment('Trạng thái khiếu nại.');
-            $table->char('assigned_to', 36)->nullable()->comment('Nhân viên/admin được gán xử lý khiếu nại.');
+            $table->unsignedBigInteger('assigned_to')->nullable()->comment('Nhân viên/admin được gán xử lý khiếu nại.');
             $table->text('resolution_note')->nullable()->comment('Ghi chú giải quyết khiếu nại.');
-            $table->char('resolved_by', 36)->nullable()->comment('Người xử lý xong khiếu nại.');
+            $table->unsignedBigInteger('resolved_by')->nullable()->comment('Người xử lý xong khiếu nại.');
             $table->timestamp('resolved_at')->nullable()->comment('Thời điểm xử lý xong.');
             $table->timestamps();
             $table->index('complaint_type', 'complaints_complaint_type_index');

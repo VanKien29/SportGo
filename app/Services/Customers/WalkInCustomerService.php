@@ -65,10 +65,7 @@ class WalkInCustomerService
             return $wallet;
         }
 
-        $walletId = (string) Str::uuid();
-
-        DB::table('user_wallets')->insert([
-            'id' => $walletId,
+        $walletId = DB::table('user_wallets')->insertGetId([
             'user_id' => $userId,
             'balance' => 0,
             'locked_balance' => 0,

@@ -563,5 +563,3 @@ export default {
     },
 };
 </script>
-
-<style src="../../../css/admin/dashboard.css" scoped></style>

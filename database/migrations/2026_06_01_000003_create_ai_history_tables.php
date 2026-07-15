@@ -10,8 +10,8 @@ return new class extends Migration
     {
         if (! Schema::hasTable('ai_conversations')) {
             Schema::create('ai_conversations', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('user_id', 36)->comment('User sở hữu lịch sử trò chuyện AI.');
+                $table->id();
+                $table->unsignedBigInteger('user_id')->comment('User sở hữu lịch sử trò chuyện AI.');
                 $table->string('title', 255)->nullable()->comment('Tiêu đề cuộc trò chuyện AI.');
                 $table->enum('status', ['active', 'archived', 'deleted'])->default('active')
                     ->comment('Trạng thái hiển thị lịch sử AI.');
@@ -27,8 +27,8 @@ return new class extends Migration
 
         if (! Schema::hasTable('ai_messages')) {
             Schema::create('ai_messages', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('ai_conversation_id', 36)->comment('Cuộc trò chuyện AI chứa message.');
+                $table->id();
+                $table->unsignedBigInteger('ai_conversation_id')->comment('Cuộc trò chuyện AI chứa message.');
                 $table->enum('role', ['user', 'assistant', 'system'])->comment('Vai trò message trong cuộc trò chuyện AI.');
                 $table->longText('content')->comment('Nội dung message.');
                 $table->json('metadata')->nullable()->comment('Dữ liệu phụ như token, model, context rút gọn.');
@@ -45,9 +45,9 @@ return new class extends Migration
 
         if (! Schema::hasTable('ai_feedbacks')) {
             Schema::create('ai_feedbacks', function (Blueprint $table) {
-                $table->char('id', 36)->primary();
-                $table->char('ai_message_id', 36)->comment('Message assistant được đánh giá.');
-                $table->char('user_id', 36)->comment('User gửi feedback.');
+                $table->id();
+                $table->unsignedBigInteger('ai_message_id')->comment('Message assistant được đánh giá.');
+                $table->unsignedBigInteger('user_id')->comment('User gửi feedback.');
                 $table->tinyInteger('rating')->nullable()->comment('Điểm đánh giá, ví dụ 1-5.');
                 $table->text('comment')->nullable()->comment('Góp ý của user.');
                 $table->timestamps();

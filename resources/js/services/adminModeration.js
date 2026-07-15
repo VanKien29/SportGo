@@ -47,6 +47,13 @@ export const adminModerationService = {
     });
   },
 
+  notifyAuthor(type, id, message) {
+    return api(`/api/admin/moderation/posts/${type}/${id}/notify-author`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  },
+
   deletePost(type, id, reason = '') {
     return api(`/api/admin/moderation/posts/${type}/${id}`, {
       method: 'DELETE',

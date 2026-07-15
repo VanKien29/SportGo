@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('complaint_replies', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('complaint_id')->constrained('complaints')->cascadeOnDelete();
-            $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
+            $table->id();
+            $table->foreignId('complaint_id')->constrained('complaints')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->text('content');
             $table->timestamps();
         });

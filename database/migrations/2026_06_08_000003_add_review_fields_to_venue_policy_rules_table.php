@@ -19,13 +19,13 @@ return new class extends Migration
 
         Schema::table('venue_policy_rules', function (Blueprint $table): void {
             if (! Schema::hasColumn('venue_policy_rules', 'submitted_by')) {
-                $table->char('submitted_by', 36)->nullable()->after('created_by');
+                $table->unsignedBigInteger('submitted_by')->nullable()->after('created_by');
             }
             if (! Schema::hasColumn('venue_policy_rules', 'submitted_at')) {
                 $table->timestamp('submitted_at')->nullable()->after('submitted_by');
             }
             if (! Schema::hasColumn('venue_policy_rules', 'reviewed_by')) {
-                $table->char('reviewed_by', 36)->nullable()->after('submitted_at');
+                $table->unsignedBigInteger('reviewed_by')->nullable()->after('submitted_at');
             }
             if (! Schema::hasColumn('venue_policy_rules', 'reviewed_at')) {
                 $table->timestamp('reviewed_at')->nullable()->after('reviewed_by');

@@ -2,17 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SlotLock extends Model
 {
-    use HasFactory, HasUuids;
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
+    use HasFactory;
 
     public const UPDATED_AT = null;
 
@@ -99,7 +94,7 @@ class SlotLock extends Model
 
     public function venueCourt()
     {
-        return $this->belongsTo(VenueCourt::class, 'venue_court_id');
+        return $this->belongsTo(VenueCourt::class, 'venue_court_id')->withTrashed();
     }
 
     public function venueCluster()

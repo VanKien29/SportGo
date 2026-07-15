@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('partner_applications', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('user_id', 36)->comment('User gửi hồ sơ đăng ký làm chủ sân.');
+            $table->id();
+            $table->unsignedBigInteger('user_id')->comment('User gửi hồ sơ đăng ký làm chủ sân.');
             $table->string('business_name', 255)->comment('Tên đơn vị/cá nhân kinh doanh sân.');
             $table->string('tax_code', 50)->nullable()->comment('Mã số thuế nếu có.');
             $table->string('venue_name', 255)->comment('Tên cụm sân dự kiến tạo khi duyệt hồ sơ.');
@@ -19,9 +19,9 @@ return new class extends Migration
             $table->decimal('venue_latitude', 10, 7)->comment('Vĩ độ cụm sân.');
             $table->decimal('venue_longitude', 10, 7)->comment('Kinh độ cụm sân.');
             $table->enum('status', ['pending', 'reviewing', 'approved', 'rejected', 'cancelled'])->default('pending')->comment('Trạng thái hồ sơ.');
-            $table->char('reviewed_by', 36)->nullable()->comment('Admin/nhân viên duyệt hồ sơ.');
+            $table->unsignedBigInteger('reviewed_by')->nullable()->comment('Admin/nhân viên duyệt hồ sơ.');
             $table->text('status_reason')->nullable()->comment('Lý do từ chối/hủy.');
-            $table->char('approved_venue_cluster_id', 36)->nullable()->comment('ID cụm sân được tạo sau khi duyệt; logical.');
+            $table->unsignedBigInteger('approved_venue_cluster_id')->nullable()->comment('ID cụm sân được tạo sau khi duyệt; logical.');
             $table->timestamp('submitted_at')->useCurrent()->comment('Thời điểm user gửi hồ sơ.');
             $table->timestamp('reviewed_at')->nullable()->comment('Thời điểm admin xử lý hồ sơ.');
             $table->timestamps();

@@ -20,8 +20,8 @@ return new class extends Migration
                 'inactive',
                 'cancelled',
             ]);
-            $table->char('created_by', 36)->nullable();
-            $table->char('reviewed_by', 36)->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->timestamp('reviewed_at')->nullable();
             $table->text('status_reason')->nullable();
             $table->timestamps();

@@ -104,7 +104,7 @@ export default {
   user-select: none;
 }
 
-.filter-button:hover:not(:disabled) {
+.filter-button.never-hover-class-placeholder:not(:disabled) {
   border-color: rgba(47, 158, 68, 0.32);
   background-color: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
@@ -128,7 +128,7 @@ export default {
   color: var(--admin-primary-dark);
 }
 
-.filter-button.is-active:hover:not(:disabled) {
+.filter-button.is-active.never-hover-class-placeholder:not(:disabled) {
   background-color: color-mix(in srgb, var(--admin-primary-soft) 85%, var(--admin-primary));
 }
 
@@ -169,7 +169,7 @@ export default {
   position: relative;
 }
 
-.filter-button.is-floating:hover:not(:disabled) {
+.filter-button.is-floating.never-hover-class-placeholder:not(:disabled) {
   max-width: 300px;
   padding-left: 14px;
   padding-right: 16px;
@@ -189,7 +189,7 @@ export default {
   white-space: nowrap;
 }
 
-.filter-button.is-floating:hover:not(:disabled) .filter-label {
+.filter-button.is-floating.never-hover-class-placeholder:not(:disabled) .filter-label {
   max-width: 240px;
   opacity: 1;
   margin-left: 6px;
@@ -214,7 +214,7 @@ export default {
   white-space: nowrap;
 }
 
-.filter-button:hover:not(:disabled) .filter-icon {
+.filter-button.never-hover-class-placeholder:not(:disabled) .filter-icon {
   transform: rotate(5deg) scale(1.05);
 }
 
@@ -232,14 +232,14 @@ export default {
     gap: 0;
   }
 
-  .filter-button.is-floating:hover:not(:disabled) {
+  .filter-button.is-floating.never-hover-class-placeholder:not(:disabled) {
     max-width: 220px;
     padding-left: 12px;
     padding-right: 14px;
     gap: 8px;
   }
 
-  .filter-button.is-floating:hover:not(:disabled) .filter-label {
+  .filter-button.is-floating.never-hover-class-placeholder:not(:disabled) .filter-label {
     max-width: 160px;
   }
 }

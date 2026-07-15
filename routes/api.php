@@ -1,19 +1,23 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminUiSettingsController;
 use App\Http\Controllers\Api\Admin\Auth\AdminAuthController;
 use App\Http\Controllers\Api\Admin\Auth\AdminForgotPasswordController;
 use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\FinanceOperationController as AdminFinanceOperationController;
 use App\Http\Controllers\Api\Admin\SystemWalletController as AdminSystemWalletController;
+use App\Http\Controllers\Api\Admin\SystemSettingController as AdminSystemSettingController;
 use App\Http\Controllers\Api\Admin\PlatformFeeLedgerController as AdminPlatformFeeLedgerController;
 use App\Http\Controllers\Api\Admin\PlatformFeeTierController as AdminPlatformFeeTierController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
+use App\Http\Controllers\Api\Admin\PartnerTerminationRequestController as AdminPartnerTerminationRequestController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\Admin\VoucherController as AdminVoucherController;
 use App\Http\Controllers\Api\Admin\MembershipPackageController as AdminMembershipPackageController;
+use App\Http\Controllers\Api\Admin\AdminServiceCategoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
@@ -22,6 +26,7 @@ use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingMa
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
 use App\Http\Controllers\Api\Owner\PartnerContractController as OwnerPartnerContractController;
+use App\Http\Controllers\Api\Owner\PartnerTerminationController as OwnerPartnerTerminationController;
 use App\Http\Controllers\Api\Owner\BookingConfigController as OwnerBookingConfigController;
 use App\Http\Controllers\Api\Payment\SepayPaymentController;
 use App\Http\Controllers\Api\Common\PolicyAcceptanceController;
@@ -29,10 +34,13 @@ use App\Http\Controllers\Api\Owner\PricingController as OwnerPricingController;
 use App\Http\Controllers\Api\Owner\PlatformFeeController as OwnerPlatformFeeController;
 use App\Http\Controllers\Api\Owner\ScheduleLockController as OwnerScheduleLockController;
 use App\Http\Controllers\Api\Owner\StaffController as OwnerStaffController;
+use App\Http\Controllers\Api\Owner\StaffShiftController;
+use App\Http\Controllers\Api\Owner\StaffDashboardController;
 use App\Http\Controllers\Api\Owner\VenuePolicyController as OwnerVenuePolicyController;
 use App\Http\Controllers\Api\Owner\VoucherController as OwnerVoucherController;
 use App\Http\Controllers\Api\Owner\FinanceController as OwnerFinanceController;
 use App\Http\Controllers\Api\Owner\RefundController as OwnerRefundController;
+use App\Http\Controllers\Api\Owner\UiSettingsController as OwnerUiSettingsController;
 use App\Http\Controllers\Api\Partner\PartnerApplicationDocumentDownloadController;
 use App\Http\Controllers\Api\Partner\PartnerDocumentDownloadController;
 use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApplicationController;
@@ -44,11 +52,14 @@ use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
 use App\Http\Controllers\Api\Admin\SystemPostController as AdminSystemPostController;
 use App\Http\Controllers\Api\Owner\VenuePostController as OwnerVenuePostController;
+use App\Http\Controllers\Api\Owner\OwnerVenueServiceController;
 use App\Http\Controllers\Api\Player\VenuePostController as PlayerVenuePostController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
+use App\Http\Controllers\Api\Public\SystemProfileController;
+use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
 // Broadcasting auth endpoint — must use Sanctum so Bearer token is accepted
@@ -57,6 +68,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 })->middleware('auth:sanctum');
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
+Route::get('/system-profile', [SystemProfileController::class, 'show']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
@@ -77,6 +89,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset']);
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
+    Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -101,6 +114,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::get('/pending-counts', [\App\Http\Controllers\Api\Admin\AdminPendingCountsController::class, 'index']);
+        Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'admin']);
+        Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::get('/users/auto-lock-config', [\App\Http\Controllers\Api\Admin\UserController::class, 'autoLockConfig']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
@@ -157,6 +173,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::get('/platform-fee-settings', [AdminPlatformFeeTierController::class, 'settings']);
         Route::put('/platform-fee-settings', [AdminPlatformFeeTierController::class, 'updateSettings']);
 
+        Route::get('/ui-settings', [AdminUiSettingsController::class, 'getSettings']);
+        Route::post('/ui-settings', [AdminUiSettingsController::class, 'updateSettings']);
+
         Route::get('/partner-applications', [AdminPartnerApplicationController::class, 'index']);
         Route::get('/partner-applications/documents/{documentId}/download', PartnerApplicationDocumentDownloadController::class);
         Route::get('/partner-applications/{id}', [AdminPartnerApplicationController::class, 'show']);
@@ -178,6 +197,20 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/partner-profiles/{id}/sign-document', [AdminPartnerApplicationController::class, 'signDocument']);
         Route::post('/partner-profiles/{id}/terminate', [AdminPartnerApplicationController::class, 'terminate']);
         Route::post('/partner-profiles/{id}/confirm-termination', [AdminPartnerApplicationController::class, 'confirmTermination']);
+
+        Route::get('/partner-termination-requests', [AdminPartnerTerminationRequestController::class, 'index']);
+        Route::get('/partner-termination-requests/settings', [AdminPartnerTerminationRequestController::class, 'settings']);
+        Route::put('/termination-settings', [AdminPartnerTerminationRequestController::class, 'updateSettings']);
+        Route::get('/partner-termination-requests/{id}', [AdminPartnerTerminationRequestController::class, 'show']);
+        Route::post('/partner-termination-requests/{id}/mark-ready-final-document', [AdminPartnerTerminationRequestController::class, 'markReadyFinalDocument']);
+        Route::post('/partner-termination-requests/{id}/final-document/preview', [AdminPartnerTerminationRequestController::class, 'previewFinalDocument']);
+        Route::post('/partner-termination-requests/{id}/final-document/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'finalDocumentSignSendOtp']);
+        Route::post('/partner-termination-requests/{id}/final-document/sign', [AdminPartnerTerminationRequestController::class, 'finalDocumentSign']);
+        Route::post('/partner-termination-requests/{id}/manual-resolve-booking', [AdminPartnerTerminationRequestController::class, 'manualResolveBooking']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/sign/send-otp', [AdminPartnerTerminationRequestController::class, 'unilateralNoticeSignSendOtp']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/sign', [AdminPartnerTerminationRequestController::class, 'unilateralNoticeSign']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/withdraw', [AdminPartnerTerminationRequestController::class, 'withdrawUnilateralNotice']);
+        Route::post('/partner-termination-requests/{id}/unilateral-notice/reconsideration/resolve', [AdminPartnerTerminationRequestController::class, 'resolveUnilateralReconsideration']);
 
         // Partner Contracts
         Route::post('/contracts/{id}/send-email', [AdminPartnerContractController::class, 'sendEmail']);
@@ -214,6 +247,9 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
 
         Route::patch('/amenities/{id}/review', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'review']);
         Route::apiResource('amenities', \App\Http\Controllers\Api\Admin\AmenityController::class);
+
+        Route::patch('/service-categories/{id}/toggle-status', [AdminServiceCategoryController::class, 'toggleStatus']);
+        Route::apiResource('service-categories', AdminServiceCategoryController::class);
 
         Route::get('/permissions', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'permissions']);
         Route::get('/roles/matrix', [\App\Http\Controllers\Api\Admin\AdminRoleController::class, 'matrix']);
@@ -273,6 +309,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/moderation/posts/{type}/{id}/approve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'approvePost']);
         Route::post('/moderation/posts/{type}/{id}/reject', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'rejectPost']);
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
+        Route::post('/moderation/posts/{type}/{id}/notify-author', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'notifyAuthor']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
 
@@ -305,6 +342,9 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
+        Route::get('/staff-dashboard/overview', [StaffDashboardController::class, 'overview']);
+        Route::get('/ui-settings', [OwnerUiSettingsController::class, 'getSettings']);
+        Route::post('/ui-settings', [OwnerUiSettingsController::class, 'updateSettings']);
         Route::get('/booking-configs', [OwnerBookingConfigController::class, 'index']);
         Route::put('/booking-configs/{venueClusterId}', [OwnerBookingConfigController::class, 'update']);
 
@@ -323,6 +363,21 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/contracts/{id}/sign', [OwnerPartnerContractController::class, 'sign']);
         Route::post('/contracts/{id}/request-termination', [OwnerPartnerContractController::class, 'requestTermination']);
 
+        Route::get('/venue-clusters/{id}/termination/eligibility', [OwnerPartnerTerminationController::class, 'eligibility']);
+        Route::post('/venue-clusters/{id}/termination/preview', [OwnerPartnerTerminationController::class, 'preview']);
+        Route::post('/venue-clusters/{id}/termination/send-otp', [OwnerPartnerTerminationController::class, 'sendOtp']);
+        Route::post('/venue-clusters/{id}/termination/submit', [OwnerPartnerTerminationController::class, 'submit']);
+        Route::get('/termination-requests/{id}', [OwnerPartnerTerminationController::class, 'show']);
+        Route::get('/termination-requests/{id}/future-bookings', [OwnerPartnerTerminationController::class, 'futureBookings']);
+        Route::post('/termination-requests/{id}/future-bookings/bulk-action', [OwnerPartnerTerminationController::class, 'bulkAction']);
+        Route::post('/termination-requests/{id}/withdrawals', [OwnerPartnerTerminationController::class, 'storeWithdrawal']);
+        Route::post('/termination-requests/{id}/cancel/send-otp', [OwnerPartnerTerminationController::class, 'cancelSendOtp']);
+        Route::post('/termination-requests/{id}/cancel', [OwnerPartnerTerminationController::class, 'cancel']);
+        Route::post('/termination-requests/{id}/final-document/sign/send-otp', [OwnerPartnerTerminationController::class, 'finalDocumentSignSendOtp']);
+        Route::post('/termination-requests/{id}/final-document/sign', [OwnerPartnerTerminationController::class, 'finalDocumentSign']);
+        Route::post('/termination-requests/{id}/unilateral-notice/acknowledge', [OwnerPartnerTerminationController::class, 'acknowledgeUnilateralNotice']);
+        Route::post('/termination-requests/{id}/unilateral-notice/reconsideration', [OwnerPartnerTerminationController::class, 'requestUnilateralReconsideration']);
+
         // Venue Clusters & Venue Courts
         Route::apiResource('venue-clusters', \App\Http\Controllers\Api\Owner\VenueClusterController::class)->only(['index', 'show', 'update']);
         Route::post('/venue-clusters/{id}/media', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'uploadMedia']);
@@ -333,6 +388,20 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/staff', [OwnerStaffController::class, 'store']);
         Route::put('/staff/{id}', [OwnerStaffController::class, 'update']);
         Route::patch('/staff/{id}/deactivate', [OwnerStaffController::class, 'deactivate']);
+
+        // Staff Shifts & Schedules
+        Route::get('/staff-shifts', [StaffShiftController::class, 'listShifts']);
+        Route::post('/staff-shifts', [StaffShiftController::class, 'storeShift']);
+        Route::put('/staff-shifts/{id}', [StaffShiftController::class, 'updateShift']);
+        Route::delete('/staff-shifts/{id}', [StaffShiftController::class, 'destroyShift']);
+        Route::get('/staff-shifts/schedules', [StaffShiftController::class, 'listSchedules']);
+        Route::post('/staff-shifts/schedules', [StaffShiftController::class, 'storeSchedules']);
+        Route::put('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'updateSchedule']);
+        Route::delete('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'destroySchedule']);
+        Route::get('/staff-shifts/attendance-report', [StaffShiftController::class, 'attendanceReport']);
+        Route::get('/staff-shifts/my-schedules', [StaffShiftController::class, 'mySchedules']);
+        Route::post('/staff-shifts/schedules/{id}/check-in', [StaffShiftController::class, 'checkIn']);
+        Route::post('/staff-shifts/schedules/{id}/check-out', [StaffShiftController::class, 'checkOut']);
         Route::get('/vouchers', [OwnerVoucherController::class, 'index']);
         Route::get('/vouchers/{id}', [OwnerVoucherController::class, 'show']);
         Route::post('/vouchers', [OwnerVoucherController::class, 'store']);
@@ -436,11 +505,20 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::post('/affiliate-products/{id}', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'update']);
         Route::delete('/affiliate-products/{id}', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'destroy']);
         Route::patch('/affiliate-products/{id}/toggle-status', [\App\Http\Controllers\Api\Owner\OwnerAffiliateProductController::class, 'toggleStatus']);
+
+        // Dịch vụ & Sản phẩm tại sân (On-site Services & Products)
+        Route::get('/venue-clusters/{clusterId}/services', [OwnerVenueServiceController::class, 'index']);
+        Route::post('/venue-clusters/{clusterId}/services', [OwnerVenueServiceController::class, 'store']);
+        Route::put('/venue-services/{id}', [OwnerVenueServiceController::class, 'update']);
+        Route::delete('/venue-services/{id}', [OwnerVenueServiceController::class, 'destroy']);
+        Route::patch('/venue-services/{id}/toggle-status', [OwnerVenueServiceController::class, 'toggleStatus']);
     });
 
 Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
     ->prefix('owner')
     ->group(function (): void {
+        Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);
+        Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
         Route::get('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'index']);
         Route::post('/venue-clusters/{clusterId}/unlock-requests', [VenueUnlockRequestController::class, 'store']);
         Route::patch('/venue-clusters/{clusterId}/unlock-requests/{requestId}/cancel', [VenueUnlockRequestController::class, 'cancel']);
@@ -448,8 +526,12 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
 
 Route::middleware('auth:sanctum')
     ->group(function (): void {
+        Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+        Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+        Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
-        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereUuid('id');
+        Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereNumber('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
         Route::get('/user/partner-application/provinces/{provinceCode}/wards', [UserPartnerApplicationController::class, 'wards']);
@@ -479,6 +561,7 @@ Route::middleware('auth:sanctum')
         Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
         Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
+        Route::get('/service-categories', [AdminServiceCategoryController::class, 'index']);
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
         Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
@@ -489,6 +572,12 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+
+        // Player/Client Venue Posts (Community Posts)
+        Route::post('/venue-posts', [PlayerVenuePostController::class, 'store']);
+        Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
+        Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);
+
         Route::get('/vip-membership', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'index']);
         Route::post('/vip-membership/subscribe', [\App\Http\Controllers\Api\Player\VipMembershipController::class, 'subscribe']);
 
@@ -496,13 +585,25 @@ Route::middleware('auth:sanctum')
         Route::post('/venue-posts/{id}/comments', [PlayerVenuePostController::class, 'comment']);
         Route::post('/venue-posts/{id}/likes', [PlayerVenuePostController::class, 'toggleLike']);
         Route::post('/partner-applications', [\App\Http\Controllers\Api\Player\PartnerApplicationController::class, 'store']);
+        
+        // Reports
+        Route::post('/reports', [PublicReportController::class, 'store']);
 
         // Chat routes
-        Route::prefix('chat')->group(function (): void {
+        Route::prefix('chat')
+            ->middleware('throttle:60,1')
+            ->group(function (): void {
             Route::get('/conversations', [ChatController::class, 'getConversations']);
             Route::post('/conversations', [ChatController::class, 'startConversation']);
             Route::get('/conversations/{id}/messages', [ChatController::class, 'getMessages']);
             Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
+            Route::post('/messages/{id}/react', [ChatController::class, 'reactToMessage']);
+            Route::post('/messages/{id}/pin', [ChatController::class, 'togglePinMessage']);
+            Route::get('/conversations/{id}/bookings', [ChatController::class, 'getEligibleBookings']);
+            Route::get('/conversations/{id}/related-bookings', [ChatController::class, 'getRelatedBookings']);
+            Route::post('/conversations/{id}/support-requests', [ChatController::class, 'createBookingSupportRequest']);
+            Route::patch('/support-requests/{id}', [ChatController::class, 'updateBookingSupportRequest']);
+            Route::post('/conversations/{id}/bookings', [ChatController::class, 'sendBooking']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
             Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);

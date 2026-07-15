@@ -19,11 +19,11 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('system_policies', 'published_by')) {
-                    $table->char('published_by', 36)->nullable()->after('published_at');
+                    $table->unsignedBigInteger('published_by')->nullable()->after('published_at');
                 }
 
                 if (! Schema::hasColumn('system_policies', 'replaced_policy_id')) {
-                    $table->char('replaced_policy_id', 36)->nullable()->after('published_by');
+                    $table->unsignedBigInteger('replaced_policy_id')->nullable()->after('published_by');
                 }
 
                 if (! Schema::hasColumn('system_policies', 'require_reaccept')) {
@@ -73,11 +73,11 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('policy_rules', 'created_by')) {
-                    $table->char('created_by', 36)->nullable()->after('is_active');
+                    $table->unsignedBigInteger('created_by')->nullable()->after('is_active');
                 }
 
                 if (! Schema::hasColumn('policy_rules', 'updated_by')) {
-                    $table->char('updated_by', 36)->nullable()->after('created_by');
+                    $table->unsignedBigInteger('updated_by')->nullable()->after('created_by');
                 }
             });
 
@@ -102,7 +102,7 @@ return new class extends Migration
         if (Schema::hasTable('venue_policy_rules')) {
             Schema::table('venue_policy_rules', function (Blueprint $table) {
                 if (! Schema::hasColumn('venue_policy_rules', 'updated_by')) {
-                    $table->char('updated_by', 36)->nullable()->after('created_by');
+                    $table->unsignedBigInteger('updated_by')->nullable()->after('created_by');
                 }
             });
 
