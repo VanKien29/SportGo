@@ -62,6 +62,10 @@ class UpdateVenuePostRequest extends FormRequest
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
             'thumbnail' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'gallery' => ['nullable', 'array'],
+            'gallery.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'removed_gallery_media_ids' => ['nullable', 'array'],
+            'removed_gallery_media_ids.*' => ['uuid'],
             'post_type' => ['sometimes', 'string', 'in:promotion,tournament,news,notice,recruitment'],
             'is_draft' => ['nullable', 'boolean']
         ];

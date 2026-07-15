@@ -69,7 +69,9 @@ class StoreVenuePostRequest extends FormRequest
             'meta_description' => ['nullable', 'string', 'max:500', 'regex:/^[^\<\>]+$/u'],
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
-            'thumbnail' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'thumbnail' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'gallery' => ['nullable', 'array', 'max:10'],
+            'gallery.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'post_type' => ['required', 'string', 'in:promotion,tournament,news,notice,recruitment'],
             'is_draft' => ['nullable', 'boolean']
         ];

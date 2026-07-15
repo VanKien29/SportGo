@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -92,6 +93,8 @@ class VenuePostService
                     'file_size' => filesize(storage_path('app/public/' . $path)),
                 ]);
             }
+
+            $this->storeGalleryFiles($post, $data['gallery'] ?? []);
 
             $this->logAction($user->id, 'venue_post.created', $post, null, $post->toArray(), 'Tạo bài viết mới');
 
@@ -179,6 +182,8 @@ class VenuePostService
                 ]);
             }
 
+            $this->syncGallery($post, $data);
+
             $this->logAction($user->id, 'venue_post.updated', $post, $oldValues, $post->toArray(), 'Cập nhật bài viết');
 
             return $post;
@@ -221,6 +226,78 @@ class VenuePostService
     {
         $post->restore();
         $this->logAction($user->id, 'venue_post.restored', $post, null, null, 'Khôi phục bài viết');
+    }
+
+    private function syncGallery(VenuePost $post, array $data): void
+    {
+        $removedIds = array_values(array_unique($data['removed_gallery_media_ids'] ?? []));
+        $gallery = $post->media()->where('collection', 'gallery');
+
+        if ($removedIds !== []) {
+            $mediaToRemove = (clone $gallery)->whereIn('id', $removedIds)->get();
+
+            if ($mediaToRemove->count() !== count($removedIds)) {
+                throw ValidationException::withMessages([
+                    'removed_gallery_media_ids.0' => ['Ảnh cần xóa không thuộc bài viết này.'],
+                ]);
+            }
+
+            foreach ($mediaToRemove as $media) {
+                Storage::disk('public')->delete($media->getRawOriginal('file_path'));
+                $media->delete();
+            }
+        }
+
+        $this->ensureGalleryLimit($post, count($data['gallery'] ?? []));
+        $this->storeGalleryFiles($post, $data['gallery'] ?? []);
+    }
+
+    private function ensureGalleryLimit(VenuePost $post, int $newFileCount): void
+    {
+        $galleryCount = $post->media()->where('collection', 'gallery')->count();
+
+        if ($galleryCount + $newFileCount > 10) {
+            throw ValidationException::withMessages([
+                'gallery' => ['Mỗi bài viết chỉ được có tối đa 10 ảnh.'],
+            ]);
+        }
+    }
+
+    private function storeGalleryFiles(VenuePost $post, array $files): void
+    {
+        $this->ensureGalleryLimit($post, count($files));
+
+        $nextSortOrder = ((int) $post->media()
+            ->where('collection', 'gallery')
+            ->max('sort_order')) + 1;
+
+        foreach ($files as $file) {
+            $this->storeGalleryFile($post, $file, $nextSortOrder);
+            $nextSortOrder++;
+        }
+    }
+
+    private function storeGalleryFile(VenuePost $post, UploadedFile $file, int $sortOrder): void
+    {
+        $manager = ImageManager::usingDriver(new Driver());
+        $image = $manager->decodePath($file->getPathname());
+        $filename = uniqid('gallery_', true) . '.webp';
+        $path = 'venue_posts/' . $filename;
+
+        if (!Storage::disk('public')->exists('venue_posts')) {
+            Storage::disk('public')->makeDirectory('venue_posts');
+        }
+
+        $image->save(storage_path('app/public/' . $path), 80);
+
+        $post->media()->create([
+            'collection' => 'gallery',
+            'file_name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp',
+            'file_path' => $path,
+            'mime_type' => 'image/webp',
+            'file_size' => filesize(storage_path('app/public/' . $path)),
+            'sort_order' => $sortOrder,
+        ]);
     }
 
     private function validateStatusTransition(string $from, string $to): void
