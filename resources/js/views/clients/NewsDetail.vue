@@ -641,6 +641,16 @@
         </section>
 
 
+        <footer v-if="post" class="article-footer">
+            <div>
+                <strong>{{ post.venue_cluster?.name || "SportGo" }}</strong>
+                <span>{{
+                    post.author?.full_name ||
+                    post.author?.username ||
+                    "Ban biên tập SportGo"
+                }}</span>
+            </div>
+        </footer>
         <!-- Toast Notification -->
         <div class="toast-notification" :class="{ show: showToast }">
             {{ toastMessage }}
@@ -760,6 +770,9 @@ export default {
         },
     },
     methods: {
+        normalizeMediaUrl(media) {
+            return normalizeMediaUrl(media);
+        },
         async loadPost() {
             this.loading = true;
             this.error = "";
