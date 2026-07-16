@@ -195,9 +195,9 @@
 
 .sg-shell-admin .nav-group {
   margin: 8px 10px 6px;
-  color: var(--admin-faint);
+  color: color-mix(in srgb, var(--admin-text) 72%, transparent);
   font-size: calc(var(--admin-font-size) - 4px);
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -209,7 +209,7 @@
   min-height: 40px;
   padding: 10px 12px;
   border-radius: var(--admin-radius);
-  color: var(--admin-muted);
+  color: var(--admin-text);
   font-size: var(--admin-font-size-md, 13px);
   font-weight: 500;
   line-height: 1.2;
@@ -224,20 +224,21 @@
   white-space: nowrap;
 }
 
-.sg-shell-admin .nav-item.never-hover-class-placeholder {
-  background: var(--admin-hover);
-  color: var(--admin-text);
+.sg-shell-admin .nav-item:hover {
+  background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-sidebar));
+  color: var(--admin-primary-dark);
 }
 
 .sg-shell-admin .nav-active {
-  background: rgba(0, 0, 0, 0.05) !important;
-  color: var(--admin-text) !important;
-  box-shadow: none !important;
-  font-weight: 500 !important;
+  background: color-mix(in srgb, var(--admin-primary) 14%, var(--admin-sidebar)) !important;
+  color: var(--admin-primary-dark) !important;
+  box-shadow: inset 3px 0 0 var(--admin-primary) !important;
+  font-weight: 700 !important;
 }
 
 [data-theme="dark"] .sg-shell-admin .nav-active {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: color-mix(in srgb, var(--admin-primary) 22%, var(--admin-sidebar)) !important;
+  color: var(--admin-text) !important;
 }
 
 .sg-shell-admin .sidebar-view-user {
@@ -1034,7 +1035,7 @@
   border-radius: 8px;
   border: 0;
   background: transparent;
-  color: var(--admin-muted);
+  color: var(--admin-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1042,13 +1043,13 @@
   transition: background-color 150ms ease, color 150ms ease;
 }
 
-.rail-icon-btn.never-hover-class-placeholder {
-  background: var(--admin-hover);
-  color: var(--admin-text);
+.rail-icon-btn:hover {
+  background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-sidebar));
+  color: var(--admin-primary-dark);
 }
 
 .rail-icon-btn.active {
-  background: var(--admin-primary-soft) !important;
+  background: color-mix(in srgb, var(--admin-primary) 14%, var(--admin-sidebar)) !important;
   color: var(--admin-primary-dark) !important;
 }
 
@@ -1268,9 +1269,7 @@
   padding: 16px !important;
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-lg) !important;
-  background:
-    linear-gradient(180deg, rgba(24, 24, 27, 0.4), rgba(24, 24, 27, 0)),
-    var(--admin-surface-muted) !important;
+  background: var(--admin-surface-muted) !important;
   box-shadow: none !important;
 }
 
