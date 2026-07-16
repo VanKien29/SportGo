@@ -393,7 +393,6 @@ export default {
             this.$router.push('/news');
           }
         }
-        this.showNotifDropdown = false;
       } else if (notif.type === 'report_processed') {
         if (notif.data && notif.data.target_type && (notif.data.target_type.includes('comment') || notif.data.target_type.includes('post'))) {
           if (notif.data.post_slug) {
@@ -403,6 +402,13 @@ export default {
             }
             this.$router.push(url);
           }
+        }
+        this.showNotifDropdown = false;
+      } else if (['post_like', 'post_comment', 'comment_reply'].includes(notif.type)) {
+        if (notif.data && notif.data.slug) {
+          this.$router.push(`/community/${notif.data.slug}`);
+        } else {
+          this.$router.push('/community');
         }
         this.showNotifDropdown = false;
       }

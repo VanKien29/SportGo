@@ -185,14 +185,15 @@ class AdminContentModerationController extends Controller
         $post = $this->findPost($type, $id);
         $tableName = $this->getPostTableName($type);
 
-        if (!in_array($post->status, ['pending_review', 'pending', 'draft'], true)) {
+        if (!in_array($post->status, ['pending_review', 'pending', 'draft', 'hidden', 'rejected'], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bài viết không ở trạng thái chờ duyệt.',
+                'message' => 'Bài viết không ở trạng thái có thể duyệt.',
             ], 422);
         }
 
         $oldValues = $post->toArray();
+        $isReapprove = in_array($oldValues['status'], ['hidden', 'rejected'], true);
 
         $post->status = 'published';
         $post->reviewed_by = $request->user()?->id;
@@ -202,9 +203,9 @@ class AdminContentModerationController extends Controller
         // Gửi thông báo in-app cho tác giả
         $this->sendNotification(
             $post->author_id,
-            'post_approved',
-            'Bài viết của bạn đã được duyệt',
-            'Bài viết của bạn đã được phê duyệt và hiển thị công khai.',
+            $isReapprove ? 'post_restored' : 'post_approved',
+            $isReapprove ? 'Bài viết của bạn đã được hiển thị lại' : 'Bài viết của bạn đã được duyệt',
+            $isReapprove ? 'Bài viết của bạn đã được quản trị viên khôi phục và cho phép hiển thị công khai trở lại.' : 'Bài viết của bạn đã được phê duyệt và hiển thị công khai.',
             $tableName,
             $post->id,
             isset($post->slug) ? ['slug' => $post->slug] : null

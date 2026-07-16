@@ -61,9 +61,6 @@
                 <input type="file" class="hidden-input" accept=".jpg,.jpeg,.png,.webp" @change="handleFileChange" />
                 <AppIcon name="image" size="24" />
               </label>
-              <button type="button" class="fb-action-btn icon-tag"><AppIcon name="tag" size="24" /></button>
-              <button type="button" class="fb-action-btn icon-smile"><AppIcon name="star" size="24" /></button>
-              <button type="button" class="fb-action-btn icon-location"><AppIcon name="users" size="24" /></button>
             </div>
           </div>
 

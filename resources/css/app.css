@@ -36,6 +36,10 @@
     caret-color: #fff;
 }
 
+.auth-layout input {
+    background-color: #09090b !important;
+}
+
 .auth-layout input::selection,
 .dark input::selection,
 .modal-overlay input::selection {

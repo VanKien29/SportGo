@@ -17,7 +17,7 @@
                 <nav class="article-breadcrumbs" aria-label="Breadcrumb">
                     <router-link :to="{ name: 'home' }">Trang chủ</router-link>
                     <span>/</span>
-                    <router-link :to="{ name: 'home', hash: '#community' }"
+                    <router-link :to="{ name: 'ClientCommunityList' }"
                         >Cộng đồng</router-link
                     >
                 </nav>
@@ -669,23 +669,28 @@
                     </button>
                 </div>
                 <div class="likers-modal-body">
-                    <div
-                        v-for="liker in post?.likers"
-                        :key="liker.id"
-                        class="liker-list-item"
-                    >
-                        <div class="fb-post-avatar">
-                            <img
-                                v-if="liker.avatar_url"
-                                :src="liker.avatar_url"
-                            />
-                            <div v-else class="fb-avatar-text">
-                                {{
-                                    initials(liker.full_name || liker.username)
-                                }}
+                    <div v-if="post?.likers?.length">
+                        <div
+                            v-for="liker in post?.likers"
+                            :key="liker.id"
+                            class="liker-list-item"
+                        >
+                            <div class="fb-post-avatar">
+                                <img
+                                    v-if="liker.avatar_url"
+                                    :src="liker.avatar_url"
+                                />
+                                <div v-else class="fb-avatar-text">
+                                    {{
+                                        initials(liker.full_name || liker.username)
+                                    }}
+                                </div>
                             </div>
+                            <span>{{ liker.full_name || liker.username }}</span>
                         </div>
-                        <span>{{ liker.full_name || liker.username }}</span>
+                    </div>
+                    <div v-else class="empty-likers">
+                        Chưa có dữ liệu người thích.
                     </div>
                 </div>
             </div>
@@ -1470,9 +1475,21 @@ export default {
   background: #d8dadf;
 }
 .likers-modal-body {
-  padding: 8px 16px;
-  overflow-y: auto;
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
 }
+
+.empty-likers {
+    text-align: center;
+    padding: 32px 16px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+}
+
 .liker-list-item {
   display: flex;
   align-items: center;
