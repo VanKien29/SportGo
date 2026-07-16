@@ -13,11 +13,11 @@ use App\Models\SlotLock;
 use App\Models\User;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
+use App\Models\VenueCourt;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Memberships\SystemVipService;
 use App\Services\Memberships\VenueMembershipService;
 use App\Services\Wallets\SystemWalletService;
-use App\Models\VenueCourt;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -28,6 +28,7 @@ use Illuminate\Validation\ValidationException;
 class BookingService
 {
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
+
     private const BLOCKED_CLUSTER_STATUSES = ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'];
 
     public function __construct(
@@ -356,6 +357,18 @@ class BookingService
         });
     }
 
+    public function createCounterBookingsForDates(array $data, Collection $bookingDates, User $actor): Collection
+    {
+        return DB::transaction(function () use ($data, $bookingDates, $actor): Collection {
+            return $bookingDates
+                ->map(fn (string $bookingDate): Booking => $this->createCounterBooking([
+                    ...$data,
+                    'booking_date' => $bookingDate,
+                ], $actor))
+                ->values();
+        });
+    }
+
     public function createRecurringBookings(array $data, User $actor): array
     {
         return DB::transaction(function () use ($data, $actor): array {
@@ -392,6 +405,7 @@ class BookingService
             foreach ($conflicts as $conflict) {
                 if ($resolution === 'skip') {
                     $skippedDates->push($conflict['date']);
+
                     continue;
                 }
 
@@ -405,6 +419,7 @@ class BookingService
 
                 if (($override['action'] ?? null) === 'skip') {
                     $skippedDates->push($conflict['date']);
+
                     continue;
                 }
 
@@ -1747,8 +1762,8 @@ class BookingService
             'discount_amount' => $this->moneyPayload($discountAmount),
             'final_amount' => $this->moneyPayload(max($amount - $discountAmount, 0)),
             'discount_label' => $voucher->discount_type === 'percent'
-                ? rtrim(rtrim(number_format((float) $voucher->discount_value, 2, '.', ''), '0'), '.') . '%'
-                : number_format((float) $voucher->discount_value, 0, ',', '.') . ' đ',
+                ? rtrim(rtrim(number_format((float) $voucher->discount_value, 2, '.', ''), '0'), '.').'%'
+                : number_format((float) $voucher->discount_value, 0, ',', '.').' đ',
             'scope_label' => $voucher->owner_type === 'venue' ? 'Voucher của sân' : 'Voucher hệ thống',
         ];
     }
@@ -2279,13 +2294,13 @@ class BookingService
                     ? $booking->items
                         ->filter(fn (BookingItem $item): bool => $this->isActiveBookingItem($item))
                         ->map(fn (BookingItem $item): array => [
-                        'venue_court_id' => $item->venue_court_id,
-                        'start_time' => $item->start_time,
-                        'end_time' => $item->end_time,
-                        'booking_item_id' => $item->id,
-                        'booking_item_status' => $item->status,
-                        'booking_item_subtotal' => (float) $item->subtotal,
-                    ])
+                            'venue_court_id' => $item->venue_court_id,
+                            'start_time' => $item->start_time,
+                            'end_time' => $item->end_time,
+                            'booking_item_id' => $item->id,
+                            'booking_item_status' => $item->status,
+                            'booking_item_subtotal' => (float) $item->subtotal,
+                        ])
                     : collect([[
                         'venue_court_id' => $booking->venue_court_id,
                         'start_time' => $booking->start_time,

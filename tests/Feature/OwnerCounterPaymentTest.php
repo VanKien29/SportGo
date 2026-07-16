@@ -802,6 +802,36 @@ class OwnerCounterPaymentTest extends TestCase
             ->assertJsonValidationErrors(['venue_court_id']);
     }
 
+    public function test_owner_can_create_counter_bookings_for_multiple_dates_atomically(): void
+    {
+        $dates = [
+            now()->addDay()->toDateString(),
+            now()->addDays(2)->toDateString(),
+        ];
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $dates[0],
+                'booking_dates' => $dates,
+                'start_time' => '14:00:00',
+                'end_time' => '15:00:00',
+                'payment_option' => 'no_prepay',
+                'payment_method' => 'cash',
+                'walk_in_name' => 'Khách nhiều ngày',
+                'walk_in_phone' => '0901234570',
+            ])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('payment_qr', null);
+
+        $this->assertSame(
+            $dates,
+            collect($response->json('data'))->pluck('booking_date')->sort()->values()->all(),
+        );
+        $this->assertDatabaseCount('bookings', 2);
+    }
+
     private function createPayLaterCounterBooking(): Booking
     {
         $response = $this->actingAs($this->owner, 'sanctum')

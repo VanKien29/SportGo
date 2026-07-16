@@ -454,6 +454,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffAcces
         Route::patch('/platform-fees/{id}/cancel', [OwnerPlatformFeeController::class, 'cancel']);
         Route::get('/schedule-locks', [OwnerScheduleLockController::class, 'index']);
         Route::post('/schedule-locks/preview', [OwnerScheduleLockController::class, 'preview']);
+        Route::post('/schedule-locks/unlock', [OwnerScheduleLockController::class, 'unlockRanges']);
         Route::post('/schedule-locks', [OwnerScheduleLockController::class, 'store']);
         Route::delete('/schedule-locks/{id}', [OwnerScheduleLockController::class, 'destroy']);
         Route::post('/amenities/request', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'requestAmenity']);

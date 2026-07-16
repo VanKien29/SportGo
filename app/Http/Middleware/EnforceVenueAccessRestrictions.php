@@ -55,13 +55,21 @@ class EnforceVenueAccessRestrictions
 
     private function resolveClusterId(Request $request): ?string
     {
+        $path = $request->path();
+        $routeId = $request->route('id');
+
+        if ($this->isResolvableId($routeId) && Str::contains($path, 'schedule-locks')) {
+            $fromScheduleLock = DB::table('slot_locks')->where('id', $routeId)->value('venue_cluster_id');
+            if ($fromScheduleLock) {
+                return (string) $fromScheduleLock;
+            }
+        }
+
         $clusterId = $request->input('venue_cluster_id') ?? $request->query('venue_cluster_id');
         if ($this->isResolvableId($clusterId)) {
             return (string) $clusterId;
         }
 
-        $path = $request->path();
-        $routeId = $request->route('id');
         if ($this->isResolvableId($routeId)) {
             if (Str::contains($path, 'termination-requests')) {
                 $fromTermination = DB::table('partner_termination_requests')->where('id', $routeId)->value('venue_cluster_id');

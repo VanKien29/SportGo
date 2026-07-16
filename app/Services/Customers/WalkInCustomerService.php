@@ -10,6 +10,19 @@ use RuntimeException;
 
 class WalkInCustomerService
 {
+    public function findByPhone(?string $phone): ?User
+    {
+        $normalizedPhone = $this->normalizePhone((string) $phone);
+
+        if ($normalizedPhone === '') {
+            return null;
+        }
+
+        return User::query()
+            ->whereIn('phone', $this->phoneCandidates($normalizedPhone))
+            ->first();
+    }
+
     public function resolveOrCreate(?string $customerId, ?string $name, ?string $phone): User
     {
         if ($customerId) {

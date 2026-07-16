@@ -8,6 +8,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
+use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
 use App\Services\VenueStaffAccessService;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ class BookingManagementController extends Controller
         private readonly SepayPaymentService $sepayPaymentService,
         private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
         private readonly VenueStaffAccessService $venueStaffAccess,
+        private readonly WalkInCustomerService $walkInCustomers,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -215,6 +217,7 @@ class BookingManagementController extends Controller
             'usage_count' => ['nullable', 'integer', 'min:1', 'max:130'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
             'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'walk_in_phone' => ['nullable', 'string', 'max:15', 'regex:/^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/'],
         ]);
 
         abort_unless($this->visibleClusterIds($request->user()->id)->contains($validated['venue_cluster_id']), 403);
@@ -225,6 +228,11 @@ class BookingManagementController extends Controller
 
         $validated['venue_court_id'] = $court->id;
         $this->venueStaffAccess->assertCourtAccess($request->user(), $court);
+
+        if (empty($validated['customer_id'])) {
+            $customer = $this->walkInCustomers->findByPhone($validated['walk_in_phone'] ?? null);
+            $validated['customer_id'] = $customer?->id ?? 0;
+        }
 
         return response()->json([
             'data' => $this->bookingService
@@ -239,7 +247,9 @@ class BookingManagementController extends Controller
 
         $validated = $request->validate([
             'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
-            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_date' => ['nullable', 'required_without:booking_dates', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_dates' => ['nullable', 'array', 'min:1', 'max:31'],
+            'booking_dates.*' => ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
@@ -268,6 +278,19 @@ class BookingManagementController extends Controller
             ]);
         }
 
+        $bookingDates = collect($validated['booking_dates'] ?? [$validated['booking_date']])
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+        $validated['booking_date'] = $bookingDates->first();
+
+        if ($bookingDates->count() > 1 && ($validated['payment_method'] ?? null) === 'sepay') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Booking nhiều ngày chưa hỗ trợ một mã QR chung. Vui lòng chọn tiền mặt hoặc thu sau.',
+            ]);
+        }
+
         if (empty($validated['time_ranges'])) {
             if ($this->timeToMinutes($validated['start_time']) >= $this->timeToMinutes($validated['end_time'])) {
                 throw ValidationException::withMessages(['end_time' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
@@ -287,6 +310,20 @@ class BookingManagementController extends Controller
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
         $this->assertPayloadCourtAccess($request, $validated);
+
+        if ($bookingDates->count() > 1) {
+            $bookings = $this->bookingService->createCounterBookingsForDates(
+                $validated,
+                $bookingDates,
+                $request->user(),
+            );
+
+            return response()->json([
+                'message' => "Đã tạo {$bookings->count()} booking tại quầy.",
+                'data' => $bookings,
+                'payment_qr' => null,
+            ], 201);
+        }
 
         $booking = $this->bookingService->createCounterBooking($validated, $request->user());
         $paymentQr = null;
@@ -798,6 +835,7 @@ class BookingManagementController extends Controller
             return 24 * 60;
         }
         [$hours, $minutes] = explode(':', $time);
+
         return (int) $hours * 60 + (int) $minutes;
     }
 
@@ -852,7 +890,7 @@ class BookingManagementController extends Controller
         $statusCounts = $bookings->groupBy('status')->map->count();
         $paymentOptions = $bookings->pluck('payment_option')->unique()->values();
         $occurrences = $bookings
-            ->sortBy(fn (Booking $booking): string => $booking->booking_date->toDateString() . ' ' . ($booking->start_time ?? ''))
+            ->sortBy(fn (Booking $booking): string => $booking->booking_date->toDateString().' '.($booking->start_time ?? ''))
             ->map(function (Booking $booking): array {
                 $items = $booking->items->isNotEmpty()
                     ? $booking->items
@@ -947,5 +985,4 @@ class BookingManagementController extends Controller
             'has_conflict_sensitive_items' => $bookings->contains(fn (Booking $booking): bool => in_array($booking->status, ['pending_payment', 'confirmed', 'checked_in'], true)),
         ];
     }
-
 }
