@@ -10,48 +10,156 @@ class SystemSetting extends Model
 {
     use HasFactory;
 
+    public const PROFILE_FIELDS = [
+        'system_name' => [
+            'label' => 'Tên hệ thống',
+            'group' => 'identity',
+            'default' => 'SportGo',
+        ],
+        'company_name' => [
+            'label' => 'Tên công ty',
+            'group' => 'legal',
+            'default' => 'Công ty SportGo',
+        ],
+        'company_short_name' => [
+            'label' => 'Tên viết tắt',
+            'group' => 'identity',
+            'default' => 'SportGo',
+        ],
+        'representative_name' => [
+            'label' => 'Người đại diện',
+            'group' => 'legal',
+            'default' => '',
+        ],
+        'representative_title' => [
+            'label' => 'Chức vụ người đại diện',
+            'group' => 'legal',
+            'default' => '',
+        ],
+        'company_address' => [
+            'label' => 'Địa chỉ công ty',
+            'group' => 'legal',
+            'default' => '',
+        ],
+        'tax_code' => [
+            'label' => 'Mã số thuế',
+            'group' => 'legal',
+            'default' => '',
+        ],
+        'business_code' => [
+            'label' => 'Mã số kinh doanh',
+            'group' => 'legal',
+            'default' => '',
+        ],
+        'business_license_number' => [
+            'label' => 'Số giấy phép kinh doanh',
+            'group' => 'legal',
+            'default' => '',
+        ],
+        'support_email' => [
+            'label' => 'Email hỗ trợ',
+            'group' => 'contact',
+            'default' => '',
+        ],
+        'support_phone' => [
+            'label' => 'Số điện thoại hỗ trợ',
+            'group' => 'contact',
+            'default' => '',
+        ],
+        'website_url' => [
+            'label' => 'Website',
+            'group' => 'contact',
+            'default' => '',
+        ],
+        'logo_url' => [
+            'label' => 'Logo hệ thống',
+            'group' => 'identity',
+            'default' => '',
+        ],
+        'favicon_url' => [
+            'label' => 'Favicon',
+            'group' => 'identity',
+            'default' => '',
+        ],
+    ];
+
     protected $fillable = [
         'key',
         'value',
         'type',
+        'value_type',
         'group',
         'label',
         'description',
     ];
 
-    public const PROFILE_FIELDS = [
-        'system_name' => ['group' => 'identity', 'label' => 'Tên hệ thống'],
-        'company_name' => ['group' => 'legal', 'label' => 'Tên công ty'],
-        'company_short_name' => ['group' => 'identity', 'label' => 'Tên viết tắt'],
-        'representative_name' => ['group' => 'legal', 'label' => 'Người đại diện'],
-        'representative_title' => ['group' => 'legal', 'label' => 'Chức vụ'],
-        'company_address' => ['group' => 'legal', 'label' => 'Địa chỉ công ty'],
-        'tax_code' => ['group' => 'legal', 'label' => 'Mã số thuế'],
-        'business_code' => ['group' => 'legal', 'label' => 'Mã số kinh doanh'],
-        'business_license_number' => ['group' => 'legal', 'label' => 'Số giấy phép kinh doanh'],
-        'support_email' => ['group' => 'contact', 'label' => 'Email hỗ trợ'],
-        'support_phone' => ['group' => 'contact', 'label' => 'Số điện thoại hỗ trợ'],
-        'website_url' => ['group' => 'contact', 'label' => 'Website'],
-        'logo_url' => ['group' => 'identity', 'label' => 'Logo URL'],
-        'favicon_url' => ['group' => 'identity', 'label' => 'Favicon URL'],
-    ];
+    public function getValueAttribute($value): mixed
+    {
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        $decoded = json_decode($value, true);
+
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
+    }
+
+    public function setValueAttribute($value): void
+    {
+        $this->attributes['value'] = is_array($value) || is_object($value)
+            ? json_encode($value, JSON_UNESCAPED_UNICODE)
+            : $value;
+    }
 
     public static function profilePayload(): array
     {
-        $keys = array_keys(self::PROFILE_FIELDS);
-        
-        $settings = static::query()
-            ->whereIn('key', $keys)
-            ->get()
-            ->pluck('value', 'key')
-            ->toArray();
-
         $payload = [];
-        foreach ($keys as $key) {
-            $payload[$key] = $settings[$key] ?? '';
+        $settings = collect();
+
+        if (Schema::hasTable((new static())->getTable())) {
+            $settings = static::query()
+                ->whereIn('key', array_keys(self::PROFILE_FIELDS))
+                ->get()
+                ->keyBy('key');
+        }
+
+        foreach (self::PROFILE_FIELDS as $key => $meta) {
+            $value = $settings->get($key)?->value;
+            $payload[$key] = is_scalar($value) && (string) $value !== ''
+                ? (string) $value
+                : ($meta['default'] ?? '');
         }
 
         return $payload;
+    }
+
+    public static function upsertProfileValue(string $key, mixed $value, array $meta = []): void
+    {
+        if (! Schema::hasTable((new static())->getTable())) {
+            return;
+        }
+
+        $attributes = [
+            'value' => trim((string) $value),
+        ];
+
+        if (Schema::hasColumn((new static())->getTable(), 'type')) {
+            $attributes['type'] = 'string';
+        }
+
+        if (Schema::hasColumn((new static())->getTable(), 'value_type')) {
+            $attributes['value_type'] = 'string';
+        }
+
+        if (Schema::hasColumn((new static())->getTable(), 'group')) {
+            $attributes['group'] = $meta['group'] ?? 'general';
+        }
+
+        if (Schema::hasColumn((new static())->getTable(), 'label')) {
+            $attributes['label'] = $meta['label'] ?? $key;
+        }
+
+        static::query()->updateOrCreate(['key' => $key], $attributes);
     }
 
     public static function integer(string $key, int $default): int

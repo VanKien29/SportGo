@@ -99,6 +99,12 @@ export const adminReportService = {
   getViolationRecord(targetType, targetId) {
     return api(`/api/admin/violation-records/${targetType}/${targetId}`);
   },
+  notify(id, data) {
+    return api(`/api/admin/reports/${id}/notify`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 export const adminComplaintService = {
@@ -127,6 +133,12 @@ export const adminComplaintService = {
     return api('/api/admin/complaint-resolve-policy', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+  notify(id, data) {
+    return api(`/api/admin/complaints/${id}/notify`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

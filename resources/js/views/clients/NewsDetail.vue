@@ -1,200 +1,704 @@
 <template>
-  <div class="news-detail-page">
-    <PublicNavbar />
+    <div class="news-detail-page">
+        <PublicNavbar />
 
-    <main class="news-detail-shell">
-      <div v-if="loading" class="news-state">Đang tải bài viết...</div>
+        <main class="news-detail-shell">
+            <div v-if="loading" class="news-state">Đang tải bài viết...</div>
 
-      <div v-else-if="error" class="news-state news-state--error">
-        <p>{{ error }}</p>
-        <router-link :to="{ name: 'home', hash: '#community' }">Quay lại cộng đồng</router-link>
-      </div>
+            <div v-else-if="error" class="news-state news-state--error">
+                <p>{{ error }}</p>
+                <router-link :to="{ name: 'home', hash: '#community' }"
+                    >Quay lại cộng đồng</router-link
+                >
+            </div>
 
-      <div v-else-if="post" class="fb-modal-container">
-        <!-- Breadcrumbs -->
-        <nav class="article-breadcrumbs" aria-label="Breadcrumb">
-          <router-link :to="{ name: 'home' }">Trang chủ</router-link>
-          <span>/</span>
-          <router-link :to="{ name: 'home', hash: '#community' }">Cộng đồng</router-link>
-        </nav>
+            <div v-else-if="post" class="fb-modal-container">
+                <!-- Breadcrumbs -->
+                <nav class="article-breadcrumbs" aria-label="Breadcrumb">
+                    <router-link :to="{ name: 'home' }">Trang chủ</router-link>
+                    <span>/</span>
+                    <router-link :to="{ name: 'home', hash: '#community' }"
+                        >Cộng đồng</router-link
+                    >
+                </nav>
 
-        <div class="fb-modal">
-          <div class="fb-body">
-            <div class="fb-post">
-              <!-- Author Header -->
-              <div class="fb-post-header">
-                <div class="fb-post-avatar">
-                  <img v-if="post.author?.avatar_url" :src="post.author.avatar_url" />
-                  <div v-else class="fb-avatar-text">{{ initials(post.author?.full_name || post.author?.username || '?') }}</div>
-                </div>
-                <div class="fb-post-meta">
-                  <strong>{{ post.author?.full_name || post.author?.username || 'Ban biên tập SportGo' }}</strong>
-                  <div class="meta-sub">
-                    <span>{{ formatDate(post.created_at) }}</span>
-                    <span v-if="post.venueCluster?.name" class="meta-dot">·</span>
-                    <span v-if="post.venueCluster?.name" class="meta-venue">{{ post.venueCluster.name }}</span>
-                    <span class="meta-dot">·</span>
-                    <span>{{ categoryLabel(post.post_type) }}</span>
-                  </div>
-                </div>
+                <div class="fb-modal">
+                    <div class="fb-body">
+                        <div class="fb-post">
+                            <!-- Author Header -->
+                            <div class="fb-post-header">
+                                <div
+                                    class="fb-post-avatar cursor-pointer hover:opacity-80 transition-opacity"
+                                    @click.stop="
+                                        post.author && post.author.id
+                                            ? $router.push(
+                                                  '/user/' + post.author.id,
+                                              )
+                                            : null
+                                    "
+                                    :title="
+                                        post.author && post.author.id
+                                            ? 'Xem trang cá nhân'
+                                            : ''
+                                    "
+                                >
+                                    <img
+                                        v-if="post.author?.avatar_url"
+                                        :src="post.author.avatar_url"
+                                    />
+                                    <div v-else class="fb-avatar-text">
+                                        {{
+                                            initials(
+                                                post.author?.full_name ||
+                                                    post.author?.username ||
+                                                    "?",
+                                            )
+                                        }}
+                                    </div>
+                                </div>
+                                <div class="fb-post-meta">
+                                    <strong
+                                        class="cursor-pointer hover:underline"
+                                        @click.stop="
+                                            post.author && post.author.id
+                                                ? $router.push(
+                                                      '/user/' + post.author.id,
+                                                  )
+                                                : null
+                                        "
+                                        :title="
+                                            post.author && post.author.id
+                                                ? 'Xem trang cá nhân'
+                                                : ''
+                                        "
+                                        >{{
+                                            post.author?.full_name ||
+                                            post.author?.username ||
+                                            "Ban biên tập SportGo"
+                                        }}</strong
+                                    >
+                                    <div class="meta-sub">
+                                        <span>{{
+                                            formatDate(post.created_at)
+                                        }}</span>
+                                        <span
+                                            v-if="post.venueCluster?.name"
+                                            class="meta-dot"
+                                            >·</span
+                                        >
+                                        <span
+                                            v-if="post.venueCluster?.name"
+                                            class="meta-venue"
+                                            >{{ post.venueCluster.name }}</span
+                                        >
+                                        <span class="meta-dot">·</span>
+                                        <span>{{
+                                            categoryLabel(post.post_type)
+                                        }}</span>
+                                    </div>
+                                </div>
 
-                <!-- Post Options -->
-                <div class="fb-post-options" style="margin-left: auto; position: relative;">
-                  <button @click="showPostOptions = !showPostOptions" class="action-btn" style="padding: 8px; border-radius: 50%; color: #65676b;" title="Tùy chọn bài viết">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
-                  </button>
-                  <div v-if="showPostOptions" class="options-dropdown" style="position: absolute; right: 0; top: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 8px; z-index: 10; min-width: 180px;">
-                    <button @click="openReportModal('post', post.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> 
-                      Báo cáo bài viết
-                    </button>
-                  </div>
-                </div>
-              </div>
+                                <!-- Post Options -->
+                                <div
+                                    class="fb-post-options"
+                                    style="
+                                        margin-left: auto;
+                                        position: relative;
+                                    "
+                                >
+                                    <button
+                                        @click="
+                                            showPostOptions = !showPostOptions
+                                        "
+                                        class="action-btn"
+                                        style="
+                                            padding: 8px;
+                                            border-radius: 50%;
+                                            color: #65676b;
+                                        "
+                                        title="Tùy chọn bài viết"
+                                    >
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            width="20"
+                                            height="20"
+                                            fill="currentColor"
+                                        >
+                                            <circle cx="12" cy="12" r="2" />
+                                            <circle cx="19" cy="12" r="2" />
+                                            <circle cx="5" cy="12" r="2" />
+                                        </svg>
+                                    </button>
+                                    <div
+                                        v-if="showPostOptions"
+                                        class="options-dropdown"
+                                        style="
+                                            position: absolute;
+                                            right: 0;
+                                            top: 100%;
+                                            background: white;
+                                            box-shadow: 0 2px 8px
+                                                rgba(0, 0, 0, 0.15);
+                                            border-radius: 8px;
+                                            padding: 8px;
+                                            z-index: 10;
+                                            min-width: 180px;
+                                        "
+                                    >
+                                        <button
+                                            @click="
+                                                openReportModal(
+                                                    'community_post',
+                                                    post.id,
+                                                )
+                                            "
+                                            class="dropdown-item"
+                                            style="
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 8px;
+                                                width: 100%;
+                                                padding: 8px;
+                                                border: none;
+                                                background: none;
+                                                cursor: pointer;
+                                                text-align: left;
+                                                border-radius: 4px;
+                                                color: #1c1e21;
+                                                font-weight: 500;
+                                            "
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                width="16"
+                                                height="16"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <path
+                                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                                                ></path>
+                                                <line
+                                                    x1="12"
+                                                    y1="9"
+                                                    x2="12"
+                                                    y2="13"
+                                                ></line>
+                                                <line
+                                                    x1="12"
+                                                    y1="17"
+                                                    x2="12.01"
+                                                    y2="17"
+                                                ></line>
+                                            </svg>
+                                            Báo cáo bài viết
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
 
-              <!-- Post Content -->
-              <h1 v-if="post.title" class="fb-post-title">{{ post.title }}</h1>
-              
-              <div class="fb-post-text article-body" v-html="post.content"></div>
+                            <!-- Post Content -->
+                            <h1 v-if="post.title" class="fb-post-title">
+                                {{ post.title }}
+                            </h1>
 
-              <!-- Media -->
-              <div v-if="post.media && post.media.length" class="fb-media-container">
-                <img v-for="m in post.media" :key="m.id" :src="m.file_path || m.url || normalizeImage(m)" loading="lazy" />
-              </div>
+                            <div
+                                class="fb-post-text article-body"
+                                v-html="post.content"
+                            ></div>
 
-              <!-- Stats & Interactions -->
-              <div class="fb-stats-row">
-                <div class="fb-stats-left" @click="post.like_count > 0 ? showLikersModal = true : null" :class="{ 'clickable': post.like_count > 0 }">
-                  <div class="like-avatars">
-                    <span class="liker-count">{{ post.like_count || 0 }} lượt thích</span>
-                  </div>
-                </div>
-                <div class="fb-stats-right">
-                  <span class="clickable" @click="toggleComments">{{ post.comment_count || 0 }} bình luận</span>
-                  <span>{{ post.view_count || 0 }} lượt xem</span>
-                </div>
-              </div>
+                            <!-- Media -->
+                            <div
+                                v-if="post.media && post.media.length"
+                                class="fb-media-container"
+                            >
+                                <img
+                                    v-for="m in post.media"
+                                    :key="m.id"
+                                    :src="
+                                        m.file_path ||
+                                        m.url ||
+                                        normalizeImage(m)
+                                    "
+                                    loading="lazy"
+                                />
+                            </div>
 
-              <!-- Actions -->
-              <div class="fb-actions-row">
-                <button class="action-btn" :class="{ 'liked': isLiked }" @click="toggleLike" :disabled="isSubmittingLike">
-                  <svg viewBox="0 0 24 24" width="20" height="20" :fill="isLiked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                  </svg>
-                  Thích
-                </button>
-                <button class="action-btn" @click="focusCommentAction">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                  </svg>
-                  Bình luận
-                </button>
-                <button class="action-btn" @click="copyLink">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line>
-                  </svg>
-                  Chia sẻ
-                </button>
-              </div>
+                            <!-- Stats & Interactions -->
+                            <div class="fb-stats-row">
+                                <div
+                                    class="fb-stats-left"
+                                    @click="
+                                        post.like_count > 0
+                                            ? (showLikersModal = true)
+                                            : null
+                                    "
+                                    :class="{ clickable: post.like_count > 0 }"
+                                >
+                                    <div class="like-avatars">
+                                        <span class="liker-count"
+                                            >{{ post.like_count || 0 }} lượt
+                                            thích</span
+                                        >
+                                    </div>
+                                </div>
+                                <div class="fb-stats-right">
+                                    <span
+                                        class="clickable"
+                                        @click="toggleComments"
+                                        >{{ post.comment_count || 0 }} bình
+                                        luận</span
+                                    >
+                                    <span
+                                        >{{ post.view_count || 0 }} lượt
+                                        xem</span
+                                    >
+                                </div>
+                            </div>
 
-              <!-- Comments Section -->
-              <div v-show="showComments" class="fb-comments-section">
-                <!-- Comment Form -->
-                <div class="comment-form-row">
-                  <div class="fb-post-avatar comment-avatar">
-                    <img v-if="currentUser?.avatar_url" :src="currentUser.avatar_url" />
-                    <div v-else class="fb-avatar-text">{{ initials(currentUser?.full_name || currentUser?.username || '?') }}</div>
-                  </div>
-                  <form @submit.prevent="submitComment" class="comment-form">
-                    <textarea 
-                      ref="commentInput"
-                      v-model="newComment" 
-                      placeholder="Viết bình luận..." 
-                      rows="1" 
-                      @input="autoResizeTextarea"
-                      :disabled="isSubmittingComment || !currentUser"
-                    ></textarea>
-                    <button type="submit" :disabled="!newComment.trim() || isSubmittingComment || !currentUser" class="submit-comment-btn">
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    </button>
-                  </form>
-                </div>
-                <div v-if="!currentUser" class="login-prompt">
-                  Vui lòng <router-link :to="{ name: 'login' }">đăng nhập</router-link> để tương tác với bài viết.
-                </div>
+                            <!-- Actions -->
+                            <div class="fb-actions-row">
+                                <button
+                                    class="action-btn"
+                                    :class="{ liked: isLiked }"
+                                    @click="toggleLike"
+                                    :disabled="isSubmittingLike"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="20"
+                                        height="20"
+                                        :fill="
+                                            isLiked ? 'currentColor' : 'none'
+                                        "
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path
+                                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                                        ></path>
+                                    </svg>
+                                    Thích
+                                </button>
+                                <button
+                                    class="action-btn"
+                                    @click="focusCommentAction"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="20"
+                                        height="20"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path
+                                            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                                        ></path>
+                                    </svg>
+                                    Bình luận
+                                </button>
+                                <button class="action-btn" @click="copyLink">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="20"
+                                        height="20"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path
+                                            d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"
+                                        ></path>
+                                        <polyline
+                                            points="16 6 12 2 8 6"
+                                        ></polyline>
+                                        <line
+                                            x1="12"
+                                            y1="2"
+                                            x2="12"
+                                            y2="15"
+                                        ></line>
+                                    </svg>
+                                    Chia sẻ
+                                </button>
+                            </div>
 
-                <!-- Comments List -->
-                <div class="comments-list" v-if="post.top_level_comments && post.top_level_comments.length">
-                  <div v-for="comment in post.top_level_comments" :key="comment.id" class="comment-item">
-                    <div class="fb-post-avatar comment-avatar">
-                      <img v-if="comment.user?.avatar_url" :src="comment.user.avatar_url" />
-                      <div v-else class="fb-avatar-text">{{ initials(comment.user?.full_name || comment.user?.username || '?') }}</div>
-                    </div>
-                    <div class="comment-content-wrapper" @mouseenter="hoverComment = comment.id" @mouseleave="hoverComment = null">
-                      <div class="comment-bubble">
-                        <strong>{{ comment.user?.full_name || comment.user?.username || 'Người dùng' }}</strong>
-                        <p>{{ comment.content }}</p>
-                      </div>
-                      
-                      <!-- Comment Options -->
-                      <div class="comment-options" v-show="hoverComment === comment.id || activeCommentOptions === comment.id" style="position: absolute; right: -32px; top: 50%; transform: translateY(-50%);">
-                        <button @click="toggleCommentOptions(comment.id)" class="action-btn" style="padding: 4px; border-radius: 50%; color: #65676b; border: none; background: transparent; cursor: pointer;">
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="12" r="2"/></svg>
-                        </button>
-                        <div v-if="activeCommentOptions === comment.id" class="options-dropdown" style="position: absolute; left: 100%; top: 0; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 8px; padding: 8px; z-index: 10; min-width: 160px; margin-left: 8px;">
-                          <button @click="openReportModal('comment', comment.id)" class="dropdown-item" style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: none; background: none; cursor: pointer; text-align: left; border-radius: 4px; color: #1c1e21; font-weight: 500;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                            Báo cáo bình luận
-                          </button>
+                            <!-- Comments Section -->
+                            <div
+                                v-show="showComments"
+                                class="fb-comments-section"
+                            >
+                                <!-- Comment Form -->
+                                <div class="comment-form-row">
+                                    <div class="fb-post-avatar comment-avatar">
+                                        <img
+                                            v-if="currentUser?.avatar_url"
+                                            :src="currentUser.avatar_url"
+                                        />
+                                        <div v-else class="fb-avatar-text">
+                                            {{
+                                                initials(
+                                                    currentUser?.full_name ||
+                                                        currentUser?.username ||
+                                                        "?",
+                                                )
+                                            }}
+                                        </div>
+                                    </div>
+                                    <form
+                                        @submit.prevent="submitComment"
+                                        class="comment-form"
+                                    >
+                                        <textarea
+                                            ref="commentInput"
+                                            v-model="newComment"
+                                            placeholder="Viết bình luận..."
+                                            rows="1"
+                                            @input="autoResizeTextarea"
+                                            :disabled="
+                                                isSubmittingComment ||
+                                                !currentUser
+                                            "
+                                        ></textarea>
+                                        <button
+                                            type="submit"
+                                            :disabled="
+                                                !newComment.trim() ||
+                                                isSubmittingComment ||
+                                                !currentUser
+                                            "
+                                            class="submit-comment-btn"
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                width="18"
+                                                height="18"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <line
+                                                    x1="22"
+                                                    y1="2"
+                                                    x2="11"
+                                                    y2="13"
+                                                ></line>
+                                                <polygon
+                                                    points="22 2 15 22 11 13 2 9 22 2"
+                                                ></polygon>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                                <div v-if="!currentUser" class="login-prompt">
+                                    Vui lòng
+                                    <router-link :to="{ name: 'login' }"
+                                        >đăng nhập</router-link
+                                    >
+                                    để tương tác với bài viết.
+                                </div>
+
+                                <!-- Comments List -->
+                                <div
+                                    class="comments-list"
+                                    v-if="
+                                        post.top_level_comments &&
+                                        post.top_level_comments.length
+                                    "
+                                >
+                                    <div
+                                        v-for="comment in post.top_level_comments"
+                                        :key="comment.id"
+                                        class="comment-item"
+                                        :id="'comment-' + comment.id"
+                                    >
+                                        <div
+                                            class="fb-post-avatar comment-avatar"
+                                        >
+                                            <img
+                                                v-if="comment.user?.avatar_url"
+                                                :src="comment.user.avatar_url"
+                                            />
+                                            <div v-else class="fb-avatar-text">
+                                                {{
+                                                    initials(
+                                                        comment.user
+                                                            ?.full_name ||
+                                                            comment.user
+                                                                ?.username ||
+                                                            "?",
+                                                    )
+                                                }}
+                                            </div>
+                                        </div>
+                                        <div class="comment-content-wrapper">
+                                            <div
+                                                @mouseenter="
+                                                    hoverComment = comment.id
+                                                "
+                                                @mouseleave="
+                                                    hoverComment = null
+                                                "
+                                                style="
+                                                    position: relative;
+                                                    display: inline-flex;
+                                                    align-items: center;
+                                                    padding-right: 36px;
+                                                    margin-right: -36px;
+                                                "
+                                            >
+                                                <div class="comment-bubble">
+                                                    <strong>{{
+                                                        comment.user
+                                                            ?.full_name ||
+                                                        comment.user
+                                                            ?.username ||
+                                                        "Người dùng"
+                                                    }}</strong>
+                                                    <p>{{ comment.content }}</p>
+                                                </div>
+
+                                                <!-- Comment Options -->
+                                                <div
+                                                    class="comment-options"
+                                                    v-show="
+                                                        hoverComment ===
+                                                            comment.id ||
+                                                        activeCommentOptions ===
+                                                            comment.id
+                                                    "
+                                                    style="
+                                                        position: absolute;
+                                                        right: 2px;
+                                                        top: 50%;
+                                                        transform: translateY(
+                                                            -50%
+                                                        );
+                                                        z-index: 10;
+                                                    "
+                                                >
+                                                    <button
+                                                        @click="
+                                                            toggleCommentOptions(
+                                                                comment.id,
+                                                            )
+                                                        "
+                                                        class="action-btn"
+                                                        style="
+                                                            padding: 4px;
+                                                            border-radius: 50%;
+                                                            color: #65676b;
+                                                            border: none;
+                                                            background: transparent;
+                                                            cursor: pointer;
+                                                        "
+                                                    >
+                                                        <svg
+                                                            viewBox="0 0 24 24"
+                                                            width="16"
+                                                            height="16"
+                                                            fill="currentColor"
+                                                        >
+                                                            <circle
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="2"
+                                                            />
+                                                            <circle
+                                                                cx="19"
+                                                                cy="12"
+                                                                r="2"
+                                                            />
+                                                            <circle
+                                                                cx="5"
+                                                                cy="12"
+                                                                r="2"
+                                                            />
+                                                        </svg>
+                                                    </button>
+                                                    <div
+                                                        v-if="
+                                                            activeCommentOptions ===
+                                                            comment.id
+                                                        "
+                                                        class="options-dropdown"
+                                                        style="
+                                                            position: absolute;
+                                                            left: 100%;
+                                                            top: 0;
+                                                            background: white;
+                                                            box-shadow: 0 2px
+                                                                8px
+                                                                rgba(
+                                                                    0,
+                                                                    0,
+                                                                    0,
+                                                                    0.15
+                                                                );
+                                                            border-radius: 8px;
+                                                            padding: 4px;
+                                                            z-index: 20;
+                                                            margin-left: 8px;
+                                                            width: max-content;
+                                                        "
+                                                    >
+                                                        <button
+                                                            @click="
+                                                                openReportModal(
+                                                                    'community_post_comment',
+                                                                    comment.id,
+                                                                )
+                                                            "
+                                                            class="dropdown-item"
+                                                            style="
+                                                                display: flex;
+                                                                align-items: center;
+                                                                gap: 8px;
+                                                                width: 100%;
+                                                                padding: 6px
+                                                                    12px;
+                                                                border: none;
+                                                                background: none;
+                                                                cursor: pointer;
+                                                                text-align: left;
+                                                                border-radius: 4px;
+                                                                color: #1c1e21;
+                                                                font-weight: 500;
+                                                                font-size: 13px;
+                                                                white-space: nowrap;
+                                                            "
+                                                        >
+                                                            <svg
+                                                                viewBox="0 0 24 24"
+                                                                width="14"
+                                                                height="14"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                            >
+                                                                <path
+                                                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                                                                ></path>
+                                                                <line
+                                                                    x1="12"
+                                                                    y1="9"
+                                                                    x2="12"
+                                                                    y2="13"
+                                                                ></line>
+                                                                <line
+                                                                    x1="12"
+                                                                    y1="17"
+                                                                    x2="12.01"
+                                                                    y2="17"
+                                                                ></line>
+                                                            </svg>
+                                                            Báo cáo bình luận
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="comment-actions">
+                                                <span>{{
+                                                    timeAgo(comment.created_at)
+                                                }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                      </div>
-
-                      <div class="comment-actions">
-                        <span>{{ timeAgo(comment.created_at) }}</span>
-                      </div>
                     </div>
-                  </div>
                 </div>
-              </div>
-
             </div>
-          </div>
-        </div>
-      </div>
-    </main>
+        </main>
 
-    <!-- Toast Notification -->
-    <div class="toast-notification" :class="{ 'show': showToast }">
-      {{ toastMessage }}
-    </div>
+        <section
+            v-if="galleryImages.length"
+            class="article-gallery"
+            aria-label="Ảnh bài viết"
+        >
+            <img
+                v-for="(image, index) in galleryImages"
+                :key="image.id || image.file_path"
+                :src="normalizeMediaUrl(image)"
+                :alt="`${post.title} - ảnh ${index + 1}`"
+            />
+        </section>
 
-    <!-- Likers Modal -->
-    <div v-if="showLikersModal" class="likers-modal-backdrop" @click="showLikersModal = false">
-      <div class="likers-modal-content" @click.stop>
-        <div class="likers-modal-header">
-          <h3>Những người đã thích</h3>
-          <button @click="showLikersModal = false" class="close-btn">&times;</button>
-        </div>
-        <div class="likers-modal-body">
-          <div v-for="liker in post?.likers" :key="liker.id" class="liker-list-item">
-            <div class="fb-post-avatar">
-              <img v-if="liker.avatar_url" :src="liker.avatar_url" />
-              <div v-else class="fb-avatar-text">{{ initials(liker.full_name || liker.username) }}</div>
+        <footer class="article-footer">
+            <div>
+                <strong>{{ post.venue_cluster?.name || "SportGo" }}</strong>
+                <span>{{
+                    post.author?.full_name ||
+                    post.author?.username ||
+                    "Ban biên tập SportGo"
+                }}</span>
             </div>
-            <span>{{ liker.full_name || liker.username }}</span>
-          </div>
+        </footer>
+        <!-- Toast Notification -->
+        <div class="toast-notification" :class="{ show: showToast }">
+            {{ toastMessage }}
         </div>
-      </div>
+
+        <!-- Likers Modal -->
+        <div
+            v-if="showLikersModal"
+            class="likers-modal-backdrop"
+            @click="showLikersModal = false"
+        >
+            <div class="likers-modal-content" @click.stop>
+                <div class="likers-modal-header">
+                    <h3>Những người đã thích</h3>
+                    <button @click="showLikersModal = false" class="close-btn">
+                        &times;
+                    </button>
+                </div>
+                <div class="likers-modal-body">
+                    <div
+                        v-for="liker in post?.likers"
+                        :key="liker.id"
+                        class="liker-list-item"
+                    >
+                        <div class="fb-post-avatar">
+                            <img
+                                v-if="liker.avatar_url"
+                                :src="liker.avatar_url"
+                            />
+                            <div v-else class="fb-avatar-text">
+                                {{
+                                    initials(liker.full_name || liker.username)
+                                }}
+                            </div>
+                        </div>
+                        <span>{{ liker.full_name || liker.username }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ReportModal
+            :isOpen="reportModal.open"
+            :targetType="reportModal.targetType"
+            :targetId="reportModal.targetId"
+            @close="reportModal.open = false"
+            @success="handleReportSuccess"
+        />
     </div>
-    
-    <ReportModal
-      :isOpen="reportModal.open"
-      :targetType="reportModal.targetType"
-      :targetId="reportModal.targetId"
-      @close="reportModal.open = false"
-      @success="handleReportSuccess"
-    />
-  </div>
 </template>
 
 <script>
@@ -207,197 +711,263 @@ import { getAuth } from "../../stores/auth.js";
 const fallbackImage = "/images/home/badminton-cover.webp";
 
 export default {
-  name: "NewsDetail",
-  components: { PublicNavbar, ReportModal },
-  data() {
-    return {
-      post: null,
-      loading: true,
-      error: "",
-      newComment: "",
-      isSubmittingComment: false,
-      isSubmittingLike: false,
-      showComments: false,
-      showLikersModal: false,
-      showToast: false,
-      toastMessage: "",
-      showPostOptions: false,
-      hoverComment: null,
-      activeCommentOptions: null,
-      reportModal: {
-        open: false,
-        targetType: '',
-        targetId: ''
-      }
-    };
-  },
-  computed: {
-    currentUser() {
-      const auth = getAuth();
-      return auth ? auth.user : null;
+    name: "NewsDetail",
+    components: { PublicNavbar, ReportModal },
+    data() {
+        return {
+            post: null,
+            loading: true,
+            error: "",
+            newComment: "",
+            isSubmittingComment: false,
+            isSubmittingLike: false,
+            showComments: false,
+            showLikersModal: false,
+            showToast: false,
+            toastMessage: "",
+            showPostOptions: false,
+            hoverComment: null,
+            activeCommentOptions: null,
+            reportModal: {
+                open: false,
+                targetType: "",
+                targetId: "",
+            },
+        };
     },
-    isLiked() {
-      if (!this.currentUser || !this.post || !this.post.likers) return false;
-      return this.post.likers.some(liker => liker.id === this.currentUser.id);
-    }
-  },
-  watch: {
-    "$route.params.slug": {
-      immediate: true,
-      handler() {
-        this.loadPost();
-      },
+    computed: {
+        galleryImages() {
+            return Array.isArray(this.post?.media)
+                ? this.post.media.filter(
+                      (item) => item.collection === "gallery",
+                  )
+                : [];
+        },
+        currentUser() {
+            const auth = getAuth();
+            return auth ? auth.user : null;
+        },
+        isLiked() {
+            if (!this.currentUser || !this.post || !this.post.likers)
+                return false;
+            return this.post.likers.some(
+                (liker) => liker.id === this.currentUser.id,
+            );
+        },
     },
-  },
-  methods: {
-    async loadPost() {
-      this.loading = true;
-      this.error = "";
+    watch: {
+        "$route.params.slug": {
+            immediate: true,
+            handler() {
+                this.loadPost();
+            },
+        },
+    },
+    methods: {
+        async loadPost() {
+            this.loading = true;
+            this.error = "";
 
-      try {
-        const response = await api(`/api/venue-posts/${this.$route.params.slug}`);
-        this.post = response.data;
-      } catch (error) {
-        this.post = null;
-        this.error = error.message || "Không thể tải bài viết.";
-      } finally {
-        this.loading = false;
-      }
-    },
-    async toggleLike() {
-      if (!this.currentUser) {
-        this.$router.push({ name: 'login' });
-        return;
-      }
-      
-      if (this.isSubmittingLike) return;
-      this.isSubmittingLike = true;
-      
-      try {
-        await api(`/api/venue-posts/${this.post.id}/likes`, { method: 'POST' });
-        // Optimistic update
-        if (this.isLiked) {
-          this.post.likers = this.post.likers.filter(l => l.id !== this.currentUser.id);
-          this.post.like_count--;
-        } else {
-          if (!this.post.likers) this.post.likers = [];
-          this.post.likers.unshift(this.currentUser);
-          this.post.like_count++;
-        }
-      } catch (error) {
-        console.error("Failed to toggle like:", error);
-      } finally {
-        this.isSubmittingLike = false;
-      }
-    },
-    async submitComment() {
-      if (!this.newComment.trim() || this.isSubmittingComment || !this.currentUser) return;
+            try {
+                const response = await api(
+                    `/api/venue-posts/${this.$route.params.slug}`,
+                );
+                this.post = response.data;
 
-      this.isSubmittingComment = true;
-      try {
-        await api(`/api/venue-posts/${this.post.id}/comments`, {
-          method: "POST",
-          body: JSON.stringify({ content: this.newComment.trim() }),
-        });
-        
-        this.newComment = "";
-        this.$refs.commentInput.style.height = 'auto';
-      } catch (error) {
-        console.error("Failed to post comment:", error);
-        alert(error.response?.data?.message || error.message || "Không thể gửi bình luận.");
-      } finally {
-        this.isSubmittingComment = false;
-      }
+                if (this.$route.query.open_comment) {
+                    this.showComments = true;
+                }
+
+                this.$nextTick(() => {
+                    const openId = this.$route.query.open_comment;
+                    if (openId) {
+                        setTimeout(() => {
+                            const commentEl = document.getElementById(
+                                "comment-" + openId,
+                            );
+                            if (commentEl) {
+                                commentEl.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "center",
+                                });
+                            }
+                        }, 500);
+                    }
+                });
+            } catch (error) {
+                this.post = null;
+                this.error = error.message || "Không thể tải bài viết.";
+            } finally {
+                this.loading = false;
+            }
+        },
+        async toggleLike() {
+            if (!this.currentUser) {
+                this.$router.push({ name: "login" });
+                return;
+            }
+
+            if (this.isSubmittingLike) return;
+            this.isSubmittingLike = true;
+
+            try {
+                await api(`/api/venue-posts/${this.post.id}/likes`, {
+                    method: "POST",
+                });
+                // Optimistic update
+                if (this.isLiked) {
+                    this.post.likers = this.post.likers.filter(
+                        (l) => l.id !== this.currentUser.id,
+                    );
+                    this.post.like_count--;
+                } else {
+                    if (!this.post.likers) this.post.likers = [];
+                    this.post.likers.unshift(this.currentUser);
+                    this.post.like_count++;
+                }
+            } catch (error) {
+                console.error("Failed to toggle like:", error);
+            } finally {
+                this.isSubmittingLike = false;
+            }
+        },
+        async submitComment() {
+            if (
+                !this.newComment.trim() ||
+                this.isSubmittingComment ||
+                !this.currentUser
+            )
+                return;
+
+            this.isSubmittingComment = true;
+            try {
+                await api(`/api/venue-posts/${this.post.id}/comments`, {
+                    method: "POST",
+                    body: JSON.stringify({ content: this.newComment.trim() }),
+                });
+
+                this.newComment = "";
+                this.$refs.commentInput.style.height = "auto";
+            } catch (error) {
+                console.error("Failed to post comment:", error);
+                alert(
+                    error.response?.data?.message ||
+                        error.message ||
+                        "Không thể gửi bình luận.",
+                );
+            } finally {
+                this.isSubmittingComment = false;
+            }
+        },
+        focusCommentAction() {
+            this.showComments = true;
+            this.$nextTick(() => {
+                this.focusComment();
+            });
+        },
+        toggleComments() {
+            this.showComments = !this.showComments;
+        },
+        focusComment() {
+            if (this.$refs.commentInput) {
+                this.$refs.commentInput.focus();
+            }
+        },
+        copyLink() {
+            navigator.clipboard.writeText(window.location.href);
+            this.toastMessage = "Đã sao chép liên kết bài viết!";
+            this.showToast = true;
+            setTimeout(() => {
+                this.showToast = false;
+            }, 3000);
+        },
+        autoResizeTextarea(e) {
+            const el = e.target;
+            el.style.height = "auto";
+            el.style.height = el.scrollHeight + "px";
+        },
+        normalizeImage(media) {
+            return (
+                normalizeMediaUrl(media) ||
+                normalizeMediaUrl({
+                    file_path:
+                        this.post.thumbnail ||
+                        this.post.image_path ||
+                        this.post.cover_image,
+                }) ||
+                fallbackImage
+            );
+        },
+        categoryLabel(type) {
+            const labels = {
+                news: "Tin tức",
+                promotion: "Ưu đãi",
+                tournament: "Giải đấu",
+                notice: "Thông báo",
+                recruitment: "Tuyển dụng",
+            };
+            return labels[type] || "Tin tức";
+        },
+        formatDate(value) {
+            if (!value) return "";
+            return new Intl.DateTimeFormat("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            }).format(new Date(value));
+        },
+        timeAgo(dateString) {
+            if (!dateString) return "";
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+
+            if (diffInSeconds < 60) return "Vừa xong";
+            if (diffInSeconds < 3600)
+                return `${Math.floor(diffInSeconds / 60)} phút trước`;
+            if (diffInSeconds < 86400)
+                return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+            if (diffInSeconds < 2592000)
+                return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+
+            return this.formatDate(dateString).split(" ")[0]; // Just the date part
+        },
+        initials(name) {
+            if (!name) return "?";
+            return name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .substring(0, 2)
+                .toUpperCase();
+        },
+        toggleCommentOptions(id) {
+            if (this.activeCommentOptions === id) {
+                this.activeCommentOptions = null;
+            } else {
+                this.activeCommentOptions = id;
+            }
+        },
+        openReportModal(type, id) {
+            this.reportModal.targetType = type;
+            this.reportModal.targetId = id;
+            this.reportModal.open = true;
+            this.showPostOptions = false;
+            this.activeCommentOptions = null;
+        },
+        handleReportSuccess() {
+            this.showToastMessage("Báo cáo của bạn đã được gửi thành công.");
+        },
+        showToastMessage(msg) {
+            this.toastMessage = msg;
+            this.showToast = true;
+            setTimeout(() => {
+                this.showToast = false;
+            }, 3000);
+        },
     },
-    focusCommentAction() {
-      this.showComments = true;
-      this.$nextTick(() => {
-        this.focusComment();
-      });
-    },
-    toggleComments() {
-      this.showComments = !this.showComments;
-    },
-    focusComment() {
-      if (this.$refs.commentInput) {
-        this.$refs.commentInput.focus();
-      }
-    },
-    copyLink() {
-      navigator.clipboard.writeText(window.location.href);
-      this.toastMessage = 'Đã sao chép liên kết bài viết!';
-      this.showToast = true;
-      setTimeout(() => {
-        this.showToast = false;
-      }, 3000);
-    },
-    autoResizeTextarea(e) {
-      const el = e.target;
-      el.style.height = 'auto';
-      el.style.height = (el.scrollHeight) + 'px';
-    },
-    normalizeImage(media) {
-      return normalizeMediaUrl(media) || normalizeMediaUrl({ file_path: this.post.thumbnail || this.post.image_path || this.post.cover_image }) || fallbackImage;
-    },
-    categoryLabel(type) {
-      const labels = {
-        news: "Tin tức",
-        promotion: "Ưu đãi",
-        tournament: "Giải đấu",
-        notice: "Thông báo",
-        recruitment: "Tuyển dụng",
-      };
-      return labels[type] || "Tin tức";
-    },
-    formatDate(value) {
-      if (!value) return "";
-      return new Intl.DateTimeFormat("vi-VN", {
-        day: "2-digit", month: "2-digit", year: "numeric",
-        hour: "2-digit", minute: "2-digit"
-      }).format(new Date(value));
-    },
-    timeAgo(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffInSeconds = Math.floor((now - date) / 1000);
-      
-      if (diffInSeconds < 60) return 'Vừa xong';
-      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
-      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
-      if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
-      
-      return this.formatDate(dateString).split(' ')[0]; // Just the date part
-    },
-    initials(name) {
-      if (!name) return "?";
-      return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
-    },
-    toggleCommentOptions(id) {
-      if (this.activeCommentOptions === id) {
-        this.activeCommentOptions = null;
-      } else {
-        this.activeCommentOptions = id;
-      }
-    },
-    openReportModal(type, id) {
-      this.reportModal.targetType = type;
-      this.reportModal.targetId = id;
-      this.reportModal.open = true;
-      this.showPostOptions = false;
-      this.activeCommentOptions = null;
-    },
-    handleReportSuccess() {
-      this.showToastMessage('Báo cáo của bạn đã được gửi thành công.');
-    },
-    showToastMessage(msg) {
-      this.toastMessage = msg;
-      this.showToast = true;
-      setTimeout(() => {
-        this.showToast = false;
-      }, 3000);
-    }
-  },
 };
 </script>
 
@@ -550,6 +1120,45 @@ export default {
   color: #050505;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.article-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.article-gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #dfe8e2;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.article-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid #dfe8e2;
+  color: #4b5f52;
+}
+
+.article-footer div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.article-footer strong {
+  color: #102019;
+}
+
+.article-footer span {
+  font-size: 14px;
 }
 
 .article-body :deep(p) { margin: 0 0 12px; }
@@ -762,6 +1371,14 @@ export default {
   word-break: break-word;
 }
 
+  .article-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .article-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 .comment-actions {
   display: flex;
   gap: 12px;

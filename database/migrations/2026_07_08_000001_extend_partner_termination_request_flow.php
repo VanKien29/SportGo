@@ -117,11 +117,11 @@ return new class extends Migration
                     ['admin_rejected_by', 'partner_term_requests_admin_rejected_by_foreign'],
                     ['manual_debt_resolved_by', 'partner_term_requests_debt_resolved_by_foreign'],
                 ] as [$column, $foreign]) {
-                    if (Schema::hasColumn('partner_termination_requests', $column)) {
-                        try {
-                            $table->foreign($column, $foreign)->references('id')->on('users')->onDelete('set null');
-                        } catch (Throwable) {
-                        }
+                    if (
+                        Schema::hasColumn('partner_termination_requests', $column)
+                        && ! $this->foreignKeyExists('partner_termination_requests', $foreign)
+                    ) {
+                        $table->foreign($column, $foreign)->references('id')->on('users')->onDelete('set null');
                     }
                 }
             });
@@ -167,23 +167,30 @@ return new class extends Migration
             });
         }
 
-        $settingData = [
-            'value' => '14',
-            'description' => 'So ngay chu san con duoc xem ho so sau khi bien ban cham dut cuoi da ky.',
-            'updated_at' => now(),
-            'created_at' => now(),
-        ];
-
-        if (Schema::hasColumn('system_settings', 'value_type')) {
-            $settingData['value_type'] = 'integer';
-        } else {
-            $settingData['type'] = 'integer';
+        if (Schema::hasTable('system_settings') && ! Schema::hasColumn('system_settings', 'value_type')) {
+            Schema::table('system_settings', function (Blueprint $table): void {
+                $table->string('value_type', 30)->default('string')->after('value');
+            });
         }
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'partner_termination_view_grace_days'],
             $settingData
         );
+    }
+
+    private function foreignKeyExists(string $table, string $constraint): bool
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return false;
+        }
+
+        return DB::table('information_schema.TABLE_CONSTRAINTS')
+            ->where('CONSTRAINT_SCHEMA', DB::getDatabaseName())
+            ->where('TABLE_NAME', $table)
+            ->where('CONSTRAINT_NAME', $constraint)
+            ->where('CONSTRAINT_TYPE', 'FOREIGN KEY')
+            ->exists();
     }
 
     public function down(): void
@@ -197,9 +204,8 @@ return new class extends Migration
                     'partner_term_requests_admin_rejected_by_foreign',
                     'partner_term_requests_debt_resolved_by_foreign',
                 ] as $foreign) {
-                    try {
+                    if ($this->foreignKeyExists('partner_termination_requests', $foreign)) {
                         $table->dropForeign($foreign);
-                    } catch (Throwable) {
                     }
                 }
             });

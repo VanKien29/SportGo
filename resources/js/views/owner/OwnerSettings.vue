@@ -379,30 +379,47 @@ import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
 
 const PRESETS = [
   {
+    id: 'owner-sportgo',
+    name: 'SportGo',
+    color: '#16a34a',
+    light: { primary: '#16a34a', secondary: '#0f766e', accent: '#ecfdf5', muted: '#64748b', destructive: '#ef4444', border: '#bbf7d0', card: '#ffffff', background: '#f6fbf7' },
+    dark: { primary: '#22c55e', secondary: '#2dd4bf', accent: '#052e16', muted: '#94a3b8', destructive: '#f87171', border: '#164e2f', card: '#0f1f17', background: '#07130d' }
+  },
+  {
     id: 'owner-zinc',
     name: 'Zinc',
     color: '#18181b',
-    light: {
-      primary: '#18181b',
-      secondary: '#27272a',
-      accent: '#f4f4f5',
-      muted: '#71717a',
-      destructive: '#ef4444',
-      border: '#e4e4e7',
-      card: '#ffffff',
-      background: '#fafafa',
-    },
-    dark: {
-      primary: '#fafafa',
-      secondary: '#27272a',
-      accent: '#27272a',
-      muted: '#a1a1aa',
-      destructive: '#ef4444',
-      border: '#27272a',
-      card: '#09090b',
-      background: '#09090b',
-    }
-  }
+    light: { primary: '#18181b', secondary: '#27272a', accent: '#f4f4f5', muted: '#71717a', destructive: '#ef4444', border: '#e4e4e7', card: '#ffffff', background: '#fafafa' },
+    dark: { primary: '#fafafa', secondary: '#27272a', accent: '#27272a', muted: '#a1a1aa', destructive: '#ef4444', border: '#27272a', card: '#09090b', background: '#09090b' }
+  },
+  {
+    id: 'owner-slate',
+    name: 'Slate',
+    color: '#0f172a',
+    light: { primary: '#0f172a', secondary: '#1e293b', accent: '#e2e8f0', muted: '#64748b', destructive: '#ef4444', border: '#e2e8f0', card: '#ffffff', background: '#f8fafc' },
+    dark: { primary: '#f8fafc', secondary: '#1e293b', accent: '#1e293b', muted: '#94a3b8', destructive: '#ef4444', border: '#1e293b', card: '#0f172a', background: '#020817' }
+  },
+  {
+    id: 'owner-sapphire',
+    name: 'Sapphire',
+    color: '#2563eb',
+    light: { primary: '#2563eb', secondary: '#0284c7', accent: '#f0f9ff', muted: '#475569', destructive: '#e11d48', border: '#bfdbfe', card: '#ffffff', background: '#f0f6ff' },
+    dark: { primary: '#3b82f6', secondary: '#38bdf8', accent: '#1e293b', muted: '#94a3b8', destructive: '#f43f5e', border: '#1e3a8a', card: '#0f172a', background: '#090d16' }
+  },
+  {
+    id: 'owner-amethyst',
+    name: 'Amethyst',
+    color: '#7c3aed',
+    light: { primary: '#7c3aed', secondary: '#db2777', accent: '#f5f3ff', muted: '#4b5563', destructive: '#dc2626', border: '#ddd6fe', card: '#ffffff', background: '#faf7ff' },
+    dark: { primary: '#8b5cf6', secondary: '#ec4899', accent: '#2e1065', muted: '#9ca3af', destructive: '#ef4444', border: '#4c1d95', card: '#111827', background: '#030712' }
+  },
+  {
+    id: 'owner-amber',
+    name: 'Amber',
+    color: '#d97706',
+    light: { primary: '#d97706', secondary: '#ea580c', accent: '#fffbeb', muted: '#4b5563', destructive: '#dc2626', border: '#fde68a', card: '#ffffff', background: '#fdfbf7' },
+    dark: { primary: '#f59e0b', secondary: '#f97316', accent: '#451a03', muted: '#9ca3af', destructive: '#ef4444', border: '#78350f', card: '#1e1b4b', background: '#0c0a09' }
+  },
 ];
 
 export default {
@@ -412,7 +429,7 @@ export default {
     return {
       sidebarStyle: localStorage.getItem('owner-sidebar-style') || 'one-level',
       successMessage: '',
-      selectedPresetId: 'owner-zinc',
+      selectedPresetId: 'owner-sportgo',
       selectedRadius: '8px',
       selectedFontSize: '14px',
       selectedFontFamily: "'Outfit', sans-serif",
@@ -722,6 +739,16 @@ export default {
         }
       }
     },
+    mergePresets(basePresets, incomingPresets) {
+      const map = new Map();
+      basePresets.forEach((preset) => map.set(preset.id, preset));
+      (incomingPresets || []).forEach((preset) => {
+        if (preset?.id) {
+          map.set(preset.id, { ...(map.get(preset.id) || {}), ...preset });
+        }
+      });
+      return Array.from(map.values());
+    },
     loadSavedTheme() {
       const saved = localStorage.getItem('owner-custom-theme');
       if (saved) {
@@ -753,7 +780,8 @@ export default {
     },
     resetAll() {
       if (confirm('Bạn có chắc chắn muốn khôi phục tất cả cài đặt và độ bo góc về mặc định?')) {
-        this.selectedPresetId = 'owner-zinc';
+        this.selectPreset(PRESETS[0]);
+        this.selectedPresetId = 'owner-sportgo';
         this.selectedRadius = '8px';
         this.selectedFontSize = '14px';
         this.selectedFontFamily = "'Outfit', sans-serif";
@@ -777,7 +805,7 @@ export default {
           this.selectedTransitionNormal = data.transition_normal || '250ms';
           
           if (data.presets && data.presets.length > 0) {
-            this.defaultPresets = data.presets;
+            this.defaultPresets = this.mergePresets(PRESETS, data.presets);
           }
           if (data.custom_themes) {
             this.userPresets = data.custom_themes;
@@ -790,7 +818,7 @@ export default {
             this.theme.dark = { ...activePreset.dark };
             this.newThemeName = activePreset.name;
           } else {
-            this.selectedPresetId = data.active_theme_id || 'owner-zinc';
+            this.selectedPresetId = data.active_theme_id || 'owner-sportgo';
           }
         }
       } catch (e) {

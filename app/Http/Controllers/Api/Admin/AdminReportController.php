@@ -8,6 +8,8 @@ use App\Models\VenuePost;
 use App\Models\VenuePostComment;
 use App\Models\Notification;
 use App\Models\PartnerContract;
+use App\Models\CommunityPost;
+use App\Models\CommunityPostComment;
 use App\Models\PlayerPost;
 use App\Models\Report;
 use App\Models\User;
@@ -34,6 +36,8 @@ class AdminReportController extends Controller
         'comment' => VenuePostComment::class,
         'venue_post' => VenuePost::class,
         'player_post' => PlayerPost::class,
+        'community_post' => \App\Models\CommunityPost::class,
+        'community_post_comment' => \App\Models\CommunityPostComment::class,
         'user' => User::class,
         'venue' => VenueCluster::class,
     ];
@@ -71,6 +75,7 @@ class AdminReportController extends Controller
                         CommunityPost::class,
                         CommunityPostComment::class,
                         VenuePost::class,
+                        VenuePostComment::class,
                         PlayerPost::class,
                     ]);
                 } elseif ($group === 'user') {
@@ -233,11 +238,7 @@ class AdminReportController extends Controller
         ];
         $note = !empty($data['action_note']) ? $data['action_note'] : $defaultNotes[$data['decision']];
 
-        if ($report->status === 'reviewing' && $report->reviewed_by !== $request->user()->id) {
-            throw ValidationException::withMessages([
-                'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
-            ]);
-        }
+
 
         $targetOwner = $this->targetOwner($report->reportable);
         $oldValues = $report->toArray();
@@ -312,6 +313,68 @@ class AdminReportController extends Controller
 
         return response()->json([
             'message' => $data['decision'] === 'resolved' ? 'Đã xử lý báo cáo.' : 'Đã bỏ qua báo cáo.',
+            'data' => $this->detailPayload($report->fresh(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
+        ]);
+    }
+
+    public function sendNotification(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'report.resolve');
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:4000'],
+            'recipient' => ['required', Rule::in(['reporter', 'reported'])],
+        ]);
+
+        $report = Report::query()->with(['reporter', 'reportable'])->findOrFail($id);
+
+        $targetUser = null;
+        $title = '';
+        $isReporter = false;
+
+        if ($data['recipient'] === 'reporter') {
+            $targetUser = $report->reporter;
+            $title = 'Thông báo bổ sung về báo cáo của bạn';
+            $isReporter = true;
+        } else {
+            $targetUser = $this->targetOwner($report->reportable ?: $this->resolveTarget($report));
+            $title = 'Thông báo về nội dung của bạn';
+        }
+
+        if (!$targetUser) {
+            throw ValidationException::withMessages(['recipient' => 'Không tìm thấy người dùng để gửi thông báo.']);
+        }
+
+        $this->audit->log($request, 'report', 'report.notified', 'reports', $report->id, [], [], [
+            'reason' => "Gửi cho " . ($isReporter ? 'Người báo cáo' : 'Người bị báo cáo') . ": " . $data['message'],
+            'severity' => 'info',
+        ]);
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
+            $target = $report->reportable ?: $this->resolveTarget($report);
+            $payload = $this->targetPayload($target);
+
+            \App\Models\Notification::query()->create([
+                'user_id' => $targetUser->id,
+                'type' => 'report_processed',
+                'title' => $title,
+                'body' => $data['message'],
+                'reference_type' => Report::class,
+                'reference_id' => $report->id,
+                'data' => [
+                    'status' => $report->status, 
+                    'action_taken' => $report->action_taken,
+                    'is_reporter' => $isReporter,
+                    'target_type' => $payload['type'] ?? null,
+                    'post_slug' => $payload['post_slug'] ?? null,
+                    'target_id' => $payload['id'] ?? null,
+                ],
+                'is_read' => false,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Đã gửi thông báo bổ sung thành công.',
             'data' => $this->detailPayload($report->fresh(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
         ]);
     }
@@ -734,6 +797,13 @@ class AdminReportController extends Controller
         if ($this->isContent($target)) {
             $payload['content'] = $target->content ?? $target->description ?? null;
             $payload['title'] = $target->title ?? null;
+            
+            if ($target instanceof CommunityPostComment || $target instanceof VenuePostComment) {
+                $post = $target->post;
+                $payload['post_slug'] = $post ? ($post->slug ?? $post->id) : null;
+            } else {
+                $payload['post_slug'] = $target->slug ?? $target->getKey();
+            }
         }
 
         if ($target instanceof User) {
@@ -761,7 +831,7 @@ class AdminReportController extends Controller
         return match (true) {
             $target instanceof User => $target,
             $target instanceof CommunityPost, $target instanceof VenuePost, $target instanceof PlayerPost => $target->author,
-            $target instanceof CommunityPostComment => $target->user,
+            $target instanceof CommunityPostComment, $target instanceof VenuePostComment => $target->user,
             $target instanceof VenueCluster => $target->owner,
             default => null,
         };
@@ -773,7 +843,7 @@ class AdminReportController extends Controller
             $target instanceof User => $target->full_name ?: $target->username,
             $target instanceof VenueCluster => $target->name,
             $target instanceof PlayerPost => $target->title,
-            $target instanceof CommunityPostComment => 'Bình luận: '.mb_strimwidth($target->content, 0, 70, '...'),
+            $target instanceof CommunityPostComment, $target instanceof VenuePostComment => 'Bình luận: '.mb_strimwidth($target->content, 0, 70, '...'),
             default => mb_strimwidth((string) ($target->content ?? $target->getKey()), 0, 80, '...'),
         };
     }
@@ -783,6 +853,7 @@ class AdminReportController extends Controller
         return $target instanceof CommunityPost
             || $target instanceof CommunityPostComment
             || $target instanceof VenuePost
+            || $target instanceof VenuePostComment
             || $target instanceof PlayerPost;
     }
 
@@ -844,16 +915,57 @@ class AdminReportController extends Controller
             return;
         }
 
-        $recipients = collect([$report->reporter, $targetOwner])->filter()->unique('id');
-        foreach ($recipients as $user) {
+        $target = $report->reportable ?: $this->resolveTarget($report);
+        $payload = $this->targetPayload($target);
+
+        // Notify reporter
+        if ($report->reporter) {
             Notification::query()->create([
-                'user_id' => $user->id,
+                'user_id' => $report->reporter->id,
                 'type' => 'report_processed',
                 'title' => $decision === 'resolved' ? 'Báo cáo đã được xử lý' : 'Báo cáo đã được xem xét',
                 'body' => $note,
                 'reference_type' => Report::class,
                 'reference_id' => $report->id,
-                'data' => ['status' => $decision, 'action_taken' => $report->action_taken],
+                'data' => [
+                    'status' => $decision, 
+                    'action_taken' => $report->action_taken,
+                    'is_reporter' => true,
+                    'target_type' => $payload['type'] ?? null,
+                    'post_slug' => $payload['post_slug'] ?? null,
+                    'target_id' => $payload['id'] ?? null,
+                ],
+                'is_read' => false,
+            ]);
+        }
+
+        // Notify target owner
+        if ($targetOwner && $decision === 'resolved' && (!$report->reporter || $report->reporter->id !== $targetOwner->id)) {
+            $label = $payload['label'] ?? 'Nội dung';
+            $actionMap = [
+                'warning' => 'cảnh cáo',
+                'content_hidden' => 'ẩn',
+                'content_deleted' => 'gỡ bỏ',
+                'account_locked' => 'khóa tài khoản',
+                'venue_locked' => 'khóa cụm sân',
+            ];
+            $actionLabel = $actionMap[$report->action_taken ?? ''] ?? 'xử lý';
+
+            Notification::query()->create([
+                'user_id' => $targetOwner->id,
+                'type' => 'report_processed',
+                'title' => 'Nội dung của bạn vi phạm quy định',
+                'body' => "Chúng tôi nhận thấy \"$label\" của bạn vi phạm quy định của SportGo và đã bị $actionLabel. Xin vui lòng tuân thủ quy định để tránh bị khóa tài khoản.",
+                'reference_type' => Report::class,
+                'reference_id' => $report->id,
+                'data' => [
+                    'status' => $decision, 
+                    'action_taken' => $report->action_taken,
+                    'is_reporter' => false,
+                    'target_type' => $payload['type'] ?? null,
+                    'post_slug' => $payload['post_slug'] ?? null,
+                    'target_id' => $payload['id'] ?? null,
+                ],
                 'is_read' => false,
             ]);
         }

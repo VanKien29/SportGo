@@ -58,15 +58,7 @@ class SystemSettingController extends Controller
         }
 
         foreach (SystemSetting::PROFILE_FIELDS as $key => $meta) {
-            SystemSetting::query()->updateOrCreate(
-                ['key' => $key],
-                [
-                    'value' => trim((string) ($data[$key] ?? '')),
-                    'type' => 'string',
-                    'group' => $meta['group'],
-                    'label' => $meta['label'],
-                ],
-            );
+            SystemSetting::upsertProfileValue($key, $data[$key] ?? '', $meta);
         }
 
         return response()->json([
