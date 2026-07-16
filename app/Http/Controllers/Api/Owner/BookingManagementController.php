@@ -10,6 +10,7 @@ use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
+use App\Services\VenueStaffAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;

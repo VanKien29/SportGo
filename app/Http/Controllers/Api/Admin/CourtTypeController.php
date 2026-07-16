@@ -23,6 +23,16 @@ class CourtTypeController extends Controller
         return response()->json(['data' => $courtTypes]);
     }
 
+    public function show(int $id): JsonResponse
+    {
+        $courtType = CourtType::query()
+            ->with('parent')
+            ->withCount('children')
+            ->findOrFail($id);
+
+        return response()->json(['data' => $courtType]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([

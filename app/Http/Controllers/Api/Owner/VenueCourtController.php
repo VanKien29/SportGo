@@ -44,6 +44,25 @@ class VenueCourtController extends Controller
         return response()->json(['data' => $courts]);
     }
 
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $court = VenueCourt::query()->with('courtType')->findOrFail($id);
+        $cluster = VenueCluster::query()->findOrFail($court->venue_cluster_id);
+
+        $isAccessible = $cluster->owner_id === $request->user()->id
+            || DB::table('venue_staff_assignments')
+                ->where('user_id', $request->user()->id)
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('status', 'active')
+                ->exists();
+
+        if (! $isAccessible) {
+            return response()->json(['message' => 'Bạn không có quyền xem sân con này.'], 403);
+        }
+
+        return response()->json(['data' => $court]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
