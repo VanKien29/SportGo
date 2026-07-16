@@ -20,6 +20,78 @@
             </button>
         </header>
 
+        <form class="filters" @submit.prevent="applyFilters">
+            <label class="search-field">
+                <AppIcon name="search" size="17" />
+                <input
+                    v-model.trim="filters.keyword"
+                    type="search"
+                    placeholder="Mã payment, booking, khách, cụm sân..."
+                />
+            </label>
+            <select v-model="filters.status">
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending">Chờ thanh toán</option>
+                <option value="paid">Đã thanh toán</option>
+                <option value="failed">Thất bại</option>
+                <option value="refunded">Đã hoàn tiền</option>
+            </select>
+            <select v-model="filters.payment_kind">
+                <option value="">Tất cả loại</option>
+                <option value="full">Thanh toán toàn bộ</option>
+                <option value="deposit">Đặt cọc</option>
+                <option value="partial">Thanh toán một phần</option>
+            </select>
+            <select v-model="filters.method">
+                <option value="">Tất cả phương thức</option>
+                <option value="sepay">SePay</option>
+                <option value="bank_transfer">Chuyển khoản</option>
+                <option value="wallet">Ví</option>
+                <option value="mixed">Kết hợp</option>
+                <option value="cash">Tiền mặt</option>
+            </select>
+            <select v-model="filters.paid_range">
+                <option value="">Ngày thanh toán</option>
+                <option value="today">Hôm nay</option>
+                <option value="yesterday">Hôm qua</option>
+                <option value="last_3_days">3 ngày gần đây</option>
+                <option value="last_7_days">7 ngày gần đây</option>
+                <option value="last_30_days">30 ngày gần đây</option>
+                <option value="this_month">Tháng này</option>
+                <option value="last_month">Tháng trước</option>
+                <option value="custom">Tùy chỉnh</option>
+            </select>
+            <div
+                v-if="filters.paid_range === 'custom'"
+                class="date-range-fields"
+                aria-label="Khoảng ngày thanh toán tùy chỉnh"
+            >
+                <input
+                    v-model="filters.paid_from"
+                    type="date"
+                    title="Thanh toán từ ngày"
+                />
+                <span>đến</span>
+                <input
+                    v-model="filters.paid_to"
+                    type="date"
+                    title="Thanh toán đến ngày"
+                    :min="filters.paid_from"
+                />
+            </div>
+            <ActionIconButton
+                icon="filter"
+                label="Lọc danh sách"
+                variant="primary"
+                type="submit"
+            />
+            <ActionIconButton
+                icon="refresh"
+                label="Xóa lọc"
+                @click="resetFilters"
+            />
+        </form>
+
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
 

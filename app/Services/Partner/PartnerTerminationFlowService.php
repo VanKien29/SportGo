@@ -1001,15 +1001,24 @@ class PartnerTerminationFlowService
             return;
         }
 
+        $payload = [
+            'value' => (string) max(0, $graceDays),
+            'description' => 'Số ngày chủ sân còn được xem hồ sơ sau khi biên bản chấm dứt cuối đã ký.',
+            'updated_at' => now(),
+            'created_at' => now(),
+        ];
+
+        if (Schema::hasColumn('system_settings', 'value_type')) {
+            $payload['value_type'] = 'integer';
+        }
+
+        if (Schema::hasColumn('system_settings', 'type')) {
+            $payload['type'] = 'integer';
+        }
+
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'partner_termination_view_grace_days'],
-            [
-                'value' => (string) max(0, $graceDays),
-                'value_type' => 'integer',
-                'description' => 'Số ngày chủ sân còn được xem hồ sơ sau khi biên bản chấm dứt cuối đã ký.',
-                'updated_at' => now(),
-                'created_at' => now(),
-            ]
+            $payload
         );
     }
 

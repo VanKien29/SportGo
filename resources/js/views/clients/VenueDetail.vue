@@ -14,86 +14,7 @@
     </div>
 
     <!-- Content -->
-    <div v-else-if="venue" class="venue-content">
-
-      <!-- ─── Hero ─── -->
-      <div class="hero">
-        <!-- Gallery -->
-        <div class="hero-gallery">
-          <div class="gallery-main">
-            <img
-              v-if="activeImage"
-              :src="activeImage"
-              :alt="venue.name"
-              class="gallery-main-img"
-              @error="onImgError"
-            />
-            <div v-else class="gallery-placeholder">
-              <span>{{ (venue.name || '').slice(0, 2).toUpperCase() }}</span>
-            </div>
-          </div>
-          <div class="gallery-thumbs" v-if="gallery.length > 1">
-            <button
-              v-for="(img, i) in gallery"
-              :key="i"
-              :class="['thumb-btn', { active: activeImage === img }]"
-              @click="activeImage = img"
-            >
-              <img :src="img" :alt="`Ảnh ${i + 1}`" @error="e => e.target.parentNode.style.display='none'" />
-            </button>
-          </div>
-        </div>
-
-        <!-- Hero Info -->
-        <div class="hero-info">
-
-          <div class="court-type-badges" v-if="venue.court_types?.length">
-            <span v-for="ct in venue.court_types" :key="ct.id" class="type-badge">{{ ct.name }}</span>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <h1 class="venue-name" style="margin: 0;">{{ venue.name }}</h1>
-            
-            <div style="position: relative;" v-click-outside="() => showActionMenu = false">
-              <button 
-                class="btn-icon" 
-                style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 6px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" 
-                @click="showActionMenu = !showActionMenu"
-                title="Tùy chọn"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="5" r="1.5"></circle>
-                  <circle cx="12" cy="12" r="1.5"></circle>
-                  <circle cx="12" cy="19" r="1.5"></circle>
-                </svg>
-              </button>
-              
-              <!-- Dropdown Menu -->
-              <div 
-                v-if="showActionMenu" 
-                style="position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 160px; overflow: hidden;"
-              >
-                <button 
-                  style="width: 100%; text-align: left; padding: 12px 16px; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #ef4444; font-weight: 500;"
-                  @click="showReportModal = true; showActionMenu = false"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                  Báo cáo vi phạm
-                </button>
-              </div>
-            </div>
-          </div>
-
-      <div v-else-if="error" class="state-screen">
-        <p>{{ error }}</p>
-        <button type="button" @click="$router.push({ name: 'venues', query: searchQuery })">Quay lại tìm sân</button>
-      </div>
-
-      <template v-else-if="venue">
+    <template v-else-if="venue">
         <section class="hero-band">
           <div class="detail-container">
             <nav class="breadcrumbs" aria-label="Duong dan">
@@ -378,11 +299,9 @@
                 {{ venue.court_count || venue.venue_courts?.length || 0 }} sân đang hoạt động
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+          </aside>
+        </section>
+      </template>
 
   <!-- Report Modal -->
   <div v-if="showReportModal" class="modal-overlay" @click.self="showReportModal = false" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000;">
@@ -428,6 +347,7 @@
   <div v-if="toastMessage" :class="['toast-notification', toastType]" style="position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; font-weight: 500; color: white; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s;" :style="{ backgroundColor: toastType === 'success' ? '#10b981' : '#ef4444' }">
     {{ toastMessage }}
   </div>
+</div>
 </template>
 
 <script>

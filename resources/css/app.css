@@ -2,7 +2,6 @@
 
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
-@import './admin/index.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -98,4 +97,32 @@ strong, b {
 
 h1, h2, h3, h4, h5, h6 {
     font-weight: 600 !important;
+}
+
+/* Counter-booking drawers stay light even when Chrome restores autofill while
+   the application theme class is transitioning. */
+.dark .booking-side input:-webkit-autofill,
+.dark .booking-side input:-webkit-autofill:hover,
+.dark .booking-side input:-webkit-autofill:focus,
+.dark .booking-side input:-webkit-autofill:active {
+    color: #101c15 !important;
+    -webkit-text-fill-color: #101c15 !important;
+    caret-color: #101c15 !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    transition: background-color 0s;
+}
+
+.dark .booking-side input:autofill {
+    color: #101c15 !important;
+    -webkit-text-fill-color: #101c15 !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+}
+
+.booking-side input::placeholder,
+.booking-side .voucher-code-row input::placeholder {
+    color: #7b8a80 !important;
+    -webkit-text-fill-color: #7b8a80 !important;
+    opacity: 1 !important;
 }

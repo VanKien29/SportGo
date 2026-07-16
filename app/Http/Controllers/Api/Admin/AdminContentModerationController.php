@@ -381,6 +381,59 @@ class AdminContentModerationController extends Controller
         ]);
     }
 
+    public function notifyAuthor(Request $request, string $type, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'moderation.manage');
+
+        if (! in_array($type, [
+            'community_post',
+            'community_posts',
+            'venue_post',
+            'venue_posts',
+            'system_post',
+            'system_posts',
+        ], true)) {
+            throw ValidationException::withMessages([
+                'type' => 'Loại bài viết không hợp lệ.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:4000'],
+        ], [
+            'message.required' => 'Vui lòng nhập nội dung thông báo.',
+        ]);
+
+        $post = $this->findPost($type, $id);
+        $tableName = $this->getPostTableName($type);
+
+        if (! $post->author_id) {
+            throw ValidationException::withMessages([
+                'author' => 'Không tìm thấy tác giả để gửi thông báo.',
+            ]);
+        }
+
+        $this->sendNotification(
+            (string) $post->author_id,
+            'post_moderation_notice',
+            'Thông báo kiểm duyệt nội dung',
+            $data['message'],
+            $tableName,
+            (string) $post->id,
+            isset($post->slug) ? ['slug' => $post->slug] : null
+        );
+
+        $this->audit->log($request, 'moderation', 'post.author_notified', $tableName, $post->id, [], [], [
+            'reason' => $data['message'],
+            'severity' => 'info',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã gửi thông báo cho tác giả.',
+        ]);
+    }
+
     /**
      * Giải quyết báo cáo vi phạm
      */

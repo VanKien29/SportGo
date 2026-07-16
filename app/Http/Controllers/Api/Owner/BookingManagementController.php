@@ -8,7 +8,9 @@ use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
+use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
+use App\Services\VenueStaffAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,6 +25,8 @@ class BookingManagementController extends Controller
         private readonly BookingService $bookingService,
         private readonly SepayPaymentService $sepayPaymentService,
         private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
+        private readonly VenueStaffAccessService $venueStaffAccess,
+        private readonly WalkInCustomerService $walkInCustomers,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -205,6 +209,7 @@ class BookingManagementController extends Controller
             'usage_count' => ['nullable', 'integer', 'min:1', 'max:130'],
             'voucher_code' => ['nullable', 'string', 'max:50'],
             'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'walk_in_phone' => ['nullable', 'string', 'max:15', 'regex:/^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/'],
         ]);
 
         abort_unless($this->visibleClusterIds($request->user()->id)->contains($validated['venue_cluster_id']), 403);
@@ -214,6 +219,11 @@ class BookingManagementController extends Controller
             ->findOrFail($validated['venue_court_id']);
 
         $validated['venue_court_id'] = $court->id;
+
+        if (empty($validated['customer_id'])) {
+            $customer = $this->walkInCustomers->findByPhone($validated['walk_in_phone'] ?? null);
+            $validated['customer_id'] = $customer?->id ?? 0;
+        }
 
         return response()->json([
             'data' => $this->bookingService
@@ -228,7 +238,9 @@ class BookingManagementController extends Controller
 
         $validated = $request->validate([
             'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
-            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_date' => ['nullable', 'required_without:booking_dates', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_dates' => ['nullable', 'array', 'min:1', 'max:31'],
+            'booking_dates.*' => ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
@@ -257,6 +269,19 @@ class BookingManagementController extends Controller
             ]);
         }
 
+        $bookingDates = collect($validated['booking_dates'] ?? [$validated['booking_date']])
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+        $validated['booking_date'] = $bookingDates->first();
+
+        if ($bookingDates->count() > 1 && ($validated['payment_method'] ?? null) === 'sepay') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Booking nhiều ngày chưa hỗ trợ một mã QR chung. Vui lòng chọn tiền mặt hoặc thu sau.',
+            ]);
+        }
+
         if (empty($validated['time_ranges'])) {
             if ($this->timeToMinutes($validated['start_time']) >= $this->timeToMinutes($validated['end_time'])) {
                 throw ValidationException::withMessages(['end_time' => 'Giờ kết thúc phải sau giờ bắt đầu.']);
@@ -275,6 +300,20 @@ class BookingManagementController extends Controller
 
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
+
+        if ($bookingDates->count() > 1) {
+            $bookings = $this->bookingService->createCounterBookingsForDates(
+                $validated,
+                $bookingDates,
+                $request->user(),
+            );
+
+            return response()->json([
+                'message' => "Đã tạo {$bookings->count()} booking tại quầy.",
+                'data' => $bookings,
+                'payment_qr' => null,
+            ], 201);
+        }
 
         $booking = $this->bookingService->createCounterBooking($validated, $request->user());
         $paymentQr = null;
@@ -609,12 +648,26 @@ class BookingManagementController extends Controller
             'recurrence_days_of_week.*' => ['integer', 'between:0,6', 'distinct'],
             'recurrence_days_of_month' => ['nullable', 'array'],
             'recurrence_days_of_month.*' => ['integer', 'between:1,31', 'distinct'],
+            'recurring_dates' => ['nullable', 'array', 'min:1', 'max:130'],
+            'recurring_dates.*' => ['date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
             'time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
             'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'weekday_time_ranges' => ['nullable', 'array', 'max:7'],
+            'weekday_time_ranges.*.day_of_week' => ['required_with:weekday_time_ranges', 'integer', 'between:0,6', 'distinct'],
+            'weekday_time_ranges.*.time_ranges' => ['required_with:weekday_time_ranges', 'array', 'min:1', 'max:32'],
+            'weekday_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'weekday_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'weekday_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'date_time_ranges' => ['nullable', 'array', 'max:130'],
+            'date_time_ranges.*.date' => ['required_with:date_time_ranges', 'date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
+            'date_time_ranges.*.time_ranges' => ['required_with:date_time_ranges', 'array', 'min:1', 'max:32'],
+            'date_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'date_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'date_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
@@ -630,6 +683,7 @@ class BookingManagementController extends Controller
                 'conflict_resolution' => ['nullable', Rule::in(['abort', 'skip', 'mixed'])],
                 'conflict_overrides' => ['nullable', 'array'],
                 'conflict_overrides.*.date' => ['required_with:conflict_overrides', 'date_format:Y-m-d'],
+                'conflict_overrides.*.key' => ['nullable', 'string', 'max:120'],
                 'conflict_overrides.*.action' => ['required_with:conflict_overrides', Rule::in(['skip', 'switch'])],
                 'conflict_overrides.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
             ];
@@ -640,11 +694,32 @@ class BookingManagementController extends Controller
 
         $validated = $request->validate($rules, $this->walkInValidationMessages());
 
-        if ($validated['recurrence_type'] === 'weekly' && empty($validated['recurrence_days_of_week'])) {
+        $usesExplicitDates = ! empty($validated['recurring_dates']);
+
+        if ($usesExplicitDates) {
+            $selectedDates = collect($validated['recurring_dates'])->sort()->values();
+            $configuredDates = collect($validated['date_time_ranges'] ?? [])->pluck('date')->sort()->values();
+
+            if ($configuredDates->diff($selectedDates)->isNotEmpty() || $selectedDates->diff($configuredDates)->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'date_time_ranges' => 'Mỗi ngày đã chọn cần có sân và khung giờ riêng.',
+                ]);
+            }
+
+            $validated['recurring_dates'] = $selectedDates->all();
+            $validated['recurring_start_date'] = $selectedDates->first();
+            $validated['recurring_end_date'] = $selectedDates->last();
+        }
+
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'weekly' && empty($validated['recurrence_days_of_week'])) {
             throw ValidationException::withMessages(['recurrence_days_of_week' => 'Vui lòng chọn thứ trong tuần.']);
         }
 
-        if ($validated['recurrence_type'] === 'weekly' && ! empty($validated['weekday_time_ranges'])) {
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'weekly' && empty($validated['weekday_time_ranges'])) {
+            throw ValidationException::withMessages(['weekday_time_ranges' => 'Mỗi thứ đã chọn cần có sân và khung giờ riêng.']);
+        }
+
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'weekly' && ! empty($validated['weekday_time_ranges'])) {
             $configuredDays = collect($validated['weekday_time_ranges'])->pluck('day_of_week')->sort()->values();
             $selectedDays = collect($validated['recurrence_days_of_week'] ?? [])->sort()->values();
 
@@ -653,7 +728,7 @@ class BookingManagementController extends Controller
             }
         }
 
-        if ($validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {
             throw ValidationException::withMessages(['recurrence_days_of_month' => 'Vui lòng chọn ngày trong tháng.']);
         }
 
@@ -665,6 +740,16 @@ class BookingManagementController extends Controller
             foreach ($validated['time_ranges'] as $index => $range) {
                 if ($this->timeToMinutes($range['start_time']) >= $this->timeToMinutes($range['end_time'])) {
                     throw ValidationException::withMessages(["time_ranges.$index.end_time" => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+                }
+            }
+        }
+
+        foreach ($validated['date_time_ranges'] ?? [] as $dateIndex => $dateGroup) {
+            foreach ($dateGroup['time_ranges'] as $rangeIndex => $range) {
+                if ($this->timeToMinutes($range['start_time']) >= $this->timeToMinutes($range['end_time'])) {
+                    throw ValidationException::withMessages([
+                        "date_time_ranges.$dateIndex.time_ranges.$rangeIndex.end_time" => 'Giờ kết thúc phải sau giờ bắt đầu.',
+                    ]);
                 }
             }
         }
@@ -714,12 +799,71 @@ class BookingManagementController extends Controller
             ->values();
     }
 
+    private function applyCourtScope($query, Request $request, Collection $clusterIds): void
+    {
+        if (! $this->venueStaffAccess->isStaff($request->user())) {
+            return;
+        }
+
+        $query->where(function ($scoped) use ($clusterIds, $request): void {
+            foreach ($clusterIds as $clusterId) {
+                $allowed = $this->venueStaffAccess->allowedCourtTypeIds($request->user(), (string) $clusterId);
+
+                $scoped->orWhere(function ($clusterQuery) use ($clusterId, $allowed): void {
+                    $clusterQuery->where('venue_cluster_id', $clusterId);
+
+                    if ($allowed !== null) {
+                        $clusterQuery->where(function ($courtQuery) use ($allowed): void {
+                            $courtQuery
+                                ->whereHas('venueCourt', fn ($q) => $q->whereIn('court_type_id', $allowed))
+                                ->orWhereHas('items.venueCourt', fn ($q) => $q->whereIn('court_type_id', $allowed));
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    private function assertPayloadCourtAccess(Request $request, array $payload): void
+    {
+        $courtIds = collect([$payload['venue_court_id'] ?? null])
+            ->merge(collect($payload['time_ranges'] ?? [])->pluck('venue_court_id'))
+            ->merge(collect($payload['weekday_time_ranges'] ?? [])
+                ->flatMap(fn (array $day) => collect($day['time_ranges'] ?? [])->pluck('venue_court_id')))
+            ->merge(collect($payload['date_time_ranges'] ?? [])
+                ->flatMap(fn (array $date) => collect($date['time_ranges'] ?? [])->pluck('venue_court_id')))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($courtIds->isEmpty()) {
+            return;
+        }
+
+        VenueCourt::query()
+            ->whereIn('id', $courtIds)
+            ->get()
+            ->each(fn (VenueCourt $court) => $this->venueStaffAccess->assertCourtAccess($request->user(), $court));
+    }
+
+    private function assertBookingCourtAccess(Request $request, Booking $booking): void
+    {
+        $booking->loadMissing(['venueCourt', 'items.venueCourt']);
+
+        collect([$booking->venueCourt])
+            ->merge($booking->items->pluck('venueCourt'))
+            ->filter()
+            ->unique('id')
+            ->each(fn (VenueCourt $court) => $this->venueStaffAccess->assertCourtAccess($request->user(), $court));
+    }
+
     private function timeToMinutes(string $time): int
     {
         if (str_starts_with($time, '24:00')) {
             return 24 * 60;
         }
         [$hours, $minutes] = explode(':', $time);
+
         return (int) $hours * 60 + (int) $minutes;
     }
 
@@ -774,7 +918,7 @@ class BookingManagementController extends Controller
         $statusCounts = $bookings->groupBy('status')->map->count();
         $paymentOptions = $bookings->pluck('payment_option')->unique()->values();
         $occurrences = $bookings
-            ->sortBy(fn (Booking $booking): string => $booking->booking_date->toDateString() . ' ' . ($booking->start_time ?? ''))
+            ->sortBy(fn (Booking $booking): string => $booking->booking_date->toDateString().' '.($booking->start_time ?? ''))
             ->map(function (Booking $booking): array {
                 $items = $booking->items->isNotEmpty()
                     ? $booking->items
@@ -845,6 +989,7 @@ class BookingManagementController extends Controller
             'recurrence_interval' => $first->recurrence_interval,
             'recurrence_days_of_week' => $first->recurrence_days_of_week,
             'recurrence_days_of_month' => $first->recurrence_days_of_month,
+            'recurring_dates' => $occurrences->pluck('booking_date')->unique()->values(),
             'venue_cluster_id' => $first->venue_cluster_id,
             'venue_cluster_name' => $first->venueCluster?->name,
             'court_names' => $courtNames,
@@ -869,5 +1014,4 @@ class BookingManagementController extends Controller
             'has_conflict_sensitive_items' => $bookings->contains(fn (Booking $booking): bool => in_array($booking->status, ['pending_payment', 'confirmed', 'checked_in'], true)),
         ];
     }
-
 }
