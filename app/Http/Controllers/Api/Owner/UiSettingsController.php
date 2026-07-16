@@ -70,7 +70,20 @@ class UiSettingsController extends Controller
             'sidebar_style' => 'one-level',
             'radius' => '8px',
             'font_size' => '14px',
-            'presets' => $this->themePresets(),
+            'font_family' => "'Outfit', sans-serif",
+            'sidebar_width' => '272px',
+            'sidebar_collapsed_width' => '78px',
+            'transition_fast' => '180ms',
+            'transition_normal' => '250ms',
+            'presets' => [
+                [
+                    'id' => 'owner-zinc',
+                    'name' => 'Zinc',
+                    'color' => '#18181b',
+                    'light' => ['primary' => '#18181b', 'secondary' => '#27272a', 'accent' => '#f4f4f5', 'muted' => '#71717a', 'destructive' => '#ef4444', 'border' => '#e4e4e7', 'card' => '#ffffff', 'background' => '#fafafa', 'text' => '#1e293b'],
+                    'dark' => ['primary' => '#fafafa', 'secondary' => '#27272a', 'accent' => '#27272a', 'muted' => '#a1a1aa', 'destructive' => '#ef4444', 'border' => '#27272a', 'card' => '#09090b', 'background' => '#09090b', 'text' => '#f4f4f5'],
+                ],
+            ],
             'custom_themes' => [],
         ];
     }
@@ -116,6 +129,11 @@ class UiSettingsController extends Controller
             'sidebar_style' => ['required', 'string', Rule::in(['one-level', 'two-level'])],
             'radius' => ['required', 'string', Rule::in(['0px', '4px', '8px', '12px', '16px'])],
             'font_size' => ['nullable', 'string', Rule::in(['12px', '13px', '14px', '15px', '16px'])],
+            'font_family' => ['nullable', 'string', 'max:100'],
+            'sidebar_width' => ['nullable', 'string', 'max:20'],
+            'sidebar_collapsed_width' => ['nullable', 'string', 'max:20'],
+            'transition_fast' => ['nullable', 'string', 'max:20'],
+            'transition_normal' => ['nullable', 'string', 'max:20'],
             'presets' => ['nullable', 'array'],
             'custom_themes' => ['nullable', 'array'],
         ]);

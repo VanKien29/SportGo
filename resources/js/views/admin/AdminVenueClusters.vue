@@ -17,12 +17,12 @@
         <template v-else>
             <section class="avc-header card animate-fade-in">
                 <div class="avc-title">
-                    <p class="eyebrow">Quan ly cum san</p>
-                    <h1>Toan canh van hanh cum san</h1>
-                    <p>Theo doi trang thai, chu san, phi nen tang va cac cum san dang can xu ly.</p>
+                    <p class="eyebrow">Quản lý cụm sân</p>
+                    <h1>Toàn cảnh vận hành cụm sân</h1>
+                    <p>Theo dõi trạng thái, chủ sân, phí nền tăng và các cụm sân đang cần xử lý.</p>
                 </div>
                 <button class="btn btn-outline" type="button" @click="loadClusters">
-                    Lam moi
+                    Làm mới
                 </button>
             </section>
 
@@ -33,12 +33,12 @@
                     <small>{{ card.hint }}</small>
                 </article>
             </section>
-            <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
+
             <SaaSFilterBar
                 v-if="clusters.length > 0"
                 v-model="filterStatus"
                 v-model:search="searchText"
-                :tabs="statusTabs"
+                :tabs="statusTabsUi"
                 search-id="search-venue-cluster"
                 search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
             />

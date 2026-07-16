@@ -1,248 +1,278 @@
 <template>
   <section class="staff-dashboard-page">
-    <p v-if="error" class="staff-alert staff-alert-error" role="alert">
-      <AppIcon name="alertCircle" size="14" />
-      <span>{{ error }}</span>
-    </p>
-    <p v-if="success" class="staff-alert staff-alert-success" role="alert">
-      <AppIcon name="checkCircle" size="14" />
-      <span>{{ success }}</span>
-    </p>
+    <!-- Alerts -->
+    <transition name="alert-fade">
+      <p v-if="error" class="staff-alert staff-alert-error" role="alert">
+        <AppIcon name="alertCircle" size="14" />
+        <span>{{ error }}</span>
+      </p>
+    </transition>
+    <transition name="alert-fade">
+      <p v-if="success" class="staff-alert staff-alert-success" role="alert">
+        <AppIcon name="checkCircle" size="14" />
+        <span>{{ success }}</span>
+      </p>
+    </transition>
 
-    <div v-if="loading" class="staff-loading-state">
-      <div class="spinner"></div>
-      <span>Đang tải thông tin tổng quan...</span>
+    <!-- Skeleton Loading -->
+    <div v-if="loading" class="loading-skeleton-layout">
+      <div class="skeleton-stats-row">
+        <div class="skeleton-card" v-for="i in 4" :key="i"></div>
+      </div>
+      <div class="skeleton-middle-row">
+        <div class="skeleton-panel"></div>
+        <div class="skeleton-panel"></div>
+      </div>
+      <div class="skeleton-full"></div>
     </div>
 
     <template v-else>
-      <!-- HÀNG THẺ CHỈ SỐ VẬN HÀNH (STATS OVERVIEW CARDS) -->
+      <!-- PAGE HEADER -->
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Tổng quan hôm nay</h1>
+          <p class="page-subtitle">{{ todayLabel }}</p>
+        </div>
+        <router-link to="/staff/counter-booking" class="cta-btn" style="text-decoration:none;">
+          <AppIcon name="plus" size="15" />
+          <span>Đặt sân tại quầy</span>
+        </router-link>
+      </header>
+
+      <!-- STATS OVERVIEW CARDS -->
       <div class="stats-grid">
-        <!-- Số sân đang hoạt động -->
-        <article class="stat-card blue">
-          <div class="stat-icon-wrapper">
-            <AppIcon name="activity" size="24" />
+        <article class="stat-card stat-blue">
+          <div class="stat-icon-area">
+            <AppIcon name="activity" size="20" />
           </div>
-          <div class="stat-data">
-            <strong class="stat-number">
-              {{ stats.active_courts_count }} / {{ stats.total_courts_count }}
-            </strong>
+          <div class="stat-body">
+            <strong class="stat-number">{{ stats.active_courts_count }}<span class="stat-total"> / {{ stats.total_courts_count }}</span></strong>
             <span class="stat-label">Sân hoạt động</span>
           </div>
+          <div class="stat-ring stat-ring-blue"></div>
         </article>
 
-        <!-- Số đơn đặt hôm nay -->
-        <router-link to="/staff/bookings" class="stat-card purple clickable">
-          <div class="stat-icon-wrapper">
-            <AppIcon name="calendar" size="24" />
+        <router-link to="/staff/bookings" class="stat-card stat-purple clickable" style="text-decoration:none;">
+          <div class="stat-icon-area">
+            <AppIcon name="calendar" size="20" />
           </div>
-          <div class="stat-data">
+          <div class="stat-body">
             <strong class="stat-number">{{ stats.today_bookings_count }}</strong>
             <span class="stat-label">Đơn đặt hôm nay</span>
           </div>
+          <div class="stat-ring stat-ring-purple"></div>
         </router-link>
 
-        <!-- Số khách đang chơi -->
-        <article class="stat-card green">
-          <div class="stat-icon-wrapper">
-            <AppIcon name="users" size="24" />
+        <article class="stat-card stat-green">
+          <div class="stat-icon-area">
+            <AppIcon name="users" size="20" />
           </div>
-          <div class="stat-data">
+          <div class="stat-body">
             <strong class="stat-number">{{ stats.playing_now_count }}</strong>
             <span class="stat-label">Khách đang chơi</span>
           </div>
+          <div class="stat-ring stat-ring-green"></div>
         </article>
 
-        <!-- Số khách sắp đến -->
-        <router-link to="/staff/bookings" class="stat-card orange clickable">
-          <div class="stat-icon-wrapper">
-            <AppIcon name="clock" size="24" />
+        <router-link to="/staff/bookings" class="stat-card stat-orange clickable" style="text-decoration:none;">
+          <div class="stat-icon-area">
+            <AppIcon name="clock" size="20" />
           </div>
-          <div class="stat-data">
+          <div class="stat-body">
             <strong class="stat-number">{{ stats.upcoming_bookings_count }}</strong>
             <span class="stat-label">Khách sắp đến</span>
           </div>
+          <div class="stat-ring stat-ring-orange"></div>
         </router-link>
       </div>
 
-      <!-- KHU VỰC CA TRỰC & THÔNG BÁO -->
-      <div class="dashboard-row-middle">
-        <!-- CA TRỰC HÔM NAY CỦA BẠN -->
-        <section class="section-box shift-card-box">
-          <header class="section-box-header">
-            <h3 class="section-box-title">
-              <AppIcon name="calendar" size="16" />
-              <span>Ca trực hôm nay của bạn</span>
-            </h3>
+      <!-- MIDDLE ROW: SHIFT + NOTIFICATIONS -->
+      <div class="dashboard-middle">
+
+        <!-- MY SHIFT TODAY -->
+        <section class="panel shift-panel">
+          <header class="panel-header">
+            <div class="panel-header-icon panel-icon-primary">
+              <AppIcon name="calendar" size="14" />
+            </div>
+            <h2 class="panel-title">Ca trực hôm nay</h2>
           </header>
 
-          <div v-if="stats.my_shift_today" class="shift-details">
-            <div class="shift-info-row">
-              <div class="shift-badge-name">
-                <strong>{{ stats.my_shift_today.shift?.name || 'Ca trực' }}</strong>
-                <span class="shift-badge-status" :class="stats.my_shift_today.status">
-                  {{ statusLabel(stats.my_shift_today.status) }}
-                </span>
-              </div>
-              <div class="shift-time-range">
-                <AppIcon name="clock" size="13" />
-                <span>{{ formatShiftTime(stats.my_shift_today) }}</span>
-              </div>
+          <div v-if="stats.my_shift_today" class="panel-body">
+            <!-- Status ribbon -->
+            <div class="shift-status-bar" :class="'shift-status-' + stats.my_shift_today.status">
+              <span class="shift-status-dot"></span>
+              <span class="shift-status-label">{{ statusLabel(stats.my_shift_today.status) }}</span>
+              <span class="shift-time-chip">
+                <AppIcon name="clock" size="11" />
+                {{ formatShiftTime(stats.my_shift_today) }}
+              </span>
             </div>
 
+            <!-- Shift name -->
+            <div class="shift-name-row">
+              <span class="shift-name">{{ stats.my_shift_today.shift?.name || 'Ca trực' }}</span>
+            </div>
+
+            <!-- Notes -->
             <div v-if="stats.my_shift_today.notes" class="shift-notes">
-              <strong>Ghi chú từ chủ sân:</strong>
+              <span class="shift-notes-label">Ghi chú từ chủ sân</span>
               <p>{{ stats.my_shift_today.notes }}</p>
             </div>
 
-            <div class="shift-attendance-logs" v-if="stats.my_shift_today.check_in_at || stats.my_shift_today.check_out_at">
-              <div v-if="stats.my_shift_today.check_in_at" class="attendance-log-item">
-                <AppIcon name="checkCircle" size="12" class="text-green" />
-                <span>Đã check-in lúc: <strong>{{ formatDateTime(stats.my_shift_today.check_in_at) }}</strong></span>
+            <!-- Attendance logs -->
+            <div v-if="stats.my_shift_today.check_in_at || stats.my_shift_today.check_out_at" class="attendance-timeline">
+              <div v-if="stats.my_shift_today.check_in_at" class="timeline-item timeline-in">
+                <div class="timeline-dot"></div>
+                <span class="timeline-label">Check-in</span>
+                <strong class="timeline-time">{{ formatDateTime(stats.my_shift_today.check_in_at) }}</strong>
               </div>
-              <div v-if="stats.my_shift_today.check_out_at" class="attendance-log-item">
-                <AppIcon name="checkCircle" size="12" class="text-gray" />
-                <span>Đã check-out lúc: <strong>{{ formatDateTime(stats.my_shift_today.check_out_at) }}</strong></span>
+              <div v-if="stats.my_shift_today.check_out_at" class="timeline-item timeline-out">
+                <div class="timeline-dot"></div>
+                <span class="timeline-label">Check-out</span>
+                <strong class="timeline-time">{{ formatDateTime(stats.my_shift_today.check_out_at) }}</strong>
               </div>
             </div>
 
+            <!-- Actions -->
             <div class="shift-actions">
               <button
                 v-if="stats.my_shift_today.status === 'scheduled'"
                 type="button"
-                class="staff-btn staff-btn-primary"
+                class="action-btn action-btn-checkin"
                 :disabled="actionLoading || !canCheckIn(stats.my_shift_today)"
                 @click="handleCheckIn(stats.my_shift_today.id)"
               >
                 <span v-if="actionLoading" class="spinner-mini"></span>
-                <span>Check-in</span>
+                <AppIcon v-else name="checkCircle" size="14" />
+                <span>Check-in ngay</span>
               </button>
 
               <button
                 v-if="stats.my_shift_today.status === 'checked_in'"
                 type="button"
-                class="staff-btn staff-btn-secondary"
+                class="action-btn action-btn-checkout"
                 :disabled="actionLoading"
                 @click="handleCheckOut(stats.my_shift_today.id)"
               >
                 <span v-if="actionLoading" class="spinner-mini"></span>
+                <AppIcon v-else name="logOut" size="14" />
                 <span>Check-out</span>
               </button>
 
-              <div v-if="stats.my_shift_today.status === 'checked_out'" class="shift-completed-msg">
-                <AppIcon name="checkCircle" size="14" />
-                <span>Bạn đã hoàn thành ca trực hôm nay. Cảm ơn sự cố gắng của bạn!</span>
+              <div v-if="stats.my_shift_today.status === 'checked_out'" class="shift-completed">
+                <AppIcon name="checkCircle" size="16" />
+                <span>Ca trực hoàn thành. Cảm ơn bạn!</span>
               </div>
 
-              <p v-if="stats.my_shift_today.status === 'scheduled' && !canCheckIn(stats.my_shift_today)" class="shift-action-note">
-                (Chỉ có thể check-in trước giờ bắt đầu tối đa 30 phút và trong ngày ca trực)
+              <p v-if="stats.my_shift_today.status === 'scheduled' && !canCheckIn(stats.my_shift_today)" class="checkin-hint">
+                Check-in mở trước 30 phút so với giờ bắt đầu ca
               </p>
             </div>
           </div>
 
-          <div v-else class="shift-empty-state">
-            <AppIcon name="info" size="24" />
-            <p>Hôm nay bạn không có lịch phân công ca trực tại cụm sân này.</p>
-            <router-link to="/staff/schedules" class="staff-text-link">Xem lịch trực tuần</router-link>
+          <div v-else class="panel-empty">
+            <div class="panel-empty-icon">
+              <AppIcon name="info" size="22" />
+            </div>
+            <p class="panel-empty-title">Không có ca trực hôm nay</p>
+            <p class="panel-empty-desc">Bạn chưa được phân công ca nào tại cụm sân này.</p>
+            <router-link to="/staff/schedules" class="panel-link">Xem lịch trực tuần →</router-link>
           </div>
         </section>
 
-        <!-- THÔNG BÁO MỚI -->
-        <section class="section-box notifications-card-box">
-          <header class="section-box-header">
-            <h3 class="section-box-title">
-              <AppIcon name="bell" size="16" />
-              <span>Thông báo mới</span>
-            </h3>
+        <!-- NOTIFICATIONS -->
+        <section class="panel notifications-panel">
+          <header class="panel-header">
+            <div class="panel-header-icon panel-icon-bell">
+              <AppIcon name="bell" size="14" />
+            </div>
+            <h2 class="panel-title">Thông báo</h2>
+            <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
             <button
               v-if="hasUnreadNotifications"
               type="button"
-              class="mark-all-read-btn"
+              class="mark-read-btn"
               @click="markAllNotificationsRead"
             >
               Đánh dấu tất cả đã đọc
             </button>
           </header>
 
-          <div v-if="stats.notifications && stats.notifications.length > 0" class="notifications-list">
+          <div v-if="stats.notifications && stats.notifications.length > 0" class="notif-list">
             <article
               v-for="notif in stats.notifications"
               :key="notif.id"
-              class="notification-item"
+              class="notif-item"
               :class="{ 'is-unread': !notif.is_read }"
               @click="handleNotificationClick(notif)"
             >
-              <div class="notification-indicator" v-if="!notif.is_read"></div>
-              <div class="notification-body-content">
-                <h4 class="notification-title">{{ notif.title }}</h4>
-                <p class="notification-desc">{{ notif.body }}</p>
-                <time class="notification-time">{{ formatTimeAgo(notif.created_at) }}</time>
+              <div class="notif-unread-dot" v-if="!notif.is_read"></div>
+              <div class="notif-content">
+                <h4 class="notif-title">{{ notif.title }}</h4>
+                <p class="notif-desc">{{ notif.body }}</p>
+                <time class="notif-time">{{ formatTimeAgo(notif.created_at) }}</time>
               </div>
             </article>
           </div>
 
-          <div v-else class="notification-empty-state">
-            <AppIcon name="bell" size="24" />
-            <p>Chưa có thông báo nào dành cho bạn.</p>
+          <div v-else class="panel-empty">
+            <div class="panel-empty-icon">
+              <AppIcon name="bell" size="22" />
+            </div>
+            <p class="panel-empty-title">Chưa có thông báo</p>
+            <p class="panel-empty-desc">Bạn sẽ nhận thông báo khi có cập nhật mới.</p>
           </div>
         </section>
       </div>
 
-      <!-- THỜI GIAN TRỐNG CỦA TỪNG SÂN (COURT AVAILABILITIES) -->
-      <section class="section-box court-availabilities-box">
-        <header class="section-box-header">
-          <div class="header-titles">
-            <h3 class="section-box-title">
-              <AppIcon name="activity" size="16" />
-              <span>Thời gian trống của từng sân hôm nay</span>
-            </h3>
-            <p class="section-box-subtitle">Cập nhật theo thời gian thực để nhân viên dễ dàng tư vấn và đặt chỗ cho khách vãng lai.</p>
+      <!-- COURT AVAILABILITIES -->
+      <section class="panel court-panel">
+        <header class="panel-header panel-header-flat">
+          <div class="panel-header-icon panel-icon-primary">
+            <AppIcon name="activity" size="14" />
           </div>
-          <router-link to="/staff/counter-booking" class="staff-btn staff-btn-primary" style="text-decoration: none;">
-            <AppIcon name="plus" size="14" />
-            <span>Đặt sân tại quầy</span>
-          </router-link>
+          <div class="panel-header-text">
+            <h2 class="panel-title">Thời gian trống của từng sân</h2>
+            <p class="panel-subtitle">Cập nhật theo thời gian thực — hỗ trợ tư vấn cho khách vãng lai</p>
+          </div>
         </header>
 
         <div v-if="stats.court_availabilities && stats.court_availabilities.length > 0" class="courts-grid">
           <article
             v-for="court in stats.court_availabilities"
             :key="court.court_id"
-            class="court-availability-card"
-            :class="{ 'is-full': court.is_fully_booked }"
+            class="court-card"
+            :class="{ 'court-full': court.is_fully_booked }"
           >
-            <div class="court-card-header">
-              <div class="court-title-info">
-                <h4 class="court-name">{{ court.court_name }}</h4>
-                <span class="court-type-badge">{{ court.court_type }}</span>
+            <div class="court-card-top">
+              <div class="court-info">
+                <h3 class="court-name">{{ court.court_name }}</h3>
+                <span class="court-type">{{ court.court_type }}</span>
               </div>
-              <span v-if="court.is_fully_booked" class="court-status-badge full">
-                Đầy lịch
-              </span>
-              <span v-else class="court-status-badge available">
-                Còn lịch trống
+              <span class="court-status-pill" :class="court.is_fully_booked ? 'pill-full' : 'pill-free'">
+                {{ court.is_fully_booked ? 'Kín lịch' : 'Còn trống' }}
               </span>
             </div>
 
             <div class="court-card-body">
-              <span class="slots-label">Khung giờ trống:</span>
-              <div v-if="!court.is_fully_booked" class="free-slots-list">
-                <span
-                  v-for="(slot, idx) in court.free_slots"
-                  :key="idx"
-                  class="free-slot-pill"
-                >
-                  <AppIcon name="clock" size="10" />
-                  <span>{{ slot }}</span>
+              <p class="slots-label">Khung giờ trống</p>
+              <div v-if="!court.is_fully_booked" class="slot-chips">
+                <span v-for="(slot, idx) in court.free_slots" :key="idx" class="slot-chip">
+                  {{ slot }}
                 </span>
               </div>
-              <p v-else class="no-slots-desc">Sân đã kín lịch hoạt động hoặc đang khóa toàn bộ khung giờ trong ngày.</p>
+              <p v-else class="no-slots-msg">Sân đã kín lịch hoặc đang khóa toàn bộ khung giờ trong ngày.</p>
             </div>
           </article>
         </div>
 
-        <div v-else class="courts-empty-state">
-          <AppIcon name="info" size="24" />
-          <p>Không tìm thấy sân con nào thuộc cụm sân hiện tại.</p>
+        <div v-else class="panel-empty panel-empty-lg">
+          <div class="panel-empty-icon">
+            <AppIcon name="info" size="24" />
+          </div>
+          <p class="panel-empty-title">Không tìm thấy sân nào</p>
+          <p class="panel-empty-desc">Không tìm thấy sân con nào thuộc cụm sân hiện tại.</p>
         </div>
       </section>
     </template>
@@ -280,6 +310,17 @@ export default {
   computed: {
     hasUnreadNotifications() {
       return (this.stats.notifications || []).some((n) => !n.is_read);
+    },
+    unreadCount() {
+      return (this.stats.notifications || []).filter((n) => !n.is_read).length;
+    },
+    todayLabel() {
+      return new Intl.DateTimeFormat('vi-VN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date());
     },
   },
   mounted() {
@@ -373,7 +414,6 @@ export default {
       const todayStr = new Date().toISOString().slice(0, 10);
       if (schedule.date !== todayStr) return false;
 
-      // Giờ bắt đầu ca trực
       const parts = schedule.start_time.split(':');
       const startHour = parseInt(parts[0], 10);
       const startMin = parseInt(parts[1], 10);
@@ -382,7 +422,6 @@ export default {
       shiftStart.setHours(startHour, startMin, 0, 0);
 
       const now = new Date();
-      // Cho phép check-in trước tối đa 30 phút
       const earlyLimit = new Date(shiftStart.getTime() - 30 * 60000);
 
       return now >= earlyLimit;
@@ -400,7 +439,7 @@ export default {
     },
     formatShiftTime(schedule) {
       if (!schedule) return '';
-      return `${schedule.start_time.substring(0, 5)} - ${schedule.end_time.substring(0, 5)}`;
+      return `${schedule.start_time.substring(0, 5)} – ${schedule.end_time.substring(0, 5)}`;
     },
     formatDateTime(dateTimeStr) {
       if (!dateTimeStr) return '';
@@ -430,19 +469,21 @@ export default {
 </script>
 
 <style scoped>
+/* ─── Page Shell ────────────────────────────────────── */
 .staff-dashboard-page {
-  max-width: 1120px;
+  max-width: 1200px;
   margin: 0 auto;
-  color: var(--admin-text);
-  padding: 16px 0;
+  padding: 20px 0 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
+  color: var(--admin-text);
 }
 
+/* ─── Alerts ─────────────────────────────────────────── */
 .staff-alert {
   margin: 0;
-  padding: 12px 16px;
+  padding: 11px 16px;
   border-radius: var(--admin-radius);
   font-size: 13px;
   font-weight: 500;
@@ -453,281 +494,377 @@ export default {
 .staff-alert-error {
   color: var(--admin-danger);
   background: var(--admin-danger-soft);
-  border: 1px solid color-mix(in srgb, var(--admin-danger) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--admin-danger) 18%, transparent);
 }
 .staff-alert-success {
-  color: var(--admin-primary);
-  background: var(--admin-primary-soft);
-  border: 1px solid color-mix(in srgb, var(--admin-primary) 20%, transparent);
+  color: var(--admin-success-text);
+  background: var(--admin-success-soft);
+  border: 1px solid color-mix(in srgb, var(--admin-primary) 18%, transparent);
 }
 
-.staff-loading-state {
-  min-height: 200px;
+.alert-fade-enter-active,
+.alert-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.alert-fade-enter-from,
+.alert-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* ─── Skeleton Loading ────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton-card,
+.skeleton-panel,
+.skeleton-full {
+  background: linear-gradient(90deg, var(--admin-border-soft) 25%, var(--admin-bg-soft) 50%, var(--admin-border-soft) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--admin-radius);
+}
+
+.loading-skeleton-layout { display: flex; flex-direction: column; gap: 20px; }
+
+.skeleton-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.skeleton-card { height: 88px; }
+.skeleton-middle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.skeleton-panel { height: 240px; }
+.skeleton-full { height: 280px; }
+
+/* ─── Page Header ────────────────────────────────────── */
+.page-header {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--admin-border-soft);
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--admin-text);
+  margin: 0 0 2px;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 13px;
   color: var(--admin-muted);
-  gap: 12px;
-  font-size: 14px;
+  margin: 0;
+  font-weight: 400;
 }
 
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--admin-border-soft);
-  border-top-color: var(--admin-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  background: var(--admin-primary);
+  color: var(--admin-primary-text, #fff);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--admin-radius);
+  border: none;
+  cursor: pointer;
+  transition: background 0.18s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cta-btn:hover {
+  background: var(--admin-primary-dark);
 }
 
-.spinner-mini {
-  width: 14px;
-  height: 14px;
-  border: 2px solid transparent;
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* STATS OVERVIEW CARDS */
+/* ─── Stats Grid ─────────────────────────────────────── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .stat-card {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
-  padding: 20px;
+  border-radius: var(--admin-radius-lg);
+  padding: 18px 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  transition: all 0.2s ease-in-out;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   text-decoration: none;
   color: inherit;
 }
-
-.stat-card.clickable {
-  cursor: pointer;
-}
-
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
+.stat-card.clickable { cursor: pointer; }
 
-.stat-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+/* Decorative ring in corner */
+.stat-ring {
+  position: absolute;
+  right: -18px;
+  top: -18px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  opacity: 0.08;
+}
+.stat-ring-blue  { background: var(--admin-primary); }
+.stat-ring-purple { background: var(--admin-blue); }
+.stat-ring-green  { background: var(--admin-success); }
+.stat-ring-orange { background: var(--admin-warning); }
+
+.stat-icon-area {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--admin-radius);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
+.stat-blue  .stat-icon-area { background: var(--admin-primary-soft);      color: var(--admin-primary); }
+.stat-purple .stat-icon-area { background: var(--admin-blue-soft); color: var(--admin-blue); }
+.stat-green  .stat-icon-area { background: var(--admin-success-soft); color: var(--admin-success-text); }
+.stat-orange .stat-icon-area { background: var(--admin-warning-soft); color: var(--admin-warning); }
 
-.stat-card.blue .stat-icon-wrapper {
-  background: color-mix(in srgb, var(--admin-primary) 10%, transparent);
-  color: var(--admin-primary);
-}
-.stat-card.purple .stat-icon-wrapper {
-  background: rgba(139, 92, 246, 0.1);
-  color: rgb(139, 92, 246);
-}
-.stat-card.green .stat-icon-wrapper {
-  background: rgba(34, 197, 94, 0.1);
-  color: rgb(34, 197, 94);
-}
-.stat-card.orange .stat-icon-wrapper {
-  background: rgba(249, 115, 22, 0.1);
-  color: rgb(249, 115, 22);
-}
-
-.stat-data {
+.stat-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
 }
-
 .stat-number {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--admin-text);
   line-height: 1;
+  letter-spacing: -0.03em;
 }
-
+.stat-total {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-muted);
+  letter-spacing: 0;
+}
 .stat-label {
   font-size: 12px;
   color: var(--admin-muted);
   font-weight: 500;
+  white-space: nowrap;
 }
 
-/* MIDDLE ROW LAYOUT */
-.dashboard-row-middle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.section-box {
+/* ─── Panel Base ─────────────────────────────────────── */
+.panel {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
+  border-radius: var(--admin-radius-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
 }
 
-.section-box-header {
-  padding: 16px 20px;
+.panel-header {
+  padding: 14px 18px;
   border-bottom: 1px solid var(--admin-border-soft);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.panel-header-flat {
+  border-bottom: 1px solid var(--admin-border-soft);
 }
 
-.section-box-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--admin-text);
+.panel-header-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--admin-radius-sm, var(--admin-radius));
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.panel-icon-primary { background: var(--admin-primary-soft); color: var(--admin-primary); }
+.panel-icon-bell    { background: var(--admin-blue-soft); color: var(--admin-blue); }
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--admin-text);
   margin: 0;
 }
-
-.section-box-subtitle {
-  font-size: 13px;
+.panel-subtitle {
+  font-size: 12px;
   color: var(--admin-muted);
-  margin: 4px 0 0;
-  font-weight: 400;
+  margin: 2px 0 0;
 }
-
-.header-titles {
+.panel-header-text {
   display: flex;
   flex-direction: column;
 }
 
-/* SHIFT DETAILS CARD */
-.shift-details {
-  padding: 20px;
+.panel-body {
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   flex: 1;
 }
 
-.shift-info-row {
+/* ─── Empty States ────────────────────────────────────── */
+.panel-empty {
+  padding: 36px 20px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.shift-badge-name {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.shift-badge-name strong {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--admin-text);
-}
-
-.shift-badge-status {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 12px;
-  text-transform: uppercase;
-}
-.shift-badge-status.scheduled {
-  background: var(--admin-bg-soft);
-  color: var(--admin-muted);
-}
-.shift-badge-status.checked_in {
-  background: rgba(34, 197, 94, 0.15);
-  color: rgb(21, 128, 61);
-}
-.shift-badge-status.checked_out {
-  background: var(--admin-bg-soft);
-  color: var(--admin-muted);
-}
-.shift-badge-status.absent {
-  background: var(--admin-danger-soft);
-  color: var(--admin-danger);
-}
-.shift-badge-status.cancelled {
-  background: var(--admin-bg-soft);
-  color: var(--admin-muted);
-}
-
-.shift-time-range {
-  display: flex;
-  align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 6px;
+  flex: 1;
+  color: var(--admin-muted);
+}
+.panel-empty-lg { padding: 52px 20px; }
+.panel-empty-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.panel-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text);
+  margin: 0;
+}
+.panel-empty-desc {
+  font-size: 12px;
+  color: var(--admin-muted);
+  margin: 0;
+  max-width: 260px;
+  line-height: 1.5;
+}
+.panel-link {
+  margin-top: 6px;
+  color: var(--admin-primary);
   font-size: 13px;
   font-weight: 600;
+  text-decoration: none;
+}
+.panel-link:hover { text-decoration: underline; }
+
+/* ─── Middle Row ─────────────────────────────────────── */
+.dashboard-middle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ─── Shift Panel ────────────────────────────────────── */
+.shift-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--admin-radius);
+  font-size: 12px;
+  font-weight: 600;
+}
+.shift-status-bar.shift-status-scheduled   { background: var(--admin-bg-soft);            color: var(--admin-muted); }
+.shift-status-bar.shift-status-checked_in  { background: var(--admin-success-soft); color: var(--admin-success-text); }
+.shift-status-bar.shift-status-checked_out { background: var(--admin-bg-soft);            color: var(--admin-muted); }
+.shift-status-bar.shift-status-absent      { background: var(--admin-danger-soft);        color: var(--admin-danger); }
+.shift-status-bar.shift-status-cancelled   { background: var(--admin-bg-soft);            color: var(--admin-muted); }
+
+.shift-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.shift-status-label { flex: 1; }
+.shift-time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.shift-name-row { }
+.shift-name {
+  font-size: 17px;
+  font-weight: 700;
   color: var(--admin-text);
-  background: var(--admin-bg-soft);
-  padding: 4px 10px;
-  border-radius: 6px;
+  letter-spacing: -0.01em;
 }
 
 .shift-notes {
   background: var(--admin-bg-soft);
-  border-radius: 8px;
-  padding: 12px;
+  border-left: 2px solid var(--admin-primary);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 12px;
   font-size: 13px;
-  border-left: 3px solid var(--admin-primary);
 }
-
-.shift-notes strong {
+.shift-notes-label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--admin-muted);
   margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-
 .shift-notes p {
   margin: 0;
   color: var(--admin-text);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
-.shift-attendance-logs {
+.attendance-timeline {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  padding: 12px 0;
   border-top: 1px dashed var(--admin-border-soft);
-  padding-top: 14px;
 }
-
-.attendance-log-item {
+.timeline-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 12px;
-  color: var(--admin-muted);
 }
-
-.text-green {
-  color: rgb(34, 197, 94);
+.timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
-.text-gray {
-  color: var(--admin-muted);
+.timeline-in  .timeline-dot { background: var(--admin-success); }
+.timeline-out .timeline-dot { background: var(--admin-muted); }
+.timeline-label { color: var(--admin-muted); flex: 1; }
+.timeline-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--admin-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .shift-actions {
@@ -735,105 +872,86 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 12px;
 }
 
-.staff-btn {
+.action-btn {
   width: 100%;
-  height: 40px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 14px;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: var(--admin-radius);
   cursor: pointer;
   border: none;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, opacity 0.15s ease;
 }
+.action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.staff-btn-primary {
+.action-btn-checkin {
   background: var(--admin-primary);
-  color: #ffffff;
+  color: var(--admin-primary-text, #fff);
 }
-.staff-btn-primary:hover:not(:disabled) {
-  background: var(--admin-primary-dark);
-}
-.staff-btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.action-btn-checkin:hover:not(:disabled) { background: var(--admin-primary-dark); }
 
-.staff-btn-secondary {
+.action-btn-checkout {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border-soft);
   color: var(--admin-text);
 }
-.staff-btn-secondary:hover:not(:disabled) {
-  background: var(--admin-bg-soft);
-}
-.staff-btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.action-btn-checkout:hover:not(:disabled) { background: var(--admin-bg-soft); }
+
+.shift-completed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--admin-success-text);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--admin-success-soft);
+  border-radius: var(--admin-radius);
+  padding: 9px 12px;
 }
 
-.shift-action-note {
+.checkin-hint {
   font-size: 11px;
   color: var(--admin-muted);
   text-align: center;
   margin: 0;
-}
-
-.shift-completed-msg {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: center;
-  color: rgb(21, 128, 61);
-  font-size: 13px;
-  font-weight: 600;
-  background: rgba(34, 197, 94, 0.1);
-  padding: 10px;
-  border-radius: var(--admin-radius);
-  text-align: center;
-}
-
-.shift-empty-state {
-  padding: 40px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 12px;
-  color: var(--admin-muted);
-  flex: 1;
-}
-
-.shift-empty-state p {
-  margin: 0;
-  font-size: 13px;
-  max-width: 280px;
   line-height: 1.4;
 }
 
-.staff-text-link {
-  color: var(--admin-primary);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
+.spinner-mini {
+  width: 13px;
+  height: 13px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
-.staff-text-link:hover {
-  text-decoration: underline;
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Notifications Panel ────────────────────────────── */
+.unread-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--admin-radius);
+  background: var(--admin-primary);
+  color: var(--admin-primary-text, #fff);
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* NOTIFICATIONS CARD */
-.notifications-card-box {
-  flex: 1;
-}
-
-.mark-all-read-btn {
+.mark-read-btn {
+  margin-left: auto;
   background: transparent;
   border: none;
   color: var(--admin-primary);
@@ -842,64 +960,51 @@ export default {
   cursor: pointer;
   padding: 0;
 }
-.mark-all-read-btn:hover {
-  text-decoration: underline;
-}
+.mark-read-btn:hover { text-decoration: underline; }
 
-.notifications-list {
+.notif-list {
   display: flex;
   flex-direction: column;
-  max-height: 320px;
+  max-height: 340px;
   overflow-y: auto;
   flex: 1;
 }
+.notif-list::-webkit-scrollbar { width: 4px; }
+.notif-list::-webkit-scrollbar-thumb { background: var(--admin-border); border-radius: 2px; }
 
-.notification-item {
-  padding: 14px 20px;
+.notif-item {
+  padding: 13px 18px;
   border-bottom: 1px solid var(--admin-border-soft);
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
   position: relative;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.12s ease;
 }
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--admin-bg-soft); }
+.notif-item.is-unread { background: color-mix(in srgb, var(--admin-primary) 3%, transparent); }
+.notif-item.is-unread:hover { background: color-mix(in srgb, var(--admin-primary) 6%, transparent); }
 
-.notification-item:last-child {
-  border-bottom: none;
-}
-
-.notification-item:hover {
-  background: var(--admin-bg-soft);
-}
-
-.notification-item.is-unread {
-  background: color-mix(in srgb, var(--admin-primary) 3%, transparent);
-}
-
-.notification-item.is-unread:hover {
-  background: color-mix(in srgb, var(--admin-primary) 6%, transparent);
-}
-
-.notification-indicator {
-  width: 6px;
-  height: 6px;
+.notif-unread-dot {
+  position: absolute;
+  left: 7px;
+  top: 18px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--admin-primary);
-  position: absolute;
-  left: 8px;
-  top: 20px;
+  flex-shrink: 0;
 }
-
-.notification-body-content {
+.notif-content {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
   min-width: 0;
 }
-
-.notification-title {
+.notif-title {
   font-size: 13px;
   font-weight: 700;
   color: var(--admin-text);
@@ -908,196 +1013,139 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.notification-desc {
+.notif-desc {
   font-size: 12px;
   color: var(--admin-muted);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-.notification-time {
+.notif-time {
   font-size: 10px;
   color: var(--admin-faint);
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
-.notification-empty-state {
-  padding: 40px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 12px;
-  color: var(--admin-muted);
-  flex: 1;
-}
+/* ─── Court Availabilities ───────────────────────────── */
+.court-panel {}
 
-.notification-empty-state p {
-  margin: 0;
-  font-size: 13px;
-}
-
-/* COURT AVAILABILITIES GRID */
 .courts-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 20px;
+  gap: 14px;
+  padding: 18px;
 }
 
-.court-availability-card {
+.court-card {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border-soft);
   border-radius: var(--admin-radius);
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
+  gap: 10px;
+  transition: border-color 0.15s ease;
 }
-
-.court-availability-card:hover {
-  border-color: color-mix(in srgb, var(--admin-primary) 30%, var(--admin-border-soft));
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.03);
+.court-card:hover {
+  border-color: color-mix(in srgb, var(--admin-primary) 35%, var(--admin-border-soft));
 }
-
-.court-availability-card.is-full {
+.court-card.court-full {
   background: var(--admin-bg-soft);
-  opacity: 0.85;
+  opacity: 0.82;
 }
 
-.court-card-header {
+.court-card-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
 }
-
-.court-title-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
+.court-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .court-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--admin-text);
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.court-type-badge {
+.court-type {
   font-size: 11px;
   color: var(--admin-muted);
   font-weight: 500;
 }
 
-.court-status-badge {
+.court-status-pill {
   font-size: 10px;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.court-status-badge.available {
-  background: rgba(34, 197, 94, 0.12);
-  color: rgb(21, 128, 61);
-}
-.court-status-badge.full {
-  background: var(--admin-border-soft);
-  color: var(--admin-muted);
-}
+.pill-free { background: rgba(34, 197, 94, 0.12); color: var(--admin-success-text); }
+.pill-full { background: var(--admin-border-soft);  color: var(--admin-muted); }
 
-.court-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-}
-
+.court-card-body { display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .slots-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--admin-muted);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.free-slots-list {
+.slot-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  max-height: 120px;
+  gap: 5px;
+  max-height: 100px;
   overflow-y: auto;
 }
+.slot-chips::-webkit-scrollbar { width: 3px; }
+.slot-chips::-webkit-scrollbar-thumb { background: var(--admin-border); border-radius: 2px; }
 
-.free-slot-pill {
+.slot-chip {
   font-size: 11px;
   font-weight: 600;
   color: var(--admin-text);
   background: var(--admin-bg-soft);
   border: 1px solid var(--admin-border-soft);
-  padding: 4px 8px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
 }
 
-.free-slot-pill:hover {
-  border-color: var(--admin-primary);
-  color: var(--admin-primary);
-}
-
-.no-slots-desc {
+.no-slots-msg {
   font-size: 12px;
   color: var(--admin-faint);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
-.courts-empty-state {
-  padding: 60px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: var(--admin-muted);
-  gap: 12px;
+/* ─── Responsive ─────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .courts-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .dashboard-middle { grid-template-columns: 1fr; }
+  .skeleton-middle-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .courts-grid { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .cta-btn { align-self: flex-start; }
 }
 
-.courts-empty-state p {
-  margin: 0;
-  font-size: 14px;
-}
-
-/* RESPONSIVE LAYOUT */
-@media (max-width: 900px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .dashboard-row-middle {
-    grid-template-columns: 1fr;
-  }
-
-  .courts-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .courts-grid {
-    grid-template-columns: 1fr;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .stat-card, .court-card, .notif-item, .action-btn { transition: none; }
+  .spinner-mini { animation: none; }
+  @keyframes shimmer { 0%, 100% { background-position: 0 0; } }
 }
 </style>

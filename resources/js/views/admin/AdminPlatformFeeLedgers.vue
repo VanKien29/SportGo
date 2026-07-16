@@ -26,7 +26,8 @@
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
 
-        <AdminFilterPanel panel-class="filter-grid" :show-refresh="false">
+        <div class="admin-filter-panel filter-grid">
+            <div class="filter-controls">
             <select v-model="filters.venue_cluster_id" @change="loadLedgers">
                 <option value="">Tất cả cụm sân</option>
                 <option
@@ -110,7 +111,8 @@
                     @input="loadLedgers"
                 />
             </label>
-        </AdminFilterPanel>
+        </div>
+        </div>
 
         <section class="kpi-grid">
             <router-link
@@ -463,7 +465,6 @@
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
-import AdminFilterPanel from "../../components/AdminFilterPanel.vue";
 import {
     calculateLedgerPreview,
     cancelLedger,
@@ -500,7 +501,7 @@ function today() {
 
 export default {
     name: "AdminPlatformFeeLedgers",
-    components: { AppIcon, PlatformFeeSubnav, AdminFilterPanel },
+    components: { AppIcon, PlatformFeeSubnav },
     data() {
         return {
             ledgers: [],
@@ -878,6 +879,26 @@ export default {
 </script>
 
 <style scoped>
+.admin-filter-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e4e4e7);
+  border-radius: var(--admin-radius, 8px);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
 .ledger-page {
     display: flex;
     flex-direction: column;

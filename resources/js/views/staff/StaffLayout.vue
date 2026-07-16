@@ -22,7 +22,7 @@
 <script>
 import OwnerShell from '../../components/owner/OwnerShell.vue';
 import { staffNavigationSections, staffRouteSections, staffRouteTitles } from '../../config/staffNavigation.js';
-import { applyOwnerTheme, clearOwnerTheme, enableOwnerThemeScope } from '../../utils/ownerTheme.js';
+import { applyOwnerTheme, applyOwnerThemeFromStorage, clearOwnerTheme, enableOwnerThemeScope } from '../../utils/ownerTheme.js';
 import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 
@@ -52,7 +52,7 @@ export default {
   },
   async mounted() {
     enableOwnerThemeScope();
-    applyOwnerTheme();
+    applyOwnerThemeFromStorage();
     window.addEventListener('owner-cluster-changed', this.syncExternalCluster);
     window.addEventListener('owner-theme-updated', this.syncOwnerTheme);
     await this.loadOwnerTheme();
@@ -68,12 +68,16 @@ export default {
       try {
         const settings = await ownerUiSettingsService.getSettings();
         applyOwnerTheme(settings);
+        if (settings.sidebar_style) localStorage.setItem('owner-sidebar-style', settings.sidebar_style);
+        window.dispatchEvent(new Event('owner-sidebar-style-changed'));
       } catch {
-        applyOwnerTheme();
+        applyOwnerThemeFromStorage();
       }
     },
     syncOwnerTheme(event) {
       applyOwnerTheme(event.detail || {});
+      if (event.detail?.sidebar_style) localStorage.setItem('owner-sidebar-style', event.detail.sidebar_style);
+      window.dispatchEvent(new Event('owner-sidebar-style-changed'));
     },
     async loadClusters() {
       this.clusterLoading = true;

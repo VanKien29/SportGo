@@ -46,6 +46,8 @@ class BookingConfigController extends Controller
             'min_advance_booking_minutes' => ['required', 'integer', 'min:30'],
             'fixed_open_time' => ['required', 'date_format:H:i'],
             'fixed_close_time' => ['required', 'regex:/^(?:([01]\d|2[0-3]):[0-5]\d|24:00)$/'],
+            'morning_end_time' => ['required', 'date_format:H:i'],
+            'afternoon_end_time' => ['required', 'date_format:H:i'],
             'special_operating_hours' => ['present', 'array', 'max:30'],
             'special_operating_hours.*.start_date' => ['required', 'date_format:Y-m-d'],
             'special_operating_hours.*.end_date' => ['required', 'date_format:Y-m-d'],
@@ -127,6 +129,8 @@ class BookingConfigController extends Controller
             'min_advance_booking_minutes' => $config?->min_advance_booking_minutes ?? 30,
             'fixed_open_time' => substr($config?->fixed_open_time ?? $this->legacyFixedHours($config)['open_time'], 0, 5),
             'fixed_close_time' => substr($config?->fixed_close_time ?? $this->legacyFixedHours($config)['close_time'], 0, 5),
+            'morning_end_time' => substr($config?->morning_end_time ?? '12:00:00', 0, 5),
+            'afternoon_end_time' => substr($config?->afternoon_end_time ?? '18:00:00', 0, 5),
             'special_operating_hours' => $config?->special_operating_hours ?? [],
             'slot_hold_minutes' => $config?->slot_hold_minutes ?? 20,
             'reminder_before_minutes' => $config?->reminder_before_minutes ?? 30,
@@ -299,6 +303,21 @@ class BookingConfigController extends Controller
 
         if (! $this->hasValidOperatingDuration($validated['fixed_open_time'], $validated['fixed_close_time'])) {
             $errors['fixed_close_time'] = 'Giờ mở cửa đến giờ đóng cửa phải từ 2 giờ đến 24 giờ.';
+        }
+
+        $openMinutes = $this->timeToMinutes($validated['fixed_open_time']);
+        $closeMinutes = $this->timeToMinutes($validated['fixed_close_time']);
+        $morningEndMinutes = $this->timeToMinutes($validated['morning_end_time']);
+        $afternoonEndMinutes = $this->timeToMinutes($validated['afternoon_end_time']);
+
+        if ($morningEndMinutes <= $openMinutes) {
+            $errors['morning_end_time'] = 'Giờ kết thúc ca sáng phải sau giờ mở cửa sân.';
+        }
+        if ($afternoonEndMinutes <= $morningEndMinutes) {
+            $errors['afternoon_end_time'] = 'Giờ kết thúc ca chiều phải sau giờ kết thúc ca sáng.';
+        }
+        if ($afternoonEndMinutes >= $closeMinutes) {
+            $errors['afternoon_end_time'] = 'Giờ kết thúc ca chiều phải trước giờ đóng cửa sân.';
         }
 
         $specialHours = collect($validated['special_operating_hours'])
