@@ -1,5 +1,11 @@
 <template>
-    <div class="mini-cal" :class="{ 'mini-cal--range': mode === 'range' }">
+    <div
+        class="mini-cal"
+        :class="{
+            'mini-cal--range': mode === 'range',
+            'mini-cal--multiple': mode === 'multiple',
+        }"
+    >
         <header class="mini-cal__header">
             <button
                 type="button"
@@ -41,6 +47,7 @@
                 :class="dayClasses(cell)"
                 :disabled="cell.disabled"
                 :title="cell.iso"
+                :aria-pressed="isDaySelected(cell)"
                 @click="selectDay(cell)"
                 @mouseenter="onDayHover(cell)"
             >
@@ -90,23 +97,38 @@ export default {
         startDate: { type: String, default: '' },
         /** Range mode: end date */
         endDate: { type: String, default: '' },
-        /** 'single' | 'range' */
+        /** Multiple mode: selected dates */
+        selectedDates: { type: Array, default: () => [] },
+        /** 'single' | 'range' | 'multiple' */
         mode: { type: String, default: 'single' },
         /** Min selectable date (YYYY-MM-DD) */
         minDate: { type: String, default: '' },
         /** Max selectable date (YYYY-MM-DD) */
         maxDate: { type: String, default: '' },
+        /** Optional range highlighted behind independently selected dates */
+        highlightStartDate: { type: String, default: '' },
+        highlightEndDate: { type: String, default: '' },
         /**
          * Array of { date: 'YYYY-MM-DD', color: '#hex' }
          * Shows colored dots under the day number
          */
         markedDates: { type: Array, default: () => [] },
     },
-    emits: ['update:modelValue', 'update:startDate', 'update:endDate', 'select', 'range-change'],
+    emits: [
+        'update:modelValue',
+        'update:startDate',
+        'update:endDate',
+        'update:selectedDates',
+        'select',
+        'range-change',
+    ],
     data() {
-        const ref = this.mode === 'range'
-            ? parseIso(this.startDate) || new Date()
-            : parseIso(this.modelValue) || new Date();
+        const referenceDate = this.mode === 'range'
+            ? this.startDate
+            : this.mode === 'multiple'
+                ? this.selectedDates[0]
+                : this.modelValue;
+        const ref = parseIso(referenceDate) || new Date();
         return {
             viewMonth: ref.getMonth(),
             viewYear: ref.getFullYear(),
@@ -216,6 +238,19 @@ export default {
                 }
             }
         },
+        selectedDates(newVal, oldVal) {
+            if (
+                this.mode === 'multiple' &&
+                newVal?.length &&
+                newVal[0] !== oldVal?.[0]
+            ) {
+                const d = parseIso(newVal[0]);
+                if (d) {
+                    this.viewMonth = d.getMonth();
+                    this.viewYear = d.getFullYear();
+                }
+            }
+        },
     },
     methods: {
         prevMonth() {
@@ -248,9 +283,22 @@ export default {
             const classes = [];
             if (cell.outside) classes.push('outside');
             if (cell.iso === this.todayIso) classes.push('today');
+            if (
+                !cell.outside &&
+                this.highlightStartDate &&
+                this.highlightEndDate &&
+                cell.iso >= this.highlightStartDate &&
+                cell.iso <= this.highlightEndDate
+            ) {
+                classes.push('template-window');
+            }
 
             if (this.mode === 'single') {
                 if (cell.iso === this.modelValue) classes.push('selected');
+            } else if (this.mode === 'multiple') {
+                if (this.selectedDates.includes(cell.iso)) {
+                    classes.push('selected');
+                }
             } else {
                 // Range mode
                 const start = this.effectiveRangeStart;
@@ -272,11 +320,29 @@ export default {
 
             return classes;
         },
+        isDaySelected(cell) {
+            if (this.mode === 'single') return cell.iso === this.modelValue;
+            if (this.mode === 'multiple') {
+                return this.selectedDates.includes(cell.iso);
+            }
+            return (
+                Boolean(this.effectiveRangeStart) &&
+                cell.iso >= this.effectiveRangeStart &&
+                cell.iso <= this.effectiveRangeEnd
+            );
+        },
         selectDay(cell) {
             if (cell.disabled) return;
 
             if (this.mode === 'single') {
                 this.$emit('update:modelValue', cell.iso);
+                this.$emit('select', cell.iso);
+            } else if (this.mode === 'multiple') {
+                const selected = this.selectedDates.includes(cell.iso)
+                    ? this.selectedDates.filter((date) => date !== cell.iso)
+                    : [...this.selectedDates, cell.iso];
+                const sorted = [...selected].sort();
+                this.$emit('update:selectedDates', sorted);
                 this.$emit('select', cell.iso);
             } else {
                 // Range mode
@@ -448,6 +514,11 @@ export default {
     height: 2px;
     border-radius: 2px;
     background: var(--admin-success, var(--admin-primary, #22a653));
+}
+
+.mini-cal__day.template-window:not(.selected) {
+    background: var(--admin-primary-soft, #ecfdf3);
+    color: var(--admin-primary-dark, #166534);
 }
 
 .mini-cal__day.selected,

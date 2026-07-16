@@ -1,6 +1,35 @@
 <template>
   <section class="admin-users">
 
+    <div class="filters-panel">
+      <div class="search-box">
+        <input
+          v-model="filters.keyword"
+          type="search"
+          placeholder="Tìm theo họ tên, username, email, số điện thoại..."
+          @input="debounceSearch"
+        />
+      </div>
+      <div class="filter-selects">
+        <select v-model="filters.status" @change="loadUsers">
+          <option value="">Tất cả trạng thái</option>
+          <option value="active">Hoạt động</option>
+          <option value="locked">Đang bị khóa</option>
+        </select>
+        <select v-model="filters.role" @change="loadUsers">
+          <option value="">Tất cả vai trò</option>
+          <option v-for="role in allRoles" :key="role.id" :value="role.name">
+            {{ role.display_name }}
+          </option>
+        </select>
+        <button class="btn secondary" type="button" @click="resetFilters">Xóa lọc</button>
+      </div>
+      <button class="btn btn-create primary" type="button" @click="openCreateModal">
+        <AppIcon name="plus" size="16" />
+        <span>Thêm nhân sự</span>
+      </button>
+    </div>
+
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 

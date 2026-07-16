@@ -667,12 +667,26 @@ class BookingManagementController extends Controller
             'recurrence_days_of_week.*' => ['integer', 'between:0,6', 'distinct'],
             'recurrence_days_of_month' => ['nullable', 'array'],
             'recurrence_days_of_month.*' => ['integer', 'between:1,31', 'distinct'],
+            'recurring_dates' => ['nullable', 'array', 'min:1', 'max:130'],
+            'recurring_dates.*' => ['date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
             'time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
             'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'weekday_time_ranges' => ['nullable', 'array', 'max:7'],
+            'weekday_time_ranges.*.day_of_week' => ['required_with:weekday_time_ranges', 'integer', 'between:0,6', 'distinct'],
+            'weekday_time_ranges.*.time_ranges' => ['required_with:weekday_time_ranges', 'array', 'min:1', 'max:32'],
+            'weekday_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'weekday_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'weekday_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'date_time_ranges' => ['nullable', 'array', 'max:130'],
+            'date_time_ranges.*.date' => ['required_with:date_time_ranges', 'date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
+            'date_time_ranges.*.time_ranges' => ['required_with:date_time_ranges', 'array', 'min:1', 'max:32'],
+            'date_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'date_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'date_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
             'is_paid' => ['nullable', 'boolean'],
             'payment_method' => ['nullable', Rule::in(['cash', 'bank_transfer'])],
@@ -688,6 +702,7 @@ class BookingManagementController extends Controller
                 'conflict_resolution' => ['nullable', Rule::in(['abort', 'skip', 'mixed'])],
                 'conflict_overrides' => ['nullable', 'array'],
                 'conflict_overrides.*.date' => ['required_with:conflict_overrides', 'date_format:Y-m-d'],
+                'conflict_overrides.*.key' => ['nullable', 'string', 'max:120'],
                 'conflict_overrides.*.action' => ['required_with:conflict_overrides', Rule::in(['skip', 'switch'])],
                 'conflict_overrides.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
             ];
@@ -698,11 +713,32 @@ class BookingManagementController extends Controller
 
         $validated = $request->validate($rules, $this->walkInValidationMessages());
 
-        if ($validated['recurrence_type'] === 'weekly' && empty($validated['recurrence_days_of_week'])) {
+        $usesExplicitDates = ! empty($validated['recurring_dates']);
+
+        if ($usesExplicitDates) {
+            $selectedDates = collect($validated['recurring_dates'])->sort()->values();
+            $configuredDates = collect($validated['date_time_ranges'] ?? [])->pluck('date')->sort()->values();
+
+            if ($configuredDates->diff($selectedDates)->isNotEmpty() || $selectedDates->diff($configuredDates)->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'date_time_ranges' => 'Mỗi ngày đã chọn cần có sân và khung giờ riêng.',
+                ]);
+            }
+
+            $validated['recurring_dates'] = $selectedDates->all();
+            $validated['recurring_start_date'] = $selectedDates->first();
+            $validated['recurring_end_date'] = $selectedDates->last();
+        }
+
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'weekly' && empty($validated['recurrence_days_of_week'])) {
             throw ValidationException::withMessages(['recurrence_days_of_week' => 'Vui lòng chọn thứ trong tuần.']);
         }
 
-        if ($validated['recurrence_type'] === 'weekly' && ! empty($validated['weekday_time_ranges'])) {
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'weekly' && empty($validated['weekday_time_ranges'])) {
+            throw ValidationException::withMessages(['weekday_time_ranges' => 'Mỗi thứ đã chọn cần có sân và khung giờ riêng.']);
+        }
+
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'weekly' && ! empty($validated['weekday_time_ranges'])) {
             $configuredDays = collect($validated['weekday_time_ranges'])->pluck('day_of_week')->sort()->values();
             $selectedDays = collect($validated['recurrence_days_of_week'] ?? [])->sort()->values();
 
@@ -711,7 +747,7 @@ class BookingManagementController extends Controller
             }
         }
 
-        if ($validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {
+        if (! $usesExplicitDates && $validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {
             throw ValidationException::withMessages(['recurrence_days_of_month' => 'Vui lòng chọn ngày trong tháng.']);
         }
 
@@ -723,6 +759,16 @@ class BookingManagementController extends Controller
             foreach ($validated['time_ranges'] as $index => $range) {
                 if ($this->timeToMinutes($range['start_time']) >= $this->timeToMinutes($range['end_time'])) {
                     throw ValidationException::withMessages(["time_ranges.$index.end_time" => 'Giờ kết thúc phải sau giờ bắt đầu.']);
+                }
+            }
+        }
+
+        foreach ($validated['date_time_ranges'] ?? [] as $dateIndex => $dateGroup) {
+            foreach ($dateGroup['time_ranges'] as $rangeIndex => $range) {
+                if ($this->timeToMinutes($range['start_time']) >= $this->timeToMinutes($range['end_time'])) {
+                    throw ValidationException::withMessages([
+                        "date_time_ranges.$dateIndex.time_ranges.$rangeIndex.end_time" => 'Giờ kết thúc phải sau giờ bắt đầu.',
+                    ]);
                 }
             }
         }
@@ -804,6 +850,8 @@ class BookingManagementController extends Controller
             ->merge(collect($payload['time_ranges'] ?? [])->pluck('venue_court_id'))
             ->merge(collect($payload['weekday_time_ranges'] ?? [])
                 ->flatMap(fn (array $day) => collect($day['time_ranges'] ?? [])->pluck('venue_court_id')))
+            ->merge(collect($payload['date_time_ranges'] ?? [])
+                ->flatMap(fn (array $date) => collect($date['time_ranges'] ?? [])->pluck('venue_court_id')))
             ->filter()
             ->unique()
             ->values();
@@ -961,6 +1009,7 @@ class BookingManagementController extends Controller
             'recurrence_interval' => $first->recurrence_interval,
             'recurrence_days_of_week' => $first->recurrence_days_of_week,
             'recurrence_days_of_month' => $first->recurrence_days_of_month,
+            'recurring_dates' => $occurrences->pluck('booking_date')->unique()->values(),
             'venue_cluster_id' => $first->venue_cluster_id,
             'venue_cluster_name' => $first->venueCluster?->name,
             'court_names' => $courtNames,

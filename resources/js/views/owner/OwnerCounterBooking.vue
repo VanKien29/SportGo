@@ -3,8 +3,8 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <div class="tabs-and-actions">
-            <div v-if="!isBookingListRoute" class="tabs">
+        <div v-if="!isBookingListRoute" class="tabs-and-actions">
+            <div class="tabs">
                 <button
                     type="button"
                     :class="{ active: activeTab === 'counter' }"
@@ -22,23 +22,19 @@
                     <span>Đặt lịch cố định</span>
                 </button>
             </div>
-            <div v-else class="tabs context-tabs">
-                <router-link class="tab-nav-link" :to="counterBookingPath">
-                    <AppIcon name="plus" size="16" />
-                    <span>Tạo booking tại quầy</span>
-                </router-link>
-                <router-link
-                    class="tab-nav-link"
-                    :to="{ name: counterBookingRouteName, query: { tab: 'recurring' } }"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </router-link>
-            </div>
-            <SgButton type="secondary" size="sm" :icon="true" @click="refreshActiveTab">
+            <!-- <SgButton
+                type="secondary"
+                size="sm"
+                :icon="true"
+                @click="refreshActiveTab"
+            >
                 <template #icon><AppIcon name="refresh" size="16" /></template>
-                {{ activeTab === "bookingList" ? "Tải lại danh sách" : "Tải lại lịch" }}
-            </SgButton>
+                {{
+                    activeTab === "bookingList"
+                        ? "Tải lại danh sách"
+                        : "Tải lại lịch"
+                }}
+            </SgButton> -->
         </div>
 
         <section v-if="activeTab === 'counter'" class="counter-board">
@@ -48,7 +44,7 @@
             >
                 <div class="panel-head compact">
                     <div>
-                        <h2>Lịch sân trong ngày</h2>
+                        <h2>{{ counterScheduleTitle }}</h2>
                         <p>{{ currentScheduleLabel }}</p>
                     </div>
                     <button
@@ -68,30 +64,52 @@
                             {{ selectedCluster?.name || "-" }}
                         </div>
                     </label>
-                    <label class="schedule-filter-field date-field">
+                    <div class="schedule-filter-field date-field">
                         <span>Ngày chơi</span>
-                        <div class="date-stepper">
+                        <div class="counter-date-range">
                             <button
                                 type="button"
+                                class="date-nav-btn"
                                 aria-label="Ngày trước"
                                 @click="shiftCounterDate(-1)"
                             >
                                 <AppIcon name="chevronLeft" size="15" />
                             </button>
-                            <input
-                                v-model="form.booking_date"
-                                type="date"
-                                @change="handleScheduleDateChange"
-                            />
-                            <span class="date-range-separator">đến</span>
-                            <input
-                                v-model="form.booking_end_date"
-                                type="date"
-                                :min="form.booking_date"
-                                @change="handleCounterEndDateChange"
-                            />
+                            <div class="date-picker-wrap">
+                                <button
+                                    type="button"
+                                    class="date-range-trigger"
+                                    :class="{ open: counterDatePickerOpen }"
+                                    @click="
+                                        counterDatePickerOpen =
+                                            !counterDatePickerOpen
+                                    "
+                                >
+                                    <AppIcon name="calendar" size="16" />
+                                    <span>{{ counterDateRangeLabel }}</span>
+                                </button>
+                                <div
+                                    v-if="counterDatePickerOpen"
+                                    class="counter-date-popover"
+                                >
+                                    <MiniCalendar
+                                        mode="range"
+                                        :start-date="form.booking_date"
+                                        :end-date="form.booking_end_date"
+                                        :min-date="today"
+                                        @update:start-date="
+                                            handleCounterStartDateUpdate
+                                        "
+                                        @update:end-date="
+                                            handleCounterEndDateUpdate
+                                        "
+                                        @range-change="handleCounterRangeChange"
+                                    />
+                                </div>
+                            </div>
                             <button
                                 type="button"
+                                class="date-nav-btn"
                                 aria-label="Ngày sau"
                                 @click="shiftCounterDate(1)"
                             >
@@ -105,7 +123,7 @@
                                 Hôm nay
                             </button>
                         </div>
-                    </label>
+                    </div>
                     <label class="schedule-filter-field type-field">
                         <span>Loại sân</span>
                         <select
@@ -179,7 +197,9 @@
                         </div>
                         <div>
                             <span>Tổng tiền</span>
-                            <strong>{{ formatCurrency(counterTotalAmount) }}</strong>
+                            <strong>{{
+                                formatCurrency(counterTotalAmount)
+                            }}</strong>
                         </div>
                     </div>
 
@@ -268,17 +288,29 @@
                 class="counter-bottom-bar"
             >
                 <div>
-                    <strong v-if="selectedOccupiedInterval">Đang xem lịch đã đặt</strong>
-                    <strong v-else>{{ selectedCourtText }} · {{ selectedDurationText }}</strong>
-                    <span v-if="selectedOccupiedInterval">{{ occupiedPanelSubtitle }}</span>
-                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(counterTotalAmount) }}</span>
+                    <strong v-if="selectedOccupiedInterval"
+                        >Đang xem lịch đã đặt</strong
+                    >
+                    <strong v-else
+                        >{{ selectedCourtText }} ·
+                        {{ selectedDurationText }}</strong
+                    >
+                    <span v-if="selectedOccupiedInterval">{{
+                        occupiedPanelSubtitle
+                    }}</span>
+                    <span v-else
+                        >{{ selectedTimeText }} ·
+                        {{ formatCurrency(counterTotalAmount) }}</span
+                    >
                 </div>
                 <button
                     type="button"
                     class="primary-btn"
                     @click="counterDrawerOpen = true"
                 >
-                    {{ selectedOccupiedInterval ? "Xem chi tiết" : "Tiếp theo" }}
+                    {{
+                        selectedOccupiedInterval ? "Xem chi tiết" : "Tiếp theo"
+                    }}
                 </button>
             </div>
 
@@ -296,157 +328,444 @@
                     class="booking-side"
                     :class="{ open: counterDrawerOpen }"
                 >
-                <button
-                    type="button"
-                    class="drawer-close-btn"
-                    aria-label="Đóng thông tin booking"
-                    @click="counterDrawerOpen = false"
-                >
-                    <AppIcon name="x" size="18" />
-                </button>
-                <section v-if="!selectedOccupiedInterval" class="side-section">
-                    <div class="section-title muted">
-                        <h2>Thông tin booking</h2>
-                    </div>
-                    <div v-if="!hasCounterSelection" class="empty-summary">
-                        Chưa có khung giờ được chọn.
-                    </div>
-                    <dl v-else class="summary-list">
-                        <div
-                            v-for="[label, value] in counterSummaryRows"
-                            :key="label"
-                        >
-                            <dt>{{ label }}</dt>
-                            <dd>{{ value }}</dd>
-                        </div>
-                    </dl>
-                </section>
-
-                <template v-if="selectedOccupiedInterval">
-                    <section class="side-section occupied-detail">
+                    <button
+                        type="button"
+                        class="drawer-close-btn"
+                        aria-label="Đóng thông tin booking"
+                        @click="counterDrawerOpen = false"
+                    >
+                        <AppIcon name="x" size="18" />
+                    </button>
+                    <section
+                        v-if="!selectedOccupiedInterval"
+                        class="side-section"
+                    >
                         <div class="section-title muted">
-                            <h2>{{ occupiedPanelTitle }}</h2>
-                            <p>{{ occupiedPanelSubtitle }}</p>
+                            <h2>Thông tin booking</h2>
                         </div>
-                        <div
-                            v-if="selectedBusyBooking"
-                            class="booking-status-strip"
-                        >
-                            <span
-                                class="status-badge"
-                                :class="`tone-${bookingStatusTone(selectedBusyBooking.status)}`"
-                            >
-                                {{
-                                    bookingStatusLabel(
-                                        selectedBusyBooking.status,
-                                    )
-                                }}
-                            </span>
-                            <span
-                                class="status-badge"
-                                :class="`tone-${paymentStateTone(bookingPaymentState(selectedBusyBooking))}`"
-                            >
-                                {{
-                                    paymentStateLabel(
-                                        bookingPaymentState(
-                                            selectedBusyBooking,
-                                        ),
-                                    )
-                                }}
-                            </span>
+                        <div v-if="!hasCounterSelection" class="empty-summary">
+                            Chưa có khung giờ được chọn.
                         </div>
-                        <dl class="summary-list">
+                        <dl v-else class="summary-list">
                             <div
-                                v-for="[label, value] in occupiedSummaryRows"
+                                v-for="[label, value] in counterSummaryRows"
                                 :key="label"
                             >
                                 <dt>{{ label }}</dt>
-                                <dd>
-                                    <span
-                                        v-if="isBadgeValue(value)"
-                                        class="status-badge"
-                                        :class="`tone-${value.tone}`"
-                                    >
-                                        {{ value.text }}
-                                    </span>
-                                    <template v-else>{{ value }}</template>
-                                </dd>
+                                <dd>{{ value }}</dd>
                             </div>
                         </dl>
-                        <div v-if="selectedBusyBooking" class="status-actions">
-                            <button
-                                v-if="
-                                    selectedBusyBooking.status ===
-                                    'pending_approval'
-                                "
-                                class="secondary-btn compact action-success"
-                                type="button"
-                                :disabled="bookingActionLoading"
-                                @click="
-                                    openBookingActionConfirm('status', {
-                                        action: 'confirm',
-                                    })
-                                "
-                            >
-                                <AppIcon name="check" size="15" />
-                                <span>Xác nhận</span>
-                            </button>
-                            <button
-                                v-if="selectedBookingOutstanding > 0"
-                                class="secondary-btn compact action-cash"
-                                type="button"
-                                :disabled="bookingActionLoading"
-                                @click="
-                                    openBookingActionConfirm('collect', {
-                                        method: 'cash',
-                                    })
-                                "
-                            >
-                                <AppIcon name="banknote" size="15" />
-                                <span>Thu tiền mặt</span>
-                            </button>
-                            <button
-                                v-if="selectedBookingOutstanding > 0"
-                                class="secondary-btn compact action-transfer"
-                                type="button"
-                                :disabled="bookingActionLoading"
-                                @click="openSelectedBookingPaymentQr"
-                            >
-                                <AppIcon name="qrCode" size="15" />
-                                <span>Chuyển khoản</span>
-                            </button>
-                            <button
-                                v-if="
-                                    [
-                                        'pending_approval',
-                                        'pending_payment',
-                                        'confirmed',
-                                    ].includes(selectedBusyBooking.status)
-                                "
-                                class="secondary-btn compact danger"
-                                type="button"
-                                :disabled="bookingActionLoading"
-                                @click="
-                                    openBookingActionConfirm('status', {
-                                        action: 'cancel',
-                                    })
-                                "
-                            >
-                                <AppIcon name="trash" size="15" />
-                                <span>Hủy booking</span>
-                            </button>
-                        </div>
                     </section>
-                </template>
 
-                <template v-else>
-                    <section
-                        class="side-section"
-                        :class="{ disabled: !hasCounterSelection }"
-                    >
-                        <div class="section-title muted">
-                            <h2>Khách hàng</h2>
+                    <template v-if="selectedOccupiedInterval">
+                        <section class="side-section occupied-detail">
+                            <div class="section-title muted">
+                                <h2>{{ occupiedPanelTitle }}</h2>
+                                <p>{{ occupiedPanelSubtitle }}</p>
+                            </div>
+                            <div
+                                v-if="selectedBusyBooking"
+                                class="booking-status-strip"
+                            >
+                                <span
+                                    class="status-badge"
+                                    :class="`tone-${bookingStatusTone(selectedBusyBooking.status)}`"
+                                >
+                                    {{
+                                        bookingStatusLabel(
+                                            selectedBusyBooking.status,
+                                        )
+                                    }}
+                                </span>
+                                <span
+                                    class="status-badge"
+                                    :class="`tone-${paymentStateTone(bookingPaymentState(selectedBusyBooking))}`"
+                                >
+                                    {{
+                                        paymentStateLabel(
+                                            bookingPaymentState(
+                                                selectedBusyBooking,
+                                            ),
+                                        )
+                                    }}
+                                </span>
+                            </div>
+                            <dl class="summary-list">
+                                <div
+                                    v-for="[
+                                        label,
+                                        value,
+                                    ] in occupiedSummaryRows"
+                                    :key="label"
+                                >
+                                    <dt>{{ label }}</dt>
+                                    <dd>
+                                        <span
+                                            v-if="isBadgeValue(value)"
+                                            class="status-badge"
+                                            :class="`tone-${value.tone}`"
+                                        >
+                                            {{ value.text }}
+                                        </span>
+                                        <template v-else>{{ value }}</template>
+                                    </dd>
+                                </div>
+                            </dl>
+                            <div
+                                v-if="selectedBusyBooking"
+                                class="status-actions"
+                            >
+                                <button
+                                    v-if="
+                                        selectedBusyBooking.status ===
+                                        'pending_approval'
+                                    "
+                                    class="secondary-btn compact action-success"
+                                    type="button"
+                                    :disabled="bookingActionLoading"
+                                    @click="
+                                        openBookingActionConfirm('status', {
+                                            action: 'confirm',
+                                        })
+                                    "
+                                >
+                                    <AppIcon name="check" size="15" />
+                                    <span>Xác nhận</span>
+                                </button>
+                                <button
+                                    v-if="selectedBookingOutstanding > 0"
+                                    class="secondary-btn compact action-cash"
+                                    type="button"
+                                    :disabled="bookingActionLoading"
+                                    @click="
+                                        openBookingActionConfirm('collect', {
+                                            method: 'cash',
+                                        })
+                                    "
+                                >
+                                    <AppIcon name="banknote" size="15" />
+                                    <span>Thu tiền mặt</span>
+                                </button>
+                                <button
+                                    v-if="selectedBookingOutstanding > 0"
+                                    class="secondary-btn compact action-transfer"
+                                    type="button"
+                                    :disabled="bookingActionLoading"
+                                    @click="openSelectedBookingPaymentQr"
+                                >
+                                    <AppIcon name="qrCode" size="15" />
+                                    <span>Chuyển khoản</span>
+                                </button>
+                                <button
+                                    v-if="
+                                        [
+                                            'pending_approval',
+                                            'pending_payment',
+                                            'confirmed',
+                                        ].includes(selectedBusyBooking.status)
+                                    "
+                                    class="secondary-btn compact danger"
+                                    type="button"
+                                    :disabled="bookingActionLoading"
+                                    @click="
+                                        openBookingActionConfirm('status', {
+                                            action: 'cancel',
+                                        })
+                                    "
+                                >
+                                    <AppIcon name="trash" size="15" />
+                                    <span>Hủy booking</span>
+                                </button>
+                            </div>
+                        </section>
+                    </template>
+
+                    <template v-else>
+                        <section
+                            class="side-section"
+                            :class="{ disabled: !hasCounterSelection }"
+                        >
+                            <div class="section-title muted">
+                                <h2>Khách hàng</h2>
+                            </div>
+                            <label>
+                                <span>Tên khách</span>
+                                <input
+                                    v-model.trim="form.walk_in_name"
+                                    type="text"
+                                    autocomplete="name"
+                                    minlength="2"
+                                    maxlength="100"
+                                    required
+                                    :aria-invalid="
+                                        contactTouched.name &&
+                                        Boolean(walkInNameError)
+                                    "
+                                    :class="{
+                                        invalid:
+                                            contactTouched.name &&
+                                            walkInNameError,
+                                    }"
+                                    placeholder="Nhập tên khách"
+                                    @input="handleContactInput('name')"
+                                    @blur="validateContactField('name')"
+                                />
+                                <small
+                                    v-if="
+                                        contactTouched.name && walkInNameError
+                                    "
+                                    class="field-error"
+                                >
+                                    {{ walkInNameError }}
+                                </small>
+                            </label>
+                            <label>
+                                <span>Số điện thoại</span>
+                                <input
+                                    v-model.trim="form.walk_in_phone"
+                                    type="tel"
+                                    autocomplete="tel"
+                                    inputmode="tel"
+                                    maxlength="15"
+                                    required
+                                    :aria-invalid="
+                                        contactTouched.phone &&
+                                        Boolean(walkInPhoneError)
+                                    "
+                                    :class="{
+                                        invalid:
+                                            contactTouched.phone &&
+                                            walkInPhoneError,
+                                    }"
+                                    placeholder="Nhập số điện thoại"
+                                    @input="handleContactInput('phone')"
+                                    @blur="validateContactField('phone')"
+                                />
+                                <small
+                                    v-if="
+                                        contactTouched.phone && walkInPhoneError
+                                    "
+                                    class="field-error"
+                                >
+                                    {{ walkInPhoneError }}
+                                </small>
+                            </label>
+                        </section>
+
+                        <section
+                            v-if="canShowCounterVouchers"
+                            class="side-section"
+                            :class="{ disabled: !hasCounterSelection }"
+                        >
+                            <div class="section-title muted">
+                                <h2>Voucher</h2>
+                            </div>
+                            <div class="voucher-picker">
+                                <div class="voucher-code-row">
+                                    <input
+                                        v-model.trim="voucherCodeInput"
+                                        type="text"
+                                        placeholder="Nhập mã voucher"
+                                        :disabled="!hasCounterSelection"
+                                        @keyup.enter="applyVoucherCode"
+                                    />
+                                    <button
+                                        class="secondary-btn compact"
+                                        type="button"
+                                        :disabled="
+                                            !hasCounterSelection ||
+                                            voucherLoading
+                                        "
+                                        @click="applyVoucherCode"
+                                    >
+                                        Áp dụng
+                                    </button>
+                                </div>
+                                <small
+                                    v-if="voucherError"
+                                    class="field-error"
+                                    >{{ voucherError }}</small
+                                >
+                                <div
+                                    v-if="eligibleVouchers.length"
+                                    class="voucher-list"
+                                >
+                                    <button
+                                        v-for="voucher in eligibleVouchers"
+                                        :key="voucher.id"
+                                        type="button"
+                                        :class="{
+                                            active:
+                                                selectedVoucherId ===
+                                                voucher.id,
+                                        }"
+                                        @click="selectVoucher(voucher)"
+                                    >
+                                        <span>
+                                            <strong>{{ voucher.code }}</strong>
+                                            <small>{{ voucher.name }}</small>
+                                        </span>
+                                        <em
+                                            >-{{
+                                                formatCurrency(
+                                                    voucher.discount_amount,
+                                                )
+                                            }}</em
+                                        >
+                                    </button>
+                                </div>
+                                <small
+                                    v-else-if="
+                                        hasCounterSelection && !voucherLoading
+                                    "
+                                    class="voucher-empty"
+                                >
+                                    Chưa có voucher đủ điều kiện cho khung này.
+                                </small>
+                            </div>
+                        </section>
+
+                        <section
+                            class="side-section"
+                            :class="{ disabled: !hasCounterSelection }"
+                        >
+                            <div class="section-title muted">
+                                <h2>Thu tiền</h2>
+                            </div>
+                            <div class="payment-list">
+                                <label
+                                    v-for="option in counterCollectionOptions"
+                                    :key="option.value"
+                                    class="payment-card"
+                                    :class="{
+                                        active:
+                                            form.collection_mode ===
+                                            option.value,
+                                    }"
+                                >
+                                    <input
+                                        v-model="form.collection_mode"
+                                        type="radio"
+                                        :value="option.value"
+                                        @change="applyCounterCollectionMode"
+                                    />
+                                    <span>
+                                        {{ option.label }}
+                                    </span>
+                                    <strong>{{
+                                        formatCurrency(option.amount)
+                                    }}</strong>
+                                </label>
+                            </div>
+                        </section>
+
+                        <button
+                            class="primary-btn full"
+                            type="button"
+                            :disabled="submitting || !canSubmitCounter"
+                            @click="submitCounter"
+                        >
+                            <AppIcon name="plus" size="16" />
+                            <span>{{
+                                submitting ? "Đang tạo..." : "Tạo booking"
+                            }}</span>
+                        </button>
+                    </template>
+                </aside>
+            </Teleport>
+        </section>
+
+        <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
+            <div class="form-card">
+                <div class="panel-head compact">
+                    <div>
+                        <h2>Lịch cố định</h2>
+                        <p>Nhóm lịch sẽ dùng cùng mã cố định để dễ theo dõi.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid recurring-form-grid">
+                    <div class="calendar-range-field">
+                        <span>{{ recurringTemplateLabel }}</span>
+                        <div
+                            v-if="form.recurrence_type !== 'daily'"
+                            class="recurring-calendar-mode"
+                            role="group"
+                            aria-label="Chế độ chọn ngày"
+                        >
+                            <button
+                                type="button"
+                                :class="{
+                                    active: recurringCalendarMode === 'start',
+                                }"
+                                @click="recurringCalendarMode = 'start'"
+                            >
+                                Ngày bắt đầu
+                            </button>
+                            <button
+                                type="button"
+                                :class="{
+                                    active:
+                                        recurringCalendarMode === 'schedule',
+                                }"
+                                @click="recurringCalendarMode = 'schedule'"
+                            >
+                                Ngày có lịch
+                            </button>
                         </div>
+                        <MiniCalendar
+                            :mode="
+                                recurringCalendarMode === 'schedule'
+                                    ? 'multiple'
+                                    : 'single'
+                            "
+                            :model-value="form.recurring_start_date"
+                            :selected-dates="recurringSelectedDates"
+                            :min-date="
+                                recurringCalendarMode === 'schedule'
+                                    ? form.recurring_start_date
+                                    : today
+                            "
+                            :max-date="
+                                recurringCalendarMode === 'schedule'
+                                    ? recurringTemplateEndDate
+                                    : ''
+                            "
+                            :highlight-start-date="form.recurring_start_date"
+                            :highlight-end-date="recurringTemplateEndDate"
+                            @update:model-value="updateRecurringStartDate"
+                            @update:selected-dates="
+                                updateRecurringSelectedDates
+                            "
+                            @select="handleRecurringCalendarSelect"
+                        />
+                        <small class="recurring-calendar-note">
+                            {{ recurringCalendarNote }}
+                        </small>
+                    </div>
+                    <div class="recurring-form-fields">
+                        <div class="readonly-field">
+                            <span>Cụm sân</span>
+                            <strong>{{
+                                selectedCluster?.name || "Chưa chọn cụm sân"
+                            }}</strong>
+                        </div>
+                        <label>
+                            <span>Loại sân</span>
+                            <select
+                                v-model="selectedCourtTypeId"
+                                @change="loadSchedule"
+                            >
+                                <option value="">Tất cả loại sân</option>
+                                <option
+                                    v-for="type in courtTypeOptions"
+                                    :key="type.id"
+                                    :value="type.id"
+                                >
+                                    {{ type.name }}
+                                </option>
+                            </select>
+                        </label>
                         <label>
                             <span>Tên khách</span>
                             <input
@@ -465,7 +784,6 @@
                                         contactTouched.name && walkInNameError,
                                 }"
                                 placeholder="Nhập tên khách"
-                                @input="handleContactInput('name')"
                                 @blur="validateContactField('name')"
                             />
                             <small
@@ -494,7 +812,6 @@
                                         walkInPhoneError,
                                 }"
                                 placeholder="Nhập số điện thoại"
-                                @input="handleContactInput('phone')"
                                 @blur="validateContactField('phone')"
                             />
                             <small
@@ -504,287 +821,111 @@
                                 {{ walkInPhoneError }}
                             </small>
                         </label>
-                    </section>
-
-                    <section
-                        v-if="canShowCounterVouchers"
-                        class="side-section"
-                        :class="{ disabled: !hasCounterSelection }"
-                    >
-                        <div class="section-title muted">
-                            <h2>Voucher</h2>
-                        </div>
-                        <div class="voucher-picker">
-                            <div class="voucher-code-row">
-                                <input
-                                    v-model.trim="voucherCodeInput"
-                                    type="text"
-                                    placeholder="Nhập mã voucher"
-                                    :disabled="!hasCounterSelection"
-                                    @keyup.enter="applyVoucherCode"
-                                />
-                                <button
-                                    class="secondary-btn compact"
-                                    type="button"
-                                    :disabled="
-                                        !hasCounterSelection || voucherLoading
-                                    "
-                                    @click="applyVoucherCode"
-                                >
-                                    Áp dụng
-                                </button>
-                            </div>
-                            <small v-if="voucherError" class="field-error">{{
-                                voucherError
-                            }}</small>
-                            <div
-                                v-if="eligibleVouchers.length"
-                                class="voucher-list"
-                            >
-                                <button
-                                    v-for="voucher in eligibleVouchers"
-                                    :key="voucher.id"
-                                    type="button"
-                                    :class="{
-                                        active:
-                                            selectedVoucherId === voucher.id,
-                                    }"
-                                    @click="selectVoucher(voucher)"
-                                >
-                                    <span>
-                                        <strong>{{ voucher.code }}</strong>
-                                        <small>{{ voucher.name }}</small>
-                                    </span>
-                                    <em
-                                        >-{{
-                                            formatCurrency(
-                                                voucher.discount_amount,
-                                            )
-                                        }}</em
+                        <label>
+                            <span>Loại chu kỳ</span>
+                            <select v-model="form.recurrence_type">
+                                <option value="daily">Hàng ngày</option>
+                                <option value="weekly">Chu kỳ 7 ngày</option>
+                                <option value="monthly">Chu kỳ 30 ngày</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Ngày bắt đầu</span>
+                            <input
+                                v-model="form.recurring_start_date"
+                                type="date"
+                                :min="today"
+                                @change="activateRecurringSchedulePicker"
+                            />
+                        </label>
+                        <label>
+                            <span>{{ recurringCountLabel }}</span>
+                            <input
+                                v-model.number="form.recurrence_count"
+                                type="number"
+                                inputmode="numeric"
+                                min="1"
+                                :max="maxRecurringCycleCount"
+                                step="1"
+                                @blur="normalizeRecurringCount"
+                            />
+                        </label>
+                        <div
+                            v-if="form.recurrence_type !== 'daily'"
+                            class="recurring-date-planner recurring-date-planner--inline"
+                        >
+                            <div class="weekday-planner-head">
+                                <div>
+                                    <strong>Lịch theo từng ngày</strong>
+                                    <span
+                                        >Chọn ngày để chỉnh sân và giờ ở bảng
+                                        bên dưới.</span
                                     >
+                                </div>
+                                <div class="weekday-planner-actions">
+                                    <button
+                                        type="button"
+                                        :disabled="
+                                            !activeRecurringDateKeys.length ||
+                                            recurringSelectedDates.length < 2
+                                        "
+                                        @click="
+                                            applyActiveDateScheduleToSelected
+                                        "
+                                    >
+                                        Áp dụng tất cả
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :disabled="
+                                            !activeRecurringDateKeys.length
+                                        "
+                                        @click="clearActiveDateSchedule"
+                                    >
+                                        Xóa giờ
+                                    </button>
+                                </div>
+                            </div>
+                            <div
+                                class="recurring-date-list"
+                                :class="{
+                                    dragging: recurringDateDrag.active,
+                                }"
+                                @pointerdown="startRecurringDateDrag"
+                                @pointermove="moveRecurringDateDrag"
+                                @pointerup="finishRecurringDateDrag"
+                                @pointercancel="finishRecurringDateDrag"
+                                @click.capture="preventRecurringDateDragClick"
+                            >
+                                <button
+                                    v-for="date in recurringSelectedDates"
+                                    :key="date"
+                                    type="button"
+                                    class="recurring-date-card"
+                                    :class="{
+                                        active: recurringActiveDate === date,
+                                        complete: (
+                                            recurringDateRanges[date] || []
+                                        ).length,
+                                    }"
+                                    @click="selectRecurringDate(date)"
+                                >
+                                    <span class="recurring-date-value">{{
+                                        formatDate(date)
+                                    }}</span>
+                                    <strong>{{
+                                        recurringDateTimeText(date)
+                                    }}</strong>
+                                    <small>{{
+                                        recurringDateCourtText(date)
+                                    }}</small>
                                 </button>
                             </div>
-                            <small
-                                v-else-if="
-                                    hasCounterSelection && !voucherLoading
-                                "
-                                class="voucher-empty"
-                            >
-                                Chưa có voucher đủ điều kiện cho khung này.
-                            </small>
-                        </div>
-                    </section>
-
-                    <section
-                        class="side-section"
-                        :class="{ disabled: !hasCounterSelection }"
-                    >
-                        <div class="section-title muted">
-                            <h2>Thu tiền</h2>
-                        </div>
-                        <div class="payment-list">
-                            <label
-                                v-for="option in counterCollectionOptions"
-                                :key="option.value"
-                                class="payment-card"
-                                :class="{
-                                    active:
-                                        form.collection_mode === option.value,
-                                }"
-                            >
-                                <input
-                                    v-model="form.collection_mode"
-                                    type="radio"
-                                    :value="option.value"
-                                    @change="applyCounterCollectionMode"
-                                />
-                                <span>
-                                    {{ option.label }}
-                                </span>
-                                <strong>{{
-                                    formatCurrency(option.amount)
-                                }}</strong>
-                            </label>
-                        </div>
-                    </section>
-
-                    <button
-                        class="primary-btn full"
-                        type="button"
-                        :disabled="submitting || !canSubmitCounter"
-                        @click="submitCounter"
-                    >
-                        <AppIcon name="plus" size="16" />
-                        <span>{{
-                            submitting ? "Đang tạo..." : "Tạo booking"
-                        }}</span>
-                    </button>
-                </template>
-                </aside>
-            </Teleport>
-        </section>
-
-        <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
-            <div class="form-card">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch cố định</h2>
-                        <p>Nhóm lịch sẽ dùng cùng mã cố định để dễ theo dõi.</p>
-                    </div>
-                </div>
-
-                <div class="form-grid recurring-form-grid">
-                    <div class="readonly-field">
-                        <span>Cụm sân</span>
-                        <strong>{{ selectedCluster?.name || "Chưa chọn cụm sân" }}</strong>
-                    </div>
-                    <label>
-                        <span>Loại sân</span>
-                        <select
-                            v-model="selectedCourtTypeId"
-                            @change="loadSchedule"
-                        >
-                            <option value="">Tất cả loại sân</option>
-                            <option
-                                v-for="type in courtTypeOptions"
-                                :key="type.id"
-                                :value="type.id"
-                            >
-                                {{ type.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Tên khách</span>
-                        <input
-                            v-model.trim="form.walk_in_name"
-                            type="text"
-                            autocomplete="name"
-                            minlength="2"
-                            maxlength="100"
-                            required
-                            :aria-invalid="
-                                contactTouched.name && Boolean(walkInNameError)
-                            "
-                            :class="{
-                                invalid: contactTouched.name && walkInNameError,
-                            }"
-                            placeholder="Nguyễn Văn A"
-                            @blur="validateContactField('name')"
-                        />
-                        <small
-                            v-if="contactTouched.name && walkInNameError"
-                            class="field-error"
-                        >
-                            {{ walkInNameError }}
-                        </small>
-                    </label>
-                    <label>
-                        <span>Số điện thoại</span>
-                        <input
-                            v-model.trim="form.walk_in_phone"
-                            type="tel"
-                            autocomplete="tel"
-                            inputmode="tel"
-                            maxlength="15"
-                            required
-                            :aria-invalid="
-                                contactTouched.phone &&
-                                Boolean(walkInPhoneError)
-                            "
-                            :class="{
-                                invalid:
-                                    contactTouched.phone && walkInPhoneError,
-                            }"
-                            placeholder="0901234567"
-                            @blur="validateContactField('phone')"
-                        />
-                        <small
-                            v-if="contactTouched.phone && walkInPhoneError"
-                            class="field-error"
-                        >
-                            {{ walkInPhoneError }}
-                        </small>
-                    </label>
-                    <div class="calendar-range-field">
-                        <span>Khoảng ngày</span>
-                        <MiniCalendar
-                            mode="range"
-                            :start-date="form.recurring_start_date"
-                            :end-date="form.recurring_end_date"
-                            :min-date="today"
-                            @update:start-date="val => { form.recurring_start_date = val; }"
-                            @update:end-date="val => { form.recurring_end_date = val; }"
-                        />
-                    </div>
-                    <label>
-                        <span>Kiểu lặp</span>
-                        <select v-model="form.recurrence_type">
-                            <option value="daily">Hàng ngày</option>
-                            <option value="weekly">Hàng tuần</option>
-                            <option value="monthly">Hàng tháng</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Lặp mỗi</span>
-                        <select v-model.number="form.recurrence_interval">
-                            <option
-                                v-for="value in 12"
-                                :key="value"
-                                :value="value"
-                            >
-                                {{ value }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
-                <div
-                    v-if="form.recurrence_type === 'weekly'"
-                    class="recurring-weekday-planner"
-                >
-                    <div class="weekday-planner-head">
-                        <div>
-                            <strong>Lịch theo từng thứ</strong>
-                            <span>Chọn thứ, rồi chọn sân và khung giờ riêng cho thứ đó ở bảng bên dưới.</span>
-                        </div>
-                        <div class="weekday-planner-actions">
-                            <button
-                                type="button"
-                                :disabled="!activeRecurringWeekdayKeys.length"
-                                @click="applyActiveWeekdayScheduleToSelected"
-                            >
-                                Áp dụng cho thứ đã chọn
-                            </button>
-                            <button
-                                type="button"
-                                :disabled="!activeRecurringWeekdayKeys.length"
-                                @click="clearActiveWeekdaySchedule"
-                            >
-                                Xóa giờ thứ này
-                            </button>
                         </div>
                     </div>
-                    <button
-                        v-for="day in weekDays"
-                        :key="day.value"
-                        type="button"
-                        class="weekday-plan-card"
-                        :class="{
-                            selected: form.recurrence_days_of_week.includes(
-                                day.value,
-                            ),
-                            active: recurringActiveWeekday === day.value,
-                        }"
-                        @click="toggleRecurringWeekday(day.value)"
-                    >
-                        <span class="weekday-name">{{ day.label }}</span>
-                        <strong>{{ recurringWeekdayTimeText(day.value) }}</strong>
-                        <small>{{ recurringWeekdayCourtText(day.value) }}</small>
-                    </button>
                 </div>
                 <p class="recurring-helper">
-                    Hệ thống sẽ tự tạo các buổi rơi vào ngày/thứ đã chọn trong
-                    khoảng từ ngày - đến ngày, theo chu kỳ lặp bên trên.
+                    {{ recurringHelperText }}
                 </p>
 
                 <section class="recurring-schedule-board">
@@ -814,12 +955,15 @@
                     </p>
 
                     <div
-                        v-if="form.recurrence_type === 'weekly'"
+                        v-if="hasRecurringSelection"
                         class="active-weekday-note"
                     >
-                        <strong>Đang chỉnh {{ recurringActiveWeekdayLabel }}</strong>
+                        <strong
+                            >Đang chỉnh
+                            {{ formatDate(recurringActiveDate) }}</strong
+                        >
                         <span>
-                            Các ô chọn trong bảng chỉ áp dụng cho {{ recurringActiveWeekdayLabel }}.
+                            Các ô trong bảng chỉ áp dụng cho ngày này.
                         </span>
                     </div>
 
@@ -899,40 +1043,6 @@
                     </div>
                 </section>
 
-                <section
-                    v-if="form.recurrence_type === 'monthly'"
-                    class="month-day-picker"
-                >
-                    <div class="month-day-head">
-                        <div>
-                            <strong>Ngày lặp trong tháng</strong>
-                            <span>Chọn trực tiếp các ngày khách muốn đặt lịch.</span>
-                        </div>
-                        <div class="month-day-actions">
-                            <button type="button" @click="setMonthDays([1, 15])">
-                                1 & 15
-                            </button>
-                            <button type="button" @click="setMonthDays([15, 30])">
-                                15 & 30
-                            </button>
-                            <button type="button" @click="setMonthDays([])">
-                                Xóa chọn
-                            </button>
-                        </div>
-                    </div>
-                    <div class="month-day-grid">
-                        <button
-                            v-for="day in 31"
-                            :key="day"
-                            type="button"
-                            :class="{ active: selectedMonthDays.includes(day) }"
-                            @click="toggleMonthDay(day)"
-                        >
-                            {{ day }}
-                        </button>
-                    </div>
-                </section>
-
                 <section class="recurring-payment">
                     <div class="section-title muted">
                         <h2>Thu tiền</h2>
@@ -989,7 +1099,7 @@
                     </div>
                 </section>
 
-                <div class="form-actions">
+                <div class="form-actions recurring-form-actions">
                     <button
                         class="primary-btn"
                         type="button"
@@ -1047,10 +1157,6 @@
                     <div>
                         <dt>Tổng tiền gốc</dt>
                         <dd>{{ formatCurrency(recurringTotalAmount) }}</dd>
-                    </div>
-                    <div>
-                        <dt>Tổng cần thu</dt>
-                        <dd>{{ formatCurrency(recurringPayableTotal) }}</dd>
                     </div>
                     <div>
                         <dt>Cần thu</dt>
@@ -1143,7 +1249,10 @@
             </aside>
         </section>
 
-        <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
+        <section
+            v-else-if="activeTab === 'bookingList'"
+            class="recurring-list-panel"
+        >
             <div class="list-toolbar">
                 <div>
                     <h2>Danh sách booking</h2>
@@ -1152,17 +1261,13 @@
                         màn; lọc theo sân, ngày, trạng thái và thanh toán.
                     </p>
                 </div>
-                <button
-                    class="icon-btn"
-                    type="button"
-                    title="Tải lại"
-                    @click="loadCurrentBookingList"
-                >
-                    <AppIcon name="refresh" size="17" />
-                </button>
             </div>
 
-            <div class="booking-list-mode-tabs" role="tablist" aria-label="Loại danh sách booking">
+            <div
+                class="booking-list-mode-tabs"
+                role="tablist"
+                aria-label="Loại danh sách booking"
+            >
                 <button
                     type="button"
                     :class="{ active: bookingListMode === 'single' }"
@@ -1182,389 +1287,419 @@
             </div>
 
             <template v-if="bookingListMode === 'single'">
-            <div class="filters booking-list-filters">
-                <label>
-                    <span>Sân con</span>
-                    <select
-                        v-model="bookingListFilters.venue_court_id"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option
-                            v-for="court in courts"
-                            :key="court.id"
-                            :value="court.id"
+                <div class="filters booking-list-filters">
+                    <label>
+                        <span>Sân con</span>
+                        <select
+                            v-model="bookingListFilters.venue_court_id"
+                            @change="loadBookingList"
                         >
-                            {{ court.name }}
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    <span>Ngày chơi</span>
-                    <input
-                        v-model="bookingListFilters.booking_date"
-                        type="date"
-                        @change="loadBookingList"
-                    />
-                </label>
-                <label>
-                    <span>Nguồn đặt</span>
-                    <select
-                        v-model="bookingListFilters.source"
-                        @change="loadBookingList"
+                            <option value="">Tất cả</option>
+                            <option
+                                v-for="court in courts"
+                                :key="court.id"
+                                :value="court.id"
+                            >
+                                {{ court.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Ngày chơi</span>
+                        <input
+                            v-model="bookingListFilters.booking_date"
+                            type="date"
+                            @change="loadBookingList"
+                        />
+                    </label>
+                    <label>
+                        <span>Nguồn đặt</span>
+                        <select
+                            v-model="bookingListFilters.source"
+                            @change="loadBookingList"
+                        >
+                            <option value="">Tất cả</option>
+                            <option value="online">Online</option>
+                            <option value="counter">Tại quầy</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Trạng thái</span>
+                        <select
+                            v-model="bookingListFilters.status"
+                            @change="loadBookingList"
+                        >
+                            <option value="">Tất cả</option>
+                            <option value="pending_approval">Chờ duyệt</option>
+                            <option value="pending_payment">
+                                Chờ thanh toán
+                            </option>
+                            <option value="confirmed">Đã xác nhận</option>
+                            <option value="checked_in">Đã check-in</option>
+                            <option value="completed">Hoàn thành</option>
+                            <option value="cancelled">Đã hủy</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Tìm kiếm</span>
+                        <input
+                            v-model.trim="bookingListFilters.q"
+                            type="search"
+                            placeholder="Mã booking, khách, SĐT"
+                            @keyup.enter="loadBookingList"
+                        />
+                    </label>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        @click="loadBookingList"
                     >
-                        <option value="">Tất cả</option>
-                        <option value="online">Online</option>
-                        <option value="counter">Tại quầy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Trạng thái</span>
-                    <select
-                        v-model="bookingListFilters.status"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option value="pending_approval">Chờ duyệt</option>
-                        <option value="pending_payment">Chờ thanh toán</option>
-                        <option value="confirmed">Đã xác nhận</option>
-                        <option value="checked_in">Đã check-in</option>
-                        <option value="completed">Hoàn thành</option>
-                        <option value="cancelled">Đã hủy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Tìm kiếm</span>
-                    <input
-                        v-model.trim="bookingListFilters.q"
-                        type="search"
-                        placeholder="Mã booking, khách, SĐT"
-                        @keyup.enter="loadBookingList"
-                    />
-                </label>
-                <button
-                    class="secondary-btn"
-                    type="button"
-                    @click="loadBookingList"
-                >
-                    <AppIcon name="search" size="16" />
-                    <span>Lọc</span>
-                </button>
-            </div>
-
-            <div v-if="bookingListLoading" class="table-skeleton">
-                <div
-                    v-for="row in 4"
-                    :key="row"
-                    class="table-skeleton-row"
-                >
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                        <AppIcon name="search" size="16" />
+                        <span>Lọc</span>
+                    </button>
                 </div>
-            </div>
-            <div v-else-if="!bookingList.length" class="state-card">
-                Chưa có booking phù hợp.
-            </div>
-            <div v-else class="recurring-table-card">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã / khách</th>
-                            <th>Sân & giờ</th>
-                            <th>Nguồn đặt</th>
-                            <th>Thanh toán</th>
-                            <th>Trạng thái</th>
-                            <th class="money-col">Còn thu</th>
-                            <th class="action-col">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="booking in bookingList" :key="booking.id">
-                            <td>
-                                <span class="group-code">{{
-                                    booking.booking_code
-                                }}</span>
-                                <strong>{{
-                                    bookingCustomerName(booking)
-                                }}</strong>
-                                <small>{{ bookingCustomerPhone(booking) }}</small>
-                            </td>
-                            <td>
-                                <strong>{{ bookingCourtText(booking) }}</strong>
-                                <small>
-                                    {{ formatDate(booking.booking_date) }} ·
-                                    {{ bookingTimeText(booking) }}
-                                </small>
-                            </td>
-                            <td>
-                                <span
-                                    class="source-pill"
-                                    :class="booking.source"
-                                >
-                                    {{ bookingSourceLabel(booking.source) }}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>{{
-                                    paymentOptionLabel(booking.payment_option)
-                                }}</strong>
-                                <small>
-                                    Đã thu
-                                    {{ formatCurrency(paidAmount(booking)) }}
-                                    / {{ formatCurrency(booking.total_price) }}
-                                </small>
-                            </td>
-                            <td>
-                                <span
-                                    class="status-badge"
-                                    :class="`tone-${bookingStatusTone(booking.status)}`"
-                                >
-                                    {{ bookingStatusLabel(booking.status) }}
-                                </span>
-                            </td>
-                            <td class="money-col">
-                                <strong
-                                    :class="{
-                                        paid:
-                                            bookingOutstandingAmount(booking) <=
-                                            0,
-                                    }"
-                                >
-                                    {{
-                                        formatCurrency(
-                                            bookingOutstandingAmount(booking),
+
+                <div v-if="bookingListLoading" class="table-skeleton">
+                    <div v-for="row in 4" :key="row" class="table-skeleton-row">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <div v-else-if="!bookingList.length" class="state-card">
+                    Chưa có booking phù hợp.
+                </div>
+                <div v-else class="recurring-table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã / khách</th>
+                                <th>Sân & giờ</th>
+                                <th>Nguồn đặt</th>
+                                <th>Thanh toán</th>
+                                <th>Trạng thái</th>
+                                <th class="money-col">Còn thu</th>
+                                <th class="action-col">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="booking in bookingList"
+                                :key="booking.id"
+                            >
+                                <td>
+                                    <span class="group-code">{{
+                                        booking.booking_code
+                                    }}</span>
+                                    <strong>{{
+                                        bookingCustomerName(booking)
+                                    }}</strong>
+                                    <small>{{
+                                        bookingCustomerPhone(booking)
+                                    }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{
+                                        bookingCourtText(booking)
+                                    }}</strong>
+                                    <small>
+                                        {{ formatDate(booking.booking_date) }} ·
+                                        {{ bookingTimeText(booking) }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <span
+                                        class="source-pill"
+                                        :class="booking.source"
+                                    >
+                                        {{ bookingSourceLabel(booking.source) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>{{
+                                        paymentOptionLabel(
+                                            booking.payment_option,
                                         )
-                                    }}
-                                </strong>
-                            </td>
-                            <td class="action-col">
-                                <button
-                                    type="button"
-                                    class="secondary-btn compact"
-                                    @click="openBookingListDetail(booking)"
-                                >
-                                    <AppIcon name="eye" size="15" />
-                                    <span>Chi tiết</span>
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                                    }}</strong>
+                                    <small>
+                                        Đã thu
+                                        {{
+                                            formatCurrency(paidAmount(booking))
+                                        }}
+                                        /
+                                        {{
+                                            formatCurrency(booking.total_price)
+                                        }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <span
+                                        class="status-badge"
+                                        :class="`tone-${bookingStatusTone(booking.status)}`"
+                                    >
+                                        {{ bookingStatusLabel(booking.status) }}
+                                    </span>
+                                </td>
+                                <td class="money-col">
+                                    <strong
+                                        :class="{
+                                            paid:
+                                                bookingOutstandingAmount(
+                                                    booking,
+                                                ) <= 0,
+                                        }"
+                                    >
+                                        {{
+                                            formatCurrency(
+                                                bookingOutstandingAmount(
+                                                    booking,
+                                                ),
+                                            )
+                                        }}
+                                    </strong>
+                                </td>
+                                <td class="action-col">
+                                    <button
+                                        type="button"
+                                        class="secondary-btn compact"
+                                        @click="openBookingListDetail(booking)"
+                                    >
+                                        <AppIcon name="eye" size="15" />
+                                        <span>Chi tiết</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </template>
 
             <template v-else>
-            <div class="list-toolbar compact-list-toolbar">
-                <div>
-                    <h2>Danh sách booking cố định</h2>
-                    <p>
-                        Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và số
-                        tiền còn phải thu.
-                    </p>
+                <div class="list-toolbar compact-list-toolbar">
+                    <div>
+                        <h2>Danh sách booking cố định</h2>
+                        <p>
+                            Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và
+                            số tiền còn phải thu.
+                        </p>
+                    </div>
+                    <button
+                        class="icon-btn"
+                        type="button"
+                        title="Tải lại"
+                        @click="loadRecurringGroups"
+                    >
+                        <AppIcon name="refresh" size="17" />
+                    </button>
                 </div>
-                <button
-                    class="icon-btn"
-                    type="button"
-                    title="Tải lại"
-                    @click="loadRecurringGroups"
-                >
-                    <AppIcon name="refresh" size="17" />
-                </button>
-            </div>
 
-            <div class="filters recurring-list-filters">
-                <label>
-                    <span>Cụm sân</span>
-                    <select
-                        v-model="selectedClusterId"
-                        @change="handleClusterChange"
-                    >
-                        <option
-                            v-for="cluster in clusters"
-                            :key="cluster.id"
-                            :value="cluster.id"
+                <div class="filters recurring-list-filters">
+                    <label>
+                        <span>Cụm sân</span>
+                        <select
+                            v-model="selectedClusterId"
+                            @change="handleClusterChange"
                         >
-                            {{ cluster.name }}
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    <span>Sân con</span>
-                    <select
-                        v-model="recurringGroupFilters.venue_court_id"
-                        @change="loadRecurringGroups"
-                    >
-                        <option value="">Tất cả</option>
-                        <option
-                            v-for="court in courts"
-                            :key="court.id"
-                            :value="court.id"
+                            <option
+                                v-for="cluster in clusters"
+                                :key="cluster.id"
+                                :value="cluster.id"
+                            >
+                                {{ cluster.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Sân con</span>
+                        <select
+                            v-model="recurringGroupFilters.venue_court_id"
+                            @change="loadRecurringGroups"
                         >
-                            {{ court.name }}
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    <span>Trạng thái</span>
-                    <select
-                        v-model="recurringGroupFilters.status"
-                        @change="loadRecurringGroups"
+                            <option value="">Tất cả</option>
+                            <option
+                                v-for="court in courts"
+                                :key="court.id"
+                                :value="court.id"
+                            >
+                                {{ court.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Trạng thái</span>
+                        <select
+                            v-model="recurringGroupFilters.status"
+                            @change="loadRecurringGroups"
+                        >
+                            <option value="">Tất cả</option>
+                            <option value="pending_payment">
+                                Chờ thanh toán
+                            </option>
+                            <option value="confirmed">Đã xác nhận</option>
+                            <option value="checked_in">Đã check-in</option>
+                            <option value="completed">Hoàn thành</option>
+                            <option value="cancelled">Đã hủy</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Tìm kiếm</span>
+                        <input
+                            v-model.trim="recurringGroupFilters.q"
+                            type="search"
+                            placeholder="Mã nhóm, khách, SĐT"
+                            @keyup.enter="loadRecurringGroups"
+                        />
+                    </label>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        @click="loadRecurringGroups"
                     >
-                        <option value="">Tất cả</option>
-                        <option value="pending_payment">Chờ thanh toán</option>
-                        <option value="confirmed">Đã xác nhận</option>
-                        <option value="checked_in">Đã check-in</option>
-                        <option value="completed">Hoàn thành</option>
-                        <option value="cancelled">Đã hủy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Tìm kiếm</span>
-                    <input
-                        v-model.trim="recurringGroupFilters.q"
-                        type="search"
-                        placeholder="Mã nhóm, khách, SĐT"
-                        @keyup.enter="loadRecurringGroups"
-                    />
-                </label>
-                <button
-                    class="secondary-btn"
-                    type="button"
-                    @click="loadRecurringGroups"
-                >
-                    <AppIcon name="search" size="16" />
-                    <span>Lọc</span>
-                </button>
-            </div>
+                        <AppIcon name="search" size="16" />
+                        <span>Lọc</span>
+                    </button>
+                </div>
 
-            <div v-if="recurringGroupsLoading" class="state-card">
-                Đang tải booking cố định...
-            </div>
-            <div v-else-if="!recurringGroups.length" class="state-card">
-                Chưa có nhóm lịch cố định phù hợp.
-            </div>
-            <div v-else class="recurring-table-card">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã / khách</th>
-                            <th>Lịch lặp</th>
-                            <th>Sân & giờ</th>
-                            <th>Thanh toán</th>
-                            <th class="money-col">Còn thu</th>
-                            <th class="action-col">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="group in recurringGroups"
-                            :key="group.recurring_group_code"
-                        >
-                            <td>
-                                <span class="group-code">{{
-                                    group.recurring_group_code
-                                }}</span>
-                                <strong>{{
-                                    recurringGroupCustomer(group)
-                                }}</strong>
-                                <small>{{ recurringGroupPhone(group) }}</small>
-                            </td>
-                            <td>
-                                <strong>{{
-                                    recurringGroupPatternText(group)
-                                }}</strong>
-                                <small>
-                                    {{ group.booking_count }} buổi ·
-                                    {{ formatDate(group.start_date) }} -
-                                    {{ formatDate(group.end_date) }}
-                                </small>
-                                <div class="fixed-date-chips">
-                                    <span
-                                        v-for="occurrence in recurringGroupDateChips(
-                                            group,
-                                        )"
-                                        :key="
-                                            occurrence.booking_id ||
-                                            occurrence.booking_date
-                                        "
-                                        :class="occurrenceChipClass(occurrence)"
-                                        :title="occurrenceChipTitle(occurrence)"
+                <div v-if="recurringGroupsLoading" class="state-card">
+                    Đang tải booking cố định...
+                </div>
+                <div v-else-if="!recurringGroups.length" class="state-card">
+                    Chưa có nhóm lịch cố định phù hợp.
+                </div>
+                <div v-else class="recurring-table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã / khách</th>
+                                <th>Lịch lặp</th>
+                                <th>Sân & giờ</th>
+                                <th>Thanh toán</th>
+                                <th class="money-col">Còn thu</th>
+                                <th class="action-col">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="group in recurringGroups"
+                                :key="group.recurring_group_code"
+                            >
+                                <td>
+                                    <span class="group-code">{{
+                                        group.recurring_group_code
+                                    }}</span>
+                                    <strong>{{
+                                        recurringGroupCustomer(group)
+                                    }}</strong>
+                                    <small>{{
+                                        recurringGroupPhone(group)
+                                    }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{
+                                        recurringGroupPatternText(group)
+                                    }}</strong>
+                                    <small>
+                                        {{ group.booking_count }} buổi ·
+                                        {{ formatDate(group.start_date) }} -
+                                        {{ formatDate(group.end_date) }}
+                                    </small>
+                                    <div class="fixed-date-chips">
+                                        <span
+                                            v-for="occurrence in recurringGroupDateChips(
+                                                group,
+                                            )"
+                                            :key="
+                                                occurrence.booking_id ||
+                                                occurrence.booking_date
+                                            "
+                                            :class="
+                                                occurrenceChipClass(occurrence)
+                                            "
+                                            :title="
+                                                occurrenceChipTitle(occurrence)
+                                            "
+                                        >
+                                            {{
+                                                formatShortDate(
+                                                    occurrence.booking_date,
+                                                )
+                                            }}
+                                        </span>
+                                        <em
+                                            v-if="
+                                                recurringGroupHiddenDateCount(
+                                                    group,
+                                                ) > 0
+                                            "
+                                        >
+                                            +{{
+                                                recurringGroupHiddenDateCount(
+                                                    group,
+                                                )
+                                            }}
+                                        </em>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong>{{
+                                        recurringGroupTimeText(group)
+                                    }}</strong>
+                                    <small>
+                                        {{
+                                            (group.court_names || []).join(
+                                                ", ",
+                                            ) || "-"
+                                        }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <strong>{{
+                                        paymentOptionLabel(group.payment_option)
+                                    }}</strong>
+                                    <small>{{
+                                        recurringGroupStatusSummary(group) ||
+                                        "Chưa có trạng thái"
+                                    }}</small>
+                                </td>
+                                <td class="money-col">
+                                    <strong
+                                        :class="{
+                                            paid:
+                                                Number(
+                                                    group.outstanding_amount ||
+                                                        0,
+                                                ) <= 0,
+                                        }"
                                     >
                                         {{
-                                            formatShortDate(
-                                                occurrence.booking_date,
+                                            formatCurrency(
+                                                group.outstanding_amount,
                                             )
                                         }}
-                                    </span>
-                                    <em
-                                        v-if="
-                                            recurringGroupHiddenDateCount(
-                                                group,
-                                            ) > 0
-                                        "
+                                    </strong>
+                                    <small>
+                                        Tổng
+                                        {{ formatCurrency(group.total_price) }}
+                                        · Đã thu
+                                        {{ formatCurrency(group.paid_amount) }}
+                                    </small>
+                                </td>
+                                <td class="action-col">
+                                    <button
+                                        type="button"
+                                        class="secondary-btn compact"
+                                        @click="openRecurringGroupDetail(group)"
                                     >
-                                        +{{
-                                            recurringGroupHiddenDateCount(group)
-                                        }}
-                                    </em>
-                                </div>
-                            </td>
-                            <td>
-                                <strong>{{
-                                    recurringGroupTimeText(group)
-                                }}</strong>
-                                <small>
-                                    {{
-                                        (group.court_names || []).join(", ") ||
-                                        "-"
-                                    }}
-                                </small>
-                            </td>
-                            <td>
-                                <strong>{{
-                                    paymentOptionLabel(group.payment_option)
-                                }}</strong>
-                                <small>{{
-                                    recurringGroupStatusSummary(group) ||
-                                    "Chưa có trạng thái"
-                                }}</small>
-                            </td>
-                            <td class="money-col">
-                                <strong
-                                    :class="{
-                                        paid:
-                                            Number(
-                                                group.outstanding_amount || 0,
-                                            ) <= 0,
-                                    }"
-                                >
-                                    {{
-                                        formatCurrency(group.outstanding_amount)
-                                    }}
-                                </strong>
-                                <small>
-                                    Tổng {{ formatCurrency(group.total_price) }}
-                                    · Đã thu
-                                    {{ formatCurrency(group.paid_amount) }}
-                                </small>
-                            </td>
-                            <td class="action-col">
-                                <button
-                                    type="button"
-                                    class="secondary-btn compact"
-                                    @click="openRecurringGroupDetail(group)"
-                                >
-                                    <AppIcon name="eye" size="15" />
-                                    <span>Chi tiết</span>
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                                        <AppIcon name="eye" size="15" />
+                                        <span>Chi tiết</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </template>
         </section>
 
@@ -1692,9 +1827,20 @@
                                             {{ occurrence.status_reason }}
                                         </small>
                                     </div>
-                                    <span>{{
-                                        occurrenceStatusLabel(occurrence)
-                                    }}</span>
+                                    <div class="occurrence-state-group">
+                                        <span
+                                            class="occurrence-state"
+                                            :class="`state-${occurrenceOperationalState(occurrence)}`"
+                                        >
+                                            {{ occurrenceStatusLabel(occurrence) }}
+                                        </span>
+                                        <span
+                                            class="occurrence-payment"
+                                            :class="`payment-${occurrencePaymentState(occurrence)}`"
+                                        >
+                                            {{ occurrencePaymentLabel(occurrence) }}
+                                        </span>
+                                    </div>
                                 </article>
                             </div>
                         </section>
@@ -1952,7 +2098,10 @@
                 </section>
             </div>
 
-            <div v-if="counterQr && qrModalOpen" class="modal-backdrop qr-modal-backdrop">
+            <div
+                v-if="counterQr && qrModalOpen"
+                class="modal-backdrop qr-modal-backdrop"
+            >
                 <section class="qr-modal">
                     <div class="modal-head">
                         <div>
@@ -2043,7 +2192,13 @@
                                     {{ formatTime(conflict.end_time) }}</span
                                 >
                             </div>
-                            <select v-model="conflictSelections[conflict.date]">
+                            <select
+                                v-model="
+                                    conflictSelections[
+                                        conflict.key || conflict.date
+                                    ]
+                                "
+                            >
                                 <option value="skip">
                                     Bỏ booking ngày này
                                 </option>
@@ -2167,22 +2322,32 @@ export default {
             selectedClusterId: "",
             selectedClusterDetail: null,
             selectedCourtTypeId: "",
+            counterDatePickerOpen: false,
             scheduleSlots: [],
             scheduleCourts: [],
             scheduleSlotStatuses: [],
             scheduleBusyIntervals: [],
             selectedGridCourtId: "",
             selectedSlotKeys: [],
-            recurringActiveWeekday: toWeekDayIndex(now),
-            recurringWeekdaySlotKeys: {
-                [toWeekDayIndex(now)]: [],
+            recurringSelectedDates: [today],
+            recurringActiveDate: today,
+            recurringDateSlotKeys: {
+                [today]: [],
             },
+            recurringCalendarMode: "start",
+            recurringDateDrag: {
+                active: false,
+                moved: false,
+                pointerId: null,
+                startX: 0,
+                scrollLeft: 0,
+            },
+            resettingRecurringBuilder: false,
             timePeriods: SLOT_PERIODS,
             activeTimePeriod: "morning",
             scheduleLoading: false,
             scheduleError: "",
             selectionError: "",
-            monthDaysInput: "1",
             form: {
                 venue_court_id: "",
                 walk_in_name: "",
@@ -2193,7 +2358,7 @@ export default {
                 recurring_end_date: today,
                 recurrence_type: "weekly",
                 recurrence_interval: 1,
-                recurrence_days_of_week: [toWeekDayIndex(now)],
+                recurrence_count: 1,
                 start_time: "08:00",
                 end_time: "09:00",
                 payment_option: "full_payment",
@@ -2273,19 +2438,28 @@ export default {
     },
     computed: {
         isStaffRoute() {
-            return this.$route.path.startsWith('/staff');
+            return this.$route.path.startsWith("/staff");
         },
         bookingListRouteName() {
-            return this.isStaffRoute ? 'staff-booking-list' : 'owner-booking-list';
+            return this.isStaffRoute
+                ? "staff-booking-list"
+                : "owner-booking-list";
         },
         counterBookingRouteName() {
-            return this.isStaffRoute ? 'staff-counter-booking' : 'owner-counter-booking';
+            return this.isStaffRoute
+                ? "staff-counter-booking"
+                : "owner-counter-booking";
         },
         counterBookingPath() {
-            return this.isStaffRoute ? '/staff/counter-booking' : '/owner/counter-booking';
+            return this.isStaffRoute
+                ? "/staff/counter-booking"
+                : "/owner/counter-booking";
         },
         isBookingListRoute() {
-            return this.$route.name === "owner-booking-list" || this.$route.name === "staff-booking-list";
+            return (
+                this.$route.name === "owner-booking-list" ||
+                this.$route.name === "staff-booking-list"
+            );
         },
         selectedCluster() {
             return (
@@ -2324,9 +2498,10 @@ export default {
             );
         },
         activeScheduleDate() {
-            return this.activeTab === "recurring"
-                ? this.form.recurring_start_date
-                : this.form.booking_date;
+            if (this.activeTab !== "recurring") return this.form.booking_date;
+            return this.usesExplicitRecurringDates
+                ? this.recurringActiveDate
+                : this.form.recurring_start_date;
         },
         operatingStartMinutes() {
             const configured =
@@ -2338,7 +2513,9 @@ export default {
         operatingEndMinutes() {
             const configured =
                 this.selectedClusterDetail?.booking_config?.fixed_close_time;
-            return configured ? this.timeToMinutes(configured) : BOOKING_DAY_END;
+            return configured
+                ? this.timeToMinutes(configured)
+                : BOOKING_DAY_END;
         },
         dynamicTimePeriods() {
             const slotStarts = this.scheduleSlots.map((slot) =>
@@ -2351,7 +2528,9 @@ export default {
                 ? Math.min(...slotStarts)
                 : this.operatingStartMinutes;
             const close = Math.max(
-                slotEnds.length ? Math.max(...slotEnds) : this.operatingEndMinutes,
+                slotEnds.length
+                    ? Math.max(...slotEnds)
+                    : this.operatingEndMinutes,
                 open + SLOT_STEP_MINUTES,
             );
             const raw = [
@@ -2436,57 +2615,137 @@ export default {
             };
         },
         activeSelectionKeys() {
-            if (
-                this.activeTab !== "recurring" ||
-                this.form.recurrence_type !== "weekly"
-            )
-                return this.selectedSlotKeys;
+            if (!this.usesExplicitRecurringDates) return this.selectedSlotKeys;
+            return this.recurringDateSlotKeys[this.recurringActiveDate] || [];
+        },
+        usesExplicitRecurringDates() {
+            return this.activeTab === "recurring";
+        },
+        recurringCycleDays() {
+            return (
+                {
+                    daily: 1,
+                    weekly: 7,
+                    monthly: 30,
+                }[this.form.recurrence_type] || 1
+            );
+        },
+        recurringTemplateEndDate() {
+            return this.addDaysToIso(
+                this.form.recurring_start_date,
+                this.recurringCycleDays - 1,
+            );
+        },
+        recurringTemplateLabel() {
+            if (this.form.recurrence_type === "daily") return "Ngày mẫu";
+            return `Lịch mẫu ${this.recurringCycleDays} ngày`;
+        },
+        recurringCountLabel() {
+            if (this.form.recurrence_type === "daily") {
+                return "Số ngày áp dụng";
+            }
+            return `Số chu kỳ ${this.recurringCycleDays} ngày`;
+        },
+        recurringCalendarNote() {
+            if (this.form.recurrence_type === "daily") {
+                return `Lịch giờ của ${this.formatDate(this.form.recurring_start_date)} sẽ áp dụng cho ${this.form.recurrence_count || 1} ngày liên tiếp.`;
+            }
 
+            if (this.recurringCalendarMode === "start") {
+                return `Bấm ngày muốn bắt đầu chu kỳ. Đang chọn ${this.formatDate(this.form.recurring_start_date)}.`;
+            }
+
+            return `${this.recurringSelectedDates.length} ngày có lịch trong mẫu ${this.formatDate(this.form.recurring_start_date)} - ${this.formatDate(this.recurringTemplateEndDate)}.`;
+        },
+        recurringHelperText() {
+            if (this.form.recurrence_type === "daily") {
+                return "Chọn sân và giờ một lần; hệ thống áp dụng lịch này cho số ngày liên tiếp đã nhập.";
+            }
+            return `Chỉ các ngày được chọn trong mẫu ${this.recurringCycleDays} ngày mới được nhân sang những chu kỳ tiếp theo.`;
+        },
+        maxRecurringCycleCount() {
+            const sessionsPerCycle = Math.max(
+                this.recurringSelectedDates.length,
+                1,
+            );
+            const cycleLimit =
+                {
+                    daily: 130,
+                    weekly: 52,
+                    monthly: 12,
+                }[this.form.recurrence_type] || 1;
+            return Math.max(
+                Math.min(Math.floor(130 / sessionsPerCycle), cycleLimit),
+                1,
+            );
+        },
+        normalizedRecurringCount() {
+            const value = Number(this.form.recurrence_count);
+            if (!Number.isFinite(value)) return 1;
+
+            return Math.min(
+                Math.max(Math.trunc(value), 1),
+                this.maxRecurringCycleCount,
+            );
+        },
+        hasValidRecurringCount() {
+            const value = Number(this.form.recurrence_count);
             return (
-                this.recurringWeekdaySlotKeys[this.recurringActiveWeekday] || []
+                this.form.recurrence_count !== "" &&
+                Number.isInteger(value) &&
+                value >= 1 &&
+                value <= this.maxRecurringCycleCount
             );
         },
-        activeRecurringWeekdayKeys() {
-            return this.recurringWeekdaySlotKeys[this.recurringActiveWeekday] || [];
+        activeRecurringDateKeys() {
+            return this.recurringDateSlotKeys[this.recurringActiveDate] || [];
         },
-        recurringSelectedDays() {
-            return [...this.form.recurrence_days_of_week].sort(
-                (a, b) => a - b,
-            );
-        },
-        recurringActiveWeekdayLabel() {
-            return (
-                this.weekDays.find(
-                    (day) => day.value === this.recurringActiveWeekday,
-                )?.label || "thứ đang chọn"
-            );
-        },
-        recurringDayRanges() {
-            return this.recurringSelectedDays.reduce((result, day) => {
+        recurringDateRanges() {
+            return this.recurringSelectedDates.reduce((result, date) => {
                 const ranges = this.slotRangesFromKeys(
-                    this.recurringWeekdaySlotKeys[day] || [],
+                    this.recurringDateSlotKeys[date] || [],
                 );
-                if (ranges.length) result[day] = ranges;
+                if (ranges.length) result[date] = ranges;
                 return result;
             }, {});
         },
-        hasRecurringSelection() {
-            if (this.form.recurrence_type !== "weekly")
-                return Boolean(this.selectedSlotKeys.length);
+        recurringConcreteScheduleGroups() {
+            const count = this.normalizedRecurringCount;
+            const groups = [];
 
-            return Object.keys(this.recurringDayRanges).length > 0;
+            for (let cycle = 0; cycle < count; cycle += 1) {
+                this.recurringSelectedDates.forEach((templateDate) => {
+                    const ranges = this.recurringDateRanges[templateDate] || [];
+                    groups.push({
+                        templateDate,
+                        date: this.addDaysToIso(
+                            templateDate,
+                            cycle * this.recurringCycleDays,
+                        ),
+                        ranges,
+                    });
+                });
+            }
+
+            return groups.sort((a, b) => a.date.localeCompare(b.date));
+        },
+        hasRecurringSelection() {
+            if (!this.usesExplicitRecurringDates) {
+                return Boolean(this.selectedSlotKeys.length);
+            }
+            return Object.keys(this.recurringDateRanges).length > 0;
         },
         recurringScheduleSummaries() {
-            return this.recurringSelectedDays.map((day) => ({
-                day,
-                label: this.weekDays.find((item) => item.value === day)?.label,
-                ranges: this.recurringDayRanges[day] || [],
+            return this.recurringSelectedDates.map((date) => ({
+                date,
+                label: this.formatDate(date),
+                ranges: this.recurringDateRanges[date] || [],
             }));
         },
-        recurringPerDayTotals() {
-            return this.recurringSelectedDays.reduce((result, day) => {
-                result[day] = this.slotEntriesFromKeys(
-                    this.recurringWeekdaySlotKeys[day] || [],
+        recurringPerDateTotals() {
+            return this.recurringSelectedDates.reduce((result, date) => {
+                result[date] = this.slotEntriesFromKeys(
+                    this.recurringDateSlotKeys[date] || [],
                 ).reduce((total, entry) => {
                     const status = this.slotStatus(entry.courtId, entry.slot);
                     return total + Number(status?.price || 0);
@@ -2495,11 +2754,8 @@ export default {
             }, {});
         },
         recurringSelectedCourtText() {
-            if (this.form.recurrence_type !== "weekly")
-                return this.selectedCourtText;
-
             const names = new Set();
-            Object.values(this.recurringDayRanges).forEach((ranges) => {
+            Object.values(this.recurringDateRanges).forEach((ranges) => {
                 ranges.forEach((range) => {
                     if (range.court?.name) names.add(range.court.name);
                 });
@@ -2511,11 +2767,6 @@ export default {
             return `${courtNames.length} sân`;
         },
         recurringScheduleText() {
-            if (this.form.recurrence_type !== "weekly")
-                return this.hasCounterSelection
-                    ? this.selectedTimeText
-                    : "Chưa chọn";
-
             const filled = this.recurringScheduleSummaries.filter(
                 (item) => item.ranges.length,
             );
@@ -2524,23 +2775,13 @@ export default {
                 return `${filled[0].label}: ${this.rangeListText(filled[0].ranges)}`;
             }
 
-            return `${filled.length} thứ đã có khung giờ`;
+            return `${filled.length}/${this.recurringSelectedDates.length} ngày đã có khung giờ`;
         },
         recurringBaseTotal() {
-            if (this.form.recurrence_type !== "weekly")
-                return this.recurringUnitTotal * this.recurringPreview.length;
-
-            return this.recurringPreview.reduce((total, date) => {
-                const day = this.dayIndex(this.parseDate(date));
-                return total + Number(this.recurringPerDayTotals[day] || 0);
-            }, 0);
-        },
-        selectedMonthDays() {
-            return this.monthDaysInput
-                .split(",")
-                .map((item) => Number(item.trim()))
-                .filter((day) => day >= 1 && day <= 31)
-                .sort((a, b) => a - b);
+            const templateTotal = Object.values(
+                this.recurringPerDateTotals,
+            ).reduce((total, amount) => total + Number(amount || 0), 0);
+            return templateTotal * this.normalizedRecurringCount;
         },
         selectedSlotEntries() {
             return this.slotEntriesFromKeys(this.activeSelectionKeys);
@@ -2572,7 +2813,7 @@ export default {
         selectedCourtText() {
             if (
                 this.activeTab === "recurring" &&
-                this.form.recurrence_type === "weekly"
+                this.usesExplicitRecurringDates
             )
                 return this.recurringSelectedCourtText;
 
@@ -2665,9 +2906,7 @@ export default {
             return this.recurringUnitTotal;
         },
         recurringPayableTotal() {
-            return (
-                this.recurringUnitPayableTotal * this.recurringPreview.length
-            );
+            return this.recurringBaseTotal;
         },
         recurringRequiredAmount() {
             if (this.form.payment_option === "no_prepay") return 0;
@@ -2685,25 +2924,11 @@ export default {
             );
         },
         recurringPatternText() {
-            const interval = Number(this.form.recurrence_interval || 1);
-            const every = interval > 1 ? `${interval} ` : "";
-
             if (this.form.recurrence_type === "daily") {
-                return `Lặp mỗi ${every}ngày`;
+                return `${this.normalizedRecurringCount} ngày liên tiếp`;
             }
 
-            if (this.form.recurrence_type === "weekly") {
-                const days = this.weekDays
-                    .filter((day) =>
-                        this.form.recurrence_days_of_week.includes(day.value),
-                    )
-                    .map((day) => day.label)
-                    .join(", ");
-
-                return `Lặp mỗi ${every}tuần${days ? ` · vào ${days}` : ""}`;
-            }
-
-            return `Lặp mỗi ${every}tháng · ngày ${this.monthDaysInput || "-"}`;
+            return `${this.normalizedRecurringCount} chu kỳ ${this.recurringCycleDays} ngày · ${this.recurringSelectedDates.length} ngày có lịch mỗi chu kỳ`;
         },
         depositPercent() {
             return Number(
@@ -2805,6 +3030,11 @@ export default {
         },
         currentScheduleLabel() {
             return `${this.selectedCluster?.name || "Cụm sân"} · ${this.counterDateRangeLabel}`;
+        },
+        counterScheduleTitle() {
+            return this.counterDateCount > 1
+                ? "Lịch sân ngày bắt đầu"
+                : "Lịch sân trong ngày";
         },
         selectedBookingOutstanding() {
             if (!this.selectedBusyBooking) return 0;
@@ -2969,47 +3199,9 @@ export default {
         },
         recurringPreview() {
             if (this.activeTab !== "recurring") return [];
-            const start = this.parseDate(this.form.recurring_start_date);
-            const end = this.parseDate(this.form.recurring_end_date);
-            if (!start || !end || end < start) return [];
-
-            const dates = [];
-            const selectedMonthDays = this.monthDaysInput
-                .split(",")
-                .map((item) => Number(item.trim()))
-                .filter((day) => day >= 1 && day <= 31);
-
-            for (
-                let date = new Date(start);
-                date <= end && dates.length <= 130;
-                date.setDate(date.getDate() + 1)
-            ) {
-                const current = new Date(date);
-                const dayDiff = Math.floor((current - start) / 86400000);
-                const weekDiff = Math.floor(dayDiff / 7);
-                const monthDiff =
-                    (current.getFullYear() - start.getFullYear()) * 12 +
-                    (current.getMonth() - start.getMonth());
-                let match = false;
-
-                if (this.form.recurrence_type === "daily") {
-                    match = dayDiff % this.form.recurrence_interval === 0;
-                } else if (this.form.recurrence_type === "weekly") {
-                    match =
-                        weekDiff % this.form.recurrence_interval === 0 &&
-                        this.form.recurrence_days_of_week.includes(
-                            this.dayIndex(current),
-                        );
-                } else {
-                    match =
-                        monthDiff % this.form.recurrence_interval === 0 &&
-                        selectedMonthDays.includes(current.getDate());
-                }
-
-                if (match) dates.push(this.formatIsoDate(current));
-            }
-
-            return dates;
+            return this.recurringConcreteScheduleGroups.map(
+                (group) => group.date,
+            );
         },
         recurringPreviewConflictMap() {
             return (this.recurringPreviewResult?.conflicts || []).reduce(
@@ -3110,15 +3302,17 @@ export default {
             );
         },
         canSubmitRecurring() {
-            const weeklyReady =
-                this.form.recurrence_type !== "weekly" ||
-                this.recurringSelectedDays.every(
-                    (day) => (this.recurringDayRanges[day] || []).length,
-                );
+            const explicitDatesReady =
+                !this.usesExplicitRecurringDates ||
+                (this.recurringSelectedDates.length > 0 &&
+                    this.recurringSelectedDates.every(
+                        (date) => (this.recurringDateRanges[date] || []).length,
+                    ));
 
             return (
                 this.hasRecurringSelection &&
-                weeklyReady &&
+                explicitDatesReady &&
+                this.hasValidRecurringCount &&
                 !this.walkInNameError &&
                 !this.walkInPhoneError &&
                 this.form.payment_option &&
@@ -3128,36 +3322,44 @@ export default {
         },
     },
     watch: {
-        "form.recurring_start_date"() {
-            if (this.activeTab === "recurring")
-                this.handleRecurringStartDateChange();
-            this.queueRecurringPreview();
+        "form.recurring_start_date"(newDate, oldDate) {
+            if (
+                this.activeTab === "recurring" &&
+                !this.resettingRecurringBuilder
+            ) {
+                void this.rebaseRecurringTemplate(oldDate, newDate);
+            }
         },
         "form.recurring_end_date"() {
-            if (this.activeTab === "recurring") {
+            if (
+                this.activeTab === "recurring" &&
+                !this.usesExplicitRecurringDates
+            ) {
                 this.syncRecurringEndDate();
                 this.queueRecurringPreview();
             }
         },
         "form.recurrence_type"() {
-            if (this.activeTab === "recurring") this.clearVoucherSelection();
-            this.queueRecurringPreview();
+            if (this.activeTab === "recurring") {
+                this.recurringCalendarMode = "start";
+                void this.syncRecurringTemplateCycle();
+            }
         },
-        "form.recurrence_interval"() {
-            if (this.activeTab === "recurring") this.clearVoucherSelection();
-            this.queueRecurringPreview();
-        },
-        "form.recurrence_days_of_week": {
-            deep: true,
-            handler() {
-                if (this.activeTab === "recurring")
-                    this.clearVoucherSelection();
-                this.syncRecurringWeekdayState();
-                this.queueRecurringPreview();
-            },
-        },
-        monthDaysInput() {
-            if (this.activeTab === "recurring") this.clearVoucherSelection();
+        "form.recurrence_count"(value) {
+            if (this.resettingRecurringBuilder) return;
+
+            if (value === "" || value === null || value === undefined) {
+                this.form.recurring_end_date =
+                    this.form.recurring_start_date;
+                this.recurringPreviewResult = null;
+                this.recurringPreviewError = "";
+                this.clearVoucherSelection();
+                return;
+            }
+
+            this.form.recurring_end_date =
+                this.recurringPreview.at(-1) || this.form.recurring_start_date;
+            this.clearVoucherSelection();
             this.queueRecurringPreview();
         },
         selectedSlotKeys: {
@@ -3166,9 +3368,10 @@ export default {
                 this.queueRecurringPreview();
             },
         },
-        recurringWeekdaySlotKeys: {
+        recurringDateSlotKeys: {
             deep: true,
             handler() {
+                if (this.resettingRecurringBuilder) return;
                 this.queueRecurringPreview();
             },
         },
@@ -3265,10 +3468,16 @@ export default {
             );
         },
         async loadRecurringPreview() {
+            const explicitDatesComplete =
+                !this.usesExplicitRecurringDates ||
+                this.recurringSelectedDates.every(
+                    (date) => (this.recurringDateRanges[date] || []).length,
+                );
             if (
                 this.activeTab !== "recurring" ||
                 !this.hasCounterSelection ||
-                !this.recurringPreview.length
+                !this.recurringPreview.length ||
+                !explicitDatesComplete
             ) {
                 this.recurringPreviewResult = null;
                 this.recurringPreviewError = "";
@@ -3347,7 +3556,8 @@ export default {
             return Boolean(focus.id || focus.code);
         },
         async shiftCounterDate(days) {
-            const current = this.parseDate(this.form.booking_date) || new Date();
+            const current =
+                this.parseDate(this.form.booking_date) || new Date();
             const end =
                 this.parseDate(this.form.booking_end_date) || new Date(current);
             const rangeDays = Math.max(
@@ -3359,12 +3569,29 @@ export default {
             const shiftedEnd = new Date(current);
             shiftedEnd.setDate(shiftedEnd.getDate() + rangeDays);
             this.form.booking_end_date = this.formatIsoDate(shiftedEnd);
+            this.counterDatePickerOpen = false;
             await this.handleScheduleDateChange();
         },
         async setCounterDateToday() {
             this.form.booking_date = this.today;
             this.form.booking_end_date = this.today;
+            this.counterDatePickerOpen = false;
             await this.handleScheduleDateChange();
+        },
+        async handleCounterStartDateUpdate(value) {
+            if (!value || value === this.form.booking_date) return;
+
+            this.form.booking_date = value;
+            await this.handleScheduleDateChange();
+        },
+        handleCounterEndDateUpdate(value) {
+            if (!value || value === this.form.booking_end_date) return;
+
+            this.form.booking_end_date = value;
+            this.handleCounterEndDateChange();
+        },
+        handleCounterRangeChange() {
+            this.counterDatePickerOpen = false;
         },
         async handleScheduleDateChange() {
             if (
@@ -3373,13 +3600,17 @@ export default {
             ) {
                 this.form.booking_end_date = this.form.booking_date;
             }
+            this.handleCounterEndDateChange();
             await this.loadSchedule();
         },
         handleCounterEndDateChange() {
             if (this.form.booking_end_date < this.form.booking_date) {
                 this.form.booking_end_date = this.form.booking_date;
             }
-            if (this.counterDateCount > 1 && this.form.collection_mode === "transfer") {
+            if (
+                this.counterDateCount > 1 &&
+                this.form.collection_mode === "transfer"
+            ) {
                 this.form.collection_mode = "cash";
                 this.applyCounterCollectionMode();
             }
@@ -3468,10 +3699,7 @@ export default {
             this.notifyOwnerClusterChanged();
 
             try {
-                const requests = [
-                    this.loadClusterDetail(),
-                    this.loadCourts(),
-                ];
+                const requests = [this.loadClusterDetail(), this.loadCourts()];
 
                 if (this.activeTab === "bookingList") {
                     this.bookingListFilters.venue_court_id = "";
@@ -3553,10 +3781,7 @@ export default {
             try {
                 const response = await ownerBookingService.schedule({
                     venue_cluster_id: this.selectedClusterId,
-                    booking_date:
-                        this.activeTab === "recurring"
-                            ? this.form.recurring_start_date
-                            : this.form.booking_date,
+                    booking_date: this.activeScheduleDate,
                     court_type_id: this.selectedCourtTypeId,
                     booking_type:
                         this.activeTab === "recurring" ? "recurring" : "single",
@@ -3818,9 +4043,15 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
-            const interval = this.busyInterval(courtId, slot);
+            return Boolean(this.busyInterval(courtId, slot));
+        },
+        isScheduleUnavailable(courtId, slot) {
             const status = this.slotStatus(courtId, slot);
-            return Boolean(interval) || !status || !status.is_available;
+            return Boolean(
+                status &&
+                !status.is_available &&
+                status.slot_status !== "too_early",
+            );
         },
         slotKey(courtId, slot) {
             return `${courtId}|${slot?.start_time || ""}`;
@@ -3850,24 +4081,30 @@ export default {
         slotRangesFromKeys(keys = []) {
             const ranges = [];
 
-            this.slotEntriesFromKeys(keys).forEach(({ courtId, court, slot }) => {
-                const current = ranges[ranges.length - 1];
-                if (
-                    !current ||
-                    current.venue_court_id !== courtId ||
-                    current.end_time !== slot.start_time
-                ) {
-                    ranges.push({
-                        venue_court_id: courtId,
-                        court,
-                        start_time: slot.start_time,
-                        end_time: slot.end_time,
-                    });
-                    return;
-                }
+            this.slotEntriesFromKeys(keys).forEach(
+                ({ courtId, court, slot }) => {
+                    const current = ranges[ranges.length - 1];
+                    const slotStart = this.timeToMinutes(slot.start_time);
+                    const slotEnd = this.timeToMinutes(slot.end_time);
+                    if (
+                        !current ||
+                        current.venue_court_id !== courtId ||
+                        slotStart > this.timeToMinutes(current.end_time)
+                    ) {
+                        ranges.push({
+                            venue_court_id: courtId,
+                            court,
+                            start_time: slot.start_time,
+                            end_time: slot.end_time,
+                        });
+                        return;
+                    }
 
-                current.end_time = slot.end_time;
-            });
+                    if (slotEnd > this.timeToMinutes(current.end_time)) {
+                        current.end_time = slot.end_time;
+                    }
+                },
+            );
 
             return ranges;
         },
@@ -3881,8 +4118,242 @@ export default {
                 )
                 .join(", ");
         },
-        recurringWeekdayTimeText(day) {
-            const ranges = this.recurringDayRanges[day] || [];
+        addDaysToIso(date, days = 0) {
+            const parsed = this.parseDate(date);
+            if (!parsed) return "";
+            const next = new Date(parsed);
+            next.setDate(next.getDate() + Number(days || 0));
+            return this.formatIsoDate(next);
+        },
+        daysBetweenIso(startDate, endDate) {
+            const start = this.parseDate(startDate);
+            const end = this.parseDate(endDate);
+            if (!start || !end) return 0;
+            return Math.round((end - start) / 86400000);
+        },
+        updateRecurringStartDate(date) {
+            if (!date || date < this.today) return;
+            this.form.recurring_start_date = date;
+        },
+        activateRecurringSchedulePicker() {
+            if (this.form.recurrence_type !== "daily") {
+                this.recurringCalendarMode = "schedule";
+            }
+        },
+        normalizeRecurringCount() {
+            this.form.recurrence_count = this.normalizedRecurringCount;
+        },
+        async rebaseRecurringTemplate(oldStart, newStart) {
+            if (!newStart || newStart < this.today) return;
+
+            const previousActiveDate = this.recurringActiveDate;
+            const sourceStart = oldStart || newStart;
+            const nextSelected = [];
+            const nextSlotKeys = {};
+
+            this.recurringSelectedDates.forEach((date) => {
+                const offset = this.daysBetweenIso(sourceStart, date);
+                if (offset < 0 || offset >= this.recurringCycleDays) return;
+                const rebasedDate = this.addDaysToIso(newStart, offset);
+                nextSelected.push(rebasedDate);
+                nextSlotKeys[rebasedDate] =
+                    this.recurringDateSlotKeys[date] || [];
+            });
+
+            if (this.form.recurrence_type === "daily" || !nextSelected.length) {
+                nextSelected.splice(0, nextSelected.length, newStart);
+                nextSlotKeys[newStart] =
+                    this.recurringDateSlotKeys[previousActiveDate] ||
+                    nextSlotKeys[newStart] ||
+                    [];
+            }
+
+            this.recurringSelectedDates = [...new Set(nextSelected)].sort();
+            this.recurringDateSlotKeys = nextSlotKeys;
+            const previousOffset = this.daysBetweenIso(
+                sourceStart,
+                previousActiveDate,
+            );
+            const rebasedActive = this.addDaysToIso(newStart, previousOffset);
+            this.recurringActiveDate = this.recurringSelectedDates.includes(
+                rebasedActive,
+            )
+                ? rebasedActive
+                : this.recurringSelectedDates[0];
+            this.form.recurring_end_date =
+                this.recurringPreview.at(-1) || newStart;
+            this.clearVoucherSelection();
+            this.queueRecurringPreview();
+
+            if (this.activeTab === "recurring") await this.loadSchedule();
+        },
+        async syncRecurringTemplateCycle() {
+            const start = this.form.recurring_start_date || this.today;
+            const end = this.recurringTemplateEndDate;
+            const activeSchedule = [...this.activeRecurringDateKeys];
+            let selected = this.recurringSelectedDates.filter(
+                (date) => date >= start && date <= end,
+            );
+
+            if (this.form.recurrence_type === "daily" || !selected.length) {
+                selected = [start];
+            }
+
+            const nextSlotKeys = {};
+            selected.forEach((date) => {
+                nextSlotKeys[date] =
+                    this.recurringDateSlotKeys[date] ||
+                    (date === start ? activeSchedule : []);
+            });
+            this.recurringSelectedDates = selected;
+            this.recurringDateSlotKeys = nextSlotKeys;
+            this.recurringActiveDate = selected.includes(
+                this.recurringActiveDate,
+            )
+                ? this.recurringActiveDate
+                : selected[0];
+            if (this.form.recurrence_count !== "") {
+                this.form.recurrence_count = this.normalizedRecurringCount;
+            }
+            this.form.recurring_end_date =
+                this.recurringPreview.at(-1) || start;
+            this.clearVoucherSelection();
+            this.queueRecurringPreview();
+
+            if (this.activeTab === "recurring") await this.loadSchedule();
+        },
+        async updateRecurringSelectedDates(dates = []) {
+            const start = this.form.recurring_start_date;
+            const end = this.recurringTemplateEndDate;
+            let selected = [...new Set(dates)]
+                .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+                .filter((date) => date >= start && date <= end)
+                .sort()
+                .slice(0, 130);
+            if (this.form.recurrence_type === "daily") selected = [start];
+            const previousActiveDate = this.recurringActiveDate;
+            const nextSlotKeys = {};
+
+            selected.forEach((date) => {
+                nextSlotKeys[date] = this.recurringDateSlotKeys[date] || [];
+            });
+
+            this.recurringSelectedDates = selected;
+            this.recurringDateSlotKeys = nextSlotKeys;
+            this.recurringActiveDate = selected.includes(previousActiveDate)
+                ? previousActiveDate
+                : selected[0] || "";
+
+            if (this.form.recurrence_count !== "") {
+                this.form.recurrence_count = this.normalizedRecurringCount;
+            }
+            this.form.recurring_end_date =
+                this.recurringPreview.at(-1) || start;
+
+            this.clearVoucherSelection();
+            this.queueRecurringPreview();
+
+            if (
+                this.activeTab === "recurring" &&
+                this.recurringActiveDate &&
+                this.recurringActiveDate !== previousActiveDate
+            ) {
+                await this.loadSchedule();
+            }
+        },
+        async handleRecurringCalendarSelect(date) {
+            if (this.recurringCalendarMode === "start") {
+                this.activateRecurringSchedulePicker();
+                return;
+            }
+
+            if (
+                this.form.recurrence_type === "daily" ||
+                !this.recurringSelectedDates.includes(date)
+            ) {
+                return;
+            }
+
+            await this.selectRecurringDate(date);
+        },
+        async selectRecurringDate(date) {
+            if (!date || date === this.recurringActiveDate) return;
+            this.recurringActiveDate = date;
+            await this.loadSchedule();
+        },
+        startRecurringDateDrag(event) {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+
+            const scroller = event.currentTarget;
+            this.recurringDateDrag.active = true;
+            this.recurringDateDrag.moved = false;
+            this.recurringDateDrag.pointerId = event.pointerId;
+            this.recurringDateDrag.startX = event.clientX;
+            this.recurringDateDrag.scrollLeft = scroller.scrollLeft;
+            scroller.setPointerCapture?.(event.pointerId);
+        },
+        moveRecurringDateDrag(event) {
+            if (
+                !this.recurringDateDrag.active ||
+                this.recurringDateDrag.pointerId !== event.pointerId
+            ) {
+                return;
+            }
+
+            const delta = event.clientX - this.recurringDateDrag.startX;
+            if (!this.recurringDateDrag.moved && Math.abs(delta) < 5) return;
+
+            this.recurringDateDrag.moved = true;
+            event.preventDefault();
+            event.currentTarget.scrollLeft =
+                this.recurringDateDrag.scrollLeft - delta;
+        },
+        finishRecurringDateDrag(event) {
+            if (
+                !this.recurringDateDrag.active ||
+                this.recurringDateDrag.pointerId !== event.pointerId
+            ) {
+                return;
+            }
+
+            const scroller = event.currentTarget;
+            if (scroller.hasPointerCapture?.(event.pointerId)) {
+                scroller.releasePointerCapture(event.pointerId);
+            }
+
+            this.recurringDateDrag.active = false;
+            this.recurringDateDrag.pointerId = null;
+            window.setTimeout(() => {
+                this.recurringDateDrag.moved = false;
+            }, 0);
+        },
+        preventRecurringDateDragClick(event) {
+            if (!this.recurringDateDrag.moved) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+        },
+        applyActiveDateScheduleToSelected() {
+            const source = this.activeRecurringDateKeys;
+            if (!source.length) return;
+
+            const next = {};
+            this.recurringSelectedDates.forEach((date) => {
+                next[date] = [...source];
+            });
+            this.recurringDateSlotKeys = next;
+            this.queueRecurringPreview();
+        },
+        clearActiveDateSchedule() {
+            if (!this.recurringActiveDate) return;
+            this.recurringDateSlotKeys = {
+                ...this.recurringDateSlotKeys,
+                [this.recurringActiveDate]: [],
+            };
+            this.queueRecurringPreview();
+        },
+        recurringDateTimeText(date) {
+            const ranges = this.recurringDateRanges[date] || [];
             if (!ranges.length) return "Chưa chọn giờ";
             return ranges
                 .map(
@@ -3891,87 +4362,24 @@ export default {
                 )
                 .join(", ");
         },
-        recurringWeekdayCourtText(day) {
-            const ranges = this.recurringDayRanges[day] || [];
-            const names = [...new Set(ranges.map((range) => range.court?.name))].filter(Boolean);
+        recurringDateCourtText(date) {
+            const ranges = this.recurringDateRanges[date] || [];
+            const names = [
+                ...new Set(ranges.map((range) => range.court?.name)),
+            ].filter(Boolean);
             if (!names.length) return "Chưa chọn sân";
             if (names.length <= 2) return names.join(", ");
             return `${names.length} sân`;
         },
-        toggleRecurringWeekday(day) {
-            const selected = this.form.recurrence_days_of_week.includes(day);
-            if (selected && this.form.recurrence_days_of_week.length > 1) {
-                this.form.recurrence_days_of_week =
-                    this.form.recurrence_days_of_week.filter(
-                        (item) => item !== day,
-                    );
-                if (this.recurringActiveWeekday === day) {
-                    this.recurringActiveWeekday =
-                        this.form.recurrence_days_of_week[0] ?? day;
-                }
-                return;
-            }
-
-            if (!selected) {
-                this.form.recurrence_days_of_week = [
-                    ...this.form.recurrence_days_of_week,
-                    day,
-                ].sort((a, b) => a - b);
-            }
-
-            this.recurringActiveWeekday = day;
-            if (!this.recurringWeekdaySlotKeys[day]) {
-                this.recurringWeekdaySlotKeys = {
-                    ...this.recurringWeekdaySlotKeys,
-                    [day]: [],
-                };
-            }
-        },
-        syncRecurringWeekdayState() {
-            const selected = this.recurringSelectedDays;
-            if (!selected.length) return;
-
-            const next = {};
-            selected.forEach((day) => {
-                next[day] = this.recurringWeekdaySlotKeys[day] || [];
-            });
-            this.recurringWeekdaySlotKeys = next;
-            if (!selected.includes(this.recurringActiveWeekday)) {
-                this.recurringActiveWeekday = selected[0];
-            }
-        },
-        applyActiveWeekdayScheduleToSelected() {
-            const source = this.activeRecurringWeekdayKeys;
-            if (!source.length) return;
-
-            const next = { ...this.recurringWeekdaySlotKeys };
-            this.recurringSelectedDays.forEach((day) => {
-                next[day] = [...source];
-            });
-            this.recurringWeekdaySlotKeys = next;
-            this.queueRecurringPreview();
-        },
-        clearActiveWeekdaySchedule() {
-            this.recurringWeekdaySlotKeys = {
-                ...this.recurringWeekdaySlotKeys,
-                [this.recurringActiveWeekday]: [],
-            };
-            this.queueRecurringPreview();
-        },
-        toggleMonthDay(day) {
-            const next = this.selectedMonthDays.includes(day)
-                ? this.selectedMonthDays.filter((item) => item !== day)
-                : [...this.selectedMonthDays, day];
-            this.setMonthDays(next);
-        },
-        setMonthDays(days = []) {
-            this.monthDaysInput = [...new Set(days)]
-                .filter((day) => day >= 1 && day <= 31)
-                .sort((a, b) => a - b)
-                .join(", ");
-        },
         isSlotDisabled(courtId, slot) {
             if (!courtId || !slot) return true;
+
+            if (
+                !this.isSlotBusy(courtId, slot) &&
+                this.isScheduleUnavailable(courtId, slot)
+            ) {
+                return true;
+            }
 
             if (
                 (this.isViewingPastScheduleDate ||
@@ -3984,11 +4392,15 @@ export default {
             return false;
         },
         isSlotSelected(courtId, slot) {
-            return this.activeSelectionKeys.includes(this.slotKey(courtId, slot));
+            return this.activeSelectionKeys.includes(
+                this.slotKey(courtId, slot),
+            );
         },
         slotButtonClass(courtId, slot) {
             const selected = this.isSlotSelected(courtId, slot);
             const busy = this.isSlotBusy(courtId, slot);
+            const scheduleUnavailable =
+                !busy && this.isScheduleUnavailable(courtId, slot);
             const interval = this.busyInterval(courtId, slot);
             const tone = interval
                 ? this.paymentStateTone(this.intervalPaymentState(interval))
@@ -4004,7 +4416,8 @@ export default {
 
             return {
                 selected,
-                busy,
+                busy: busy && !scheduleUnavailable,
+                unavailable: scheduleUnavailable,
                 viewing,
                 locked: tone === "locked",
                 "booked-paid": tone === "paid",
@@ -4024,7 +4437,9 @@ export default {
                     this.intervalPaymentState(interval),
                 );
             }
-            if (!status || !status.is_available) return "Đã đặt";
+            if (!status || !status.is_available) {
+                return "Không thể chọn";
+            }
 
             return this.formatCurrency(status.price);
         },
@@ -4061,7 +4476,12 @@ export default {
                     return `${courtName} · ${start} - ${end} bị khóa${interval.reason ? ` · ${interval.reason}` : ""}`;
                 }
 
-                return `${courtName} · ${start} - ${end} đã đặt`;
+                const status = this.slotStatus(court?.id, slot);
+                if (status && !status.is_available) {
+                    return `${courtName} · ${start} - ${end} không thể chọn`;
+                }
+
+                return `${courtName} · ${start} - ${end} không thể chọn`;
             }
 
             return selected
@@ -4140,12 +4560,30 @@ export default {
             if (!court?.id || !slot) return;
 
             const clickedKey = this.slotKey(court.id, slot);
-            const day = this.recurringActiveWeekday;
-            const currentKeys = this.recurringWeekdaySlotKeys[day] || [];
+            if (!this.usesExplicitRecurringDates) {
+                this.selectionError = "";
+                this.selectedSlotKeys = this.selectedSlotKeys.includes(
+                    clickedKey,
+                )
+                    ? this.selectedSlotKeys.filter(
+                          (item) => item !== clickedKey,
+                      )
+                    : [...this.selectedSlotKeys, clickedKey];
+                this.syncCounterRangeFields();
+                this.loadEligibleVouchers();
+                return;
+            }
+
+            const date = this.recurringActiveDate;
+            if (!date) {
+                this.selectionError = "Vui lòng chọn ngày áp dụng trước.";
+                return;
+            }
+            const currentKeys = this.recurringDateSlotKeys[date] || [];
             this.selectionError = "";
-            this.recurringWeekdaySlotKeys = {
-                ...this.recurringWeekdaySlotKeys,
-                [day]: currentKeys.includes(clickedKey)
+            this.recurringDateSlotKeys = {
+                ...this.recurringDateSlotKeys,
+                [date]: currentKeys.includes(clickedKey)
                     ? currentKeys.filter((item) => item !== clickedKey)
                     : [...currentKeys, clickedKey],
             };
@@ -4303,12 +4741,16 @@ export default {
             }
         },
         recurringPayload(extra = {}) {
-            const selectedRanges =
-                this.activeTab === "recurring" &&
-                this.form.recurrence_type === "weekly" &&
-                this.hasRecurringSelection
-                    ? Object.values(this.recurringDayRanges).flat()
-                    : this.selectedSlotRanges;
+            const usesDateRanges =
+                this.usesExplicitRecurringDates && this.hasRecurringSelection;
+            const dateRangeGroups = usesDateRanges
+                ? this.recurringConcreteScheduleGroups.filter(
+                      (item) => item.ranges.length,
+                  )
+                : [];
+            const selectedRanges = usesDateRanges
+                ? dateRangeGroups[0]?.ranges || []
+                : this.selectedSlotRanges;
             const timeRanges = selectedRanges.map((range) => ({
                 venue_court_id: range.venue_court_id,
                 start_time: this.withSeconds(this.formatTime(range.start_time)),
@@ -4342,64 +4784,102 @@ export default {
                         ? this.form.is_paid
                         : false,
                 payment_method: this.form.payment_method,
-                recurring_start_date: this.form.recurring_start_date,
-                recurring_end_date: this.form.recurring_end_date,
+                recurring_start_date:
+                    this.recurringPreview[0] || this.form.recurring_start_date,
+                recurring_end_date:
+                    this.recurringPreview.at(-1) ||
+                    this.form.recurring_start_date,
                 recurrence_type: this.form.recurrence_type,
-                recurrence_interval: this.form.recurrence_interval,
+                recurrence_interval: usesDateRanges
+                    ? 1
+                    : this.form.recurrence_interval,
                 venue_cluster_id: this.selectedClusterId,
                 ...extra,
             };
 
-            if (this.form.recurrence_type === "weekly") {
-                payload.recurrence_days_of_week =
-                    this.form.recurrence_days_of_week;
-                payload.weekday_time_ranges = this.recurringSelectedDays
-                    .map((day) => ({
-                        day_of_week: day,
-                        time_ranges: (this.recurringDayRanges[day] || []).map(
-                            (range) => ({
-                                venue_court_id: range.venue_court_id,
-                                start_time: this.withSeconds(
-                                    this.formatTime(range.start_time),
-                                ),
-                                end_time: this.withSeconds(
-                                    this.formatTime(range.end_time),
-                                ),
-                            }),
-                        ),
-                    }))
-                    .filter((item) => item.time_ranges.length);
-            }
-
-            if (this.form.recurrence_type === "monthly") {
-                payload.recurrence_days_of_month = this.monthDaysInput
-                    .split(",")
-                    .map((item) => Number(item.trim()))
-                    .filter(Boolean);
+            if (usesDateRanges) {
+                payload.recurring_dates = [...this.recurringPreview];
+                payload.date_time_ranges = dateRangeGroups.map(
+                    ({ date, ranges }) => ({
+                        date,
+                        time_ranges: ranges.map((range) => ({
+                            venue_court_id: range.venue_court_id,
+                            start_time: this.withSeconds(
+                                this.formatTime(range.start_time),
+                            ),
+                            end_time: this.withSeconds(
+                                this.formatTime(range.end_time),
+                            ),
+                        })),
+                    }),
+                );
             }
 
             return payload;
+        },
+        async resetRecurringBuilder() {
+            const resetDate = this.today;
+            this.resettingRecurringBuilder = true;
+            clearTimeout(this.recurringPreviewTimer);
+            this.recurringPreviewRequestId += 1;
+
+            this.form.walk_in_name = "";
+            this.form.walk_in_phone = "";
+            this.form.venue_court_id = "";
+            this.form.recurring_start_date = resetDate;
+            this.form.recurring_end_date = resetDate;
+            this.form.recurrence_count = 1;
+            this.form.start_time = "08:00";
+            this.form.end_time = "09:00";
+            this.form.payment_option = "full_payment";
+            this.form.payment_method = "cash";
+            this.form.is_paid = true;
+
+            this.recurringSelectedDates = [resetDate];
+            this.recurringActiveDate = resetDate;
+            this.recurringDateSlotKeys = { [resetDate]: [] };
+            this.recurringCalendarMode = "start";
+            this.recurringDateDrag.active = false;
+            this.recurringDateDrag.moved = false;
+            this.recurringDateDrag.pointerId = null;
+            this.activeTimePeriod = "morning";
+            this.selectedSlotKeys = [];
+            this.selectedGridCourtId = "";
+            this.selectionError = "";
+            this.contactTouched = { name: false, phone: false };
+            this.recurringPreviewLoading = false;
+            this.recurringPreviewResult = null;
+            this.recurringPreviewError = "";
+            this.recurringConflict = null;
+            this.conflictSelections = {};
+            this.clearVoucherSelection();
+
+            await this.$nextTick();
+            this.resettingRecurringBuilder = false;
+            this.syncPaymentOption();
         },
         async createRecurringWithPayload(payload) {
             const response = await ownerBookingService.createRecurring(payload);
             const skipped = Number(response.data?.skipped_count || 0);
             const switched = Number(response.data?.switched_count || 0);
+            const createdCount = Number(
+                response.data?.created_count ?? this.recurringPreview.length,
+            );
             const extras = [
                 skipped ? `bỏ ${skipped} buổi trùng` : "",
                 switched ? `đổi sân ${switched} buổi` : "",
             ].filter(Boolean);
 
-            this.notice = `Đã tạo ${response.data?.created_count || this.recurringPreview.length} buổi cố định${extras.length ? `, ${extras.join(", ")}` : ""}.`;
-            this.recurringConflict = null;
-            this.conflictSelections = {};
-            this.clearVoucherSelection();
+            this.notice = `Đã tạo ${createdCount} buổi cố định${extras.length ? `, ${extras.join(", ")}` : ""}.`;
+            await this.resetRecurringBuilder();
             await this.loadSchedule();
         },
         openRecurringConflict(data) {
             const selections = {};
             (data.conflicts || []).forEach((conflict) => {
                 const alternatives = this.conflictAlternativeCourts(conflict);
-                selections[conflict.date] = alternatives?.[0]?.id || "skip";
+                selections[conflict.key || conflict.date] =
+                    alternatives?.[0]?.id || "skip";
             });
             this.recurringConflict = data;
             this.conflictSelections = selections;
@@ -4449,13 +4929,19 @@ export default {
 
             const overrides = (this.recurringConflict.conflicts || []).map(
                 (conflict) => {
-                    const value = this.conflictSelections[conflict.date];
+                    const value =
+                        this.conflictSelections[conflict.key || conflict.date];
                     if (!value || value === "skip") {
-                        return { date: conflict.date, action: "skip" };
+                        return {
+                            date: conflict.date,
+                            key: conflict.key || null,
+                            action: "skip",
+                        };
                     }
 
                     return {
                         date: conflict.date,
+                        key: conflict.key || null,
                         action: "switch",
                         venue_court_id: value,
                     };
@@ -4544,8 +5030,7 @@ export default {
             const close = this.operatingEndMinutes;
 
             if (start < open) start = open;
-            if (start >= close)
-                start = close - SLOT_STEP_MINUTES;
+            if (start >= close) start = close - SLOT_STEP_MINUTES;
             if (end > close) end = close;
             if (end <= start) end = Math.min(start + 60, close);
             if (end <= start) {
@@ -5051,21 +5536,31 @@ export default {
         },
         recurringGroupStatusSummary(group) {
             const labels = {
-                pending_approval: "chờ duyệt",
-                pending_payment: "chờ thanh toán",
-                confirmed: "xác nhận",
-                checked_in: "check-in",
-                completed: "hoàn thành",
+                upcoming: "sắp diễn ra",
+                "in-progress": "đang diễn ra",
+                ended: "đã kết thúc",
+                partial: "hủy một phần",
                 cancelled: "đã hủy",
-                rejected: "từ chối",
-                expired: "hết hạn",
             };
+            const order = [
+                "in-progress",
+                "upcoming",
+                "ended",
+                "partial",
+                "cancelled",
+            ];
+            const counts = (group?.occurrences || []).reduce(
+                (result, occurrence) => {
+                    const state = this.occurrenceOperationalState(occurrence);
+                    result[state] = Number(result[state] || 0) + 1;
+                    return result;
+                },
+                {},
+            );
 
-            return Object.entries(group?.status_counts || {})
-                .filter(([, count]) => Number(count) > 0)
-                .map(
-                    ([status, count]) => `${count} ${labels[status] || status}`,
-                )
+            return order
+                .filter((status) => Number(counts[status] || 0) > 0)
+                .map((status) => `${counts[status]} ${labels[status]}`)
                 .join(" · ");
         },
         recurringGroupDateChips(group, limit = 6) {
@@ -5099,17 +5594,60 @@ export default {
             return `${this.formatDate(occurrence.booking_date)} · ${this.occurrenceStatusLabel(occurrence)}`;
         },
         occurrenceCardClass(occurrence) {
+            const state = this.occurrenceOperationalState(occurrence);
+
             return {
-                cancelled:
-                    occurrence.status === "cancelled" ||
-                    Number(occurrence.active_item_count || 0) === 0,
-                partial:
-                    Number(occurrence.cancelled_item_count || 0) > 0 &&
-                    Number(occurrence.active_item_count || 0) > 0,
+                cancelled: state === "cancelled",
+                partial: state === "partial",
+                upcoming: state === "upcoming",
+                "in-progress": state === "in-progress",
+                ended: state === "ended",
             };
         },
+        occurrenceOperationalState(occurrence) {
+            const bookingStatus = String(occurrence?.status || "");
+            const cancelledItems = Number(
+                occurrence?.cancelled_item_count || 0,
+            );
+            const activeItems = Number(occurrence?.active_item_count || 0);
+
+            if (["cancelled", "rejected", "expired"].includes(bookingStatus)) {
+                return "cancelled";
+            }
+
+            if (cancelledItems > 0 && activeItems > 0) {
+                return "partial";
+            }
+
+            if (cancelledItems > 0) {
+                return "cancelled";
+            }
+
+            const startsAt = this.occurrenceDateTime(occurrence, "start_time");
+            const endsAt = this.occurrenceDateTime(occurrence, "end_time");
+            const now = Date.now();
+
+            if (!startsAt || !endsAt || now < startsAt.getTime()) {
+                return "upcoming";
+            }
+
+            return now < endsAt.getTime() ? "in-progress" : "ended";
+        },
+        occurrenceDateTime(occurrence, field) {
+            const date = this.parseDate(occurrence?.booking_date);
+            const time = this.formatTime(occurrence?.[field]);
+            if (!date || !/^\d{2}:\d{2}$/.test(time)) return null;
+
+            const minutes = this.timeToMinutes(time);
+            if (!Number.isFinite(minutes)) return null;
+
+            date.setHours(0, minutes, 0, 0);
+            return date;
+        },
         occurrenceStatusLabel(occurrence) {
-            if (occurrence.status === "cancelled") {
+            const state = this.occurrenceOperationalState(occurrence);
+
+            if (state === "cancelled") {
                 if (occurrence.has_interrupted_by_emergency) {
                     return "Dừng do sự cố sân";
                 }
@@ -5118,31 +5656,36 @@ export default {
                     : "Đã hủy";
             }
 
-            if (
-                Number(occurrence.cancelled_item_count || 0) > 0 &&
-                Number(occurrence.active_item_count || 0) > 0
-            ) {
+            if (state === "partial") {
                 return "Hủy một phần";
             }
 
-            if (Number(occurrence.cancelled_item_count || 0) > 0) {
-                if (occurrence.has_interrupted_by_emergency) {
-                    return "Dừng do sự cố sân";
-                }
-                return occurrence.has_cancelled_by_maintenance
-                    ? "Hủy do khóa sân"
-                    : "Đã hủy";
-            }
-
             const labels = {
-                pending_payment: "Chờ thanh toán",
-                confirmed: "Đã xác nhận",
-                checked_in: "Đã check-in",
-                completed: "Hoàn thành",
-                pending_approval: "Chờ duyệt",
+                upcoming: "Sắp diễn ra",
+                "in-progress": "Đang diễn ra",
+                ended: "Đã kết thúc",
             };
 
-            return labels[occurrence.status] || "Hoạt động";
+            return labels[state] || "Sắp diễn ra";
+        },
+        occurrencePaymentState(occurrence) {
+            const total = Math.max(Number(occurrence?.total_price || 0), 0);
+            const paid = Math.max(Number(occurrence?.paid_amount || 0), 0);
+
+            if (total <= 0) return "free";
+            if (paid + 0.01 >= total) return "paid";
+            if (paid > 0) return "partial";
+            return "unpaid";
+        },
+        occurrencePaymentLabel(occurrence) {
+            return (
+                {
+                    free: "Không cần thu",
+                    paid: "Đã thu đủ",
+                    partial: "Đã thu một phần",
+                    unpaid: "Chưa thu",
+                }[this.occurrencePaymentState(occurrence)] || "Chưa thu"
+            );
         },
         occurrenceTimeText(occurrence) {
             const items = Array.isArray(occurrence?.items)
@@ -5236,6 +5779,10 @@ export default {
             return "-";
         },
         recurringGroupPatternText(group) {
+            if (group?.recurring_dates?.length) {
+                return `${group.recurring_dates.length} ngày được chọn cụ thể`;
+            }
+
             const interval = Number(group?.recurrence_interval || 1);
             const every = interval > 1 ? `${interval} ` : "";
 
@@ -5463,6 +6010,7 @@ export default {
 
 .list-toolbar h2 {
     margin: 0;
+    margin-top: 0px;
     color: var(--admin-text, #16231a);
     font-size: 18px;
     font-weight: 500;
@@ -5842,24 +6390,71 @@ export default {
     line-height: 1.35;
 }
 
-.occurrence-list article > span {
+.occurrence-list .occurrence-state-group {
     flex: 0 0 auto;
-    border-radius: 4px;
-    padding: 5px 9px;
-    background: var(--admin-success-soft, #dcfce7);
-    color: var(--admin-success-text, #15803d);
-    font-size: 11px;
-    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
-.occurrence-list article.cancelled > span {
+.occurrence-state-group > span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: 4px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.occurrence-state.state-upcoming {
+    background: var(--admin-info-soft, #e8eef5);
+    color: var(--admin-info, #45637d);
+}
+
+.occurrence-state.state-in-progress {
+    background: var(--admin-success-soft, #e2f0e7);
+    color: var(--admin-success-text, #35684a);
+}
+
+.occurrence-state.state-ended {
+    background: var(--admin-surface-muted, #edf0ee);
+    color: var(--admin-muted, #5d6b61);
+}
+
+.occurrence-state.state-cancelled {
     background: var(--admin-danger-soft, #fee2e2);
     color: var(--admin-danger, #b91c1c);
 }
 
-.occurrence-list article.partial > span {
+.occurrence-state.state-partial {
     background: var(--admin-warning-soft, #fef3c7);
     color: var(--admin-warning, #b45309);
+}
+
+.occurrence-payment {
+    border: 1px solid var(--admin-border-soft, #dfe8e1);
+    background: var(--admin-surface, #fff);
+}
+
+.occurrence-payment.payment-paid,
+.occurrence-payment.payment-free {
+    border-color: #b8d8c3;
+    color: var(--admin-success-text, #437257);
+}
+
+.occurrence-payment.payment-partial {
+    border-color: #e5d2a0;
+    color: var(--admin-warning, #806525);
+}
+
+.occurrence-payment.payment-unpaid {
+    border-color: #d7ded9;
+    color: var(--admin-muted, #68766d);
 }
 
 .recurring-table-card strong.paid {
@@ -6034,7 +6629,10 @@ export default {
 
 .recurring-detail-modal .confirm-summary {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(min(210px, 100%), 1fr)
+    );
     gap: 8px;
     align-content: start;
     max-height: none;
@@ -6043,6 +6641,8 @@ export default {
 
 .recurring-detail-modal .confirm-summary div {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     gap: 4px;
     min-width: 0;
     padding: 10px;
@@ -6057,8 +6657,8 @@ export default {
 }
 
 .recurring-detail-modal .confirm-summary dd {
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
     white-space: normal;
 }
 
@@ -6092,6 +6692,15 @@ export default {
 @media (max-width: 640px) {
     .recurring-detail-modal .confirm-summary {
         grid-template-columns: 1fr;
+    }
+
+    .occurrence-list article {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .occurrence-list .occurrence-state-group {
+        justify-content: flex-start;
     }
 }
 
@@ -6140,7 +6749,7 @@ export default {
 }
 
 .recurring-panel .form-card {
-    gap: 14px;
+    gap: 16px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -6158,6 +6767,7 @@ export default {
 }
 
 .recurring-panel .panel-head.compact {
+    margin-bottom: 0;
     padding: 16px 18px;
 }
 
@@ -6233,43 +6843,78 @@ export default {
 }
 
 .recurring-form-grid {
-    grid-template-columns: minmax(240px, 276px) repeat(2, minmax(220px, 1fr));
-    grid-template-areas:
-        "date cluster type"
-        "date name phone"
-        "date repeat interval";
+    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
     align-items: start;
-    padding: 16px;
+    gap: 20px;
+    padding: 18px 22px;
 }
 
-.recurring-form-grid > .readonly-field {
-    grid-area: cluster;
+.recurring-form-fields {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    align-content: start;
+    gap: 10px 16px;
 }
 
-.recurring-form-grid > label:nth-child(2) {
-    grid-area: type;
+.recurring-form-fields > label,
+.recurring-form-fields > .readonly-field {
+    min-width: 0;
+    align-self: start;
 }
 
-.recurring-form-grid > label:nth-child(3) {
-    grid-area: name;
+.recurring-form-grid .calendar-range-field {
+    grid-area: auto;
+    max-width: 300px;
+    align-self: start;
 }
 
-.recurring-form-grid > label:nth-child(4) {
-    grid-area: phone;
+.recurring-form-fields > .recurring-month-day-picker {
+    grid-column: 1 / -1;
+    min-width: 0;
+    grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+    gap: 8px 12px;
+    padding: 10px 12px;
 }
 
-.recurring-form-grid > label:nth-child(6) {
-    grid-area: repeat;
+.recurring-month-day-picker .month-day-head {
+    grid-column: 1 / -1;
+    align-items: center;
 }
 
-.recurring-form-grid > label:nth-child(7) {
-    grid-area: interval;
+.recurring-month-day-picker .month-day-actions {
+    flex-wrap: nowrap;
+}
+
+.recurring-month-day-picker .month-day-actions button {
+    min-height: 30px;
+    padding: 0 9px;
+    white-space: nowrap;
+}
+
+.recurring-month-day-picker .month-day-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.recurring-month-day-picker .month-day-selection {
+    min-width: 0;
+    display: grid;
+    align-content: end;
+    gap: 5px;
+}
+
+.recurring-month-day-picker .month-day-empty {
+    padding: 9px 10px;
 }
 
 .schedule-filters {
     width: 100%;
     max-width: 100%;
-    grid-template-columns: minmax(170px, 210px) minmax(500px, 1fr) minmax(170px, 210px);
+    grid-template-columns: minmax(170px, 210px) minmax(500px, 1fr) minmax(
+            170px,
+            210px
+        );
     align-items: end;
     justify-content: space-between;
     padding: 12px;
@@ -6284,7 +6929,10 @@ export default {
 
 .date-stepper {
     display: grid;
-    grid-template-columns: 36px minmax(135px, 1fr) auto minmax(135px, 1fr) 36px auto;
+    grid-template-columns: 36px minmax(135px, 1fr) auto minmax(
+            135px,
+            1fr
+        ) 36px auto;
     gap: 8px;
     align-items: center;
 }
@@ -6330,6 +6978,81 @@ export default {
     background: var(--admin-surface, #fff);
     color: var(--admin-text, #16231a);
     font-weight: 500;
+}
+
+.counter-date-range {
+    position: relative;
+    display: grid;
+    grid-template-columns: 36px minmax(220px, 1fr) 36px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.date-picker-wrap {
+    position: relative;
+    min-width: 0;
+}
+
+.date-nav-btn,
+.date-range-trigger,
+.counter-date-range .today-btn {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--admin-border, #cfe3cf);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #31443a);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.date-range-trigger {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 12px;
+    text-align: left;
+}
+
+.date-range-trigger.open {
+    border-color: var(--admin-primary, #16a34a);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.date-range-trigger span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.counter-date-range .today-btn {
+    padding: 0 12px;
+    white-space: nowrap;
+}
+
+.counter-date-popover {
+    position: absolute;
+    z-index: 35;
+    top: calc(100% + 8px);
+    left: 0;
+    width: min(300px, calc(100vw - 32px));
+    padding: 8px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 12px;
+    background: var(--admin-surface, #fff);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+}
+
+.counter-date-popover .mini-cal {
+    max-width: 100%;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
 }
 
 .readonly-field {
@@ -6766,6 +7489,10 @@ input.invalid {
 
 .time-slot.busy {
     background: var(--admin-bg-soft, #eef3ee);
+}
+
+.time-slot.unavailable {
+    background: #f8fafc;
 }
 
 .time-slot.booked-paid {
@@ -7227,7 +7954,6 @@ input.invalid {
 .calendar-range-field {
     display: grid;
     gap: 8px;
-    grid-area: date;
     max-width: 276px;
 }
 
@@ -7770,6 +8496,130 @@ input.invalid {
     background: var(--admin-surface-muted, #fbfefc);
 }
 
+.recurring-date-planner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--admin-border, #d8eadb);
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #fbfefc);
+}
+
+.recurring-form-fields > .recurring-date-planner--inline {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 12px 12px;
+}
+
+.recurring-date-list {
+    min-width: 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px;
+    cursor: grab;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    touch-action: pan-y;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    user-select: none;
+}
+
+.recurring-date-list::-webkit-scrollbar {
+    display: none;
+}
+
+.recurring-date-list.dragging {
+    cursor: grabbing;
+}
+
+.recurring-date-list .recurring-date-card {
+    flex: 0 0 168px;
+    min-height: 76px;
+    cursor: grab;
+}
+
+.recurring-date-list.dragging .recurring-date-card {
+    cursor: grabbing;
+}
+
+.recurring-date-card {
+    min-height: 88px;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 10px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #1f2f25);
+    text-align: left;
+    cursor: pointer;
+}
+
+.recurring-date-card.complete {
+    background: var(--admin-success-soft, #f0fdf4);
+    border-color: #86efac;
+}
+
+.recurring-date-card.active {
+    border-color: var(--admin-primary, #16a34a);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.16);
+}
+
+.recurring-date-card .recurring-date-value {
+    width: fit-content;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: #e8f7ec;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.recurring-date-card strong {
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.recurring-date-card small,
+.recurring-calendar-note {
+    color: var(--admin-muted, #64756b);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.recurring-calendar-mode {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #f6faf7);
+}
+
+.recurring-calendar-mode button {
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--admin-muted, #64756b);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.recurring-calendar-mode button.active {
+    background: var(--admin-surface, #fff);
+    color: var(--admin-success-text, #166534);
+    box-shadow: 0 0 0 1px var(--admin-border, #cfe3cf);
+}
+
 .weekday-planner-head {
     grid-column: 1 / -1;
     display: flex;
@@ -7957,7 +8807,7 @@ input.invalid {
 
 .month-day-picker {
     display: grid;
-    gap: 14px;
+    gap: 10px;
     padding: 16px;
     border: 1px solid var(--admin-border, #d9e8d9);
     border-radius: 8px;
@@ -8006,39 +8856,102 @@ input.invalid {
     cursor: pointer;
 }
 
+.month-day-actions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .month-day-actions button.never-hover-class-placeholder {
     border-color: var(--admin-success, #22c55e);
     background: var(--admin-success-soft, #f0fdf4);
 }
 
-.month-day-grid {
+.month-day-summary {
+    color: var(--admin-muted, #64756b);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.month-day-add {
     display: grid;
-    grid-template-columns: repeat(16, minmax(34px, 1fr));
+    grid-template-columns: minmax(180px, 260px) auto;
+    align-items: end;
+    gap: 10px;
+}
+
+.month-day-add label {
+    display: grid;
+    gap: 6px;
+}
+
+.month-day-add label > span {
+    color: var(--admin-muted, #64756b);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.month-day-add select,
+.month-day-add button {
+    min-height: 38px;
+    border: 1px solid var(--admin-border, #cfe3cf);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #16231a);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.month-day-add select {
+    padding: 0 10px;
+}
+
+.month-day-add button {
+    padding: 0 14px;
+    color: var(--admin-success-text, #166534);
+    cursor: pointer;
+}
+
+.month-day-add button.never-hover-class-placeholder {
+    border-color: var(--admin-success, #86efac);
+    background: var(--admin-success-soft, #f0fdf4);
+}
+
+.month-day-chips {
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
-.month-day-grid button {
-    min-height: 36px;
-    border: 1px solid var(--admin-border, #d9e8d9);
+.month-day-chip {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    border: 1px solid var(--admin-primary, #16a34a);
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
-    color: var(--admin-text, #25352a);
+    background: var(--admin-success-soft, #f0fdf4);
+    color: var(--admin-success-text, #166534);
     font: inherit;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
 }
 
-.month-day-grid button.never-hover-class-placeholder {
-    border-color: var(--admin-success, #86efac);
-    background: var(--admin-success-soft, #f0fdf4);
+.month-day-chip.never-hover-class-placeholder {
+    border-color: var(--admin-primary, #16a34a);
+    background: var(--admin-surface, #fff);
+    box-shadow: 0 8px 16px rgba(22, 163, 74, 0.16);
 }
 
-.month-day-grid button.active {
-    border-color: var(--admin-primary, #16a34a);
-    background: var(--admin-primary, #16a34a);
-    color: var(--admin-primary-text, #fff);
-    box-shadow: 0 8px 16px rgba(22, 163, 74, 0.16);
+.month-day-empty {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px dashed var(--admin-border, #cfe3cf);
+    border-radius: 8px;
+    color: var(--admin-muted, #64756b);
+    font-size: 13px;
 }
 
 .recurring-helper {
@@ -8052,6 +8965,10 @@ input.invalid {
 .form-actions {
     display: flex;
     justify-content: flex-end;
+}
+
+.recurring-form-actions {
+    padding: 0 16px 16px;
 }
 
 .preview-box {
@@ -8377,17 +9294,39 @@ input.invalid {
     }
 
     .recurring-form-grid {
-        grid-template-areas:
-            "date"
-            "cluster"
-            "type"
-            "name"
-            "phone"
-            "repeat"
-            "interval";
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-form-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-form-fields > .recurring-month-day-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-month-day-picker .month-day-actions {
+        flex-wrap: wrap;
+    }
+
+    .recurring-month-day-picker .month-day-add {
+        grid-template-columns: 1fr;
+    }
+
+    .counter-date-range {
+        grid-template-columns: 36px minmax(0, 1fr) 36px;
+    }
+
+    .counter-date-range .today-btn {
+        grid-column: 1 / -1;
+        width: 100%;
     }
 
     .calendar-range-field {
+        max-width: 100%;
+    }
+
+    .recurring-form-grid .calendar-range-field {
         max-width: 100%;
     }
 
@@ -8406,8 +9345,8 @@ input.invalid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .month-day-grid {
-        grid-template-columns: repeat(7, minmax(34px, 1fr));
+    .month-day-add {
+        grid-template-columns: 1fr;
     }
 
     .period-row {
@@ -8456,8 +9395,102 @@ input.invalid {
     }
 }
 /* UI rules */
-.owner-counter-page .tabs-and-actions{align-items:center;padding-bottom:2px}.owner-counter-page .tabs{gap:8px;padding:0;border:0;background:transparent}.owner-counter-page .tabs button,.owner-counter-page .tab-nav-link{border:0;border-radius:4px;background:transparent;color:var(--admin-muted);font-weight:500;box-shadow:none}.owner-counter-page .tabs button.active,.owner-counter-page .tab-nav-link:hover{background:var(--admin-primary-soft);color:var(--admin-primary);font-weight:500}.owner-counter-page .counter-board,.owner-counter-page .recurring-panel{gap:20px}.owner-counter-page .schedule-panel,.owner-counter-page .booking-side,.owner-counter-page .form-card,.owner-counter-page .preview-box,.owner-counter-page .recurring-list-panel{border:0;border-radius:0;background:var(--admin-surface);box-shadow:none}.owner-counter-page .schedule-filters,.owner-counter-page .recurring-schedule-board,.owner-counter-page .recurring-payment,.owner-counter-page .recurring-weekday-planner,.owner-counter-page .selected-court-strip>div,.owner-counter-page .schedule-summary>div{border:0;border-radius:4px;background:var(--admin-bg-soft);box-shadow:none}.owner-counter-page h2,.owner-counter-page h3{font-weight:500}.owner-counter-page strong,.owner-counter-page button,.owner-counter-page label{font-weight:500}.owner-counter-page .status-badge,.owner-counter-page .source-pill,.owner-counter-page .fixed-date-chips span,.owner-counter-page .fixed-date-chips em{border-radius:4px;font-weight:500}.owner-counter-page .legend i{border-radius:3px}.owner-counter-page .matrix-head{font-weight:500}.owner-counter-page .matrix-court strong{font-weight:500}.owner-counter-page .secondary-btn,.owner-counter-page .primary-btn{font-weight:500;border-radius:4px}.owner-counter-page .modal-panel,.owner-counter-page .recurring-detail-modal,.owner-counter-page .conflict-modal,.owner-counter-page .qr-modal{border:0;border-radius:0;box-shadow:var(--admin-shadow-lg)}
-.owner-counter-page .source-pill,.owner-counter-page .status-badge,.owner-counter-page .fixed-date-chips span,.owner-counter-page .fixed-date-chips em,.owner-counter-page .occurrence-list article>span{border-radius:4px;font-weight:500}
+.owner-counter-page .tabs-and-actions {
+    align-items: center;
+    padding-bottom: 2px;
+}
+.owner-counter-page .tabs {
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+.owner-counter-page .tabs button,
+.owner-counter-page .tab-nav-link {
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--admin-muted);
+    font-weight: 500;
+    box-shadow: none;
+}
+.owner-counter-page .tabs button.active,
+.owner-counter-page .tab-nav-link:hover {
+    background: var(--admin-primary-soft);
+    color: var(--admin-primary);
+    font-weight: 500;
+}
+.owner-counter-page .counter-board,
+.owner-counter-page .recurring-panel {
+    gap: 20px;
+}
+.owner-counter-page .schedule-panel,
+.owner-counter-page .booking-side,
+.owner-counter-page .form-card,
+.owner-counter-page .preview-box,
+.owner-counter-page .recurring-list-panel {
+    border: 0;
+    border-radius: 0;
+    background: var(--admin-surface);
+    box-shadow: none;
+}
+.owner-counter-page .schedule-filters,
+.owner-counter-page .recurring-schedule-board,
+.owner-counter-page .recurring-payment,
+.owner-counter-page .recurring-weekday-planner,
+.owner-counter-page .selected-court-strip > div,
+.owner-counter-page .schedule-summary > div {
+    border: 0;
+    border-radius: 4px;
+    background: var(--admin-bg-soft);
+    box-shadow: none;
+}
+.owner-counter-page h2,
+.owner-counter-page h3 {
+    font-weight: 500;
+}
+.owner-counter-page strong,
+.owner-counter-page button,
+.owner-counter-page label {
+    font-weight: 500;
+}
+.owner-counter-page .status-badge,
+.owner-counter-page .source-pill,
+.owner-counter-page .fixed-date-chips span,
+.owner-counter-page .fixed-date-chips em {
+    border-radius: 4px;
+    font-weight: 500;
+}
+.owner-counter-page .legend i {
+    border-radius: 3px;
+}
+.owner-counter-page .matrix-head {
+    font-weight: 500;
+}
+.owner-counter-page .matrix-court strong {
+    font-weight: 500;
+}
+.owner-counter-page .secondary-btn,
+.owner-counter-page .primary-btn {
+    font-weight: 500;
+    border-radius: 4px;
+}
+.owner-counter-page .modal-panel,
+.owner-counter-page .recurring-detail-modal,
+.owner-counter-page .conflict-modal,
+.owner-counter-page .qr-modal {
+    border: 0;
+    border-radius: 0;
+    box-shadow: var(--admin-shadow-lg);
+}
+.owner-counter-page .source-pill,
+.owner-counter-page .status-badge,
+.owner-counter-page .fixed-date-chips span,
+.owner-counter-page .fixed-date-chips em,
+.owner-counter-page .occurrence-list article > span {
+    border-radius: 4px;
+    font-weight: 500;
+}
 
 .owner-counter-page .schedule-panel {
     padding: 20px;
@@ -8522,27 +9555,102 @@ input.invalid {
     padding-bottom: 16px;
 }
 
-.booking-side input,
-.booking-side select,
-.booking-side textarea,
-.voucher-code-row input {
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]),
+.owner-counter-page .booking-side select,
+.owner-counter-page .booking-side textarea,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]),
+.owner-counter-page .form-card select,
+.owner-counter-page .form-card textarea,
+.owner-counter-page
+    .voucher-code-row
+    input:not([type="checkbox"]):not([type="radio"]) {
     background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
     color: #101c15 !important;
-    caret-color: #101c15;
+    -webkit-text-fill-color: #101c15 !important;
+    caret-color: #101c15 !important;
+    color-scheme: light;
 }
 
-.booking-side input:disabled,
-.booking-side select:disabled,
-.booking-side textarea:disabled {
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]):disabled,
+.owner-counter-page .booking-side select:disabled,
+.owner-counter-page .booking-side textarea:disabled,
+.owner-counter-page
+    .form-card
+    input:not([type="checkbox"]):not([type="radio"]):disabled,
+.owner-counter-page .form-card select:disabled,
+.owner-counter-page .form-card textarea:disabled {
     background: #f4f7f4 !important;
     color: #66766b !important;
+    -webkit-text-fill-color: #66766b !important;
 }
 
-.booking-side input::placeholder,
-.voucher-code-row input::placeholder {
+.owner-counter-page .booking-side input::placeholder,
+.owner-counter-page .booking-side textarea::placeholder,
+.owner-counter-page .form-card input::placeholder,
+.owner-counter-page .form-card textarea::placeholder,
+.owner-counter-page .voucher-code-row input::placeholder {
     color: #7b8a80 !important;
     -webkit-text-fill-color: #7b8a80 !important;
-    opacity: 1;
+    opacity: 1 !important;
+}
+
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill,
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:hover,
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:focus,
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active,
+.owner-counter-page
+    .form-card
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill,
+.owner-counter-page
+    .form-card
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:hover,
+.owner-counter-page
+    .form-card
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:focus,
+.owner-counter-page
+    .form-card
+    input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active {
+    background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
+    -webkit-text-fill-color: #101c15 !important;
+    caret-color: #101c15 !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    color-scheme: light;
+    transition:
+        background-color 9999s ease-out 0s,
+        color 9999s ease-out 0s;
+}
+
+.owner-counter-page
+    .booking-side
+    input:not([type="checkbox"]):not([type="radio"]):autofill,
+.owner-counter-page
+    .form-card
+    input:not([type="checkbox"]):not([type="radio"]):autofill {
+    background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
+    color: #101c15 !important;
+    -webkit-text-fill-color: #101c15 !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    color-scheme: light;
 }
 
 .payment-card {

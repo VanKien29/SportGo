@@ -47,7 +47,7 @@
             >
                 <div class="panel-head compact">
                     <div>
-                        <h2>Lịch sân trong ngày</h2>
+                        <h2>{{ counterScheduleTitle }}</h2>
                         <p>{{ currentScheduleLabel }}</p>
                     </div>
                 </div>
@@ -59,30 +59,54 @@
                             {{ selectedCluster?.name || "-" }}
                         </div>
                     </label>
-                    <label class="schedule-filter-field date-field">
+                    <div class="schedule-filter-field date-field">
                         <span>Ngày chơi</span>
-                        <div class="date-stepper">
+                        <div class="counter-date-range">
                             <button
                                 type="button"
+                                class="date-nav-btn"
                                 aria-label="Ngày trước"
                                 @click="shiftCounterDate(-1)"
                             >
                                 <AppIcon name="chevronLeft" size="15" />
                             </button>
-                            <input
-                                v-model="form.booking_date"
-                                type="date"
-                                @change="handleScheduleDateChange"
-                            />
-                            <span class="date-range-separator">đến</span>
-                            <input
-                                v-model="form.booking_end_date"
-                                type="date"
-                                :min="form.booking_date"
-                                @change="handleCounterEndDateChange"
-                            />
+                            <div class="date-picker-wrap">
+                                <button
+                                    type="button"
+                                    class="date-range-trigger"
+                                    :class="{ open: counterDatePickerOpen }"
+                                    @click="
+                                        counterDatePickerOpen =
+                                            !counterDatePickerOpen
+                                    "
+                                >
+                                    <AppIcon name="calendar" size="16" />
+                                    <span>{{ counterDateRangeLabel }}</span>
+                                </button>
+                                <div
+                                    v-if="counterDatePickerOpen"
+                                    class="counter-date-popover"
+                                >
+                                    <MiniCalendar
+                                        mode="range"
+                                        :start-date="form.booking_date"
+                                        :end-date="form.booking_end_date"
+                                        :min-date="today"
+                                        @update:start-date="
+                                            handleCounterStartDateUpdate
+                                        "
+                                        @update:end-date="
+                                            handleCounterEndDateUpdate
+                                        "
+                                        @range-change="
+                                            handleCounterRangeChange
+                                        "
+                                    />
+                                </div>
+                            </div>
                             <button
                                 type="button"
+                                class="date-nav-btn"
                                 aria-label="Ngày sau"
                                 @click="shiftCounterDate(1)"
                             >
@@ -96,7 +120,7 @@
                                 Hôm nay
                             </button>
                         </div>
-                    </label>
+                    </div>
                     <label class="schedule-filter-field type-field">
                         <span>Loại sân</span>
                         <select
@@ -654,7 +678,7 @@
                             :class="{
                                 invalid: contactTouched.name && walkInNameError,
                             }"
-                            placeholder="Nguyễn Văn A"
+                            placeholder="Nhập tên khách"
                             @blur="validateContactField('name')"
                         />
                         <small
@@ -681,7 +705,7 @@
                                 invalid:
                                     contactTouched.phone && walkInPhoneError,
                             }"
-                            placeholder="0901234567"
+                            placeholder="Nhập số điện thoại"
                             @blur="validateContactField('phone')"
                         />
                         <small
@@ -1642,9 +1666,20 @@
                                             {{ occurrence.status_reason }}
                                         </small>
                                     </div>
-                                    <span>{{
-                                        occurrenceStatusLabel(occurrence)
-                                    }}</span>
+                                    <div class="occurrence-state-group">
+                                        <span
+                                            class="occurrence-state"
+                                            :class="`state-${occurrenceOperationalState(occurrence)}`"
+                                        >
+                                            {{ occurrenceStatusLabel(occurrence) }}
+                                        </span>
+                                        <span
+                                            class="occurrence-payment"
+                                            :class="`payment-${occurrencePaymentState(occurrence)}`"
+                                        >
+                                            {{ occurrencePaymentLabel(occurrence) }}
+                                        </span>
+                                    </div>
                                 </article>
                             </div>
                         </section>
@@ -1993,7 +2028,13 @@
                                     {{ formatTime(conflict.end_time) }}</span
                                 >
                             </div>
-                            <select v-model="conflictSelections[conflict.date]">
+                            <select
+                                v-model="
+                                    conflictSelections[
+                                        conflict.key || conflict.date
+                                    ]
+                                "
+                            >
                                 <option value="skip">
                                     Bỏ booking ngày này
                                 </option>
@@ -2116,6 +2157,7 @@ export default {
             selectedClusterId: "",
             selectedClusterDetail: null,
             selectedCourtTypeId: "",
+            counterDatePickerOpen: false,
             scheduleSlots: [],
             scheduleCourts: [],
             scheduleSlotStatuses: [],
@@ -2739,6 +2781,11 @@ export default {
         currentScheduleLabel() {
             return `${this.selectedCluster?.name || "Cụm sân"} · ${this.counterDateRangeLabel}`;
         },
+        counterScheduleTitle() {
+            return this.counterDateCount > 1
+                ? "Lịch sân ngày bắt đầu"
+                : "Lịch sân trong ngày";
+        },
         selectedBookingOutstanding() {
             if (!this.selectedBusyBooking) return 0;
             const total = Number(this.selectedBusyBooking.total_price || 0);
@@ -3241,12 +3288,29 @@ export default {
             const shiftedEnd = new Date(current);
             shiftedEnd.setDate(shiftedEnd.getDate() + rangeDays);
             this.form.booking_end_date = this.formatIsoDate(shiftedEnd);
+            this.counterDatePickerOpen = false;
             await this.handleScheduleDateChange();
         },
         async setCounterDateToday() {
             this.form.booking_date = this.today;
             this.form.booking_end_date = this.today;
+            this.counterDatePickerOpen = false;
             await this.handleScheduleDateChange();
+        },
+        async handleCounterStartDateUpdate(value) {
+            if (!value || value === this.form.booking_date) return;
+
+            this.form.booking_date = value;
+            await this.handleScheduleDateChange();
+        },
+        handleCounterEndDateUpdate(value) {
+            if (!value || value === this.form.booking_end_date) return;
+
+            this.form.booking_end_date = value;
+            this.handleCounterEndDateChange();
+        },
+        handleCounterRangeChange() {
+            this.counterDatePickerOpen = false;
         },
         async handleScheduleDateChange() {
             if (
@@ -3255,6 +3319,7 @@ export default {
             ) {
                 this.form.booking_end_date = this.form.booking_date;
             }
+            this.handleCounterEndDateChange();
             await this.loadSchedule();
         },
         handleCounterEndDateChange() {
@@ -3702,9 +3767,15 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
-            const interval = this.busyInterval(courtId, slot);
+            return Boolean(this.busyInterval(courtId, slot));
+        },
+        isScheduleUnavailable(courtId, slot) {
             const status = this.slotStatus(courtId, slot);
-            return Boolean(interval) || !status || !status.is_available;
+            return Boolean(
+                status &&
+                    !status.is_available &&
+                    status.slot_status !== "too_early",
+            );
         },
         slotKey(courtId, slot) {
             return `${courtId}|${slot?.start_time || ""}`;
@@ -3736,10 +3807,12 @@ export default {
 
             this.slotEntriesFromKeys(keys).forEach(({ courtId, court, slot }) => {
                 const current = ranges[ranges.length - 1];
+                const slotStart = this.timeToMinutes(slot.start_time);
+                const slotEnd = this.timeToMinutes(slot.end_time);
                 if (
                     !current ||
                     current.venue_court_id !== courtId ||
-                    current.end_time !== slot.start_time
+                    slotStart > this.timeToMinutes(current.end_time)
                 ) {
                     ranges.push({
                         venue_court_id: courtId,
@@ -3750,7 +3823,9 @@ export default {
                     return;
                 }
 
-                current.end_time = slot.end_time;
+                if (slotEnd > this.timeToMinutes(current.end_time)) {
+                    current.end_time = slot.end_time;
+                }
             });
 
             return ranges;
@@ -3857,6 +3932,10 @@ export default {
         isSlotDisabled(courtId, slot) {
             if (!courtId || !slot) return true;
 
+            if (!this.isSlotBusy(courtId, slot) && this.isScheduleUnavailable(courtId, slot)) {
+                return true;
+            }
+
             if (
                 (this.isViewingPastScheduleDate ||
                     this.isSlotInPastForActiveDate(slot)) &&
@@ -3873,6 +3952,7 @@ export default {
         slotButtonClass(courtId, slot) {
             const selected = this.isSlotSelected(courtId, slot);
             const busy = this.isSlotBusy(courtId, slot);
+            const scheduleUnavailable = !busy && this.isScheduleUnavailable(courtId, slot);
             const interval = this.busyInterval(courtId, slot);
             const tone = interval
                 ? this.paymentStateTone(this.intervalPaymentState(interval))
@@ -3888,7 +3968,8 @@ export default {
 
             return {
                 selected,
-                busy,
+                busy: busy && !scheduleUnavailable,
+                unavailable: scheduleUnavailable,
                 viewing,
                 locked: tone === "locked",
                 "booked-paid": tone === "paid",
@@ -3908,7 +3989,9 @@ export default {
                     this.intervalPaymentState(interval),
                 );
             }
-            if (!status || !status.is_available) return "Đã đặt";
+            if (!status || !status.is_available) {
+                return "Không thể chọn";
+            }
 
             return this.formatCurrency(status.price);
         },
@@ -3945,7 +4028,12 @@ export default {
                     return `${courtName} · ${start} - ${end} bị khóa${interval.reason ? ` · ${interval.reason}` : ""}`;
                 }
 
-                return `${courtName} · ${start} - ${end} đã đặt`;
+                const status = this.slotStatus(court?.id, slot);
+                if (status && !status.is_available) {
+                    return `${courtName} · ${start} - ${end} không thể chọn`;
+                }
+
+                return `${courtName} · ${start} - ${end} không thể chọn`;
             }
 
             return selected
@@ -4187,11 +4275,21 @@ export default {
             }
         },
         recurringPayload(extra = {}) {
-            const selectedRanges =
+            const usesWeekdayRanges =
                 this.activeTab === "recurring" &&
                 this.form.recurrence_type === "weekly" &&
-                this.hasRecurringSelection
-                    ? Object.values(this.recurringDayRanges).flat()
+                this.hasRecurringSelection;
+            const weekdayRangeGroups = usesWeekdayRanges
+                ? this.recurringSelectedDays
+                      .map((day) => ({
+                          day,
+                          ranges: this.recurringDayRanges[day] || [],
+                      }))
+                      .filter((item) => item.ranges.length)
+                : [];
+            const selectedRanges =
+                usesWeekdayRanges
+                    ? weekdayRangeGroups[0]?.ranges || []
                     : this.selectedSlotRanges;
             const timeRanges = selectedRanges.map((range) => ({
                 venue_court_id: range.venue_court_id,
@@ -4237,10 +4335,10 @@ export default {
             if (this.form.recurrence_type === "weekly") {
                 payload.recurrence_days_of_week =
                     this.form.recurrence_days_of_week;
-                payload.weekday_time_ranges = this.recurringSelectedDays
-                    .map((day) => ({
+                payload.weekday_time_ranges = weekdayRangeGroups.map(
+                    ({ day, ranges }) => ({
                         day_of_week: day,
-                        time_ranges: (this.recurringDayRanges[day] || []).map(
+                        time_ranges: ranges.map(
                             (range) => ({
                                 venue_court_id: range.venue_court_id,
                                 start_time: this.withSeconds(
@@ -4251,8 +4349,8 @@ export default {
                                 ),
                             }),
                         ),
-                    }))
-                    .filter((item) => item.time_ranges.length);
+                    }),
+                );
             }
 
             if (this.form.recurrence_type === "monthly") {
@@ -4283,7 +4381,8 @@ export default {
             const selections = {};
             (data.conflicts || []).forEach((conflict) => {
                 const alternatives = this.conflictAlternativeCourts(conflict);
-                selections[conflict.date] = alternatives?.[0]?.id || "skip";
+                selections[conflict.key || conflict.date] =
+                    alternatives?.[0]?.id || "skip";
             });
             this.recurringConflict = data;
             this.conflictSelections = selections;
@@ -4333,13 +4432,21 @@ export default {
 
             const overrides = (this.recurringConflict.conflicts || []).map(
                 (conflict) => {
-                    const value = this.conflictSelections[conflict.date];
+                    const value =
+                        this.conflictSelections[
+                            conflict.key || conflict.date
+                        ];
                     if (!value || value === "skip") {
-                        return { date: conflict.date, action: "skip" };
+                        return {
+                            date: conflict.date,
+                            key: conflict.key || null,
+                            action: "skip",
+                        };
                     }
 
                     return {
                         date: conflict.date,
+                        key: conflict.key || null,
                         action: "switch",
                         venue_court_id: value,
                     };
@@ -4935,21 +5042,31 @@ export default {
         },
         recurringGroupStatusSummary(group) {
             const labels = {
-                pending_approval: "chờ duyệt",
-                pending_payment: "chờ thanh toán",
-                confirmed: "xác nhận",
-                checked_in: "check-in",
-                completed: "hoàn thành",
+                upcoming: "sắp diễn ra",
+                "in-progress": "đang diễn ra",
+                ended: "đã kết thúc",
+                partial: "hủy một phần",
                 cancelled: "đã hủy",
-                rejected: "từ chối",
-                expired: "hết hạn",
             };
+            const order = [
+                "in-progress",
+                "upcoming",
+                "ended",
+                "partial",
+                "cancelled",
+            ];
+            const counts = (group?.occurrences || []).reduce(
+                (result, occurrence) => {
+                    const state = this.occurrenceOperationalState(occurrence);
+                    result[state] = Number(result[state] || 0) + 1;
+                    return result;
+                },
+                {},
+            );
 
-            return Object.entries(group?.status_counts || {})
-                .filter(([, count]) => Number(count) > 0)
-                .map(
-                    ([status, count]) => `${count} ${labels[status] || status}`,
-                )
+            return order
+                .filter((status) => Number(counts[status] || 0) > 0)
+                .map((status) => `${counts[status]} ${labels[status]}`)
                 .join(" · ");
         },
         recurringGroupDateChips(group, limit = 6) {
@@ -4983,17 +5100,60 @@ export default {
             return `${this.formatDate(occurrence.booking_date)} · ${this.occurrenceStatusLabel(occurrence)}`;
         },
         occurrenceCardClass(occurrence) {
+            const state = this.occurrenceOperationalState(occurrence);
+
             return {
-                cancelled:
-                    occurrence.status === "cancelled" ||
-                    Number(occurrence.active_item_count || 0) === 0,
-                partial:
-                    Number(occurrence.cancelled_item_count || 0) > 0 &&
-                    Number(occurrence.active_item_count || 0) > 0,
+                cancelled: state === "cancelled",
+                partial: state === "partial",
+                upcoming: state === "upcoming",
+                "in-progress": state === "in-progress",
+                ended: state === "ended",
             };
         },
+        occurrenceOperationalState(occurrence) {
+            const bookingStatus = String(occurrence?.status || "");
+            const cancelledItems = Number(
+                occurrence?.cancelled_item_count || 0,
+            );
+            const activeItems = Number(occurrence?.active_item_count || 0);
+
+            if (["cancelled", "rejected", "expired"].includes(bookingStatus)) {
+                return "cancelled";
+            }
+
+            if (cancelledItems > 0 && activeItems > 0) {
+                return "partial";
+            }
+
+            if (cancelledItems > 0) {
+                return "cancelled";
+            }
+
+            const startsAt = this.occurrenceDateTime(occurrence, "start_time");
+            const endsAt = this.occurrenceDateTime(occurrence, "end_time");
+            const now = Date.now();
+
+            if (!startsAt || !endsAt || now < startsAt.getTime()) {
+                return "upcoming";
+            }
+
+            return now < endsAt.getTime() ? "in-progress" : "ended";
+        },
+        occurrenceDateTime(occurrence, field) {
+            const date = this.parseDate(occurrence?.booking_date);
+            const time = this.formatTime(occurrence?.[field]);
+            if (!date || !/^\d{2}:\d{2}$/.test(time)) return null;
+
+            const minutes = this.timeToMinutes(time);
+            if (!Number.isFinite(minutes)) return null;
+
+            date.setHours(0, minutes, 0, 0);
+            return date;
+        },
         occurrenceStatusLabel(occurrence) {
-            if (occurrence.status === "cancelled") {
+            const state = this.occurrenceOperationalState(occurrence);
+
+            if (state === "cancelled") {
                 if (occurrence.has_interrupted_by_emergency) {
                     return "Dừng do sự cố sân";
                 }
@@ -5002,31 +5162,36 @@ export default {
                     : "Đã hủy";
             }
 
-            if (
-                Number(occurrence.cancelled_item_count || 0) > 0 &&
-                Number(occurrence.active_item_count || 0) > 0
-            ) {
+            if (state === "partial") {
                 return "Hủy một phần";
             }
 
-            if (Number(occurrence.cancelled_item_count || 0) > 0) {
-                if (occurrence.has_interrupted_by_emergency) {
-                    return "Dừng do sự cố sân";
-                }
-                return occurrence.has_cancelled_by_maintenance
-                    ? "Hủy do khóa sân"
-                    : "Đã hủy";
-            }
-
             const labels = {
-                pending_payment: "Chờ thanh toán",
-                confirmed: "Đã xác nhận",
-                checked_in: "Đã check-in",
-                completed: "Hoàn thành",
-                pending_approval: "Chờ duyệt",
+                upcoming: "Sắp diễn ra",
+                "in-progress": "Đang diễn ra",
+                ended: "Đã kết thúc",
             };
 
-            return labels[occurrence.status] || "Hoạt động";
+            return labels[state] || "Sắp diễn ra";
+        },
+        occurrencePaymentState(occurrence) {
+            const total = Math.max(Number(occurrence?.total_price || 0), 0);
+            const paid = Math.max(Number(occurrence?.paid_amount || 0), 0);
+
+            if (total <= 0) return "free";
+            if (paid + 0.01 >= total) return "paid";
+            if (paid > 0) return "partial";
+            return "unpaid";
+        },
+        occurrencePaymentLabel(occurrence) {
+            return (
+                {
+                    free: "Không cần thu",
+                    paid: "Đã thu đủ",
+                    partial: "Đã thu một phần",
+                    unpaid: "Chưa thu",
+                }[this.occurrencePaymentState(occurrence)] || "Chưa thu"
+            );
         },
         occurrenceTimeText(occurrence) {
             const items = Array.isArray(occurrence?.items)

@@ -17,10 +17,18 @@
                         <div class="sticky-bottom-actions">
                             <button
                                 type="button"
-                                class="sticky-btn-clear"
+                                class="sticky-btn-clear sticky-btn-box"
                                 @click="cancelUnlockMode"
                             >
                                 Hủy
+                            </button>
+                            <button
+                                type="button"
+                                class="sticky-btn-all-unlock"
+                                :disabled="unlocking || !unlockableSlots.length"
+                                @click="selectAllUnlockableSlots"
+                            >
+                                Mở khóa toàn bộ
                             </button>
                             <button
                                 type="button"
@@ -600,7 +608,6 @@
                     <div class="legend">
                         <span><i class="dot-available"></i>Trống</span>
                         <span><i class="dot-booking"></i>Đã đặt</span>
-                        <span><i class="dot-holding"></i>Đang giữ</span>
                         <span><i class="dot-manual"></i>Đã khóa</span>
                         <span>
                             <i
@@ -807,6 +814,35 @@ export default {
             ).size;
 
             return `Bạn đang mở ${this.selectedUnlockSlots.length} ô khóa trên ${courtCount} sân trong ngày ${this.date(this.form.start_date)}.`;
+        },
+        unlockableSlots() {
+            if (!this.scheduleCourts.length || !this.activePeriodSlots.length) {
+                return [];
+            }
+
+            return this.scheduleCourts.flatMap((court) =>
+                this.activePeriodSlots
+                    .map((slot) => {
+                        const status = this.statusFor(court.id, slot);
+                        if (!this.isManagedLockStatus(status)) return null;
+
+                        const interval = this.busyIntervalFor(court.id, slot);
+                        const lockId =
+                            status?.schedule_lock_id ||
+                            interval?.schedule_lock_id;
+                        if (!lockId) return null;
+
+                        return {
+                            key: this.unlockSlotKey(court.id, slot.start_time),
+                            schedule_lock_id: lockId,
+                            venue_court_id: court.id,
+                            court_name: court.name,
+                            start_time: this.withSeconds(slot.start_time),
+                            end_time: this.withSeconds(slot.end_time),
+                        };
+                    })
+                    .filter(Boolean),
+            );
         },
         hasManagedLocksOnSchedule() {
             return this.scheduleBusyIntervals.some(
@@ -1330,6 +1366,11 @@ export default {
             this.selectedUnlockSlots = [];
             this.unlockConfirmOpen = false;
         },
+        selectAllUnlockableSlots() {
+            this.selectedUnlockSlots = this.unlockableSlots.map((slot) => ({
+                ...slot,
+            }));
+        },
         async confirmUnlockSelection() {
             if (!this.selectedUnlockSlots.length || this.unlocking) return;
 
@@ -1437,6 +1478,12 @@ export default {
                 ["manual", "emergency"].includes(status.busy_status)
             );
         },
+        isPastStatus(status) {
+            return status?.slot_status === "past";
+        },
+        isAdvanceNoticeStatus(status) {
+            return status?.slot_status === "too_early";
+        },
         canInteractSlot(courtId, slot) {
             const status = this.statusFor(courtId, slot);
             if (this.unlockMode) {
@@ -1453,11 +1500,13 @@ export default {
             if (this.isUnlockSelected(courtId, slot))
                 return "manual unlock-selected";
             if (this.isSelected(courtId, slot)) return "selected";
-            if (!status || status.is_available) return "available";
+            if (!status || status.is_available || this.isAdvanceNoticeStatus(status))
+                return "available";
+            if (this.isPastStatus(status)) return "unavailable";
             if (status.busy_source === "booking") return "booking";
             if (["manual", "emergency"].includes(status.busy_status))
                 return "manual";
-            return "holding";
+            return "unavailable";
         },
         slotTitle(courtId, slot) {
             const status = this.statusFor(courtId, slot);
@@ -1473,14 +1522,17 @@ export default {
             }
             if (this.isSelected(courtId, slot))
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Đã chọn`;
-            if (!status || status.is_available)
+            if (!status || status.is_available || this.isAdvanceNoticeStatus(status))
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Trống`;
+            if (this.isPastStatus(status)) {
+                return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} không thể chọn`;
+            }
             if (status.busy_source === "booking") {
                 return "Đã có booking · chọn để khóa đột xuất và xử lý";
             }
             if (["manual", "emergency"].includes(status.busy_status))
                 return `Đã khóa: ${status.lock_reason || "Không có lý do"} · Bấm để xem thông tin`;
-            return "Đang được giữ chỗ";
+            return "Không thể chọn khung giờ này";
         },
         pickSlot(court, slot) {
             const status = this.statusFor(court.id, slot);
@@ -2270,9 +2322,6 @@ export default {
 .dot-booking {
     background: #cbd5e1;
 }
-.dot-holding {
-    background: #fde68a;
-}
 .dot-manual {
     background: #fca5a5;
 }
@@ -2418,8 +2467,9 @@ export default {
 .slot-cell.booking {
     background: #cbd5e1;
 }
-.slot-cell.holding {
-    background: #fde68a;
+.slot-cell.unavailable {
+    background: #f8fafc;
+    cursor: not-allowed;
 }
 .slot-cell.manual {
     background: repeating-linear-gradient(
@@ -2718,6 +2768,25 @@ export default {
     font-weight: 900;
     cursor: pointer;
 }
+.sticky-btn-box {
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid #e6c5c0;
+    border-radius: 8px;
+    background: #fff7f6;
+    color: #a4443b;
+}
+.sticky-btn-all-unlock {
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1px solid #d1bd86;
+    border-radius: 8px;
+    background: #fff8e6;
+    color: #765f2d;
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+}
 .sticky-btn-submit {
     min-height: 42px;
     padding: 0 20px;
@@ -2752,6 +2821,11 @@ export default {
 }
 .sticky-btn-unlock:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
+}
+.sticky-btn-all-unlock:disabled,
+.sticky-btn-box:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
 }
 

@@ -1,5 +1,36 @@
 <template>
   <div class="admin-banners-page">
+    <div class="toolbar card">
+      <div class="filters">
+        <label class="field compact">
+          <span>Tìm kiếm</span>
+          <input
+            v-model="filters.search"
+            type="search"
+            placeholder="Tên banner, liên kết"
+            @input="onFilterChange"
+          />
+        </label>
+        <label class="field compact">
+          <span>Vị trí</span>
+          <select v-model="filters.position" @change="loadBanners(1)">
+            <option value="">Tất cả vị trí</option>
+            <option v-for="option in positionOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <label class="field compact">
+          <span>Trạng thái</span>
+          <select v-model="filters.is_active" @change="loadBanners(1)">
+            <option value="">Tất cả trạng thái</option>
+            <option value="1">Đang bật</option>
+            <option value="0">Đang tắt</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 

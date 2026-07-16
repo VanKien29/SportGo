@@ -392,8 +392,9 @@ class BookingService
 
             $conflicts = $this->recurringConflictPayloadForDateRanges($rangesByDate);
             $resolution = $data['conflict_resolution'] ?? 'abort';
-            $overrides = collect($data['conflict_overrides'] ?? [])->keyBy('date');
-            $switchedCourtsByDate = collect();
+            $overrides = collect($data['conflict_overrides'] ?? [])
+                ->keyBy(fn (array $override): string => $override['key'] ?? $override['date']);
+            $switchedCourtsByConflictKey = collect();
             $skippedDates = collect();
 
             if ($conflicts->isNotEmpty() && $resolution === 'abort') {
@@ -409,7 +410,7 @@ class BookingService
                     continue;
                 }
 
-                $override = $overrides->get($conflict['date']);
+                $override = $overrides->get($conflict['key']) ?? $overrides->get($conflict['date']);
 
                 if ($resolution !== 'mixed' || ! $override) {
                     throw ValidationException::withMessages([
@@ -437,7 +438,7 @@ class BookingService
                     ]);
                 }
 
-                $switchedCourtsByDate->put($conflict['date'], $override['venue_court_id']);
+                $switchedCourtsByConflictKey->put($conflict['key'], $override['venue_court_id']);
             }
 
             $dates->each(function (Carbon $date) use ($court, $rangesByDate): void {
@@ -451,10 +452,28 @@ class BookingService
                 }
             });
 
+            $dates = $dates
+                ->reject(fn (Carbon $date) => $skippedDates->contains($date->toDateString()))
+                ->values();
+
+            if ($dates->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'recurring_start_date' => 'Tất cả buổi trong lịch cố định đã bị bỏ qua. Vui lòng chọn lại khoảng ngày hoặc sân.',
+                ]);
+            }
+
             $conflicts = $dates
-                ->filter(function (Carbon $date) use ($rangesByDate): bool {
-                    foreach ($rangesByDate->get($date->toDateString(), []) as $range) {
-                        if (! $this->checkAvailability($range['venue_court_id'], $date->toDateString(), $range['start_time'], $range['end_time'])) {
+                ->filter(function (Carbon $date) use ($rangesByDate, $switchedCourtsByConflictKey): bool {
+                    $dateString = $date->toDateString();
+                    $dateTimeRanges = $this->applyRecurringConflictSwitches(
+                        $dateString,
+                        $rangesByDate->get($dateString, []),
+                        $switchedCourtsByConflictKey,
+                    );
+                    $this->validateTimeRanges($dateTimeRanges);
+
+                    foreach ($dateTimeRanges as $range) {
+                        if (! $this->checkAvailability($range['venue_court_id'], $dateString, $range['start_time'], $range['end_time'])) {
                             return true;
                         }
                     }
@@ -470,37 +489,20 @@ class BookingService
                 ]);
             }
 
-            $dates = $dates
-                ->reject(fn (Carbon $date) => $skippedDates->contains($date->toDateString()))
-                ->values();
-
-            if ($dates->isEmpty()) {
-                throw ValidationException::withMessages([
-                    'recurring_start_date' => 'Tất cả buổi trong lịch cố định đã bị bỏ qua. Vui lòng chọn lại khoảng ngày hoặc sân.',
-                ]);
-            }
-
             $groupCode = $this->uniqueRecurringGroupCode();
             $bookings = collect();
 
             foreach ($dates as $date) {
                 $dateString = $date->toDateString();
-                $dateCourt = $switchedCourtsByDate->has($dateString)
-                    ? $this->lockActiveCourt($switchedCourtsByDate->get($dateString))
-                    : $court;
                 $baseDateTimeRanges = $rangesByDate->get($dateString, []);
-                $dateTimeRanges = $switchedCourtsByDate->has($dateString)
-                    ? collect($baseDateTimeRanges)
-                        ->map(fn (array $range): array => [
-                            ...$range,
-                            'venue_court_id' => $dateCourt->id,
-                        ])
-                        ->values()
-                        ->all()
-                    : $baseDateTimeRanges;
-                $dateRangeCourts = $switchedCourtsByDate->has($dateString)
-                    ? collect([$dateCourt->id => $dateCourt])
-                    : $this->courtsForTimeRanges($dateTimeRanges, $court);
+                $dateTimeRanges = $this->applyRecurringConflictSwitches(
+                    $dateString,
+                    $baseDateTimeRanges,
+                    $switchedCourtsByConflictKey,
+                );
+                $this->validateTimeRanges($dateTimeRanges);
+                $dateRangeCourts = $this->courtsForTimeRanges($dateTimeRanges, $court);
+                $dateCourt = $dateRangeCourts->get($dateTimeRanges[0]['venue_court_id']) ?? $court;
 
                 foreach ($dateTimeRanges as $range) {
                     if (! $this->checkAvailability($range['venue_court_id'], $dateString, $range['start_time'], $range['end_time'])) {
@@ -522,8 +524,12 @@ class BookingService
                         'recurring_end_date' => $data['recurring_end_date'],
                         'recurrence_type' => $data['recurrence_type'],
                         'recurrence_interval' => $data['recurrence_interval'],
-                        'recurrence_days_of_week' => $data['recurrence_type'] === 'weekly' ? ($data['recurrence_days_of_week'] ?? []) : null,
-                        'recurrence_days_of_month' => $data['recurrence_type'] === 'monthly' ? ($data['recurrence_days_of_month'] ?? []) : null,
+                        'recurrence_days_of_week' => $data['recurrence_type'] === 'weekly' && empty($data['recurring_dates'])
+                            ? ($data['recurrence_days_of_week'] ?? [])
+                            : null,
+                        'recurrence_days_of_month' => $data['recurrence_type'] === 'monthly' && empty($data['recurring_dates'])
+                            ? ($data['recurrence_days_of_month'] ?? [])
+                            : null,
                     ]),
                     $actor,
                     $dateString,
@@ -542,7 +548,7 @@ class BookingService
                 'recurring_group_code' => $groupCode,
                 'created_count' => $loadedBookings->count(),
                 'skipped_count' => $skippedDates->count(),
-                'switched_count' => $switchedCourtsByDate->count(),
+                'switched_count' => $switchedCourtsByConflictKey->count(),
                 'total_price' => round($loadedBookings->sum(fn (Booking $booking) => (float) $booking->total_price), 2),
                 'original_amount' => round($loadedBookings->sum(fn (Booking $booking) => (float) ($booking->original_amount ?? $booking->total_price)), 2),
                 'discount_amount' => round($loadedBookings->sum(fn (Booking $booking) => (float) $booking->discount_amount), 2),
@@ -977,11 +983,9 @@ class BookingService
     public function meetsMinimumAdvanceNotice(string $venueClusterId, string $bookingDate, string $startTime): bool
     {
         $minimumMinutes = (int) ($this->bookingConfigForCluster($venueClusterId)?->min_advance_booking_minutes ?? 30);
-        $bookingStart = Carbon::parse($bookingDate)
-            ->startOfDay()
-            ->addMinutes($this->timeToMinutes($startTime));
+        $bookingStart = $this->businessDateTime($bookingDate, $startTime);
 
-        return now()->addMinutes($minimumMinutes)->lte($bookingStart);
+        return $this->businessNow()->addMinutes($minimumMinutes)->lte($bookingStart);
     }
 
     private function slotAvailabilityState(?array $busyInterval, string $venueClusterId, string $bookingDate, string $startTime): array
@@ -990,11 +994,9 @@ class BookingService
             return $this->busySlotState($busyInterval);
         }
 
-        $bookingStart = Carbon::parse($bookingDate)
-            ->startOfDay()
-            ->addMinutes($this->timeToMinutes($startTime));
+        $bookingStart = $this->businessDateTime($bookingDate, $startTime);
 
-        if ($bookingStart->lt(now())) {
+        if ($bookingStart->lt($this->businessNow())) {
             return $this->unavailableSlotState(
                 'past',
                 'Đã qua giờ',
@@ -1585,8 +1587,8 @@ class BookingService
 
     private function ensureRangesAreNotInPast(string $bookingDate, array $timeRanges, string $errorKey = 'start_time'): void
     {
-        $date = Carbon::parse($bookingDate)->startOfDay();
-        $today = Carbon::today();
+        $today = $this->businessNow()->startOfDay();
+        $date = Carbon::parse($bookingDate, $this->businessTimezone())->startOfDay();
 
         if ($date->lt($today)) {
             throw ValidationException::withMessages([
@@ -1598,7 +1600,7 @@ class BookingService
             return;
         }
 
-        $now = Carbon::now();
+        $now = $this->businessNow();
         $nowMinutes = ($now->hour * 60) + $now->minute;
         $pastRange = collect($timeRanges)
             ->sortBy(fn (array $range) => $this->timeToMinutes($range['start_time']))
@@ -1613,11 +1615,13 @@ class BookingService
 
     private function ensureRecurringRangesAreNotInPast(Collection $dates, array $timeRanges): void
     {
-        if (! $dates->contains(fn (Carbon $date): bool => $date->isSameDay(Carbon::today()))) {
+        $today = $this->businessNow()->startOfDay();
+
+        if (! $dates->contains(fn (Carbon $date): bool => $date->isSameDay($today))) {
             return;
         }
 
-        $this->ensureRangesAreNotInPast(Carbon::today()->toDateString(), $timeRanges, 'recurring_start_date');
+        $this->ensureRangesAreNotInPast($today->toDateString(), $timeRanges, 'recurring_start_date');
     }
 
     private function activeVoucherQuery(string $venueClusterId, ?string $voucherCode = null)
@@ -2092,6 +2096,11 @@ class BookingService
                                 $range['start_time'],
                                 $range['end_time'],
                             )
+                                ->reject(fn (VenueCourt $candidate): bool => $this->candidateConflictsWithPlannedRanges(
+                                    $candidate,
+                                    $range,
+                                    $timeRanges,
+                                ))
                                 ->map(fn (VenueCourt $candidate): array => $this->recurringCourtPayload($candidate))
                                 ->values()
                                 ->all(),
@@ -2144,6 +2153,35 @@ class BookingService
             ->values();
     }
 
+    private function applyRecurringConflictSwitches(string $dateString, array $ranges, Collection $switchedCourtsByConflictKey): array
+    {
+        return collect($ranges)
+            ->map(function (array $range) use ($dateString, $switchedCourtsByConflictKey): array {
+                $key = $this->recurringConflictKey($dateString, $range);
+
+                if (! $switchedCourtsByConflictKey->has($key)) {
+                    return $range;
+                }
+
+                return [
+                    ...$range,
+                    'venue_court_id' => $switchedCourtsByConflictKey->get($key),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function recurringConflictKey(string $dateString, array $range): string
+    {
+        return implode('|', [
+            $dateString,
+            $range['venue_court_id'],
+            $range['start_time'],
+            $range['end_time'],
+        ]);
+    }
+
     private function availableAlternativeCourts(VenueCourt $court, string $date, string $startTime, string $endTime): Collection
     {
         return VenueCourt::query()
@@ -2164,6 +2202,33 @@ class BookingService
             ->values();
     }
 
+    private function candidateConflictsWithPlannedRanges(VenueCourt $candidate, array $currentRange, array $plannedRanges): bool
+    {
+        return collect($plannedRanges)->contains(function (array $range) use ($candidate, $currentRange): bool {
+            $isCurrentRange = (string) ($range['venue_court_id'] ?? '') === (string) ($currentRange['venue_court_id'] ?? '')
+                && $range['start_time'] === $currentRange['start_time']
+                && $range['end_time'] === $currentRange['end_time'];
+
+            if ($isCurrentRange) {
+                return false;
+            }
+
+            return (string) ($range['venue_court_id'] ?? '') === (string) $candidate->id
+                && $this->timeRangesOverlap(
+                    $range['start_time'],
+                    $range['end_time'],
+                    $currentRange['start_time'],
+                    $currentRange['end_time'],
+                );
+        });
+    }
+
+    private function timeRangesOverlap(string $firstStart, string $firstEnd, string $secondStart, string $secondEnd): bool
+    {
+        return $this->timeToMinutes($firstStart) < $this->timeToMinutes($secondEnd)
+            && $this->timeToMinutes($secondStart) < $this->timeToMinutes($firstEnd);
+    }
+
     private function recurringCourtPayload(VenueCourt $court): array
     {
         return [
@@ -2178,6 +2243,14 @@ class BookingService
 
     private function recurringDates(array $data): Collection
     {
+        if (! empty($data['recurring_dates'])) {
+            return collect($data['recurring_dates'])
+                ->unique()
+                ->sort()
+                ->map(fn (string $date): Carbon => Carbon::parse($date)->startOfDay())
+                ->values();
+        }
+
         $start = Carbon::parse($data['recurring_start_date'])->startOfDay();
         $end = Carbon::parse($data['recurring_end_date'])->startOfDay();
         $interval = max((int) $data['recurrence_interval'], 1);
@@ -2206,17 +2279,35 @@ class BookingService
 
     private function recurringRangesByDate(array $data, Collection $dates, VenueCourt $defaultCourt): Collection
     {
+        $dateRanges = $this->recurringDateRanges($data, $defaultCourt);
         $weekdayRanges = $this->recurringWeekdayRanges($data, $defaultCourt);
         $fallbackRanges = $this->normalizeTimeRanges($data, $defaultCourt->id);
 
         return $dates
-            ->mapWithKeys(function (Carbon $date) use ($weekdayRanges, $fallbackRanges): array {
+            ->mapWithKeys(function (Carbon $date) use ($dateRanges, $weekdayRanges, $fallbackRanges): array {
+                $dateString = $date->toDateString();
                 $day = $date->dayOfWeekIso - 1;
 
                 return [
-                    $date->toDateString() => $weekdayRanges[$day] ?? $fallbackRanges,
+                    $dateString => $dateRanges[$dateString] ?? $weekdayRanges[$day] ?? $fallbackRanges,
                 ];
             });
+    }
+
+    private function recurringDateRanges(array $data, VenueCourt $defaultCourt): array
+    {
+        if (empty($data['date_time_ranges'])) {
+            return [];
+        }
+
+        return collect($data['date_time_ranges'])
+            ->mapWithKeys(fn (array $item): array => [
+                $item['date'] => $this->normalizeTimeRanges(
+                    ['time_ranges' => $item['time_ranges']],
+                    $defaultCourt->id,
+                ),
+            ])
+            ->all();
     }
 
     private function recurringWeekdayRanges(array $data, VenueCourt $defaultCourt): array
@@ -2475,6 +2566,24 @@ class BookingService
     private function normalizeClock(string $time): string
     {
         return strlen($time) === 5 ? $time.':00' : $time;
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessNow(): Carbon
+    {
+        return Carbon::now($this->businessTimezone());
+    }
+
+    private function businessDateTime(string $date, string $time): Carbon
+    {
+        return Carbon::parse(
+            $date.' '.$this->normalizeClock($time),
+            $this->businessTimezone(),
+        );
     }
 
     private function timeToMinutes(string $time): int

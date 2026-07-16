@@ -51,7 +51,7 @@ class ScheduleLockController extends Controller
                         $data['start_date'],
                         $data['end_date'] ?? $data['start_date'],
                     ])
-                    : $query->where('booking_date', '>=', today()->toDateString())
+                    : $query->where('booking_date', '>=', $this->businessNow()->toDateString())
             )
             ->orderBy('booking_date')
             ->orderBy('start_time')
@@ -1084,11 +1084,11 @@ class ScheduleLockController extends Controller
     private function hasPlayingItem(Collection $items, SlotLock $lock): bool
     {
         $date = $lock->booking_date->toDateString();
-        $now = Carbon::now();
+        $now = $this->businessNow();
 
         return $items->contains(function (BookingItem $item) use ($date, $now): bool {
-            $start = Carbon::parse("{$date} {$item->start_time}");
-            $end = Carbon::parse("{$date} {$item->end_time}");
+            $start = $this->businessDateTime($date, $item->start_time);
+            $end = $this->businessDateTime($date, $item->end_time);
 
             return $now->betweenIncluded($start, $end);
         });
@@ -1097,9 +1097,9 @@ class ScheduleLockController extends Controller
     private function isPlayingItem(BookingItem $item, SlotLock $lock): bool
     {
         $date = $lock->booking_date->toDateString();
-        $now = Carbon::now();
-        $start = Carbon::parse("{$date} {$item->start_time}");
-        $end = Carbon::parse("{$date} {$item->end_time}");
+        $now = $this->businessNow();
+        $start = $this->businessDateTime($date, $item->start_time);
+        $end = $this->businessDateTime($date, $item->end_time);
 
         return $now->betweenIncluded($start, $end);
     }
@@ -1111,9 +1111,9 @@ class ScheduleLockController extends Controller
 
     private function interruptionMetricsForDate(BookingItem $item, string $date): array
     {
-        $now = Carbon::now();
-        $start = Carbon::parse("{$date} {$item->start_time}");
-        $end = Carbon::parse("{$date} {$item->end_time}");
+        $now = $this->businessNow();
+        $start = $this->businessDateTime($date, $item->start_time);
+        $end = $this->businessDateTime($date, $item->end_time);
         $durationMinutes = max($start->diffInMinutes($end), 1);
 
         if ($now->lt($start)) {
@@ -1281,9 +1281,9 @@ class ScheduleLockController extends Controller
             return false;
         }
 
-        $now = Carbon::now();
-        $start = Carbon::parse("{$date} {$item->start_time}");
-        $end = Carbon::parse("{$date} {$item->end_time}");
+        $now = $this->businessNow();
+        $start = $this->businessDateTime($date, $item->start_time);
+        $end = $this->businessDateTime($date, $item->end_time);
 
         return $now->betweenIncluded($start, $end);
     }
@@ -1350,6 +1350,21 @@ class ScheduleLockController extends Controller
         [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
 
         return $hour * 60 + $minute;
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessNow(): Carbon
+    {
+        return Carbon::now($this->businessTimezone());
+    }
+
+    private function businessDateTime(string $date, string $time): Carbon
+    {
+        return Carbon::parse("{$date} {$time}", $this->businessTimezone());
     }
 
     private function minutesToTime(int $minutes): string

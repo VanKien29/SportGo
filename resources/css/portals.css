@@ -6087,24 +6087,71 @@ input, select, textarea {
     line-height: 1.35;
 }
 
-.occurrence-list article > span {
+.occurrence-list .occurrence-state-group {
     flex: 0 0 auto;
-    border-radius: 999px;
-    padding: 5px 9px;
-    background: #dcfce7;
-    color: #15803d;
-    font-size: 11px;
-    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 5px;
 }
 
-.occurrence-list article.cancelled > span {
+.occurrence-state-group > span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: 4px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.occurrence-state.state-upcoming {
+    background: var(--admin-info-soft, #e8eef5);
+    color: var(--admin-info, #45637d);
+}
+
+.occurrence-state.state-in-progress {
+    background: var(--admin-success-soft, #e2f0e7);
+    color: var(--admin-success-text, #35684a);
+}
+
+.occurrence-state.state-ended {
+    background: var(--admin-surface-muted, #edf0ee);
+    color: var(--admin-muted, #5d6b61);
+}
+
+.occurrence-state.state-cancelled {
     background: #fee2e2;
     color: #b91c1c;
 }
 
-.occurrence-list article.partial > span {
+.occurrence-state.state-partial {
     background: #fef3c7;
     color: #b45309;
+}
+
+.occurrence-payment {
+    border: 1px solid var(--admin-border-soft, #dfe8e1);
+    background: var(--admin-surface, #ffffff);
+}
+
+.occurrence-payment.payment-paid,
+.occurrence-payment.payment-free {
+    border-color: #b8d8c3;
+    color: var(--admin-success-text, #437257);
+}
+
+.occurrence-payment.payment-partial {
+    border-color: #e5d2a0;
+    color: var(--admin-warning, #806525);
+}
+
+.occurrence-payment.payment-unpaid {
+    border-color: #d7ded9;
+    color: var(--admin-muted, #68766d);
 }
 
 .recurring-table-card strong.paid {
@@ -6279,7 +6326,10 @@ input, select, textarea {
 
 .recurring-detail-modal .confirm-summary {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(min(210px, 100%), 1fr)
+    );
     gap: 8px;
     align-content: start;
     max-height: none;
@@ -6288,6 +6338,8 @@ input, select, textarea {
 
 .recurring-detail-modal .confirm-summary div {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     gap: 4px;
     min-width: 0;
     padding: 10px;
@@ -6302,8 +6354,8 @@ input, select, textarea {
 }
 
 .recurring-detail-modal .confirm-summary dd {
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
     white-space: normal;
 }
 
@@ -6337,6 +6389,15 @@ input, select, textarea {
 @media (max-width: 640px) {
     .recurring-detail-modal .confirm-summary {
         grid-template-columns: 1fr;
+    }
+
+    .occurrence-list article {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .occurrence-list .occurrence-state-group {
+        justify-content: flex-start;
     }
 }
 
@@ -6385,7 +6446,7 @@ input, select, textarea {
 }
 
 .recurring-panel .form-card {
-    gap: 14px;
+    gap: 16px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -6403,6 +6464,7 @@ input, select, textarea {
 }
 
 .recurring-panel .panel-head.compact {
+    margin-bottom: 0;
     padding: 16px 18px;
 }
 
@@ -6478,37 +6540,69 @@ input, select, textarea {
 }
 
 .recurring-form-grid {
-    grid-template-columns: minmax(240px, 276px) repeat(2, minmax(220px, 1fr));
-    grid-template-areas:
-        "date cluster type"
-        "date name phone"
-        "date repeat interval";
+    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
     align-items: start;
-    padding: 16px;
+    gap: 20px;
+    padding: 18px 22px;
 }
 
-.recurring-form-grid > .readonly-field {
-    grid-area: cluster;
+.recurring-form-fields {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    align-content: start;
+    gap: 10px 16px;
 }
 
-.recurring-form-grid > label:nth-child(2) {
-    grid-area: type;
+.recurring-form-fields > label,
+.recurring-form-fields > .readonly-field {
+    min-width: 0;
+    align-self: start;
 }
 
-.recurring-form-grid > label:nth-child(3) {
-    grid-area: name;
+.recurring-form-grid .calendar-range-field {
+    grid-area: auto;
+    max-width: 300px;
+    align-self: start;
 }
 
-.recurring-form-grid > label:nth-child(4) {
-    grid-area: phone;
+.recurring-form-fields > .recurring-month-day-picker {
+    grid-column: 1 / -1;
+    min-width: 0;
+    grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+    gap: 8px 12px;
+    padding: 10px 12px;
 }
 
-.recurring-form-grid > label:nth-child(6) {
-    grid-area: repeat;
+.recurring-month-day-picker .month-day-head {
+    grid-column: 1 / -1;
+    align-items: center;
 }
 
-.recurring-form-grid > label:nth-child(7) {
-    grid-area: interval;
+.recurring-month-day-picker .month-day-actions {
+    flex-wrap: nowrap;
+}
+
+.recurring-month-day-picker .month-day-actions button {
+    min-height: 30px;
+    padding: 0 9px;
+    white-space: nowrap;
+}
+
+.recurring-month-day-picker .month-day-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.recurring-month-day-picker .month-day-selection {
+    min-width: 0;
+    display: grid;
+    align-content: end;
+    gap: 5px;
+}
+
+.recurring-month-day-picker .month-day-empty {
+    padding: 9px 10px;
 }
 
 .schedule-filters {
@@ -6601,6 +6695,81 @@ input, select, textarea {
     background: var(--admin-surface, #ffffff);
     color: var(--admin-text, #1e293b);
     font-weight: 850;
+}
+
+.counter-date-range {
+    position: relative;
+    display: grid;
+    grid-template-columns: 36px minmax(220px, 1fr) 36px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.date-picker-wrap {
+    position: relative;
+    min-width: 0;
+}
+
+.date-nav-btn,
+.date-range-trigger,
+.counter-date-range .today-btn {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #cfe3cf;
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+    color: #31443a;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.date-range-trigger {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 12px;
+    text-align: left;
+}
+
+.date-range-trigger.open {
+    border-color: var(--admin-primary, #16a34a);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.date-range-trigger span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.counter-date-range .today-btn {
+    padding: 0 12px;
+    white-space: nowrap;
+}
+
+.counter-date-popover {
+    position: absolute;
+    z-index: 35;
+    top: calc(100% + 8px);
+    left: 0;
+    width: min(300px, calc(100vw - 32px));
+    padding: 8px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 12px;
+    background: var(--admin-surface, #ffffff);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+}
+
+.counter-date-popover .mini-cal {
+    max-width: 100%;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
 }
 
 .readonly-field {
@@ -7017,6 +7186,10 @@ input.invalid {
     background: #eef3ee;
 }
 
+.time-slot.unavailable {
+    background: #f8fafc;
+}
+
 .time-slot.booked-paid {
     background: #e2f0e7;
 }
@@ -7373,7 +7546,6 @@ input.invalid {
 .calendar-range-field {
     display: grid;
     gap: 8px;
-    grid-area: date;
     max-width: 276px;
 }
 
@@ -7934,6 +8106,130 @@ input.invalid {
     background: #fbfefc;
 }
 
+.recurring-date-planner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--admin-border-soft, #d8eadb);
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #fbfefc);
+}
+
+.recurring-form-fields > .recurring-date-planner--inline {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 12px 12px;
+}
+
+.recurring-date-list {
+    min-width: 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px;
+    cursor: grab;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    touch-action: pan-y;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    user-select: none;
+}
+
+.recurring-date-list::-webkit-scrollbar {
+    display: none;
+}
+
+.recurring-date-list.dragging {
+    cursor: grabbing;
+}
+
+.recurring-date-list .recurring-date-card {
+    flex: 0 0 168px;
+    min-height: 76px;
+    cursor: grab;
+}
+
+.recurring-date-list.dragging .recurring-date-card {
+    cursor: grabbing;
+}
+
+.recurring-date-card {
+    min-height: 88px;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    padding: 10px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #1f2f25);
+    text-align: left;
+    cursor: pointer;
+}
+
+.recurring-date-card.complete {
+    background: var(--admin-success-soft, #f0fdf4);
+    border-color: #86efac;
+}
+
+.recurring-date-card.active {
+    border-color: var(--admin-primary, #16a34a);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.16);
+}
+
+.recurring-date-card .recurring-date-value {
+    width: fit-content;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: #e8f7ec;
+    color: #15803d;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.recurring-date-card strong {
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.recurring-date-card small,
+.recurring-calendar-note {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.recurring-calendar-mode {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #f6faf7);
+}
+
+.recurring-calendar-mode button {
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--admin-muted, #64748b);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.recurring-calendar-mode button.active {
+    background: var(--admin-surface, #fff);
+    color: var(--admin-success-text, #166534);
+    box-shadow: 0 0 0 1px var(--admin-border, #cfe3cf);
+}
+
 .weekday-planner-head {
     grid-column: 1 / -1;
     display: flex;
@@ -8175,34 +8471,96 @@ input.invalid {
     background: #f0fdf4;
 }
 
-.month-day-grid {
-    display: grid;
-    grid-template-columns: repeat(16, minmax(34px, 1fr));
-    gap: 8px;
+.month-day-actions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
-.month-day-grid button {
-    min-height: 36px;
-    border: 1px solid var(--admin-border-soft, #e2e8f0);
+.month-day-summary {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.month-day-add {
+    display: grid;
+    grid-template-columns: minmax(180px, 260px) auto;
+    align-items: end;
+    gap: 10px;
+}
+
+.month-day-add label {
+    display: grid;
+    gap: 6px;
+}
+
+.month-day-add label > span {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.month-day-add select,
+.month-day-add button {
+    min-height: 38px;
+    border: 1px solid #cfe3cf;
     border-radius: 8px;
     background: var(--admin-surface, #ffffff);
-    color: #25352a;
+    color: var(--admin-text, #1e293b);
     font: inherit;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 700;
+}
+
+.month-day-add select {
+    padding: 0 10px;
+}
+
+.month-day-add button {
+    padding: 0 14px;
+    color: #166534;
     cursor: pointer;
 }
 
-.month-day-grid button.never-hover-class-placeholder {
+.month-day-add button.never-hover-class-placeholder {
     border-color: #86efac;
     background: #f0fdf4;
 }
 
-.month-day-grid button.active {
-    border-color: #16a34a;
-    background: #16a34a;
-    color: #fff;
+.month-day-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.month-day-chip {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    border: 1px solid #16a34a;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #166534;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.month-day-chip.never-hover-class-placeholder {
+    background: var(--admin-surface, #ffffff);
     box-shadow: 0 8px 16px rgba(22, 163, 74, 0.16);
+}
+
+.month-day-empty {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px dashed #cfe3cf;
+    border-radius: 8px;
+    color: var(--admin-muted, #64748b);
+    font-size: 13px;
 }
 
 .recurring-helper {
@@ -8216,6 +8574,10 @@ input.invalid {
 .form-actions {
     display: flex;
     justify-content: flex-end;
+}
+
+.recurring-form-actions {
+    padding: 0 16px 16px;
 }
 
 .preview-box {
@@ -8541,17 +8903,30 @@ input.invalid {
     }
 
     .recurring-form-grid {
-        grid-template-areas:
-            "date"
-            "cluster"
-            "type"
-            "name"
-            "phone"
-            "repeat"
-            "interval";
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-form-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-form-fields > .recurring-month-day-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .recurring-month-day-picker .month-day-actions {
+        flex-wrap: wrap;
+    }
+
+    .recurring-month-day-picker .month-day-add {
+        grid-template-columns: 1fr;
     }
 
     .calendar-range-field {
+        max-width: 100%;
+    }
+
+    .recurring-form-grid .calendar-range-field {
         max-width: 100%;
     }
 
@@ -8570,8 +8945,8 @@ input.invalid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .month-day-grid {
-        grid-template-columns: repeat(7, minmax(34px, 1fr));
+    .month-day-add {
+        grid-template-columns: 1fr;
     }
 
     .period-row {
@@ -8748,17 +9123,25 @@ input.invalid {
     border-color: var(--admin-border);
 }
 
-[data-theme="dark"] .month-day-grid button {
+[data-theme="dark"] .month-day-add select,
+[data-theme="dark"] .month-day-add button,
+[data-theme="dark"] .month-day-chip {
     background: var(--admin-surface);
     border-color: var(--admin-border);
     color: var(--admin-text);
 }
 
-[data-theme="dark"] .month-day-grid button.active {
-    background: var(--admin-success);
+[data-theme="dark"] .month-day-add button.never-hover-class-placeholder,
+[data-theme="dark"] .month-day-chip.never-hover-class-placeholder {
+    background: rgba(52, 211, 153, 0.15);
     border-color: var(--admin-success);
-    color: var(--admin-primary-text);
+    color: var(--admin-success);
     box-shadow: 0 8px 16px rgba(52, 211, 153, 0.2);
+}
+
+[data-theme="dark"] .month-day-empty {
+    border-color: var(--admin-border);
+    color: var(--admin-muted);
 }
 
 [data-theme="dark"] .recurring-detail-box {
@@ -10514,6 +10897,16 @@ input.invalid {
 }
 
 @media (max-width: 700px) {
+  .owner-counter-page .counter-date-range {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+  }
+
+  .owner-counter-page .counter-date-range .today-btn {
+    display: inline-flex;
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
   .owner-counter-page .date-stepper {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   }
@@ -10611,45 +11004,74 @@ input.invalid {
   padding-bottom: 16px;
 }
 
-.booking-side input,
-.booking-side select,
-.booking-side textarea,
-.voucher-code-row input {
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]),
+.owner-counter-page .booking-side select,
+.owner-counter-page .booking-side textarea,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]),
+.owner-counter-page .form-card select,
+.owner-counter-page .form-card textarea,
+.owner-counter-page .voucher-code-row input:not([type="checkbox"]):not([type="radio"]) {
   background: #fff !important;
+  background-color: #fff !important;
+  background-image: none !important;
   color: #101c15 !important;
-  caret-color: #101c15;
+  -webkit-text-fill-color: #101c15 !important;
+  caret-color: #101c15 !important;
+  color-scheme: light;
 }
 
-.booking-side input:disabled,
-.booking-side select:disabled,
-.booking-side textarea:disabled {
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]):disabled,
+.owner-counter-page .booking-side select:disabled,
+.owner-counter-page .booking-side textarea:disabled,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]):disabled,
+.owner-counter-page .form-card select:disabled,
+.owner-counter-page .form-card textarea:disabled {
   background: #f4f7f4 !important;
   color: #66766b !important;
+  -webkit-text-fill-color: #66766b !important;
 }
 
-.booking-side input::placeholder,
-.voucher-code-row input::placeholder {
+.owner-counter-page .booking-side input::placeholder,
+.owner-counter-page .booking-side textarea::placeholder,
+.owner-counter-page .form-card input::placeholder,
+.owner-counter-page .form-card textarea::placeholder,
+.owner-counter-page .voucher-code-row input::placeholder {
   color: #7b8a80 !important;
   -webkit-text-fill-color: #7b8a80 !important;
-  opacity: 1;
+  opacity: 1 !important;
 }
 
-.booking-side input:-webkit-autofill,
-.booking-side input:-webkit-autofill:hover,
-.booking-side input:-webkit-autofill:focus,
-.booking-side input:-webkit-autofill:active {
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill,
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:hover,
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:focus,
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:hover,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:focus,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active {
+  background: #fff !important;
+  background-color: #fff !important;
+  background-image: none !important;
   -webkit-text-fill-color: #101c15 !important;
   caret-color: #101c15 !important;
   box-shadow: 0 0 0 1000px #fff inset !important;
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
-  transition: background-color 0s;
+  color-scheme: light;
+  transition:
+    background-color 9999s ease-out 0s,
+    color 9999s ease-out 0s;
 }
 
-.booking-side input:autofill {
+.owner-counter-page .booking-side input:not([type="checkbox"]):not([type="radio"]):autofill,
+.owner-counter-page .form-card input:not([type="checkbox"]):not([type="radio"]):autofill {
+  background: #fff !important;
+  background-color: #fff !important;
+  background-image: none !important;
   color: #101c15 !important;
   -webkit-text-fill-color: #101c15 !important;
   box-shadow: 0 0 0 1000px #fff inset !important;
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  color-scheme: light;
 }
 
 .payment-card {
@@ -10694,6 +11116,10 @@ input.invalid {
   border: 1px solid #d9e8d9;
   border-radius: 8px;
   background: #fff;
+}
+
+[data-theme="dark"] .time-slot.unavailable {
+  background: #1f2937;
 }
 
 /* --- END OF partner.css --- */
