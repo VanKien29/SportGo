@@ -20,28 +20,38 @@
 
       <!-- Right: Filters + Metrics -->
       <div class="top-right">
-        <SaaSFilterBar
-          :model-value="filters.status"
-          @update:model-value="val => { filters.status = val; loadBookings(); }"
-          :tabs="statusTabs"
-        >
-          <template #actions>
-            <label class="toolbar-select-label">
-              <span>Cụm sân</span>
-              <select v-model="filters.venue_cluster_id" @change="onClusterChange">
-                <option value="">Tất cả</option>
-                <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-              </select>
-            </label>
-            <label class="toolbar-select-label">
-              <span>Sân con</span>
-              <select v-model="filters.venue_court_id" @change="loadBookings">
-                <option value="">Tất cả</option>
-                <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
-              </select>
-            </label>
-          </template>
-        </SaaSFilterBar>
+        <section class="filters">
+          <label>
+            <span>Cụm sân</span>
+            <select v-model="filters.venue_cluster_id" @change="onClusterChange">
+              <option value="">Tất cả</option>
+              <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Sân con</span>
+            <select v-model="filters.venue_court_id" @change="loadBookings">
+              <option value="">Tất cả</option>
+              <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Trạng thái</span>
+            <select v-model="filters.status" @change="loadBookings">
+              <option value="">Tất cả</option>
+              <option value="pending_approval">Chờ duyệt</option>
+              <option value="pending_payment">Chờ thanh toán</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="checked_in">Đã check-in</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
+              <option value="rejected">Từ chối</option>
+            </select>
+          </label>
+          <button class="icon-btn" type="button" title="Tải lại" aria-label="Tải lại" @click="loadBookings">
+            <AppIcon name="refresh" size="17" />
+          </button>
+        </section>
 
         <div class="metric-row">
           <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
@@ -352,7 +362,6 @@ import { venueClusterService } from '../../services/venueClusters.js';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import MiniCalendar from '../../components/MiniCalendar.vue';
-import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 
 function localIsoDate(date = new Date()) {
   const year = date.getFullYear();
@@ -363,7 +372,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'OwnerBookings',
-  components: { ActionIconButton, AppIcon, MiniCalendar, SaaSFilterBar },
+  components: { ActionIconButton, AppIcon, MiniCalendar },
   data() {
     return {
       clusters: [],
@@ -374,9 +383,7 @@ export default {
         venue_court_id: '',
         booking_date: localIsoDate(),
         status: '',
-        q: '',
       },
-      searchTimeout: null,
       loading: true,
       scheduleLoading: false,
       scheduleError: '',
@@ -424,18 +431,6 @@ export default {
     };
   },
   computed: {
-    statusTabs() {
-      return [
-        { label: 'Tất cả', value: '' },
-        { label: 'Chờ duyệt', value: 'pending_approval' },
-        { label: 'Chờ thanh toán', value: 'pending_payment' },
-        { label: 'Đã xác nhận', value: 'confirmed' },
-        { label: 'Đã check-in', value: 'checked_in' },
-        { label: 'Hoàn thành', value: 'completed' },
-        { label: 'Đã hủy', value: 'cancelled' },
-        { label: 'Từ chối', value: 'rejected' },
-      ];
-    },
     activePeriod() {
       return this.timePeriods.find((period) => period.key === this.activeTimePeriod) || this.timePeriods[0];
     },
@@ -578,12 +573,6 @@ export default {
     if (this.holdClockInterval) clearInterval(this.holdClockInterval);
   },
   methods: {
-    onSearchInput() {
-      clearTimeout(this.searchTimeout);
-      this.searchTimeout = setTimeout(() => {
-        this.loadBookings();
-      }, 400);
-    },
     async loadClusters() {
       const response = await venueClusterService.getClusters();
       this.clusters = response.data || [];
@@ -1138,400 +1127,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-/* ─── Page ───────────────────────────────────────────── */
-.bookings-page {
-  display: grid;
-  gap: 20px;
-  width: 100%;
-}
-
-/* ─── Floating Action Button ─────────────────────────── */
-.floating-add-container {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  z-index: 500;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.btn-float-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 18px;
-  background: var(--admin-primary);
-  color: var(--admin-primary-text);
-  border-radius: 22px;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  border: 1px solid var(--admin-border-soft);
-  transition: background 0.18s ease, transform 0.18s ease;
-  white-space: nowrap;
-}
-.btn-float-add:hover {
-  background: var(--admin-primary-dark);
-  transform: translateY(-1px);
-}
-
-/* ─── Filter Bar (SaaSFilterBar Wrapper) ────────────── */
-:deep(.top-right .avc-filters) {
-  background: var(--admin-surface) !important;
-  border: 1px solid var(--admin-border-soft) !important;
-  border-radius: var(--admin-radius-lg) !important;
-  padding: 16px !important;
-}
-
-
-:deep(.avc-filters .filter-actions) {
-  display: flex !important;
-  align-items: flex-end !important;
-  gap: 12px !important;
-}
-
-:deep(.toolbar-select-label) {
-  display: grid !important;
-  gap: 5px !important;
-}
-
-:deep(.toolbar-select-label span) {
-  color: color-mix(in srgb, var(--admin-text) 60%, transparent) !important;
-  font-weight: 500 !important;
-  text-transform: uppercase !important;
-  font-size: var(--admin-font-size-xs) !important;
-  letter-spacing: 0.04em !important;
-}
-
-:deep(.toolbar-select-label select) {
-  border-color: var(--admin-border) !important;
-  background: var(--admin-bg-soft) !important;
-  color: var(--admin-text) !important;
-  border-radius: var(--admin-radius) !important;
-  font-size: var(--admin-font-size-md) !important;
-  height: 38px !important;
-  min-width: 140px !important;
-  padding: 8px 12px !important;
-  transition: border-color 0.15s ease !important;
-}
-
-:deep(.toolbar-select-label select:focus) {
-  border-color: var(--admin-primary) !important;
-  outline: none !important;
-}
-
-/* ─── Metric Cards ───────────────────────────────────── */
-:deep(.metric-row) {
-  border-radius: var(--admin-radius-lg) !important;
-  border-color: var(--admin-border-soft) !important;
-  overflow: hidden !important;
-}
-
-:deep(.metric-card) {
-  background: var(--admin-surface) !important;
-  padding: 14px 16px !important;
-  min-height: 64px !important;
-}
-
-:deep(.metric-card span) {
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  color: var(--admin-muted) !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
-}
-
-:deep(.metric-card strong) {
-  font-size: 24px !important;
-  font-weight: 600 !important;
-  color: var(--admin-text) !important;
-  letter-spacing: -0.03em !important;
-  line-height: 1 !important;
-}
-
-:deep(.metric-card + .metric-card) {
-  border-left-color: var(--admin-border-soft) !important;
-}
-
-/* ─── Schedule Card ──────────────────────────────────── */
-:deep(.schedule-card) {
-  border-radius: var(--admin-radius-lg) !important;
-  border-color: var(--admin-border-soft) !important;
-  box-shadow: none !important;
-}
-
-:deep(.schedule-head h2) {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  color: var(--admin-text) !important;
-  letter-spacing: -0.02em !important;
-}
-
-:deep(.schedule-head p) {
-  color: var(--admin-muted) !important;
-  font-size: 13px !important;
-}
-
-/* ─── Period Switcher ────────────────────────────────── */
-.period-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  border-bottom: 1px solid var(--admin-border-soft);
-  padding-bottom: 12px;
-}
-
-.period-row button {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.period-row button:hover:not(.active) {
-  background: var(--admin-bg-soft);
-  border-color: var(--admin-border);
-}
-
-.period-row button.active {
-  background: var(--admin-primary);
-  border-color: var(--admin-primary);
-  color: var(--admin-primary-text);
-}
-
-/* ─── Timeline Board ─────────────────────────────────── */
-:deep(.timeline-axis) {
-  background: var(--admin-bg-soft) !important;
-  border-bottom-color: var(--admin-border-soft) !important;
-}
-
-:deep(.timeline-board) {
-  border-color: var(--admin-border-soft) !important;
-  border-radius: var(--admin-radius) !important;
-}
-
-:deep(.timeline-row) {
-  border-bottom-color: var(--admin-border-soft) !important;
-  min-height: 72px !important;
-}
-
-:deep(.court-meta) {
-  background: var(--admin-surface) !important;
-  border-right-color: var(--admin-border-soft) !important;
-}
-
-:deep(.court-meta strong) {
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  color: var(--admin-text) !important;
-}
-
-:deep(.court-meta span) {
-  font-size: 11px !important;
-  color: var(--admin-muted) !important;
-}
-
-:deep(.timeline-track) {
-  background: var(--admin-surface) !important;
-}
-
-:deep(.axis-court) {
-  color: var(--admin-text) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
-}
-
-:deep(.axis-tick) {
-  color: var(--admin-muted) !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-}
-
-/* ─── Timeline Blocks ────────────────────────────────── */
-:deep(.timeline-block) {
-  border-radius: 6px !important;
-  box-shadow: none !important;
-  transition: outline 0.12s ease !important;
-}
-
-:deep(.timeline-block:hover) {
-  box-shadow: none !important;
-}
-
-:deep(.timeline-block.active) {
-  outline: 2px solid var(--admin-primary) !important;
-  outline-offset: 2px !important;
-  box-shadow: none !important;
-}
-
-:deep(.timeline-block strong) {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.timeline-block small),
-:deep(.block-time) {
-  font-size: 10px !important;
-  font-weight: 500 !important;
-}
-
-/* ─── Legend ─────────────────────────────────────────── */
-:deep(.legend) {
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  color: var(--admin-muted) !important;
-  gap: 12px !important;
-}
-
-:deep(.legend i) {
-  width: 8px !important;
-  height: 8px !important;
-  border-radius: 50% !important;
-}
-
-/* ─── Drawer Panel ───────────────────────────────────── */
-:deep(.drawer-panel) {
-  background: var(--admin-surface) !important;
-  box-shadow: none !important;
-  border-left: 1px solid var(--admin-border) !important;
-}
-
-:deep(.drawer-eyebrow) {
-  color: var(--admin-primary) !important;
-  font-size: 10px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.08em !important;
-}
-
-:deep(.drawer-title) {
-  color: var(--admin-text) !important;
-  font-size: 18px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.02em !important;
-}
-
-:deep(.drawer-subtitle) {
-  color: var(--admin-muted) !important;
-  font-size: 12px !important;
-}
-
-:deep(.drawer-close) {
-  background: var(--admin-bg-soft) !important;
-  border-color: var(--admin-border-soft) !important;
-  color: var(--admin-muted) !important;
-  border-radius: 8px !important;
-  transition: all 0.15s ease !important;
-}
-
-:deep(.drawer-close:hover) {
-  background: var(--admin-bg) !important;
-  color: var(--admin-text) !important;
-}
-
-:deep(.drawer-list) {
-  border-top-color: var(--admin-border-soft) !important;
-}
-
-:deep(.drawer-list div) {
-  border-bottom-color: var(--admin-border-soft) !important;
-}
-
-:deep(.drawer-list dt) {
-  color: var(--admin-muted) !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-}
-
-:deep(.drawer-list dd) {
-  color: var(--admin-text) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.drawer-action) {
-  background: var(--admin-surface) !important;
-  border-color: var(--admin-border-soft) !important;
-  color: var(--admin-text) !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  border-radius: 7px !important;
-  transition: background 0.12s ease !important;
-}
-
-:deep(.drawer-action:hover) {
-  background: var(--admin-bg-soft) !important;
-}
-
-:deep(.drawer-action.danger) {
-  border-color: color-mix(in srgb, var(--admin-danger) 30%, transparent) !important;
-  background: var(--admin-danger-soft) !important;
-  color: var(--admin-danger) !important;
-}
-
-/* ─── Alerts ─────────────────────────────────────────── */
-:deep(.alert) {
-  border-radius: var(--admin-radius) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-}
-
-:deep(.alert.error) {
-  border-color: color-mix(in srgb, var(--admin-danger) 20%, transparent) !important;
-  background: var(--admin-danger-soft) !important;
-  color: var(--admin-danger) !important;
-}
-
-:deep(.alert.success) {
-  border-color: color-mix(in srgb, var(--admin-primary) 20%, transparent) !important;
-  background: var(--admin-primary-soft) !important;
-  color: var(--admin-success-text) !important;
-}
-
-/* ─── Modals ─────────────────────────────────────────── */
-:deep(.modal-panel) {
-  border-radius: var(--admin-radius-lg) !important;
-  border-color: var(--admin-border-soft) !important;
-  background: var(--admin-surface) !important;
-  box-shadow: none !important;
-  border: 1px solid var(--admin-border) !important;
-}
-
-:deep(.modal-panel h2) {
-  font-size: 16px !important;
-  font-weight: 600 !important;
-  color: var(--admin-text) !important;
-  letter-spacing: -0.02em !important;
-}
-
-:deep(.collect-summary div) {
-  border-radius: var(--admin-radius) !important;
-  border-color: var(--admin-border-soft) !important;
-  background: var(--admin-bg-soft) !important;
-}
-
-:deep(.collect-summary .highlight) {
-  border-color: color-mix(in srgb, var(--admin-primary) 30%, transparent) !important;
-  background: var(--admin-primary-soft) !important;
-}
-
-/* ─── Reduced motion ─────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .btn-float-add { transition: none; }
-}
-</style>

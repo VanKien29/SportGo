@@ -10,10 +10,6 @@
 /.idea
 /.nova
 /.phpunit.cache
-/.agents
-/.claude
-/.gemini
-.impeccable
 /.vscode
 /.zed
 /auth.json

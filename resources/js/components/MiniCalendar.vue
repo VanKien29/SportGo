@@ -391,7 +391,7 @@ export default {
     display: grid;
     place-items: center;
     height: 24px;
-    color: var(--admin-muted, #94a3b8);
+    color: var(--admin-faint, #94a3b8);
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.03em;

@@ -500,29 +500,19 @@ const routes = [
                 component: () => import("../views/staff/StaffDashboard.vue"),
             },
             {
-                path: "booking-list",
-                name: "staff-booking-list",
-                component: () => import("../views/owner/OwnerCounterBooking.vue"),
-            },
-            {
-                path: "counter-booking",
-                name: "staff-counter-booking",
-                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+                path: "schedules",
+                name: "staff-schedules",
+                component: () => import("../views/staff/StaffSchedules.vue"),
             },
             {
                 path: "bookings",
                 name: "staff-bookings",
-                component: () => import("../views/owner/OwnerBookings.vue"),
+                component: () => import("../views/staff/StaffBookings.vue"),
             },
             {
-                path: "schedules",
-                name: "staff-schedules",
-                component: () => import("../views/owner/OwnerStaffShifts.vue"),
-            },
-            {
-                path: "staff-shifts",
-                name: "staff-staff-shifts",
-                component: () => import("../views/owner/OwnerStaffShifts.vue"),
+                path: "counter-booking",
+                name: "staff-counter-booking",
+                component: () => import("../views/staff/StaffCounterBooking.vue"),
             },
             {
                 path: "settings",
@@ -616,7 +606,7 @@ router.beforeEach(async (to, from, next) => {
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
             if (auth.role_group === "staff")
-                return next({ name: "staff-chat" });
+                return next({ name: "staff-dashboard" });
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
         }
@@ -630,7 +620,7 @@ router.beforeEach(async (to, from, next) => {
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
         if (auth.role_group === "staff")
-            return next({ name: "staff-chat" });
+            return next({ name: "staff-dashboard" });
         return next({ name: "home" });
     }
 

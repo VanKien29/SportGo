@@ -1119,7 +1119,14 @@
                         sân, trạng thái và thanh toán.
                     </p>
                 </div>
-
+                <button
+                    class="icon-btn"
+                    type="button"
+                    title="Tải lại"
+                    @click="loadBookingList"
+                >
+                    <AppIcon name="refresh" size="17" />
+                </button>
             </div>
 
             <div class="filters booking-list-filters">
@@ -1305,7 +1312,14 @@
                         tiền còn phải thu.
                     </p>
                 </div>
-
+                <button
+                    class="icon-btn"
+                    type="button"
+                    title="Tải lại"
+                    @click="loadRecurringGroups"
+                >
+                    <AppIcon name="refresh" size="17" />
+                </button>
             </div>
 
             <div class="filters recurring-list-filters">
