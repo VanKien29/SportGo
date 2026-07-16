@@ -2,11 +2,11 @@
   <div class="moderation-page">
 
       <!-- Lọc theo Trạng thái -->
-      <nav class="status-tabs" aria-label="Lọc nhanh trạng thái bài viết">
+      <nav class="custom-tabs" aria-label="Lọc nhanh trạng thái bài viết">
         <button
           v-for="st in statusTabs"
           :key="st.value"
-          :class="{ active: filters.status === st.value }"
+          :class="['custom-tab-btn', { active: filters.status === st.value }]"
           type="button"
           @click="setStatus(st.value)"
         >
@@ -25,12 +25,12 @@
           />
         </label>
 
-        <div class="auto-approve-wrapper" title="Tự động tìm & duyệt các bài mới mỗi 5 giây">
-          <label class="switch">
+        <div class="custom-switch-wrapper" title="Tự động tìm & duyệt các bài mới mỗi 5 giây">
+          <label class="custom-switch">
             <input type="checkbox" :checked="autoApproveStore.isEnabled" @change="toggleAutoApprove" />
-            <span class="slider"></span>
+            <span class="custom-slider"></span>
           </label>
-          <span class="switch-label">Duyệt tự động (5s)</span>
+          <span class="custom-switch-label">Duyệt tự động (5s)</span>
         </div>
 
         <button class="btn ghost btn-refresh" type="button" @click="refresh">
@@ -951,6 +951,95 @@ export default {
   padding: 16px;
 }
 
+.custom-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.custom-tab-btn {
+  padding: 8px 18px;
+  border-radius: 50px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.custom-tab-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.custom-tab-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.custom-switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.custom-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.custom-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.custom-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.custom-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+input:checked + .custom-slider {
+  background-color: #10b981;
+}
+
+input:checked + .custom-slider:before {
+  transform: translateX(20px);
+}
+
+.custom-switch-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
 .tabs-header {
   display: flex;
   gap: 8px;
@@ -1543,6 +1632,19 @@ th {
   font-weight: 500;
   color: #334155;
   cursor: pointer;
+}
+
+.action-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 18px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  appearance: auto;
 }
 
 .modal-footer {

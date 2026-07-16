@@ -620,30 +620,36 @@ onMounted(() => {
   position: relative;
   width: 100%;
   max-width: 400px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  padding-left: 16px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .search-box i {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
   color: #94a3b8;
+  font-size: 15px;
+  flex-shrink: 0;
 }
 
 .search-box input {
   width: 100%;
-  padding: 12px 16px 12px 40px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  outline: none;
+  padding: 12px 16px;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   font-size: 15px;
-  transition: all 0.2s;
-  background: white;
-}
-
-.search-box input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  background: transparent !important;
+  appearance: none !important;
 }
 
 .category-filters {
@@ -856,9 +862,12 @@ onMounted(() => {
 .dark .news-summary {
   color: #a1a1aa !important;
 }
-.dark .search-box input {
+.dark .search-box {
   background: #18181b !important;
   border-color: #27272a !important;
+}
+.dark .search-box input {
+  background: transparent !important;
   color: #ffffff !important;
 }
 .dark .cat-btn {

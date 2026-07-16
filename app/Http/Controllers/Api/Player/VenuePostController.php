@@ -11,7 +11,7 @@ use App\Services\VenuePostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-
+use Illuminate\Support\Str;
 class VenuePostController extends Controller
 {
     public function __construct(private VenuePostService $venuePostService)
@@ -111,17 +111,51 @@ class VenuePostController extends Controller
     public function comment(StoreVenuePostCommentRequest $request, string $id)
     {
         $post = VenuePost::where('status', 'published')->findOrFail($id);
+        $user = $request->user();
         
+        $parentId = $request->input('parent_id');
+
         $commentId = DB::table('venue_post_comments')->insertGetId([
             'venue_post_id' => $post->id,
-            'user_id' => $request->user()->id,
+            'user_id' => $user->id,
             'content' => strip_tags($request->input('content')),
-            'parent_id' => $request->input('parent_id'),
+            'parent_id' => $parentId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $post->increment('comment_count');
+        
+        $userName = $user->full_name ?: $user->username;
+
+        if ($parentId) {
+            $parentComment = DB::table('venue_post_comments')->where('id', $parentId)->first();
+            if ($parentComment && $parentComment->user_id !== $user->id) {
+                \App\Models\Notification::query()->create([
+                    'user_id' => $parentComment->user_id,
+                    'type' => 'comment_reply',
+                    'title' => 'Ai đó đã trả lời bình luận của bạn',
+                    'body' => $userName . ' đã trả lời bình luận của bạn trên cộng đồng.',
+                    'reference_type' => 'venue_posts',
+                    'reference_id' => $post->id,
+                    'data' => isset($post->slug) ? ['slug' => $post->slug] : null,
+                    'is_read' => false,
+                ]);
+            }
+        } else {
+            if ($post->author_id !== $user->id) {
+                \App\Models\Notification::query()->create([
+                    'user_id' => $post->author_id,
+                    'type' => 'post_comment',
+                    'title' => 'Ai đó đã bình luận bài viết của bạn',
+                    'body' => $userName . ' đã bình luận về bài viết của bạn trên cộng đồng.',
+                    'reference_type' => 'venue_posts',
+                    'reference_id' => $post->id,
+                    'data' => isset($post->slug) ? ['slug' => $post->slug] : null,
+                    'is_read' => false,
+                ]);
+            }
+        }
 
         return response()->json(['message' => 'Đã gửi bình luận.', 'data' => ['id' => $commentId]]);
     }
@@ -129,22 +163,38 @@ class VenuePostController extends Controller
     public function toggleLike(Request $request, string $id)
     {
         $post = VenuePost::where('status', 'published')->findOrFail($id);
-        $userId = $request->user()->id;
+        $user = $request->user();
 
-        $like = DB::table('venue_post_likes')->where('post_id', $post->id)->where('user_id', $userId)->first();
+        $like = DB::table('venue_post_likes')->where('post_id', $post->id)->where('user_id', $user->id)->first();
 
         if ($like) {
-            DB::table('venue_post_likes')->where('post_id', $post->id)->where('user_id', $userId)->delete();
+            DB::table('venue_post_likes')->where('post_id', $post->id)->where('user_id', $user->id)->delete();
             $post->decrement('like_count');
             return response()->json(['message' => 'Đã bỏ thích.']);
         } else {
             DB::table('venue_post_likes')->insert([
+                'id' => Str::uuid(),
                 'post_id' => $post->id,
-                'user_id' => $userId,
+                'user_id' => $user->id,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
             $post->increment('like_count');
+            
+            if ($post->author_id !== $user->id) {
+                $userName = $user->full_name ?: $user->username;
+                \App\Models\Notification::query()->create([
+                    'user_id' => $post->author_id,
+                    'type' => 'post_like',
+                    'title' => 'Ai đó đã thích bài viết của bạn',
+                    'body' => $userName . ' đã thích bài viết của bạn trên cộng đồng.',
+                    'reference_type' => 'venue_posts',
+                    'reference_id' => $post->id,
+                    'data' => isset($post->slug) ? ['slug' => $post->slug] : null,
+                    'is_read' => false,
+                ]);
+            }
+            
             return response()->json(['message' => 'Đã thích bài viết.']);
         }
     }

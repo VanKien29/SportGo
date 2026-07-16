@@ -481,3 +481,119 @@ export default {
   .booking-meta { grid-template-columns: 1fr; }
 }
 </style>
+
+<style>
+/* Dark Mode Support for Booking History */
+.dark .booking-history-page {
+  background-color: #09090b !important;
+  color: #f8fafc !important;
+  min-height: 100vh;
+}
+
+.dark .booking-history-page .history-header h1 {
+  color: #f8fafc !important;
+}
+
+.dark .booking-history-page .history-header p {
+  color: #a1a1aa !important;
+}
+
+.dark .booking-history-page .history-header .eyebrow {
+  color: #10b981 !important;
+}
+
+.dark .filters button {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+
+.dark .filters button.active {
+  border-color: #059669 !important;
+  background: #064e3b !important;
+  color: #34d399 !important;
+}
+
+.dark .history-panel {
+  border-color: #27272a !important;
+  background: #18181b !important;
+}
+
+.dark .state {
+  color: #a1a1aa !important;
+}
+
+.dark .state.empty strong {
+  color: #f8fafc !important;
+}
+
+.dark .booking-card {
+  border-color: #27272a !important;
+  background: #09090b !important;
+}
+
+.dark .booking-card h2 {
+  color: #f8fafc !important;
+}
+
+.dark .status-badge {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+}
+
+.dark .status-badge.confirmed,
+.dark .status-badge.completed,
+.dark .status-badge.checked_in {
+  background: #064e3b !important;
+  color: #34d399 !important;
+}
+
+.dark .status-badge.pending_payment,
+.dark .status-badge.pending_approval {
+  background: #78350f !important;
+  color: #fcd34d !important;
+}
+
+.dark .status-badge.cancelled,
+.dark .status-badge.expired,
+.dark .status-badge.rejected {
+  background: #7f1d1d !important;
+  color: #fca5a5 !important;
+}
+
+.dark .booking-meta {
+  background: #18181b !important;
+  border: 1px solid #27272a !important;
+}
+
+.dark .booking-meta span {
+  color: #a1a1aa !important;
+}
+
+.dark .booking-meta strong {
+  color: #e2e8f0 !important;
+}
+
+.dark .ghost-action,
+.dark .pagination button {
+  border-color: #27272a !important;
+  background: #18181b !important;
+  color: #f8fafc !important;
+}
+
+.dark .ghost-action:hover,
+.dark .pagination button:hover {
+  background: #27272a !important;
+}
+
+.dark .danger-action {
+  border-color: #7f1d1d !important;
+  color: #f87171 !important;
+  background: #18181b !important;
+}
+
+.dark .danger-action:hover {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+}
+</style>
