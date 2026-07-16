@@ -153,74 +153,14 @@
             </button>
           </div>
 
-          <!-- Font Family Section -->
-          <div class="settings-section-title">Phông chữ</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="font in fontFamilyOptions"
-              :key="font.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedFontFamily === font.value }"
-              @click="selectedFontFamily = font.value"
-            >
-              {{ font.label }}
-            </button>
-          </div>
-
-          <!-- Sidebar Width Section -->
-          <div class="settings-section-title">Độ rộng Sidebar</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="w in sidebarWidthOptions"
-              :key="w.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedSidebarWidth === w.value }"
-              @click="selectedSidebarWidth = w.value"
-            >
-              {{ w.label }}
-            </button>
-          </div>
-
-          <!-- Sidebar Collapsed Width Section -->
-          <div class="settings-section-title">Độ rộng thu nhỏ Sidebar</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="cw in sidebarCollapsedWidthOptions"
-              :key="cw.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedSidebarCollapsedWidth === cw.value }"
-              @click="selectedSidebarCollapsedWidth = cw.value"
-            >
-              {{ cw.label }}
-            </button>
-          </div>
-
-          <!-- Transition Speeds Section -->
-          <div class="settings-section-title">Tốc độ chuyển động</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="t in transitionOptions"
-              :key="t.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedTransitionNormal === t.value }"
-              @click="updateTransitionSpeeds(t.value)"
-            >
-              {{ t.label }}
-            </button>
-          </div>
-
           <!-- Color Customizer Section -->
           <div class="settings-section-title">Chỉnh sửa bảng màu</div>
           
           <!-- Mode Tabs (Segmented Toggle Control) -->
-          <div class="radius-selector-group">
+          <div class="mode-toggle-group">
             <button
               type="button"
-              class="radius-btn"
+              class="toggle-tab-btn"
               :class="{ active: activeModeTab === 'light' }"
               @click="activeModeTab = 'light'"
             >
@@ -228,7 +168,7 @@
             </button>
             <button
               type="button"
-              class="radius-btn"
+              class="toggle-tab-btn"
               :class="{ active: activeModeTab === 'dark' }"
               @click="activeModeTab = 'dark'"
             >
@@ -308,7 +248,7 @@
               <button
                 v-if="isCustomPresetActive"
                 type="button"
-                class="btn primary update-preset-btn"
+                class="btn-primary update-preset-btn"
                 @click="updateActivePreset"
                 :disabled="!newThemeName.trim()"
               >
@@ -316,7 +256,7 @@
               </button>
               <button
                 type="button"
-                class="btn secondary save-preset-btn"
+                class="btn-secondary save-preset-btn"
                 @click="saveAsNewPreset"
                 :disabled="!newThemeName.trim()"
               >
@@ -361,10 +301,10 @@
 
       <!-- Action Bar -->
       <div class="settings-card-footer">
-        <button type="button" class="btn secondary" @click="resetAll">
+        <button type="button" class="btn-secondary" @click="resetAll">
           Mặc định ban đầu
         </button>
-        <button type="button" class="btn primary" @click="saveTheme">
+        <button type="button" class="btn-primary" @click="saveTheme">
           <span>Áp dụng cấu hình</span>
         </button>
       </div>
@@ -432,13 +372,8 @@ export default {
       selectedPresetId: 'owner-sportgo',
       selectedRadius: '8px',
       selectedFontSize: '14px',
-      selectedFontFamily: "'Outfit', sans-serif",
-      selectedSidebarWidth: '272px',
-      selectedSidebarCollapsedWidth: '78px',
-      selectedTransitionFast: '180ms',
-      selectedTransitionNormal: '250ms',
       newThemeName: '',
-      activeModeTab: localStorage.getItem('owner-settings-active-mode-tab') || 'light',
+      activeModeTab: 'light',
       activePickerColorKey: null,
       pickerHue: 0,
       pickerSat: 100,
@@ -457,35 +392,11 @@ export default {
         { label: '15px', value: '15px' },
         { label: '16px', value: '16px' },
       ],
-      fontFamilyOptions: [
-        { label: 'Outfit', value: "'Outfit', sans-serif" },
-        { label: 'Inter', value: "'Inter', sans-serif" },
-        { label: 'Roboto', value: "'Roboto', sans-serif" },
-        { label: 'Playfair', value: "'Playfair Display', serif" },
-      ],
-      sidebarWidthOptions: [
-        { label: '240px', value: '240px' },
-        { label: '256px', value: '256px' },
-        { label: '272px', value: '272px' },
-        { label: '288px', value: '288px' },
-      ],
-      sidebarCollapsedWidthOptions: [
-        { label: '64px', value: '64px' },
-        { label: '72px', value: '72px' },
-        { label: '78px', value: '78px' },
-        { label: '80px', value: '80px' },
-      ],
-      transitionOptions: [
-        { label: 'Nhanh (150ms)', value: '150ms' },
-        { label: 'Bình thường (250ms)', value: '250ms' },
-        { label: 'Chậm (350ms)', value: '350ms' },
-      ],
       defaultPresets: PRESETS,
       userPresets: [],
       colorDefinitions: [
-        { key: 'text', label: 'Text (Chữ chính)', desc: 'Màu chữ nội dung chính' },
-        { key: 'primary', label: 'Màu chủ đạo (Nút bấm, Lịch chọn, Active)', desc: 'Áp dụng cho các nút lưu/xác nhận, ô lịch đang chọn, tab hoạt động và menu chính.' },
-        { key: 'secondary', label: 'Màu phụ (Chờ duyệt, Đang xử lý)', desc: 'Áp dụng cho các nhãn trạng thái chờ thanh toán, nháp, đang xử lý và các biểu đồ phụ.' },
+        { key: 'primary', label: 'Primary (Chủ đạo)', desc: 'Màu chính hệ thống' },
+        { key: 'secondary', label: 'Secondary (Màu phụ)', desc: 'Màu nhấn liên kết, phụ' },
         { key: 'accent', label: 'Accent (Hover nền)', desc: 'Màu nền hover hàng/khối' },
         { key: 'muted', label: 'Muted (Mô tả phụ)', desc: 'Màu text nhạt, mô tả phụ' },
         { key: 'destructive', label: 'Destructive (Cảnh báo)', desc: 'Màu lỗi, hành động xóa' },
@@ -758,11 +669,6 @@ export default {
           if (parsed.dark) this.theme.dark = { ...PRESETS[0].dark, ...parsed.dark };
           if (parsed.radius) this.selectedRadius = parsed.radius;
           if (parsed.font_size) this.selectedFontSize = parsed.font_size;
-          if (parsed.font_family) this.selectedFontFamily = parsed.font_family;
-          if (parsed.sidebar_width) this.selectedSidebarWidth = parsed.sidebar_width;
-          if (parsed.sidebar_collapsed_width) this.selectedSidebarCollapsedWidth = parsed.sidebar_collapsed_width;
-          if (parsed.transition_fast) this.selectedTransitionFast = parsed.transition_fast;
-          if (parsed.transition_normal) this.selectedTransitionNormal = parsed.transition_normal;
           
           const matched = this.allPresets.find(p => 
             p.light.primary === this.theme.light.primary && 
@@ -784,11 +690,6 @@ export default {
         this.selectedPresetId = 'owner-sportgo';
         this.selectedRadius = '8px';
         this.selectedFontSize = '14px';
-        this.selectedFontFamily = "'Outfit', sans-serif";
-        this.selectedSidebarWidth = '272px';
-        this.selectedSidebarCollapsedWidth = '78px';
-        this.selectedTransitionFast = '180ms';
-        this.selectedTransitionNormal = '250ms';
       }
     },
     async fetchUiSettingsFromDb() {
@@ -798,11 +699,6 @@ export default {
           this.sidebarStyle = data.sidebar_style || 'one-level';
           this.selectedRadius = data.radius || '8px';
           this.selectedFontSize = data.font_size || '14px';
-          this.selectedFontFamily = data.font_family || "'Outfit', sans-serif";
-          this.selectedSidebarWidth = data.sidebar_width || '272px';
-          this.selectedSidebarCollapsedWidth = data.sidebar_collapsed_width || '78px';
-          this.selectedTransitionFast = data.transition_fast || '180ms';
-          this.selectedTransitionNormal = data.transition_normal || '250ms';
           
           if (data.presets && data.presets.length > 0) {
             this.defaultPresets = this.mergePresets(PRESETS, data.presets);
@@ -830,12 +726,7 @@ export default {
         light: this.theme.light,
         dark: this.theme.dark,
         radius: this.selectedRadius,
-        font_size: this.selectedFontSize,
-        font_family: this.selectedFontFamily,
-        sidebar_width: this.selectedSidebarWidth,
-        sidebar_collapsed_width: this.selectedSidebarCollapsedWidth,
-        transition_fast: this.selectedTransitionFast,
-        transition_normal: this.selectedTransitionNormal
+        font_size: this.selectedFontSize
       };
       localStorage.setItem('owner-custom-theme', JSON.stringify(payload));
       localStorage.setItem('owner-sidebar-style', this.sidebarStyle);
@@ -846,11 +737,6 @@ export default {
         active_theme_id: this.selectedPresetId,
         radius: this.selectedRadius,
         font_size: this.selectedFontSize,
-        font_family: this.selectedFontFamily,
-        sidebar_width: this.selectedSidebarWidth,
-        sidebar_collapsed_width: this.selectedSidebarCollapsedWidth,
-        transition_fast: this.selectedTransitionFast,
-        transition_normal: this.selectedTransitionNormal,
         presets: this.defaultPresets,
         custom_themes: this.userPresets
       };
@@ -865,11 +751,6 @@ export default {
           sidebar_style: this.sidebarStyle,
           radius: this.selectedRadius,
           font_size: this.selectedFontSize,
-          font_family: this.selectedFontFamily,
-          sidebar_width: this.selectedSidebarWidth,
-          sidebar_collapsed_width: this.selectedSidebarCollapsedWidth,
-          transition_fast: this.selectedTransitionFast,
-          transition_normal: this.selectedTransitionNormal,
           presets: this.defaultPresets,
           custom_themes: this.userPresets,
         };
@@ -886,11 +767,6 @@ export default {
       }, 5000);
     },
   },
-  watch: {
-    activeModeTab(newVal) {
-      localStorage.setItem('owner-settings-active-mode-tab', newVal);
-    }
-  }
 };
 </script>
 
@@ -1412,7 +1288,7 @@ export default {
 /* Live Preview Panel */
 .preview-container {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 

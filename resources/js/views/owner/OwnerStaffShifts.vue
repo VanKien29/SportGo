@@ -284,10 +284,10 @@
 
           <div v-else class="day-shift-groups">
             <article v-for="group in dayScheduleGroups" :key="group.key" class="day-shift-group">
-              <div class="day-shift-group-head">
+              <header class="day-shift-group-head">
                 <div><strong>{{ group.timeLabel }}</strong><span>{{ group.shiftName }}</span></div>
                 <em>{{ group.schedules.length }} nhân viên</em>
-              </div>
+              </header>
               <div class="day-shift-staff-list">
                 <button v-for="sch in group.schedules" :key="`day-sch-${sch.id}`" type="button" class="day-staff-shift" :class="sch.status" @click="openEditSchedule(sch)">
                   <span class="day-staff-avatar">{{ getInitials(getScheduleStaffName(sch)) }}</span>
@@ -298,7 +298,7 @@
           </div>
 
           <section v-if="!isPastDate(selectedScheduleDate) && unscheduledStaffForSelectedDay.length > 0" class="day-unassigned-panel">
-            <div class="day-unassigned-panel-head"><strong>Nhân viên chưa có lịch</strong><span>{{ unscheduledStaffForSelectedDay.length }} người</span></div>
+            <header><strong>Nhân viên chưa có lịch</strong><span>{{ unscheduledStaffForSelectedDay.length }} người</span></header>
             <div class="day-unassigned-list">
               <button v-for="staffMember in unscheduledStaffForSelectedDay" :key="`day-unassigned-${staffMember.id}`" type="button" class="day-unassigned-chip" @click="openScheduleForStaffDay(staffMember.id, selectedScheduleDate)">
                 <span>{{ getInitials(staffMember.full_name) }}</span><strong>{{ staffMember.full_name }}</strong>
@@ -369,7 +369,7 @@
             :key="`mobile-week-${row.staff.id}`"
             class="mobile-staff-week"
           >
-            <div class="mobile-staff-week__header">
+            <header class="mobile-staff-week__header">
               <div>
                 <strong>{{ row.staff.full_name }}</strong>
                 <span>{{ row.staff.username }}</span>
@@ -381,7 +381,7 @@
               >
                 Phân ca
               </button>
-            </div>
+            </header>
 
             <div v-if="row.days.length === 0" class="mobile-empty-week">
               Chưa có ca trong tuần này.
@@ -546,9 +546,9 @@
     <!-- ========================================== -->
     <div v-if="showScheduleModal" class="modal-backdrop" @click.self="closeScheduleModal">
       <form class="modal schedule-modal" @submit.prevent="saveSchedules">
-        <div class="schedule-modal-head">
+        <header class="schedule-modal-head">
           <h3>Phân công ca trực cho nhân viên</h3>
-        </div>
+        </header>
 
         <div class="sch-grid">
           <section class="schedule-panel schedule-panel-left">
@@ -1601,7 +1601,7 @@ td {
 }
 
 th {
-  font-weight: 500;
+  font-weight: 700;
   font-size: 13px;
   color: var(--admin-faint, #64748b);
   background: rgba(0, 0, 0, 0.02);
@@ -1643,7 +1643,7 @@ th {
   background: var(--admin-surface, #ffffff) !important;
   color: var(--admin-text, #475569) !important;
   font-size: 13px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   cursor: pointer !important;
   transition: all 0.18s !important;
 }
@@ -1714,13 +1714,13 @@ th {
 .cluster-name {
   font-size: 12px;
   color: var(--admin-faint, #64748b);
-  font-weight: 500;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .shift-name {
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 800;
   color: var(--admin-text, #1e293b);
   margin-bottom: 8px;
 }
@@ -1730,7 +1730,7 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-text, #1e293b);
   margin-bottom: 12px;
 }
@@ -1764,13 +1764,13 @@ th {
 .timer-label {
   font-size: 12px;
   color: #166534;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .timer-value {
   font-size: 16px;
   font-family: monospace;
-  font-weight: 500;
+  font-weight: 800;
   color: #15803d;
 }
 
@@ -1795,7 +1795,7 @@ th {
   justify-content: center;
   gap: 6px;
   color: var(--admin-faint, #64748b);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
   width: 100%;
   text-align: center;
@@ -1810,7 +1810,7 @@ th {
 .table-header h4 {
   margin: 0;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 800;
 }
 
 .text-sub {
@@ -1848,7 +1848,7 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -1859,7 +1859,7 @@ th {
 
 .week-label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--admin-text, #1e293b);
   min-width: 120px;
   text-align: center;
@@ -1929,7 +1929,7 @@ th {
   margin: 0;
   color: var(--admin-text, #f4f4f5);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .day-schedule-controls {
@@ -1975,7 +1975,7 @@ th {
 .day-summary-item strong {
   color: var(--admin-text, #f4f4f5);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .day-empty-state {
@@ -1987,7 +1987,7 @@ th {
 
 .day-empty-state strong {
   color: var(--admin-text, #f4f4f5);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .day-shift-group {
@@ -2012,7 +2012,7 @@ th {
 .day-shift-group-head strong {
   color: var(--admin-text, #f4f4f5);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .day-shift-group-head span,
@@ -2061,7 +2061,7 @@ th {
   background: var(--admin-surface-muted, #27272a);
   color: var(--admin-text, #f4f4f5);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .day-staff-main {
@@ -2089,19 +2089,19 @@ th {
   padding: 16px 0 0;
 }
 
-.day-unassigned-panel-head {
+.day-unassigned-panel header {
   display: grid;
   align-content: start;
   gap: 4px;
   color: var(--admin-text, #f4f4f5);
 }
 
-.day-unassigned-panel-head strong {
+.day-unassigned-panel header strong {
   font-size: 13px;
   font-weight: 500;
 }
 
-.day-unassigned-panel-head span {
+.day-unassigned-panel header span {
   color: var(--admin-faint, #a1a1aa);
   font-size: 12px;
 }
@@ -2146,11 +2146,11 @@ th {
   align-self: center;
   padding: 4px 10px;
   border: 1px dashed var(--admin-border, #cbd5e1);
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--admin-surface, #fff);
   color: var(--admin-faint, #64748b);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
   opacity: 0.82;
   transition: border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
@@ -2289,7 +2289,7 @@ th {
 
 .text-danger {
   color: #ef4444;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 /* Modals styles matching existing owner design */
@@ -2320,7 +2320,7 @@ th {
   margin-top: 0;
   margin-bottom: 20px;
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 800;
 }
 
 .schedule-modal {
@@ -2339,7 +2339,7 @@ th {
 .schedule-modal-head h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .schedule-modal .sch-grid {
@@ -2387,7 +2387,7 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 999px;
   color: var(--admin-text, #1e293b);
   font-size: 11px;
   letter-spacing: 0;
@@ -2479,7 +2479,7 @@ label {
   flex-direction: column;
   gap: 6px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-faint, #64748b);
 }
 
@@ -2570,7 +2570,7 @@ input[type='time'] {
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2619,7 +2619,7 @@ footer {
   color: var(--admin-faint, #64748b) !important;
   padding: 0 12px !important;
   font-size: 13px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   border-radius: 6px !important;
   cursor: pointer;
   display: inline-flex;
@@ -2655,7 +2655,7 @@ footer {
 
 .shift-timeline-layout .axis-staff {
   width: 180px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-faint, #64748b);
   font-size: 13px;
 }
@@ -2670,16 +2670,8 @@ footer {
   position: absolute;
   transform: translateX(-50%);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-faint, #94a3b8);
-}
-
-.shift-timeline-layout .axis-tick[style*="left: 0%"] {
-  transform: translateX(0) !important;
-}
-
-.shift-timeline-layout .axis-tick[style*="left: 100%"] {
-  transform: translateX(-100%) !important;
 }
 
 .shift-timeline-layout .timeline-row {
@@ -2742,7 +2734,7 @@ footer {
 
 .shift-timeline-layout .timeline-block strong {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -2807,7 +2799,7 @@ footer {
 
 .field-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-faint, #64748b);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2826,7 +2818,7 @@ footer {
   align-items: center;
   gap: 7px;
   padding: 7px 12px 7px 8px;
-  border-radius: 4px;
+  border-radius: 999px;
   border: 1.5px solid var(--admin-border, #e2e8f0);
   background: var(--admin-surface-muted, #f8fafc);
   color: var(--admin-text, #1e293b);
@@ -2845,7 +2837,7 @@ footer {
 .staff-chip.active {
   border-color: var(--admin-focus-border, #18181b);
   color: var(--admin-primary-dark, #27272a);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .chip-avatar {
@@ -2855,7 +2847,7 @@ footer {
   background: var(--admin-border, #cbd5e1);
   color: var(--admin-muted, #475569);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2877,7 +2869,7 @@ footer {
 .chip-check {
   font-size: 11px;
   color: var(--admin-primary-dark, #27272a);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 /* Date picker row */
@@ -3065,7 +3057,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .cal-month-label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-text, #1e293b);
 }
 
@@ -3077,7 +3069,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   background: var(--admin-surface-muted, #f8fafc);
   color: var(--admin-text, #1e293b);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -3100,7 +3092,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 .cal-weekdays span {
   text-align: center;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-faint, #64748b);
   padding: 2px 0;
   text-transform: uppercase;
@@ -3138,14 +3130,14 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .cal-day.is-today {
   border: 1.5px solid var(--admin-primary, #18181b);
-  font-weight: 500;
+  font-weight: 700;
   color: var(--admin-primary-dark, #27272a);
 }
 
 .cal-day.is-selected {
   background: var(--admin-primary, #18181b) !important;
   color: #fff !important;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .cal-day.is-past,
@@ -3250,12 +3242,12 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .shift-time-badge {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--admin-faint, #64748b);
   background: var(--admin-bg-soft, #f7f9fc);
   border: 1px solid var(--admin-border-soft, #e2e8f0);
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 999px;
   white-space: nowrap;
 }
 
@@ -3563,7 +3555,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   .mobile-shift-card__body span {
     color: var(--admin-faint, #64748b);
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 700;
     text-transform: uppercase;
   }
 
@@ -3588,7 +3580,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     border-radius: 8px;
     background: var(--admin-surface, #fff);
     color: var(--admin-text, #1e293b);
-    font-weight: 500;
+    font-weight: 700;
     cursor: pointer;
   }
 
@@ -3656,7 +3648,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
   .mobile-schedule-pill span {
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 800;
     white-space: nowrap;
   }
 
@@ -3672,7 +3664,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     color: var(--admin-faint, #64748b);
     font-size: 11px;
     font-style: normal;
-    font-weight: 500;
+    font-weight: 700;
     white-space: nowrap;
   }
 
@@ -3683,7 +3675,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
   .btn-float-add {
     min-height: 52px;
-    border-radius: 4px;
+    border-radius: 999px;
   }
 
   .modal-backdrop {
@@ -3780,4 +3772,4 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     white-space: normal;
   }
 }
-/* UI rules */.page>.avc-filters{border:0;background:transparent;box-shadow:none;padding:0}.page .filter-tabs{gap:8px}.page .tab-btn,.page .toggle-btn{border:0;border-radius:4px;background:transparent;font-weight:500;box-shadow:none}.page .tab-btn.active,.page .toggle-btn.active{background:var(--admin-primary-soft);color:var(--admin-primary);font-weight:500}.page .table-card,.page .staff-today-container,.page .day-schedule-container,.page .day-schedule-section{border:0;border-radius:0;background:var(--admin-surface);box-shadow:none}.page .my-shift-card,.page .day-shift-group,.page .mobile-staff-week,.page .day-unassigned-panel{border:0;border-radius:0;background:var(--admin-bg-soft);box-shadow:none}.page .card-header,.page .table-header,.page .schedule-modal-head{border-bottom:1px solid var(--admin-border-soft);font-weight:500}.page h2,.page h3,.page h4,.page strong{font-weight:500}.page .badge,.page .status-badge,.page .staff-chip,.page .day-unassigned-chip{border-radius:4px;font-weight:500}.page table th{font-weight:500}.page table td{font-weight:400}.page .day-unassigned-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--admin-border-soft)}.page .day-unassigned-panel-head strong,.page .day-unassigned-panel-head span{font-weight:500}</style>
+</style>

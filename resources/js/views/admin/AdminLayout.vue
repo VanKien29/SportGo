@@ -25,7 +25,7 @@ import {
 
 import { autoApproveStore } from '../../stores/autoApprove.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
-import { applyAuthThemeStyles, applyCustomThemeStyles } from '../../utils/theme.js';
+import { applyCustomThemeStyles } from '../../utils/theme.js';
 
 export default {
   name: 'AdminLayout',
@@ -115,9 +115,7 @@ export default {
             const themePayload = {
               light: activePreset.light,
               dark: activePreset.dark,
-              radius: data.radius || '8px',
-              font_size: data.font_size || '14px',
-              font_family: data.font_family || "'Outfit', sans-serif",
+              radius: data.radius || '8px'
             };
             localStorage.setItem('admin-custom-theme', JSON.stringify(themePayload));
           }
@@ -130,7 +128,6 @@ export default {
             localStorage.setItem('admin-user-presets', JSON.stringify(data.custom_themes));
           }
 
-          applyAuthThemeStyles();
           applyCustomThemeStyles();
           window.dispatchEvent(new Event('sidebar-style-changed'));
         }

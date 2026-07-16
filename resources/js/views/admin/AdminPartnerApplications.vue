@@ -18,24 +18,33 @@
       </article>
     </section>
 
-    <SaaSFilterBar
-      v-model="selectedTab"
-      v-model:search="searchQuery"
-      :tabs="listTabs"
-      class="partner-filter-bar"
-    >
-      <template #actions>
-        <select
-          v-model="filters.status"
-          class="partner-status-filter"
-          aria-label="Trạng thái hồ sơ"
-          @change="loadApplications(1)"
-        >
-          <option value="">Tất cả trạng thái</option>
+    <div class="tabs">
+      <button
+        v-for="tab in listTabsUi"
+        :key="tab.value"
+        class="tab-btn"
+        :class="{ active: filters.tab === tab.value }"
+        type="button"
+        @click="selectListTab(tab.value)"
+      >
+        <span>{{ tab.label }}</span>
+        <strong>{{ listTabCount(tab.value) }}</strong>
+      </button>
+    </div>
+
+    <div class="toolbar card">
+      <label class="field">
+        <span>Tìm kiếm</span>
+        <input v-model.trim="filters.search" type="search" placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân" @input="onFilterChange" />
+      </label>
+      <label class="field">
+        <span>Trạng thái</span>
+        <select v-model="filters.status" @change="loadApplications(1)">
+          <option value="">Tất cả</option>
           <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
-      </template>
-    </SaaSFilterBar>
+      </label>
+    </div>
 
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -152,23 +161,6 @@ export default {
     };
   },
   computed: {
-    selectedTab: {
-      get() {
-        return this.filters.tab;
-      },
-      set(tab) {
-        this.selectListTab(tab);
-      },
-    },
-    searchQuery: {
-      get() {
-        return this.filters.search;
-      },
-      set(value) {
-        this.filters.search = value.trim();
-        this.onFilterChange();
-      },
-    },
     listTabsUi() {
       return [
         { value: 'all', label: 'Tất cả' },

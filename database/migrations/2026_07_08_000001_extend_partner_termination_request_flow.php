@@ -190,7 +190,13 @@ return new class extends Migration
 
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'partner_termination_view_grace_days'],
-            $settingData
+            [
+                'value' => '14',
+                'value_type' => 'integer',
+                'description' => 'So ngay chu san con duoc xem ho so sau khi bien ban cham dut cuoi da ky.',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
         );
     }
 

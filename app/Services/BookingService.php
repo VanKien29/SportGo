@@ -898,7 +898,7 @@ class BookingService
         return "Giữ chỗ chờ thanh toán trong {$minutes} phút.";
     }
 
-    public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false, ?Collection $allowedCourtTypeIds = null): array
+    public function getAvailabilitySchedule(string $venueClusterId, string $bookingDate, ?int $courtTypeId = null, string $bookingType = 'single', bool $includeBusyDetails = false): array
     {
         $cluster = VenueCluster::query()->whereKey($venueClusterId)->where('status', 'active')->first();
 
@@ -917,10 +917,6 @@ class BookingService
 
         if ($courtTypeId) {
             $courtsQuery->where('court_type_id', $courtTypeId);
-        }
-
-        if ($allowedCourtTypeIds !== null) {
-            $courtsQuery->whereIn('court_type_id', $allowedCourtTypeIds);
         }
 
         $courts = $courtsQuery->get(['id', 'venue_cluster_id', 'court_type_id', 'name', 'status', 'sort_order', 'layout_x', 'layout_y', 'layout_w', 'layout_h', 'layout_rotation']);
@@ -1055,8 +1051,6 @@ class BookingService
     public function resolveOperatingHours(string $venueClusterId, string $bookingDate): array
     {
         $config = $this->bookingConfigForCluster($venueClusterId);
-        $morningEndTime = $config?->morning_end_time ?: '12:00:00';
-        $afternoonEndTime = $config?->afternoon_end_time ?: '18:00:00';
         $specialHours = collect($config?->special_operating_hours ?? [])
             ->first(fn (array $hours): bool => $hours['start_date'] <= $bookingDate && $hours['end_date'] >= $bookingDate);
 
@@ -1065,8 +1059,6 @@ class BookingService
                 'is_open' => true,
                 'open_time' => $this->normalizeClock($specialHours['open_time']),
                 'close_time' => $this->normalizeClock($specialHours['close_time']),
-                'morning_end_time' => $this->normalizeClock($morningEndTime),
-                'afternoon_end_time' => $this->normalizeClock($afternoonEndTime),
                 'source' => 'special',
             ];
         }
@@ -1080,8 +1072,6 @@ class BookingService
             'is_open' => true,
             'open_time' => $this->normalizeClock($openTime),
             'close_time' => $this->normalizeClock($closeTime),
-            'morning_end_time' => $this->normalizeClock($morningEndTime),
-            'afternoon_end_time' => $this->normalizeClock($afternoonEndTime),
             'source' => 'fixed',
         ];
     }

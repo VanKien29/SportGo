@@ -1,21 +1,11 @@
 export const staffNavigationSections = [
   {
-    label: "Tổng quan",
+    label: 'Công việc',
     items: [
-      { label: "Bảng điều hành", icon: "dashboard", to: "/staff/dashboard", activeNames: ["staff-dashboard"] },
-    ],
-  },
-  {
-    label: "Vận hành sân",
-    items: [
-      { label: "Danh sách booking", icon: "calendar", to: "/staff/booking-list", activeNames: ["staff-booking-list"] },
-      { label: "Booking tại quầy", icon: "plus", to: "/staff/counter-booking", activeNames: ["staff-counter-booking"] },
-    ],
-  },
-  {
-    label: "Ca trực",
-    items: [
-      { label: "Ca của tôi", icon: "clock", to: "/staff/schedules", activeNames: ["staff-schedules", "staff-staff-shifts"] },
+      { label: 'Tổng quan', icon: 'dashboard', to: '/staff/dashboard', activeNames: ['staff-dashboard'] },
+      { label: 'Lịch trực của tôi', icon: 'calendar', to: '/staff/schedules', activeNames: ['staff-schedules'] },
+      { label: 'Lịch đặt sân', icon: 'calendar', to: '/staff/bookings', activeNames: ['staff-bookings'] },
+      { label: 'Đặt sân tại quầy', icon: 'plus', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'] },
     ],
   },
   {
@@ -33,22 +23,20 @@ export const staffNavigationSections = [
 ];
 
 export const staffRouteTitles = {
-  "staff-dashboard": "Bảng điều hành",
-  "staff-booking-list": "Danh sách booking",
-  "staff-counter-booking": "Booking tại quầy",
-  "staff-schedules": "Ca của tôi",
-  "staff-staff-shifts": "Ca của tôi",
+  'staff-dashboard': 'Tổng quan ca trực',
+  'staff-schedules': 'Lịch trực của tôi',
+  'staff-bookings': 'Lịch đặt sân',
+  'staff-counter-booking': 'Booking tại quầy',
   'staff-settings': 'Cài đặt giao diện',
   'staff-chat': 'Trò chuyện',
   'staff-profile': 'Thông tin cá nhân',
 };
 
 export const staffRouteSections = {
-  "staff-dashboard": "Tổng quan",
-  "staff-booking-list": "Vận hành sân",
-  "staff-counter-booking": "Vận hành sân",
-  "staff-schedules": "Ca trực",
-  "staff-staff-shifts": "Ca trực",
+  'staff-dashboard': 'Công việc',
+  'staff-schedules': 'Công việc',
+  'staff-bookings': 'Công việc',
+  'staff-counter-booking': 'Công việc',
   'staff-settings': 'Hệ thống',
   'staff-chat': 'Tin nhắn',
   'staff-profile': 'Tài khoản',

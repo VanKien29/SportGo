@@ -10,7 +10,6 @@ use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
-use App\Services\VenueStaffAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -54,7 +53,6 @@ class BookingManagementController extends Controller
                 'slotLocks',
             ])
             ->whereIn('venue_cluster_id', $clusterIds)
-            ->when($this->venueStaffAccess->isStaff($request->user()), fn ($query) => $this->applyCourtScope($query, $request, $clusterIds))
             ->when(! empty($validated['venue_cluster_id']), fn ($query) => $query->where('venue_cluster_id', $validated['venue_cluster_id']))
             ->when(! empty($validated['source']), fn ($query) => $query->where('source', $validated['source']))
             ->when(! empty($validated['booking_type']), fn ($query) => $query->where('booking_type', $validated['booking_type']))
@@ -123,7 +121,6 @@ class BookingManagementController extends Controller
             ->where('source', 'counter')
             ->where('booking_type', 'recurring')
             ->whereNotNull('recurring_group_code')
-            ->when($this->venueStaffAccess->isStaff($request->user()), fn ($query) => $this->applyCourtScope($query, $request, $clusterIds))
             ->when(! empty($validated['venue_cluster_id']), fn ($query) => $query->where('venue_cluster_id', $validated['venue_cluster_id']))
             ->when(! empty($validated['status']), fn ($query) => $query->where('status', $validated['status']))
             ->when(! empty($validated['venue_court_id']), function ($query) use ($validated) {
@@ -190,12 +187,7 @@ class BookingManagementController extends Controller
             'booking_type' => ['nullable', Rule::in(['single', 'recurring'])],
         ]);
 
-        $this->venueStaffAccess->assertClusterAccess($request->user(), (string) $validated['venue_cluster_id']);
-        $allowedCourtTypeIds = $this->venueStaffAccess->allowedCourtTypeIds($request->user(), (string) $validated['venue_cluster_id']);
-
-        if (isset($validated['court_type_id']) && $allowedCourtTypeIds !== null && ! $allowedCourtTypeIds->contains((int) $validated['court_type_id'])) {
-            throw ValidationException::withMessages(['court_type_id' => 'Bạn không được phân công loại sân này.']);
-        }
+        abort_unless($this->visibleClusterIds($request->user()->id)->contains($validated['venue_cluster_id']), 403);
 
         return response()->json($this->bookingService->getAvailabilitySchedule(
             $validated['venue_cluster_id'],
@@ -203,7 +195,6 @@ class BookingManagementController extends Controller
             isset($validated['court_type_id']) ? (int) $validated['court_type_id'] : null,
             $validated['booking_type'] ?? 'single',
             includeBusyDetails: true,
-            allowedCourtTypeIds: $allowedCourtTypeIds,
         ));
     }
 
@@ -227,7 +218,6 @@ class BookingManagementController extends Controller
             ->findOrFail($validated['venue_court_id']);
 
         $validated['venue_court_id'] = $court->id;
-        $this->venueStaffAccess->assertCourtAccess($request->user(), $court);
 
         if (empty($validated['customer_id'])) {
             $customer = $this->walkInCustomers->findByPhone($validated['walk_in_phone'] ?? null);
@@ -309,7 +299,6 @@ class BookingManagementController extends Controller
 
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
-        $this->assertPayloadCourtAccess($request, $validated);
 
         if ($bookingDates->count() > 1) {
             $bookings = $this->bookingService->createCounterBookingsForDates(
@@ -356,7 +345,6 @@ class BookingManagementController extends Controller
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureRecurringClusterMatchesSelected($validated, $court);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
-        $this->assertPayloadCourtAccess($request, $validated);
 
         $preview = $this->bookingService->previewRecurringConflicts($validated);
 
@@ -384,7 +372,6 @@ class BookingManagementController extends Controller
         $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
         $this->ensureRecurringClusterMatchesSelected($validated, $court);
         $this->ensureClusterCanMutate($request, $court->venueCluster);
-        $this->assertPayloadCourtAccess($request, $validated);
 
         return response()->json([
             'message' => 'Đã kiểm tra lịch cố định.',
@@ -394,9 +381,8 @@ class BookingManagementController extends Controller
 
     public function updateStatus(Request $request, string $id): JsonResponse
     {
-        $booking = Booking::query()->with(['venueCluster', 'venueCourt', 'items.venueCourt', 'payments'])->findOrFail($id);
+        $booking = Booking::query()->with(['venueCluster', 'payments'])->findOrFail($id);
         $this->ensureClusterCanMutate($request, $booking->venueCluster);
-        $this->assertBookingCourtAccess($request, $booking);
 
         $validated = $request->validate([
             'action' => ['required', Rule::in(['confirm', 'reject', 'cancel', 'check_in', 'complete'])],
@@ -492,9 +478,8 @@ class BookingManagementController extends Controller
 
     public function changeCourt(Request $request, string $id): JsonResponse
     {
-        $booking = Booking::query()->with(['venueCluster', 'venueCourt', 'items.venueCourt'])->findOrFail($id);
+        $booking = Booking::query()->with(['venueCluster', 'items'])->findOrFail($id);
         $this->ensureClusterCanMutate($request, $booking->venueCluster);
-        $this->assertBookingCourtAccess($request, $booking);
 
         if (! in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed'], true)) {
             throw ValidationException::withMessages([
@@ -517,7 +502,6 @@ class BookingManagementController extends Controller
             ->where('venue_cluster_id', $booking->venue_cluster_id)
             ->where('status', 'active')
             ->findOrFail($validated['venue_court_id']);
-        $this->venueStaffAccess->assertCourtAccess($request->user(), $newCourt);
 
         $bookingItem = $booking->items->first();
         $startTime = $bookingItem?->start_time ?? $booking->start_time;
@@ -552,9 +536,8 @@ class BookingManagementController extends Controller
 
     public function collectPayment(Request $request, string $id): JsonResponse
     {
-        $booking = Booking::query()->with(['venueCluster', 'venueCourt', 'items.venueCourt', 'payments'])->findOrFail($id);
+        $booking = Booking::query()->with(['venueCluster', 'payments'])->findOrFail($id);
         $this->ensureClusterCanMutate($request, $booking->venueCluster);
-        $this->assertBookingCourtAccess($request, $booking);
 
         $validated = $request->validate([
             'payment_method' => ['required', Rule::in(['cash', 'bank_transfer', 'sepay'])],
@@ -598,17 +581,14 @@ class BookingManagementController extends Controller
     {
         $clusterIds = $this->visibleClusterIds($request->user()->id);
 
-        $groupBookings = Booking::query()
-            ->with(['venueCourt', 'items.venueCourt'])
+        $exists = Booking::query()
             ->whereIn('venue_cluster_id', $clusterIds)
-            ->when($this->venueStaffAccess->isStaff($request->user()), fn ($query) => $this->applyCourtScope($query, $request, $clusterIds))
             ->where('source', 'counter')
             ->where('booking_type', 'recurring')
             ->where('recurring_group_code', $groupCode)
-            ->get();
+            ->exists();
 
-        abort_unless($groupBookings->isNotEmpty(), 404);
-        $groupBookings->each(fn (Booking $booking) => $this->assertBookingCourtAccess($request, $booking));
+        abort_unless($exists, 404);
 
         $validated = $request->validate([
             'payment_method' => ['required', Rule::in(['cash', 'bank_transfer'])],
@@ -787,13 +767,12 @@ class BookingManagementController extends Controller
 
     private function ensureBookingAccess(Request $request, Booking $booking): void
     {
-        $this->venueStaffAccess->assertClusterAccess($request->user(), (string) $booking->venue_cluster_id);
-        $this->assertBookingCourtAccess($request, $booking);
+        abort_unless($this->visibleClusterIds($request->user()->id)->contains($booking->venue_cluster_id), 403);
     }
 
     private function ensureClusterCanMutate(Request $request, VenueCluster $cluster): void
     {
-        $this->venueStaffAccess->assertClusterAccess($request->user(), (string) $cluster->id);
+        abort_unless($this->visibleClusterIds($request->user()->id)->contains($cluster->id), 403);
 
         if ($cluster->status === 'locked') {
             throw ValidationException::withMessages([

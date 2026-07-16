@@ -18,9 +18,12 @@
       <button class="alert-close" @click="success = ''">&times;</button>
     </div>
 
+    <!-- Thanh công cụ tìm kiếm và lọc kiểu SaaS -->
     <SaaSFilterBar
       v-model="filterCategory"
       :tabs="filterTabs"
+      v-model:search="searchQuery"
+      searchPlaceholder="Tìm kiếm tên dịch vụ, sản phẩm..."
     >
       <template #actions>
         <select v-model="filterStatus" class="form-control status-select" style="width: 180px; height: 38px; border-radius: 8px;">

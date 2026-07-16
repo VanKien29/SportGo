@@ -10,9 +10,12 @@
       <button class="alert-close" @click="success = ''">&times;</button>
     </div>
 
+    <!-- SaaS Filter Bar -->
     <SaaSFilterBar
       v-model="statusFilter"
       :tabs="statusTabs"
+      v-model:search="searchQuery"
+      searchPlaceholder="Tìm kiếm tên danh mục..."
     >
       <template #actions>
         <button class="btn btn-primary" type="button" @click="openFormModal()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;">

@@ -64,36 +64,6 @@
             </div>
           </label>
         </div>
-
-        <header class="card-head" style="margin-top: 20px;">
-          <h3>Cấu hình phân chia Ca hiển thị (Sáng / Chiều / Tối)</h3>
-        </header>
-        <div class="fixed-hours">
-          <label>
-            <span>Hết ca Sáng (Sáng → Chiều)</span>
-            <input
-              v-model.trim="form.morning_end_time"
-              type="text"
-              inputmode="numeric"
-              maxlength="5"
-              placeholder="12:00"
-              @input="normalizeTimeInput('morning_end_time')"
-            >
-          </label>
-          <span class="range-arrow">→</span>
-          <label>
-            <span>Hết ca Chiều (Chiều → Tối)</span>
-            <input
-              v-model.trim="form.afternoon_end_time"
-              type="text"
-              inputmode="numeric"
-              maxlength="5"
-              placeholder="18:00"
-              @input="normalizeTimeInput('afternoon_end_time')"
-            >
-          </label>
-          <div style="visibility: hidden;"></div>
-        </div>
       </article>
 
       <article class="setting-card">
@@ -328,25 +298,6 @@ export default {
         messages.push('Giờ mở cửa đến giờ đóng cửa phải từ 2 giờ đến 24 giờ.');
       }
 
-      if (!this.validOpenTime(this.form.morning_end_time) || !this.validOpenTime(this.form.afternoon_end_time)) {
-        messages.push('Giờ chuyển giao ca phải đúng định dạng HH:mm.');
-      } else {
-        const openMins = this.timeToMinutes(this.form.fixed_open_time);
-        const closeMins = this.timeToMinutes(this.form.fixed_close_time);
-        const morningEndMins = this.timeToMinutes(this.form.morning_end_time);
-        const afternoonEndMins = this.timeToMinutes(this.form.afternoon_end_time);
-
-        if (morningEndMins <= openMins) {
-          messages.push('Giờ kết thúc ca sáng phải sau giờ mở cửa sân.');
-        }
-        if (afternoonEndMins <= morningEndMins) {
-          messages.push('Giờ kết thúc ca chiều phải sau giờ kết thúc ca sáng.');
-        }
-        if (afternoonEndMins >= closeMins) {
-          messages.push('Giờ kết thúc ca chiều phải trước giờ đóng cửa sân.');
-        }
-      }
-
       const sortedSpecial = [...this.form.special_operating_hours].sort((a, b) => a.start_date.localeCompare(b.start_date));
       sortedSpecial.forEach((hours, index) => {
         const shouldValidate = this.validationAttempted || hours._touched;
@@ -544,8 +495,6 @@ export default {
         min_advance_booking_minutes: 30,
         fixed_open_time: '08:00',
         fixed_close_time: '22:00',
-        morning_end_time: '12:00',
-        afternoon_end_time: '18:00',
         special_operating_hours: [],
         slot_hold_minutes: 20,
         reminder_before_minutes: 30,
@@ -628,8 +577,6 @@ export default {
             config.fixed_close_time || config.weekly_operating_hours?.find((hours) => hours.is_open)?.close_time,
             '22:00',
           ),
-          morning_end_time: this.normalizeTime(config.morning_end_time, '12:00'),
-          afternoon_end_time: this.normalizeTime(config.afternoon_end_time, '18:00'),
           special_operating_hours: (config.special_operating_hours || []).map((hours) => ({
             _key: this.specialKey(),
             _touched: false,
