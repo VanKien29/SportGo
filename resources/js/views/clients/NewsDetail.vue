@@ -640,7 +640,7 @@
             />
         </section>
 
-        <footer class="article-footer">
+        <footer v-if="post" class="article-footer">
             <div>
                 <strong>{{ post.venue_cluster?.name || "SportGo" }}</strong>
                 <span>{{
@@ -764,6 +764,9 @@ export default {
         },
     },
     methods: {
+        normalizeMediaUrl(media) {
+            return normalizeMediaUrl(media);
+        },
         async loadPost() {
             this.loading = true;
             this.error = "";
