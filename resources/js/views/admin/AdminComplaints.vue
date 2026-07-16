@@ -290,6 +290,16 @@
                     <aside class="side-panel">
                         <h4>Thao tác xử lý</h4>
 
+                        <button
+                            v-if="!isTerminalStatus(selected.status) && !selected.assigned_to"
+                            class="btn secondary"
+                            type="button"
+                            :disabled="saving"
+                            @click="assignComplaint"
+                        >
+                            Nhận xử lý
+                        </button>
+
                         <p
                             v-if="isTerminalStatus(selected.status)"
                             class="content-box"
@@ -330,7 +340,36 @@
                                 >
                                     Xác nhận
                                 </button>
+                                <button
+                                    class="btn secondary"
+                                    type="button"
+                                    :disabled="saving || !form.resolve_note"
+                                    @click="resolveComplaintWithStatus('closed')"
+                                >
+                                    Đóng khiếu nại
+                                </button>
                             </div>
+                        </div>
+
+                        <div class="form-stack" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--admin-border);">
+                            <label>
+                                Thông báo bổ sung cho khách hàng
+                                <textarea
+                                    v-model.trim="notificationMessage"
+                                    rows="4"
+                                    maxlength="4000"
+                                    placeholder="Nhập nội dung cần thông báo"
+                                    :disabled="saving"
+                                ></textarea>
+                            </label>
+                            <button
+                                class="btn secondary"
+                                type="button"
+                                :disabled="saving || !notificationMessage"
+                                @click="sendAdditionalNotification"
+                            >
+                                Gửi thông báo
+                            </button>
                         </div>
                     </aside>
                 </div>
@@ -689,6 +728,7 @@ export default {
             error: "",
             success: "",
             form: { assigned_to: "", status: "processing", resolve_note: "" },
+            notificationMessage: "",
             showAutoResolveModal: false,
             autoResolveLoading: false,
             autoResolveSaving: false,
@@ -750,6 +790,7 @@ export default {
                 const response = await adminComplaintService.show(complaint.id);
                 this.selected = response.data.complaint;
                 this.auditLogs = response.data.audit_logs || [];
+                this.notificationMessage = "";
                 this.syncForm();
             } catch (error) {
                 this.error = error.message;
@@ -853,6 +894,23 @@ export default {
                 );
                 this.success = response.message;
                 await this.loadComplaints();
+                await this.refreshDetail();
+            } catch (error) {
+                this.error = error.message;
+            } finally {
+                this.saving = false;
+            }
+        },
+        async sendAdditionalNotification() {
+            if (!this.selected?.id || !this.notificationMessage) return;
+            this.saving = true;
+            try {
+                const response = await adminComplaintService.notify(
+                    this.selected.id,
+                    { message: this.notificationMessage },
+                );
+                this.success = response.message || "Đã gửi thông báo bổ sung.";
+                this.notificationMessage = "";
                 await this.refreshDetail();
             } catch (error) {
                 this.error = error.message;
@@ -966,6 +1024,14 @@ export default {
 
 
 <style scoped>
+.side-panel .modal-actions {
+    flex-wrap: wrap;
+}
+
+.side-panel .modal-actions .btn {
+    flex: 1 1 120px;
+}
+
 .floating-config-container {
     position: fixed;
     bottom: 30px;

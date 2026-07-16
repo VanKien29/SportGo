@@ -23,16 +23,17 @@ export default {
       if (path === '/' || path === '/login' || path === '/register' || path.startsWith('/auth')) return false;
       
       const segments = path.split('/').filter(Boolean);
+      const portal = ['admin', 'owner', 'staff'].includes(segments[0]);
+      // Client pages use breadcrumbs or an explicit page action. A global fixed
+      // back button covered booking totals, document actions and profile cards
+      // on narrow screens, so keep this utility inside management portals only.
+      if (!portal) return false;
       const isDetail = Object.keys(this.$route.params).length > 0;
       
-      // If it's under /admin or /owner, depth > 2 means it's a subpage (like /admin/settings/xxx)
+      // Portal root pages only show the floating back action on deeper subpages.
       // Otherwise depth > 1 is a subpage
       let isDeep = false;
-      if (segments[0] === 'admin' || segments[0] === 'owner') {
-        isDeep = segments.length > 2;
-      } else {
-        isDeep = segments.length > 1;
-      }
+      isDeep = segments.length > 2;
 
       return isDetail || isDeep;
     }

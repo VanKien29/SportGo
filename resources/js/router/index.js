@@ -579,7 +579,7 @@ router.beforeEach(async (to, from, next) => {
             return next(
                 requiredRole === "admin"
                     ? { name: "admin-login" }
-                    : { name: "login" },
+                    : { name: "login", query: { redirect: to.fullPath } },
             );
         }
 
@@ -591,7 +591,7 @@ router.beforeEach(async (to, from, next) => {
             return next(
                 requiredRole === "admin"
                     ? { name: "admin-login" }
-                    : { name: "login" },
+                    : { name: "login", query: { redirect: to.fullPath } },
             );
         }
 

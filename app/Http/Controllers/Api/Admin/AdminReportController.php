@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class AdminReportController extends Controller
 {
@@ -171,11 +172,22 @@ class AdminReportController extends Controller
     {
         $this->authorizePermission($request, 'report.resolve');
 
-        $report = Report::query()->findOrFail($id);
-        $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at', 'action_taken', 'action_note']);
+        $result = DB::transaction(function () use ($request, $id): array {
+            $report = Report::query()->lockForUpdate()->findOrFail($id);
+            $currentReviewerId = $request->user()->id;
 
-        DB::transaction(function () use ($request, $report): void {
-            if (in_array($report->status, ['resolved', 'dismissed'], true)) {
+            if ($report->status === 'reviewing' && $report->reviewed_by) {
+                if ((string) $report->reviewed_by !== (string) $currentReviewerId) {
+                    throw new ConflictHttpException('Báo cáo đang được quản trị viên khác kiểm duyệt.');
+                }
+
+                return ['report' => $report, 'changed' => false, 'reopened' => false, 'old_values' => []];
+            }
+
+            $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at', 'action_taken', 'action_note']);
+            $reopened = in_array($report->status, ['resolved', 'dismissed'], true);
+
+            if ($reopened) {
                 $this->revertReportAction($request, $report);
             }
 
@@ -183,34 +195,36 @@ class AdminReportController extends Controller
                 'status' => 'reviewing',
                 'action_taken' => null,
                 'action_note' => null,
-                'reviewed_by' => $request->user()->id,
+                'reviewed_by' => $currentReviewerId,
                 'reviewed_at' => now(),
             ])->save();
-        });
-        if ($report->status === 'reviewing') {
-            if ($report->reviewed_by !== $request->user()->id) {
-                throw ValidationException::withMessages([
-                    'status' => 'Báo cáo đang được quản trị viên khác kiểm duyệt.',
-                ]);
-            }
 
-            return response()->json([
-                'message' => 'Bạn đang kiểm duyệt báo cáo này.',
-                'data' => $this->detailPayload($report->load(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
-            ]);
+            return [
+                'report' => $report,
+                'changed' => true,
+                'reopened' => $reopened,
+                'old_values' => $oldValues,
+            ];
+        });
+
+        /** @var Report $report */
+        $report = $result['report'];
+        if ($result['changed']) {
+            $this->audit->log(
+                $request,
+                'report',
+                'report.reviewing',
+                'reports',
+                $report->id,
+                $result['old_values'],
+                $report->fresh()->toArray()
+            );
         }
 
-        $oldValues = $report->only(['status', 'reviewed_by', 'reviewed_at']);
-        $report->forceFill([
-            'status' => 'reviewing',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ])->save();
-
-        $this->audit->log($request, 'report', 'report.reviewing', 'reports', $report->id, $oldValues, $report->fresh()->toArray());
-
         return response()->json([
-            'message' => 'Đã mở lại và nhận kiểm duyệt báo cáo.',
+            'message' => ! $result['changed']
+                ? 'Bạn đang kiểm duyệt báo cáo này.'
+                : ($result['reopened'] ? 'Đã mở lại và nhận kiểm duyệt báo cáo.' : 'Đã nhận kiểm duyệt báo cáo.'),
             'data' => $this->detailPayload($report->fresh(['reporter', 'reviewedBy', 'reportable', 'evidence'])),
         ]);
     }

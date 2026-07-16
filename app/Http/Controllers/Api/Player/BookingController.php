@@ -204,7 +204,11 @@ class BookingController extends Controller
     {
         $validated = $request->validate([
             'venue_court_id' => 'required|exists:venue_courts,id',
-            'booking_date' => 'required|date_format:Y-m-d|after_or_equal:today',
+            'booking_date' => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:'.Carbon::now('Asia/Ho_Chi_Minh')->toDateString(),
+            ],
             'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'payment_option' => 'required|in:full_payment,deposit,no_prepay',

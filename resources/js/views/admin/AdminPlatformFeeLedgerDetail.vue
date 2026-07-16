@@ -41,7 +41,7 @@
 
       <section class="panel">
         <h3>HÃ nh Ä‘á»™ng</h3>
-        <div class="actions">
+        <div class="ledger-actions">
           <button class="btn primary icon-text" type="button" :disabled="ledger.status === 'paid' || ledger.status === 'cancelled'" @click="payFull">
             <AppIcon name="creditCard" size="18" />
             <span>XÃ¡c nháº­n thanh toÃ¡n Ä‘á»§</span>
@@ -84,30 +84,32 @@
           </button>
         </div>
         <div v-if="emailLogs.length === 0" class="empty compact">ChÆ°a cÃ³ email nháº¯c phÃ­ nÃ o Ä‘Æ°á»£c gá»­i.</div>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>Loáº¡i email</th>
-              <th>Email nháº­n</th>
-              <th>TiÃªu Ä‘á»</th>
-              <th>Tráº¡ng thÃ¡i</th>
-              <th>Thá»i gian gá»­i</th>
-              <th>LÃ½ do lá»—i</th>
-              <th>Ná»™i dung</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="log in emailLogs" :key="log.id">
-              <td><span class="email-chip">{{ reminderLabel(log.type) }}</span></td>
-              <td>{{ log.email || '-' }}</td>
-              <td>{{ log.subject }}</td>
-              <td>{{ log.status }}</td>
-              <td>{{ log.sent_at ? date(log.sent_at) : '-' }}</td>
-              <td>{{ log.error_reason || '-' }}</td>
-              <td><button class="link-btn" type="button" @click="selectedEmail = log">Xem</button></td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-else class="table-scroll" tabindex="0" aria-label="Báº£ng lá»‹ch sá»­ email nháº¯c thanh toÃ¡n">
+          <table>
+            <thead>
+              <tr>
+                <th>Loáº¡i email</th>
+                <th>Email nháº­n</th>
+                <th>TiÃªu Ä‘á»</th>
+                <th>Tráº¡ng thÃ¡i</th>
+                <th>Thá»i gian gá»­i</th>
+                <th>LÃ½ do lá»—i</th>
+                <th>Ná»™i dung</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in emailLogs" :key="log.id">
+                <td><span class="email-chip">{{ reminderLabel(log.type) }}</span></td>
+                <td>{{ log.email || '-' }}</td>
+                <td>{{ log.subject }}</td>
+                <td>{{ log.status }}</td>
+                <td>{{ log.sent_at ? date(log.sent_at) : '-' }}</td>
+                <td>{{ log.error_reason || '-' }}</td>
+                <td><button class="link-btn" type="button" @click="selectedEmail = log">Xem</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </template>
 
@@ -339,7 +341,7 @@ export default {
 <style scoped>
 .detail-page { display: flex; flex-direction: column; gap: 16px; }
 .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
-.panel-head, .actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.panel-head, .ledger-actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 h2, h3, p { margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric span, .info-grid span { display: block; color: #64748b; font-size: 12px; }
@@ -367,6 +369,8 @@ h2, h3, p { margin: 0; }
 .icon-text { align-items: center; justify-content: center; }
 .link-btn { border: 0; background: transparent; color: #047857; font-weight: 900; cursor: pointer; width: fit-content; }
 table { width: 100%; border-collapse: collapse; }
+.table-scroll { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.table-scroll table { min-width: 760px; }
 th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
 .empty { text-align: center; color: #64748b; }
@@ -397,5 +401,12 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
 @media (max-width: 900px) {
   .grid, .info-grid { grid-template-columns: 1fr 1fr; }
   .ledger-info-bar, .panel-head { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 640px) {
+  .detail-page, .panel { width: 100%; min-width: 0; max-width: 100%; }
+  .grid, .info-grid { grid-template-columns: 1fr; }
+  .ledger-actions { flex-direction: column; align-items: stretch; }
+  .ledger-actions .btn, .panel-head .btn { width: 100%; min-width: 0; white-space: normal; }
+  .cancel-actions { display: grid; grid-template-columns: 1fr; }
 }
 </style>

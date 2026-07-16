@@ -2239,6 +2239,15 @@ export default {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.view-content-wrapper,
+.courts-table-wrapper {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 :deep(.saas-table-container) {

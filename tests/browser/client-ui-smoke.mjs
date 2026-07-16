@@ -3,9 +3,11 @@ import path from 'node:path';
 import process from 'node:process';
 import puppeteer from 'puppeteer';
 
-const baseUrl = process.env.APP_URL || 'http://127.0.0.1:8000';
+const baseUrl = (process.env.APP_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+const appOrigin = new URL(baseUrl).origin;
 const username = process.env.CLIENT_TEST_USER || 'user';
 const password = process.env.CLIENT_TEST_PASSWORD || '12345678';
+const expectedRoleGroup = process.env.CLIENT_TEST_ROLE_GROUP || 'user';
 const venueId = process.env.CLIENT_TEST_VENUE_ID || '1';
 const bookingId = process.env.CLIENT_TEST_BOOKING_ID || '3';
 const profileId = process.env.CLIENT_TEST_PROFILE_ID || '13';
@@ -16,6 +18,34 @@ const partnerApplicationId = process.env.CLIENT_TEST_PARTNER_APPLICATION_ID || '
 const partnerDocumentId = process.env.CLIENT_TEST_PARTNER_DOCUMENT_ID || '';
 const onlyRoute = process.env.CLIENT_SMOKE_ONLY || '';
 const artifactDir = path.resolve('storage/app/test-artifacts/client-ui-smoke');
+
+const supportedOnlyRoutes = new Set([
+  'home',
+  'venues',
+  'venue-detail',
+  'venue-posts',
+  'booking-create',
+  'booking-history',
+  'booking-detail',
+  'community',
+  'community-detail',
+  'user-profile',
+  'news',
+  'news-detail',
+  'matchmaking-manage',
+  'chat',
+  'account',
+  'vip-membership',
+  'partner-application',
+  ...(partnerApplicationId ? ['partner-application-detail'] : []),
+  ...(partnerApplicationId && partnerDocumentId ? ['partner-application-document'] : []),
+]);
+
+if (onlyRoute && !supportedOnlyRoutes.has(onlyRoute)) {
+  throw new Error(
+    `CLIENT_SMOKE_ONLY="${onlyRoute}" khong hop le. Route ho tro: ${[...supportedOnlyRoutes].join(', ')}.`,
+  );
+}
 
 await fs.mkdir(artifactDir, { recursive: true });
 
@@ -29,7 +59,17 @@ const page = await browser.newPage();
 const consoleErrors = [];
 const pageErrors = [];
 const failedApiResponses = [];
+const failedRequests = [];
 let activeRoute = 'bootstrap';
+
+function firstPartyUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === appOrigin ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 page.on('console', (message) => {
   if (message.type() === 'error') {
@@ -38,10 +78,30 @@ page.on('console', (message) => {
 });
 page.on('pageerror', (error) => pageErrors.push({ route: activeRoute, message: error.message }));
 page.on('response', (response) => {
-  const url = response.url();
-  if (url.startsWith(`${baseUrl}/api/`) && response.status() >= 400) {
-    failedApiResponses.push({ route: activeRoute, status: response.status(), url });
+  const parsed = firstPartyUrl(response.url());
+  if (parsed?.pathname.startsWith('/api/') && response.status() >= 400) {
+    failedApiResponses.push({ route: activeRoute, status: response.status(), url: response.url() });
   }
+});
+page.on('requestfailed', (request) => {
+  const parsed = firstPartyUrl(request.url());
+  if (!parsed) return;
+
+  const resourceType = request.resourceType();
+  const isApiRequest = parsed.pathname.startsWith('/api/');
+  const isCriticalPageResource = ['document', 'script', 'stylesheet', 'image', 'font'].includes(resourceType);
+  if (!isApiRequest && !isCriticalPageResource) return;
+
+  const errorText = request.failure()?.errorText || 'request failed';
+  if (errorText.includes('ERR_ABORTED')) return;
+
+  failedRequests.push({
+    route: activeRoute,
+    method: request.method(),
+    resourceType,
+    error: errorText,
+    url: request.url(),
+  });
 });
 
 async function settle() {
@@ -54,11 +114,15 @@ async function inspectRoute(testCase, viewportName) {
   console.log(`SMOKE ${activeRoute}`);
   await page.goto(`${baseUrl}${testCase.url}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.waitForSelector(testCase.selector, { timeout: 20_000 });
-  if (testCase.loadingText) {
+  if (testCase.scrollSelector) {
+    await page.$eval(testCase.scrollSelector, (element) => element.scrollIntoView({ block: 'center' }));
+  }
+  const loadingTexts = testCase.loadingTexts || (testCase.loadingText ? [testCase.loadingText] : []);
+  if (loadingTexts.length) {
     await page.waitForFunction(
-      (loadingText) => !document.body.innerText.includes(loadingText),
+      (texts) => texts.every((loadingText) => !document.body.innerText.includes(loadingText)),
       { timeout: 20_000 },
-      testCase.loadingText,
+      loadingTexts,
     );
   }
   await settle();
@@ -67,11 +131,14 @@ async function inspectRoute(testCase, viewportName) {
     { timeout: 5_000 },
   ).catch(() => {});
 
-  const inspection = await page.evaluate((selector) => {
+  const inspection = await page.evaluate(({ selector, backSelector }) => {
     const text = document.body.innerText || '';
     const target = document.querySelector(selector);
     const targetStyle = target ? window.getComputedStyle(target) : null;
     const targetRect = target?.getBoundingClientRect();
+    const backTarget = backSelector ? document.querySelector(backSelector) : null;
+    const backStyle = backTarget ? window.getComputedStyle(backTarget) : null;
+    const backRect = backTarget?.getBoundingClientRect();
     return {
       path: window.location.pathname,
       title: document.title,
@@ -83,8 +150,11 @@ async function inspectRoute(testCase, viewportName) {
         .filter((image) => image.complete && image.naturalWidth === 0)
         .map((image) => image.currentSrc || image.getAttribute('src') || image.alt),
       targetVisible: Boolean(target && targetStyle?.visibility !== 'hidden' && targetStyle?.display !== 'none' && targetRect?.width && targetRect?.height),
+      backVisible: backSelector
+        ? Boolean(backTarget && backStyle?.visibility !== 'hidden' && backStyle?.display !== 'none' && backRect?.width && backRect?.height)
+        : null,
     };
-  }, testCase.selector);
+  }, { selector: testCase.selector, backSelector: testCase.backSelector || '' });
 
   await page.screenshot({
     path: path.join(artifactDir, `${viewportName}-${testCase.name}.png`),
@@ -106,11 +176,14 @@ async function inspectRoute(testCase, viewportName) {
   if (!inspection.targetVisible) {
     throw new Error(`${testCase.name}: vùng nội dung chính tồn tại nhưng không hiển thị.`);
   }
+  if (testCase.backSelector && !inspection.backVisible) {
+    throw new Error(`${testCase.name}: khong tim thay nut quay lai hien thi o ${viewportName}.`);
+  }
 
   return { name: testCase.name, ...inspection };
 }
 
-const results = { login: null, guest: [], desktop: [], mobile: [], modalChecks: [] };
+const results = { login: null, guest: [], desktop: [], responsive: [], mobile: [], modalChecks: [] };
 const failures = [];
 
 try {
@@ -140,7 +213,7 @@ try {
     roleGroup: localStorage.getItem('auth_role_group'),
   }));
 
-  if (!results.login.authenticated || results.login.roleGroup !== 'user') {
+  if (!results.login.authenticated || results.login.roleGroup !== expectedRoleGroup) {
     throw new Error(`Đăng nhập client không đúng role: ${JSON.stringify(results.login)}`);
   }
 
@@ -161,17 +234,24 @@ try {
   }
 
   const desktopCases = [
-    { name: 'home', url: '/', selector: '.home-page' },
+    {
+      name: 'home',
+      url: '/',
+      selector: '.home-page',
+      scrollSelector: '#community',
+      loadingTexts: ['Đang tải cụm sân', 'Đang tải bài viết'],
+    },
     { name: 'venues', url: '/venues', selector: '.venue-market-page', loadingText: 'Đang tải danh sách sân' },
     { name: 'venue-detail', url: `/venues/${venueId}`, selector: '.venue-detail-page .hero-copy h1' },
+    { name: 'venue-posts', url: `/venues/${venueId}?tab=posts`, selector: '.venue-posts-tab .venue-post-card' },
     { name: 'booking-create', url: `/booking?venue_cluster_id=${venueId}`, selector: '.client-booking .schedule-workspace' },
     { name: 'booking-history', url: '/bookings', selector: '.booking-history-page' },
     { name: 'booking-detail', url: `/booking/${bookingId}`, selector: '.detail-container .detail-content' },
-    { name: 'community', url: '/community', selector: '.community-page', loadingText: 'Đang tải bài viết' },
-    { name: 'community-detail', url: `/community/${communitySlug}`, selector: '.news-detail-page .fb-modal-container', loadingText: 'Đang tải bài viết' },
+    { name: 'community', url: '/community', selector: '.community-page .composer-card', loadingText: 'Đang tải bảng tin' },
+    { name: 'community-detail', url: `/community/${communitySlug}`, selector: '.sg-community-detail-page .sg-community-post-detail', loadingText: 'Đang tải bài viết' },
     { name: 'user-profile', url: `/user/${profileId}`, selector: '.user-profile-page .profile-hero h1' },
-    { name: 'news', url: '/news', selector: '.news-page-container', loadingText: 'Đang tải bài viết' },
-    { name: 'news-detail', url: `/news/${newsSlug}`, selector: '.news-detail-container .news-detail-content', loadingText: 'Đang tải bài viết' },
+    { name: 'news', url: '/news', selector: '.sg-news-page .sg-client-shell', loadingText: 'Đang tải tin tức' },
+    { name: 'news-detail', url: `/news/${newsSlug}`, selector: '.sg-news-detail-page .sg-news-article', loadingText: 'Đang tải bài viết' },
     { name: 'matchmaking-manage', url: `/matchmaking-posts/${playerPostId}/manage`, selector: '.matchmaking-manage-page .page-header h1' },
     { name: 'chat', url: '/chat', selector: '.chat-page' },
     { name: 'account', url: '/profile', selector: '.profile-wrapper' },
@@ -196,9 +276,28 @@ try {
     });
   }
 
+  const backSelectorsByCase = {
+    'venue-detail': '.venue-back-link',
+    'booking-create': '.breadcrumbs a',
+    'booking-detail': '.breadcrumbs a',
+    'community-detail': '.sg-community-breadcrumb a',
+    'user-profile': '.sg-community-breadcrumb a',
+    'news-detail': '.sg-community-breadcrumb a',
+    'matchmaking-manage': '.back-link',
+    'partner-application-detail': '.partner-page-header > button',
+    'partner-application-document': '.partner-page-header > button',
+  };
+  for (const testCase of desktopCases) {
+    testCase.backSelector = backSelectorsByCase[testCase.name] || '';
+  }
+
   const selectedDesktopCases = onlyRoute
     ? desktopCases.filter((testCase) => testCase.name === onlyRoute)
     : desktopCases;
+
+  if (onlyRoute && selectedDesktopCases.length === 0) {
+    throw new Error(`CLIENT_SMOKE_ONLY="${onlyRoute}" khong co test case kha dung voi bo bien moi truong hien tai.`);
+  }
 
   for (const testCase of selectedDesktopCases) {
     try {
@@ -206,6 +305,32 @@ try {
     } catch (error) {
       failures.push({ route: `desktop:${testCase.name}`, message: error.message });
     }
+  }
+
+  const responsiveCases = onlyRoute
+    ? selectedDesktopCases
+    : selectedDesktopCases.filter((testCase) => ['home', 'venue-detail'].includes(testCase.name));
+  for (const width of [1024, 1280, 1366]) {
+    await page.setViewport({ width, height: 900, deviceScaleFactor: 1 });
+    for (const testCase of responsiveCases) {
+      try {
+        results.responsive.push(await inspectRoute(testCase, `width-${width}`));
+      } catch (error) {
+        failures.push({ route: `width-${width}:${testCase.name}`, message: error.message });
+      }
+    }
+  }
+
+  if (!onlyRoute || onlyRoute === 'community') {
+    activeRoute = 'desktop:community-composer';
+    await page.goto(`${baseUrl}/community`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.waitForSelector('.composer-prompt', { visible: true, timeout: 8_000 });
+    await settle();
+    await page.$eval('.composer-prompt', (button) => button.click());
+    await page.waitForSelector('.composer-modal', { visible: true, timeout: 12_000 });
+    results.modalChecks.push('community-composer');
+    await page.click('.composer-modal button.icon-button');
+    await page.waitForSelector('.composer-modal', { hidden: true, timeout: 8_000 });
   }
 
   if (!onlyRoute || onlyRoute === 'venue-detail') {
@@ -246,13 +371,18 @@ try {
     'home',
     'venues',
     'venue-detail',
+    'venue-posts',
     'booking-create',
     'booking-history',
     'booking-detail',
     'community',
     'community-detail',
+    'news',
     'news-detail',
     'matchmaking-manage',
+    'chat',
+    'account',
+    'vip-membership',
     'partner-application',
     ...(partnerApplicationId ? ['partner-application-detail'] : []),
     ...(partnerApplicationId && partnerDocumentId ? ['partner-application-document'] : []),
@@ -289,12 +419,19 @@ try {
 }
 
 const report = {
-  status: failures.length === 0 && pageErrors.length === 0 && failedApiResponses.length === 0 ? 'pass' : 'fail',
+  status: failures.length === 0
+    && pageErrors.length === 0
+    && consoleErrors.length === 0
+    && failedApiResponses.length === 0
+    && failedRequests.length === 0
+    ? 'pass'
+    : 'fail',
   results,
   failures,
   pageErrors,
   consoleErrors,
   failedApiResponses,
+  failedRequests,
   artifactDir,
 };
 
@@ -304,6 +441,7 @@ const output = process.env.CLIENT_SMOKE_SUMMARY
       coverage: {
         guest: results.guest.length,
         desktop: results.desktop.length,
+        responsive: results.responsive.length,
         mobile: results.mobile.length,
         modalChecks: results.modalChecks.length,
         policyAccepted: results.policyAccepted,
@@ -312,6 +450,7 @@ const output = process.env.CLIENT_SMOKE_SUMMARY
       pageErrors,
       consoleErrors,
       failedApiResponses,
+      failedRequests,
       artifactDir,
     }
   : report;

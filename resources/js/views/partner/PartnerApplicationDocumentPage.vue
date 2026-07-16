@@ -1,5 +1,5 @@
 <template>
-  <div class="partner-document-page">
+  <div class="partner-document-page partner-client-page sg-client-page">
     <PublicNavbar v-if="!isOwnerDocumentRoute" />
 
     <main class="partner-document-main">
@@ -16,6 +16,9 @@
         </div>
 
         <div class="partner-doc-actions">
+          <span v-if="document" class="partner-status-pill partner-document-status" :class="document.status">
+            {{ documentStatusLabel(document.status, document.source) }}
+          </span>
           <button v-if="document?.download_url" class="btn btn-secondary" type="button" @click="downloadFile(document.download_url)">
             <AppIcon name="download" size="16" />
             Tải file
@@ -37,7 +40,7 @@
             <div class="partner-card-head">
               <div>
                 <h2>Nội dung văn bản</h2>
-                <p>Văn bản phải được xem từ file hệ thống đã sinh trước khi ký xác nhận.</p>
+                <p>{{ viewerDescription }}</p>
               </div>
             </div>
             <div class="partner-card-body">
@@ -46,7 +49,9 @@
                   <AppIcon name="fileText" size="48" />
                   <h2>{{ documentTypeLabel(document.document_type, document.source) }}</h2>
                   <p class="partner-doc-warning">
-                    File văn bản chưa sẵn sàng hoặc bản cũ đã mất file. Vui lòng quay lại tạo lại văn bản.
+                    {{ document.source === 'uploaded'
+                      ? 'File gốc không còn trên hệ thống. Vui lòng liên hệ SportGo hoặc bổ sung lại khi hồ sơ cho phép.'
+                      : 'File văn bản chưa sẵn sàng hoặc bản cũ đã mất file. Vui lòng quay lại tạo lại văn bản.' }}
                   </p>
                 </div>
               </div>
@@ -56,13 +61,13 @@
             </div>
           </section>
 
-          <aside>
+          <aside class="partner-document-aside">
             <section class="partner-card">
               <div class="partner-card-head">
-                <h3>Trạng thái chữ ký</h3>
+                <h3>{{ requiredSides.length ? 'Trạng thái chữ ký' : 'Thông tin tài liệu' }}</h3>
               </div>
               <div class="partner-card-body">
-                <div class="partner-sign-status">
+                <div v-if="requiredSides.length" class="partner-sign-status">
                   <article
                     v-for="side in requiredSides"
                     :key="side.key"
@@ -73,6 +78,20 @@
                     <strong>{{ signatureBySide(side.key) ? formatDate(signatureBySide(side.key).signed_at) : 'Chưa ký' }}</strong>
                   </article>
                 </div>
+                <dl v-else class="partner-document-meta">
+                  <div>
+                    <dt>Loại tài liệu</dt>
+                    <dd>{{ documentTypeLabel(document.document_type, document.source) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Trạng thái</dt>
+                    <dd>{{ documentStatusLabel(document.status, document.source) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Tên file</dt>
+                    <dd>{{ document.file_name || document.title || 'Văn bản hồ sơ' }}</dd>
+                  </div>
+                </dl>
               </div>
             </section>
 
@@ -149,7 +168,7 @@
               </div>
             </section>
 
-            <section v-else class="partner-card">
+            <section v-else-if="requiredSides.length" class="partner-card">
               <div class="partner-card-head">
                 <h3>Thao tác</h3>
               </div>
@@ -212,6 +231,16 @@ const isOwnerSignableDocument = computed(() => [
 const isTwoPartyDocument = computed(() => isContract.value || isChangeAppendix.value);
 const requiredSides = computed(() => {
   if (document.value?.source === 'uploaded') return [];
+  if (!isOwnerSignableDocument.value) {
+    return [...new Set(
+      (document.value?.signatures || [])
+        .filter((signature) => signature.status === 'signed')
+        .map((signature) => signature.signer_side)
+    )].map((side) => ({
+      key: side,
+      label: side === 'sportgo' ? 'SportGo' : (side === 'owner' ? 'Chủ sân' : 'Bên ký'),
+    }));
+  }
   return isTwoPartyDocument.value
     ? [{ key: 'sportgo', label: 'SportGo' }, { key: 'owner', label: 'Chủ sân' }]
     : [{ key: 'owner', label: isVenueChangeRequest.value ? 'Chủ sân' : 'Người đăng ký' }];
@@ -248,6 +277,15 @@ const confirmationText = computed(() => {
   }
 
   return 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.';
+});
+const viewerDescription = computed(() => {
+  if (!document.value?.download_url) {
+    return 'File gốc hiện không có sẵn trên hệ thống; thông tin tài liệu vẫn được giữ để tra cứu.';
+  }
+
+  return canSign.value
+    ? 'Kiểm tra toàn bộ nội dung file trước khi xác nhận và ký điện tử.'
+    : 'Xem nội dung từ file lưu trên hệ thống. Bạn có thể tải bản gốc để đối chiếu.';
 });
 const readonlyHint = computed(() => {
   if (document.value?.source === 'uploaded') return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
@@ -348,9 +386,10 @@ function signatureBySide(side) {
 function prepareCanvas() {
   if (!canvas.value) return;
   const ctx = canvas.value.getContext('2d');
-  ctx.fillStyle = '#fff';
+  const theme = getComputedStyle(canvas.value.closest('.partner-client-page') || globalThis.document.documentElement);
+  ctx.fillStyle = theme.getPropertyValue('--surface-color').trim() || 'white';
   ctx.fillRect(0, 0, canvas.value.width, canvas.value.height);
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = theme.getPropertyValue('--text-main').trim() || 'black';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   signatureEmpty.value = true;
@@ -507,6 +546,17 @@ function statusLabel(status) {
   }[status] || status || '-';
 }
 
+function documentStatusLabel(status, source) {
+  if (source === 'uploaded') return 'Tài liệu đính kèm';
+  return {
+    generated: 'Đã sinh',
+    pending_owner_signature: 'Chờ bạn ký',
+    pending_sportgo_signature: 'Chờ SportGo ký',
+    completed: 'Đã hoàn tất',
+    cancelled: 'Đã hủy',
+  }[status] || status || 'Đang xử lý';
+}
+
 function documentTypeLabel(type, source) {
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
@@ -517,6 +567,13 @@ function documentTypeLabel(type, source) {
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
     partner_contract: 'Hợp đồng đối tác kinh doanh',
+    termination_request: 'Đơn yêu cầu chấm dứt hợp tác',
+    owner_termination_request: 'Đơn yêu cầu chấm dứt hợp tác',
+    termination_cancellation_request: 'Đơn xác nhận hủy yêu cầu chấm dứt',
+    mutual_liquidation_minutes: 'Biên bản thanh lý',
+    unilateral_termination_notice: 'Công văn chấm dứt từ SportGo',
+    settlement_minutes: 'Biên bản quyết toán',
+    final_termination_file: 'Biên bản chấm dứt cuối',
   }[type] || 'Văn bản hệ thống';
 }
 
@@ -527,65 +584,6 @@ function formatDate(value) {
 }
 </script>
 
-<style>
-@import "../../../css/partner/partner.css";
-
-.partner-document-card .partner-card-body {
-  min-height: 760px;
-  min-width: 0;
-}
-
-.partner-sign-layout,
-.partner-document-card,
-.partner-inline-document-viewer {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.partner-inline-document-viewer {
-  height: calc(100vh - 240px);
-  min-height: 760px;
-}
-
-.partner-inline-document-viewer .document-preview-pane {
-  width: 100%;
-  max-width: 100%;
-  min-height: 100%;
-  box-sizing: border-box;
-}
-
-.partner-sign-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.partner-sign-steps span {
-  min-width: 0;
-  border: 1px solid #dbe3df;
-  border-radius: 7px;
-  background: #f8faf9;
-  color: #64748b;
-  padding: 8px 6px;
-  font-size: 11px;
-  font-weight: 750;
-  text-align: center;
-}
-
-.partner-sign-steps span.done {
-  border-color: #86b894;
-  background: #edf8f0;
-  color: #176534;
-}
-
-@media (max-width: 980px) {
-  .partner-sign-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .partner-inline-document-viewer {
-    height: auto;
-    min-height: 620px;
-  }
-}
-</style>
+<style src="../../../css/partner/partner.css"></style>
+<style src="../../../css/partner/client-partner-shared.css"></style>
+<style scoped src="../../../css/partner/client-partner-document.css"></style>

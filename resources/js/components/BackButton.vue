@@ -3,6 +3,7 @@
     class="action-btn back-btn"
     :class="{ 'is-floating': floating }"
     :title="title"
+    :aria-label="title"
     @click="handleClick"
     type="button"
   >

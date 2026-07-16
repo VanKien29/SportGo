@@ -1,0 +1,165 @@
+/* Light Theme Defaults (Client-side and light Admin) */
+.chat-page {
+  --tg-chat-bg: #e7ebf0;
+  --tg-sent-bg: #e2f7cb;
+  --tg-sent-text: #1a2510;
+  --tg-received-bg: #ffffff;
+  --tg-received-text: #1f1f1f;
+  --tg-meta: #8c9094;
+  --tg-meta-sent: #508531;
+  --tg-input-bg: #ffffff;
+  --tg-input-text: #1f1f1f;
+  --tg-sidebar-bg: #ffffff;
+  --tg-active-row: #f1f5f9;
+  --tg-header-bg: #ffffff;
+  --tg-border: #e2e8f0;
+  --tg-ticks: #4fae4e;
+  --tg-accent: #3390ec;
+}
+
+/* Dark Theme - if class bg-zinc-950 (client dark) or data-theme="dark" (admin dark) */
+.chat-page.bg-zinc-950,
+[data-theme="dark"] .chat-page,
+.chat-page.chat-dark {
+  --tg-chat-bg: #0e1621;
+  --tg-sent-bg: #2b5278;
+  --tg-sent-text: #f5f5f5;
+  --tg-received-bg: #182533;
+  --tg-received-text: #f5f5f5;
+  --tg-meta: #7a8e9e;
+  --tg-meta-sent: #a8c4db;
+  --tg-input-bg: #17212b;
+  --tg-input-text: #f5f5f5;
+  --tg-sidebar-bg: #17212b;
+  --tg-active-row: #202b36;
+  --tg-header-bg: #17212b;
+  --tg-border: #101921;
+  --tg-ticks: #2481cc;
+  --tg-accent: #2481cc;
+}
+
+/* Explicit light override when user toggles chat to light on dark admin */
+.chat-page.chat-light {
+  --tg-chat-bg: #e7ebf0;
+  --tg-sent-bg: #e2f7cb;
+  --tg-sent-text: #1a2510;
+  --tg-received-bg: #ffffff;
+  --tg-received-text: #1f1f1f;
+  --tg-meta: #8c9094;
+  --tg-meta-sent: #508531;
+  --tg-input-bg: #ffffff;
+  --tg-input-text: #1f1f1f;
+  --tg-sidebar-bg: #ffffff;
+  --tg-active-row: #f1f5f9;
+  --tg-header-bg: #ffffff;
+  --tg-border: #e2e8f0;
+  --tg-ticks: #4fae4e;
+  --tg-accent: #3390ec;
+}
+
+/* Dynamic admin custom theme adaptation when no local override is set */
+[data-admin-chat].chat-page:not(.chat-dark):not(.chat-light) {
+  --tg-chat-bg: var(--admin-bg, #eef6f0) !important;
+  --tg-sent-bg: var(--admin-primary-soft, #e2f6e8) !important;
+  --tg-sent-text: var(--admin-text, #101c15) !important;
+  --tg-sidebar-bg: var(--admin-surface-muted, #f3f8f1) !important;
+  --tg-header-bg: var(--admin-surface, #ffffff) !important;
+  --tg-received-bg: var(--admin-surface, #ffffff) !important;
+  --tg-input-bg: var(--admin-surface, #ffffff) !important;
+  --tg-border: var(--admin-border, #cfded1) !important;
+  --tg-active-row: var(--admin-hover, #edf7ed) !important;
+  --tg-received-text: var(--admin-text, #101c15) !important;
+  --tg-input-text: var(--admin-text, #101c15) !important;
+  --tg-meta: var(--admin-faint, #45564a) !important;
+  --tg-meta-sent: var(--admin-primary-dark, #15733a) !important;
+  --tg-accent: var(--admin-primary, #22a653) !important;
+  --tg-ticks: var(--admin-success-text, #15733a) !important;
+}
+
+[data-admin-chat] {
+  /* Override backgrounds dynamically */
+  background-color: var(--tg-sidebar-bg) !important;
+}
+
+/* Set Left Sidebar styling */
+[data-admin-chat] .w-full.md\:w-\[360px\] {
+  background-color: var(--tg-sidebar-bg) !important;
+  border-right: 1px solid var(--tg-border) !important;
+}
+
+/* Left Sidebar buttons styling */
+[data-admin-chat] .w-full.p-4.flex.items-center {
+  background-color: transparent;
+  color: var(--tg-received-text) !important;
+}
+[data-admin-chat] .w-full.p-4.flex.items-center.never-hover-class-placeholder {
+  background-color: var(--tg-active-row) !important;
+}
+[data-admin-chat] .w-full.p-4.flex.items-center.bg-zinc-800\/40 {
+  background-color: var(--tg-active-row) !important;
+  border-left-color: var(--tg-accent) !important;
+}
+
+/* General items coloring */
+[data-admin-chat] .text-zinc-100,
+[data-admin-chat] .text-zinc-200,
+[data-admin-chat] .text-zinc-300 {
+  color: var(--tg-received-text) !important;
+}
+[data-admin-chat] .text-zinc-400,
+[data-admin-chat] .text-zinc-500 {
+  color: var(--tg-meta) !important;
+}
+
+/* Chat background colors override */
+[data-admin-chat] .bg-zinc-950 {
+  background-color: var(--tg-chat-bg) !important;
+}
+
+/* Active Conversation Header styling */
+[data-admin-chat] .h-\[64px\] {
+  background-color: var(--tg-header-bg) !important;
+  border-bottom: 1px solid var(--tg-border) !important;
+  color: var(--tg-received-text) !important;
+}
+
+/* Divide list elements */
+[data-admin-chat] .divide-zinc-800\/30 > * + *,
+[data-admin-chat] .divide-zinc-800\/40 > * + * {
+  border-color: var(--tg-border) !important;
+}
+
+/* Correct default avatars color to contrast */
+[data-admin-chat] .bg-gradient-to-tr.from-zinc-800 {
+  background: var(--tg-active-row) !important;
+  color: var(--tg-received-text) !important;
+}
+
+/* User status online check color */
+[data-admin-chat] .bg-green-500 {
+  background-color: var(--tg-ticks) !important;
+}
+
+/* Force search input theme adaptation overriding general admin styles */
+[data-admin-chat] .tg-search-input {
+  background-color: var(--tg-input-bg) !important;
+  color: var(--tg-input-text) !important;
+  border: 1px solid var(--tg-border) !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+}
+[data-admin-chat] .tg-search-input::placeholder {
+  color: var(--tg-meta) !important;
+}
+.sg-shell-admin .content-area input.tg-search-input:not([type='checkbox']):not([type='radio']):focus,
+.sg-shell-admin .content-area .tg-search-input:focus,
+.sg-shell-admin .content-area input.tg-search-input:focus,
+[data-admin-chat] .tg-search-input:focus,
+.chat-page .tg-search-input:focus {
+  border-color: var(--tg-border) !important;
+  box-shadow: none !important;
+  box-shadow: 0 0 0 0 transparent !important;
+  outline: none !important;
+}

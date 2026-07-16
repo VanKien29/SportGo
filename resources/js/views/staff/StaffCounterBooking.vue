@@ -2036,6 +2036,7 @@
 import AppIcon from "../../components/AppIcon.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
+import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import { venueClusterService } from "../../services/venueClusters.js";
 
 function toIsoDate(date) {
@@ -3248,10 +3249,10 @@ export default {
         },
         async loadClusterDetail() {
             try {
-                const response = await venueClusterService.getClusterDetails(
-                    this.selectedClusterId,
-                );
-                this.selectedClusterDetail = response.data || null;
+                const response = await ownerBookingConfigService.list();
+                this.selectedClusterDetail = (response.data || []).find(
+                    (cluster) => String(cluster.id) === String(this.selectedClusterId),
+                ) || null;
             } catch {
                 this.selectedClusterDetail = null;
             }

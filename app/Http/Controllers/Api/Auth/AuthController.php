@@ -9,8 +9,11 @@ use App\Services\Auth\OtpService;
 use App\Services\Auth\RoleRedirectService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -153,9 +156,19 @@ class AuthController extends Controller
             return $this->lockedUserResponse($user);
         }
 
-        return response()->json(array_merge([
+        $payload = array_merge([
             'message' => 'Lấy thông tin tài khoản thành công.',
-        ], $this->roleRedirectService->payload($user)));
+        ], $this->roleRedirectService->payload($user));
+
+        $includes = collect(explode(',', (string) $request->query('include', '')))
+            ->map(fn (string $include): string => trim($include))
+            ->filter();
+
+        if (($payload['role_group'] ?? null) === 'user' && $includes->contains('refund_finance')) {
+            $payload['refund_finance'] = $this->refundFinanceSummary($user);
+        }
+
+        return response()->json($payload);
     }
 
     public function logout(Request $request): JsonResponse
@@ -231,5 +244,160 @@ class AuthController extends Controller
         $roles = $this->roleRedirectService->roles($user);
 
         return (bool) array_intersect($roles, self::ADMIN_ROLES);
+    }
+
+    private function refundFinanceSummary(User $user): array
+    {
+        $emptySummary = [
+            'available_balance' => 0.0,
+            'locked_balance' => 0.0,
+            'total_balance' => 0.0,
+            'status' => 'none',
+            'transactions' => [],
+            'withdrawals' => [],
+        ];
+
+        if (! Schema::hasTable('user_wallets')) {
+            return $emptySummary;
+        }
+
+        $wallet = DB::table('user_wallets')
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $wallet) {
+            return $emptySummary;
+        }
+
+        $transactions = Schema::hasTable('user_wallet_ledgers')
+            ? DB::table('user_wallet_ledgers')
+                ->where('user_wallet_id', $wallet->id)
+                ->latest('created_at')
+                ->limit(50)
+                ->get()
+                ->map(fn (object $ledger): array => [
+                    'id' => $ledger->id,
+                    'transaction_code' => $ledger->transaction_code ?? null,
+                    'type' => $ledger->type ?? null,
+                    'type_label' => $this->refundTransactionTypeLabel($ledger->type ?? null),
+                    'direction' => $ledger->direction ?? null,
+                    'amount' => (float) ($ledger->amount ?? 0),
+                    'balance_after' => (float) ($ledger->balance_after ?? 0),
+                    'status' => $ledger->status ?? null,
+                    'status_label' => $this->refundTransactionStatusLabel($ledger->status ?? null),
+                    'created_at' => $this->isoDateTime($ledger->created_at ?? null),
+                ])
+                ->values()
+                ->all()
+            : [];
+
+        $withdrawalQuery = Schema::hasTable('user_withdrawal_requests')
+            ? DB::table('user_withdrawal_requests')
+                ->where('user_withdrawal_requests.user_id', $user->id)
+                ->latest('user_withdrawal_requests.requested_at')
+                ->limit(20)
+            : null;
+
+        if ($withdrawalQuery && Schema::hasTable('user_payout_accounts')) {
+            $withdrawalQuery->leftJoin('user_payout_accounts', function ($join) use ($user): void {
+                $join->on('user_payout_accounts.id', '=', 'user_withdrawal_requests.payout_account_id')
+                    ->where('user_payout_accounts.user_id', '=', $user->id);
+            });
+        }
+
+        $withdrawalColumns = [
+                    'user_withdrawal_requests.id',
+                    'user_withdrawal_requests.amount',
+                    'user_withdrawal_requests.status',
+                    'user_withdrawal_requests.rejected_reason',
+                    'user_withdrawal_requests.requested_at',
+                    'user_withdrawal_requests.paid_at',
+        ];
+
+        if ($withdrawalQuery && Schema::hasTable('user_payout_accounts')) {
+            $withdrawalColumns[] = 'user_payout_accounts.bank_name';
+            $withdrawalColumns[] = 'user_payout_accounts.bank_account_number';
+        }
+
+        $withdrawals = $withdrawalQuery
+            ? $withdrawalQuery
+                ->get($withdrawalColumns)
+                ->map(fn (object $withdrawal): array => [
+                    'id' => $withdrawal->id,
+                    'amount' => (float) ($withdrawal->amount ?? 0),
+                    'status' => $withdrawal->status ?? null,
+                    'status_label' => $this->withdrawalStatusLabel($withdrawal->status ?? null),
+                    'rejected_reason' => $withdrawal->rejected_reason ?? null,
+                    'requested_at' => $this->isoDateTime($withdrawal->requested_at ?? null),
+                    'paid_at' => $this->isoDateTime($withdrawal->paid_at ?? null),
+                    'bank_name' => $withdrawal->bank_name ?? null,
+                    'bank_account_masked' => $this->maskBankAccount($withdrawal->bank_account_number ?? null),
+                ])
+                ->values()
+                ->all()
+            : [];
+
+        $availableBalance = (float) ($wallet->balance ?? 0);
+        $lockedBalance = (float) ($wallet->locked_balance ?? 0);
+
+        return [
+            'available_balance' => $availableBalance,
+            'locked_balance' => $lockedBalance,
+            'total_balance' => $availableBalance + $lockedBalance,
+            'status' => $wallet->status ?? 'none',
+            'transactions' => $transactions,
+            'withdrawals' => $withdrawals,
+        ];
+    }
+
+    private function refundTransactionTypeLabel(?string $type): string
+    {
+        return match ($type) {
+            'deposit' => 'Bổ sung số dư',
+            'payment' => 'Thanh toán booking',
+            'refund' => 'Hoàn tiền booking',
+            'withdrawal' => 'Chi trả về ngân hàng',
+            'adjustment' => 'Điều chỉnh số dư',
+            default => 'Biến động số dư',
+        };
+    }
+
+    private function refundTransactionStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'pending' => 'Đang xử lý',
+            'completed' => 'Hoàn tất',
+            'failed' => 'Thất bại',
+            'cancelled' => 'Đã hủy',
+            default => 'Chưa xác định',
+        };
+    }
+
+    private function withdrawalStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'pending' => 'Chờ duyệt',
+            'approved' => 'Đã duyệt',
+            'rejected' => 'Bị từ chối',
+            'paid' => 'Đã chi trả',
+            'cancelled' => 'Đã hủy',
+            default => 'Chưa xác định',
+        };
+    }
+
+    private function maskBankAccount(?string $accountNumber): ?string
+    {
+        if (! $accountNumber) {
+            return null;
+        }
+
+        $visibleDigits = substr($accountNumber, -4);
+
+        return str_repeat('•', max(0, strlen($accountNumber) - 4)).$visibleDigits;
+    }
+
+    private function isoDateTime(mixed $value): ?string
+    {
+        return $value ? Carbon::parse($value, config('app.timezone'))->toIso8601String() : null;
     }
 }

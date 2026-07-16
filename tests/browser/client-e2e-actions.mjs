@@ -186,14 +186,14 @@ await runFlow('guest-register-and-forgot-validation', async () => {
 
   await goto('/forgot-password', 'form');
   await page.click('button[type="submit"]');
-  await waitForText('Vui lòng nhập tên đăng nhập, email hoặc số điện thoại');
+  await waitForText('Vui lòng nhập email, số điện thoại hoặc tên đăng nhập.');
   return { register: 'client-validation-visible', forgot_password: 'client-validation-visible' };
 });
 
 await runFlow('login-validation-and-success', async () => {
   await goto('/login', '#login');
   await page.click('button[type="submit"]');
-  await waitForText('Vui lòng nhập Email / Số điện thoại / Username');
+  await waitForText('Vui lòng nhập email, số điện thoại hoặc tên đăng nhập.');
   await login();
   const auth = await page.evaluate(() => ({
     hasToken: Boolean(localStorage.getItem('auth_token')),
@@ -216,33 +216,33 @@ await runFlow('home-search-and-featured-content', async () => {
 });
 
 await runFlow('news-list-search-and-detail', async () => {
-  await goto('/news', '.news-page-container');
+  await goto('/news', '.sg-news-page');
   await page.waitForFunction(() => !document.body.innerText.includes('Đang tải tin tức'), { timeout: 20_000 });
-  const cards = await page.$$('.news-card');
+  const cards = await page.$$('.sg-news-card');
   if (!cards.length) throw new Error('Danh sách tin tức không có dữ liệu để kiểm tra chi tiết.');
-  await page.type('.search-box input', 'SportGo');
+  await page.type('#news-search', 'SportGo');
   await page.keyboard.press('Enter');
   await settle();
-  const filteredCards = await page.$$('.news-card');
+  const filteredCards = await page.$$('.sg-news-card');
   if (!filteredCards.length) {
-    await page.$eval('.search-box input', (input) => {
+    await page.$eval('#news-search', (input) => {
       input.value = '';
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+      input.closest('form')?.requestSubmit();
     });
     await settle();
   }
-  const firstCard = await page.$('.news-card');
-  if (!firstCard) throw new Error('Không khôi phục được danh sách tin tức sau khi xóa từ khóa.');
-  await firstCard.click();
+  const firstCardAction = await page.$('.sg-news-card button');
+  if (!firstCardAction) throw new Error('Không khôi phục được danh sách tin tức sau khi xóa từ khóa.');
+  await firstCardAction.click();
   await page.waitForFunction(() => /^\/news\/.+/.test(window.location.pathname), { timeout: 10_000 });
-  await page.waitForSelector('.news-detail-container', { visible: true, timeout: 15_000 });
+  await page.waitForSelector('.sg-news-article', { visible: true, timeout: 15_000 });
   return { detail_path: new URL(page.url()).pathname };
 });
 
 await runFlow('profile-and-vip-purchase-preview', async () => {
   await goto('/profile', '.profile-wrapper');
-  const vipLink = await page.$('.vip-upgrade-card');
+  const vipLink = await page.$('.btn-vip');
   if (!vipLink) throw new Error('Hồ sơ người dùng không có lối vào màn gói VIP.');
   await vipLink.click();
   await page.waitForFunction(() => window.location.pathname === '/vip-membership', { timeout: 10_000 });
@@ -277,8 +277,19 @@ await runFlow('venue-search-map-and-detail', async () => {
   await page.waitForSelector('.venue-results-map, .leaflet-container', { visible: true, timeout: 10_000 });
   await screenshot('venue-map');
   await goto(`/venues/${venueId}`, '.venue-detail-page');
-  await waitForText('Đặt sân');
-  return { detail_path: new URL(page.url()).pathname };
+  await page.waitForFunction(
+    () => !document.body.innerText.includes('Đang tải thông tin sân...'),
+    { timeout: 30_000 },
+  );
+  const cta = await page.$('#btn-view-schedule:not([disabled])');
+  if (!cta) throw new Error('Chi tiết sân không có CTA xem lịch khả dụng.');
+  await cta.click();
+  await page.waitForFunction((expectedVenueId) => {
+    const url = new URL(window.location.href);
+    return url.pathname === '/booking' && url.searchParams.get('venue_cluster_id') === expectedVenueId;
+  }, { timeout: 10_000 }, String(venueId));
+  const destination = new URL(page.url());
+  return { detail_path: `/venues/${venueId}`, booking_destination: `${destination.pathname}${destination.search}` };
 });
 
 await runFlow('booking-create-preview-and-cancel', async () => {
@@ -392,12 +403,12 @@ await runFlow('venue-report-submit', async () => {
 });
 
 await runFlow('community-comment-submit', async () => {
-  await goto(`/community/${communitySlug}`, '.news-detail-page');
+  await goto(`/community/${communitySlug}`, '.sg-community-detail-page');
   await page.waitForFunction(() => !document.body.innerText.includes('Đang tải bài viết'), { timeout: 20_000 });
-  await clickText('.fb-actions-row button', 'Bình luận');
-  await page.waitForSelector('.comment-form textarea', { visible: true, timeout: 8_000 });
-  await page.type('.comment-form textarea', `${runTag} Bình luận kiểm thử bằng Chrome.`);
-  const commentState = await page.$eval('.comment-form button[type="submit"]', (button) => ({
+  await clickText('.sg-community-actions button', 'Bình luận');
+  await page.waitForSelector('.sg-community-comment-composer textarea', { visible: true, timeout: 8_000 });
+  await page.type('.sg-community-comment-composer textarea', `${runTag} Bình luận kiểm thử bằng Chrome.`);
+  const commentState = await page.$eval('.sg-community-comment-composer button[type="submit"]', (button) => ({
     disabled: button.disabled,
     textarea: button.closest('form')?.querySelector('textarea')?.value || '',
   }));
@@ -406,13 +417,13 @@ await runFlow('community-comment-submit', async () => {
     (response) => response.url().includes('/comments') && response.request().method() === 'POST',
     { timeout: 15_000 },
   );
-  await page.$eval('.comment-form', (form) => form.requestSubmit());
+  await page.$eval('.sg-community-comment-composer form', (form) => form.requestSubmit());
   const commentResponse = await commentResponsePromise;
   if (!commentResponse.ok()) throw new Error(`Gửi bình luận trả HTTP ${commentResponse.status()}: ${await commentResponse.text()}`);
   const commentPayload = await commentResponse.json();
   const commentId = commentPayload?.data?.id ?? commentPayload?.comment?.id ?? commentPayload?.id;
   if (commentId) createdCommentIds.push(commentId);
-  await waitForText(`${runTag} Bình luận kiểm thử bằng Chrome.`, '.fb-comments-section', 20_000);
+  await waitForText(`${runTag} Bình luận kiểm thử bằng Chrome.`, '.sg-community-comment-list', 20_000);
   await screenshot('community-comment');
   return { tag: runTag, post: communitySlug };
 });
@@ -445,7 +456,7 @@ await runFlow('chat-send-message', async () => {
 
 await runFlow('meetup-empty-precondition-ux', async () => {
   await goto('/community', '.community-page');
-  await clickText('.community-header button', 'Tạo bài giao lưu');
+  await page.click('.meetup-sidebar button[aria-label="Tạo bài giao lưu"]');
   await page.waitForSelector('.meetup-modal', { visible: true, timeout: 8_000 });
   await page.waitForFunction(() => !document.body.innerText.includes('Đang tải lịch sân đủ điều kiện'), { timeout: 20_000 });
   await waitForText('Chưa có lịch sân phù hợp', '.meetup-modal');

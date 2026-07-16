@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class SystemSettingController extends Controller
@@ -22,6 +23,12 @@ class SystemSettingController extends Controller
 
     public function update(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('system_settings')) {
+            return response()->json([
+                'message' => 'Chưa thể lưu hồ sơ hệ thống vì bảng cấu hình chưa được khởi tạo.',
+            ], 409);
+        }
+
         $data = $request->validate([
             'system_name' => ['required', 'string', 'max:120'],
             'company_name' => ['required', 'string', 'max:255'],

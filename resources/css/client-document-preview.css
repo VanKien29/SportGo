@@ -1,0 +1,123 @@
+.document-preview-pane {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  padding: var(--sg-client-space-4, 16px);
+  border: 1px solid var(--sg-client-border, var(--admin-border));
+  border-radius: var(--sg-client-radius-md, var(--admin-radius));
+  background: var(--sg-client-page, var(--admin-bg));
+}
+
+.docx-surface {
+  --document-scale: 1;
+  width: 100%;
+  min-width: 100%;
+  min-height: 680px;
+}
+
+.file-frame {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(560px, 78dvh, 880px);
+  border: 1px solid var(--sg-client-border, var(--admin-border));
+  border-radius: var(--sg-client-radius-sm, var(--admin-radius));
+  background: var(--sg-client-surface, var(--admin-surface));
+}
+
+.image-frame {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 680px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.image-frame img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: none;
+  height: auto;
+  border-radius: var(--sg-client-radius-sm, var(--admin-radius));
+  background: var(--sg-client-surface, var(--admin-surface));
+  box-shadow: var(--sg-shadow);
+}
+
+.preview-state {
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sg-client-space-3, 12px);
+  padding: var(--sg-client-space-5, 20px);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--sg-client-muted, var(--admin-muted));
+}
+
+.preview-state.error {
+  color: var(--sg-client-danger, var(--admin-danger));
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--sg-client-primary-soft, var(--admin-primary-soft));
+  border-top-color: var(--sg-client-primary, var(--admin-primary));
+  border-radius: 999px;
+  animation: spin .8s linear infinite;
+}
+
+.preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sg-client-space-2, 8px);
+  border: 0;
+  border-radius: var(--sg-client-radius-sm, var(--admin-radius));
+  background: var(--sg-client-primary, var(--admin-primary));
+  color: var(--sg-client-surface, var(--admin-primary-text));
+  min-height: 38px;
+  padding-inline: var(--sg-client-space-4, 14px);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+:deep(.docx-wrapper) {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  flex-direction: column !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+:deep(.docx) {
+  flex: none !important;
+  zoom: var(--document-scale);
+  margin: 0 auto var(--sg-client-space-4, 16px) !important;
+  box-shadow: var(--sg-shadow) !important;
+}
+
+@media (max-width: 640px) {
+  .document-preview-pane {
+    padding: var(--sg-client-space-2, 8px);
+  }
+
+  .docx-surface,
+  .image-frame {
+    min-height: 480px;
+  }
+
+  .file-frame {
+    min-height: 68dvh;
+  }
+}

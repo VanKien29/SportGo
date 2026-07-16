@@ -2,9 +2,10 @@
 
 /* --- START OF tokens.css --- */
 :root {
-  --admin-font-family: var(--admin-font-family);
-  --admin-sidebar-width: var(--admin-sidebar-width);
-  --admin-sidebar-collapsed-width: var(--admin-sidebar-collapsed-width);
+  --admin-font-family: var(--sportgo-font-body, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  --admin-font-display-family: var(--sportgo-font-display, 'Outfit', 'Inter', ui-sans-serif, sans-serif);
+  --admin-sidebar-width: 272px;
+  --admin-sidebar-collapsed-width: 78px;
   --admin-transition-fast: 180ms;
   --admin-transition-normal: 250ms;
   --admin-bg: #eef6f0;
@@ -4735,7 +4736,7 @@ td small {
   align-items: start;
 }
 
-.top-calendar :deep(.mini-cal) {
+.top-calendar .mini-cal {
   max-width: 300px;
 }
 
@@ -7211,12 +7212,16 @@ input.invalid {
     background: var(--admin-surface, #ffffff);
     border-left: 1px solid #d9e8d9;
     box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
-    transform: translateX(106%);
-    transition: transform 0.22s ease;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, visibility 0.18s ease;
 }
 
 .booking-side.open {
-    transform: translateX(0);
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .counter-drawer-backdrop {
@@ -8360,11 +8365,26 @@ input.invalid {
 }
 
 @media (max-width: 820px) {
+    .owner-counter-page,
+    .counter-board,
+    .schedule-panel,
+    .tabs-and-actions,
+    .tabs-and-actions .tabs {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
     .tabs-and-actions {
         display: flex;
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
+    }
+
+    .tabs-and-actions .tabs {
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
     }
 
     .tabs-and-actions .secondary-btn {
@@ -8421,8 +8441,21 @@ input.invalid {
         align-items: flex-start;
     }
 
+    .schedule-panel {
+        overflow: hidden;
+    }
+
+    .schedule-panel .panel-head {
+        display: grid;
+        width: 100%;
+        min-width: 0;
+    }
+
     .legend {
+        grid-template-columns: repeat(2, max-content);
         justify-content: flex-start;
+        max-width: 100%;
+        margin-left: 0;
     }
 }
 

@@ -189,19 +189,38 @@ class ChatController extends Controller
         $imagePath = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            
-            // Chuyển mã sang webp để triệt tiêu malware ẩn trong metadata của tệp ảnh gốc
-            $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
-            $image = $manager->decodePath($file->getPathname());
-            
-            $filename = 'chat_' . uniqid('', true) . '.webp';
-            $imagePath = 'chats/' . $filename;
-            
-            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists('chats')) {
-                \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('chats');
+
+            if (! class_exists(\Intervention\Image\ImageManager::class)
+                || ! class_exists(\Intervention\Image\Drivers\Gd\Driver::class)) {
+                return response()->json([
+                    'message' => 'Chức năng gửi ảnh đang tạm thời chưa sẵn sàng. Vui lòng thử lại sau.',
+                ], 503);
             }
-            
-            $image->save(storage_path('app/public/' . $imagePath), 80);
+
+            try {
+                // Chuyển mã sang webp để loại bỏ metadata và nội dung dư thừa của tệp ảnh gốc.
+                $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
+                $image = $manager->decodePath($file->getPathname());
+
+                $filename = 'chat_' . uniqid('', true) . '.webp';
+                $imagePath = 'chats/' . $filename;
+
+                if (! \Illuminate\Support\Facades\Storage::disk('public')->exists('chats')) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('chats');
+                }
+
+                $image->save(storage_path('app/public/' . $imagePath), 80);
+            } catch (\Throwable $exception) {
+                if ($imagePath) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
+                }
+
+                report($exception);
+
+                return response()->json([
+                    'message' => 'Không thể xử lý ảnh này. Vui lòng chọn ảnh JPG, PNG, GIF hoặc WebP khác.',
+                ], 422);
+            }
         }
 
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
@@ -501,6 +520,12 @@ class ChatController extends Controller
     }
     public function createBookingSupportRequest(Request $request, $conversationId)
     {
+        if (! Schema::hasTable('booking_support_requests')) {
+            return response()->json([
+                'message' => 'Chức năng yêu cầu hỗ trợ booking chưa sẵn sàng. Vui lòng thử lại sau khi hệ thống hoàn tất cập nhật dữ liệu.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'booking_id' => 'required|integer|exists:bookings,id',
             'request_type' => 'required|string|in:reschedule,change_court,cancel_booking,payment,late_arrival,refund,other',
@@ -561,6 +586,12 @@ class ChatController extends Controller
 
     public function updateBookingSupportRequest(Request $request, $id)
     {
+        if (! Schema::hasTable('booking_support_requests')) {
+            return response()->json([
+                'message' => 'Chức năng yêu cầu hỗ trợ booking chưa sẵn sàng. Vui lòng thử lại sau khi hệ thống hoàn tất cập nhật dữ liệu.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'status' => 'required|string|in:acknowledged,resolved,rejected',
             'resolution_note' => 'nullable|string|max:1000',
@@ -1002,7 +1033,9 @@ class ChatController extends Controller
             }
         }
 
-        if ($message->reference_type === 'booking_support_request' && $message->reference_id) {
+        if ($message->reference_type === 'booking_support_request'
+            && $message->reference_id
+            && Schema::hasTable('booking_support_requests')) {
             $supportRequest = BookingSupportRequest::query()
                 ->with([
                     'booking.venueCourt.venueCluster',

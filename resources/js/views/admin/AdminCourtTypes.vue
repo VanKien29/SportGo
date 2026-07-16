@@ -570,6 +570,7 @@ export default {
     gap: 20px;
     max-width: 1000px;
     width: 100%;
+    min-width: 0;
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -589,12 +590,16 @@ export default {
 
 .views-content-wrapper {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .grouped-court-types-list {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .court-type-group {
@@ -602,6 +607,8 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .court-type-group:last-child {
@@ -651,6 +658,15 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.group-items :deep(.saas-table-container),
+.group-items :deep(.saas-table-scroll) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* SaaS Table custom layouts */

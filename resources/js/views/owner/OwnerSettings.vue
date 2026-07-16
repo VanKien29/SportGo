@@ -5,6 +5,9 @@
       <AppIcon name="check" size="18" />
       <span>{{ successMessage }}</span>
     </div>
+    <div v-if="errorMessage" class="alert error" role="alert" style="margin-bottom: 0px; border-radius: 12px;">
+      <span>{{ errorMessage }}</span>
+    </div>
 
     <!-- Sidebar Style Selection -->
     <div class="settings-card">
@@ -379,6 +382,13 @@ import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
 
 const PRESETS = [
   {
+    id: 'owner-sportgo',
+    name: 'SportGo',
+    color: '#16a34a',
+    light: { primary: '#16a34a', secondary: '#0f766e', accent: '#ecfdf5', muted: '#64748b', destructive: '#ef4444', border: '#bbf7d0', card: '#ffffff', background: '#f6fbf7', text: '#1e293b' },
+    dark: { primary: '#22c55e', secondary: '#2dd4bf', accent: '#052e16', muted: '#94a3b8', destructive: '#f87171', border: '#164e2f', card: '#0f1f17', background: '#07130d', text: '#f4f4f5' }
+  },
+  {
     id: 'owner-zinc',
     name: 'Zinc',
     color: '#18181b',
@@ -391,6 +401,7 @@ const PRESETS = [
       border: '#e4e4e7',
       card: '#ffffff',
       background: '#fafafa',
+      text: '#1e293b',
     },
     dark: {
       primary: '#fafafa',
@@ -401,7 +412,36 @@ const PRESETS = [
       border: '#27272a',
       card: '#09090b',
       background: '#09090b',
+      text: '#f4f4f5',
     }
+  },
+  {
+    id: 'owner-slate',
+    name: 'Slate',
+    color: '#0f172a',
+    light: { primary: '#0f172a', secondary: '#1e293b', accent: '#e2e8f0', muted: '#64748b', destructive: '#ef4444', border: '#e2e8f0', card: '#ffffff', background: '#f8fafc', text: '#1e293b' },
+    dark: { primary: '#f8fafc', secondary: '#1e293b', accent: '#1e293b', muted: '#94a3b8', destructive: '#ef4444', border: '#1e293b', card: '#0f172a', background: '#020817', text: '#f4f4f5' }
+  },
+  {
+    id: 'owner-sapphire',
+    name: 'Sapphire',
+    color: '#2563eb',
+    light: { primary: '#2563eb', secondary: '#0284c7', accent: '#f0f9ff', muted: '#475569', destructive: '#e11d48', border: '#bfdbfe', card: '#ffffff', background: '#f0f6ff', text: '#1e293b' },
+    dark: { primary: '#3b82f6', secondary: '#38bdf8', accent: '#1e293b', muted: '#94a3b8', destructive: '#f43f5e', border: '#1e3a8a', card: '#0f172a', background: '#090d16', text: '#f4f4f5' }
+  },
+  {
+    id: 'owner-amethyst',
+    name: 'Amethyst',
+    color: '#7c3aed',
+    light: { primary: '#7c3aed', secondary: '#db2777', accent: '#f5f3ff', muted: '#4b5563', destructive: '#dc2626', border: '#ddd6fe', card: '#ffffff', background: '#faf7ff', text: '#1e293b' },
+    dark: { primary: '#8b5cf6', secondary: '#ec4899', accent: '#2e1065', muted: '#9ca3af', destructive: '#ef4444', border: '#4c1d95', card: '#111827', background: '#030712', text: '#f4f4f5' }
+  },
+  {
+    id: 'owner-amber',
+    name: 'Amber',
+    color: '#d97706',
+    light: { primary: '#d97706', secondary: '#ea580c', accent: '#fffbeb', muted: '#4b5563', destructive: '#dc2626', border: '#fde68a', card: '#ffffff', background: '#fdfbf7', text: '#1e293b' },
+    dark: { primary: '#f59e0b', secondary: '#f97316', accent: '#451a03', muted: '#9ca3af', destructive: '#ef4444', border: '#78350f', card: '#1e1b4b', background: '#0c0a09', text: '#f4f4f5' }
   }
 ];
 
@@ -412,7 +452,8 @@ export default {
     return {
       sidebarStyle: localStorage.getItem('owner-sidebar-style') || 'one-level',
       successMessage: '',
-      selectedPresetId: 'owner-zinc',
+      errorMessage: '',
+      selectedPresetId: 'owner-sportgo',
       selectedRadius: '8px',
       selectedFontSize: '14px',
       selectedFontFamily: "'Outfit', sans-serif",
@@ -722,6 +763,23 @@ export default {
         }
       }
     },
+    mergePresets(basePresets, incomingPresets) {
+      const presetMap = new Map();
+      basePresets.forEach((preset) => presetMap.set(preset.id, preset));
+      (Array.isArray(incomingPresets) ? incomingPresets : []).forEach((preset) => {
+        if (!preset?.id) return;
+
+        const current = presetMap.get(preset.id) || {};
+        presetMap.set(preset.id, {
+          ...current,
+          ...preset,
+          light: { ...(current.light || {}), ...(preset.light || {}) },
+          dark: { ...(current.dark || {}), ...(preset.dark || {}) },
+        });
+      });
+
+      return Array.from(presetMap.values());
+    },
     loadSavedTheme() {
       const saved = localStorage.getItem('owner-custom-theme');
       if (saved) {
@@ -753,7 +811,7 @@ export default {
     },
     resetAll() {
       if (confirm('Bạn có chắc chắn muốn khôi phục tất cả cài đặt và độ bo góc về mặc định?')) {
-        this.selectedPresetId = 'owner-zinc';
+        this.selectPreset(PRESETS[0]);
         this.selectedRadius = '8px';
         this.selectedFontSize = '14px';
         this.selectedFontFamily = "'Outfit', sans-serif";
@@ -777,7 +835,7 @@ export default {
           this.selectedTransitionNormal = data.transition_normal || '250ms';
           
           if (data.presets && data.presets.length > 0) {
-            this.defaultPresets = data.presets;
+            this.defaultPresets = this.mergePresets(PRESETS, data.presets);
           }
           if (data.custom_themes) {
             this.userPresets = data.custom_themes;
@@ -790,7 +848,7 @@ export default {
             this.theme.dark = { ...activePreset.dark };
             this.newThemeName = activePreset.name;
           } else {
-            this.selectedPresetId = data.active_theme_id || 'owner-zinc';
+            this.selectedPresetId = data.active_theme_id || 'owner-sportgo';
           }
         }
       } catch (e) {
@@ -798,6 +856,8 @@ export default {
       }
     },
     async saveTheme() {
+      this.successMessage = '';
+      this.errorMessage = '';
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
@@ -847,7 +907,12 @@ export default {
         };
         await ownerUiSettingsService.updateSettings(payloadDb);
       } catch (e) {
-        console.error('Failed to save UI settings to DB', e);
+        this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          this.errorMessage = '';
+        }, 5000);
+        return;
       }
       
       this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';

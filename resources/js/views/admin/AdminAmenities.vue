@@ -470,6 +470,7 @@ export default {
     gap: 20px;
     max-width: 1000px;
     width: 100%;
+    min-width: 0;
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -486,12 +487,22 @@ export default {
     justify-content: space-between;
     align-items: center;
 }
+.avc-filters {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
 .filter-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 16px;
     flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 .filter-tabs {
     display: flex;
@@ -683,6 +694,15 @@ export default {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.amenities-list-wrapper :deep(.saas-table-container),
+.amenities-list-wrapper :deep(.saas-table-scroll) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .amenities-list {

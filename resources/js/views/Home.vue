@@ -64,8 +64,6 @@
               </svg>
               <select
                 v-model="search.court_type_id"
-                @focus="ensureCourtTypesLoaded"
-                @pointerdown="ensureCourtTypesLoaded"
               >
                 <option value="">Tất cả môn</option>
                 <option v-for="type in courtTypes" :key="type.id" :value="type.id">
@@ -130,6 +128,10 @@
         </div>
 
         <div v-if="loadingVenues" class="state">Đang tải cụm sân...</div>
+        <div v-else-if="venueError" class="state" role="alert">
+          <span>{{ venueError }}</span>
+          <button class="sg-client-button" type="button" @click="loadFeaturedVenues">Thử lại</button>
+        </div>
         <div v-else-if="topVenues.length === 0" class="state">Chưa có cụm sân phù hợp.</div>
         <div v-else class="venue-grid">
           <article
@@ -137,13 +139,10 @@
             :key="venue.id"
             class="venue-card"
           >
-            <button class="favorite-btn" type="button" aria-label="Lưu sân yêu thích">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
-            </button>
             <div class="venue-photo" @click="goVenue(venue)">
               <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" decoding="async" />
-              <span class="status-badge">Còn trống</span>
-              <strong class="rating-badge">★ {{ ratingValue(venue) }}</strong>
+              <span class="status-badge">Đang hoạt động</span>
+              <strong class="rating-badge">{{ ratingLabel(venue) }}</strong>
             </div>
             <div class="venue-info">
               <div class="venue-title-row">
@@ -154,8 +153,8 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 {{ venue.address || venue.province || "Đang cập nhật địa chỉ" }}
               </p>
-              <div class="amenity-row">
-                <span v-for="amenity in venueAmenities" :key="amenity">{{ amenity }}</span>
+              <div v-if="venue.court_types?.length" class="amenity-row">
+                <span v-for="type in venue.court_types.slice(0, 4)" :key="type.id">{{ type.name }}</span>
               </div>
               <div class="venue-bottom">
                 <strong>{{ venue.min_price ? `Từ ${formatCurrency(venue.min_price)}/giờ` : "Liên hệ" }}</strong>
@@ -211,12 +210,16 @@
         </div>
 
         <div v-if="!postsRequested || loadingPosts" class="state">Đang tải bài viết...</div>
+        <div v-else-if="postsError" class="state" role="alert">
+          <span>{{ postsError }}</span>
+          <button class="sg-client-button" type="button" @click="loadLatestPosts">Thử lại</button>
+        </div>
         <div v-else-if="topPosts.length === 0" class="state">Chưa có bài viết mới.</div>
         <div v-else class="post-grid">
           <article v-for="(post, index) in topPosts" :key="post.id" class="post-card">
             <div class="post-image">
               <img :src="postImage(post, index)" :alt="post.title" loading="lazy" decoding="async" />
-              <span>{{ postCategory(index) }}</span>
+              <span>{{ postCategory(post) }}</span>
             </div>
             <div class="post-body">
               <h3>{{ post.title }}</h3>
@@ -373,29 +376,21 @@ export default {
         { label: "Bóng bàn", image: `${sportIconBase}/bongban.webp` },
         { label: "Tất cả", image: `${sportIconBase}/viewall.webp` },
       ],
-      areaFilters: [
-        { name: "Cầu Giấy", count: "12 cụm sân đa môn", image: heroImage },
-        { name: "Mỹ Đình", count: "8 cụm sân cầu lông", image: heroImage },
-        { name: "Hà Đông", count: "10 cụm sân thể thao", image: heroImage },
-        { name: "Thanh Xuân", count: "6 cụm sân trong nhà", image: heroImage },
-      ],
       benefits: [
         { title: "Đa dạng môn chơi", text: "Cầu lông, bóng đá, pickleball, tennis, bóng rổ và bóng bàn.", icon: "<svg viewBox='0 0 24 24'><path d='M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'/></svg>" },
         { title: "Đặt sân nhanh chóng", text: "Chỉ vài bước để đặt sân và xác nhận.", icon: "<svg viewBox='0 0 24 24'><path d='M12 6v6l4 2'/><circle cx='12' cy='12' r='9'/></svg>" },
         { title: "Thanh toán an toàn", text: "Nhiều phương thức thanh toán tiện lợi.", icon: "<svg viewBox='0 0 24 24'><rect x='3' y='8' width='18' height='12' rx='2'/><path d='M7 8V6a5 5 0 0 1 10 0v2'/></svg>" },
         { title: "Hỗ trợ 24/7", text: "Đội ngũ SportGo luôn sẵn sàng hỗ trợ bạn.", icon: "<svg viewBox='0 0 24 24'><path d='M4 14v-2a8 8 0 0 1 16 0v2'/><path d='M6 14h3v5H6zM15 14h3v5h-3z'/></svg>" },
       ],
-      venueAmenities: ["Đèn", "Wifi", "Gửi xe", "Căng tin"],
       courtTypes: [],
       featuredVenues: [],
       latestPosts: [],
       postsRequested: false,
       loadingVenues: true,
-      courtTypesRequested: false,
-      loadingCourtTypes: false,
       loadingPosts: false,
+      venueError: "",
+      postsError: "",
       homeDataHandle: null,
-      courtTypesHandle: null,
       newsObserver: null,
     };
   },
@@ -421,7 +416,7 @@ export default {
       return [
         { value: this.loadingVenues ? "..." : venueCount || "0", label: "Cơ sở" },
         { value: this.loadingVenues ? "..." : courtCount || "0", label: "Sân thể thao" },
-        { value: !this.courtTypesRequested || this.loadingCourtTypes ? "..." : this.courtTypes.length || "0", label: "Loại sân" },
+        { value: this.loadingVenues ? "..." : this.courtTypes.length || "0", label: "Loại sân" },
       ];
     },
     topVenues() {
@@ -430,10 +425,23 @@ export default {
     topPosts() {
       return this.latestPosts.slice(0, 4);
     },
+    areaFilters() {
+      const grouped = new Map();
+      this.featuredVenues.forEach((venue) => {
+        const name = venue.ward || venue.province || this.addressArea(venue.address);
+        if (!name) return;
+        const current = grouped.get(name) || { name, count: 0, image: this.venueImage(venue) };
+        current.count += 1;
+        grouped.set(name, current);
+      });
+      return [...grouped.values()].slice(0, 4).map((area) => ({
+        ...area,
+        count: `${area.count} cụm sân`,
+      }));
+    },
   },
   mounted() {
     this.deferHomeDataLoad();
-    this.deferCourtTypeLoad();
     this.observeNewsSection();
   },
   beforeUnmount() {
@@ -447,10 +455,6 @@ export default {
       this.homeDataHandle = null;
     }
 
-    if (this.courtTypesHandle) {
-      window.clearTimeout(this.courtTypesHandle);
-      this.courtTypesHandle = null;
-    }
   },
   methods: {
     deferHomeDataLoad() {
@@ -460,22 +464,6 @@ export default {
       };
 
       this.homeDataHandle = window.setTimeout(load, 1800);
-    },
-    deferCourtTypeLoad() {
-      this.courtTypesHandle = window.setTimeout(() => {
-        this.courtTypesHandle = null;
-        this.ensureCourtTypesLoaded();
-      }, 4200);
-    },
-    ensureCourtTypesLoaded() {
-      if (this.courtTypes.length || this.loadingCourtTypes) return;
-
-      if (this.courtTypesHandle) {
-        window.clearTimeout(this.courtTypesHandle);
-        this.courtTypesHandle = null;
-      }
-
-      this.loadCourtTypes();
     },
     observeNewsSection() {
       this.$nextTick(() => {
@@ -497,26 +485,27 @@ export default {
         this.newsObserver.observe(section);
       });
     },
-    async loadCourtTypes() {
-      this.courtTypesRequested = true;
-      this.loadingCourtTypes = true;
-      try {
-        const response = await api("/api/court-types");
-        this.courtTypes = (response.data || []).filter((type) => type.is_active !== false && !type.parent_id);
-      } catch {
-        this.courtTypes = [];
-      } finally {
-        this.loadingCourtTypes = false;
-      }
-    },
     async loadFeaturedVenues() {
       this.loadingVenues = true;
+      this.venueError = "";
       try {
-        const query = toQuery({ min_rating: 0, limit: 3 });
+        const query = toQuery({ min_rating: 0, limit: 6 });
         const response = await api(`/api/venues${query ? `?${query}` : ""}`);
         this.featuredVenues = response.data || [];
-      } catch {
+        const types = new Map();
+        this.featuredVenues.forEach((venue) => {
+          (venue.court_types || []).forEach((type) => {
+            // Venue payloads expose the bookable leaf type (for example
+            // "Cầu lông - sân tiêu chuẩn"), not necessarily its parent.
+            // Build filters from the values the venue API can actually match.
+            if (type?.id) types.set(String(type.id), type);
+          });
+        });
+        this.courtTypes = [...types.values()].sort((left, right) => String(left.name).localeCompare(String(right.name), "vi"));
+      } catch (error) {
         this.featuredVenues = [];
+        this.courtTypes = [];
+        this.venueError = error?.message || "Không thể tải danh sách sân lúc này.";
       } finally {
         this.loadingVenues = false;
       }
@@ -525,11 +514,13 @@ export default {
       if (this.postsRequested && (this.loadingPosts || this.latestPosts.length > 0)) return;
       this.postsRequested = true;
       this.loadingPosts = true;
+      this.postsError = "";
       try {
-        const response = await api("/api/venue-posts?per_page=4");
+        const response = await api("/api/venue-posts?per_page=4&feed_type=community_post");
         this.latestPosts = response.data || [];
-      } catch {
+      } catch (error) {
         this.latestPosts = [];
+        this.postsError = error?.message || "Không thể tải bài viết mới lúc này.";
       } finally {
         this.loadingPosts = false;
       }
@@ -588,11 +579,24 @@ export default {
       const media = Array.isArray(post.media) ? post.media.find((item) => item.collection === "thumbnail") || post.media[0] : null;
       return normalizeHomeMediaUrl(media) || this.imageUrl(post.thumbnail || post.image_path || post.cover_image) || (index % 2 === 0 ? heroImage : this.venueImage(post.venue_cluster || {}));
     },
-    ratingValue(venue) {
-      return Number(venue.average_rating || venue.rating || 4.8).toFixed(1);
+    ratingLabel(venue) {
+      const rating = Number(venue.rating_avg || venue.average_rating || venue.rating || 0);
+      return rating > 0 ? `★ ${rating.toFixed(1)}` : "Mới";
     },
-    postCategory(index) {
-      return ["Kinh nghiệm", "Sự kiện", "Cụm sân mới", "Ưu đãi"][index % 4];
+    postCategory(post) {
+      const hashtag = Array.isArray(post.hashtags) ? post.hashtags[0]?.name : "";
+      if (hashtag) return hashtag;
+      return {
+        news: "Bài chia sẻ",
+        promotion: "Ưu đãi",
+        tournament: "Sự kiện",
+        notice: "Thông báo",
+        recruitment: "Tìm người chơi",
+      }[post.post_type] || "Cộng đồng";
+    },
+    addressArea(address) {
+      const parts = String(address || "").split(",").map((part) => part.trim()).filter(Boolean);
+      return parts.length > 1 ? parts.at(-2) : parts[0] || "";
     },
     plainText(html) {
       const wrapper = document.createElement("div");
@@ -610,1015 +614,6 @@ export default {
 };
 </script>
 
-<style>
-html.light .home-container {
-  --h-bg: #f8fafc;
-  --h-text: #0f172a;
-  --h-text-rgb: 15, 23, 42;
-  --h-inv-rgb: 255, 255, 255;
-  --h-surface-rgb: 255, 255, 255;
-}
-</style>
+<style src="../../css/client-home-theme.css"></style>
 
-<style scoped>
-.home-page {
-  min-height: 100vh;
-  background: #f7faf8;
-  color: #111827;
-}
-
-main {
-  padding-top: 64px;
-}
-
-svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-}
-
-.hero {
-  position: relative;
-  min-height: 650px;
-  overflow: hidden;
-  background: #081812;
-}
-
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("/images/home/anhbia2.webp");
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  filter: saturate(.78) brightness(1.08) contrast(1.02);
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(5, 24, 18, .5), rgba(5, 38, 28, .24) 48%, rgba(5, 38, 28, .04));
-}
-
-.hero-inner {
-  position: relative;
-  z-index: 2;
-  display: block;
-  max-width: 1320px;
-  min-height: 650px;
-  margin: 0 auto;
-  padding: 110px 28px 150px;
-}
-
-.hero-copy {
-  max-width: 660px;
-}
-
-.hero-copy h1 {
-  max-width: 650px;
-  margin: 0;
-  color: #fff;
-  font-size: 58px;
-  font-weight: 950;
-  line-height: 1.04;
-  letter-spacing: 0;
-  text-shadow: 0 4px 22px rgba(0, 0, 0, .42);
-}
-
-.hero-copy h1::after {
-  content: "";
-  display: block;
-  width: 112px;
-  height: 6px;
-  margin-top: 20px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #0d8c51, #36d17f);
-}
-
-.hero-copy p {
-  max-width: 560px;
-  margin: 22px 0 0;
-  color: rgba(255, 255, 255, .94);
-  font-size: 18px;
-  line-height: 1.75;
-  text-shadow: 0 3px 16px rgba(0, 0, 0, .38);
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 30px;
-}
-
-.hero-primary,
-.hero-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 46px;
-  padding: 0 18px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.hero-primary {
-  background: #fff;
-  color: #05603a;
-}
-
-.hero-secondary {
-  border: 1px solid rgba(255, 255, 255, .65);
-  color: #fff;
-}
-
-.hero-stats {
-  display: flex;
-  gap: 30px;
-  margin-top: 28px;
-}
-
-.hero-stats strong,
-.hero-stats span {
-  display: block;
-}
-
-.hero-stats strong {
-  color: #fff;
-  font-size: 28px;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.hero-stats span {
-  margin-top: 6px;
-  color: rgba(255, 255, 255, .78);
-  font-size: 13px;
-  font-weight: 750;
-}
-
-.search-panel {
-  position: sticky;
-  top: 76px;
-  z-index: 30;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 170px;
-  gap: 16px;
-  align-items: end;
-  max-width: 1296px;
-  margin: -64px auto 0;
-  padding: 20px 28px;
-  border: 1px solid #dbe8e1;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 18px 44px rgba(15, 23, 42, .12);
-}
-
-.search-grid {
-  display: grid;
-  grid-template-columns: 1.15fr 1.05fr 1fr;
-  gap: 14px;
-}
-
-.search-panel label {
-  display: grid;
-  gap: 8px;
-  color: #233226;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.search-panel input,
-.search-panel select {
-  width: 100%;
-  height: 46px;
-  border: 1px solid #d8e3dc;
-  border-radius: 10px;
-  padding: 0 42px;
-  background: #fff;
-  color: #111827;
-  font-size: 14px;
-  font-weight: 700;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  transition: border-color .18s ease, box-shadow .18s ease;
-}
-
-.field-control {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.field-leading,
-.field-action {
-  position: absolute;
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
-}
-
-.field-leading {
-  left: 14px;
-  color: #0b7a46;
-}
-
-.field-action {
-  right: 14px;
-  color: #5e6f64;
-}
-
-.search-panel input[type="date"]::-webkit-calendar-picker-indicator {
-  position: absolute;
-  right: 0;
-  width: 46px;
-  height: 46px;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.search-panel input[type="search"]::-webkit-search-decoration,
-.search-panel input[type="search"]::-webkit-search-cancel-button {
-  display: none;
-}
-
-.search-panel input:focus,
-.search-panel select:focus {
-  border-color: #12864f;
-  box-shadow: 0 0 0 4px rgba(18, 134, 79, .12);
-}
-
-.pitch-types {
-  display: none;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.pitch-types button {
-  height: 38px;
-  padding: 0 18px;
-  border: 1px solid #d8e3dc;
-  border-radius: 10px;
-  background: #fff;
-  color: #314138;
-  font-weight: 850;
-}
-
-.pitch-types button.active {
-  border-color: #b7e8cf;
-  background: #e7f8ef;
-  color: #04733f;
-}
-
-.search-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  height: 52px;
-  margin-top: 0;
-  border-radius: 10px;
-  background: #0d8c51;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 950;
-  box-shadow: none;
-  transition: transform .18s ease, box-shadow .18s ease;
-}
-
-.search-submit.never-hover-class-placeholder {
-  transform: translateY(-1px);
-  box-shadow: 0 22px 44px rgba(4, 115, 63, .3);
-}
-
-.filter-strip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 16px;
-  max-width: 1320px;
-  margin: 40px auto 0;
-  padding: 0 28px;
-  position: relative;
-  z-index: 2;
-}
-
-.filter-strip button {
-  display: grid;
-  place-items: center;
-  gap: 8px;
-  min-height: 96px;
-  border: 1px solid #e1e8e4;
-  border-radius: 16px;
-  background: #fff;
-  color: #26332b;
-  font-size: 13px;
-  font-weight: 900;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, .07);
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease;
-}
-
-.sport-filter-icon {
-  display: block;
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  filter: drop-shadow(0 7px 12px rgba(15, 23, 42, .16));
-  transition: transform .18s ease, filter .18s ease;
-}
-
-.filter-strip button.active,
-.filter-strip button.never-hover-class-placeholder {
-  border-color: #9fe6c0;
-  color: #04733f;
-  transform: translateY(-2px);
-  box-shadow: 0 20px 42px rgba(4, 115, 63, .14);
-}
-
-.filter-strip button.active .sport-filter-icon,
-.filter-strip button.never-hover-class-placeholder .sport-filter-icon {
-  transform: scale(1.06);
-}
-
-.section-block {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 56px 28px 0;
-}
-
-.section-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 22px;
-}
-
-.section-heading p {
-  margin: 0 0 6px;
-  color: #04733f;
-  font-size: 13px;
-  font-weight: 950;
-  letter-spacing: .03em;
-}
-
-.section-heading h2 {
-  margin: 0;
-  color: #111827;
-  font-size: 28px;
-  font-weight: 950;
-}
-
-.section-heading a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 42px;
-  padding: 0 8px 0 16px;
-  border: 1px solid #bfe8d1;
-  border-radius: 999px;
-  background: #fff;
-  color: #04733f;
-  font-size: 14px;
-  font-weight: 950;
-  text-decoration: none;
-  box-shadow: 0 12px 30px rgba(4, 115, 63, .08);
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease;
-}
-
-.section-heading a svg {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  padding: 6px;
-  border-radius: 999px;
-  background: #04733f;
-  color: #fff;
-  box-sizing: border-box;
-  transition: transform .18s ease, background .18s ease;
-}
-
-.section-heading a.never-hover-class-placeholder {
-  border-color: #04733f;
-  background: #ecfbf2;
-  color: #035f36;
-  transform: translateY(-1px);
-  box-shadow: 0 16px 34px rgba(4, 115, 63, .14);
-}
-
-.section-heading a.never-hover-class-placeholder svg {
-  background: #035f36;
-  transform: translateX(2px);
-}
-
-.state {
-  display: grid;
-  min-height: 180px;
-  place-items: center;
-  border: 1px dashed #cbd5d0;
-  border-radius: 16px;
-  background: #fff;
-  color: #66756d;
-  font-weight: 750;
-}
-
-.venue-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
-}
-
-.venue-card,
-.post-card {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid #e1e8e4;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, .06);
-  transition: transform .18s ease, box-shadow .18s ease;
-}
-
-.venue-card.never-hover-class-placeholder,
-.post-card.never-hover-class-placeholder {
-  transform: translateY(-3px);
-  box-shadow: 0 24px 56px rgba(15, 23, 42, .11);
-}
-
-.favorite-btn {
-  position: absolute;
-  z-index: 2;
-  top: 14px;
-  right: 14px;
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 999px;
-  background: rgba(17, 24, 39, .45);
-  color: #fff;
-  backdrop-filter: blur(10px);
-}
-
-.favorite-btn svg {
-  width: 19px;
-}
-
-.venue-photo {
-  position: relative;
-  height: 230px;
-  cursor: pointer;
-}
-
-.venue-photo img,
-.post-image img,
-.area-grid img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.status-badge,
-.rating-badge,
-.post-image span {
-  position: absolute;
-  top: 14px;
-  border-radius: 9px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.status-badge {
-  left: 14px;
-  padding: 8px 12px;
-  background: #079455;
-}
-
-.rating-badge {
-  right: 60px;
-  padding: 8px 10px;
-  background: rgba(17, 24, 39, .76);
-}
-
-.venue-info {
-  padding: 18px 20px 20px;
-}
-
-.venue-title-row,
-.venue-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.venue-info h3,
-.post-body h3 {
-  margin: 0;
-  color: #111827;
-  font-size: 19px;
-  font-weight: 950;
-}
-
-.venue-title-row span {
-  color: #46564d;
-  font-size: 13px;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
-.venue-address {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 24px;
-  margin: 10px 0 14px;
-  color: #5f6f66;
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-.venue-address svg {
-  width: 16px;
-  min-width: 16px;
-}
-
-.amenity-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.amenity-row span {
-  display: inline-grid;
-  min-height: 28px;
-  place-items: center;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #f1f5f3;
-  color: #53645b;
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.venue-bottom {
-  padding-top: 16px;
-  border-top: 1px solid #edf2ef;
-}
-
-.venue-bottom strong {
-  color: #04733f;
-  font-size: 16px;
-  font-weight: 950;
-}
-
-.venue-bottom a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  padding: 0 16px;
-  border: 1px solid #0b8f50;
-  border-radius: 10px;
-  color: #04733f;
-  font-size: 13px;
-  font-weight: 950;
-  text-decoration: none;
-}
-
-.area-section {
-  padding-top: 42px;
-}
-
-.section-heading.compact {
-  margin-bottom: 16px;
-}
-
-.area-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.area-grid button,
-.all-area {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 82px;
-  padding: 12px;
-  border: 1px solid #e1e8e4;
-  border-radius: 15px;
-  background: #fff;
-  color: #111827;
-  text-align: left;
-  text-decoration: none;
-  box-shadow: 0 14px 36px rgba(15, 23, 42, .04);
-}
-
-.area-grid img {
-  width: 66px;
-  min-width: 66px;
-  height: 56px;
-  border-radius: 10px;
-}
-
-.area-grid strong {
-  display: block;
-  font-size: 15px;
-  font-weight: 950;
-}
-
-.area-grid small {
-  display: block;
-  margin-top: 4px;
-  color: #66756d;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.all-area {
-  border-color: #04733f;
-  background: #04733f;
-  color: #fff;
-  box-shadow: 0 18px 38px rgba(4, 115, 63, .18);
-  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-}
-
-.all-area svg {
-  width: 46px;
-  height: 46px;
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, .14);
-  color: #fff;
-  box-sizing: border-box;
-}
-
-.all-area small {
-  color: rgba(255, 255, 255, .76);
-}
-
-.all-area.never-hover-class-placeholder {
-  background: #035f36;
-  transform: translateY(-2px);
-  box-shadow: 0 22px 44px rgba(4, 115, 63, .24);
-}
-
-.news-section {
-  padding-bottom: 50px;
-}
-
-.post-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 22px;
-}
-
-.post-image {
-  position: relative;
-  height: 150px;
-}
-
-.post-image span {
-  left: 14px;
-  padding: 7px 11px;
-  background: #e95791;
-}
-
-.post-body {
-  padding: 18px;
-}
-
-.post-body h3 {
-  font-size: 17px;
-  line-height: 1.35;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.post-body p {
-  min-height: 54px;
-  margin: 10px 0 16px;
-  color: #66756d;
-  font-size: 14px;
-  line-height: 1.55;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.post-body a {
-  color: #04733f;
-  font-size: 13px;
-  font-weight: 950;
-  text-decoration: none;
-}
-
-.why-section {
-  background: #fff;
-  border-top: 1px solid #edf2ef;
-  border-bottom: 1px solid #edf2ef;
-}
-
-.why-inner {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 44px 28px;
-}
-
-.why-inner h2 {
-  margin: 0 0 22px;
-  font-size: 28px;
-  font-weight: 950;
-}
-
-.why-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.why-grid article {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid #e1e8e4;
-  border-radius: 15px;
-  background: #fbfdfc;
-}
-
-.why-grid span {
-  display: grid;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
-  place-items: center;
-  border-radius: 50%;
-  background: #e7f8ef;
-  color: #04733f;
-}
-
-.why-grid :deep(svg) {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-}
-
-.why-grid h3 {
-  margin: 0 0 5px;
-  font-size: 15px;
-  font-weight: 950;
-}
-
-.why-grid p {
-  margin: 0;
-  color: #66756d;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.newsletter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 28px;
-  max-width: 1320px;
-  margin: 32px auto 58px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #0d7d48, #22c55e);
-  color: #fff;
-  box-shadow: 0 24px 50px rgba(4, 115, 63, .18);
-}
-
-.newsletter h2 {
-  margin: 0;
-  font-size: 27px;
-  font-weight: 950;
-}
-
-.newsletter p {
-  margin: 8px 0 0;
-  color: rgba(255, 255, 255, .9);
-}
-
-.newsletter form {
-  display: flex;
-  gap: 10px;
-  min-width: 430px;
-}
-
-.newsletter input {
-  flex: 1;
-  height: 48px;
-  border: 0;
-  border-radius: 10px;
-  padding: 0 16px;
-  background: #fff;
-  color: #111827;
-  font-weight: 750;
-  outline: none;
-}
-
-.newsletter button {
-  height: 48px;
-  padding: 0 22px;
-  border-radius: 10px;
-  background: #43d56f;
-  color: #fff;
-  font-weight: 950;
-}
-
-.site-footer {
-  display: grid;
-  grid-template-columns: 1.6fr repeat(3, 1fr);
-  gap: 42px;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 28px 42px;
-}
-
-.footer-logo span {
-  color: #111827;
-  font-size: 24px;
-  font-weight: 950;
-}
-
-.footer-logo span span {
-  color: #0d8c51;
-}
-
-.footer-logo img {
-  display: block;
-  max-width: 150px;
-  max-height: 42px;
-  object-fit: contain;
-}
-
-.site-footer h3 {
-  margin: 0 0 14px;
-  color: #111827;
-  font-size: 14px;
-  font-weight: 950;
-}
-
-.site-footer p,
-.site-footer a {
-  display: block;
-  margin: 0 0 10px;
-  color: #66756d;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.6;
-  text-decoration: none;
-}
-
-.footer-brand p {
-  max-width: 280px;
-  margin-top: 12px;
-}
-
-@media (max-width: 1100px) {
-  .hero-inner {
-    min-height: auto;
-    padding-bottom: 72px;
-  }
-
-  .search-panel {
-    grid-template-columns: 1fr;
-    max-width: 720px;
-    margin-top: -36px;
-  }
-
-  .search-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .filter-strip {
-    margin-top: 36px;
-  }
-
-  .filter-strip,
-  .venue-grid,
-  .post-grid,
-  .why-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .area-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .newsletter,
-  .newsletter form {
-    flex-direction: column;
-    align-items: stretch;
-    min-width: 0;
-  }
-
-  .site-footer {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 700px) {
-  main {
-    padding-top: 58px;
-  }
-
-  .hero,
-  .hero-inner {
-    min-height: auto;
-  }
-
-  .hero-inner {
-    padding: 56px 20px 72px;
-  }
-
-  .hero-copy h1 {
-    font-size: 40px;
-  }
-
-  .hero-copy p {
-    font-size: 16px;
-  }
-
-  .trust-row span {
-    width: 100%;
-  }
-
-  .search-panel {
-    position: relative;
-    top: auto;
-    padding: 18px;
-  }
-
-  .search-grid,
-  .filter-strip,
-  .venue-grid,
-  .post-grid,
-  .why-grid,
-  .area-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .filter-strip,
-  .section-block,
-  .why-inner {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
-  .filter-strip {
-    margin-top: -28px;
-  }
-
-  .section-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .venue-photo {
-    height: 210px;
-  }
-
-  .venue-bottom {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .newsletter {
-    margin: 28px 20px 42px;
-    padding: 24px;
-  }
-
-  .site-footer {
-    grid-template-columns: 1fr;
-    padding: 0 20px 36px;
-  }
-}
-</style>
+<style scoped src="../../css/client-home.css"></style>

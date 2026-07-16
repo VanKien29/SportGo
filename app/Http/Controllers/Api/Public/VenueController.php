@@ -11,7 +11,9 @@ use App\Services\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class VenueController extends Controller
@@ -276,10 +278,6 @@ class VenueController extends Controller
             ->map(fn ($price) => (float) $price)
             ->min();
 
-        if ($minPrice === null && $courtTypeIds->isNotEmpty()) {
-            $minPrice = 10000.0;
-        }
-
         $courtTypes = $cluster->venueCourts
             ->pluck('courtType')
             ->filter()
@@ -343,16 +341,39 @@ class VenueController extends Controller
 
     private function reviewPreview(VenueCluster $cluster): array
     {
-        if ((int) $cluster->rating_count <= 0) {
+        if (! Schema::hasTable('reviews')) {
             return [];
         }
 
-        return [[
-            'id' => 'summary',
-            'author_name' => 'SportGo',
-            'rating' => (float) $cluster->rating_avg,
-            'content' => 'Điểm đánh giá tổng hợp từ các lượt đặt sân đã hoàn tất.',
-        ]];
+        return DB::table('reviews')
+            ->leftJoin('users', 'users.id', '=', 'reviews.customer_id')
+            ->where('reviews.venue_cluster_id', $cluster->id)
+            ->where('reviews.is_visible', true)
+            ->latest('reviews.created_at')
+            ->limit(10)
+            ->get([
+                'reviews.id',
+                'reviews.rating',
+                'reviews.comment',
+                'reviews.reply_content',
+                'reviews.replied_at',
+                'reviews.created_at',
+                'users.full_name as author_name',
+                'users.username as author_username',
+            ])
+            ->map(fn (object $review): array => [
+                'id' => $review->id,
+                'author_name' => $review->author_name ?: $review->author_username ?: 'Khách hàng SportGo',
+                'rating' => (float) $review->rating,
+                'content' => $review->comment,
+                'reply_content' => $review->reply_content,
+                'replied_at' => $review->replied_at
+                    ? Carbon::parse($review->replied_at, config('app.timezone'))->toIso8601String()
+                    : null,
+                'created_at' => Carbon::parse($review->created_at, config('app.timezone'))->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 
     private function coverImage(VenueCluster $cluster): ?string
@@ -368,6 +389,9 @@ class VenueController extends Controller
         $paths = DB::table('media')
             ->where('mediable_type', VenueCluster::class)
             ->where('mediable_id', $cluster->id)
+            ->where('mime_type', 'like', 'image/%')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->pluck('file_path')
             ->all();
 

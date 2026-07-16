@@ -17,7 +17,7 @@
           <h2 id="report-modal-title">Báo cáo nội dung</h2>
         </div>
         <button type="button" class="icon-button" aria-label="Đóng" @click="close">
-          <AppIcon name="close" size="18" />
+          <AppIcon name="x" size="18" />
         </button>
       </header>
 
@@ -93,7 +93,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
 import SgButton from './common/SgButton.vue';
 import { apiFormData } from '@/services/api';
@@ -144,6 +144,10 @@ function close() {
   emit('close');
 }
 
+function handleKeydown(event) {
+  if (event.key === 'Escape' && props.isOpen) close();
+}
+
 function onImageSelected(event) {
   const file = event.target.files?.[0];
   removeImage();
@@ -189,265 +193,11 @@ watch(() => props.isOpen, (isOpen) => {
   if (!isOpen && !isSubmitting.value) reset();
 });
 
-onBeforeUnmount(revokePreview);
+onMounted(() => document.addEventListener('keydown', handleKeydown));
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleKeydown);
+  revokePreview();
+});
 </script>
 
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(9, 9, 11, 0.64);
-}
-
-.moderation-modal {
-  width: min(100%, 560px);
-  max-height: 90vh;
-  overflow: hidden;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-surface);
-  color: var(--admin-text);
-}
-
-.modal-header,
-.form-actions,
-.target-summary,
-.image-preview {
-  display: flex;
-  align-items: center;
-}
-
-.modal-header {
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--admin-border-soft);
-}
-
-.modal-kicker {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--admin-primary);
-  font-size: var(--admin-font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: var(--admin-font-size-xl);
-}
-
-.icon-button,
-.remove-image {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface-muted);
-  color: var(--admin-muted);
-  cursor: pointer;
-}
-
-.icon-button {
-  width: 36px;
-  height: 36px;
-}
-
-.icon-button:hover,
-.remove-image:hover {
-  border-color: var(--admin-primary);
-  color: var(--admin-primary-dark);
-}
-
-.modal-body {
-  max-height: calc(90vh - 74px);
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.modal-description {
-  margin: 0 0 16px;
-  color: var(--admin-muted);
-  font-size: var(--admin-font-size-base);
-  line-height: 1.55;
-}
-
-.target-summary {
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-  padding: 10px 12px;
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
-  background: var(--admin-bg-soft);
-  font-size: var(--admin-font-size-sm);
-}
-
-.target-summary span,
-.field-block small,
-.reason-option small {
-  color: var(--admin-muted);
-}
-
-.moderation-form,
-.reason-list,
-.field-block {
-  display: grid;
-  gap: 10px;
-}
-
-.reason-list {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.reason-list legend,
-.field-block > span {
-  margin-bottom: 2px;
-  color: var(--admin-text);
-  font-size: var(--admin-font-size-base);
-  font-weight: 600;
-}
-
-.reason-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  cursor: pointer;
-}
-
-.reason-option.selected {
-  border-color: var(--admin-primary);
-  background: var(--admin-primary-soft);
-}
-
-.reason-option input {
-  margin-top: 3px;
-  accent-color: var(--admin-primary);
-}
-
-.reason-option span {
-  display: grid;
-  gap: 2px;
-}
-
-.reason-option strong {
-  font-size: var(--admin-font-size-base);
-}
-
-.reason-option small,
-.field-block small,
-.character-count {
-  font-size: var(--admin-font-size-sm);
-}
-
-.field-block {
-  margin-top: 8px;
-}
-
-.field-block > span {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.field-control {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  font: inherit;
-  font-size: var(--admin-font-size-base);
-  outline: none;
-}
-
-textarea.field-control {
-  min-height: 88px;
-  padding: 10px 12px;
-  resize: vertical;
-}
-
-.file-control {
-  padding: 8px;
-}
-
-.field-control:focus {
-  border-color: var(--admin-primary);
-}
-
-.character-count {
-  justify-self: end;
-  color: var(--admin-faint);
-}
-
-.image-preview {
-  position: relative;
-  width: min(100%, 240px);
-  margin-top: 4px;
-}
-
-.image-preview img {
-  display: block;
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-}
-
-.remove-image {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 32px;
-  height: 32px;
-  color: var(--admin-danger);
-}
-
-.form-error {
-  margin: 6px 0 0;
-  padding: 10px 12px;
-  border: 1px solid var(--admin-danger);
-  border-radius: var(--admin-radius);
-  background: color-mix(in srgb, var(--admin-danger) 8%, var(--admin-surface));
-  color: var(--admin-danger-text);
-  font-size: var(--admin-font-size-sm);
-}
-
-.form-actions {
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--admin-border-soft);
-}
-
-@media (max-width: 560px) {
-  .modal-overlay {
-    align-items: end;
-    padding: 0;
-  }
-
-  .moderation-modal {
-    max-height: 94vh;
-    border-radius: var(--admin-radius-lg) var(--admin-radius-lg) 0 0;
-  }
-
-  .modal-body {
-    max-height: calc(94vh - 74px);
-  }
-}
-</style>
+<style scoped src="../../css/components/client-report-modal.css"></style>

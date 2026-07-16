@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
@@ -31,12 +32,33 @@ class SystemSetting extends Model
         'key',
         'value',
         'value_type',
+        'type',
+        'group',
+        'label',
         'description',
     ];
 
+    protected function value(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (! is_string($value) || $value === '') {
+                    return $value;
+                }
+
+                $decoded = json_decode($value, true);
+
+                return json_last_error() === JSON_ERROR_NONE ? $decoded : $value;
+            },
+            set: fn ($value) => is_array($value) || is_object($value)
+                ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                : $value,
+        );
+    }
+
     public static function integer(string $key, int $default): int
     {
-        if (! Schema::hasTable((new static())->getTable())) {
+        if (! Schema::hasTable((new static)->getTable())) {
             return $default;
         }
 

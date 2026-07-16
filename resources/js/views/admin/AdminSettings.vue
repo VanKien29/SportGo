@@ -5,6 +5,9 @@
       <AppIcon name="check" size="18" />
       <span>{{ successMessage }}</span>
     </div>
+    <div v-if="errorMessage" class="alert error" role="alert" style="margin-bottom: 0px; border-radius: 12px;">
+      <span>{{ errorMessage }}</span>
+    </div>
 
     <!-- Sidebar Style Selection -->
     <div class="settings-card">
@@ -381,6 +384,31 @@ import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 
 const PRESETS = [
   {
+    id: 'sportgo',
+    name: 'SportGo',
+    color: '#16a34a',
+    light: {
+      primary: '#16a34a',
+      secondary: '#0f766e',
+      accent: '#ecfdf5',
+      muted: '#64748b',
+      destructive: '#ef4444',
+      border: '#bbf7d0',
+      card: '#ffffff',
+      background: '#f6fbf7',
+    },
+    dark: {
+      primary: '#22c55e',
+      secondary: '#2dd4bf',
+      accent: '#052e16',
+      muted: '#94a3b8',
+      destructive: '#f87171',
+      border: '#164e2f',
+      card: '#0f1f17',
+      background: '#07130d',
+    }
+  },
+  {
     id: 'zinc',
     name: 'Zinc',
     color: '#18181b',
@@ -440,9 +468,9 @@ const PRESETS = [
       accent: '#f0f9ff',
       muted: '#475569',
       destructive: '#e11d48',
-      border: '#e2e8f0',
+      border: '#bfdbfe',
       card: '#ffffff',
-      background: '#f0f4f8',
+      background: '#f0f6ff',
     },
     dark: {
       primary: '#3b82f6',
@@ -450,7 +478,7 @@ const PRESETS = [
       accent: '#1e293b',
       muted: '#94a3b8',
       destructive: '#f43f5e',
-      border: '#1e293b',
+      border: '#1e3a8a',
       card: '#0f172a',
       background: '#090d16',
     }
@@ -465,9 +493,9 @@ const PRESETS = [
       accent: '#f5f3ff',
       muted: '#4b5563',
       destructive: '#dc2626',
-      border: '#e5e7eb',
+      border: '#ddd6fe',
       card: '#ffffff',
-      background: '#f5f6fa',
+      background: '#faf7ff',
     },
     dark: {
       primary: '#8b5cf6',
@@ -475,7 +503,7 @@ const PRESETS = [
       accent: '#2e1065',
       muted: '#9ca3af',
       destructive: '#ef4444',
-      border: '#374151',
+      border: '#4c1d95',
       card: '#111827',
       background: '#030712',
     }
@@ -490,7 +518,7 @@ const PRESETS = [
       accent: '#fffbeb',
       muted: '#4b5563',
       destructive: '#dc2626',
-      border: '#e5e7eb',
+      border: '#fde68a',
       card: '#ffffff',
       background: '#fdfbf7',
     },
@@ -500,9 +528,34 @@ const PRESETS = [
       accent: '#451a03',
       muted: '#9ca3af',
       destructive: '#ef4444',
-      border: '#374151',
+      border: '#78350f',
       card: '#1e1b4b',
       background: '#0c0a09',
+    }
+  },
+  {
+    id: 'rose',
+    name: 'Rose',
+    color: '#e11d48',
+    light: {
+      primary: '#e11d48',
+      secondary: '#be123c',
+      accent: '#fff1f2',
+      muted: '#64748b',
+      destructive: '#991b1b',
+      border: '#fecdd3',
+      card: '#ffffff',
+      background: '#fff7f8',
+    },
+    dark: {
+      primary: '#fb7185',
+      secondary: '#f43f5e',
+      accent: '#4c0519',
+      muted: '#94a3b8',
+      destructive: '#f87171',
+      border: '#881337',
+      card: '#1f1015',
+      background: '#10070a',
     }
   }
 ];
@@ -513,7 +566,9 @@ export default {
   data() {
     return {
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
-      selectedPresetId: 'zinc',
+      successMessage: '',
+      errorMessage: '',
+      selectedPresetId: 'sportgo',
       selectedRadius: '8px',
       selectedFontSize: '14px',
       selectedFontFamily: "'Outfit', sans-serif",
@@ -824,6 +879,23 @@ export default {
         }
       }
     },
+    mergePresets(basePresets, incomingPresets) {
+      const presetMap = new Map();
+      basePresets.forEach((preset) => presetMap.set(preset.id, preset));
+      (Array.isArray(incomingPresets) ? incomingPresets : []).forEach((preset) => {
+        if (!preset?.id) return;
+
+        const current = presetMap.get(preset.id) || {};
+        presetMap.set(preset.id, {
+          ...current,
+          ...preset,
+          light: { ...(current.light || {}), ...(preset.light || {}) },
+          dark: { ...(current.dark || {}), ...(preset.dark || {}) },
+        });
+      });
+
+      return Array.from(presetMap.values());
+    },
     loadSavedTheme() {
       const saved = localStorage.getItem('admin-custom-theme');
       if (saved) {
@@ -861,14 +933,14 @@ export default {
       } else {
         this.theme.dark = { ...defaultPreset.dark };
       }
-      this.selectedPresetId = 'zinc';
+      this.selectedPresetId = 'sportgo';
     },
     resetAll() {
       if (confirm('Bạn có chắc chắn muốn khôi phục tất cả cài đặt và độ bo góc về mặc định?')) {
         const defaultPreset = PRESETS[0];
         this.theme.light = { ...defaultPreset.light };
         this.theme.dark = { ...defaultPreset.dark };
-        this.selectedPresetId = 'zinc';
+        this.selectedPresetId = 'sportgo';
         this.selectedRadius = '8px';
         this.selectedFontSize = '14px';
         this.selectedFontFamily = "'Outfit', sans-serif";
@@ -892,7 +964,7 @@ export default {
           this.selectedTransitionNormal = data.transition_normal || '250ms';
           
           if (data.presets && data.presets.length > 0) {
-            this.defaultPresets = data.presets;
+            this.defaultPresets = this.mergePresets(PRESETS, data.presets);
           }
           if (data.custom_themes) {
             this.userPresets = data.custom_themes;
@@ -906,7 +978,7 @@ export default {
             this.theme.dark = { ...activePreset.dark };
             this.newThemeName = activePreset.name;
           } else {
-            this.selectedPresetId = data.active_theme_id || 'zinc';
+            this.selectedPresetId = data.active_theme_id || 'sportgo';
           }
         }
       } catch (e) {
@@ -914,6 +986,8 @@ export default {
       }
     },
     async saveTheme() {
+      this.successMessage = '';
+      this.errorMessage = '';
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
@@ -949,7 +1023,12 @@ export default {
         };
         await adminUiSettingsService.updateSettings(payloadDb);
       } catch (e) {
-        console.error('Failed to save UI settings to DB', e);
+        this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          this.errorMessage = '';
+        }, 5000);
+        return;
       }
       
       this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';

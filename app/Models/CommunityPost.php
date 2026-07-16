@@ -34,14 +34,17 @@ class CommunityPost extends Model
     protected static function booted()
     {
         static::deleting(function ($post) {
+            // post_hashtags is a logical polymorphic pivot without a post FK.
+            $post->hashtags()->detach();
+
             // Cascade delete comments
             $post->comments()->delete();
-            
+
             // Cascade delete likes
             $post->likes()->delete();
-            
+
             // Cascade delete reports
-            \App\Models\Report::where('reportable_type', self::class)
+            Report::where('reportable_type', self::class)
                 ->where('reportable_id', $post->id)
                 ->delete();
         });
@@ -65,7 +68,7 @@ class CommunityPost extends Model
     public function hashtags()
     {
         return $this->belongsToMany(Hashtag::class, 'post_hashtags', 'post_id', 'hashtag_id')
-            ->where('post_hashtags.post_type', 'community_posts');
+            ->withPivotValue('post_type', 'community_posts');
     }
 
     public function comments()

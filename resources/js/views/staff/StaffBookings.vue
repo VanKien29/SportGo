@@ -1143,8 +1143,11 @@ export default {
 /* ─── Page ───────────────────────────────────────────── */
 .bookings-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* ─── Floating Action Button ─────────────────────────── */
@@ -1531,6 +1534,49 @@ export default {
 }
 
 /* ─── Reduced motion ─────────────────────────────────── */
+@media (max-width: 980px) {
+  .top-strip,
+  .top-right,
+  .schedule-card,
+  .timeline-layout,
+  .timeline-board {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :deep(.top-right .avc-filters),
+  :deep(.top-right .filter-row),
+  :deep(.top-right .filter-tabs),
+  :deep(.top-right .filter-actions),
+  :deep(.metric-row),
+  :deep(.metric-card) {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  :deep(.top-right .filter-row) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  :deep(.top-right .filter-tabs) {
+    width: 100% !important;
+    overflow-x: auto !important;
+  }
+
+  :deep(.top-right .filter-actions) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+  }
+
+  :deep(.toolbar-select-label select) {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn-float-add { transition: none; }
 }

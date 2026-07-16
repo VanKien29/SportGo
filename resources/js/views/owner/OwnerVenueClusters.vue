@@ -2944,11 +2944,6 @@ export default {
  
             // Tabs
             activeTab: "info",
-            tabs: [
-                { key: "info", label: "Thông tin chung" },
-                { key: "approvals", label: "Yêu cầu quy mô" },
-                { key: "location", label: "Yêu cầu vị trí" },
-            ],
  
             // Info tab form
             updating: false,
@@ -3150,10 +3145,10 @@ export default {
             const terminating = this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
 
             return [
-                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Dang gan voi tai khoan owner" },
-                { key: "active", label: "Dang hoat dong", value: active, hint: "Co the nhan booking" },
-                { key: "attention", label: "Can xu ly", value: locked + terminating + this.selectedTodoCount, hint: "Khoa, cham dut hoac yeu cau treo" },
-                { key: "terminated", label: "Da cham dut", value: this.clusters.filter((cluster) => cluster.status === "partner_terminated").length, hint: "Da tat van hanh doi tac" },
+                { key: "total", label: "Tổng cụm sân", value: this.clusters.length, hint: "Đang gắn với tài khoản chủ sân" },
+                { key: "active", label: "Đang hoạt động", value: active, hint: "Có thể nhận booking" },
+                { key: "attention", label: "Cần xử lý", value: locked + terminating + this.selectedTodoCount, hint: "Khóa, chấm dứt hoặc yêu cầu đang chờ" },
+                { key: "terminated", label: "Đã chấm dứt", value: this.clusters.filter((cluster) => cluster.status === "partner_terminated").length, hint: "Đã tắt vận hành đối tác" },
             ];
         },
         selectedTodoCount() {
@@ -3164,7 +3159,7 @@ export default {
         },
         tabs() {
             const list = [
-                { key: "courts", label: "San con" },
+                { key: "courts", label: "Sân con" },
                 { key: "info", label: "Thông tin chung" },
                 { key: "info_requests", label: "Yêu cầu thông tin" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
@@ -5801,9 +5796,9 @@ export default {
         },
 
         approvalStatusLabel(status) {
-            if (status === "approved_pending_appendix") return "Da duyet, cho SportGo ky phu luc";
+            if (status === "approved_pending_appendix") return "Đã duyệt, chờ SportGo ký phụ lục";
             if (status === "pending_owner_signature") return "Chờ chủ sân ký";
-            if (status === "completed") return "Hoan tat thay doi";
+            if (status === "completed") return "Hoàn tất thay đổi";
 
             return (
                 {

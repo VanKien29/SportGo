@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\SlotLock;
-use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Models\VenueStaffShiftSchedule;
 use App\Services\BookingService;
@@ -13,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StaffDashboardController extends Controller
 {
@@ -29,7 +29,7 @@ class StaffDashboardController extends Controller
         $visibleClusterIds = $this->visibleClusterIds($userId);
 
         if ($selectedClusterId) {
-            if (!$visibleClusterIds->contains($selectedClusterId)) {
+            if (! $visibleClusterIds->contains($selectedClusterId)) {
                 return response()->json([
                     'message' => 'Bạn không có quyền xem dữ liệu của cụm sân này.',
                 ], 403);
@@ -39,7 +39,7 @@ class StaffDashboardController extends Controller
             $clusterId = $visibleClusterIds->first();
         }
 
-        if (!$clusterId) {
+        if (! $clusterId) {
             return response()->json([
                 'active_courts_count' => 0,
                 'total_courts_count' => 0,
@@ -81,12 +81,15 @@ class StaffDashboardController extends Controller
             ->count();
 
         // 5. Ca trực hôm nay của nhân viên đăng nhập
-        $myShiftToday = VenueStaffShiftSchedule::query()
-            ->with(['shift'])
-            ->where('user_id', $userId)
-            ->where('venue_cluster_id', $clusterId)
-            ->where('date', $today)
-            ->first();
+        $myShiftToday = null;
+        if (Schema::hasTable('venue_staff_shifts') && Schema::hasTable('venue_staff_shift_schedules')) {
+            $myShiftToday = VenueStaffShiftSchedule::query()
+                ->with(['shift'])
+                ->where('user_id', $userId)
+                ->where('venue_cluster_id', $clusterId)
+                ->where('date', $today)
+                ->first();
+        }
 
         // 6. Thời gian trống của từng sân
         $courts = VenueCourt::with('courtType')
@@ -109,10 +112,10 @@ class StaffDashboardController extends Controller
             ->where('booking_date', $today)
             ->where(function ($q) {
                 $q->whereIn('lock_type', ['manual', 'emergency'])
-                  ->orWhere(function ($autoQuery) {
-                      $autoQuery->where('lock_type', 'auto')
-                                ->where('expires_at', '>', Carbon::now());
-                  });
+                    ->orWhere(function ($autoQuery) {
+                        $autoQuery->where('lock_type', 'auto')
+                            ->where('expires_at', '>', Carbon::now());
+                    });
             })
             ->get(['venue_court_id', 'lock_scope', 'start_time', 'end_time']);
 
@@ -125,7 +128,7 @@ class StaffDashboardController extends Controller
             foreach ($bookings->where('venue_court_id', $court->id) as $b) {
                 $intervals[] = [
                     'start' => $this->timeToMinutes($b->start_time),
-                    'end' => $this->timeToMinutes($b->end_time)
+                    'end' => $this->timeToMinutes($b->end_time),
                 ];
             }
 
@@ -134,13 +137,13 @@ class StaffDashboardController extends Controller
                 if ($lock->lock_scope === 'cluster' || $lock->venue_court_id === $court->id) {
                     $intervals[] = [
                         'start' => $this->timeToMinutes($lock->start_time),
-                        'end' => $this->timeToMinutes($lock->end_time)
+                        'end' => $this->timeToMinutes($lock->end_time),
                     ];
                 }
             }
 
             // Sắp xếp và gộp các khoảng bận
-            usort($intervals, fn($a, $b) => $a['start'] <=> $b['start']);
+            usort($intervals, fn ($a, $b) => $a['start'] <=> $b['start']);
             $merged = [];
             foreach ($intervals as $interval) {
                 // Giới hạn trong khung giờ mở cửa
@@ -167,12 +170,12 @@ class StaffDashboardController extends Controller
             $current = $openMins;
             foreach ($merged as $interval) {
                 if ($interval['start'] > $current) {
-                    $freeSlots[] = $this->minutesToTime($current) . ' - ' . $this->minutesToTime($interval['start']);
+                    $freeSlots[] = $this->minutesToTime($current).' - '.$this->minutesToTime($interval['start']);
                 }
                 $current = max($current, $interval['end']);
             }
             if ($current < $closeMins) {
-                $freeSlots[] = $this->minutesToTime($current) . ' - ' . $this->minutesToTime($closeMins);
+                $freeSlots[] = $this->minutesToTime($current).' - '.$this->minutesToTime($closeMins);
             }
 
             $courtAvailabilities[] = [
@@ -235,13 +238,15 @@ class StaffDashboardController extends Controller
     private function timeToMinutes(string $timeStr): int
     {
         $parts = explode(':', $timeStr);
-        return ((int)$parts[0]) * 60 + (int)($parts[1] ?? 0);
+
+        return ((int) $parts[0]) * 60 + (int) ($parts[1] ?? 0);
     }
 
     private function minutesToTime(int $minutes): string
     {
         $h = floor($minutes / 60);
         $m = $minutes % 60;
+
         return sprintf('%02d:%02d', $h, $m);
     }
 }

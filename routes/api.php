@@ -117,6 +117,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::get('/system-profile', [AdminSystemSettingController::class, 'show']);
+        Route::post('/system-profile', [AdminSystemSettingController::class, 'update']);
         Route::get('/pending-counts', [\App\Http\Controllers\Api\Admin\AdminPendingCountsController::class, 'index']);
         Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'admin']);
         Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);

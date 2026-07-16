@@ -42,11 +42,11 @@ class Media extends Model
             return $value;
         }
 
-        // Nếu đã là URL đầy đủ hoặc đã có prefix /storage/ thì giữ nguyên
-        if (str_starts_with($value, 'http') || str_starts_with($value, '/storage/')) {
+        // Giữ nguyên URL đầy đủ và đường dẫn tuyệt đối trong public/.
+        if (str_starts_with($value, 'http') || str_starts_with($value, '/')) {
             return $value;
         }
 
-        return '/storage/' . ltrim($value, '/');
+        return '/storage/'.ltrim($value, '/');
     }
 }

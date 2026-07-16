@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Notification;
 use App\Models\PlayerPost;
+use App\Services\CommunityAuthorBadgeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PlayerPostController extends Controller
 {
+    public function __construct(private CommunityAuthorBadgeService $authorBadges) {}
+
     /**
      * Get public matchmaking posts
      */
@@ -45,7 +48,8 @@ class PlayerPostController extends Controller
                 ->toArray();
         }
 
-        $data = $posts->map(function ($post) use ($participations) {
+        $authorBadges = $this->authorBadges->lookup($posts->pluck('author_id'));
+        $data = $posts->map(function ($post) use ($participations, $authorBadges) {
             return [
                 'id' => $post->id,
                 'title' => $post->title,
@@ -58,6 +62,7 @@ class PlayerPostController extends Controller
                     'id' => $post->author->id,
                     'name' => $post->author->full_name ?? $post->author->username ?? 'Người dùng',
                     'avatar' => $post->author->avatar_url ?? null,
+                    'author_badges' => $authorBadges[(string) $post->author_id] ?? [],
                 ],
                 'booking' => [
                     'date' => $post->booking->booking_date->format('Y-m-d'),

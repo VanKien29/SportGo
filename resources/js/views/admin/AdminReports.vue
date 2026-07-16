@@ -108,20 +108,49 @@
             <p v-if="isTerminalStatus(selected.status)" class="content-box">
               Báo cáo đã kết thúc với trạng thái “{{ statusLabel(selected.status) }}”. Nội dung xử lý được giữ lại trong lịch sử.
             </p>
+            <button v-if="isTerminalStatus(selected.status)" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
+              Hủy kết quả &amp; xử lý lại
+            </button>
             <div v-else class="form-stack">
               <button v-if="selected.status === 'pending'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
                 Nhận kiểm duyệt
               </button>
-              <button v-if="selected.status === 'resolved' || selected.status === 'dismissed'" class="btn secondary" type="button" :disabled="saving" @click="takeReview">
-                Hủy thao tác & Xử lý lại
-              </button>
+              <label>
+                Hình thức xử lý (nếu cần)
+                <CustomSelect
+                  v-model="form.action_taken"
+                  :options="availableReportActionOptions"
+                  placeholder="Chọn hình thức xử lý"
+                  :disabled="saving"
+                />
+              </label>
               <label>
                 Ghi chú xử lý
-                <textarea v-model.trim="form.action_note" rows="6" placeholder="Nêu kết quả kiểm tra và căn cứ xử lý" :disabled="saving || selected.status === 'resolved' || selected.status === 'dismissed'"></textarea>
+                <textarea v-model.trim="form.action_note" rows="6" placeholder="Nêu kết quả kiểm tra và căn cứ xử lý" :disabled="saving"></textarea>
               </label>
-              <div v-if="selected.status !== 'resolved' && selected.status !== 'dismissed'" class="modal-actions">
+              <div class="modal-actions">
                 <button class="btn secondary" type="button" :disabled="saving" @click="submitDecision('dismissed')">Từ chối</button>
                 <button class="btn danger" type="button" :disabled="saving" @click="submitDecision('resolved')">Xác nhận</button>
+              </div>
+            </div>
+
+            <div v-if="isTerminalStatus(selected.status)" class="manual-action-box" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+              <h4 style="margin-top: 0; margin-bottom: 8px;">Gửi thông báo bổ sung</h4>
+              <div class="form-stack">
+                <label>
+                  Người nhận
+                  <select v-model="notificationForm.recipient" :disabled="saving">
+                    <option value="reporter">Người gửi báo cáo</option>
+                    <option v-if="selected.reported_user" value="reported">Người bị báo cáo</option>
+                  </select>
+                </label>
+                <label>
+                  Nội dung
+                  <textarea v-model.trim="notificationForm.message" rows="4" maxlength="4000" placeholder="Nhập nội dung cần thông báo" :disabled="saving"></textarea>
+                </label>
+                <button class="btn secondary" type="button" :disabled="saving || !notificationForm.message" @click="sendAdditionalNotification">
+                  Gửi thông báo
+                </button>
               </div>
             </div>
 
@@ -324,6 +353,14 @@ export default {
         { value: 'resolved', label: 'Đã xử lý' },
         { value: 'dismissed', label: 'Đã bỏ qua' },
       ],
+      reportActionOptions: [
+        { value: '', label: 'Không áp dụng thao tác bổ sung' },
+        { value: 'warning', label: 'Cảnh báo người dùng' },
+        { value: 'content_hidden', label: 'Ẩn nội dung' },
+        { value: 'content_deleted', label: 'Gỡ nội dung' },
+        { value: 'account_locked', label: 'Khóa tài khoản' },
+        { value: 'venue_locked', label: 'Khóa cụm sân' },
+      ],
       selected: null,
       auditLogs: [],
       detailOpen: false,
@@ -333,6 +370,7 @@ export default {
       error: '',
       success: '',
       form: { action_taken: '', action_note: '', lock_days: null },
+      notificationForm: { recipient: 'reporter', message: '' },
       showAutoResolveModal: false,
       autoResolveLoading: false,
       autoResolveSaving: false,
@@ -342,6 +380,13 @@ export default {
     };
   },
   computed: {
+    availableReportActionOptions() {
+      const availableActions = new Set(this.selected?.available_actions || []);
+
+      return this.reportActionOptions.filter((option) => (
+        !option.value || availableActions.has(option.value)
+      ));
+    },
     filteredTargetTypes() {
       if (this.filters.target_group === 'content') {
         return this.targetTypes.filter(t => ['post', 'comment', 'venue_post', 'player_post'].includes(t.value));
@@ -425,6 +470,7 @@ export default {
           action_note: this.selected.action_note || '',
           lock_days: null,
         };
+        this.notificationForm = { recipient: 'reporter', message: '' };
         
         if (this.selected.reported_user) {
           try {
@@ -448,9 +494,10 @@ export default {
     async takeReview() {
       this.saving = true;
       try {
-        await adminReportService.review(this.selected.id);
+        const response = await adminReportService.review(this.selected.id);
+        this.form = { action_taken: '', action_note: '', lock_days: null };
         await this.refreshDetail();
-        this.success = 'Đã nhận kiểm duyệt báo cáo.';
+        this.success = response.message || 'Đã nhận kiểm duyệt báo cáo.';
         await this.loadReports();
       } catch (error) {
         this.error = error.message;
@@ -464,6 +511,23 @@ export default {
         const response = await adminReportService.resolve(this.selected.id, { ...this.form, decision });
         this.success = response.message;
         await this.loadReports();
+        await this.refreshDetail();
+      } catch (error) {
+        this.error = error.message;
+      } finally {
+        this.saving = false;
+      }
+    },
+    async sendAdditionalNotification() {
+      if (!this.selected?.id || !this.notificationForm.message) return;
+      this.saving = true;
+      try {
+        const response = await adminReportService.notify(this.selected.id, {
+          recipient: this.notificationForm.recipient,
+          message: this.notificationForm.message,
+        });
+        this.success = response.message || 'Đã gửi thông báo bổ sung.';
+        this.notificationForm.message = '';
         await this.refreshDetail();
       } catch (error) {
         this.error = error.message;
@@ -592,6 +656,24 @@ export default {
 
 
 <style scoped>
+.moderation-page .card-title {
+  width: 100%;
+  max-width: 100%;
+}
+
+.moderation-page .card-title strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.side-panel .modal-actions {
+  flex-wrap: wrap;
+}
+
+.side-panel .modal-actions .btn {
+  flex: 1 1 120px;
+}
+
 .floating-config-container {
   position: fixed;
   bottom: 30px;

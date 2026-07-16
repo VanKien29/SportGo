@@ -264,12 +264,13 @@
                 <div>
                   <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
                   <p>{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
+                  <p v-if="document.file_available === false" class="doc-file-warning">File gốc không còn trên hệ thống. Không thể xem hoặc tải xuống.</p>
                 </div>
                 <div class="row-actions">
-                  <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document)">
+                  <button class="btn primary small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Xem'" type="button" :disabled="document.file_available === false" @click="openDocument(document)">
                     <AppIcon name="eye" size="15" />
                   </button>
-                  <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadGeneratedDocument(document)">
+                  <button class="btn ghost small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Tải xuống'" type="button" :disabled="document.file_available === false" @click="downloadGeneratedDocument(document)">
                     <AppIcon name="download" size="15" />
                   </button>
                 </div>
@@ -295,12 +296,13 @@
                 <div>
                   <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
                   <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+                  <p v-if="document.file_available === false" class="doc-file-warning">File đã tải lên không còn trên hệ thống. Vui lòng yêu cầu đối tác bổ sung lại.</p>
                 </div>
                 <div class="row-actions">
-                  <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document, 'uploaded')">
+                  <button class="btn primary small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Xem'" type="button" :disabled="document.file_available === false" @click="openDocument(document, 'uploaded')">
                     <AppIcon name="eye" size="15" />
                   </button>
-                  <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadUploadedDocument(document)">
+                  <button class="btn ghost small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Tải xuống'" type="button" :disabled="document.file_available === false" @click="downloadUploadedDocument(document)">
                     <AppIcon name="download" size="15" />
                   </button>
                 </div>
@@ -893,9 +895,20 @@ async function loadCourtTypes() {
 }
 
 function openDocument(doc, type = 'generated') {
+  if (doc?.file_available === false) {
+    clearAlerts();
+    error.value = type === 'uploaded'
+      ? 'File đã tải lên không còn trên hệ thống. Vui lòng yêu cầu đối tác bổ sung lại.'
+      : 'File văn bản không còn trên hệ thống nên chưa thể xem.';
+    return;
+  }
+
+  const documentApplicationId = doc?.partner_application_id || application.value?.id;
+  if (!documentApplicationId || !doc?.id) return;
+
   router.push({
     name: 'admin-partner-application-document',
-    params: { id: application.value.id, documentId: doc.id },
+    params: { id: documentApplicationId, documentId: doc.id },
     query: type === 'uploaded' ? { type: 'uploaded' } : {},
   });
 }
@@ -908,6 +921,10 @@ function openSiblingApplication(item) {
 async function downloadGeneratedDocument(document) {
   if (!document?.id) return;
   clearAlerts();
+  if (document.file_available === false) {
+    error.value = 'File văn bản không còn trên hệ thống nên chưa thể tải xuống.';
+    return;
+  }
   try {
     await adminPartnerApplicationService.downloadDocument(document.id);
   } catch (err) {
@@ -918,6 +935,10 @@ async function downloadGeneratedDocument(document) {
 async function downloadUploadedDocument(document) {
   if (!document?.id) return;
   clearAlerts();
+  if (document.file_available === false) {
+    error.value = 'File đã tải lên không còn trên hệ thống. Vui lòng yêu cầu đối tác bổ sung lại.';
+    return;
+  }
   try {
     await adminPartnerApplicationService.downloadUploadedDocument(document.id);
   } catch (err) {
@@ -1594,7 +1615,12 @@ function identityLabel(value) {
 }
 
 function applicantTypeLabel(value) {
-  return { individual: 'Cá nhân', business: 'Hộ kinh doanh', company: 'Doanh nghiệp' }[value] || value || '-';
+  return {
+    individual: 'Cá nhân',
+    business: 'Hộ kinh doanh',
+    household_business: 'Hộ kinh doanh',
+    company: 'Doanh nghiệp',
+  }[value] || value || '-';
 }
 
 function bankVerificationLabel(status) {
@@ -2214,6 +2240,11 @@ dd {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.doc-row .doc-file-warning {
+  color: #b91c1c;
+  font-weight: 750;
 }
 
 .cluster-list {

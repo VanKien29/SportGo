@@ -28,6 +28,10 @@ class StaffShiftController extends Controller
     {
         $cluster = $this->ownedCluster($request, $request->query('venue_cluster_id'));
 
+        if (! $this->staffShiftTablesReady()) {
+            return response()->json(['data' => []]);
+        }
+
         $shifts = VenueStaffShift::query()
             ->where('venue_cluster_id', $cluster->id)
             ->orderBy('start_time')
@@ -40,6 +44,10 @@ class StaffShiftController extends Controller
 
     public function storeShift(Request $request): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $data = $request->validate([
             'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
             'name' => ['required', 'string', 'max:100'],
@@ -70,6 +78,10 @@ class StaffShiftController extends Controller
 
     public function updateShift(Request $request, $id): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $shift = VenueStaffShift::query()->findOrFail($id);
         $cluster = $this->ownedCluster($request, $shift->venue_cluster_id);
 
@@ -94,6 +106,10 @@ class StaffShiftController extends Controller
 
     public function destroyShift(Request $request, $id): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $shift = VenueStaffShift::query()->findOrFail($id);
         $this->ownedCluster($request, $shift->venue_cluster_id);
 
@@ -105,6 +121,7 @@ class StaffShiftController extends Controller
         if ($inUse) {
             // Soft delete style: deactivate it
             $shift->update(['is_active' => false]);
+
             return response()->json([
                 'message' => 'Ca trực đang được sử dụng trong lịch biểu, đã tự động chuyển sang trạng thái ngưng hoạt động.',
                 'data' => $shift,
@@ -128,6 +145,10 @@ class StaffShiftController extends Controller
     public function listSchedules(Request $request): JsonResponse
     {
         $cluster = $this->ownedCluster($request, $request->query('venue_cluster_id'));
+
+        if (! $this->staffShiftTablesReady()) {
+            return response()->json(['data' => []]);
+        }
         $startDate = $request->query('start_date', Carbon::today()->toDateString());
         $endDate = $request->query('end_date', Carbon::today()->toDateString());
         $userId = $request->query('user_id');
@@ -148,6 +169,10 @@ class StaffShiftController extends Controller
 
     public function storeSchedules(Request $request): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $data = $request->validate([
             'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
             'user_ids' => ['required', 'array'],
@@ -222,6 +247,10 @@ class StaffShiftController extends Controller
 
     public function updateSchedule(Request $request, $id): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $schedule = VenueStaffShiftSchedule::query()->findOrFail($id);
         $this->ownedCluster($request, $schedule->venue_cluster_id);
 
@@ -246,6 +275,10 @@ class StaffShiftController extends Controller
 
     public function destroySchedule(Request $request, $id): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $schedule = VenueStaffShiftSchedule::query()->findOrFail($id);
         $this->ownedCluster($request, $schedule->venue_cluster_id);
 
@@ -262,6 +295,10 @@ class StaffShiftController extends Controller
     public function attendanceReport(Request $request): JsonResponse
     {
         $cluster = $this->ownedCluster($request, $request->query('venue_cluster_id'));
+
+        if (! $this->staffShiftTablesReady()) {
+            return response()->json(['data' => []]);
+        }
         $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->toDateString());
         $endDate = $request->query('end_date', Carbon::today()->endOfMonth()->toDateString());
 
@@ -312,6 +349,10 @@ class StaffShiftController extends Controller
 
     public function mySchedules(Request $request): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return response()->json(['data' => []]);
+        }
+
         $userId = $request->user()->id;
         $startDate = $request->query('start_date', Carbon::today()->startOfWeek()->toDateString());
         $endDate = $request->query('end_date', Carbon::today()->endOfWeek()->toDateString());
@@ -331,6 +372,10 @@ class StaffShiftController extends Controller
 
     public function checkIn(Request $request, $id): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $userId = $request->user()->id;
         $schedule = VenueStaffShiftSchedule::query()
             ->where('user_id', $userId)
@@ -372,6 +417,10 @@ class StaffShiftController extends Controller
 
     public function checkOut(Request $request, $id): JsonResponse
     {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
         $userId = $request->user()->id;
         $schedule = VenueStaffShiftSchedule::query()
             ->where('user_id', $userId)
@@ -399,6 +448,19 @@ class StaffShiftController extends Controller
     // ==========================================
     // HELPERS
     // ==========================================
+
+    private function staffShiftTablesReady(): bool
+    {
+        return Schema::hasTable('venue_staff_shifts')
+            && Schema::hasTable('venue_staff_shift_schedules');
+    }
+
+    private function featurePendingResponse(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Tính năng ca làm việc đang chờ hoàn tất cập nhật cơ sở dữ liệu.',
+        ], 409);
+    }
 
     private function ownedCluster(Request $request, ?string $clusterId): VenueCluster
     {
