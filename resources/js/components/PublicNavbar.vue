@@ -891,3 +891,99 @@ export default {
   }
 }
 </style>
+
+<style>
+/* Dark Mode Support for Navbar (Unscoped) */
+.dark .navbar {
+  background: rgba(9, 9, 11, .94) !important;
+  border-bottom: 1px solid rgba(39, 39, 42, .9) !important;
+}
+
+.dark .brand-text {
+  color: #ffffff !important;
+}
+
+.dark .nav-link {
+  color: #a1a1aa !important;
+}
+
+.dark .nav-link:hover,
+.dark .nav-link.active-link {
+  color: #10b981 !important;
+}
+
+.dark .hotline strong {
+  color: #ffffff !important;
+}
+
+.dark .hotline small {
+  color: #a1a1aa !important;
+}
+
+.dark .login-btn {
+  background: transparent !important;
+  color: #ffffff !important;
+  border-color: #27272a !important;
+}
+
+.dark .login-btn:hover {
+  background: #27272a !important;
+}
+
+.dark .notif-btn {
+  color: #a1a1aa !important;
+}
+
+.dark .notif-btn:hover {
+  background: #27272a !important;
+  color: #ffffff !important;
+}
+
+.dark .brand-icon {
+  background: #064e3b !important;
+}
+
+.dark .dropdown,
+.dark .notif-dropdown {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, .8) !important;
+}
+
+.dark .dd-name,
+.dark .notif-title {
+  color: #ffffff !important;
+}
+
+.dark .dd-role,
+.dark .notif-body,
+.dark .notif-time,
+.dark .no-notif {
+  color: #a1a1aa !important;
+}
+
+.dark .dd-divider {
+  background: #27272a !important;
+}
+
+.dark .dd-item {
+  color: #a1a1aa !important;
+}
+
+.dark .dd-item:hover {
+  background: #27272a !important;
+  color: #10b981 !important;
+}
+
+.dark .notif-item {
+  border-bottom-color: #27272a !important;
+}
+
+.dark .notif-item:hover {
+  background: #27272a !important;
+}
+
+.dark .notif-item.unread {
+  background: rgba(14, 165, 233, 0.1) !important;
+}
+</style>

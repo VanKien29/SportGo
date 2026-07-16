@@ -640,16 +640,7 @@
             />
         </section>
 
-        <footer class="article-footer">
-            <div>
-                <strong>{{ post.venue_cluster?.name || "SportGo" }}</strong>
-                <span>{{
-                    post.author?.full_name ||
-                    post.author?.username ||
-                    "Ban biên tập SportGo"
-                }}</span>
-            </div>
-        </footer>
+
         <!-- Toast Notification -->
         <div class="toast-notification" :class="{ show: showToast }">
             {{ toastMessage }}
@@ -1500,5 +1491,134 @@ export default {
   font-weight: 600;
   font-size: 15px;
   color: #050505;
+}
+</style>
+
+<style>
+/* Dark Mode Support for News Detail (Unscoped) */
+.dark .news-detail-page {
+  background: #09090b !important;
+  color: #f8fafc !important;
+}
+
+.dark .fb-modal {
+  background: #18181b !important;
+  border: 1px solid #27272a !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .fb-post-meta strong {
+  color: #f8fafc !important;
+}
+
+.dark .article-breadcrumbs {
+  color: #a1a1aa !important;
+}
+
+.dark .meta-sub {
+  color: #a1a1aa !important;
+}
+
+.dark .fb-post-title {
+  color: #f8fafc !important;
+}
+
+.dark .fb-post-content {
+  color: #d1d5db !important;
+}
+
+.dark .fb-stats {
+  color: #a1a1aa !important;
+  border-bottom-color: #27272a !important;
+}
+
+.dark .fb-actions {
+  border-bottom-color: #27272a !important;
+}
+
+.dark .action-btn {
+  color: #a1a1aa !important;
+}
+
+.dark .action-btn:hover {
+  background: #27272a !important;
+  color: #f8fafc !important;
+}
+
+.dark .action-btn.liked {
+  color: #0866FF !important;
+}
+
+.dark .fb-avatar-text {
+  color: #a1a1aa !important;
+}
+
+.dark .fb-post-avatar {
+  background: #27272a !important;
+}
+
+.dark .comment-bubble {
+  background: #27272a !important;
+  color: #f8fafc !important;
+}
+
+.dark .comment-bubble strong {
+  color: #f8fafc !important;
+}
+
+.dark .comment-input {
+  background: #27272a !important;
+  color: #f8fafc !important;
+}
+
+.dark .fb-comments {
+  border-top-color: #27272a !important;
+}
+
+.dark .comment-actions {
+  color: #a1a1aa !important;
+}
+
+.dark .options-dropdown {
+  background: #18181b !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .options-dropdown button {
+  color: #f8fafc !important;
+}
+
+.dark .options-dropdown button:hover {
+  background: #27272a !important;
+}
+
+.dark .likers-modal-content {
+  background: #18181b !important;
+}
+
+.dark .likers-modal-header {
+  border-bottom-color: #27272a !important;
+}
+
+.dark .likers-modal-header h3 {
+  color: #f8fafc !important;
+}
+
+.dark .close-btn {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+}
+
+.dark .close-btn:hover {
+  background: #3f3f46 !important;
+}
+
+.dark .liker-list-item span {
+  color: #f8fafc !important;
+}
+
+.dark .news-state {
+  background: #18181b !important;
+  color: #a1a1aa !important;
 }
 </style>

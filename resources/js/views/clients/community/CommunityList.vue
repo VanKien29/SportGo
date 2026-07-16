@@ -862,9 +862,12 @@ onMounted(() => {
 .dark .news-summary {
   color: #a1a1aa !important;
 }
-.dark .search-box input {
+.dark .search-box {
   background: #18181b !important;
   border-color: #27272a !important;
+}
+.dark .search-box input {
+  background: transparent !important;
   color: #ffffff !important;
 }
 .dark .cat-btn {
