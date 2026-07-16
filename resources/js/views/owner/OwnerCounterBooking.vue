@@ -829,7 +829,7 @@
                                 <option value="monthly">Chu kỳ 30 ngày</option>
                             </select>
                         </label>
-                        <label>
+                        <!-- <label>
                             <span>Ngày bắt đầu</span>
                             <input
                                 v-model="form.recurring_start_date"
@@ -837,7 +837,7 @@
                                 :min="today"
                                 @change="activateRecurringSchedulePicker"
                             />
-                        </label>
+                        </label> -->
                         <label>
                             <span>{{ recurringCountLabel }}</span>
                             <input
