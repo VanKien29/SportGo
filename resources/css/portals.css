@@ -2,9 +2,9 @@
 
 /* --- START OF tokens.css --- */
 :root {
-  --admin-font-family: var(--admin-font-family);
-  --admin-sidebar-width: var(--admin-sidebar-width);
-  --admin-sidebar-collapsed-width: var(--admin-sidebar-collapsed-width);
+  --admin-font-family: 'Inter', 'Segoe UI', sans-serif;
+  --admin-sidebar-width: 272px;
+  --admin-sidebar-collapsed-width: 78px;
   --admin-transition-fast: 180ms;
   --admin-transition-normal: 250ms;
   --admin-bg: #eef6f0;
@@ -44,7 +44,7 @@
   --admin-font-size-xs: calc(var(--admin-font-size) - 3px);
   --admin-font-size-sm: calc(var(--admin-font-size) - 2px);
   --admin-font-size-md: calc(var(--admin-font-size) - 1px);
-  --admin-font-size-base: var(--admin-font-size);
+  --admin-font-size-base: var(--admin-font-size, 14px);
   --admin-font-size-lg: calc(var(--admin-font-size) + 2px);
   --admin-font-size-xl: calc(var(--admin-font-size) + 4px);
   --admin-font-size-2xl: calc(var(--admin-font-size) + 6px);
