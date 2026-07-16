@@ -42,7 +42,10 @@
         </div>
 
         <section v-if="activeTab === 'counter'" class="counter-board">
-            <div class="schedule-panel">
+            <div
+                class="schedule-panel"
+                :class="{ 'is-loading': counterScheduleLoading }"
+            >
                 <div class="panel-head compact">
                     <div>
                         <h2>Lịch sân trong ngày</h2>
@@ -61,18 +64,9 @@
                 <div class="filters schedule-filters counter-toolbar">
                     <label class="schedule-filter-field cluster-field">
                         <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
+                        <div class="schedule-filter-readonly">
+                            {{ selectedCluster?.name || "-" }}
+                        </div>
                     </label>
                     <label class="schedule-filter-field date-field">
                         <span>Ngày chơi</span>
@@ -88,6 +82,13 @@
                                 v-model="form.booking_date"
                                 type="date"
                                 @change="handleScheduleDateChange"
+                            />
+                            <span class="date-range-separator">đến</span>
+                            <input
+                                v-model="form.booking_end_date"
+                                type="date"
+                                :min="form.booking_date"
+                                @change="handleCounterEndDateChange"
                             />
                             <button
                                 type="button"
@@ -127,19 +128,33 @@
                     {{ selectionError }}
                 </p>
 
-                <div v-if="scheduleLoading" class="schedule-skeleton">
-                    <div class="skeleton-summary">
+                <div
+                    v-if="counterScheduleLoading"
+                    class="schedule-loading-box"
+                    role="status"
+                    aria-label="Đang tải lịch sân"
+                >
+                    <div class="schedule-skeleton-head">
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-toolbar">
                         <span></span>
                         <span></span>
                         <span></span>
                     </div>
-                    <div class="skeleton-tabs">
+                    <div class="schedule-skeleton-summary">
                         <span></span>
                         <span></span>
                         <span></span>
                     </div>
-                    <div class="skeleton-matrix">
-                        <span v-for="item in 15" :key="item"></span>
+                    <div class="schedule-skeleton-tabs">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-grid">
+                        <span v-for="item in 28" :key="item"></span>
                     </div>
                 </div>
                 <div v-else-if="scheduleError" class="state-card error-state">
@@ -164,7 +179,7 @@
                         </div>
                         <div>
                             <span>Tổng tiền</span>
-                            <strong>{{ formatCurrency(selectedTotal) }}</strong>
+                            <strong>{{ formatCurrency(counterTotalAmount) }}</strong>
                         </div>
                     </div>
 
@@ -256,7 +271,7 @@
                     <strong v-if="selectedOccupiedInterval">Đang xem lịch đã đặt</strong>
                     <strong v-else>{{ selectedCourtText }} · {{ selectedDurationText }}</strong>
                     <span v-if="selectedOccupiedInterval">{{ occupiedPanelSubtitle }}</span>
-                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(selectedTotal) }}</span>
+                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(counterTotalAmount) }}</span>
                 </div>
                 <button
                     type="button"
@@ -449,7 +464,8 @@
                                     invalid:
                                         contactTouched.name && walkInNameError,
                                 }"
-                                placeholder="Nguyễn Văn A"
+                                placeholder="Nhập tên khách"
+                                @input="handleContactInput('name')"
                                 @blur="validateContactField('name')"
                             />
                             <small
@@ -477,7 +493,8 @@
                                         contactTouched.phone &&
                                         walkInPhoneError,
                                 }"
-                                placeholder="0901234567"
+                                placeholder="Nhập số điện thoại"
+                                @input="handleContactInput('phone')"
                                 @blur="validateContactField('phone')"
                             />
                             <small
@@ -490,6 +507,7 @@
                     </section>
 
                     <section
+                        v-if="canShowCounterVouchers"
                         class="side-section"
                         :class="{ disabled: !hasCounterSelection }"
                     >
@@ -1793,7 +1811,10 @@
                 </section>
             </div>
 
-            <div v-if="bookingActionConfirm" class="modal-backdrop">
+            <div
+                v-if="bookingActionConfirm"
+                class="modal-backdrop booking-action-modal-backdrop"
+            >
                 <section class="confirm-modal">
                     <div class="modal-head">
                         <div>
@@ -1931,7 +1952,7 @@
                 </section>
             </div>
 
-            <div v-if="counterQr && qrModalOpen" class="modal-backdrop">
+            <div v-if="counterQr && qrModalOpen" class="modal-backdrop qr-modal-backdrop">
                 <section class="qr-modal">
                     <div class="modal-head">
                         <div>
@@ -2139,6 +2160,8 @@ export default {
         return {
             today,
             activeTab: "counter",
+            bootstrapping: true,
+            clusterLoading: false,
             clusters: [],
             courts: [],
             selectedClusterId: "",
@@ -2165,6 +2188,7 @@ export default {
                 walk_in_name: "",
                 walk_in_phone: "",
                 booking_date: today,
+                booking_end_date: today,
                 recurring_start_date: today,
                 recurring_end_date: today,
                 recurrence_type: "weekly",
@@ -2283,6 +2307,14 @@ export default {
             return this.activeTab === "recurring"
                 ? this.hasRecurringSelection
                 : Boolean(this.selectedSlotKeys.length);
+        },
+        counterScheduleLoading() {
+            return (
+                this.activeTab === "counter" &&
+                (this.bootstrapping ||
+                    this.clusterLoading ||
+                    this.scheduleLoading)
+            );
         },
         isViewingPastScheduleDate() {
             return (
@@ -2566,6 +2598,35 @@ export default {
                 return total + Number(status?.price || 0);
             }, 0);
         },
+        counterBookingDates() {
+            const start = this.parseDate(this.form.booking_date);
+            const end = this.parseDate(
+                this.form.booking_end_date || this.form.booking_date,
+            );
+            if (!start || !end || end < start) return [];
+
+            const dates = [];
+            for (
+                let current = new Date(start);
+                current <= end && dates.length < 31;
+                current.setDate(current.getDate() + 1)
+            ) {
+                dates.push(this.formatIsoDate(current));
+            }
+            return dates;
+        },
+        counterDateCount() {
+            return Math.max(this.counterBookingDates.length, 1);
+        },
+        counterDateRangeLabel() {
+            if (this.counterDateCount <= 1) {
+                return this.formatDate(this.form.booking_date);
+            }
+            return `${this.formatDate(this.form.booking_date)} - ${this.formatDate(this.form.booking_end_date)} (${this.counterDateCount} ngày)`;
+        },
+        counterTotalAmount() {
+            return this.selectedTotal * this.counterDateCount;
+        },
         recurringUnitTotal() {
             return this.activeTab === "recurring" ? this.selectedTotal : 0;
         },
@@ -2591,8 +2652,14 @@ export default {
         voucherDiscountAmount() {
             return this.activeTab === "counter" ? this.voucherUnitDiscount : 0;
         },
+        counterVoucherDiscountAmount() {
+            return this.voucherDiscountAmount * this.counterDateCount;
+        },
         counterPayableTotal() {
-            return Math.max(this.selectedTotal - this.voucherDiscountAmount, 0);
+            return Math.max(
+                this.counterTotalAmount - this.counterVoucherDiscountAmount,
+                0,
+            );
         },
         recurringUnitPayableTotal() {
             return this.recurringUnitTotal;
@@ -2645,7 +2712,7 @@ export default {
             );
         },
         counterCollectionOptions() {
-            return [
+            const options = [
                 {
                     value: "cash",
                     label: "Tiền mặt",
@@ -2662,6 +2729,10 @@ export default {
                     amount: this.counterPayableTotal,
                 },
             ];
+
+            return this.counterDateCount > 1
+                ? options.filter((option) => option.value !== "transfer")
+                : options;
         },
         paymentOptions() {
             const config = this.selectedClusterDetail?.booking_config || {};
@@ -2713,16 +2784,16 @@ export default {
             const rows = [
                 ["Cụm sân", this.selectedCluster?.name || "-"],
                 ["Sân", this.selectedCourtText],
-                ["Ngày", this.formatDate(this.form.booking_date)],
+                ["Ngày", this.counterDateRangeLabel],
                 ["Giờ", this.selectedTimeText],
                 ["Thời lượng", this.selectedDurationText],
-                ["Tổng tiền", this.formatCurrency(this.selectedTotal)],
+                ["Tổng tiền", this.formatCurrency(this.counterTotalAmount)],
             ];
 
             if (this.selectedVoucher) {
                 rows.push([
                     `Voucher ${this.selectedVoucher.code}`,
-                    `-${this.formatCurrency(this.voucherDiscountAmount)}`,
+                    `-${this.formatCurrency(this.counterVoucherDiscountAmount)}`,
                 ]);
                 rows.push([
                     "Cần thu",
@@ -2733,7 +2804,7 @@ export default {
             return rows;
         },
         currentScheduleLabel() {
-            return `${this.selectedCluster?.name || "Cụm sân"} · ${this.formatDate(this.form.booking_date)}`;
+            return `${this.selectedCluster?.name || "Cụm sân"} · ${this.counterDateRangeLabel}`;
         },
         selectedBookingOutstanding() {
             if (!this.selectedBusyBooking) return 0;
@@ -3028,6 +3099,16 @@ export default {
                 !this.submitting
             );
         },
+        hasValidCounterContact() {
+            return !this.walkInNameError && !this.walkInPhoneError;
+        },
+        canShowCounterVouchers() {
+            return (
+                this.contactTouched.name &&
+                this.contactTouched.phone &&
+                this.hasValidCounterContact
+            );
+        },
         canSubmitRecurring() {
             const weeklyReady =
                 this.form.recurrence_type !== "weekly" ||
@@ -3267,16 +3348,45 @@ export default {
         },
         async shiftCounterDate(days) {
             const current = this.parseDate(this.form.booking_date) || new Date();
+            const end =
+                this.parseDate(this.form.booking_end_date) || new Date(current);
+            const rangeDays = Math.max(
+                Math.round((end.getTime() - current.getTime()) / 86400000),
+                0,
+            );
             current.setDate(current.getDate() + days);
             this.form.booking_date = this.formatIsoDate(current);
+            const shiftedEnd = new Date(current);
+            shiftedEnd.setDate(shiftedEnd.getDate() + rangeDays);
+            this.form.booking_end_date = this.formatIsoDate(shiftedEnd);
             await this.handleScheduleDateChange();
         },
         async setCounterDateToday() {
             this.form.booking_date = this.today;
+            this.form.booking_end_date = this.today;
             await this.handleScheduleDateChange();
         },
         async handleScheduleDateChange() {
+            if (
+                !this.form.booking_end_date ||
+                this.form.booking_end_date < this.form.booking_date
+            ) {
+                this.form.booking_end_date = this.form.booking_date;
+            }
             await this.loadSchedule();
+        },
+        handleCounterEndDateChange() {
+            if (this.form.booking_end_date < this.form.booking_date) {
+                this.form.booking_end_date = this.form.booking_date;
+            }
+            if (this.counterDateCount > 1 && this.form.collection_mode === "transfer") {
+                this.form.collection_mode = "cash";
+                this.applyCounterCollectionMode();
+            }
+            this.clearVoucherSelection();
+            if (this.canShowCounterVouchers && this.hasCounterSelection) {
+                void this.loadEligibleVouchers();
+            }
         },
         async handleRecurringStartDateChange() {
             this.syncRecurringEndDate();
@@ -3293,19 +3403,46 @@ export default {
         },
         async loadOwnerData() {
             this.error = "";
+            const preferredClusterId =
+                this.$route.query.venue_cluster_id ||
+                localStorage.getItem("selected_cluster") ||
+                "";
+            let preferredClusterLoad = null;
+
+            if (preferredClusterId) {
+                this.selectedClusterId = preferredClusterId;
+                this.applyRouteBookingFilters();
+                preferredClusterLoad = this.handleClusterChange()
+                    .then(() => true)
+                    .catch(() => false);
+            }
 
             try {
                 const response = await venueClusterService.getClusters();
                 this.clusters = response.data || [];
-                this.selectedClusterId =
-                    this.$route.query.venue_cluster_id ||
-                    localStorage.getItem("selected_cluster") ||
-                    this.clusters[0]?.id ||
-                    "";
+                const preferredCluster = this.clusters.find(
+                    (cluster) =>
+                        String(cluster.id) === String(preferredClusterId),
+                );
+                const resolvedClusterId =
+                    preferredCluster?.id || this.clusters[0]?.id || "";
+                const preferredLoaded = preferredClusterLoad
+                    ? await preferredClusterLoad
+                    : false;
+
+                this.selectedClusterId = resolvedClusterId;
                 this.applyRouteBookingFilters();
-                await this.handleClusterChange();
+
+                if (
+                    !preferredLoaded ||
+                    String(resolvedClusterId) !== String(preferredClusterId)
+                ) {
+                    await this.handleClusterChange();
+                }
             } catch (error) {
                 this.error = error.message || "Không thể tải dữ liệu cụm sân.";
+            } finally {
+                this.bootstrapping = false;
             }
         },
         applyRouteBookingFilters() {
@@ -3326,17 +3463,28 @@ export default {
             this.form.venue_court_id = "";
 
             if (!this.selectedClusterId) return;
+            this.clusterLoading = true;
             localStorage.setItem("selected_cluster", this.selectedClusterId);
             this.notifyOwnerClusterChanged();
 
-            await Promise.all([this.loadClusterDetail(), this.loadCourts()]);
-            this.syncPaymentOption();
-            if (this.activeTab === "bookingList") {
-                this.bookingListFilters.venue_court_id = "";
-                this.recurringGroupFilters.venue_court_id = "";
-                await this.loadCurrentBookingList();
-            } else {
-                await this.loadSchedule();
+            try {
+                const requests = [
+                    this.loadClusterDetail(),
+                    this.loadCourts(),
+                ];
+
+                if (this.activeTab === "bookingList") {
+                    this.bookingListFilters.venue_court_id = "";
+                    this.recurringGroupFilters.venue_court_id = "";
+                    requests.push(this.loadCurrentBookingList());
+                } else {
+                    requests.push(this.loadSchedule());
+                }
+
+                await Promise.all(requests);
+                this.syncPaymentOption();
+            } finally {
+                this.clusterLoading = false;
             }
         },
         async handleExternalClusterChange(event) {
@@ -3498,7 +3646,8 @@ export default {
             if (
                 !this.selectedClusterId ||
                 !courtId ||
-                this.voucherBaseAmount <= 0
+                this.voucherBaseAmount <= 0 ||
+                !this.canShowCounterVouchers
             ) {
                 this.eligibleVouchers = [];
                 this.selectedVoucherId = "";
@@ -3518,8 +3667,9 @@ export default {
                     usage_count:
                         this.activeTab === "recurring"
                             ? Math.max(this.recurringPreview.length, 1)
-                            : 1,
+                            : this.counterDateCount,
                     voucher_code: code || "",
+                    walk_in_phone: this.normalizedWalkInPhone,
                 });
 
                 if (requestId !== this.voucherRequestId) return;
@@ -3668,8 +3818,9 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
+            const interval = this.busyInterval(courtId, slot);
             const status = this.slotStatus(courtId, slot);
-            return !status || !status.is_available;
+            return Boolean(interval) || !status || !status.is_available;
         },
         slotKey(courtId, slot) {
             return `${courtId}|${slot?.start_time || ""}`;
@@ -4042,10 +4193,19 @@ export default {
 
             if (field === "name") {
                 this.form.walk_in_name = this.normalizedWalkInName;
-                return;
+            } else {
+                this.form.walk_in_phone = this.normalizedWalkInPhone;
             }
 
-            this.form.walk_in_phone = this.normalizedWalkInPhone;
+            if (this.canShowCounterVouchers && this.hasCounterSelection) {
+                void this.loadEligibleVouchers();
+            } else {
+                this.clearVoucherSelection();
+            }
+        },
+        handleContactInput(field) {
+            this.contactTouched[field] = false;
+            this.clearVoucherSelection();
         },
         async submitCounter() {
             if (!this.canSubmitCounter) return;
@@ -4079,6 +4239,7 @@ export default {
                     walk_in_name: this.form.walk_in_name,
                     walk_in_phone: this.form.walk_in_phone,
                     booking_date: this.form.booking_date,
+                    booking_dates: this.counterBookingDates,
                     start_time: firstRange.start_time,
                     end_time: lastRange.end_time,
                     time_ranges: timeRanges,
@@ -4095,12 +4256,20 @@ export default {
                     voucher_code: this.selectedVoucher?.code || null,
                 });
 
+                this.notice =
+                    response.message ||
+                    (this.counterDateCount > 1
+                        ? `Đã tạo ${this.counterDateCount} booking tại quầy.`
+                        : "Đã tạo booking tại quầy.");
+
                 if (response.payment_qr) {
                     this.counterQr = response.payment_qr;
+                    this.counterDrawerOpen = false;
                     this.qrModalOpen = true;
                     this.counterQrBookingId = response.data?.id || "";
                     this.startCounterQrPolling();
                 }
+                this.counterDrawerOpen = false;
                 this.selectedSlotKeys = [];
                 this.selectedGridCourtId = "";
                 this.syncCounterRangeFields();
@@ -4564,13 +4733,13 @@ export default {
         bookingStatusTone(status) {
             return (
                 {
-                    pending_approval: "pending",
+                    pending_approval: "review",
                     pending_payment: "pending",
                     confirmed: "confirmed",
-                    checked_in: "confirmed",
+                    checked_in: "checked-in",
                     completed: "paid",
                     cancelled: "cancelled",
-                    rejected: "cancelled",
+                    rejected: "rejected",
                     expired: "overdue",
                 }[status] || "neutral"
             );
@@ -4749,6 +4918,7 @@ export default {
                 variant: "default",
                 ...config,
             };
+            this.counterDrawerOpen = false;
         },
         closeBookingActionConfirm() {
             if (this.bookingActionLoading) return;
@@ -4794,6 +4964,7 @@ export default {
                 this.selectedBusyBooking = response.data || response;
                 this.notice = "Đã cập nhật trạng thái booking.";
                 this.bookingActionConfirm = null;
+                this.counterDrawerOpen = false;
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể cập nhật booking.";
@@ -4817,6 +4988,7 @@ export default {
                 );
                 this.selectedBusyBooking = response.data || response;
                 this.bookingActionConfirm = null;
+                this.counterDrawerOpen = false;
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể ghi nhận thu tiền.";
@@ -4839,6 +5011,7 @@ export default {
                     { payment_method: "sepay" },
                 );
                 this.counterQr = response.payment_qr || null;
+                this.counterDrawerOpen = false;
                 this.qrModalOpen = Boolean(this.counterQr);
                 this.counterQrBookingId =
                     response.data?.id || this.selectedBusyBooking.id;
@@ -6096,7 +6269,7 @@ export default {
 .schedule-filters {
     width: 100%;
     max-width: 100%;
-    grid-template-columns: minmax(180px, 220px) minmax(320px, 400px) minmax(180px, 220px);
+    grid-template-columns: minmax(170px, 210px) minmax(500px, 1fr) minmax(170px, 210px);
     align-items: end;
     justify-content: space-between;
     padding: 12px;
@@ -6111,9 +6284,16 @@ export default {
 
 .date-stepper {
     display: grid;
-    grid-template-columns: 36px minmax(160px, 1fr) 36px auto;
+    grid-template-columns: 36px minmax(135px, 1fr) auto minmax(135px, 1fr) 36px auto;
     gap: 8px;
     align-items: center;
+}
+
+.date-range-separator {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 .date-stepper button {
@@ -6323,33 +6503,33 @@ input.invalid {
 }
 
 .legend i.booked-paid {
-    border-color: var(--admin-success, #98d8a7);
-    background: var(--admin-success-soft, #dff7e6);
+    border-color: #a7cbb4;
+    background: #e2f0e7;
 }
 
 .legend i.booked-online {
-    border-color: var(--admin-info, #9fc5ff);
-    background: var(--admin-info-soft, #e7f0ff);
+    border-color: #a9bdcc;
+    background: #e5edf3;
 }
 
 .legend i.booked-counter {
-    border-color: var(--admin-primary, #c7b7ff);
-    background: var(--admin-primary-soft, #f0ebff);
+    border-color: #bbb4cb;
+    background: #ebe9f1;
 }
 
 .legend i.pay-later {
-    border-color: var(--admin-warning, #f0c46b);
-    background: var(--admin-warning-soft, #fff4ce);
+    border-color: #d1bd86;
+    background: #f3eddc;
 }
 
 .legend i.overdue {
-    border-color: var(--admin-danger, #f4a8a8);
-    background: var(--admin-danger-soft, #ffe4e4);
+    border-color: #d3aaa4;
+    background: #f3e3e0;
 }
 
 .legend i.locked {
-    border-color: var(--admin-border, #c4cec4);
-    background: var(--admin-bg-soft, #e3e8e3);
+    border-color: #b9c2bc;
+    background: #e9ecea;
 }
 
 .selection-error {
@@ -6589,27 +6769,27 @@ input.invalid {
 }
 
 .time-slot.booked-paid {
-    background: var(--admin-success-soft, #dff7e6);
+    background: #e2f0e7;
 }
 
 .time-slot.booked-online {
-    background: var(--admin-info-soft, #e7f0ff);
+    background: #e5edf3;
 }
 
 .time-slot.booked-counter {
-    background: var(--admin-primary-soft, #f0ebff);
+    background: #ebe9f1;
 }
 
 .time-slot.pay-later {
-    background: var(--admin-warning-soft, #fff4ce);
+    background: #f3eddc;
 }
 
 .time-slot.overdue {
-    background: var(--admin-danger-soft, #ffe4e4);
+    background: #f3e3e0;
 }
 
 .time-slot.locked {
-    background: var(--admin-bg-soft, #e3e8e3);
+    background: #e9ecea;
 }
 
 .time-slot.viewing {
@@ -7245,58 +7425,76 @@ input.invalid {
 }
 
 .status-badge.tone-paid {
-    border-color: var(--admin-success, #b7ebc6);
-    background: var(--admin-success-soft, #dcfce7);
-    color: var(--admin-success-text, #166534);
+    border-color: #a7cbb4;
+    background: #e2f0e7;
+    color: #35684a;
 }
 
 .status-badge.tone-online {
-    border-color: var(--admin-info, #bfdbfe);
-    background: var(--admin-info-soft, #dbeafe);
-    color: var(--admin-info, #1d4ed8);
+    border-color: #a9bdcc;
+    background: #e5edf3;
+    color: #3f6178;
 }
 
 .status-badge.tone-counter {
-    border-color: var(--admin-primary, #ddd6fe);
-    background: var(--admin-primary-soft, #ede9fe);
-    color: var(--admin-primary, #5b21b6);
+    border-color: #bbb4cb;
+    background: #ebe9f1;
+    color: #5c5570;
 }
 
 .status-badge.tone-later {
-    border-color: var(--admin-warning, #fde68a);
-    background: var(--admin-warning-soft, #fef3c7);
-    color: var(--admin-warning, #92400e);
+    border-color: #d1bd86;
+    background: #f3eddc;
+    color: #765f2d;
 }
 
 .status-badge.tone-overdue {
-    border-color: var(--admin-danger, #fecaca);
-    background: var(--admin-danger-soft, #fee2e2);
-    color: var(--admin-danger, #b91c1c);
+    border-color: #d3aaa4;
+    background: #f3e3e0;
+    color: #854f48;
 }
 
 .status-badge.tone-pending {
-    border-color: var(--admin-warning, #fed7aa);
-    background: var(--admin-warning-soft, #ffedd5);
-    color: var(--admin-warning, #c2410c);
+    border-color: #d1bd86;
+    background: #f3eddc;
+    color: #765f2d;
 }
 
 .status-badge.tone-confirmed {
-    border-color: var(--admin-success, #bbf7d0);
-    background: var(--admin-success-soft, #f0fdf4);
-    color: var(--admin-success-text, #15803d);
+    border-color: #a9bdcc;
+    background: #e5edf3;
+    color: #3f6178;
+}
+
+.status-badge.tone-review {
+    border-color: #bbb4cb;
+    background: #ebe9f1;
+    color: #5c5570;
+}
+
+.status-badge.tone-checked-in {
+    border-color: #9fc6c0;
+    background: #e0efed;
+    color: #356b65;
+}
+
+.status-badge.tone-rejected {
+    border-color: #d7b1ad;
+    background: #f2e5e3;
+    color: #80534e;
 }
 
 .status-badge.tone-cancelled {
-    border-color: var(--admin-border, #e5e7eb);
-    background: var(--admin-bg-soft, #f3f4f6);
-    color: var(--admin-muted, #4b5563);
+    border-color: #c4cbc7;
+    background: #ecefed;
+    color: #59635d;
 }
 
 .status-badge.tone-locked,
 .status-badge.tone-neutral {
-    border-color: var(--admin-border, #d9e8d9);
-    background: var(--admin-surface-muted, #f7fbf5);
-    color: var(--admin-muted, #475b4d);
+    border-color: #c7ceca;
+    background: #f0f2f1;
+    color: #59635d;
 }
 
 .payment-list {
@@ -8249,14 +8447,145 @@ input.invalid {
     }
 
     .payment-card {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
     .payment-card strong {
-        grid-column: 2;
+        grid-column: auto;
         justify-self: start;
     }
 }
 /* UI rules */
 .owner-counter-page .tabs-and-actions{align-items:center;padding-bottom:2px}.owner-counter-page .tabs{gap:8px;padding:0;border:0;background:transparent}.owner-counter-page .tabs button,.owner-counter-page .tab-nav-link{border:0;border-radius:4px;background:transparent;color:var(--admin-muted);font-weight:500;box-shadow:none}.owner-counter-page .tabs button.active,.owner-counter-page .tab-nav-link:hover{background:var(--admin-primary-soft);color:var(--admin-primary);font-weight:500}.owner-counter-page .counter-board,.owner-counter-page .recurring-panel{gap:20px}.owner-counter-page .schedule-panel,.owner-counter-page .booking-side,.owner-counter-page .form-card,.owner-counter-page .preview-box,.owner-counter-page .recurring-list-panel{border:0;border-radius:0;background:var(--admin-surface);box-shadow:none}.owner-counter-page .schedule-filters,.owner-counter-page .recurring-schedule-board,.owner-counter-page .recurring-payment,.owner-counter-page .recurring-weekday-planner,.owner-counter-page .selected-court-strip>div,.owner-counter-page .schedule-summary>div{border:0;border-radius:4px;background:var(--admin-bg-soft);box-shadow:none}.owner-counter-page h2,.owner-counter-page h3{font-weight:500}.owner-counter-page strong,.owner-counter-page button,.owner-counter-page label{font-weight:500}.owner-counter-page .status-badge,.owner-counter-page .source-pill,.owner-counter-page .fixed-date-chips span,.owner-counter-page .fixed-date-chips em{border-radius:4px;font-weight:500}.owner-counter-page .legend i{border-radius:3px}.owner-counter-page .matrix-head{font-weight:500}.owner-counter-page .matrix-court strong{font-weight:500}.owner-counter-page .secondary-btn,.owner-counter-page .primary-btn{font-weight:500;border-radius:4px}.owner-counter-page .modal-panel,.owner-counter-page .recurring-detail-modal,.owner-counter-page .conflict-modal,.owner-counter-page .qr-modal{border:0;border-radius:0;box-shadow:var(--admin-shadow-lg)}
-.owner-counter-page .source-pill,.owner-counter-page .status-badge,.owner-counter-page .fixed-date-chips span,.owner-counter-page .fixed-date-chips em,.owner-counter-page .occurrence-list article>span{border-radius:4px;font-weight:500}</style>
+.owner-counter-page .source-pill,.owner-counter-page .status-badge,.owner-counter-page .fixed-date-chips span,.owner-counter-page .fixed-date-chips em,.owner-counter-page .occurrence-list article>span{border-radius:4px;font-weight:500}
+
+.owner-counter-page .schedule-panel {
+    padding: 20px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+}
+
+.owner-counter-page .counter-toolbar {
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 8px;
+    background: #f7fcf8;
+}
+
+.owner-counter-page .time-board {
+    gap: 16px;
+}
+
+.owner-counter-page .selected-court-strip {
+    gap: 12px;
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 8px;
+    background: #f8fcf9;
+}
+
+.owner-counter-page .selected-court-strip > div {
+    min-height: 58px;
+    padding: 10px 12px;
+    border: 1px solid var(--admin-border-soft, #e4eee4);
+    border-radius: 6px;
+    background: #fff;
+}
+
+.schedule-skeleton {
+    min-height: 430px;
+    gap: 18px;
+    padding: 18px;
+    border: 1px solid var(--admin-border, #d9e8d9);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.skeleton-matrix {
+    min-height: 260px;
+    gap: 16px 20px;
+    padding: 18px;
+}
+
+.booking-side {
+    background: #fff !important;
+    color: #101c15;
+    border-left: 1px solid #cfded1;
+}
+
+.booking-side .side-section {
+    gap: 12px;
+    padding-bottom: 16px;
+}
+
+.booking-side input,
+.booking-side select,
+.booking-side textarea,
+.voucher-code-row input {
+    background: #fff !important;
+    color: #101c15 !important;
+    caret-color: #101c15;
+}
+
+.booking-side input:disabled,
+.booking-side select:disabled,
+.booking-side textarea:disabled {
+    background: #f4f7f4 !important;
+    color: #66766b !important;
+}
+
+.booking-side input::placeholder,
+.voucher-code-row input::placeholder {
+    color: #7b8a80 !important;
+    -webkit-text-fill-color: #7b8a80 !important;
+    opacity: 1;
+}
+
+.payment-card {
+    min-height: 54px;
+    border-color: #cfded1;
+    background: #fff !important;
+    cursor: pointer;
+}
+
+.payment-card.active {
+    border-color: #22a653;
+    background: #e8f7ee !important;
+    box-shadow: inset 3px 0 0 #22a653;
+}
+
+.booking-side .payment-card {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.booking-side .payment-card input[type="radio"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.payment-card span,
+.payment-card strong {
+    color: #101c15;
+}
+
+.qr-modal-backdrop,
+.booking-action-modal-backdrop {
+    z-index: 10020 !important;
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.qr-modal-backdrop .qr-modal {
+    border: 1px solid #d9e8d9;
+    border-radius: 8px;
+    background: #fff;
+}
+</style>

@@ -41,7 +41,10 @@
         </div>
 
         <section v-if="activeTab === 'counter'" class="counter-board">
-            <div class="schedule-panel">
+            <div
+                class="schedule-panel"
+                :class="{ 'is-loading': counterScheduleLoading }"
+            >
                 <div class="panel-head compact">
                     <div>
                         <h2>Lịch sân trong ngày</h2>
@@ -52,18 +55,9 @@
                 <div class="filters schedule-filters counter-toolbar">
                     <label class="schedule-filter-field cluster-field">
                         <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
+                        <div class="schedule-filter-readonly">
+                            {{ selectedCluster?.name || "-" }}
+                        </div>
                     </label>
                     <label class="schedule-filter-field date-field">
                         <span>Ngày chơi</span>
@@ -79,6 +73,13 @@
                                 v-model="form.booking_date"
                                 type="date"
                                 @change="handleScheduleDateChange"
+                            />
+                            <span class="date-range-separator">đến</span>
+                            <input
+                                v-model="form.booking_end_date"
+                                type="date"
+                                :min="form.booking_date"
+                                @change="handleCounterEndDateChange"
                             />
                             <button
                                 type="button"
@@ -118,19 +119,33 @@
                     {{ selectionError }}
                 </p>
 
-                <div v-if="scheduleLoading" class="schedule-skeleton">
-                    <div class="skeleton-summary">
+                <div
+                    v-if="counterScheduleLoading"
+                    class="schedule-loading-box"
+                    role="status"
+                    aria-label="Đang tải lịch sân"
+                >
+                    <div class="schedule-skeleton-head">
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-toolbar">
                         <span></span>
                         <span></span>
                         <span></span>
                     </div>
-                    <div class="skeleton-tabs">
+                    <div class="schedule-skeleton-summary">
                         <span></span>
                         <span></span>
                         <span></span>
                     </div>
-                    <div class="skeleton-matrix">
-                        <span v-for="item in 15" :key="item"></span>
+                    <div class="schedule-skeleton-tabs">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-grid">
+                        <span v-for="item in 28" :key="item"></span>
                     </div>
                 </div>
                 <div v-else-if="scheduleError" class="state-card error-state">
@@ -155,7 +170,7 @@
                         </div>
                         <div>
                             <span>Tổng tiền</span>
-                            <strong>{{ formatCurrency(selectedTotal) }}</strong>
+                            <strong>{{ formatCurrency(counterTotalAmount) }}</strong>
                         </div>
                     </div>
 
@@ -247,7 +262,7 @@
                     <strong v-if="selectedOccupiedInterval">Đang xem lịch đã đặt</strong>
                     <strong v-else>{{ selectedCourtText }} · {{ selectedDurationText }}</strong>
                     <span v-if="selectedOccupiedInterval">{{ occupiedPanelSubtitle }}</span>
-                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(selectedTotal) }}</span>
+                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(counterTotalAmount) }}</span>
                 </div>
                 <button
                     type="button"
@@ -435,7 +450,8 @@
                                     invalid:
                                         contactTouched.name && walkInNameError,
                                 }"
-                                placeholder="Nguyễn Văn A"
+                                placeholder="Nhập tên khách"
+                                @input="handleContactInput('name')"
                                 @blur="validateContactField('name')"
                             />
                             <small
@@ -463,7 +479,8 @@
                                         contactTouched.phone &&
                                         walkInPhoneError,
                                 }"
-                                placeholder="0901234567"
+                                placeholder="Nhập số điện thoại"
+                                @input="handleContactInput('phone')"
                                 @blur="validateContactField('phone')"
                             />
                             <small
@@ -476,6 +493,7 @@
                     </section>
 
                     <section
+                        v-if="canShowCounterVouchers"
                         class="side-section"
                         :class="{ disabled: !hasCounterSelection }"
                     >
@@ -1743,7 +1761,10 @@
                 </section>
             </div>
 
-            <div v-if="bookingActionConfirm" class="modal-backdrop">
+            <div
+                v-if="bookingActionConfirm"
+                class="modal-backdrop booking-action-modal-backdrop"
+            >
                 <section class="confirm-modal">
                     <div class="modal-head">
                         <div>
@@ -1881,7 +1902,7 @@
                 </section>
             </div>
 
-            <div v-if="counterQr && qrModalOpen" class="modal-backdrop">
+            <div v-if="counterQr && qrModalOpen" class="modal-backdrop qr-modal-backdrop">
                 <section class="qr-modal">
                     <div class="modal-head">
                         <div>
@@ -2088,6 +2109,8 @@ export default {
         return {
             today,
             activeTab: "counter",
+            bootstrapping: true,
+            clusterLoading: false,
             clusters: [],
             courts: [],
             selectedClusterId: "",
@@ -2114,6 +2137,7 @@ export default {
                 walk_in_name: "",
                 walk_in_phone: "",
                 booking_date: today,
+                booking_end_date: today,
                 recurring_start_date: today,
                 recurring_end_date: today,
                 recurrence_type: "weekly",
@@ -2216,6 +2240,14 @@ export default {
             return this.activeTab === "recurring"
                 ? this.hasRecurringSelection
                 : Boolean(this.selectedSlotKeys.length);
+        },
+        counterScheduleLoading() {
+            return (
+                this.activeTab === "counter" &&
+                (this.bootstrapping ||
+                    this.clusterLoading ||
+                    this.scheduleLoading)
+            );
         },
         isViewingPastScheduleDate() {
             return (
@@ -2499,6 +2531,35 @@ export default {
                 return total + Number(status?.price || 0);
             }, 0);
         },
+        counterBookingDates() {
+            const start = this.parseDate(this.form.booking_date);
+            const end = this.parseDate(
+                this.form.booking_end_date || this.form.booking_date,
+            );
+            if (!start || !end || end < start) return [];
+
+            const dates = [];
+            for (
+                let current = new Date(start);
+                current <= end && dates.length < 31;
+                current.setDate(current.getDate() + 1)
+            ) {
+                dates.push(this.formatIsoDate(current));
+            }
+            return dates;
+        },
+        counterDateCount() {
+            return Math.max(this.counterBookingDates.length, 1);
+        },
+        counterDateRangeLabel() {
+            if (this.counterDateCount <= 1) {
+                return this.formatDate(this.form.booking_date);
+            }
+            return `${this.formatDate(this.form.booking_date)} - ${this.formatDate(this.form.booking_end_date)} (${this.counterDateCount} ngày)`;
+        },
+        counterTotalAmount() {
+            return this.selectedTotal * this.counterDateCount;
+        },
         recurringUnitTotal() {
             return this.activeTab === "recurring" ? this.selectedTotal : 0;
         },
@@ -2524,8 +2585,14 @@ export default {
         voucherDiscountAmount() {
             return this.activeTab === "counter" ? this.voucherUnitDiscount : 0;
         },
+        counterVoucherDiscountAmount() {
+            return this.voucherDiscountAmount * this.counterDateCount;
+        },
         counterPayableTotal() {
-            return Math.max(this.selectedTotal - this.voucherDiscountAmount, 0);
+            return Math.max(
+                this.counterTotalAmount - this.counterVoucherDiscountAmount,
+                0,
+            );
         },
         recurringUnitPayableTotal() {
             return this.recurringUnitTotal;
@@ -2578,7 +2645,7 @@ export default {
             );
         },
         counterCollectionOptions() {
-            return [
+            const options = [
                 {
                     value: "cash",
                     label: "Tiền mặt",
@@ -2595,6 +2662,10 @@ export default {
                     amount: this.counterPayableTotal,
                 },
             ];
+
+            return this.counterDateCount > 1
+                ? options.filter((option) => option.value !== "transfer")
+                : options;
         },
         paymentOptions() {
             const config = this.selectedClusterDetail?.booking_config || {};
@@ -2646,16 +2717,16 @@ export default {
             const rows = [
                 ["Cụm sân", this.selectedCluster?.name || "-"],
                 ["Sân", this.selectedCourtText],
-                ["Ngày", this.formatDate(this.form.booking_date)],
+                ["Ngày", this.counterDateRangeLabel],
                 ["Giờ", this.selectedTimeText],
                 ["Thời lượng", this.selectedDurationText],
-                ["Tổng tiền", this.formatCurrency(this.selectedTotal)],
+                ["Tổng tiền", this.formatCurrency(this.counterTotalAmount)],
             ];
 
             if (this.selectedVoucher) {
                 rows.push([
                     `Voucher ${this.selectedVoucher.code}`,
-                    `-${this.formatCurrency(this.voucherDiscountAmount)}`,
+                    `-${this.formatCurrency(this.counterVoucherDiscountAmount)}`,
                 ]);
                 rows.push([
                     "Cần thu",
@@ -2666,7 +2737,7 @@ export default {
             return rows;
         },
         currentScheduleLabel() {
-            return `${this.selectedCluster?.name || "Cụm sân"} · ${this.formatDate(this.form.booking_date)}`;
+            return `${this.selectedCluster?.name || "Cụm sân"} · ${this.counterDateRangeLabel}`;
         },
         selectedBookingOutstanding() {
             if (!this.selectedBusyBooking) return 0;
@@ -2961,6 +3032,16 @@ export default {
                 !this.submitting
             );
         },
+        hasValidCounterContact() {
+            return !this.walkInNameError && !this.walkInPhoneError;
+        },
+        canShowCounterVouchers() {
+            return (
+                this.contactTouched.name &&
+                this.contactTouched.phone &&
+                this.hasValidCounterContact
+            );
+        },
         canSubmitRecurring() {
             const weeklyReady =
                 this.form.recurrence_type !== "weekly" ||
@@ -3149,16 +3230,45 @@ export default {
         },
         async shiftCounterDate(days) {
             const current = this.parseDate(this.form.booking_date) || new Date();
+            const end =
+                this.parseDate(this.form.booking_end_date) || new Date(current);
+            const rangeDays = Math.max(
+                Math.round((end.getTime() - current.getTime()) / 86400000),
+                0,
+            );
             current.setDate(current.getDate() + days);
             this.form.booking_date = this.formatIsoDate(current);
+            const shiftedEnd = new Date(current);
+            shiftedEnd.setDate(shiftedEnd.getDate() + rangeDays);
+            this.form.booking_end_date = this.formatIsoDate(shiftedEnd);
             await this.handleScheduleDateChange();
         },
         async setCounterDateToday() {
             this.form.booking_date = this.today;
+            this.form.booking_end_date = this.today;
             await this.handleScheduleDateChange();
         },
         async handleScheduleDateChange() {
+            if (
+                !this.form.booking_end_date ||
+                this.form.booking_end_date < this.form.booking_date
+            ) {
+                this.form.booking_end_date = this.form.booking_date;
+            }
             await this.loadSchedule();
+        },
+        handleCounterEndDateChange() {
+            if (this.form.booking_end_date < this.form.booking_date) {
+                this.form.booking_end_date = this.form.booking_date;
+            }
+            if (this.counterDateCount > 1 && this.form.collection_mode === "transfer") {
+                this.form.collection_mode = "cash";
+                this.applyCounterCollectionMode();
+            }
+            this.clearVoucherSelection();
+            if (this.canShowCounterVouchers && this.hasCounterSelection) {
+                void this.loadEligibleVouchers();
+            }
         },
         async handleRecurringStartDateChange() {
             this.syncRecurringEndDate();
@@ -3175,19 +3285,46 @@ export default {
         },
         async loadOwnerData() {
             this.error = "";
+            const preferredClusterId =
+                this.$route.query.venue_cluster_id ||
+                localStorage.getItem("selected_cluster") ||
+                "";
+            let preferredClusterLoad = null;
+
+            if (preferredClusterId) {
+                this.selectedClusterId = preferredClusterId;
+                this.applyRouteBookingFilters();
+                preferredClusterLoad = this.handleClusterChange()
+                    .then(() => true)
+                    .catch(() => false);
+            }
 
             try {
                 const response = await venueClusterService.getClusters();
                 this.clusters = response.data || [];
-                this.selectedClusterId =
-                    this.$route.query.venue_cluster_id ||
-                    localStorage.getItem("selected_cluster") ||
-                    this.clusters[0]?.id ||
-                    "";
+                const preferredCluster = this.clusters.find(
+                    (cluster) =>
+                        String(cluster.id) === String(preferredClusterId),
+                );
+                const resolvedClusterId =
+                    preferredCluster?.id || this.clusters[0]?.id || "";
+                const preferredLoaded = preferredClusterLoad
+                    ? await preferredClusterLoad
+                    : false;
+
+                this.selectedClusterId = resolvedClusterId;
                 this.applyRouteBookingFilters();
-                await this.handleClusterChange();
+
+                if (
+                    !preferredLoaded ||
+                    String(resolvedClusterId) !== String(preferredClusterId)
+                ) {
+                    await this.handleClusterChange();
+                }
             } catch (error) {
                 this.error = error.message || "Không thể tải dữ liệu cụm sân.";
+            } finally {
+                this.bootstrapping = false;
             }
         },
         applyRouteBookingFilters() {
@@ -3208,19 +3345,30 @@ export default {
             this.form.venue_court_id = "";
 
             if (!this.selectedClusterId) return;
+            this.clusterLoading = true;
             localStorage.setItem("selected_cluster", this.selectedClusterId);
             this.notifyOwnerClusterChanged();
 
-            await Promise.all([this.loadClusterDetail(), this.loadCourts()]);
-            this.syncPaymentOption();
-            if (this.activeTab === "recurringList") {
-                this.recurringGroupFilters.venue_court_id = "";
-                await this.loadRecurringGroups();
-            } else if (this.activeTab === "bookingList") {
-                this.bookingListFilters.venue_court_id = "";
-                await this.loadBookingList();
-            } else {
-                await this.loadSchedule();
+            try {
+                const requests = [
+                    this.loadClusterDetail(),
+                    this.loadCourts(),
+                ];
+
+                if (this.activeTab === "recurringList") {
+                    this.recurringGroupFilters.venue_court_id = "";
+                    requests.push(this.loadRecurringGroups());
+                } else if (this.activeTab === "bookingList") {
+                    this.bookingListFilters.venue_court_id = "";
+                    requests.push(this.loadBookingList());
+                } else {
+                    requests.push(this.loadSchedule());
+                }
+
+                await Promise.all(requests);
+                this.syncPaymentOption();
+            } finally {
+                this.clusterLoading = false;
             }
         },
         async handleExternalClusterChange(event) {
@@ -3382,7 +3530,8 @@ export default {
             if (
                 !this.selectedClusterId ||
                 !courtId ||
-                this.voucherBaseAmount <= 0
+                this.voucherBaseAmount <= 0 ||
+                !this.canShowCounterVouchers
             ) {
                 this.eligibleVouchers = [];
                 this.selectedVoucherId = "";
@@ -3402,8 +3551,9 @@ export default {
                     usage_count:
                         this.activeTab === "recurring"
                             ? Math.max(this.recurringPreview.length, 1)
-                            : 1,
+                            : this.counterDateCount,
                     voucher_code: code || "",
+                    walk_in_phone: this.normalizedWalkInPhone,
                 });
 
                 if (requestId !== this.voucherRequestId) return;
@@ -3552,8 +3702,9 @@ export default {
             );
         },
         isSlotBusy(courtId, slot) {
+            const interval = this.busyInterval(courtId, slot);
             const status = this.slotStatus(courtId, slot);
-            return !status || !status.is_available;
+            return Boolean(interval) || !status || !status.is_available;
         },
         slotKey(courtId, slot) {
             return `${courtId}|${slot?.start_time || ""}`;
@@ -3926,10 +4077,19 @@ export default {
 
             if (field === "name") {
                 this.form.walk_in_name = this.normalizedWalkInName;
-                return;
+            } else {
+                this.form.walk_in_phone = this.normalizedWalkInPhone;
             }
 
-            this.form.walk_in_phone = this.normalizedWalkInPhone;
+            if (this.canShowCounterVouchers && this.hasCounterSelection) {
+                void this.loadEligibleVouchers();
+            } else {
+                this.clearVoucherSelection();
+            }
+        },
+        handleContactInput(field) {
+            this.contactTouched[field] = false;
+            this.clearVoucherSelection();
         },
         async submitCounter() {
             if (!this.canSubmitCounter) return;
@@ -3963,6 +4123,7 @@ export default {
                     walk_in_name: this.form.walk_in_name,
                     walk_in_phone: this.form.walk_in_phone,
                     booking_date: this.form.booking_date,
+                    booking_dates: this.counterBookingDates,
                     start_time: firstRange.start_time,
                     end_time: lastRange.end_time,
                     time_ranges: timeRanges,
@@ -3979,12 +4140,20 @@ export default {
                     voucher_code: this.selectedVoucher?.code || null,
                 });
 
+                this.notice =
+                    response.message ||
+                    (this.counterDateCount > 1
+                        ? `Đã tạo ${this.counterDateCount} booking tại quầy.`
+                        : "Đã tạo booking tại quầy.");
+
                 if (response.payment_qr) {
                     this.counterQr = response.payment_qr;
+                    this.counterDrawerOpen = false;
                     this.qrModalOpen = true;
                     this.counterQrBookingId = response.data?.id || "";
                     this.startCounterQrPolling();
                 }
+                this.counterDrawerOpen = false;
                 this.selectedSlotKeys = [];
                 this.selectedGridCourtId = "";
                 this.syncCounterRangeFields();
@@ -4448,13 +4617,13 @@ export default {
         bookingStatusTone(status) {
             return (
                 {
-                    pending_approval: "pending",
+                    pending_approval: "review",
                     pending_payment: "pending",
                     confirmed: "confirmed",
-                    checked_in: "confirmed",
+                    checked_in: "checked-in",
                     completed: "paid",
                     cancelled: "cancelled",
-                    rejected: "cancelled",
+                    rejected: "rejected",
                     expired: "overdue",
                 }[status] || "neutral"
             );
@@ -4633,6 +4802,7 @@ export default {
                 variant: "default",
                 ...config,
             };
+            this.counterDrawerOpen = false;
         },
         closeBookingActionConfirm() {
             if (this.bookingActionLoading) return;
@@ -4678,6 +4848,7 @@ export default {
                 this.selectedBusyBooking = response.data || response;
                 this.notice = "Đã cập nhật trạng thái booking.";
                 this.bookingActionConfirm = null;
+                this.counterDrawerOpen = false;
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể cập nhật booking.";
@@ -4701,6 +4872,7 @@ export default {
                 );
                 this.selectedBusyBooking = response.data || response;
                 this.bookingActionConfirm = null;
+                this.counterDrawerOpen = false;
                 await this.loadSchedule();
             } catch (error) {
                 this.error = error.message || "Không thể ghi nhận thu tiền.";
@@ -4723,6 +4895,7 @@ export default {
                     { payment_method: "sepay" },
                 );
                 this.counterQr = response.payment_qr || null;
+                this.counterDrawerOpen = false;
                 this.qrModalOpen = Boolean(this.counterQr);
                 this.counterQrBookingId =
                     response.data?.id || this.selectedBusyBooking.id;
