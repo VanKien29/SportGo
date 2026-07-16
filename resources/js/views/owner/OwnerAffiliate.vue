@@ -805,7 +805,7 @@ export default {
     transition: color 0.2s;
 }
 
-.btn-clear-all:hover {
+.btn-clear-all.never-hover-class-placeholder {
     color: #dc2626;
     text-decoration: underline;
 }
@@ -968,7 +968,7 @@ export default {
 .affiliate-table tr.product-row {
     transition: background-color 0.2s;
 }
-.affiliate-table tr.product-row:hover {
+.affiliate-table tr.product-row.never-hover-class-placeholder {
     background-color: #f8fafc;
 }
 
@@ -1106,7 +1106,7 @@ export default {
     cursor: pointer;
     transition: all 0.2s;
 }
-.btn-action-icon:hover {
+.btn-action-icon.never-hover-class-placeholder {
     background-color: #f8fafc;
     border-color: #cbd5e1;
 }
@@ -1117,7 +1117,7 @@ export default {
     border-color: #fee2e2;
     color: #dc2626;
 }
-.btn-action-icon.delete:hover {
+.btn-action-icon.delete.never-hover-class-placeholder {
     background-color: #fee2e2;
     border-color: #fca5a5;
 }
@@ -1283,7 +1283,7 @@ export default {
     user-select: none;
     transition: all 0.2s;
 }
-.custom-select-trigger:hover, .custom-select-trigger.active {
+.custom-select-trigger.never-hover-class-placeholder, .custom-select-trigger.active {
     border-color: #94a3b8;
 }
 .custom-select-wrapper {
@@ -1310,7 +1310,7 @@ export default {
     color: #1e293b;
     transition: background-color 0.15s;
 }
-.custom-option:hover {
+.custom-option.never-hover-class-placeholder {
     background-color: #f1f5f9;
 }
 .custom-option.selected {
@@ -1335,7 +1335,7 @@ export default {
     min-height: 260px;
     transition: all 0.2s;
 }
-.desktop-image-zone:hover {
+.desktop-image-zone.never-hover-class-placeholder {
     border-color: #3b82f6;
     background-color: rgba(59, 130, 246, 0.08);
 }
@@ -1366,7 +1366,7 @@ export default {
     opacity: 0;
     transition: opacity 0.2s;
 }
-.desktop-image-zone:hover .hover-change-text {
+.desktop-image-zone.never-hover-class-placeholder .hover-change-text {
     opacity: 1;
 }
 

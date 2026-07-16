@@ -131,7 +131,7 @@ export default {
 
 /* Content Cards */
 .content-card { display: flex; justify-content: space-between; gap: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow 0.2s; }
-.content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.content-card.never-hover-class-placeholder { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
 .content-card-body { display: grid; gap: 8px; flex: 1; min-width: 0; }
 .content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }

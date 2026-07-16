@@ -43,7 +43,7 @@ class StoreVenuePostCommentRequest extends FormRequest
     {
         if ($this->has('content')) {
             $this->merge([
-                'content' => trim(strip_tags($this->content)),
+                'content' => trim(strip_tags($this->input('content'))),
             ]);
         }
     }

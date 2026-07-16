@@ -8,8 +8,10 @@ use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
 use App\Models\OwnerWalletLedger;
 use App\Models\OwnerWithdrawalRequest;
+use App\Models\PartnerTerminationRequest;
 use App\Models\User;
 use App\Services\Admin\AdminAuditService;
+use App\Services\Partner\PartnerTerminationFlowService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,9 +24,18 @@ use Illuminate\Validation\ValidationException;
 
 class FinanceController extends Controller
 {
+    private const TERMINATION_WITHDRAWAL_LIMIT_STATUSES = [
+        PartnerTerminationFlowService::STATUS_IN_PROGRESS,
+        PartnerTerminationFlowService::STATUS_FUTURE_BOOKINGS,
+        PartnerTerminationFlowService::STATUS_WAITING_SETTLEMENT,
+        PartnerTerminationFlowService::STATUS_WAITING_FINAL_SIGNATURE,
+        PartnerTerminationFlowService::STATUS_TERMINATING,
+    ];
+
     public function __construct(
         private readonly OwnerWalletService $wallets,
         private readonly AdminAuditService $audit,
+        private readonly PartnerTerminationFlowService $terminations,
     ) {}
 
     public function wallets(Request $request): JsonResponse
@@ -143,9 +154,27 @@ class FinanceController extends Controller
                 ]);
             }
 
+            $activeTermination = PartnerTerminationRequest::query()
+                ->where('owner_id', $request->user()->id)
+                ->where('venue_cluster_id', $wallet->venue_cluster_id)
+                ->whereIn('status', self::TERMINATION_WITHDRAWAL_LIMIT_STATUSES)
+                ->latest()
+                ->first();
+
+            if ($activeTermination) {
+                $activeTermination = $this->terminations->refreshAmounts($activeTermination);
+                $allowed = min((float) $wallet->available_balance, (float) $activeTermination->withdrawable_amount);
+                if ($amount > $allowed + 0.01) {
+                    throw ValidationException::withMessages([
+                        'amount' => 'So tien rut vuot qua phan duoc phep rut trong ho so cham dut hop dong.',
+                    ]);
+                }
+            }
+
             $withdrawal = OwnerWithdrawalRequest::query()->create([
                 'request_code' => $this->nextRequestCode(),
-                'source' => 'manual',
+                'source' => $activeTermination ? 'partner_termination_settlement' : 'manual',
+                'partner_termination_request_id' => $activeTermination?->id,
                 'owner_id' => $request->user()->id,
                 'owner_wallet_id' => $wallet->id,
                 'owner_bank_account_id' => $bankAccount->id,
@@ -155,6 +184,8 @@ class FinanceController extends Controller
                 'metadata' => [
                     'balance_before_request' => (float) $wallet->available_balance,
                     'source_balance' => 'online_revenue',
+                    'partner_termination_request_id' => $activeTermination?->id,
+                    'withdrawable_amount_at_request' => $activeTermination ? (float) $activeTermination->withdrawable_amount : null,
                 ],
                 'requested_at' => now(),
             ]);

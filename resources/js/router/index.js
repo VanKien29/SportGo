@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
 import {
+    clearAuth,
     consumeGoogleCallback,
     getAuth,
+    restoreAdminAuth,
+    restoreAuth,
 } from "../stores/auth.js";
 
 import Home from "../views/Home.vue";
@@ -30,21 +33,24 @@ import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
 import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
+import StaffLayout from "../views/staff/StaffLayout.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
 import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
 import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
+import NewsList from '../views/clients/news/NewsList.vue';
+import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
-import NewsDetail from "../views/clients/NewsDetail.vue";
+import CommunityPostDetail from "../views/clients/NewsDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
-    { path: "/news/:slug", name: "news-detail", component: NewsDetail },
+    { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -70,15 +76,32 @@ const routes = [
         meta: { requiresAuth: false, title: "Tin tức" },
     },
     {
+        path: "/community",
+        name: "ClientCommunityList",
+        component: () => import("@/views/clients/community/CommunityList.vue"),
+        meta: { requiresAuth: false, title: "Cộng đồng" },
+    },
+    {
+      path: '/user/:id',
+      name: 'user.profile',
+      component: UserProfile
+    },
+    {
         path: "/news/:slug",
         name: "ClientNewsDetail",
         component: () => import("@/views/clients/news/NewsDetail.vue"),
         meta: { requiresAuth: false, title: "Chi tiết tin tức" },
     },
     {
+        path: "/matchmaking-posts/:id/manage",
+        name: "ClientMatchmakingManage",
+        component: () => import("@/views/clients/community/MatchmakingManage.vue"),
+        meta: { requiresAuth: true, title: "Quản lý bài giao lưu" },
+    },
+    {
         path: "/chat",
         name: "chat",
-        component: () => import("../views/Chat.vue"),
+        component: () => import("../views/clients/ClientChat.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -247,6 +270,12 @@ const routes = [
                     import("../views/admin/AdminAmenities.vue"),
             },
             {
+                path: "service-categories",
+                name: "admin-service-categories",
+                component: () =>
+                    import("../views/admin/AdminServiceCategories.vue"),
+            },
+            {
                 path: "venue-clusters",
                 name: "admin-venue-clusters",
                 component: () =>
@@ -291,6 +320,12 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeSettings.vue"),
             },
             {
+                path: "system-profile",
+                name: "admin-system-profile",
+                component: () =>
+                    import("../views/admin/AdminSystemProfile.vue"),
+            },
+            {
                 path: "settings",
                 name: "admin-settings",
                 component: () =>
@@ -328,10 +363,30 @@ const routes = [
                     import("../views/owner/OwnerVenueClusters.vue"),
             },
             {
+                path: "venue-clusters/:id/termination",
+                name: "owner-partner-termination",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
+                path: "termination-requests/:id",
+                name: "owner-partner-termination-request",
+                component: () =>
+                    import("../views/owner/OwnerPartnerTermination.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "affiliate",
                 name: "owner-affiliate",
                 component: () =>
                     import("../views/owner/OwnerAffiliate.vue"),
+            },
+            {
+                path: "services",
+                name: "owner-services",
+                component: () =>
+                    import("../views/owner/OwnerServices.vue"),
             },
             {
                 path: "venue-courts",
@@ -342,11 +397,16 @@ const routes = [
             {
                 path: "bookings",
                 name: "owner-bookings",
-                redirect: { name: "owner-counter-booking" },
+                redirect: { name: "owner-booking-list" },
             },
             {
                 path: "counter-booking",
                 name: "owner-counter-booking",
+                component: () => import("../views/owner/OwnerCounterBooking.vue"),
+            },
+            {
+                path: "booking-list",
+                name: "owner-booking-list",
                 component: () => import("../views/owner/OwnerCounterBooking.vue"),
             },
             { path: "pricing", name: "owner-pricing", component: OwnerPricing },
@@ -354,6 +414,11 @@ const routes = [
                 path: "booking-settings",
                 name: "owner-booking-settings",
                 component: () => import("../views/owner/OwnerBookingSettings.vue"),
+            },
+            {
+                path: "settings",
+                name: "owner-settings",
+                component: () => import("../views/owner/OwnerSettings.vue"),
             },
             {
                 path: "platform-fees",
@@ -371,6 +436,11 @@ const routes = [
                 component: () => import("../views/owner/OwnerVenuePosts.vue"),
             },
             { path: "staff", name: "owner-staff", component: OwnerStaff },
+            {
+                path: "staff-shifts",
+                name: "owner-staff-shifts",
+                component: () => import("../views/owner/OwnerStaffShifts.vue"),
+            },
             { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
             { path: "wallet", redirect: { name: "owner-finance" } },
             { path: "policies", name: "owner-policies", component: OwnerPolicies },
@@ -396,6 +466,11 @@ const routes = [
                 component: () => import("../views/owner/OwnerPartnerProfile.vue"),
             },
             {
+                path: "chat",
+                name: "owner-chat",
+                component: () => import("../views/owner/OwnerChat.vue"),
+            },
+            {
                 path: "partner-documents/:id/:documentId",
                 name: "owner-partner-document",
                 component: PartnerApplicationDocumentPage,
@@ -414,6 +489,45 @@ const routes = [
             { path: "", redirect: { name: "owner-dashboard" } },
         ],
     },
+    {
+        path: "/staff",
+        component: StaffLayout,
+        meta: { requiresAuth: true, role: "staff" },
+        children: [
+            {
+                path: "dashboard",
+                name: "staff-dashboard",
+                component: () => import("../views/staff/StaffDashboard.vue"),
+            },
+            {
+                path: "schedules",
+                name: "staff-schedules",
+                component: () => import("../views/staff/StaffSchedules.vue"),
+            },
+            {
+                path: "bookings",
+                name: "staff-bookings",
+                component: () => import("../views/staff/StaffBookings.vue"),
+            },
+            {
+                path: "counter-booking",
+                name: "staff-counter-booking",
+                component: () => import("../views/staff/StaffCounterBooking.vue"),
+            },
+            {
+                path: "settings",
+                name: "staff-settings",
+                component: () => import("../views/owner/OwnerSettings.vue"),
+            },
+            {
+                path: "chat",
+                name: "staff-chat",
+                component: () => import("../views/Chat.vue"),
+            },
+            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "", redirect: { name: "staff-dashboard" } },
+        ],
+    },
     { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
@@ -424,21 +538,38 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
     if (to.name === "google-callback") {
-        const auth = await consumeGoogleCallback(to.query);
-        if (!auth) return next({ name: "login" });
-        return next(auth.redirect_to || "/");
+        const query = { ...to.query };
+        if (query.token || query.code) {
+            window.history.replaceState({}, document.title, to.path);
+        }
+
+        try {
+            const auth = await consumeGoogleCallback(query);
+            if (!auth) return next({ name: "login", replace: true });
+            return next({ path: auth.redirect_to || "/", replace: true });
+        } catch {
+            clearAuth();
+            return next({ name: "login", replace: true });
+        }
     }
 
     let auth = getAuth();
 
     if (to.meta.guestAdmin) {
-        if (auth?.role_group === "admin")
-            return next({ name: "admin-dashboard" });
+        if (auth?.role_group === "admin") {
+            const serverAuth = await restoreAdminAuth();
+            if (serverAuth?.role_group === "admin")
+                return next({ name: "admin-dashboard" });
+        }
         return next();
     }
 
     if (to.name === "profile" && auth?.role_group === "owner") {
         return next({ name: "owner-profile" });
+    }
+
+    if (to.name === "profile" && auth?.role_group === "staff") {
+        return next({ name: "staff-profile" });
     }
 
     if (to.matched.some((route) => route.meta.requiresAuth)) {
@@ -453,21 +584,43 @@ router.beforeEach(async (to, from, next) => {
             );
         }
 
+        auth = requiredRole === "admin"
+            ? await restoreAdminAuth()
+            : await restoreAuth();
+
+        if (!auth) {
+            return next(
+                requiredRole === "admin"
+                    ? { name: "admin-login" }
+                    : { name: "login" },
+            );
+        }
+
+        if (to.name === "profile" && auth.role_group === "owner") {
+            return next({ name: "owner-profile" });
+        }
+
         if (requiredRole && auth.role_group !== requiredRole) {
             if (auth.role_group === "admin")
                 return next({ name: "admin-dashboard" });
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
+            if (auth.role_group === "staff")
+                return next({ name: "staff-dashboard" });
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
         }
     }
 
     if (["login", "register"].includes(to.name) && auth) {
+        auth = await restoreAuth();
+        if (!auth) return next();
         if (auth.role_group === "admin")
             return next({ name: "admin-dashboard" });
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
+        if (auth.role_group === "staff")
+            return next({ name: "staff-dashboard" });
         return next({ name: "home" });
     }
 

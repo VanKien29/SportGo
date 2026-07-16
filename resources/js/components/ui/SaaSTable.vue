@@ -136,7 +136,7 @@ export default {
   cursor: pointer;
 }
 
-.clickable-row:hover td {
+.clickable-row.never-hover-class-placeholder td {
   background-color: var(--admin-hover, #f8fafc);
 }
 

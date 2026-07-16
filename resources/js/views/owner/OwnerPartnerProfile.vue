@@ -31,13 +31,46 @@
         </label>
       </div>
 
-      <div class="card summary">
-        <div>
+      <section class="card profile-overview">
+        <div class="profile-main">
+          <p class="eyebrow">Hồ sơ đối tác</p>
           <h3>{{ activeApplication.venue_name }}</h3>
-          <p class="muted">{{ activeApplication.business_name }}</p>
+          <p class="muted">{{ activeApplication.business_name || activeApplication.venue_address }}</p>
+          <span class="status" :class="`status-${activeApplication.status}`">{{ statusLabel(activeApplication.status) }}</span>
         </div>
-        <span class="status" :class="`status-${activeApplication.status}`">{{ statusLabel(activeApplication.status) }}</span>
-      </div>
+        <div class="profile-actions">
+          <button v-if="pendingOwnerContract" class="btn primary" type="button" @click="openSignContract">
+            <AppIcon name="edit2" size="16" /> Ký hợp đồng
+          </button>
+          <button v-if="activeContract && !pendingTermination" class="btn danger" type="button" :disabled="!activeVenueClusterId" @click="openTerminationFlow">
+            Chấm dứt hợp tác
+          </button>
+          <button class="btn ghost" type="button" @click="activeTab = 'documents'">
+            <AppIcon name="fileText" size="16" /> Văn bản
+          </button>
+        </div>
+      </section>
+
+      <section class="profile-metrics">
+        <article v-for="metric in profileMetrics" :key="metric.key" class="metric-card">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.hint }}</small>
+        </article>
+      </section>
+
+      <section v-if="workItems.length" class="card work-queue">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Cần xử lý</p>
+            <h3>Việc đang chờ chủ sân</h3>
+          </div>
+        </div>
+        <button v-for="item in workItems" :key="item.key" class="work-item" type="button" @click="activeTab = item.tab">
+          <span>{{ item.title }}</span>
+          <small>{{ item.hint }}</small>
+        </button>
+      </section>
 
       <div class="tabs">
         <button v-for="tab in tabs" :key="tab.value" class="tab-btn" :class="{ active: activeTab === tab.value }" type="button" @click="activeTab = tab.value">
@@ -89,14 +122,11 @@
           </div>
           <p v-if="activeDocuments.length === 0" class="muted">Chưa có văn bản nào.</p>
         </div>
-        <button v-if="pendingOwnerContract" class="btn primary" type="button" @click="openSignContract">
-          <AppIcon name="edit2" size="16" /> Ký điện tử hợp đồng
-        </button>
       </section>
 
       <section v-if="activeTab === 'termination'" class="card section-card">
         <h3>Yêu cầu chấm dứt</h3>
-        <button v-if="activeContract && !pendingTermination" class="btn danger" type="button" @click="openTermination">
+        <button v-if="activeContract && !pendingTermination" class="btn danger" type="button" :disabled="!activeVenueClusterId" @click="openTerminationFlow">
           Gửi yêu cầu chấm dứt hợp tác
         </button>
         <div v-if="pendingTermination" class="notice warning">
@@ -218,14 +248,64 @@ export default {
     activeDocuments() {
       return this.documents.filter((document) => document.partner_application_id === this.activeApplication.id);
     },
+    profileMetrics() {
+      const documents = this.activeDocuments.length;
+      const pendingDocs = this.activeDocuments.filter((document) => this.canSignDocument(document)).length;
+      const terminations = this.activeApplication.termination_requests?.length || 0;
+
+      return [
+        { key: 'documents', label: 'Văn bản', value: documents, hint: pendingDocs ? `${pendingDocs} văn bản chờ ký` : 'Không có văn bản chờ ký' },
+        { key: 'contracts', label: 'Hợp đồng hiệu lực', value: this.activeContract ? 1 : 0, hint: this.activeContract ? 'Đang có hiệu lực' : 'Chưa có hợp đồng hiệu lực' },
+        { key: 'terminations', label: 'Chấm dứt', value: terminations, hint: this.pendingTermination ? 'Đang có hồ sơ xử lý' : 'Không có hồ sơ đang treo' },
+        { key: 'settlement', label: 'Quyết toán', value: this.settledRequests.length, hint: 'Biên bản và lịch sử thanh lý' },
+      ];
+    },
+    workItems() {
+      const items = [];
+      if (this.pendingOwnerContract) {
+        items.push({ key: 'contract', title: 'Ký hợp đồng đang chờ', hint: 'Mở tab văn bản để ký điện tử hợp đồng.', tab: 'documents' });
+      }
+      if (this.activeDocuments.some((document) => this.canSignDocument(document))) {
+        items.push({ key: 'documents', title: 'Có văn bản cần ký', hint: 'Kiểm tra nội dung và ký OTP nếu cần.', tab: 'documents' });
+      }
+      if (this.pendingTermination) {
+        items.push({ key: 'termination', title: 'Hồ sơ chấm dứt đang xử lý', hint: this.pendingTermination.reason || 'Theo dõi trạng thái hồ sơ chấm dứt.', tab: 'termination' });
+      }
+
+      return items;
+    },
     pendingOwnerContract() {
       return this.activeApplication.contracts?.find((contract) => contract.status === 'pending_owner_signature') || null;
     },
     activeContract() {
       return this.activeApplication.contracts?.find((contract) => contract.status === 'signed_active') || null;
     },
+    activeVenueClusterId() {
+      return this.activeApplication.approved_venue_cluster_id
+        || this.activeApplication.approved_venue_cluster?.id
+        || this.activeApplication.approvedVenueCluster?.id
+        || this.activeContract?.venue_cluster_id
+        || this.activeDocuments.find((document) => document.venue_cluster_id)?.venue_cluster_id
+        || null;
+    },
     pendingTermination() {
-      return this.activeApplication.termination_requests?.find((request) => ['submitted', 'reviewing', 'transition_period'].includes(request.status)) || null;
+      const activeStatuses = [
+        'draft',
+        'draft_preview',
+        'submitted',
+        'reviewing',
+        'approved',
+        'pending_signature',
+        'settlement_processing',
+        'transition_period',
+        'cancellation_in_progress',
+        'future_bookings_processing',
+        'waiting_final_settlement',
+        'waiting_final_document_signature',
+        'terminating',
+      ];
+
+      return this.activeApplication.termination_requests?.find((request) => activeStatuses.includes(request.status)) || null;
     },
     settledRequests() {
       return (this.activeApplication.termination_requests || []).filter((request) => request.settlement);
@@ -319,23 +399,20 @@ export default {
     closeSignContract() {
       this.signModal.open = false;
     },
-    async submitSignContract() {
-      this.saving = true;
-      try {
-        await api('/api/user/partner-application/sign-contract', {
-          method: 'POST',
-          body: JSON.stringify({
-            contract_id: this.pendingOwnerContract.id,
-            signature_image: this.signatureData(this.$refs.signatureCanvas),
-          }),
-        });
-        this.closeSignContract();
-        await this.fetchData();
-      } catch (err) {
-        this.error = err.message || 'Không ký được hợp đồng.';
-      } finally {
-        this.saving = false;
+    openTerminationFlow() {
+      if (!this.activeVenueClusterId) {
+        this.error = 'Không tìm thấy cụm sân đang hoạt động để tạo yêu cầu chấm dứt.';
+        return;
       }
+
+      this.$router.push({
+        name: 'owner-partner-termination',
+        params: { id: this.activeVenueClusterId },
+      });
+    },
+    submitSignContract() {
+      this.closeSignContract();
+      this.openSignContract();
     },
     openTermination() {
       this.terminationForm.reason = '';
@@ -344,22 +421,9 @@ export default {
     closeTermination() {
       this.terminationModal.open = false;
     },
-    async submitTermination() {
-      this.saving = true;
-      try {
-        await api(`/api/owner/contracts/${this.activeContract.id}/request-termination`, {
-          method: 'POST',
-          body: JSON.stringify({
-            reason: this.terminationForm.reason,
-          }),
-        });
-        this.closeTermination();
-        await this.fetchData();
-      } catch (err) {
-        this.error = err.message || 'Không gửi được yêu cầu chấm dứt.';
-      } finally {
-        this.saving = false;
-      }
+    submitTermination() {
+      this.closeTermination();
+      this.openTerminationFlow();
     },
     async downloadDocument(id) {
       try {
@@ -411,7 +475,14 @@ export default {
     },
     signatureSummary(signatures = []) {
       if (!signatures.length) return 'Chưa có chữ ký';
-      return signatures.map((signature) => `${signature.signer_side}: ${this.formatDate(signature.signed_at)}`).join(' · ');
+      return signatures.map((signature) => `${this.signerSideLabel(signature.signer_side)}: ${this.formatDate(signature.signed_at)}`).join(' · ');
+    },
+    signerSideLabel(side) {
+      return {
+        owner: 'Chủ sân',
+        sportgo: 'SportGo',
+        admin: 'SportGo',
+      }[side] || side || '-';
     },
     statusLabel(status) {
       return {
@@ -428,8 +499,8 @@ export default {
       }[status] || status || '-';
     },
     documentTypeLabel(type) {
-      if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-      if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+      if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+      if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
       return {
         partner_application_form: 'Đơn đăng ký đối tác',
@@ -450,10 +521,26 @@ export default {
     },
     terminationStatusLabel(status) {
       return {
+        draft: 'Bản nháp',
+        draft_preview: 'Đã tạo bản xem trước',
         submitted: 'Chờ xác nhận',
         reviewing: 'Đang xem xét',
+        approved: 'Đã duyệt',
+        pending_signature: 'Chờ ký',
+        cancellation_in_progress: 'Đang xử lý hủy hợp tác',
+        future_bookings_processing: 'Đang xử lý lịch đặt tương lai',
+        waiting_final_settlement: 'Chờ quyết toán cuối',
+        waiting_final_document_signature: 'Chờ ký biên bản cuối',
+        terminating: 'Đang thu hồi quyền',
         transition_period: 'Giai đoạn chuyển tiếp',
+        settlement_processing: 'Đang quyết toán',
+        settlement_completed: 'Đã quyết toán',
         completed: 'Đã thu hồi quyền',
+        rejected: 'Từ chối',
+        cancelled: 'Đã hủy',
+        terminated: 'Đã chấm dứt',
+        owner_cancelled_request: 'Chủ sân đã hủy yêu cầu',
+        admin_rejected: 'Admin từ chối',
       }[status] || status;
     },
     money(value) {
@@ -487,6 +574,8 @@ export default {
 }
 
 .summary,
+.profile-overview,
+.section-head,
 .page-header,
 .doc-row,
 .modal-header,
@@ -499,15 +588,116 @@ export default {
 }
 
 .summary,
+.profile-overview,
 .selector,
-.section-card {
+.section-card,
+.work-queue {
   padding: 18px;
 }
 
 .summary h3,
+.profile-overview h3,
+.work-queue h3,
 .section-card h3,
 .page-header h2 {
   margin: 0;
+}
+
+.profile-overview {
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.profile-main {
+  min-width: 0;
+}
+
+.profile-main h3 {
+  color: var(--admin-text);
+  font-size: 22px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 4px;
+  min-height: 104px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  padding: 14px;
+}
+
+.metric-card span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  color: var(--admin-text);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.metric-card small,
+.work-item small {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.work-queue {
+  display: grid;
+  gap: 10px;
+}
+
+.section-head {
+  padding: 0;
+}
+
+.work-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+}
+
+.work-item:hover {
+  border-color: #0f172a;
+}
+
+.work-item span {
+  font-weight: 900;
 }
 
 .muted {
@@ -805,10 +995,16 @@ export default {
 
 @media (max-width: 800px) {
   .summary,
+  .profile-overview,
   .doc-row,
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .profile-overview,
+  .profile-metrics {
+    grid-template-columns: 1fr;
   }
 
   .info-grid {

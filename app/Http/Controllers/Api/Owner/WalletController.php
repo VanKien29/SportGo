@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\OwnerBankAccount;
 use App\Models\OwnerWallet;
 use App\Models\OwnerWithdrawalRequest;
+use App\Models\PartnerTerminationRequest;
+use App\Services\Partner\PartnerTerminationFlowService;
 use App\Services\Wallets\OwnerWalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,14 @@ use Illuminate\Support\Str;
 
 class WalletController extends Controller
 {
+    private const ACTIVE_TERMINATION_STATUSES = [
+        PartnerTerminationFlowService::STATUS_IN_PROGRESS,
+        PartnerTerminationFlowService::STATUS_FUTURE_BOOKINGS,
+        PartnerTerminationFlowService::STATUS_WAITING_SETTLEMENT,
+        PartnerTerminationFlowService::STATUS_WAITING_FINAL_SIGNATURE,
+        PartnerTerminationFlowService::STATUS_TERMINATING,
+    ];
+
     public function getWallet(Request $request): JsonResponse
     {
         $wallet = OwnerWallet::firstOrCreate(
@@ -66,6 +76,12 @@ class WalletController extends Controller
         $userId = $request->user()->id;
         $amount = (float) $request->input('amount');
         $bankAccountId = $request->input('owner_bank_account_id');
+
+        if (PartnerTerminationRequest::query()->where('owner_id', $userId)->whereIn('status', self::ACTIVE_TERMINATION_STATUSES)->exists()) {
+            return response()->json([
+                'message' => 'Tai khoan dang co ho so cham dut hop dong. Vui long rut tien trong man hinh cham dut de he thong tru booking/refund/withdraw treo.',
+            ], 422);
+        }
 
         // Verify bank account belongs to owner and is active
         $bankAccount = OwnerBankAccount::where('owner_id', $userId)

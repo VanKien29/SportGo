@@ -2,18 +2,19 @@
   <div class="venue-detail-page">
     <PublicNavbar />
 
-    <main>
-      <div v-if="loading" class="state-screen">
-        <div class="spinner"></div>
-        <p>Đang tải thông tin sân...</p>
-      </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-screen">
+      <div class="spinner"></div>
+    </div>
 
-      <div v-else-if="error" class="state-screen">
-        <p>{{ error }}</p>
-        <button type="button" @click="$router.push({ name: 'venues', query: searchQuery })">Quay lại tìm sân</button>
-      </div>
+    <!-- Error State -->
+    <div v-else-if="error" class="error-screen">
+      <p class="error-msg">{{ error }}</p>
+      <button class="btn-outline" @click="$router.back()">Quay lại</button>
+    </div>
 
-      <template v-else-if="venue">
+    <!-- Content -->
+    <template v-else-if="venue">
         <section class="hero-band">
           <div class="detail-container">
             <nav class="breadcrumbs" aria-label="Duong dan">
@@ -106,15 +107,29 @@
               </div>
             </section>
 
-            <section class="detail-section">
-              <h2>Khung giờ hoạt động</h2>
-              <div class="hours-grid">
-                <article v-for="item in operatingHours" :key="item.day">
-                  <strong>{{ item.day }}</strong>
-                  <span>{{ item.value }}</span>
-                </article>
+          <!-- On-site Services & Products -->
+          <section class="detail-section" v-if="groupedServices.length">
+            <h2 class="section-title">Dịch vụ & Sản phẩm tại sân</h2>
+            <div class="services-by-category-container">
+              <div v-for="group in groupedServices" :key="group.key" class="service-category-block" style="margin-bottom: 20px;">
+                <h3 class="service-category-label" style="font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">
+                  {{ group.label }}
+                </h3>
+                <div class="services-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
+                  <div v-for="item in group.items" :key="item.id" class="service-product-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="flex: 1; padding-right: 8px;">
+                      <span class="product-name" style="font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.8); display: block;">{{ item.name }}</span>
+                      <span v-if="item.description" class="product-desc" style="font-size: 11.5px; color: rgba(255,255,255,0.35); margin-top: 2px; display: block;">{{ item.description }}</span>
+                    </div>
+                    <div style="text-align: right; white-space: nowrap;">
+                      <span class="product-price" style="font-size: 13.5px; font-weight: 700; color: #f59e0b; display: block;">{{ formatPrice(item.price) }}</span>
+                      <span class="product-unit" style="font-size: 11px; color: rgba(255,255,255,0.35); display: block; margin-top: 1px;">/ {{ item.unit }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </section>
+            </div>
+          </section>
 
             <section class="detail-section">
               <h2>Chính sách sân</h2>
@@ -167,6 +182,7 @@
             </section>
           </div>
 
+          <aside class="booking-panel" ref="bookingPanelRef">
             <div class="booking-form">
               <div class="booking-flow">
                 <span class="active">1. Chọn ngày</span>
@@ -247,22 +263,91 @@
               </button>
 
               <button
-                class="btn-outline btn-full chat-owner-btn"
-                @click="chatWithOwner"
+                class="btn-outline btn-full flex items-center justify-center gap-2"
+                style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
+                @click="chatWithVenue"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
-                Nhắn tin hỏi chủ sân
+                Nhắn tin với cụm sân
               </button>
 
+
+
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
+            </div>
+
+            <!-- Quick Stats in Panel -->
+            <div class="panel-info-list">
+              <div class="panel-info-item" v-if="venue.booking_config?.allow_no_prepay">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Có thể đặt không cần trả trước
+              </div>
+              <div class="panel-info-item" v-if="venue.booking_config?.allow_deposit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Hỗ trợ đặt cọc giữ chỗ
+              </div>
+              <div class="panel-info-item">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {{ venue.court_count || venue.venue_courts?.length || 0 }} sân đang hoạt động
+              </div>
             </div>
           </aside>
         </section>
       </template>
-    </main>
+
+  <!-- Report Modal -->
+  <div v-if="showReportModal" class="modal-overlay" @click.self="showReportModal = false" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div class="modal-content" style="max-width: 500px; width: 90%; background: white; border-radius: 12px; padding: 24px; position: relative;">
+      <h3 style="font-size: 18px; font-weight: 600; margin-top: 0; margin-bottom: 16px; color: #000;">Báo cáo cụm sân</h3>
+      
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #000;">Lý do báo cáo *</label>
+        <select
+          v-model="reportForm.reason"
+          style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 14px; color: #000; box-sizing: border-box; margin-bottom: 16px; background-color: #fff;"
+        >
+          <option value="spam">Spam / Quảng cáo rác</option>
+          <option value="offensive">Nội dung phản cảm</option>
+          <option value="fake">Thông tin giả mạo</option>
+          <option value="harassment">Quấy rối / Chửi bới</option>
+          <option value="other">Khác</option>
+        </select>
+
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #000;">Mô tả chi tiết (Tùy chọn)</label>
+        <textarea
+          v-model="reportForm.content"
+          placeholder="Mô tả chi tiết vi phạm..."
+          style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: vertical; box-sizing: border-box; font-family: inherit; font-size: 14px; color: #000;"
+        ></textarea>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #000;">Hình ảnh minh chứng (Tùy chọn)</label>
+        <input type="file" ref="reportEvidence" multiple accept="image/*" style="display: block; width: 100%; font-size: 14px; color: #000; padding: 8px; border: 1px dashed #94a3b8; border-radius: 6px; background: #f8fafc; box-sizing: border-box;" />
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn-outline" style="padding: 8px 16px; border-radius: 6px; cursor: pointer; border: 1px solid #e2e8f0; background: white; color: #000;" @click="showReportModal = false" :disabled="isSubmittingReport">Hủy</button>
+        <button class="btn-primary" style="padding: 8px 16px; border-radius: 6px; cursor: pointer; background: #ef4444; border: none; color: white; font-weight: 600;" @click="submitReport" :disabled="isSubmittingReport">
+          {{ isSubmittingReport ? 'Đang gửi...' : 'Gửi báo cáo' }}
+        </button>
+      </div>
+    </div>
   </div>
+
+  <!-- Toast Message -->
+  <div v-if="toastMessage" :class="['toast-notification', toastType]" style="position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; font-weight: 500; color: white; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.3s;" :style="{ backgroundColor: toastType === 'success' ? '#10b981' : '#ef4444' }">
+    {{ toastMessage }}
+  </div>
+</div>
 </template>
 
 <script>
@@ -284,13 +369,15 @@ export default {
       activeImage: "",
       bookDate: this.todayStr(),
       bookCourtType: '',
-      previewLoading: false,
-      previewError: '',
-      previewSchedule: {
-        time_slots: [],
-        courts: [],
-        slot_statuses: [],
+      showReportModal: false,
+      showActionMenu: false,
+      reportForm: {
+        reason: 'other',
+        content: ''
       },
+      isSubmittingReport: false,
+      toastMessage: null,
+      toastType: 'success'
     };
   },
   computed: {
@@ -332,44 +419,32 @@ export default {
       });
       return Object.values(groups);
     },
-    operatingHours() {
-      const hours = this.venue?.operating_hours || {};
-      const weekly = hours.weekly_operating_hours || {};
 
-      if (hours.fixed_open_time && hours.fixed_close_time) {
-        return [{ day: "Mỗi ngày", value: `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}` }];
-      }
-
-      if (Object.keys(weekly).length) {
-        return dayLabels.map((day, index) => {
-          const value = weekly[index] || weekly[String(index)] || {};
-          if (value.is_open === false) return { day, value: "Đóng cửa" };
-          return { day, value: `${this.timeLabel(value.open_time || "05:00:00")} - ${this.timeLabel(value.close_time || "22:00:00")}` };
-        });
-      }
-
-      return [{ day: "Mỗi ngày", value: "05:00 - 22:00" }];
+    groupedServices() {
+      const services = this.venue?.services || [];
+      const groups = {};
+      
+      services.forEach(item => {
+        const catId = item.category_id || 'other';
+        const catName = item.category?.name || 'Dịch vụ khác';
+        if (!groups[catId]) {
+          groups[catId] = {
+            key: catId,
+            label: catName,
+            items: []
+          };
+        }
+        groups[catId].items.push(item);
+      });
+      
+      return Object.values(groups);
     },
-    policies() {
-      const policy = this.venue?.policies || {};
-      const payment = [
-        policy.allow_full_payment ? "trả đủ" : "",
-        policy.allow_deposit ? `đặt cọc${policy.deposit_percent ? ` ${Number(policy.deposit_percent)}%` : ""}` : "",
-        policy.allow_no_prepay ? "trả sau" : "",
-      ].filter(Boolean).join(", ");
 
-      return [
-        { label: "Thanh toán", value: payment || "Theo cấu hình của sân" },
-        { label: "Đặt trước tối thiểu", value: policy.min_advance_booking_minutes ? `${policy.min_advance_booking_minutes} phút` : "30 phút" },
-        { label: "Giữ chỗ thanh toán", value: policy.slot_hold_minutes ? `${policy.slot_hold_minutes} phút` : "Theo hệ thống" },
-        { label: "Hủy sân", value: policy.cancel_before_hours ? `Trước ${policy.cancel_before_hours} giờ, hoàn ${policy.refund_percent || 0}%` : "Theo chính sách sân" },
-      ];
+    priceSlots() {
+      return this.venue?.price_slots || [];
     },
     basePrices() {
       return this.venue?.base_prices || [];
-    },
-    priceSlots() {
-      return this.venue?.price_slots || [];
     },
     reviews() {
       return this.venue?.reviews || [];
@@ -496,43 +571,64 @@ export default {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
-    async loadMiniSchedule() {
-      if (!this.venue?.id || !this.bookDate) return;
-
-      this.previewLoading = true;
-      this.previewError = '';
+    async submitReport() {
+      this.isSubmittingReport = true;
       try {
-        const params = { booking_date: this.bookDate };
-        if (this.bookCourtType) params.court_type_id = this.bookCourtType;
-        const response = await venueService.schedule(this.venue.id, params);
-        this.previewSchedule = {
-          time_slots: response.time_slots || [],
-          courts: response.courts || [],
-          slot_statuses: response.slot_statuses || [],
-        };
-      } catch (error) {
-        this.previewError = error.message || 'Không thể kiểm tra lịch trống.';
-        this.previewSchedule = { time_slots: [], courts: [], slot_statuses: [] };
+        const formData = new FormData();
+        formData.append('target_type', 'venue');
+        formData.append('target_id', this.venue.id);
+        formData.append('reason', this.reportForm.reason);
+        if (this.reportForm.content.trim()) {
+            formData.append('description', this.reportForm.content);
+        }
+
+        const files = this.$refs.reportEvidence?.files;
+        if (files && files.length > 0) {
+          // The backend expects 'evidence_image' as a single file, so we just take the first one
+          formData.append('evidence_image', files[0]);
+        }
+
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Vui lòng đăng nhập để gửi báo cáo.');
+            }
+            
+            if (response.status === 422) {
+                const data = await response.json();
+                const firstError = Object.values(data.errors)[0][0];
+                throw new Error(firstError || 'Thông tin không hợp lệ.');
+            }
+
+            throw new Error('Có lỗi xảy ra, vui lòng thử lại.');
+        }
+
+        this.toastMessage = 'Báo cáo của bạn đã được gửi thành công.';
+        this.toastType = 'success';
+        setTimeout(() => this.toastMessage = null, 3000);
+
+        this.showReportModal = false;
+        this.reportForm.content = '';
+        if (this.$refs.reportEvidence) this.$refs.reportEvidence.value = '';
+      } catch (err) {
+        this.toastMessage = err.message;
+        this.toastType = 'error';
+        setTimeout(() => this.toastMessage = null, 3000);
       } finally {
-        this.previewLoading = false;
+        this.isSubmittingReport = false;
       }
     },
 
-    isPreviewSlotPast(slot) {
-      if (!slot || this.bookDate !== this.todayStr()) return false;
-      const [hour, minute] = String(slot.start_time || '00:00')
-        .slice(0, 5)
-        .split(':')
-        .map(Number);
-      const now = new Date();
-      return hour * 60 + minute <= now.getHours() * 60 + now.getMinutes();
-    },
-
-    shortTime(time) {
-      return String(time || '').slice(0, 5);
-    },
-
-    goToBooking(slot = null) {
+    goToBooking() {
       if (!this.bookDate) return;
       const query = {
         venue_cluster_id: this.venue.id,
@@ -548,29 +644,13 @@ export default {
       if (slot?.end_time) query.end_time = slot.end_time;
       this.$router.push({ name: 'booking-create', query });
     },
-    chatWithOwner() {
-      this.$router.push({ name: "chat", query: { venueId: this.venue.id } });
-    },
-    imageUrl(path) {
-      if (!path) return "";
-      if (/^https?:\/\//.test(path)) return path;
-      return `/storage/${path}`;
-    },
-    initials(name = "") {
-      return String(name).trim().slice(0, 2).toUpperCase() || "SG";
-    },
-    todayStr() {
-      return new Date().toISOString().slice(0, 10);
-    },
-    timeLabel(time) {
-      return String(time || "").slice(0, 5);
-    },
-    formatCurrency(amount) {
-      return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-        maximumFractionDigits: 0,
-      }).format(Number(amount || 0));
+
+    chatWithVenue() {
+      if (!this.venue) return;
+      this.$router.push({
+        path: '/chat',
+        query: { venueId: this.venue.id }
+      });
     },
   },
 };
@@ -609,18 +689,40 @@ main {
 
 .breadcrumbs {
   gap: 8px;
-  margin-bottom: 22px;
-  color: rgba(255, 255, 255, .72);
-  font-size: 13px;
-  font-weight: 800;
+  padding: 12px 24px;
+  background: #ffffff;
+  color: #09090b;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-
-.breadcrumbs a {
-  color: inherit;
-  text-decoration: none;
+.btn-primary.never-hover-class-placeholder { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-primary.btn-full { width: 100%; justify-content: center; border-radius: 10px; }
+.btn-outline {
+  padding: 10px 22px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 9999px;
+  color: rgba(255,255,255,0.7);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
+.btn-outline.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); color: #fff; }
 
-.hero-grid {
+/* ─── Hero ─── */
+.hero {
+  padding-top: 72px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(360px, .75fr);
   gap: 32px;
@@ -666,13 +768,27 @@ main {
   height: 58px;
   overflow: hidden;
   border: 2px solid transparent;
-  border-radius: 8px;
-  flex: 0 0 auto;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  padding: 0;
+  background: none;
 }
+.thumb-btn img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-btn.active { border-color: #ffffff; }
+.thumb-btn.never-hover-class-placeholder { border-color: rgba(255,255,255,0.4); }
 
-.gallery-thumbs button.active {
-  border-color: #fff;
+/* Hero Info */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.2s;
 }
+.back-link.never-hover-class-placeholder { color: #ffffff; }
 
 .type-row {
   gap: 8px;

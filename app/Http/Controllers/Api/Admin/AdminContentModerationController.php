@@ -111,6 +111,7 @@ class AdminContentModerationController extends Controller
 
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
             $query = VenuePost::query()
+                ->whereNotNull('venue_cluster_id')
                 ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags']);
 
             if ($statusFilter === 'published') {
@@ -141,8 +142,9 @@ class AdminContentModerationController extends Controller
             ]);
         }
 
-        // Mặc định là community_posts
-        $query = CommunityPost::query()
+        // Mặc định là community_posts (sử dụng chung bảng venue_posts với venue_cluster_id = null)
+        $query = VenuePost::query()
+            ->whereNull('venue_cluster_id')
             ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags']);
 
         if ($statusFilter === 'published') {
@@ -204,7 +206,8 @@ class AdminContentModerationController extends Controller
             'Bài viết của bạn đã được duyệt',
             'Bài viết của bạn đã được phê duyệt và hiển thị công khai.',
             $tableName,
-            $post->id
+            $post->id,
+            isset($post->slug) ? ['slug' => $post->slug] : null
         );
 
         // Ghi Audit Log
@@ -533,7 +536,7 @@ class AdminContentModerationController extends Controller
         if (in_array($type, ['system_post', 'system_posts'], true)) {
             return SystemPost::query()->findOrFail($id);
         }
-        return CommunityPost::query()->findOrFail($id);
+        return VenuePost::query()->findOrFail($id);
     }
 
     /**
@@ -547,7 +550,7 @@ class AdminContentModerationController extends Controller
         if (in_array($type, ['system_post', 'system_posts'], true)) {
             return 'system_posts';
         }
-        return 'community_posts';
+        return 'venue_posts';
     }
 
     /**
@@ -559,7 +562,8 @@ class AdminContentModerationController extends Controller
         string $title,
         string $body,
         ?string $refType = null,
-        ?string $refId = null
+        ?string $refId = null,
+        ?array $data = null
     ): void {
         if (! Schema::hasTable('notifications')) {
             return;
@@ -572,7 +576,7 @@ class AdminContentModerationController extends Controller
             'body' => $body,
             'reference_type' => $refType,
             'reference_id' => $refId,
-            'data' => null,
+            'data' => $data,
             'is_read' => false,
         ]);
     }

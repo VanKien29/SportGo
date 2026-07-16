@@ -4,20 +4,22 @@
       <div class="navbar-left">
         <router-link to="/" class="brand">
           <div class="brand-icon" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none">
+            <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+            <svg v-else viewBox="0 0 32 32" fill="none">
               <circle cx="16" cy="16" r="15" stroke="currentColor" stroke-width="2"/>
               <path d="m9 12 7-5 7 5-3 8h-8z" stroke="currentColor" stroke-width="1.7" fill="none"/>
               <path d="M9 12 4 15M23 12l5 3M12 20l-3 7M20 20l3 7" stroke="currentColor" stroke-width="1.5"/>
             </svg>
           </div>
-          <span class="brand-text">Sport<span>Go</span></span>
+          <span class="brand-text">{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></span>
         </router-link>
 
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/venues" class="nav-link" active-class="active-link">Tìm sân</router-link>
           <a href="/#sports" class="nav-link">Môn thể thao</a>
-          <a href="/#news" class="nav-link">Tin tức</a>
+          <router-link to="/news" class="nav-link" active-class="active-link">Tin tức</router-link>
+          <router-link to="/community" class="nav-link" active-class="active-link">Cộng đồng</router-link>
           <router-link to="/become-partner" class="nav-link" active-class="active-link">Chủ sân</router-link>
           <a href="/#support" class="nav-link">Hỗ trợ</a>
           <router-link
@@ -54,7 +56,38 @@
           <router-link to="/register" class="register-btn">Đăng ký</router-link>
         </template>
 
-        <div v-else class="user-menu" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
+        <div v-if="user" class="notification-menu" @mouseenter="showNotifDropdown = true" @mouseleave="scheduleNotifHide">
+          <button class="notif-btn" @click="toggleNotifDropdown">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="22" height="22">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount }}</span>
+          </button>
+
+          <transition name="dd">
+            <div v-if="showNotifDropdown" class="dropdown notif-dropdown" @mouseenter="cancelNotifHide" @mouseleave="scheduleNotifHide">
+              <div class="dropdown-header notif-header">
+                <span class="dd-name">Thông báo</span>
+                <button v-if="unreadCount > 0" @click="markAllAsRead" class="mark-read-btn">Đánh dấu đã đọc</button>
+              </div>
+              <div class="dd-divider"></div>
+              <div class="notif-list">
+                <div v-if="notifications.length === 0" class="no-notif">Không có thông báo nào.</div>
+                <div v-for="notif in notifications" :key="notif.id" class="notif-item" :class="{ 'unread': !notif.is_read }" @click="markAsRead(notif)">
+                  <div class="notif-content">
+                    <div class="notif-title">{{ notif.title }}</div>
+                    <div class="notif-body">{{ notif.body }}</div>
+                    <div class="notif-time">{{ formatTime(notif.created_at) }}</div>
+                  </div>
+                  <div v-if="!notif.is_read" class="unread-dot"></div>
+                </div>
+              </div>
+            </div>
+          </transition>
+        </div>
+
+        <div v-if="user" class="user-menu" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
           <button class="user-btn" @click="toggleDropdown">
             <div class="user-avatar">{{ userInitial }}</div>
           </button>
@@ -84,6 +117,19 @@
                 </svg>
                 Trò chuyện
               </router-link>
+
+              <button
+                v-if="user.role === 'user'"
+                class="dd-item"
+                @click="openComplaintModal"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Gửi khiếu nại
+              </button>
 
               <router-link
                 v-if="user.role === 'user'"
@@ -132,8 +178,26 @@
                 Quay lại quản trị
               </button>
 
+              <button class="dd-item" @click="toggleThemeMode">
+                <svg v-if="!isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5"/>
+                  <line x1="12" y1="1" x2="12" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/>
+                  <line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                {{ isDark ? 'Chế độ sáng' : 'Chế độ tối' }}
+              </button>
+
               <button class="dd-item dd-logout" @click="handleLogout">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                   <polyline points="16 17 21 12 16 7"/>
                   <line x1="21" y1="12" x2="9" y2="12"/>
@@ -146,25 +210,74 @@
       </div>
     </div>
   </nav>
+
+  <ComplaintModal 
+    :is-open="showComplaintModal" 
+    @close="showComplaintModal = false" 
+    @success="onComplaintSuccess" 
+  />
 </template>
 
 <script>
 import { getAuth, logout } from "../stores/auth.js";
+import { resolveSystemAsset, systemProfileState, systemName } from "../stores/systemProfile.js";
+import { notificationService } from "../services/notification.service.js";
+import ComplaintModal from "./ComplaintModal.vue";
+
+import { useToast } from "vue-toastification";
 
 export default {
   name: "PublicNavbar",
+  components: {
+    ComplaintModal
+  },
+  setup() {
+    const toast = useToast();
+    return { toast };
+  },
   data() {
     return {
       user: getAuth(),
       showDropdown: false,
       hideTimer: null,
+      showNotifDropdown: false,
+      notifHideTimer: null,
+      notifications: [],
+      unreadCount: 0,
+      notifPollTimer: null,
+      showComplaintModal: false,
+      isDark: document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark',
     };
+  },
+  mounted() {
+    if (this.user) {
+      this.fetchNotifications();
+      this.notifPollTimer = setInterval(this.fetchNotifications, 30000); // Tự động load thông báo mỗi 30s
+    }
+  },
+  unmounted() {
+    if (this.notifPollTimer) clearInterval(this.notifPollTimer);
   },
   computed: {
     appliedTheme() {
       if (this.theme === 'dark') return 'dark';
       if (this.theme === 'light') return 'light';
       return this.isDark ? 'dark' : 'light';
+    },
+    brandName() {
+      return systemName();
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandMain() {
+      const name = this.brandName || "SportGo";
+      const match = name.match(/^(.*?)(go)$/i);
+      return match ? match[1] : name;
+    },
+    brandAccent() {
+      const match = (this.brandName || "SportGo").match(/^(.*?)(go)$/i);
+      return match ? match[2] : "";
     },
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
@@ -180,6 +293,22 @@ export default {
     },
   },
   methods: {
+    toggleThemeMode() {
+      const isCurrentlyDark = document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isCurrentlyDark) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+        this.isDark = false;
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+        this.isDark = true;
+      }
+    },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
@@ -198,12 +327,103 @@ export default {
         this.$router.push("/owner/dashboard");
       }
     },
+    openComplaintModal() {
+      this.showDropdown = false;
+      this.showComplaintModal = true;
+    },
+    onComplaintSuccess() {
+      this.showComplaintModal = false;
+      this.toast.success("Cảm ơn bạn đã gửi khiếu nại. Chúng tôi sẽ xem xét trong thời gian sớm nhất.");
+    },
     async handleLogout() {
       await logout();
       this.user = null;
       this.showDropdown = false;
       this.$router.push("/login");
     },
+    toggleNotifDropdown() {
+      this.showNotifDropdown = !this.showNotifDropdown;
+    },
+    scheduleNotifHide() {
+      this.notifHideTimer = setTimeout(() => { this.showNotifDropdown = false; }, 200);
+    },
+    cancelNotifHide() {
+      if (this.notifHideTimer) clearTimeout(this.notifHideTimer);
+    },
+    async fetchNotifications() {
+      try {
+        const res = await notificationService.getNotifications();
+        this.notifications = res.data;
+        this.unreadCount = res.unread_count;
+      } catch (e) {
+        console.error('Failed to fetch notifications', e);
+      }
+    },
+    async markAsRead(notif) {
+      if (!notif.is_read) {
+        notif.is_read = true;
+        this.unreadCount = Math.max(0, this.unreadCount - 1);
+        try {
+          await notificationService.markAsRead(notif.id);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      
+      // Navigation handling
+      if (notif.type === 'matchmaking_join_request') {
+        this.$router.push(`/matchmaking-posts/${notif.reference_id}/manage`);
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'matchmaking_join_approved' || notif.type === 'matchmaking_join_rejected') {
+        this.$router.push('/community');
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'post_approved') {
+        if (notif.reference_type === 'venue_posts') {
+          if (notif.data && notif.data.slug) {
+            this.$router.push(`/community/${notif.data.slug}`);
+          } else {
+            this.$router.push('/owner/venue-posts');
+          }
+        } else if (notif.reference_type === 'community_posts') {
+          this.$router.push('/community');
+        } else if (notif.reference_type === 'system_posts') {
+          if (notif.data && notif.data.slug) {
+            this.$router.push(`/news/${notif.data.slug}`);
+          } else {
+            this.$router.push('/news');
+          }
+        }
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'report_processed') {
+        if (notif.data && notif.data.target_type && (notif.data.target_type.includes('comment') || notif.data.target_type.includes('post'))) {
+          if (notif.data.post_slug) {
+            let url = `/community/${notif.data.post_slug}`;
+            if (notif.data.target_type.includes('comment') && notif.data.target_id) {
+              url += `?open_comment=${notif.data.target_id}`;
+            }
+            this.$router.push(url);
+          }
+        }
+        this.showNotifDropdown = false;
+      }
+    },
+    async markAllAsRead() {
+      try {
+        await notificationService.markAllAsRead();
+        this.notifications.forEach(n => n.is_read = true);
+        this.unreadCount = 0;
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    formatTime(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleString('vi-VN', { 
+        hour: '2-digit', minute: '2-digit', 
+        day: '2-digit', month: '2-digit', year: 'numeric' 
+      });
+    }
   },
 };
 </script>
@@ -268,6 +488,14 @@ export default {
   height: 28px;
 }
 
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: contain;
+  padding: 4px;
+}
+
 .brand-text {
   color: #102015;
   font-size: 24px;
@@ -305,12 +533,12 @@ export default {
   background: transparent;
 }
 
-.nav-link:hover,
+.nav-link.never-hover-class-placeholder,
 .active-link {
   color: #04733f;
 }
 
-.nav-link:hover::after,
+.nav-link.never-hover-class-placeholder::after,
 .active-link::after {
   background: #14a461;
 }
@@ -388,7 +616,7 @@ export default {
   transition: background .18s ease;
 }
 
-.user-btn:hover {
+.user-btn.never-hover-class-placeholder {
   background: #e7f8ef;
 }
 
@@ -447,6 +675,134 @@ export default {
   font-weight: 750;
 }
 
+.notification-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.notif-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.notif-btn.never-hover-class-placeholder {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+
+.notif-dropdown {
+  width: 320px;
+  padding: 0;
+}
+
+.notif-header {
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.mark-read-btn {
+  font-size: 12px;
+  color: #0ea5e9;
+  font-weight: 600;
+  background: transparent;
+}
+
+.mark-read-btn.never-hover-class-placeholder {
+  text-decoration: underline;
+}
+
+.notif-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.no-notif {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.notif-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notif-item.never-hover-class-placeholder {
+  background: #f8fafc;
+}
+
+.notif-item.unread {
+  background: #f0f9ff;
+}
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.notif-body {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.notif-time {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
 .dd-divider {
   height: 1px;
   margin: 0 16px;
@@ -467,7 +823,7 @@ export default {
   transition: background .18s ease, color .18s ease;
 }
 
-.dd-item:hover {
+.dd-item.never-hover-class-placeholder {
   background: #f6faf8;
   color: #04733f;
 }

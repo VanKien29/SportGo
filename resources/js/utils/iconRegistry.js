@@ -245,6 +245,11 @@ export const ICON_REGISTRY = {
     ['path', { d: 'M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z' }],
     ['circle', { cx: 7.5, cy: 7.5, r: 1.5 }],
   ],
+  shoppingBag: [
+    ['path', { d: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6L18 2Z' }],
+    ['line', { x1: 3, y1: 6, x2: 21, y2: 6 }],
+    ['path', { d: 'M16 10a4 4 0 0 1-8 0' }],
+  ],
   rotateCcw: [
     ['path', { d: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8' }],
     ['path', { d: 'M3 3v5h5' }],
@@ -323,6 +328,7 @@ export const ICON_ALIASES = {
   stop: 'power',
   back: 'arrow-left',
   arrowLeft: 'arrow-left',
+  'shopping-bag': 'shoppingBag',
 };
 
 export const NAV_ICON_MAP = {

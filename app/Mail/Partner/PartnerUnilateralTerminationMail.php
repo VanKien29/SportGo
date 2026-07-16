@@ -28,6 +28,6 @@ class PartnerUnilateralTerminationMail extends PartnerWorkflowMail
 
     protected function messageText(): string
     {
-        return 'SportGo đã ghi nhận quyết định chấm dứt hợp tác đơn phương theo lý do nêu trên. Các quyền quản lý sân sẽ được duy trì trong giai đoạn chuyển tiếp và tự động thu hồi vào ngày đã thông báo.';
+        return 'Vui lòng mở hồ sơ để đọc công văn, xác nhận đã nhận và xử lý booking/công nợ. Hợp đồng chỉ chấm dứt sau khi các nghĩa vụ được xử lý và biên bản cuối được ký đầy đủ.';
     }
 }

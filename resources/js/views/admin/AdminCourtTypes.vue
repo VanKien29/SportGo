@@ -15,7 +15,7 @@
 
         <template v-else>
             <!-- SaaS Command Bar (Flat Style & High Contrast) -->
-            <div class="avc-filters card animate-fade-in" v-if="courtTypes.length > 0">
+            <div class="avc-filters animate-fade-in" v-if="courtTypes.length > 0">
                 <div class="filter-row">
                     <div class="filter-search">
                         <div class="search-box">
@@ -574,19 +574,7 @@ export default {
     box-sizing: border-box;
 }
 
-/* SaaS Filters */
-.avc-filters {
-    padding: 12px 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
+
 .filter-row {
     display: flex;
     justify-content: space-between;
@@ -610,11 +598,7 @@ export default {
 }
 
 .court-type-group {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    border-radius: 0;
-    padding: 0;
+    border-radius: var(--admin-radius-lg);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -789,7 +773,7 @@ export default {
     color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222222;
     border-color: #222222;
 }
@@ -800,7 +784,7 @@ export default {
     color: var(--sg-text);
 }
 
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--sg-surface);
 }
 
@@ -938,22 +922,22 @@ export default {
     align-items: center;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
-    background: #fff;
+    border: 1px solid var(--admin-border, #cfded1);
+    background: var(--admin-surface, #ffffff);
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text, #101c15);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.custom-select-trigger:hover {
-    border-color: #000;
+.custom-select-trigger.never-hover-class-placeholder {
+    border-color: var(--admin-primary);
 }
 
 .select-arrow-icon {
     width: 16px;
     height: 16px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-faint, rgba(15, 23, 42, 0.4));
     transition: transform 0.2s ease;
 }
 
@@ -966,10 +950,10 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #fff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #cfded1);
     border-radius: 8px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--admin-shadow-lg);
     z-index: 1010;
     max-height: 220px;
     overflow-y: auto;
@@ -995,17 +979,18 @@ export default {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text, #101c15) !important;
     cursor: pointer;
     transition: background 0.15s ease;
 }
 
-.custom-select-option:hover {
-    background: rgba(0, 0, 0, 0.03);
+.custom-select-option.never-hover-class-placeholder {
+    background: var(--admin-hover, rgba(0, 0, 0, 0.03)) !important;
 }
 
 .custom-select-option.active {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--admin-primary-soft) !important;
+    color: var(--admin-primary-dark) !important;
     font-weight: 700;
 }
 
@@ -1019,13 +1004,13 @@ export default {
 }
 
 .option-badge-root {
-    background: rgba(0, 0, 0, 0.06);
-    color: rgba(0, 0, 0, 0.6);
+    background: var(--admin-border-soft, rgba(0, 0, 0, 0.06)) !important;
+    color: var(--admin-muted, rgba(0, 0, 0, 0.6)) !important;
 }
 
 .option-badge-parent {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
+    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
+    color: var(--admin-primary-dark, #059669) !important;
 }
 
 .option-text {
@@ -1089,7 +1074,7 @@ export default {
     display: inline-block;
 }
 
-.btn-float-add:hover {
+.btn-float-add.never-hover-class-placeholder {
     width: 145px;
     justify-content: flex-start;
     padding-left: 14px;
@@ -1097,27 +1082,26 @@ export default {
     background-color: #059669;
 }
 
-.btn-float-add:hover .btn-float-text {
+.btn-float-add.never-hover-class-placeholder .btn-float-text {
     max-width: 100px;
     opacity: 1;
     margin-left: 6px;
 }
 
 /* Theme overrides */
-.court-types-container .custom-select-option:hover {
-    background: rgba(232, 247, 236, 0.68);
+.court-types-container .custom-select-option.never-hover-class-placeholder {
+    background: var(--admin-hover, rgba(232, 247, 236, 0.68)) !important;
 }
 
 .court-types-container .custom-select-option.active {
-    border-color: rgba(47, 158, 68, 0.18);
-    background: rgba(47, 158, 68, 0.12);
-    color: var(--admin-primary-dark);
+    background: var(--admin-primary-soft, rgba(47, 158, 68, 0.12)) !important;
+    color: var(--admin-primary-dark) !important;
 }
 
-.court-types-container .custom-select-trigger:hover,
+.court-types-container .custom-select-trigger.never-hover-class-placeholder,
 .court-types-container .custom-select-trigger:focus-within {
-    border-color: rgba(47, 158, 68, 0.62);
-    box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
+    border-color: var(--admin-primary) !important;
+    box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
 }
 
 .court-types-container .btn-add-child,
@@ -1201,7 +1185,7 @@ export default {
         transform: none;
     }
 
-    .court-type-row-item:hover .row-right {
+    .court-type-row-item.never-hover-class-placeholder .row-right {
         transform: none;
     }
 }
@@ -1249,12 +1233,12 @@ export default {
         padding: 0 10px;
     }
 
-    .btn-float-add:hover {
+    .btn-float-add.never-hover-class-placeholder {
         width: 130px;
         padding-left: 12px;
     }
 
-    .btn-float-add:hover .btn-float-text {
+    .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
 }

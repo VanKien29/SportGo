@@ -4,7 +4,7 @@
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
         <div class="tabs-and-actions">
-            <div class="tabs">
+            <div v-if="!isBookingListRoute" class="tabs">
                 <button
                     type="button"
                     :class="{ active: activeTab === 'counter' }"
@@ -21,26 +21,25 @@
                     <AppIcon name="calendar" size="16" />
                     <span>Đặt lịch cố định</span>
                 </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'bookingList' }"
-                    @click="setActiveTab('bookingList')"
+            </div>
+            <div v-else class="tabs context-tabs">
+                <router-link class="tab-nav-link" to="/owner/counter-booking">
+                    <AppIcon name="plus" size="16" />
+                    <span>Tạo booking tại quầy</span>
+                </router-link>
+                <router-link
+                    class="tab-nav-link"
+                    :to="{ name: 'owner-counter-booking', query: { tab: 'recurring' } }"
                 >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách booking</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurringList' }"
-                    @click="setActiveTab('recurringList')"
-                >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách cố định</span>
-                </button>
+                    <AppIcon name="calendar" size="16" />
+                    <span>Đặt lịch cố định</span>
+                </router-link>
             </div>
             <button class="secondary-btn" type="button" @click="refreshActiveTab">
                 <AppIcon name="refresh" size="16" />
-                <span>Tải lại lịch</span>
+                <span>{{
+                    activeTab === "bookingList" ? "Tải lại danh sách" : "Tải lại lịch"
+                }}</span>
             </button>
         </div>
 
@@ -1133,20 +1132,40 @@
                 <div>
                     <h2>Danh sách booking</h2>
                     <p>
-                        Theo dõi booking online và booking tại quầy theo ngày,
-                        sân, trạng thái và thanh toán.
+                        Theo dõi booking lẻ và booking cố định trong cùng một
+                        màn; lọc theo sân, ngày, trạng thái và thanh toán.
                     </p>
                 </div>
                 <button
                     class="icon-btn"
                     type="button"
                     title="Tải lại"
-                    @click="loadBookingList"
+                    @click="loadCurrentBookingList"
                 >
                     <AppIcon name="refresh" size="17" />
                 </button>
             </div>
 
+            <div class="booking-list-mode-tabs" role="tablist" aria-label="Loại danh sách booking">
+                <button
+                    type="button"
+                    :class="{ active: bookingListMode === 'single' }"
+                    @click="setBookingListMode('single')"
+                >
+                    <AppIcon name="calendar" size="15" />
+                    <span>Booking lẻ</span>
+                </button>
+                <button
+                    type="button"
+                    :class="{ active: bookingListMode === 'recurring' }"
+                    @click="setBookingListMode('recurring')"
+                >
+                    <AppIcon name="fileText" size="15" />
+                    <span>Booking cố định</span>
+                </button>
+            </div>
+
+            <template v-if="bookingListMode === 'single'">
             <div class="filters booking-list-filters">
                 <label>
                     <span>Sân con</span>
@@ -1319,10 +1338,10 @@
                     </tbody>
                 </table>
             </div>
-        </section>
+            </template>
 
-        <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
-            <div class="list-toolbar">
+            <template v-else>
+            <div class="list-toolbar compact-list-toolbar">
                 <div>
                     <h2>Danh sách booking cố định</h2>
                     <p>
@@ -1530,6 +1549,7 @@
                     </tbody>
                 </table>
             </div>
+            </template>
         </section>
 
         <Teleport to="body">
@@ -2188,6 +2208,7 @@ export default {
             selectedBusyBookingLoading: false,
             bookingActionLoading: false,
             bookingActionConfirm: null,
+            bookingListMode: "single",
             bookingList: [],
             bookingListLoading: false,
             bookingListDetail: null,
@@ -2228,6 +2249,9 @@ export default {
         };
     },
     computed: {
+        isBookingListRoute() {
+            return this.$route.name === "owner-booking-list";
+        },
         selectedCluster() {
             return (
                 this.clusters.find(
@@ -3059,6 +3083,15 @@ export default {
         activeTab() {
             this.queueRecurringPreview();
         },
+        "$route.name"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.tab"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.view"() {
+            this.handleRouteModeChange();
+        },
         counterDrawerOpen(isOpen) {
             if (!isOpen) return;
 
@@ -3070,6 +3103,7 @@ export default {
         },
     },
     async created() {
+        this.syncActiveTabFromRoute();
         await this.loadOwnerData();
     },
     mounted() {
@@ -3087,6 +3121,34 @@ export default {
         clearTimeout(this.recurringPreviewTimer);
     },
     methods: {
+        syncActiveTabFromRoute() {
+            if (this.$route.name === "owner-booking-list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.view === "list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.tab === "recurring") {
+                this.activeTab = "recurring";
+                return;
+            }
+
+            if (this.activeTab === "bookingList") {
+                this.activeTab = "counter";
+            }
+        },
+        async handleRouteModeChange() {
+            const before = this.activeTab;
+            this.syncActiveTabFromRoute();
+
+            if (before === this.activeTab || !this.selectedClusterId) return;
+
+            await this.refreshActiveTab();
+        },
         sameDateSet(a = [], b = []) {
             if (a.length !== b.length) return false;
             return [...a].sort().join("|") === [...b].sort().join("|");
@@ -3153,26 +3215,30 @@ export default {
             this.clearVoucherSelection();
             this.syncPaymentOption();
 
-            if (tab === "recurringList") {
-                await this.loadRecurringGroups();
-                return;
-            }
-
             if (tab === "bookingList") {
-                await this.loadBookingList();
+                await this.loadCurrentBookingList();
                 return;
             }
 
             await this.loadSchedule();
         },
-        async refreshActiveTab() {
-            if (this.activeTab === "bookingList") {
-                await this.loadBookingList();
+        async setBookingListMode(mode) {
+            if (this.bookingListMode === mode) return;
+
+            this.bookingListMode = mode;
+            await this.loadCurrentBookingList();
+        },
+        async loadCurrentBookingList() {
+            if (this.bookingListMode === "recurring") {
+                await this.loadRecurringGroups();
                 return;
             }
 
-            if (this.activeTab === "recurringList") {
-                await this.loadRecurringGroups();
+            await this.loadBookingList();
+        },
+        async refreshActiveTab() {
+            if (this.activeTab === "bookingList") {
+                await this.loadCurrentBookingList();
                 return;
             }
 
@@ -3254,12 +3320,10 @@ export default {
 
             await Promise.all([this.loadClusterDetail(), this.loadCourts()]);
             this.syncPaymentOption();
-            if (this.activeTab === "recurringList") {
-                this.recurringGroupFilters.venue_court_id = "";
-                await this.loadRecurringGroups();
-            } else if (this.activeTab === "bookingList") {
+            if (this.activeTab === "bookingList") {
                 this.bookingListFilters.venue_court_id = "";
-                await this.loadBookingList();
+                this.recurringGroupFilters.venue_court_id = "";
+                await this.loadCurrentBookingList();
             } else {
                 await this.loadSchedule();
             }
@@ -5177,7 +5241,6 @@ export default {
     },
 };
 </script>
-
 <style scoped>
 .owner-counter-page {
     display: grid;
@@ -5225,6 +5288,42 @@ export default {
     margin: 4px 0 0;
     color: #607267;
     font-size: 13px;
+}
+
+.compact-list-toolbar {
+    padding-top: 10px;
+    border-top: 1px solid #e4eee4;
+}
+
+.booking-list-mode-tabs {
+    display: inline-flex;
+    width: fit-content;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #d5e4d6;
+    border-radius: 8px;
+    background: #f6fbf7;
+}
+
+.booking-list-mode-tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    border: 0;
+    border-radius: 6px;
+    padding: 0 14px;
+    background: transparent;
+    color: #5d6d63;
+    font-size: 13px;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.booking-list-mode-tabs button.active {
+    background: #16a34a;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(22, 163, 74, 0.16);
 }
 
 .recurring-list-filters {
@@ -6022,7 +6121,7 @@ export default {
     cursor: pointer;
 }
 
-.date-stepper button:hover {
+.date-stepper button.never-hover-class-placeholder {
     border-color: #22c55e;
     background: #f0fdf4;
     color: #166534;
@@ -6298,7 +6397,8 @@ input.invalid {
     min-width: 0;
 }
 
-.tabs-and-actions .tabs button {
+.tabs-and-actions .tabs button,
+.tabs-and-actions .tabs .tab-nav-link {
     margin-right: 0;
     white-space: nowrap;
 }
@@ -6308,8 +6408,29 @@ input.invalid {
     margin-left: auto;
 }
 
-.tabs button {
+.tabs button,
+.tabs .tab-nav-link {
     margin-right: 8px;
+}
+
+.tab-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    border: 1px solid #d5e4d6;
+    border-radius: 8px;
+    padding: 0 14px;
+    background: #fff;
+    color: #24362a;
+    font-size: 14px;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.tab-nav-link:hover {
+    border-color: #16a34a;
+    color: #087c35;
 }
 .period-tabs {
     display: flex;
@@ -6442,7 +6563,7 @@ input.invalid {
         box-shadow 0.16s ease;
 }
 
-.time-slot:hover:not(:disabled) {
+.time-slot.never-hover-class-placeholder:not(:disabled) {
     background: var(--admin-hover, #f3f4f6);
     box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
 }
@@ -7484,7 +7605,7 @@ input.invalid {
     cursor: pointer;
 }
 
-.weekday-planner-actions button:hover:not(:disabled) {
+.weekday-planner-actions button.never-hover-class-placeholder:not(:disabled) {
     border-color: #22c55e;
     background: #f0fdf4;
 }
@@ -7512,7 +7633,7 @@ input.invalid {
         transform 0.15s ease;
 }
 
-.weekday-plan-card:hover {
+.weekday-plan-card.never-hover-class-placeholder {
     transform: translateY(-1px);
     border-color: #86d19a;
 }
@@ -7596,7 +7717,7 @@ input.invalid {
         transform 0.16s ease;
 }
 
-.day-grid label:hover {
+.day-grid label.never-hover-class-placeholder {
     border-color: #86efac;
     background: #f0fdf4;
     transform: translateY(-1px);
@@ -7676,7 +7797,7 @@ input.invalid {
     cursor: pointer;
 }
 
-.month-day-actions button:hover {
+.month-day-actions button.never-hover-class-placeholder {
     border-color: #22c55e;
     background: #f0fdf4;
 }
@@ -7699,7 +7820,7 @@ input.invalid {
     cursor: pointer;
 }
 
-.month-day-grid button:hover {
+.month-day-grid button.never-hover-class-placeholder {
     border-color: #86efac;
     background: #f0fdf4;
 }

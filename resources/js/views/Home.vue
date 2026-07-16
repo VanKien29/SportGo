@@ -198,13 +198,13 @@
         </div>
       </section>
 
-      <section id="news" class="section-block news-section">
+      <section id="community" class="section-block news-section">
         <div class="section-heading">
           <div>
-            <p>Cập nhật</p>
-            <h2>Tin tức mới nhất</h2>
+            <p>Cộng đồng</p>
+            <h2>Bài đăng mới nhất</h2>
           </div>
-          <router-link :to="{ name: 'venues' }">
+          <router-link :to="{ name: 'ClientCommunityList' }">
             Xem tất cả
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </router-link>
@@ -222,7 +222,7 @@
               <h3>{{ post.title }}</h3>
               <p>{{ post.short_description || plainText(post.content).slice(0, 120) }}</p>
               <router-link
-                :to="{ name: 'news-detail', params: { slug: post.slug || post.id } }"
+                :to="{ name: 'community-post-detail', params: { slug: post.slug || post.id } }"
               >
                 Đọc bài viết
               </router-link>
@@ -260,14 +260,16 @@
       <footer class="site-footer">
         <div class="footer-brand">
           <div class="footer-logo">
-            <span>Sport<span>Go</span></span>
+            <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
+            <span v-else>{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></span>
           </div>
           <p>Nền tảng đặt sân thể thao trực tuyến hàng đầu tại Việt Nam.</p>
         </div>
         <div>
           <h3>Khám phá</h3>
           <router-link :to="{ name: 'venues' }">Cụm sân</router-link>
-          <a href="#news">Tin tức</a>
+          <router-link to="/news">Tin tức</router-link>
+          <router-link to="/community">Cộng đồng</router-link>
           <a href="#offers">Ưu đãi</a>
         </div>
         <div>
@@ -291,6 +293,7 @@
 import BookingDateTimePicker from "../components/BookingDateTimePicker.vue";
 import PublicNavbar from "../components/PublicNavbar.vue";
 import { api } from "../services/api.js";
+import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
 
 const heroImage = "/images/home/anhbia2.webp";
 const sportIconBase = "/images/home/sports-icons";
@@ -397,6 +400,21 @@ export default {
     };
   },
   computed: {
+    brandName() {
+      return systemName() || "SportGo";
+    },
+    brandLogo() {
+      return resolveSystemAsset(systemProfileState.profile.logo_url);
+    },
+    brandMain() {
+      const name = this.brandName || "SportGo";
+      const match = name.match(/^(.*?)(go)$/i);
+      return match ? match[1] : name;
+    },
+    brandAccent() {
+      const match = (this.brandName || "SportGo").match(/^(.*?)(go)$/i);
+      return match ? match[2] : "";
+    },
     heroStats() {
       const venueCount = this.featuredVenues.length;
       const courtCount = this.featuredVenues.reduce((total, venue) => total + this.courtCount(venue), 0);
@@ -461,7 +479,7 @@ export default {
     },
     observeNewsSection() {
       this.$nextTick(() => {
-        const section = this.$el.querySelector("#news");
+        const section = this.$el.querySelector("#community");
         if (!section) return;
 
         if (!("IntersectionObserver" in window)) {
@@ -885,7 +903,7 @@ svg {
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
-.search-submit:hover {
+.search-submit.never-hover-class-placeholder {
   transform: translateY(-1px);
   box-shadow: 0 22px 44px rgba(4, 115, 63, .3);
 }
@@ -926,7 +944,7 @@ svg {
 }
 
 .filter-strip button.active,
-.filter-strip button:hover {
+.filter-strip button.never-hover-class-placeholder {
   border-color: #9fe6c0;
   color: #04733f;
   transform: translateY(-2px);
@@ -934,7 +952,7 @@ svg {
 }
 
 .filter-strip button.active .sport-filter-icon,
-.filter-strip button:hover .sport-filter-icon {
+.filter-strip button.never-hover-class-placeholder .sport-filter-icon {
   transform: scale(1.06);
 }
 
@@ -997,7 +1015,7 @@ svg {
   transition: transform .18s ease, background .18s ease;
 }
 
-.section-heading a:hover {
+.section-heading a.never-hover-class-placeholder {
   border-color: #04733f;
   background: #ecfbf2;
   color: #035f36;
@@ -1005,7 +1023,7 @@ svg {
   box-shadow: 0 16px 34px rgba(4, 115, 63, .14);
 }
 
-.section-heading a:hover svg {
+.section-heading a.never-hover-class-placeholder svg {
   background: #035f36;
   transform: translateX(2px);
 }
@@ -1038,8 +1056,8 @@ svg {
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
-.venue-card:hover,
-.post-card:hover {
+.venue-card.never-hover-class-placeholder,
+.post-card.never-hover-class-placeholder {
   transform: translateY(-3px);
   box-shadow: 0 24px 56px rgba(15, 23, 42, .11);
 }
@@ -1260,7 +1278,7 @@ svg {
   color: rgba(255, 255, 255, .76);
 }
 
-.all-area:hover {
+.all-area.never-hover-class-placeholder {
   background: #035f36;
   transform: translateY(-2px);
   box-shadow: 0 22px 44px rgba(4, 115, 63, .24);
@@ -1294,6 +1312,8 @@ svg {
 .post-body h3 {
   font-size: 17px;
   line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .post-body p {
@@ -1302,6 +1322,8 @@ svg {
   color: #66756d;
   font-size: 14px;
   line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .post-body a {
@@ -1448,6 +1470,13 @@ svg {
 
 .footer-logo span span {
   color: #0d8c51;
+}
+
+.footer-logo img {
+  display: block;
+  max-width: 150px;
+  max-height: 42px;
+  object-fit: contain;
 }
 
 .site-footer h3 {

@@ -176,7 +176,7 @@ export default {
   transition: background 0.15s ease;
 }
 
-.option-item:hover {
+.option-item.never-hover-class-placeholder {
   background: #f1f5f9;
   color: #0f172a;
 }
