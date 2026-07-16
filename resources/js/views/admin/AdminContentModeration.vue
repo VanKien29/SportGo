@@ -33,10 +33,6 @@
           <span class="switch-label">Duyệt tự động (5s)</span>
         </div>
 
-        <button class="btn ghost btn-refresh" type="button" @click="refresh">
-          <AppIcon name="refresh" size="16" />
-          <span>Làm mới</span>
-        </button>
       </div>
 
     <!-- Thông báo kết quả -->

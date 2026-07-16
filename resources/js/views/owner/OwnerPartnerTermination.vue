@@ -182,7 +182,6 @@
       <section v-if="showBookingWorkspace" class="panel">
         <div class="section-title">
           <h2>2. Xử lý booking tương lai</h2>
-          <button class="btn btn-outline" type="button" @click="loadFutureBookings">Làm mới</button>
         </div>
 
         <div v-if="futureBookings.length" class="booking-list">

@@ -47,14 +47,6 @@
                         <h2>{{ counterScheduleTitle }}</h2>
                         <p>{{ currentScheduleLabel }}</p>
                     </div>
-                    <button
-                        class="icon-btn"
-                        type="button"
-                        title="Tải lại lịch"
-                        @click="loadSchedule"
-                    >
-                        <AppIcon name="refresh" size="17" />
-                    </button>
                 </div>
 
                 <div class="filters schedule-filters counter-toolbar">
@@ -1485,14 +1477,6 @@
                             số tiền còn phải thu.
                         </p>
                     </div>
-                    <button
-                        class="icon-btn"
-                        type="button"
-                        title="Tải lại"
-                        @click="loadRecurringGroups"
-                    >
-                        <AppIcon name="refresh" size="17" />
-                    </button>
                 </div>
 
                 <div class="filters recurring-list-filters">

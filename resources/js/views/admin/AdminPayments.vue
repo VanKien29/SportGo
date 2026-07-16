@@ -8,16 +8,6 @@
                     hộ chủ sân.
                 </p>
             </div>
-            <button
-                class="icon-command"
-                type="button"
-                :disabled="loading"
-                title="Tải lại"
-                aria-label="Tải lại"
-                @click="loadPayments"
-            >
-                <AppIcon name="refresh" size="18" />
-            </button>
         </header>
 
         <form class="filters" @submit.prevent="applyFilters">

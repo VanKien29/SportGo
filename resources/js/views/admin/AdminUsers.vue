@@ -17,7 +17,6 @@
           <AppIcon name="settings" size="16" />
           Cấu hình khóa tự động
         </button>
-        <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadUsers" />
       </div>
     </div>
 

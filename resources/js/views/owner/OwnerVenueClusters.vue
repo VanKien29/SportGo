@@ -1748,9 +1748,6 @@
                     <div class="history-section">
                         <div class="history-header">
                             <h4 class="history-title">Lịch sử yêu cầu mở khóa</h4>
-                            <button class="btn btn-outline btn-sm" :disabled="loadingUnlockRequests" @click="fetchUnlockRequests(selectedCluster.id)">
-                                Tải lại
-                            </button>
                         </div>
 
                         <div v-if="loadingUnlockRequests" class="loading-state" style="padding: 30px 0; text-align: center;">

@@ -217,9 +217,6 @@
                       {{ previewAvailableCourtCount }} sân còn lịch
                     </span>
                   </div>
-                  <button type="button" title="Tải lại lịch" @click="loadMiniSchedule">
-                    ↻
-                  </button>
                 </div>
 
                 <div v-if="previewLoading" class="mini-schedule-state">

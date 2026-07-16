@@ -15,24 +15,6 @@
         </div>
 
         <template v-else>
-            <section class="avc-header card animate-fade-in">
-                <div class="avc-title">
-                    <p class="eyebrow">Quan ly cum san</p>
-                    <h1>Toan canh van hanh cum san</h1>
-                    <p>Theo doi trang thai, chu san, phi nen tang va cac cum san dang can xu ly.</p>
-                </div>
-                <button class="btn btn-outline" type="button" @click="loadClusters">
-                    Lam moi
-                </button>
-            </section>
-
-            <section v-if="clusters.length > 0" class="avc-kpis animate-fade-in">
-                <article v-for="card in summaryCards" :key="card.key" class="kpi-card">
-                    <span>{{ card.label }}</span>
-                    <strong>{{ card.value }}</strong>
-                    <small>{{ card.hint }}</small>
-                </article>
-            </section>
             <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
             <SaaSFilterBar
                 v-if="clusters.length > 0"
@@ -283,76 +265,6 @@ export default {
     margin: 0 auto;
     box-sizing: border-box;
 }
-
-.avc-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 20px 0 12px;
-}
-
-.avc-title {
-    min-width: 0;
-}
-
-.eyebrow {
-    margin: 0 0 4px;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0;
-    text-transform: uppercase;
-}
-
-.avc-title h1 {
-    margin: 0;
-    color: var(--admin-text, #0f172a);
-    font-size: 24px;
-    line-height: 1.2;
-}
-
-.avc-title p:last-child {
-    margin: 6px 0 0;
-    color: var(--admin-muted, #64748b);
-    font-size: 14px;
-}
-
-.avc-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.kpi-card {
-    display: grid;
-    gap: 4px;
-    min-height: 106px;
-    border: 1px solid var(--admin-border, #e2e8f0);
-    border-radius: 8px;
-    background: var(--admin-surface, #fff);
-    padding: 16px;
-}
-
-.kpi-card span {
-    color: var(--admin-muted, #64748b);
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.kpi-card strong {
-    color: var(--admin-text, #0f172a);
-    font-size: 28px;
-    line-height: 1;
-}
-
-.kpi-card small {
-    color: var(--admin-muted, #64748b);
-    font-size: 12px;
-}
-
-
 
 /* State */
 .state-box {
