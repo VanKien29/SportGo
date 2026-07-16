@@ -29,8 +29,16 @@ export const ownerScheduleLockService = {
     });
   },
 
-  remove(id) {
-    return api(`/api/owner/schedule-locks/${id}`, {
+  unlock(payload) {
+    return api('/api/owner/schedule-locks/unlock', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  remove(id, venueClusterId = '') {
+    const query = queryString({ venue_cluster_id: venueClusterId });
+    return api(`/api/owner/schedule-locks/${id}${query ? `?${query}` : ''}`, {
       method: 'DELETE',
     });
   },

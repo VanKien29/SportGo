@@ -173,6 +173,21 @@ return new class extends Migration
             });
         }
 
+        $settingData = [
+            'value' => '14',
+            'description' => 'Số ngày chủ sân còn được xem hồ sơ sau khi biên bản chấm dứt cuối đã ký.',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('system_settings', 'value_type')) {
+            $settingData['value_type'] = 'integer';
+        }
+
+        if (Schema::hasColumn('system_settings', 'type')) {
+            $settingData['type'] = 'integer';
+        }
+
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'partner_termination_view_grace_days'],
             [

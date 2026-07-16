@@ -322,8 +322,8 @@ const PRESETS = [
     id: 'owner-sportgo',
     name: 'SportGo',
     color: '#16a34a',
-    light: { primary: '#16a34a', secondary: '#0f766e', accent: '#ecfdf5', muted: '#64748b', destructive: '#ef4444', border: '#bbf7d0', card: '#ffffff', background: '#f6fbf7' },
-    dark: { primary: '#22c55e', secondary: '#2dd4bf', accent: '#052e16', muted: '#94a3b8', destructive: '#f87171', border: '#164e2f', card: '#0f1f17', background: '#07130d' }
+    light: { primary: '#16a34a', secondary: '#0f766e', accent: '#ecfdf5', text: '#26372d', muted: '#64748b', destructive: '#ef4444', border: '#bbf7d0', card: '#ffffff', background: '#f6fbf7' },
+    dark: { primary: '#22c55e', secondary: '#2dd4bf', accent: '#052e16', text: '#f4f4f5', muted: '#94a3b8', destructive: '#f87171', border: '#164e2f', card: '#0f1f17', background: '#07130d' }
   },
   {
     id: 'owner-zinc',
