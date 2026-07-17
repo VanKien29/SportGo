@@ -10735,7 +10735,7 @@ input.invalid {
   padding: 16px;
   border: 1px solid var(--admin-border, #d9e8d9);
   border-radius: 8px;
-  background: #f7fcf8;
+  background: var(--admin-surface-muted, #f7fcf8);
 }
 
 .owner-counter-page .time-board {
@@ -10752,7 +10752,7 @@ input.invalid {
   padding: 20px;
   overflow: hidden;
   border-radius: inherit;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 .owner-counter-page .schedule-loading-box::after {
@@ -10763,7 +10763,7 @@ input.invalid {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.7),
+    color-mix(in srgb, var(--admin-text, #fff) 10%, transparent),
     transparent
   );
   animation: skeleton-shimmer 1.35s ease-in-out infinite;
@@ -10789,7 +10789,7 @@ input.invalid {
   grid-template-columns: minmax(180px, 0.8fr) minmax(300px, 1.4fr) minmax(180px, 0.8fr);
   padding: 16px;
   border-radius: 8px;
-  background: #f4f8f5;
+  background: var(--admin-surface-muted, #f4f8f5);
 }
 
 .owner-counter-page .schedule-skeleton-summary {
@@ -10809,7 +10809,7 @@ input.invalid {
   display: block;
   min-height: 38px;
   border-radius: 6px;
-  background: #edf3ef;
+  background: var(--admin-border-soft, #edf3ef);
 }
 
 .owner-counter-page .schedule-skeleton-head span:first-child {
@@ -10840,7 +10840,7 @@ input.invalid {
   position: relative;
   min-height: 620px;
   overflow: hidden;
-  background: #fff;
+  background: var(--admin-surface, #fff);
 }
 
 .owner-counter-page .schedule-filter-readonly {
@@ -10850,8 +10850,8 @@ input.invalid {
   padding: 8px 12px;
   border: 1px solid var(--admin-border, #cfded1);
   border-radius: 6px;
-  background: #f4f7f4;
-  color: #33443a;
+  background: var(--admin-surface-muted, #f4f7f4);
+  color: var(--admin-text, #33443a);
   font-weight: 500;
 }
 

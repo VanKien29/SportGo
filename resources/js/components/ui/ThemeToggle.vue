@@ -114,6 +114,8 @@ export default {
       if (theme === 'system') {
         resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       }
+      document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+      document.documentElement.classList.toggle('light', resolvedTheme === 'light');
       document.documentElement.setAttribute('data-theme', resolvedTheme);
       applyCustomThemeStyles();
     },

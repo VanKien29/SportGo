@@ -6984,10 +6984,10 @@ export default {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border: 1px solid var(--admin-border, #cfe3cf);
+    border: 1px solid #cfe3cf;
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
-    color: var(--admin-text, #31443a);
+    background: #fff;
+    color: #16231a;
     font: inherit;
     font-size: 13px;
     font-weight: 500;
@@ -7025,10 +7025,23 @@ export default {
     left: 0;
     width: min(300px, calc(100vw - 32px));
     padding: 8px;
-    border: 1px solid var(--admin-border, #d9e8d9);
+    border: 1px solid #d9e8d9;
     border-radius: 12px;
-    background: var(--admin-surface, #fff);
+    background: #fff;
     box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+}
+
+:global([data-theme="dark"] .owner-counter-page .date-nav-btn),
+:global([data-theme="dark"] .owner-counter-page .date-range-trigger),
+:global([data-theme="dark"] .owner-counter-page .counter-date-range .today-btn) {
+    border-color: var(--admin-border, #164e2f);
+    background: var(--admin-surface, #0f1f17);
+    color: var(--admin-text, #f4fff7);
+}
+
+:global([data-theme="dark"] .owner-counter-page .counter-date-popover) {
+    border-color: var(--admin-border, #164e2f);
+    background: var(--admin-surface, #0f1f17);
 }
 
 .counter-date-popover .mini-cal {
