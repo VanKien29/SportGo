@@ -13,7 +13,7 @@ return new class extends Migration
         }
 
         Schema::create('document_templates', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('template_code', 100);
             $table->string('document_type', 100);
             $table->string('template_name', 255);
@@ -28,10 +28,10 @@ return new class extends Migration
             $table->enum('render_engine', ['docx_placeholder', 'manual_upload', 'pdf_static'])->default('docx_placeholder');
             $table->enum('status', ['draft', 'active', 'inactive', 'archived'])->default('draft');
             $table->boolean('is_active')->default(false);
-            $table->char('created_by', 36)->nullable();
-            $table->char('uploaded_by', 36)->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('uploaded_by')->nullable();
             $table->timestamp('activated_at')->nullable();
-            $table->char('replaced_template_id', 36)->nullable();
+            $table->unsignedBigInteger('replaced_template_id')->nullable();
             $table->text('note')->nullable();
             $table->timestamps();
 

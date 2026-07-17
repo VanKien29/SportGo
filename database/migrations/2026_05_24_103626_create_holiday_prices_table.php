@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('holiday_prices', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36)->comment('Cụm sân áp dụng giá đặc biệt.');
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id')->comment('Cụm sân áp dụng giá đặc biệt.');
             $table->unsignedBigInteger('court_type_id')->comment('Loại sân áp dụng giá đặc biệt.');
             $table->enum('date_type', ['holiday', 'special_date'])->default('holiday')->comment('Loại ngày: holiday hoặc special_date.');
             $table->enum('booking_type', ['all', 'single', 'recurring'])->default('all')->comment('Kiểu booking áp dụng giá.');

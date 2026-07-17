@@ -16,7 +16,6 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class BookingTest extends TestCase
@@ -56,7 +55,7 @@ class BookingTest extends TestCase
             'user_id' => $this->player->id,
             'role_id' => $role->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         // 3. Tạo loại sân
@@ -379,10 +378,13 @@ class BookingTest extends TestCase
             'status' => 'pending_approval',
         ]);
 
-        // Đơn no_prepay không được tạo slot_locks giữ chỗ
-        $this->assertDatabaseMissing('slot_locks', [
-            'venue_court_id' => $this->court->id,
-        ]);
+        $booking = Booking::query()->where('venue_court_id', $this->court->id)->firstOrFail();
+        $lock = SlotLock::query()->where('booking_id', $booking->id)->firstOrFail();
+        $this->assertSame('auto', $lock->lock_type);
+        $this->assertEquals($booking->id, $lock->booking_id);
+        $this->assertSame('Giữ chỗ chờ chủ sân duyệt trong 15 phút.', $lock->reason);
+        $this->assertGreaterThanOrEqual(14, now()->diffInMinutes($lock->expires_at));
+        $this->assertLessThanOrEqual(15, now()->diffInMinutes($lock->expires_at));
     }
 
     /**
@@ -501,6 +503,59 @@ class BookingTest extends TestCase
         ]);
     }
 
+    public function test_release_expired_no_prepay_waiting_for_owner_approval(): void
+    {
+        $booking = Booking::create([
+            'booking_code' => 'BKWAITOWNER',
+            'customer_id' => $this->player->id,
+            'venue_court_id' => $this->court->id,
+            'requested_venue_court_id' => $this->court->id,
+            'venue_cluster_id' => $this->cluster->id,
+            'booking_date' => $this->bookingDate,
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 100000.00,
+            'payment_option' => 'no_prepay',
+            'required_payment_amount' => 0.00,
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'pending_approval',
+        ]);
+
+        SlotLock::create([
+            'venue_cluster_id' => $this->cluster->id,
+            'venue_court_id' => $this->court->id,
+            'lock_scope' => 'court',
+            'booking_date' => $this->bookingDate,
+            'start_time' => '12:00:00',
+            'end_time' => '13:00:00',
+            'locked_by' => $this->player->id,
+            'booking_id' => $booking->id,
+            'lock_type' => 'auto',
+            'reason' => 'Giữ chỗ chờ chủ sân duyệt trong 15 phút.',
+            'expires_at' => Carbon::now()->subMinute(),
+        ]);
+
+        $this->assertEquals(0, Artisan::call('app:release-expired-slot-locks'));
+
+        $this->assertDatabaseMissing('slot_locks', [
+            'booking_id' => $booking->id,
+        ]);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => 'expired',
+            'status_reason' => 'Chủ sân không duyệt booking thu sau trong 15 phút. Slot đã được giải phóng.',
+        ]);
+
+        $this->assertDatabaseHas('violation_records', [
+            'target_type' => 'user',
+            'target_id' => $this->player->id,
+            'last_action_type' => 'booking_approval_timeout',
+        ]);
+    }
+
     /**
      * Test API lấy dữ liệu khởi tạo cụm sân.
      */
@@ -523,10 +578,7 @@ class BookingTest extends TestCase
 
     private function createVoucher(string $code, string $ownerType, float $discountAmount): string
     {
-        $voucherId = (string) Str::uuid();
-
-        DB::table('vouchers')->insert([
-            'id' => $voucherId,
+        $voucherId = DB::table('vouchers')->insertGetId([
             'code' => $code,
             'name' => $code,
             'description' => null,
@@ -550,7 +602,6 @@ class BookingTest extends TestCase
         ]);
 
         DB::table('voucher_scopes')->insert([
-            'id' => (string) Str::uuid(),
             'voucher_id' => $voucherId,
             'scope_type' => 'all',
             'scope_id' => null,
@@ -559,7 +610,7 @@ class BookingTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return $voucherId;
+        return (string) $voucherId;
     }
 
 }

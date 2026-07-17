@@ -1,18 +1,26 @@
 <template>
-  <div class="booking-history-page">
+  <div class="booking-history-page sg-client-page">
     <PublicNavbar />
 
-    <main class="history-main">
+    <main class="history-main sg-client-shell">
       <section class="history-header">
         <div>
-          <p class="eyebrow">Lịch sử booking</p>
+          <nav class="breadcrumbs" aria-label="Điều hướng booking">
+            <router-link to="/venues">Tìm sân</router-link>
+            <AppIcon name="chevronRight" aria-hidden="true" />
+            <strong>Lịch sử đặt sân</strong>
+          </nav>
+          <p class="eyebrow sg-client-eyebrow">Lịch sử booking</p>
           <h1>Lịch sử đặt sân</h1>
           <p>Theo dõi các đơn sân sắp tới, đã hoàn tất, đã hủy và đã hoàn tiền.</p>
         </div>
-        <router-link :to="{ name: 'booking-create' }" class="primary-action">
+        <router-link :to="{ name: 'booking-create' }" class="primary-action sg-client-button sg-client-button--primary">
+          <AppIcon name="plus" aria-hidden="true" />
           Đặt sân mới
         </router-link>
       </section>
+
+      <ClientAccountNav />
 
       <section class="filters" aria-label="Lọc booking">
         <button
@@ -20,29 +28,41 @@
           :key="filter.value"
           type="button"
           :class="{ active: statusGroup === filter.value }"
+          :aria-pressed="statusGroup === filter.value"
           @click="changeStatusGroup(filter.value)"
         >
           {{ filter.label }}
         </button>
       </section>
 
-      <section class="history-panel">
-        <div v-if="loading" class="state">
+      <section class="history-panel sg-client-card">
+        <div v-if="loading" class="state sg-client-state">
           <span class="spinner" aria-hidden="true"></span>
           Đang tải lịch sử booking...
         </div>
 
-        <div v-else-if="error" class="state error">
-          {{ error }}
+        <div v-else-if="error" class="state error sg-client-state">
+          <AppIcon name="alert" aria-hidden="true" />
+          <strong>Không tải được lịch sử đặt sân</strong>
+          <span>{{ error }}</span>
+          <button type="button" class="sg-client-button" @click="loadBookings">
+            <AppIcon name="refresh" aria-hidden="true" />
+            Thử lại
+          </button>
         </div>
 
-        <div v-else-if="bookings.length === 0" class="state empty">
+        <div v-else-if="bookings.length === 0" class="state empty sg-client-state">
+          <AppIcon name="calendar" aria-hidden="true" />
           <strong>Chưa có booking phù hợp.</strong>
           <span>Thử đổi bộ lọc hoặc đặt sân mới để bắt đầu.</span>
+          <router-link :to="{ name: 'booking-create' }" class="sg-client-button sg-client-button--primary">
+            <AppIcon name="plus" aria-hidden="true" />
+            Đặt sân mới
+          </router-link>
         </div>
 
         <div v-else class="booking-list">
-          <article v-for="booking in bookings" :key="booking.id" class="booking-card">
+          <article v-for="booking in bookings" :key="booking.id" class="booking-card sg-client-card">
             <div class="booking-topline">
               <div>
                 <span class="code">#{{ booking.booking_code }}</span>
@@ -73,8 +93,21 @@
             </div>
 
             <div class="booking-actions">
-              <router-link :to="{ name: 'booking-detail', params: { id: booking.id } }" class="ghost-action">
+              <router-link :to="{ name: 'booking-detail', params: { id: booking.id } }" class="ghost-action primary-detail">
+                <AppIcon name="eye" aria-hidden="true" />
                 Xem chi tiết
+              </router-link>
+              <router-link
+                v-if="venueId(booking)"
+                :to="{ name: 'venue-detail', params: { id: venueId(booking) } }"
+                class="ghost-action"
+              >
+                <AppIcon name="mapPin" aria-hidden="true" />
+                Xem sân
+              </router-link>
+              <router-link v-if="venueId(booking)" :to="rebookLocation(booking)" class="ghost-action">
+                <AppIcon name="rotateCcw" aria-hidden="true" />
+                Đặt thêm lịch
               </router-link>
               <button
                 v-if="booking.can_cancel"
@@ -83,6 +116,7 @@
                 :disabled="cancellingId === booking.id"
                 @click="cancelBooking(booking)"
               >
+                <AppIcon name="circleX" aria-hidden="true" />
                 {{ cancellingId === booking.id ? 'Đang hủy...' : 'Hủy booking' }}
               </button>
             </div>
@@ -90,22 +124,46 @@
         </div>
 
         <div v-if="lastPage > 1" class="pagination">
-          <button type="button" :disabled="page <= 1" @click="changePage(page - 1)">Trước</button>
+          <button type="button" :disabled="page <= 1" aria-label="Trang trước" @click="changePage(page - 1)">
+            <AppIcon name="chevronLeft" aria-hidden="true" />
+            Trước
+          </button>
           <span>Trang {{ page }} / {{ lastPage }}</span>
-          <button type="button" :disabled="page >= lastPage" @click="changePage(page + 1)">Sau</button>
+          <button type="button" :disabled="page >= lastPage" aria-label="Trang sau" @click="changePage(page + 1)">
+            Sau
+            <AppIcon name="chevronRight" aria-hidden="true" />
+          </button>
         </div>
       </section>
     </main>
+
+    <ConfirmActionModal
+      :is-open="Boolean(cancelTarget)"
+      title="Hủy booking này?"
+      :description="cancelDescription"
+      confirm-text="Xác nhận hủy"
+      require-reason
+      reason-label="Lý do hủy"
+      reason-placeholder="Nêu ngắn gọn lý do để sân và SportGo hỗ trợ đúng chính sách"
+      initial-reason="Khách hàng thay đổi kế hoạch"
+      :loading="Boolean(cancellingId)"
+      :error="cancelError"
+      @close="closeCancelModal"
+      @confirm="confirmCancellation"
+    />
   </div>
 </template>
 
 <script>
+import AppIcon from "../../../components/AppIcon.vue";
+import ClientAccountNav from "../../../components/ClientAccountNav.vue";
+import ConfirmActionModal from "../../../components/ConfirmActionModal.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
   name: "BookingHistory",
-  components: { PublicNavbar },
+  components: { AppIcon, ClientAccountNav, ConfirmActionModal, PublicNavbar },
   data() {
     return {
       bookings: [],
@@ -115,6 +173,8 @@ export default {
       page: Number(this.$route.query.page || 1),
       lastPage: 1,
       cancellingId: "",
+      cancelTarget: null,
+      cancelError: "",
       statusFilters: [
         { value: "all", label: "Tất cả" },
         { value: "upcoming", label: "Sắp tới" },
@@ -132,6 +192,12 @@ export default {
         this.loadBookings();
       },
       immediate: true,
+    },
+  },
+  computed: {
+    cancelDescription() {
+      if (!this.cancelTarget) return "";
+      return `Booking #${this.cancelTarget.booking_code} tại ${this.clusterName(this.cancelTarget)} sẽ được hủy và hoàn tiền theo chính sách hiện hành.`;
     },
   },
   methods: {
@@ -165,18 +231,26 @@ export default {
         query: { status_group: this.statusGroup, page },
       });
     },
-    async cancelBooking(booking) {
-      const reason = window.prompt("Nhập lý do hủy booking:", "Khách hàng yêu cầu hủy");
-      if (reason === null) return;
-
-      this.cancellingId = booking.id;
-      this.error = "";
+    cancelBooking(booking) {
+      this.cancelTarget = booking;
+      this.cancelError = "";
+    },
+    closeCancelModal() {
+      if (this.cancellingId) return;
+      this.cancelTarget = null;
+      this.cancelError = "";
+    },
+    async confirmCancellation(reason) {
+      if (!this.cancelTarget || this.cancellingId) return;
+      this.cancellingId = this.cancelTarget.id;
+      this.cancelError = "";
 
       try {
-        await bookingService.cancelBooking(booking.id, reason.trim());
+        await bookingService.cancelBooking(this.cancelTarget.id, reason);
+        this.cancelTarget = null;
         await this.loadBookings();
-      } catch (error) {
-        this.error = error.message || "Không thể hủy booking này.";
+      } catch (requestError) {
+        this.cancelError = requestError.message || "Không thể hủy booking này.";
       } finally {
         this.cancellingId = "";
       }
@@ -190,6 +264,18 @@ export default {
       const court = booking.venue_court?.name || "Sân";
       const type = booking.venue_court?.court_type?.name;
       return type ? `${court} (${type})` : court;
+    },
+    venueId(booking) {
+      return booking.venue_cluster?.id
+        || booking.venue_court?.venue_cluster?.id
+        || booking.venue_cluster_id
+        || null;
+    },
+    rebookLocation(booking) {
+      const query = { venue_cluster_id: this.venueId(booking) };
+      const courtTypeId = booking.venue_court?.court_type?.id;
+      if (courtTypeId) query.court_type_id = courtTypeId;
+      return { name: "booking-create", query };
     },
     statusLabel(status) {
       return {
@@ -479,5 +565,121 @@ export default {
 @media (max-width: 520px) {
   .history-main { padding-inline: 16px; }
   .booking-meta { grid-template-columns: 1fr; }
+}
+</style>
+
+<style>
+/* Dark Mode Support for Booking History */
+.dark .booking-history-page {
+  background-color: #09090b !important;
+  color: #f8fafc !important;
+  min-height: 100vh;
+}
+
+.dark .booking-history-page .history-header h1 {
+  color: #f8fafc !important;
+}
+
+.dark .booking-history-page .history-header p {
+  color: #a1a1aa !important;
+}
+
+.dark .booking-history-page .history-header .eyebrow {
+  color: #10b981 !important;
+}
+
+.dark .filters button {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+
+.dark .filters button.active {
+  border-color: #059669 !important;
+  background: #064e3b !important;
+  color: #34d399 !important;
+}
+
+.dark .history-panel {
+  border-color: #27272a !important;
+  background: #18181b !important;
+}
+
+.dark .state {
+  color: #a1a1aa !important;
+}
+
+.dark .state.empty strong {
+  color: #f8fafc !important;
+}
+
+.dark .booking-card {
+  border-color: #27272a !important;
+  background: #09090b !important;
+}
+
+.dark .booking-card h2 {
+  color: #f8fafc !important;
+}
+
+.dark .status-badge {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+}
+
+.dark .status-badge.confirmed,
+.dark .status-badge.completed,
+.dark .status-badge.checked_in {
+  background: #064e3b !important;
+  color: #34d399 !important;
+}
+
+.dark .status-badge.pending_payment,
+.dark .status-badge.pending_approval {
+  background: #78350f !important;
+  color: #fcd34d !important;
+}
+
+.dark .status-badge.cancelled,
+.dark .status-badge.expired,
+.dark .status-badge.rejected {
+  background: #7f1d1d !important;
+  color: #fca5a5 !important;
+}
+
+.dark .booking-meta {
+  background: #18181b !important;
+  border: 1px solid #27272a !important;
+}
+
+.dark .booking-meta span {
+  color: #a1a1aa !important;
+}
+
+.dark .booking-meta strong {
+  color: #e2e8f0 !important;
+}
+
+.dark .ghost-action,
+.dark .pagination button {
+  border-color: #27272a !important;
+  background: #18181b !important;
+  color: #f8fafc !important;
+}
+
+.dark .ghost-action:hover,
+.dark .pagination button:hover {
+  background: #27272a !important;
+}
+
+.dark .danger-action {
+  border-color: #7f1d1d !important;
+  color: #f87171 !important;
+  background: #18181b !important;
+}
+
+.dark .danger-action:hover {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
 }
 </style>

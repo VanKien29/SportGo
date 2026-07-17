@@ -270,7 +270,7 @@
                                     }}</strong>
                                     <small
                                         >{{ ledger.reference_type || "-" }} ·
-                                        {{ ledger.reference_id || "-" }}</small
+                                        {{ ledger.reference_label || ledger.reference_type || "-" }}</small
                                     >
                                 </td>
                                 <td>{{ ledger.description || "-" }}</td>

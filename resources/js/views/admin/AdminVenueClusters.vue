@@ -16,33 +16,14 @@
 
         <template v-else>
             <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
-            <div class="avc-filters card animate-fade-in" v-if="clusters.length > 0">
-                <div class="filter-row">
-                    <div class="filter-tabs">
-                        <button
-                            v-for="tab in statusTabs"
-                            :key="tab.value"
-                            class="tab-btn"
-                            :class="{ active: filterStatus === tab.value }"
-                            @click="filterStatus = tab.value"
-                        >
-                            {{ tab.label }}
-                        </button>
-                    </div>
-                    <div class="filter-search">
-                        <div class="search-box">
-                            <AppIcon name="search" size="16" />
-                            <input
-                                id="search-venue-cluster"
-                                v-model="searchText"
-                                type="text"
-                                placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
-                                class="search-input"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <SaaSFilterBar
+                v-if="clusters.length > 0"
+                v-model="filterStatus"
+                v-model:search="searchText"
+                :tabs="statusTabs"
+                search-id="search-venue-cluster"
+                search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
+            />
 
             <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
             <div v-if="clusters.length === 0" class="state-box card animate-fade-in">
@@ -59,7 +40,40 @@
 
             <!-- ── Elegant SaaS Table View ── -->
             <div v-else class="clusters-list-wrapper animate-fade-in">
-                <SaaSTable 
+                <div class="mobile-cluster-list">
+                    <button
+                        v-for="row in filteredClusters"
+                        :key="row.id"
+                        type="button"
+                        class="mobile-cluster-row"
+                        @click="goDetail(row.id)"
+                    >
+                        <span class="mobile-cluster-heading">
+                            <strong>{{ row.name }}</strong>
+                            <span class="status-badge" :class="'state-is-' + displayClusterStatus(row)">
+                                {{ statusLabel(row) }}
+                            </span>
+                        </span>
+                        <span class="mobile-cluster-address">{{ formatFullAddress(row) }}</span>
+                        <span class="mobile-cluster-facts">
+                            <span>
+                                <small>Chủ sân</small>
+                                <strong>{{ row.owner?.full_name || 'Chưa cập nhật' }}</strong>
+                            </span>
+                            <span>
+                                <small>Quy mô</small>
+                                <strong>{{ row.court_count }} sân</strong>
+                            </span>
+                            <span>
+                                <small>Phí</small>
+                                <strong>{{ feeStatusLabel(row.fee_status) }}</strong>
+                            </span>
+                            <AppIcon name="chevronRight" size="18" />
+                        </span>
+                    </button>
+                </div>
+                <SaaSTable
+                    class="desktop-cluster-table"
                     :columns="tableColumns" 
                     :data="filteredClusters" 
                     clickable 
@@ -68,7 +82,12 @@
                     <!-- Tên cụm sân & Address -->
                     <template #name="{ row }">
                         <div class="name-col-cell">
-                            <span class="cluster-name-text">{{ row.name }}</span>
+                            <div class="cluster-name-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                                <span class="cluster-name-text">{{ row.name }}</span>
+                                <div v-if="row.has_pending_requests" class="pending-indicator" title="Có yêu cầu đang chờ duyệt" style="display: flex; align-items: center; color: #ef4444;">
+                                    <AppIcon name="alertCircle" size="14" />
+                                </div>
+                            </div>
                             <span class="cluster-address-text">{{ formatFullAddress(row) }}</span>
                         </div>
                     </template>
@@ -96,8 +115,8 @@
 
                     <!-- Trạng thái hoạt động -->
                     <template #status="{ row }">
-                        <span class="status-badge" :class="'state-is-' + row.status">
-                            {{ statusLabel(row.status) }}
+                        <span class="status-badge" :class="'state-is-' + displayClusterStatus(row)">
+                            {{ statusLabel(row) }}
                         </span>
                     </template>
 
@@ -123,11 +142,13 @@
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
+import { venueDisplayStatus } from "../../utils/venuePartnerState.js";
 
 export default {
     name: "AdminVenueClusters",
-    components: { ActionIconButton, AppIcon, SaaSTable },
+    components: { ActionIconButton, AppIcon, SaaSTable, SaaSFilterBar },
     data() {
         return {
             clusters: [],
@@ -135,12 +156,6 @@ export default {
             error: "",
             filterStatus: "",
             searchText: "",
-            statusTabs: [
-                { value: "", label: "Tất cả" },
-                { value: "pending", label: "Chờ duyệt" },
-                { value: "active", label: "Hoạt động" },
-                { value: "locked", label: "Đã khóa" },
-            ],
             tableColumns: [
                 { key: "name", label: "Tên cụm sân" },
                 { key: "owner", label: "Chủ sân" },
@@ -152,10 +167,27 @@ export default {
         };
     },
     computed: {
+        statusTabsUi() {
+            return [
+                { value: "", label: "Tất cả" },
+                { value: "has_pending_requests", label: "Có thay đổi chờ duyệt" },
+                { value: "pending", label: "Chờ duyệt mới" },
+                { value: "active", label: "Hoạt động" },
+                { value: "locked", label: "Đã khóa" },
+                { value: "termination_processing", label: "Đang chấm dứt" },
+                { value: "partner_terminated", label: "Đã chấm dứt" },
+            ];
+        },
         filteredClusters() {
             let list = this.clusters;
             if (this.filterStatus) {
-                list = list.filter((c) => c.status === this.filterStatus);
+                if (this.filterStatus === "has_pending_requests") {
+                    list = list.filter((c) => c.has_pending_requests);
+                } else if (this.filterStatus === "termination_processing") {
+                    list = list.filter((c) => this.displayClusterStatus(c) === "termination_processing");
+                } else {
+                    list = list.filter((c) => this.displayClusterStatus(c) === this.filterStatus);
+                }
             }
             if (this.searchText.trim()) {
                 const q = this.searchText.trim().toLowerCase();
@@ -186,13 +218,33 @@ export default {
             }
         },
 
-        statusLabel(status) {
+        displayClusterStatus(cluster) {
+            return venueDisplayStatus(cluster);
+        },
+
+        statusLabel(cluster) {
+            const status = this.displayClusterStatus(cluster);
+            if (status === "termination_locked") return "Khoa cham dut";
+            if (status === "termination_processing") return "Đang chấm dứt";
+            if (status === "partner_terminated") return "Đã chấm dứt";
+
             const map = {
                 pending: "Chờ duyệt",
                 active: "Hoạt động",
                 locked: "Đã khóa",
             };
             return map[status] || status;
+        },
+
+        statusTabCount(status) {
+            if (status === "") return this.clusters.length;
+            if (status === "has_pending_requests") {
+                return this.clusters.filter((c) => c.has_pending_requests).length;
+            }
+            if (status === "termination_processing") {
+                return this.clusters.filter((cluster) => this.displayClusterStatus(cluster) === "termination_processing").length;
+            }
+            return this.clusters.filter((cluster) => this.displayClusterStatus(cluster) === status).length;
         },
 
         feeStatusLabel(status) {
@@ -228,95 +280,18 @@ export default {
 .avc-page {
     display: flex;
     flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
-    max-width: 1000px;
+    max-width: 1180px;
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
-.card {
-    background: transparent;
-    border-radius: 0;
-    border: none;
-    padding: 12px 0;
-    box-shadow: none;
-}
-
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
-
-/* Filters */
-.avc-filters {
-    padding: 12px 0;
-}
-.filter-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-.filter-tabs {
-    display: flex;
-    gap: 6px;
-}
-.avc-filters .filter-tabs button.tab-btn {
-    height: 38px !important;
-    min-height: 38px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 16px !important;
-    border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
-    background: var(--admin-surface) !important;
-    color: #475569 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    cursor: pointer !important;
-    transition: all 0.18s !important;
-    box-sizing: border-box !important;
-}
-.avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary) !important;
-    border-color: var(--admin-primary) !important;
-    color: var(--admin-primary-text, #fff) !important;
-}
-.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
-    background: var(--admin-hover) !important;
-    color: var(--admin-primary-dark) !important;
-}
-[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
-    border: 1px solid var(--admin-border) !important;
-    color: var(--admin-muted) !important;
-}
-.filter-search {
-    flex: 1;
-    min-width: 250px;
-}
-/* Search box border styling to increase contrast on light theme */
-.filter-search :deep(.search-box) {
-    border-color: #cbd5e1 !important;
-}
-.filter-search :deep(.search-box input::placeholder) {
-    color: #64748b !important;
-}
-.filter-search :deep(.search-box svg) {
-    color: #64748b !important;
-}
-[data-theme="dark"] .filter-search :deep(.search-box) {
-    border-color: var(--admin-border) !important;
-}
-[data-theme="dark"] .filter-search :deep(.search-box input::placeholder) {
-    color: var(--admin-faint) !important;
-}
-[data-theme="dark"] .filter-search :deep(.search-box svg) {
-    color: var(--admin-faint) !important;
+.avc-page > * {
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* State */
@@ -358,6 +333,19 @@ export default {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.mobile-cluster-list {
+    display: none;
+}
+
+:deep(.saas-table-container) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 .clusters-list {
@@ -385,7 +373,7 @@ export default {
     border-bottom: none;
 }
 
-.cluster-row-item:hover {
+.cluster-row-item.never-hover-class-placeholder {
     background: var(--admin-hover, rgba(15, 23, 42, 0.015));
 }
 
@@ -400,7 +388,7 @@ export default {
     transition: opacity 0.15s ease;
 }
 
-.cluster-row-item:hover .accent-line {
+.cluster-row-item.never-hover-class-placeholder .accent-line {
     opacity: 1;
 }
 
@@ -534,6 +522,15 @@ export default {
     color: var(--admin-danger, #ef4444) !important;
 }
 
+.state-is-termination_locked,
+.state-is-termination_processing {
+    color: #c2410c !important;
+}
+
+.state-is-partner_terminated {
+    color: #64748b !important;
+}
+
 /* Fee styles */
 .fee-is-paid {
     color: var(--admin-primary, #10b981) !important;
@@ -565,7 +562,7 @@ export default {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cluster-row-item:hover .row-right {
+.cluster-row-item.never-hover-class-placeholder .row-right {
     opacity: 1;
     transform: translateX(0);
 }
@@ -585,7 +582,7 @@ export default {
     border-color: var(--admin-border, var(--sg-border));
     color: var(--admin-text, var(--sg-text));
 }
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--admin-hover, #f1f5f9);
 }
 
@@ -623,6 +620,97 @@ export default {
 }
 
 @media (max-width: 768px) {
+    .avc-title h1 {
+        max-width: calc(100% - 8px);
+        font-size: 22px;
+        overflow-wrap: anywhere;
+    }
+
+    .filter-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .filter-result {
+        padding-bottom: 0;
+    }
+
+    .desktop-cluster-table {
+        display: none !important;
+    }
+
+    .mobile-cluster-list {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .mobile-cluster-row {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        border: 1px solid var(--admin-border, #dbe4de);
+        border-radius: 8px;
+        background: var(--admin-surface, #fff);
+        padding: 13px;
+        color: var(--admin-text, #0f172a);
+        text-align: left;
+    }
+
+    .mobile-cluster-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .mobile-cluster-heading > strong {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .mobile-cluster-heading .status-badge {
+        flex: 0 0 auto;
+        font-size: 12px;
+    }
+
+    .mobile-cluster-address {
+        color: var(--admin-muted, #64748b);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .mobile-cluster-facts {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(62px, .6fr) minmax(72px, .8fr) 18px;
+        align-items: end;
+        gap: 8px;
+        border-top: 1px solid var(--admin-border-soft, #edf2ef);
+        padding-top: 9px;
+    }
+
+    .mobile-cluster-facts > span {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .mobile-cluster-facts small {
+        color: var(--admin-muted, #64748b);
+        font-size: 10px;
+    }
+
+    .mobile-cluster-facts strong {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--admin-text, #0f172a);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .cluster-row-item {
         flex-direction: column;
         align-items: stretch;
@@ -674,7 +762,7 @@ export default {
 
 .cluster-address-text {
     font-size: 11.5px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
     max-width: 250px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -689,7 +777,7 @@ export default {
 
 .owner-email-text {
     font-size: 11px;
-    color: var(--admin-faint, #64748b);
+    color: var(--admin-muted, #475569);
 }
 
 .courts-badge-count {

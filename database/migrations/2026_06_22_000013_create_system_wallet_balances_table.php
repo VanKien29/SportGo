@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('system_wallet_balances', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('system_bank_account_id', 36)->unique()->comment('Tai khoan ngan hang he thong.');
+            $table->id();
+            $table->unsignedBigInteger('system_bank_account_id')->unique()->comment('Tai khoan ngan hang he thong.');
             $table->decimal('current_balance', 18, 2)->default(0)->comment('So du hien tai doc tu tai khoan that.');
             $table->timestamp('last_synced_at')->nullable()->comment('Thoi diem dong bo so du gan nhat.');
             $table->decimal('alert_threshold', 18, 2)->nullable()->comment('Nguong canh bao so du thap.');

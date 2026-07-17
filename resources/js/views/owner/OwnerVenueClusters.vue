@@ -1,6 +1,16 @@
 <template>
     <div class="venue-clusters-container">
 
+        <header class="owner-page-header">
+            <div>
+                <p class="eyebrow">Chủ sân</p>
+                <h1>Quản lý cụm sân</h1>
+                <p>Theo dõi vận hành, sân con, yêu cầu thay đổi và hồ sơ đối tác trong một màn hình.</p>
+            </div>
+            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
+                Ho so doi tac
+            </button>
+        </header>
 
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -22,169 +32,178 @@
         </div>
 
         <!-- Main Grid -->
-        <div v-else class="clusters-grid">
-            <!-- Cluster List Sidebar -->
-            <div class="clusters-list card">
-                <div
-                    v-for="cluster in clusters"
-                    :key="cluster.id"
-                    class="cluster-item"
-                    :class="{ active: selectedCluster?.id === cluster.id }"
-                    @click="selectCluster(cluster)"
-                >
-                    <div class="cluster-info">
-                        <h4 class="cluster-name">{{ cluster.name }}</h4>
-                        <p class="cluster-address">
-                            {{ formatFullAddress(cluster) }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
+        <div v-else class="clusters-workspace">
             <!-- Cluster Detail with Tabs -->
-            <div v-if="selectedCluster" class="cluster-detail">
-                <div class="owner-flow-bridge card">
-                    <div class="owner-flow-block">
-                        <span class="owner-flow-kicker">Quản lý cụm sân</span>
-                        <strong>{{ selectedCluster.name }}</strong>
-                        <p>Điều chỉnh vận hành, danh sách sân con, yêu cầu thay đổi quy mô và vị trí của cụm sân này.</p>
-                        <div class="owner-flow-actions">
-                            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'approvals'">
-                                Quy mô sân
+            <div
+                v-if="selectedCluster"
+                class="cluster-detail"
+                :class="{ 'is-archived': isClusterArchived, 'is-terminating': isTerminationRestricted }"
+            >
+                <section class="cluster-hero surface-card">
+                    <div class="cluster-hero-copy">
+                        <div class="cluster-hero-kicker">
+                            <span class="status-pill" :class="clusterStatusClass(selectedCluster)">
+                                {{ clusterStatusLabel(selectedCluster) }}
+                            </span>
+                            <span>{{ clusterCourtCount(selectedCluster) }} sân con</span>
+                        </div>
+                        <h1>{{ selectedCluster.name }}</h1>
+                        <p>{{ formatFullAddress(selectedCluster) }}</p>
+                        <div class="cluster-hero-actions">
+                            <button type="button" class="btn btn-primary" :disabled="isClusterLocked" @click="activeTab = 'courts'">
+                                <AppIcon name="court" size="15" />
+                                <span>Quản lý sân con</span>
+                            </button>
+                            <button type="button" class="btn btn-outline" :disabled="isClusterLocked" @click="activeTab = 'approvals'">
+                                <AppIcon name="plus" size="15" />
+                                <span>Yêu cầu quy mô</span>
                                 <span v-if="pendingApprovalCount > 0" class="inline-count">{{ pendingApprovalCount }}</span>
                             </button>
-                            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'location'">
-                                Vị trí cụm sân
-                                <span v-if="pendingLocationCount > 0" class="inline-count">{{ pendingLocationCount }}</span>
+                            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
+                                <AppIcon name="fileText" size="15" />
+                                <span>Hồ sơ đối tác</span>
+                            </button>
+                            <button
+                                v-if="selectedCluster.status !== 'pending'"
+                                type="button"
+                                class="btn btn-outline"
+                                @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })"
+                            >
+                                <AppIcon :name="isClusterArchived || isTerminationRestricted ? 'fileText' : 'logOut'" size="15" />
+                                <span>{{ isClusterArchived || isTerminationRestricted ? 'Xem hồ sơ chấm dứt' : 'Chấm dứt hợp tác' }}</span>
                             </button>
                         </div>
                     </div>
-                    <div class="owner-flow-block partner-flow">
-                        <span class="owner-flow-kicker">Hồ sơ & hợp đồng đối tác</span>
-                        <strong>Hợp đồng, phụ lục, chấm dứt</strong>
-                        <p>Xem/ký hợp đồng, phụ lục phát sinh từ yêu cầu đã duyệt và xử lý yêu cầu hủy/chấm dứt hợp tác.</p>
-                        <div class="owner-flow-actions">
-                            <button type="button" class="btn btn-outline btn-sm" @click="$router.push({ name: 'owner-partner-profile' })">
-                                Mở hồ sơ đối tác
-                            </button>
+                    <div class="cluster-hero-media" :class="{ empty: !clusterPrimaryImage(selectedCluster) }">
+                        <img
+                            v-if="clusterPrimaryImage(selectedCluster)"
+                            :src="clusterPrimaryImage(selectedCluster)"
+                            :alt="'Ảnh cụm sân ' + selectedCluster.name"
+                        />
+                        <div v-else class="cluster-media-placeholder">
+                            <AppIcon name="building" size="30" />
+                            <span>Chưa có ảnh đại diện</span>
                         </div>
                     </div>
-                </div>
+                </section>
+
+                <section
+                    v-if="isTerminationRestricted || isClusterArchived"
+                    class="cluster-restriction-banner surface-card"
+                    :class="{ archived: isClusterArchived }"
+                >
+                    <AppIcon :name="isClusterArchived ? 'archive' : 'lock'" size="20" />
+                    <div>
+                        <strong>{{ isClusterArchived ? 'Cụm sân đã chấm dứt hợp tác' : 'Cụm sân đang trong quy trình chấm dứt' }}</strong>
+                        <p v-if="isClusterArchived">Dữ liệu và lịch sử được giữ để tra cứu; các thao tác vận hành đã khóa.</p>
+                        <p v-else>Chỉ xử lý booking, hoàn tiền, số dư và hồ sơ chấm dứt tại các màn được phép.</p>
+                    </div>
+                </section>
+
+                <section class="cluster-quick-grid" aria-label="Tổng quan cụm sân">
+                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'info'">
+                        <span class="quick-stat-label">Thông tin</span>
+                        <strong>{{ selectedCluster.phone_contact || "Chưa có SĐT" }}</strong>
+                        <small>Cấu hình tiện ích, mô tả, album ảnh</small>
+                    </button>
+                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'approvals'">
+                        <span class="quick-stat-label">Quy mô</span>
+                        <strong>{{ pendingApprovalCount }} chờ xử lý</strong>
+                        <small>Thêm, giảm hoặc điều chỉnh sân con</small>
+                    </button>
+                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'location'">
+                        <span class="quick-stat-label">Vị trí</span>
+                        <strong>{{ pendingLocationCount }} chờ duyệt</strong>
+                        <small>Địa chỉ và tọa độ cụm sân</small>
+                    </button>
+                    <button v-if="isModerationLocked" type="button" class="quick-stat surface-card danger" @click="activeTab = 'unlock'">
+                        <span class="quick-stat-label">Mở khóa</span>
+                        <strong>{{ pendingUnlockCount }} yêu cầu</strong>
+                        <small>Gửi giải trình để kích hoạt lại</small>
+                    </button>
+                </section>
 
                 <!-- Tabs -->
-                <div class="detail-tabs card" style="display: flex; justify-content: space-between; align-items: center; padding-right: 16px; position: relative;">
-                    <div style="display: flex; gap: 8px;">
-                        <button
-                            v-for="tab in tabs"
-                            :key="tab.key"
-                            class="tab-btn"
-                            :class="{ active: activeTab === tab.key }"
-                            @click="activeTab = tab.key"
-                        >
-                            {{ tab.label }}
-                            <span
-                                v-if="
-                                    tab.key === 'approvals' &&
-                                    pendingApprovalCount > 0
-                                "
-                                class="tab-badge"
-                            >
-                                {{ pendingApprovalCount }}
-                            </span>
-                            <span
-                                v-if="
-                                    tab.key === 'location' &&
-                                    pendingLocationCount > 0
-                                "
-                                class="tab-badge tab-badge-location"
-                            >
-                                {{ pendingLocationCount }}
-                            </span>
-                            <span
-                                v-if="
-                                    tab.key === 'info_requests' &&
-                                    pendingInfoCount > 0
-                                "
-                                class="tab-badge tab-badge-location"
-                            >
-                                {{ pendingInfoCount }}
-                            </span>
-                            <span
-                                v-if="
-                                    tab.key === 'unlock' &&
-                                    pendingUnlockCount > 0
-                                "
-                                class="tab-badge"
-                                style="background-color: #dc2626;"
-                            >
-                                {{ pendingUnlockCount }}
-                            </span>
-                        </button>
-                    </div>
-
-
-                </div>
-
+                <nav class="detail-tabs surface-card" aria-label="Khu vực quản lý cụm sân">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        class="tab-btn"
+                        :class="{ active: activeTab === tab.key }"
+                        type="button"
+                        :aria-current="activeTab === tab.key ? 'page' : undefined"
+                        @click="activeTab = tab.key"
+                    >
+                        {{ tab.label }}
+                        <span v-if="tabBadgeCount(tab.key) > 0" class="tab-badge">
+                            {{ tabBadgeCount(tab.key) }}
+                        </span>
+                    </button>
+                </nav>
+                <fieldset class="cluster-operation-zone" :disabled="isTerminationRestricted || isClusterArchived">
                 <!-- ═══════════════════════════════════════════════════
                      TAB 1: THÔNG TIN CHUNG
                 ═══════════════════════════════════════════════════ -->
                 <div v-if="activeTab === 'info'" class="cluster-edit card">
 
-                    <div v-if="isClusterLocked" class="alert alert-danger" style="margin-bottom: 20px;">
+                    <div v-if="isModerationLocked" class="alert alert-danger" style="margin-bottom: 20px;">
                         Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
                     </div>
 
-                    <div class="readonly-detail-container">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); padding-bottom: 10px;">
-                            <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Thông tin chi tiết</h3>
-                        </div>
-                        <!-- Tên & Điện thoại -->
-                        <div class="info-row-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                            <div class="form-group-readonly">
-                                <label class="info-label">Tên cụm sân</label>
-                                <div class="info-value-text">{{ selectedCluster.name }}</div>
+                    <div class="readonly-detail-container info-overview-panel">
+                        <header class="info-section-header">
+                            <div>
+                                <span class="section-eyebrow">Hồ sơ cụm sân</span>
+                                <h3>Thông tin chi tiết</h3>
                             </div>
-                            <div class="form-group-readonly">
-                                <label class="info-label">Số điện thoại liên hệ</label>
-                                <div class="info-value-text">{{ selectedCluster.phone_contact }}</div>
+                            <span class="status-pill" :class="clusterStatusClass(selectedCluster)">
+                                {{ clusterStatusLabel(selectedCluster) }}
+                            </span>
+                        </header>
+
+                        <div class="info-summary-grid">
+                            <div class="info-summary-card">
+                                <span class="info-summary-icon" aria-hidden="true">
+                                    <AppIcon name="building" size="18" />
+                                </span>
+                                <div>
+                                    <span class="info-label">Tên cụm sân</span>
+                                    <strong>{{ selectedCluster.name }}</strong>
+                                </div>
+                            </div>
+                            <div class="info-summary-card">
+                                <span class="info-summary-icon" aria-hidden="true">
+                                    <AppIcon name="messageSquare" size="18" />
+                                </span>
+                                <div>
+                                    <span class="info-label">Số điện thoại liên hệ</span>
+                                    <strong>{{ selectedCluster.phone_contact || "Chưa cập nhật" }}</strong>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Vị trí hiện tại (chỉ đọc) -->
-                        <div class="location-readonly-box" style="margin-bottom: 16px;">
+                        <section class="location-readonly-box location-overview-card">
                             <div class="location-readonly-header">
                                 <div>
-                                    <span class="location-readonly-title" style="font-weight:700;">Vị trí hiện tại</span>
-                                    <span
-                                        v-if="pendingLocationCount > 0"
-                                        class="pending-location-badge"
-                                    >
-                                        ⏳ Đang có yêu cầu thay đổi chờ duyệt
-                                    </span>
+                                    <span class="section-eyebrow">Địa chỉ & bản đồ</span>
+                                    <h4 class="location-readonly-title">Vị trí hiện tại</h4>
+                                </div>
+                                <span
+                                    v-if="pendingLocationCount > 0"
+                                    class="pending-location-badge"
+                                >
+                                    Đang chờ duyệt vị trí
+                                </span>
+                            </div>
+                            <div class="location-content-grid map-only">
+                                <div class="location-map-frame">
+                                    <div
+                                        id="cluster-map"
+                                        class="map-container map-readonly"
+                                    ></div>
                                 </div>
                             </div>
-                            <div class="location-readonly-body" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
-                                <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600;">Tỉnh/TP: </span>
-                                    <span class="location-value">{{ selectedCluster.province || "—" }}</span>
-                                </div>
-                                <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600;">Phường/Xã: </span>
-                                    <span class="location-value">{{ selectedCluster.ward || "—" }}</span>
-                                </div>
-                                <div class="location-info-row">
-                                    <span class="location-label" style="font-weight:600;">Địa chỉ: </span>
-                                    <span class="location-value">{{ selectedCluster.address || "—" }}</span>
-                                </div>
-                            </div>
-                            <!-- Bản đồ chỉ xem -->
-                            <div
-                                id="cluster-map"
-                                class="map-container map-readonly"
-                                style="margin-top: 12px;"
-                            ></div>
-                        </div>
-
+                        </section>
                         <!-- Tiện ích cụm sân (Amenities) -->
                         <div class="amenities-management-section" style="margin-top: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1245,7 +1264,12 @@
                                         </div>
                                         <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
                                             <span>Phụ lục hợp đồng:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm"
+                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
+                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
+                                            >
                                                 <AppIcon name="eye" size="14" />
                                                 {{ requestDocumentActionLabel(req.appendix_document) }}
                                             </button>
@@ -1253,6 +1277,9 @@
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
+                                        </div>
+                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
+                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
                                         </div>
                                         <div
                                             v-if="
@@ -1611,14 +1638,22 @@
                                         </div>
                                         <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
                                             <span>Phụ lục hợp đồng:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.appendix_document, req.partner_application_id)">
-                                                <AppIcon name="eye" size="14" />
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm"
+                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
+                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
+                                            >
+                                                <AppIcon :name="req.appendix_document?.status === 'pending_owner_signature' ? 'pencil' : 'eye'" size="14" />
                                                 {{ requestDocumentActionLabel(req.appendix_document) }}
                                             </button>
                                             <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
                                                 <AppIcon name="download" size="14" />
                                                 Tải
                                             </button>
+                                        </div>
+                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
+                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
                                         </div>
                                         <div
                                             v-if="
@@ -1740,9 +1775,6 @@
                     <div class="history-section">
                         <div class="history-header">
                             <h4 class="history-title">Lịch sử yêu cầu mở khóa</h4>
-                            <button class="btn btn-outline btn-sm" :disabled="loadingUnlockRequests" @click="fetchUnlockRequests(selectedCluster.id)">
-                                Tải lại
-                            </button>
                         </div>
 
                         <div v-if="loadingUnlockRequests" class="loading-state" style="padding: 30px 0; text-align: center;">
@@ -1756,7 +1788,7 @@
                             <table class="unlock-history-table">
                                 <thead>
                                     <tr>
-                                        <th class="col-code">Mã yêu cầu</th>
+                                        <th class="col-code">Yêu cầu</th>
                                         <th class="col-time">Thời gian gửi</th>
                                         <th class="col-reason">Lý do giải trình</th>
                                         <th class="col-status">Trạng thái</th>
@@ -1765,7 +1797,7 @@
                                 </thead>
                                 <tbody>
                                     <tr v-for="req in unlockRequests" :key="req.id" class="history-row">
-                                        <td class="cell-code">{{ shortId(req.id) }}</td>
+                                        <td class="cell-code">Mở khóa cụm sân</td>
                                         <td class="cell-time">{{ formatDateTime(req.created_at) }}</td>
                                         <td class="cell-reason">{{ req.reason }}</td>
                                         <td class="cell-status">
@@ -1780,7 +1812,7 @@
                         </div>
                     </div>
                 </div>
-
+                </fieldset>
             </div>
         </div>
 
@@ -1863,7 +1895,7 @@
             class="modal-backdrop"
             @click.self="closeCreateApprovalModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-scale">
                 <div class="modal-header">
                     <h3>Gửi yêu cầu mở rộng quy mô</h3>
                     <button class="btn-close" @click="closeCreateApprovalModal">
@@ -2296,19 +2328,6 @@
                                     type="button"
                                     class="btn btn-outline btn-extract"
                                     :disabled="resolvingLocationMap"
-                                    @click="handleExtractLocationCoords"
-                                >
-                                    <AppIcon name="search" size="15" />
-                                    {{
-                                        resolvingLocationMap
-                                            ? "Đang trích xuất..."
-                                            : "Trích xuất tọa độ"
-                                    }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="btn btn-outline btn-extract"
-                                    :disabled="resolvingLocationMap"
                                     @click="useCurrentLocationForChange"
                                 >
                                     <AppIcon name="mapPin" size="15" />
@@ -2676,7 +2695,7 @@
             class="modal-backdrop"
             @click.self="closeEditClusterModal"
         >
-            <div class="modal card">
+            <div class="modal card modal-edit-cluster">
                 <div class="modal-header">
                     <h3>Yêu cầu chỉnh sửa thông tin cụm sân</h3>
                     <button class="btn-close" @click="closeEditClusterModal">
@@ -2905,6 +2924,7 @@ import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
 import { ownerUnlockRequestsService } from "../../services/ownerUnlockRequests";
 import { api, apiDownload } from "../../services/api";
+import { venueDisplayStatus, venuePartnerState } from "../../utils/venuePartnerState";
 
 export default {
     name: "OwnerVenueClusters",
@@ -2921,11 +2941,6 @@ export default {
  
             // Tabs
             activeTab: "info",
-            tabs: [
-                { key: "info", label: "Thông tin chung" },
-                { key: "approvals", label: "Yêu cầu quy mô" },
-                { key: "location", label: "Yêu cầu vị trí" },
-            ],
  
             // Info tab form
             updating: false,
@@ -3109,17 +3124,45 @@ export default {
     },
 
     computed: {
+        isModerationLocked() {
+            return this.selectedCluster?.status === "locked";
+        },
+        isTerminationRestricted() {
+            return venuePartnerState(this.selectedCluster) === "terminating";
+        },
+        isClusterArchived() {
+            return venuePartnerState(this.selectedCluster) === "archived";
+        },
         isClusterLocked() {
-            return this.selectedCluster && this.selectedCluster.status === 'locked';
+            return this.isModerationLocked || this.isTerminationRestricted || this.isClusterArchived;
+        },
+        ownerDashboardCards() {
+            const active = this.clusters.filter((cluster) => cluster.status === "active").length;
+            const locked = this.clusters.filter((cluster) => cluster.status === "locked").length;
+            const terminating = this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+
+            return [
+                { key: "total", label: "Tổng cụm sân", value: this.clusters.length, hint: "Đang gắn với tài khoản chủ sân" },
+                { key: "active", label: "Đang hoạt động", value: active, hint: "Có thể nhận booking" },
+                { key: "attention", label: "Cần xử lý", value: locked + terminating + this.selectedTodoCount, hint: "Khóa, chấm dứt hoặc yêu cầu đang chờ" },
+                { key: "terminated", label: "Đã chấm dứt", value: this.clusters.filter((cluster) => cluster.status === "partner_terminated").length, hint: "Đã tắt vận hành đối tác" },
+            ];
+        },
+        selectedTodoCount() {
+            return this.pendingApprovalCount + this.pendingLocationCount + this.pendingInfoCount + this.pendingUnlockCount;
+        },
+        selectedClusterCourtCount() {
+            return this.clusterCourtCount(this.selectedCluster);
         },
         tabs() {
             const list = [
+                { key: "courts", label: "Sân con" },
                 { key: "info", label: "Thông tin chung" },
                 { key: "info_requests", label: "Yêu cầu thông tin" },
                 { key: "approvals", label: "Yêu cầu quy mô" },
                 { key: "location", label: "Yêu cầu vị trí" },
             ];
-            if (this.isClusterLocked) {
+            if (this.isModerationLocked) {
                 list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
             }
             return list;
@@ -3300,6 +3343,7 @@ export default {
             this.onOwnerClusterChanged,
         );
         window.addEventListener('keydown', this.handleCanvasKeydown);
+        window.addEventListener('resize', this.refreshReadonlyMapSize);
     },
 
     beforeUnmount() {
@@ -3309,6 +3353,7 @@ export default {
             this.onOwnerClusterChanged,
         );
         window.removeEventListener('keydown', this.handleCanvasKeydown);
+        window.removeEventListener('resize', this.refreshReadonlyMapSize);
         this.destroyMap();
     },
 
@@ -3473,6 +3518,55 @@ export default {
             if (cluster) this.selectCluster(cluster);
         },
 
+        clusterInitial(cluster) {
+            return String(cluster?.name || "S")
+                .trim()
+                .charAt(0)
+                .toUpperCase();
+        },
+
+        clusterCourtCount(cluster) {
+            if (!cluster) return 0;
+            if (typeof cluster.court_count === "number") return cluster.court_count;
+            if (Array.isArray(cluster.courts)) return cluster.courts.length;
+            if (this.selectedCluster && String(cluster.id) === String(this.selectedCluster.id)) {
+                return this.courts.length;
+            }
+            return 0;
+        },
+
+        clusterStatusLabel(cluster) {
+            const status = venueDisplayStatus(cluster);
+            return {
+                active: "Đang hoạt động",
+                inactive: "Tạm khóa",
+                locked: "Đang khóa",
+                maintenance: "Bảo trì",
+                pending: "Chờ duyệt",
+                termination_locked: "Đang chấm dứt",
+                termination_processing: "Đang chấm dứt",
+                partner_terminated: "Đã chấm dứt",
+            }[status] || status;
+        },
+
+        clusterStatusClass(cluster) {
+            return `status-${venueDisplayStatus(cluster) || "active"}`;
+        },
+
+        clusterPrimaryImage(cluster) {
+            const media = Array.isArray(cluster?.media) ? cluster.media : [];
+            const image = media.find((item) => item.file_path && !item.file_path.includes("default-home.jpg"));
+            return image ? this.imageUrl(image.file_path) : "";
+        },
+
+        tabBadgeCount(key) {
+            return {
+                approvals: this.pendingApprovalCount,
+                location: this.pendingLocationCount,
+                info_requests: this.pendingInfoCount,
+                unlock: this.pendingUnlockCount,
+            }[key] || 0;
+        },
         formatFullAddress(cluster) {
             if (!cluster) return "";
             return (
@@ -3672,10 +3766,6 @@ export default {
             } finally {
                 this.unlockSubmitting = false;
             }
-        },
-
-        shortId(value) {
-            return value ? String(value).slice(0, 8).toUpperCase() : "-";
         },
 
         formatDateTime(value) {
@@ -4002,11 +4092,23 @@ export default {
                 this.map.setView([lat, lng], 15);
                 this.marker.setLatLng([lat, lng]);
             }
-            setTimeout(() => {
-                if (this.map) this.map.invalidateSize();
-            }, 100);
+            this.refreshReadonlyMapSize();
         },
 
+        refreshReadonlyMapSize() {
+            if (!this.map) return;
+            const refresh = () => {
+                if (!this.map) return;
+                this.map.invalidateSize({ pan: false });
+            };
+            this.$nextTick(() => {
+                refresh();
+                window.requestAnimationFrame(refresh);
+                window.setTimeout(refresh, 120);
+                window.setTimeout(refresh, 320);
+                window.setTimeout(refresh, 700);
+            });
+        },
         updateMapMarker() {
             if (this.map && this.marker) {
                 const lat = parseFloat(this.form.latitude);
@@ -5343,6 +5445,8 @@ export default {
         },
 
         requestDocumentActionLabel(document) {
+            if (document?.status === "pending_owner_signature" && ["venue_scale_appendix", "venue_location_appendix"].includes(document.document_type)) return "Ky phu luc";
+            if (document?.status === "pending_owner_signature" && ["venue_scale_request", "venue_location_change_request"].includes(document.document_type)) return "Ky don";
             return document?.status === "pending_owner_signature" ? "Ký" : "Xem";
         },
 
@@ -5689,9 +5793,9 @@ export default {
         },
 
         approvalStatusLabel(status) {
-            if (status === "approved_pending_appendix") return "Da duyet, cho SportGo ky phu luc";
+            if (status === "approved_pending_appendix") return "Đã duyệt, chờ SportGo ký phụ lục";
             if (status === "pending_owner_signature") return "Chờ chủ sân ký";
-            if (status === "completed") return "Hoan tat thay doi";
+            if (status === "completed") return "Hoàn tất thay đổi";
 
             return (
                 {
@@ -6010,133 +6114,427 @@ export default {
 </script>
 
 <style scoped>
+h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
+    font-weight: 500 !important;
+}
+
 .venue-clusters-container {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1200px;
+    width: min(100%, 1440px);
     margin: 0 auto;
 }
 
-.card {
-    background: var(--admin-surface, #ffffff);
-    border-radius: 12px;
-    border: 1px solid var(--admin-border, #e5e7eb);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    padding: 24px;
+.owner-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
 }
 
-/* ─── Layout ─── */
-.clusters-grid {
+.owner-page-header h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.owner-page-header p:last-child {
+    margin: 6px 0 0;
+    color: var(--admin-muted, #64748b);
+    font-size: 14px;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.card {
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    padding: 16px 0;
+}
+
+.surface-card {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+}
+
+.section-eyebrow {
+    display: block;
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+/* Layout */
+.clusters-workspace {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     align-items: start;
 }
 
-@media (max-width: 900px) {
-    .clusters-grid {
-        grid-template-columns: 1fr;
-    }
+.owner-command-center {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
 
-    .owner-flow-bridge {
-        grid-template-columns: 1fr;
-    }
+.owner-stat-card {
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.owner-stat-card span {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.owner-stat-card strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 26px;
+    line-height: 1;
+}
+
+.owner-stat-card small {
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+}
+
+.clusters-rail {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.clusters-rail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.clusters-rail-head h2 {
+    margin: 4px 0 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 18px;
+    line-height: 1.25;
+}
+
+.rail-count {
+    min-width: 34px;
+    height: 34px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--admin-surface-muted, #f4f8f5);
+    color: var(--admin-text, #0f172a);
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .clusters-list {
-    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    position: sticky;
-    top: 20px;
+    gap: 6px;
+    padding: 10px;
+    overflow-y: auto;
 }
 
 .cluster-item {
-    display: flex;
+    width: 100%;
+    min-height: 74px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
     align-items: center;
-    padding: 14px 16px;
+    padding: 12px;
     border-radius: 8px;
-    cursor: pointer;
     border: 1px solid transparent;
-    transition: all 0.2s ease;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
-.cluster-item:hover {
-    background: var(--admin-hover, var(--sg-surface));
+
+.cluster-item.never-hover-class-placeholder {
+    background: var(--admin-hover, #f3f7f3);
+    border-color: var(--admin-border, #d8e4dc);
 }
+
+.cluster-item:focus-visible,
+.quick-stat:focus-visible,
+.tab-btn:focus-visible {
+    outline: 2px solid var(--admin-primary, #16351f);
+    outline-offset: 2px;
+}
+
 .cluster-item.active {
-    background: var(--admin-primary-soft, rgba(0, 0, 0, 0.05));
-    border-color: var(--admin-border, rgba(0, 0, 0, 0.2));
+    background: var(--admin-primary-soft, #eef8ef);
+    border-color: var(--admin-primary, #16351f);
 }
+
+.cluster-avatar {
+    width: 40px;
+    height: 40px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #16351f;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.cluster-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 .cluster-name {
+    color: var(--admin-text, #0f172a);
     font-size: 14px;
     font-weight: 700;
-    color: var(--admin-text, var(--sg-text));
-    margin: 0;
-}
-.cluster-address {
-    font-size: 12px;
-    color: var(--admin-faint, rgba(15, 23, 42, 0.5));
-    margin-top: 4px;
+    line-height: 1.3;
     overflow: hidden;
-    white-space: nowrap;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cluster-address,
+.cluster-meta-line {
+    color: var(--admin-faint, #64748b);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.cluster-address {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cluster-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #16a34a;
+}
+
+.status-dot.status-locked,
+.status-dot.status-inactive {
+    background: #dc2626;
+}
+
+.status-dot.status-maintenance,
+.status-dot.status-pending {
+    background: #d97706;
 }
 
 .cluster-detail {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-.owner-flow-bridge {
+.cluster-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 14px;
-    padding: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+    gap: 18px;
+    padding: 18px;
+    overflow: hidden;
 }
 
-.owner-flow-block {
+.cluster-hero-copy {
     min-width: 0;
-    padding: 14px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 8px;
-    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
 }
 
-.owner-flow-block.partner-flow {
-    background: #f7fee7;
-    border-color: #bbf7d0;
-}
-
-.owner-flow-kicker {
-    display: block;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.owner-flow-block strong {
-    display: block;
-    margin-top: 4px;
-    color: #0f172a;
-    font-size: 15px;
-}
-
-.owner-flow-block p {
-    margin: 8px 0 0;
-    color: #475569;
+.cluster-hero-kicker {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--admin-faint, #64748b);
     font-size: 13px;
+    font-weight: 600;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #eaf7ef;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-pill.status-locked,
+.status-pill.status-inactive {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.status-pill.status-maintenance,
+.status-pill.status-pending {
+    background: #fff7ed;
+    color: #b45309;
+    border-color: #fed7aa;
+}
+
+.cluster-hero h1 {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+}
+
+.cluster-hero p {
+    max-width: 72ch;
+    margin: 0;
+    color: var(--admin-muted, #475569);
+    font-size: 14px;
     line-height: 1.5;
 }
 
-.owner-flow-actions {
+.cluster-hero-actions {
     display: flex;
+    align-items: center;
     flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.cluster-hero-actions .btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.cluster-hero-media {
+    min-height: 190px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--admin-surface-muted, #f4f8f5);
+    border: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.cluster-hero-media img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.cluster-hero-media.empty {
+    display: grid;
+    place-items: center;
+}
+
+.cluster-media-placeholder {
+    display: grid;
     gap: 8px;
-    margin-top: 12px;
+    place-items: center;
+    color: var(--admin-faint, #64748b);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.cluster-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+
+.quick-stat {
+    min-height: 112px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 18px;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.quick-stat.never-hover-class-placeholder {
+    border-color: var(--admin-primary, #16351f);
+    transform: translateY(-1px);
+}
+
+.quick-stat-label {
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.quick-stat strong {
+    color: var(--admin-text, #0f172a);
+    font-size: 17px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.quick-stat small {
+    color: var(--admin-muted, #475569);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.quick-stat.danger {
+    border-color: #fecaca;
+    background: #fff7f7;
 }
 
 .inline-count {
@@ -6145,45 +6543,52 @@ export default {
     justify-content: center;
     min-width: 18px;
     height: 18px;
-    margin-left: 6px;
+    margin-left: 2px;
     padding: 0 5px;
     border-radius: 999px;
     background: #16a34a;
-    color: #fff;
+    color: #ffffff;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
-/* ─── Tabs ─── */
+/* Tabs */
 .detail-tabs {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
     padding: 8px;
-    background: var(--admin-surface, #ffffff);
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .tab-btn {
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 8px 16px;
-    border-radius: 6px;
+    padding: 8px 12px;
     border: 1px solid transparent;
+    border-radius: 8px;
     background: transparent;
-    color: var(--admin-muted, rgba(15, 23, 42, 0.6));
-    font-size: 13px;
+    color: var(--admin-muted, #475569);
+    font-size: 13.5px;
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
-.tab-btn:hover {
-    background: var(--admin-hover, var(--sg-surface));
-    color: var(--admin-text, var(--sg-text));
+
+.tab-btn.never-hover-class-placeholder {
+    background: var(--admin-hover, #f3f7f3);
+    color: var(--admin-text, #0f172a);
 }
+
 .tab-btn.active {
-    background: var(--admin-primary, #000);
-    color: var(--admin-bg, #fff);
-    border-color: var(--admin-primary, #000);
+    background: var(--admin-primary, #16351f);
+    color: #ffffff;
+    border-color: var(--admin-primary, #16351f);
 }
 
 .tab-badge {
@@ -6195,14 +6600,70 @@ export default {
     padding: 0 5px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 800;
-    background: #ef4444;
-    color: #fff;
-}
-.tab-btn.active .tab-badge {
-    background: rgba(255, 255, 255, 0.2);
+    font-weight: 700;
+    background: #dc2626;
+    color: #ffffff;
 }
 
+.tab-btn.active .tab-badge {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+@media (max-width: 1180px) {
+    .clusters-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .clusters-rail {
+        position: static;
+        max-height: none;
+    }
+
+    .clusters-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        max-height: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .cluster-hero,
+    .cluster-quick-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cluster-hero-media {
+        min-height: 180px;
+    }
+}
+
+@media (max-width: 576px) {
+    .venue-clusters-container {
+        gap: 16px;
+    }
+
+    .clusters-rail-head,
+    .cluster-hero {
+        padding: 18px;
+    }
+
+    .clusters-list {
+        grid-template-columns: 1fr;
+    }
+
+    .cluster-hero h1 {
+        font-size: 23px;
+    }
+
+    .cluster-hero-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .quick-stat {
+        min-height: 96px;
+    }
+}
 /* ─── Info Tab ─── */
 .cluster-edit {
     display: flex;
@@ -6213,14 +6674,14 @@ export default {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--sg-border);
+    border-bottom: 1px solid var(--admin-border);
     padding-bottom: 16px;
     margin-bottom: 20px;
 }
 .edit-header h3 {
     font-size: 18px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0;
 }
 
@@ -6230,6 +6691,15 @@ export default {
     gap: 16px;
 }
 @media (max-width: 576px) {
+    .owner-command-center,
+    .selected-cluster-facts {
+        grid-template-columns: 1fr;
+    }
+
+    .selected-cluster-actions {
+        width: 100%;
+    }
+
     .form-row {
         grid-template-columns: 1fr;
     }
@@ -6242,8 +6712,8 @@ export default {
 }
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
-    color: var(--admin-text, var(--sg-text));
+    font-weight: 500;
+    color: var(--admin-text, var(--admin-text));
 }
 .required {
     color: #ef4444;
@@ -6251,10 +6721,10 @@ export default {
 .form-control {
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--admin-border, var(--sg-border));
-    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, var(--admin-border));
+    background: var(--admin-surface, var(--admin-surface, #ffffff));
     font-size: 14px;
-    color: var(--admin-text, var(--sg-text));
+    color: var(--admin-text, var(--admin-text));
     outline: none;
     transition: border-color 0.2s;
 }
@@ -6280,7 +6750,7 @@ export default {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .map-extract-msg.success {
     background: #f3f4f6;
@@ -6296,7 +6766,7 @@ export default {
     width: 100%;
     height: 320px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     margin-top: 8px;
     z-index: 1;
 }
@@ -6309,10 +6779,10 @@ export default {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
-    background: var(--sg-surface);
-    padding: 16px;
+    background: var(--admin-surface);
+    padding: 18px 20px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
 }
 .amenity-item-wrapper {
     display: flex;
@@ -6320,8 +6790,8 @@ export default {
     justify-content: center;
     padding: 10px 12px;
     border-radius: 8px;
-    background: var(--sg-background);
-    border: 1px solid var(--sg-border);
+    background: var(--admin-bg);
+    border: 1px solid var(--admin-border);
     transition: all 0.2s ease;
 }
 .amenity-item-wrapper.active {
@@ -6341,7 +6811,7 @@ export default {
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .amenity-checkbox input {
     width: 16px;
@@ -6361,7 +6831,7 @@ export default {
     transition: background-color 0.2s;
     color: #64748b;
 }
-.btn-edit-amenity-desc:hover {
+.btn-edit-amenity-desc.never-hover-class-placeholder {
     background-color: rgba(15, 23, 42, 0.08);
     color: var(--admin-primary, #000000);
 }
@@ -6388,14 +6858,14 @@ export default {
 }
 .link-request-amenity {
     color: #000;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: underline;
 }
 
 .form-actions {
     display: flex;
     justify-content: flex-end;
-    border-top: 1px solid var(--sg-border);
+    border-top: 1px solid var(--admin-border);
     padding-top: 20px;
     margin-top: 8px;
 }
@@ -6412,8 +6882,11 @@ export default {
     aspect-ratio: 4/3;
     border-radius: 8px;
     overflow: hidden;
-    border: 1px solid var(--sg-border);
-    background: #f8fafc;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 .owner-gallery-img {
     width: 100%;
@@ -6428,23 +6901,23 @@ export default {
     height: 20px;
     border-radius: 50%;
     background: rgba(220, 38, 38, 0.85);
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     z-index: 10;
 }
-.btn-delete-img:hover {
+.btn-delete-img.never-hover-class-placeholder {
     background: rgb(220, 38, 38);
 }
 .owner-gallery-empty {
     padding: 18px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px dashed var(--admin-border, var(--sg-border));
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1px dashed var(--admin-border, var(--admin-border));
     border-radius: 8px;
     text-align: center;
     color: var(--admin-faint, rgba(15, 23, 42, 0.45));
@@ -6454,11 +6927,11 @@ export default {
 .owner-upload-zone {
     border: 2px dashed var(--admin-border, #cbd5e1);
     border-radius: 8px;
-    background: var(--admin-surface, #fff);
+    background: var(--admin-surface, var(--admin-surface, #ffffff));
 }
-.owner-upload-zone:hover {
+.owner-upload-zone.never-hover-class-placeholder {
     border-color: var(--admin-primary, #000);
-    background-color: var(--admin-surface-muted, #f8fafc);
+    background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
 }
 .hidden-file-input {
     display: none;
@@ -6473,7 +6946,7 @@ export default {
 }
 .upload-status-text {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: #475569;
     display: flex;
     align-items: center;
@@ -6495,7 +6968,7 @@ export default {
 }
 .courts-header-left h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 500;
     margin: 0;
 }
 .subtitle {
@@ -6515,66 +6988,87 @@ export default {
 }
 .layout-toggle-tabs {
     display: flex;
-    gap: 4px;
-    background: #fff;
-    border: 1px solid var(--sg-border);
-    border-radius: 10px;
-    padding: 6px;
+    gap: 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--admin-border, #cfded1);
+    border-radius: 8px;
+    padding: 0;
+    margin-bottom: 12px;
 }
 
 .courts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--admin-border, #cbd5e1);
+    border-radius: var(--admin-radius, 8px);
+    background: var(--admin-surface, #ffffff);
+    overflow: hidden;
+}
+.court-card:last-child {
+    border-bottom: none;
+}
+.court-card.never-hover-class-placeholder {
+    transform: none;
+    background-color: var(--admin-hover, #edf7ed);
+    box-shadow: none;
 }
 .court-card {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
-    transition:
-        transform 0.2s,
-        box-shadow 0.2s;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    gap: 24px;
+    border-bottom: 1px solid var(--admin-border-soft, #e3ece4);
+    background: transparent;
+    border-radius: 8px;
+    box-shadow: none;
+    transition: background-color 0.2s;
 }
-.court-card:hover {
+.court-card.never-hover-class-placeholder {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
 }
 .court-header {
+    border-bottom: none;
+    padding-bottom: 0;
+    flex: 1;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--sg-border);
-    padding-bottom: 12px;
+    gap: 12px;
 }
 .court-name {
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 500;
     margin: 0;
 }
 .court-body {
-    flex: 1;
+    flex: 2;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    gap: 24px;
 }
 .info-row {
     display: flex;
-    justify-content: space-between;
-    font-size: 13px;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
 }
 .info-row .label {
     color: rgba(15, 23, 42, 0.5);
-    font-weight: 700;
+    font-weight: 500;
 }
 .info-row .value {
-    font-weight: 700;
+    font-weight: 500;
 }
 .court-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    border-top: 1px solid var(--sg-border);
-    padding-top: 12px;
+    border-top: none;
+    padding-top: 0;
+    flex-shrink: 0;
 }
 
 .badge-placed {
@@ -6584,7 +7078,7 @@ export default {
     background: rgba(0, 0, 0, 0.05);
     color: #000;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .badge-unplaced {
     display: inline-block;
@@ -6593,7 +7087,7 @@ export default {
     background: #f3f4f6;
     color: rgba(15, 23, 42, 0.4);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .status-badge {
@@ -6601,7 +7095,7 @@ export default {
     padding: 4px 8px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     border: 1px solid transparent;
 }
 .status-badge.active {
@@ -6631,9 +7125,9 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 12px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border-radius: 10px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -6655,8 +7149,8 @@ export default {
 /* ─── Tool Switcher (Figma-style) ─── */
 .tool-switcher {
     display: flex;
-    background: #f1f5f9;
-    border: 1.5px solid #e2e8f0;
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1.5px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -6674,19 +7168,19 @@ export default {
     color: #64748b;
     transition: all 0.15s;
 }
-.tool-btn:hover {
-    background: #e2e8f0;
+.tool-btn.never-hover-class-placeholder {
+    background: var(--admin-border, #cbd5e1);
     color: #1e293b;
 }
 .tool-btn.active {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     color: #3b82f6;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: #e2e8f0;
+    background: var(--admin-border, #cbd5e1);
     align-self: center;
     margin: 0 2px;
 }
@@ -6700,7 +7194,7 @@ export default {
     flex: 1;
     background: #f0f2f5;
     border-radius: 10px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     overflow: hidden;
     position: relative;
     cursor: default;
@@ -6751,23 +7245,26 @@ export default {
     gap: 4px;
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(8px);
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     padding: 6px 8px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .btn-zoom {
     padding: 4px 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 6px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     cursor: pointer;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 500;
     transition: all 0.15s;
 }
-.btn-zoom:hover {
-    background: #f8fafc;
+.btn-zoom.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 .btn-zoom.fit,
 .btn-zoom.reset {
@@ -6778,7 +7275,7 @@ export default {
 }
 .zoom-level {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
     min-width: 42px;
     text-align: center;
@@ -6825,7 +7322,7 @@ export default {
     box-sizing: border-box;
     transition: box-shadow 0.1s;
 }
-.canvas-court-element:hover {
+.canvas-court-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-court-element:active {
@@ -6843,7 +7340,7 @@ export default {
     width: 12px;
     height: 12px;
     background: #3b82f6;
-    border: 2px solid #fff;
+    border: 2px solid var(--admin-surface, #ffffff);
     border-radius: 2px;
     z-index: 10;
 }
@@ -6872,11 +7369,11 @@ export default {
     top: 4px;
     left: 4px;
     background: rgba(239, 68, 68, 0.9);
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     pointer-events: none;
     z-index: 5;
 }
@@ -6889,15 +7386,15 @@ export default {
     overflow-y: auto;
 }
 .sidebar-section {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border-radius: 10px;
-    border: 1px solid var(--sg-border);
-    padding: 16px;
+    border: 1px solid var(--admin-border);
+    padding: 18px 20px;
 }
 .section-title {
     font-size: 14px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0 0 12px 0;
 }
 .section-desc {
@@ -6912,7 +7409,7 @@ export default {
     padding: 10px;
     margin-bottom: 12px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: #713f12;
 }
 .inspector-fields {
@@ -6932,7 +7429,7 @@ export default {
 }
 .field-group label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.6);
 }
 .input-row {
@@ -6942,7 +7439,7 @@ export default {
 }
 .input-row input {
     flex: 1;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 6px;
     padding: 6px 8px;
     font-size: 13px;
@@ -6951,7 +7448,7 @@ export default {
 }
 .input-row .x,
 .input-row .comma {
-    font-weight: 700;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.4);
 }
 .rotation-control {
@@ -6977,13 +7474,13 @@ export default {
 }
 .unplaced-court-item {
     padding: 10px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s;
 }
-.unplaced-court-item:hover {
-    background: var(--sg-surface);
+.unplaced-court-item.never-hover-class-placeholder {
+    background: var(--admin-surface);
     border-color: #000;
 }
 .item-header {
@@ -6993,7 +7490,7 @@ export default {
 }
 .item-name {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .item-add-hint {
     font-size: 11px;
@@ -7005,7 +7502,7 @@ export default {
     margin-top: 4px;
 }
 .empty-unplaced {
-    padding: 16px;
+    padding: 18px 20px;
     text-align: center;
     color: rgba(15, 23, 42, 0.4);
     font-size: 13px;
@@ -7034,21 +7531,21 @@ export default {
 }
 .tab-sm {
     padding: 5px 12px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 6px;
     background: transparent;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     cursor: pointer;
     color: rgba(15, 23, 42, 0.6);
     transition: all 0.15s;
 }
-.tab-sm:hover {
-    background: var(--sg-surface);
+.tab-sm.never-hover-class-placeholder {
+    background: var(--admin-surface);
 }
 .tab-sm.active {
     background: #000;
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     border-color: #000;
 }
 .empty-section {
@@ -7062,13 +7559,13 @@ export default {
     gap: 10px;
 }
 .approval-card {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 10px;
-    padding: 16px;
+    padding: 18px 20px;
     transition: box-shadow 0.15s;
     border-left-width: 3px;
 }
-.approval-card:hover {
+.approval-card.never-hover-class-placeholder {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 .approval-pending {
@@ -7097,7 +7594,7 @@ export default {
 }
 .approval-name {
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 500;
     margin-bottom: 6px;
 }
 .approval-meta {
@@ -7109,7 +7606,7 @@ export default {
     font-size: 13px;
     color: #ef4444;
     margin-top: 6px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .approval-right {
     display: flex;
@@ -7123,26 +7620,26 @@ export default {
     padding: 4px 10px;
     border-radius: 9999px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 .approval-status-pending {
     background: #fef9c3;
     color: #713f12;
 }
 .approval-status-need_supplement {
-    background: #fffbeb;
+    background: var(--admin-warning-soft, #fff7ed);
     color: #92400e;
 }
 .approval-status-approved {
     background: var(--admin-primary, #000000);
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
 .approval-status-rejected {
     background: #fee2e2;
     color: #7f1d1d;
 }
 .approval-status-cancelled {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #475569;
 }
 
@@ -7155,14 +7652,14 @@ export default {
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     transition: border-color 0.2s;
 }
-.custom-select-trigger:hover,
+.custom-select-trigger.never-hover-class-placeholder,
 .custom-select-trigger.active {
     border-color: #000;
 }
@@ -7180,8 +7677,8 @@ export default {
     color: rgba(15, 23, 42, 0.3);
 }
 .child-name {
-    font-weight: 700;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
 }
 .custom-options-container {
     position: absolute;
@@ -7189,8 +7686,8 @@ export default {
     left: 0;
     right: 0;
     z-index: 1000;
-    background: #fff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     max-height: 260px;
@@ -7200,11 +7697,11 @@ export default {
 .custom-optgroup-label {
     padding: 8px 12px 4px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.4);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-top: 1px solid var(--sg-border);
+    border-top: 1px solid var(--admin-border);
 }
 .custom-optgroup:first-child .custom-optgroup-label {
     border-top: none;
@@ -7217,14 +7714,14 @@ export default {
     cursor: pointer;
     transition: background 0.1s;
 }
-.custom-option:hover {
-    background: var(--sg-surface);
+.custom-option.never-hover-class-placeholder {
+    background: var(--admin-surface);
 }
 .custom-option.selected {
     background: rgba(0, 0, 0, 0.04);
 }
 .option-text {
-    font-weight: 700;
+    font-weight: 500;
     font-size: 14px;
 }
 .option-details {
@@ -7234,7 +7731,7 @@ export default {
 .check-mark {
     margin-left: auto;
     color: #000;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 /* ─── Modal ─── */
@@ -7248,6 +7745,10 @@ export default {
     z-index: 999;
 }
 .modal {
+    background: var(--admin-surface, #ffffff);
+    border-radius: var(--admin-radius-lg, 12px);
+    border: 1px solid var(--admin-border, #cbd5e1);
+    box-shadow: var(--admin-shadow-lg, 0 10px 15px -3px rgba(0,0,0,0.1));
     width: min(500px, 95vw);
     max-height: 90vh;
     padding: 0;
@@ -7260,12 +7761,12 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid var(--sg-border);
+    border-bottom: 1px solid var(--admin-border);
 }
 .modal-header h3 {
     margin: 0;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 500;
 }
 .btn-close {
     background: none;
@@ -7286,8 +7787,11 @@ export default {
     justify-content: flex-end;
     gap: 10px;
     padding: 16px 20px;
-    border-top: 1px solid var(--sg-border);
-    background: #f8fafc;
+    border-top: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 /* ─── Buttons ─── */
@@ -7297,7 +7801,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 500;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
@@ -7310,9 +7814,9 @@ export default {
 .btn-primary {
     background: #000;
     border-color: #000;
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
 }
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222;
     border-color: #222;
 }
@@ -7321,12 +7825,12 @@ export default {
     cursor: not-allowed;
 }
 .btn-outline {
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     background: transparent;
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
-.btn-outline:hover {
-    background: var(--sg-surface);
+.btn-outline.never-hover-class-placeholder {
+    background: var(--admin-surface);
 }
 .btn-outline:disabled {
     opacity: 0.5;
@@ -7337,7 +7841,7 @@ export default {
     background: transparent;
     color: rgba(0, 0, 0, 0.7);
 }
-.btn-danger-outline:hover {
+.btn-danger-outline.never-hover-class-placeholder {
     background: rgba(0, 0, 0, 0.05);
 }
 
@@ -7356,13 +7860,13 @@ export default {
 }
 .error-message {
     color: #ef4444;
-    font-weight: 700;
+    font-weight: 500;
 }
 .alert {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     margin-bottom: 16px;
 }
 .alert-success {
@@ -7376,7 +7880,7 @@ export default {
     border: 1px solid #fecaca;
 }
 .fw-bold {
-    font-weight: 700;
+    font-weight: 500;
 }
 .spinner {
     width: 40px;
@@ -7403,7 +7907,7 @@ export default {
 
 /* ─── Location Readonly Box ─── */
 .location-readonly-box {
-    border: 1px solid var(--admin-border, var(--sg-border));
+    border: 1px solid var(--admin-border, var(--admin-border));
     border-radius: 10px;
     overflow: hidden;
     margin-bottom: 8px;
@@ -7413,15 +7917,15 @@ export default {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border-bottom: 1px solid var(--admin-border, var(--sg-border));
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border-bottom: 1px solid var(--admin-border, var(--admin-border));
     gap: 12px;
     flex-wrap: wrap;
 }
 .location-readonly-title {
-    font-weight: 700;
+    font-weight: 500;
     font-size: 13px;
-    color: var(--admin-text, var(--sg-text));
+    color: var(--admin-text, var(--admin-text));
 }
 .pending-location-badge {
     display: inline-block;
@@ -7429,7 +7933,7 @@ export default {
     padding: 3px 10px;
     border-radius: 20px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     background: var(--admin-warning-soft, #fef3c7);
     color: var(--admin-warning, #92400e);
     border: 1px solid var(--admin-warning, #fde68a);
@@ -7439,7 +7943,7 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: var(--admin-surface, #fff);
+    background: var(--admin-surface, var(--admin-surface, #ffffff));
 }
 .location-info-row {
     display: flex;
@@ -7448,13 +7952,13 @@ export default {
     align-items: baseline;
 }
 .location-label {
-    font-weight: 700;
+    font-weight: 500;
     color: var(--admin-faint, rgba(15, 23, 42, 0.5));
     min-width: 80px;
     flex-shrink: 0;
 }
 .location-value {
-    color: var(--admin-text, var(--sg-text));
+    color: var(--admin-text, var(--admin-text));
 }
 .location-coord {
     font-family: monospace;
@@ -7491,7 +7995,7 @@ export default {
 /* ─── Tab Badge ─── */
 .tab-badge-location {
     background: #f59e0b;
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
 }
 
 /* ─── Modal Location ─── */
@@ -7510,10 +8014,13 @@ export default {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    overflow: hidden;
 }
 .modal-scale .modal-body {
     overflow-y: auto;
     overflow-x: hidden;
+    flex: 1;
 }
 .modal-location form {
     display: flex;
@@ -7523,6 +8030,19 @@ export default {
     min-height: 0;
 }
 .modal-location .modal-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+}
+
+.modal-edit-cluster form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.modal-edit-cluster .modal-body {
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
@@ -7544,7 +8064,7 @@ export default {
     transition: box-shadow 0.1s;
     z-index: 20;
 }
-.canvas-decor-element:hover {
+.canvas-decor-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-decor-element.dragging {
@@ -7563,11 +8083,11 @@ export default {
 }
 .btn-add-decor {
     padding: 8px;
-    background: #f8fafc;
-    border: 1.5px solid #e2e8f0;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1.5px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
     cursor: pointer;
     text-align: center;
@@ -7578,8 +8098,8 @@ export default {
     justify-content: center;
     gap: 4px;
 }
-.btn-add-decor:hover {
-    background: #f1f5f9;
+.btn-add-decor.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     border-color: #cbd5e1;
     color: #1e293b;
 }
@@ -7611,8 +8131,8 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     z-index: 999;
@@ -7627,13 +8147,13 @@ export default {
     transition: background-color 0.15s, color 0.15s;
     text-align: left;
 }
-.searchable-select-option:hover {
-    background-color: #f1f5f9;
+.searchable-select-option.never-hover-class-placeholder {
+    background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #0f172a;
 }
 .searchable-select-option.selected {
-    background-color: #e2e8f0;
-    font-weight: 600;
+    background-color: var(--admin-border, #cbd5e1);
+    font-weight: 400;
 }
 .searchable-select-option.empty {
     color: #64748b;
@@ -7652,13 +8172,13 @@ export default {
     text-align: center;
     cursor: pointer;
     transition: all 0.25s ease;
-    background: #f8fafc;
+    background: var(--admin-surface-muted, #f8fafc);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
 }
-.evidence-dropzone:hover {
+.evidence-dropzone.never-hover-class-placeholder {
     border-color: #3b82f6;
     background: #eff6ff;
 }
@@ -7679,10 +8199,10 @@ export default {
     display: inline-block;
     border-radius: 12px;
     overflow: hidden;
-    border: 2px solid #e2e8f0;
+    border: 2px solid var(--admin-border, #cbd5e1);
     transition: border-color 0.2s;
 }
-.evidence-preview-wrapper:hover {
+.evidence-preview-wrapper.never-hover-class-placeholder {
     border-color: #3b82f6;
 }
 .evidence-preview-img {
@@ -7701,7 +8221,7 @@ export default {
     border-radius: 50%;
     border: none;
     background: rgba(239, 68, 68, 0.9);
-    color: #fff;
+    color: var(--admin-surface, #ffffff);
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
@@ -7711,7 +8231,7 @@ export default {
     transition: all 0.2s;
     backdrop-filter: blur(4px);
 }
-.btn-remove-evidence:hover {
+.btn-remove-evidence.never-hover-class-placeholder {
     background: #dc2626;
     transform: scale(1.15);
 }
@@ -7733,7 +8253,7 @@ export default {
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
 }
-.approval-evidence-link:hover {
+.approval-evidence-link.never-hover-class-placeholder {
     transform: scale(1.03);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
@@ -7742,7 +8262,7 @@ export default {
     max-height: 120px;
     object-fit: cover;
     border-radius: 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
     display: block;
 }
 
@@ -7767,7 +8287,7 @@ export default {
     background: #eef2ff;
     color: #3730a3;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     text-decoration: none;
     cursor: pointer;
     appearance: none;
@@ -7786,7 +8306,7 @@ export default {
     margin-top: 10px;
     color: #475569;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .request-document-actions .btn {
@@ -7796,7 +8316,7 @@ export default {
     min-height: 32px;
     border-color: #0f172a;
     color: #0f172a;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
 }
 
 .request-signature-group {
@@ -7809,16 +8329,19 @@ export default {
     gap: 12px;
     align-items: center;
     margin: 14px 0;
-    padding: 14px;
+    padding: 18px;
     border: 1px solid #dbeafe;
     border-radius: 12px;
-    background: #f8fafc;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .request-preview-gate strong {
     display: block;
     color: #0f172a;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .request-preview-gate p {
@@ -7842,9 +8365,9 @@ export default {
     padding: 8px 10px;
     border: 1px solid #d7e5da;
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     color: #16351f;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .court-remove-list {
@@ -7856,14 +8379,14 @@ export default {
 .scale-adjust-board {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
+    gap: 16px;
 }
 
 .scale-adjust-section {
     border: 1px solid #d7e5da;
     border-radius: 8px;
     background: #fbfdfb;
-    padding: 14px;
+    padding: 18px;
 }
 
 .scale-adjust-head {
@@ -7877,7 +8400,7 @@ export default {
 .scale-adjust-head label {
     margin: 0;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     color: #16351f;
 }
 
@@ -7895,7 +8418,7 @@ export default {
     padding: 10px;
     border: 1px solid #dfe9e2;
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
 }
 
 .requested-court-index {
@@ -7906,7 +8429,7 @@ export default {
     place-items: center;
     background: #ecfdf3;
     color: #166534;
-    font-weight: 800;
+    font-weight: 500;
     font-size: 12px;
 }
 
@@ -7925,14 +8448,14 @@ export default {
     height: 32px;
     border: 1px solid #fecaca;
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     color: #dc2626;
     display: inline-grid;
     place-items: center;
     cursor: pointer;
 }
 
-.btn-icon-danger:hover {
+.btn-icon-danger.never-hover-class-placeholder {
     background: #fef2f2;
 }
 
@@ -7955,7 +8478,7 @@ export default {
 
 .document-upload-card span {
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 500;
     color: #16351f;
 }
 
@@ -7991,7 +8514,7 @@ export default {
     min-height: 170px;
     border: 1px dashed #94a3b8;
     border-radius: 10px;
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     touch-action: none;
 }
 
@@ -8006,19 +8529,19 @@ export default {
 .signature-ok {
     color: #047857;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .signature-missing {
     color: #b45309;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
 }
 
 .readonly-note {
     border: 1px solid #fde68a;
     border-radius: 8px;
-    background: #fffbeb;
+    background: var(--admin-warning-soft, #fff7ed);
     padding: 10px 12px;
     color: #92400e;
     font-size: 13px;
@@ -8028,14 +8551,14 @@ export default {
 
 /* ─── Tab Headers ─── */
 .tab-header {
-    border-bottom: 1px solid var(--sg-border);
+    border-bottom: 1px solid var(--admin-border);
     padding-bottom: 16px;
     margin-bottom: 20px;
 }
 .tab-header h3 {
     font-size: 18px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0;
 }
 .tab-header .subtitle {
@@ -8050,8 +8573,8 @@ export default {
 }
 .card-section-title {
     font-size: 14px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
     margin: 0 0 12px 0;
 }
 .scale-summary-grid {
@@ -8066,13 +8589,13 @@ export default {
 }
 .scale-stat-label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
     color: rgba(15, 23, 42, 0.5);
 }
 .scale-stat-value {
     font-size: 18px;
-    font-weight: 800;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text);
 }
 .scale-types-list {
     display: flex;
@@ -8080,13 +8603,13 @@ export default {
     gap: 6px;
 }
 .scale-type-tag {
-    background: #f1f5f9;
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     color: #475569;
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 11px;
-    font-weight: 600;
-    border: 1px solid #e2e8f0;
+    font-weight: 400;
+    border: 1px solid var(--admin-border, #cbd5e1);
 }
 .scale-type-tag strong {
     color: #0f172a;
@@ -8108,30 +8631,30 @@ export default {
     font-size: 14px;
 }
 .affiliate-table th {
-    background-color: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
+    background-color: var(--admin-surface-muted, #f8fafc);
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
     padding: 14px 16px;
     text-align: left;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
 }
 .affiliate-table td {
     padding: 12px 16px;
     vertical-align: middle;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
 }
 .affiliate-table tr.product-row {
     transition: background-color 0.2s;
 }
-.affiliate-table tr.product-row:hover {
-    background-color: #f8fafc;
+.affiliate-table tr.product-row.never-hover-class-placeholder {
+    background-color: var(--admin-surface-muted, #f8fafc);
 }
 .affiliate-table th.col-img { width: 80px; }
 .affiliate-table th.col-platform { width: 120px; }
 .affiliate-table th.col-price { width: 140px; text-align: right; }
 .affiliate-table td.cell-price { text-align: right; }
 .affiliate-table th.col-clicks { width: 100px; text-align: center; }
-.affiliate-table td.cell-clicks { text-align: center; font-weight: 700; color: #475569; }
+.affiliate-table td.cell-clicks { text-align: center; font-weight: 500; color: #475569; }
 .affiliate-table th.col-status { width: 120px; text-align: center; }
 .affiliate-table td.cell-status { text-align: center; }
 .affiliate-table th.col-actions { width: 120px; text-align: center; }
@@ -8141,12 +8664,12 @@ export default {
     width: 48px;
     height: 48px;
     border-radius: 8px;
-    background-color: #f1f5f9;
+    background-color: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
 }
 .product-thumb {
     width: 100%;
@@ -8157,7 +8680,7 @@ export default {
     color: #cbd5e1;
 }
 .product-title {
-    font-weight: 700;
+    font-weight: 500;
     color: #1e293b;
     margin-bottom: 2px;
     display: -webkit-box;
@@ -8177,7 +8700,7 @@ export default {
     padding: 4px 8px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     text-transform: uppercase;
     display: inline-block;
 }
@@ -8188,7 +8711,7 @@ export default {
 .platform-badge.khac { background-color: #ecfdf5; color: #10b981; }
 
 .price-discount {
-    font-weight: 700;
+    font-weight: 500;
     color: #10b981;
 }
 .price-original {
@@ -8235,7 +8758,7 @@ export default {
     left: 2px;
     width: 16px;
     height: 16px;
-    background-color: #fff;
+    background-color: var(--admin-surface, #ffffff);
     border-radius: 50%;
     transition: transform 0.2s;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -8256,29 +8779,29 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--sg-border);
+    border: 1px solid var(--admin-border);
     cursor: pointer;
     transition: all 0.2s;
 }
-.btn-action-icon:hover {
-    background-color: var(--sg-surface);
+.btn-action-icon.never-hover-class-placeholder {
+    background-color: var(--admin-surface);
 }
 .btn-action-icon.edit {
-    color: var(--sg-text);
+    color: var(--admin-text);
 }
 .btn-action-icon.delete {
     border-color: #fecaca;
     color: #dc2626;
 }
-.btn-action-icon.delete:hover {
+.btn-action-icon.delete.never-hover-class-placeholder {
     background-color: #fee2e2;
 }
 
 /* ─── Unlock Tab Styles ─── */
 .unlock-locked-banner {
     border-left: 5px solid #dc2626;
-    background-color: #fffafb;
-    padding: 14px;
+    background-color: var(--admin-danger-soft, #fef2f2);
+    padding: 18px;
     margin-bottom: 20px;
     border-radius: 6px;
     border: 1px solid #fecaca;
@@ -8303,9 +8826,9 @@ export default {
     color: #b91c1c;
 }
 .pending-alert-box {
-    background: #fffbeb;
+    background: var(--admin-warning-soft, #fff7ed);
     border: 1px solid #fde68a;
-    padding: 16px;
+    padding: 18px 20px;
     margin-bottom: 20px;
     border-radius: 8px;
 }
@@ -8313,12 +8836,12 @@ export default {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 700;
+    font-weight: 500;
     color: #b45309;
     margin-bottom: 12px;
 }
 .pending-reason-preview {
-    background: #fff;
+    background: var(--admin-surface, #ffffff);
     border: 1px solid #f3f4f6;
     padding: 10px 12px;
     border-radius: 4px;
@@ -8343,7 +8866,7 @@ export default {
     margin: 0 0 6px;
     font-size: 16px;
     color: #1e293b;
-    font-weight: 700;
+    font-weight: 500;
 }
 .form-section-desc {
     margin: 0 0 16px;
@@ -8352,7 +8875,7 @@ export default {
     line-height: 1.4;
 }
 .field-label-bold {
-    font-weight: 700;
+    font-weight: 500;
     font-size: 14px;
     color: #344238;
     display: block;
@@ -8381,14 +8904,14 @@ export default {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
     padding-bottom: 8px;
 }
 .history-title {
     margin: 0;
     font-size: 15px;
     color: #1e293b;
-    font-weight: 700;
+    font-weight: 500;
 }
 .empty-state-text {
     text-align: center;
@@ -8398,7 +8921,7 @@ export default {
     font-size: 14px;
 }
 .border-rounded {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 6px;
     overflow: hidden;
 }
@@ -8408,22 +8931,22 @@ export default {
     font-size: 14px;
 }
 .unlock-history-table th {
-    background-color: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
+    background-color: var(--admin-surface-muted, #f8fafc);
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
     padding: 10px 12px;
     text-align: left;
-    font-weight: 700;
+    font-weight: 500;
     color: #475569;
 }
 .unlock-history-table td {
     padding: 10px 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
 }
 .unlock-history-table tr.history-row {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border, #cbd5e1);
 }
 .unlock-history-table th.col-code { width: 100px; }
-.unlock-history-table td.cell-code { font-family: monospace; font-weight: 700; color: #475569; }
+.unlock-history-table td.cell-code { font-family: monospace; font-weight: 500; color: #475569; }
 .unlock-history-table th.col-time { width: 150px; }
 .unlock-history-table th.col-reason { max-width: 300px; }
 .unlock-history-table td.cell-reason { max-width: 300px; white-space: normal; line-height: 1.45; word-break: break-word; }
@@ -8444,7 +8967,7 @@ export default {
 }
 .info-label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -8452,17 +8975,17 @@ export default {
 .info-value-text {
     padding: 10px 14px;
     border-radius: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     font-size: 14.5px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #0f172a);
 }
 .info-description-text {
-    padding: 14px;
+    padding: 18px;
     border-radius: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     font-size: 14px;
     line-height: 1.6;
     color: var(--admin-text, #334155);
@@ -8473,11 +8996,11 @@ export default {
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    background: var(--admin-primary-soft, #f1f5f9);
-    border: 1px solid var(--admin-border, #e2e8f0);
+    background: var(--admin-primary-soft, var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc)));
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     border-radius: 9999px;
     font-size: 13.5px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #334155);
 }
 .btn-edit-amenity-desc-readonly {
@@ -8493,7 +9016,7 @@ export default {
     border-radius: 4px;
     transition: all 0.2s;
 }
-.btn-edit-amenity-desc-readonly:hover {
+.btn-edit-amenity-desc-readonly.never-hover-class-placeholder {
     color: #0f172a;
     background: rgba(0, 0, 0, 0.05);
 }
@@ -8513,13 +9036,13 @@ export default {
     font-size: 13.5px;
     font-weight: 500;
     color: var(--admin-muted, #64748b);
-    background: var(--admin-surface-muted, #f8fafc);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
     border: 1px dashed var(--admin-border, #cbd5e1);
     transition: all 0.2s ease-in-out;
     user-select: none;
 }
-.amenity-select-tag:hover {
-    background: var(--admin-hover, #f1f5f9);
+.amenity-select-tag.never-hover-class-placeholder {
+    background: var(--admin-hover, var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc)));
     border-color: var(--admin-faint, #94a3b8);
     color: var(--admin-text, #334155);
     transform: translateY(-1px);
@@ -8527,19 +9050,19 @@ export default {
 .amenity-select-tag.active {
     background: var(--admin-primary, #000000);
     border: 1px solid var(--admin-primary, #000000);
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
-.amenity-select-tag.active:hover {
+.amenity-select-tag.active.never-hover-class-placeholder {
     background: var(--admin-primary-light, #1f1f22);
     border-color: var(--admin-primary-light, #1f1f22);
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
     transform: translateY(-1px);
 }
 .amenity-check-icon {
     display: inline-flex;
     align-items: center;
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
 .btn-edit-amenity-desc {
     background: none;
@@ -8555,10 +9078,10 @@ export default {
     transition: all 0.2s;
 }
 .amenity-select-tag.active .btn-edit-amenity-desc {
-    color: var(--admin-bg, #ffffff);
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
 }
-.btn-edit-amenity-desc:hover {
-    color: var(--admin-bg, #ffffff);
+.btn-edit-amenity-desc.never-hover-class-placeholder {
+    color: var(--admin-bg, var(--admin-surface, #ffffff));
     background: rgba(128, 128, 128, 0.25);
 }
 .btn-edit-amenity-desc .has-desc-dot {
@@ -8571,10 +9094,10 @@ export default {
 }
 
 .location-readonly-box {
-    padding: 16px;
-    border: 1px solid var(--admin-border, #e2e8f0);
+    padding: 18px 20px;
+    border: 1px solid var(--admin-border, var(--admin-border, #cbd5e1));
     border-radius: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
+    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
 }
 .location-readonly-title {
     font-size: 14px;
@@ -8587,7 +9110,7 @@ export default {
     padding: 2px 8px;
     background: #fef3c7;
     color: #d97706;
-    font-weight: 600;
+    font-weight: 400;
     border-radius: 9999px;
 }
 .map-readonly {
@@ -8599,5 +9122,490 @@ export default {
 .req-parent-select .custom-options-container {
     max-height: 200px;
     overflow-y: auto;
+}
+
+/* Refined info overview */
+.info-overview-panel {
+    gap: 20px;
+    padding: 22px;
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.info-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 2px 16px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.info-section-header h3 {
+    margin: 4px 0 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 700 !important;
+}
+
+.info-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.info-summary-card {
+    min-height: 82px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 18px;
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.info-summary-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--admin-primary-soft, #eef8ef);
+    color: var(--admin-primary, #16351f);
+}
+
+.info-summary-card .info-label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--admin-faint, #64748b);
+    font-size: 11px;
+    letter-spacing: 0;
+}
+
+.info-summary-card strong {
+    display: block;
+    color: var(--admin-text, #0f172a);
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 700 !important;
+    overflow-wrap: anywhere;
+}
+
+.location-overview-card.location-readonly-box {
+    padding: 0;
+    margin: 0 0 6px;
+    overflow: hidden;
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.location-overview-card .location-readonly-header {
+    padding: 18px 20px;
+    background: var(--admin-surface, #ffffff);
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.location-overview-card .location-readonly-title {
+    display: block;
+    margin: 4px 0 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 16px;
+    line-height: 1.3;
+    font-weight: 700 !important;
+}
+
+.location-content-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+    gap: 16px;
+    min-height: 260px;
+    padding: 16px;
+}
+
+.location-overview-card .location-readonly-body {
+    margin: 0;
+    padding: 18px 20px;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+}
+
+.location-overview-card .location-info-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.location-overview-card .location-info-row:last-child {
+    border-bottom: none;
+}
+
+.location-overview-card .location-label {
+    min-width: 0;
+    color: var(--admin-faint, #64748b);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.location-overview-card .location-value {
+    margin: 0;
+    color: var(--admin-text, #0f172a);
+    font-size: 13.5px;
+    line-height: 1.45;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.location-map-frame {
+    min-width: 0;
+    min-height: 260px;
+    background: var(--admin-surface-muted, #f8fafc);
+    border: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.location-map-frame .map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 260px;
+    margin: 0 !important;
+    border: 0;
+    border-radius: 8px;
+}
+
+.location-map-frame .map-readonly {
+    opacity: 1;
+}
+
+@media (max-width: 900px) {
+    .info-summary-grid,
+    .location-content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .location-overview-card .location-readonly-body {
+        border: 1px solid var(--admin-border, #d8e4dc);
+    }
+}
+
+@media (max-width: 576px) {
+    .info-section-header {
+        flex-direction: column;
+    }
+
+    .info-summary-card {
+        grid-template-columns: 36px minmax(0, 1fr);
+    }
+
+    .info-summary-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .location-overview-card .location-info-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}
+
+/* Flatten nested borders in cluster detail */
+.detail-tabs.surface-card {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+}
+
+.detail-tabs .tab-btn {
+    border-color: var(--admin-border, #d8e4dc);
+    background: var(--admin-surface, #ffffff);
+}
+
+.detail-tabs .tab-btn.active {
+    border-color: var(--admin-primary, #16351f);
+}
+
+.info-overview-panel {
+    padding: 4px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.info-section-header {
+    padding: 0 0 14px;
+}
+
+.info-summary-card {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.location-overview-card.location-readonly-box {
+    border: 0;
+    background: transparent;
+}
+
+.location-overview-card .location-readonly-header {
+    padding: 0 0 14px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+    background: transparent;
+}
+
+.location-content-grid {
+    padding: 16px 0 0;
+}
+
+.location-overview-card .location-readonly-body,
+.location-map-frame {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+@media (max-width: 900px) {
+    .location-overview-card .location-readonly-body {
+        border: 0;
+    }
+}
+
+/* Flat content treatment: avoid card-heavy presentation */
+.surface-card {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.cluster-hero.surface-card {
+    padding: 0 0 18px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.cluster-hero-media {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.quick-stat.surface-card {
+    border: 0;
+    box-shadow: none;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.quick-stat.surface-card.never-hover-class-placeholder {
+    background: var(--admin-hover, #f3f7f3);
+    transform: none;
+}
+
+.quick-stat.danger {
+    border: 0;
+    background: var(--admin-danger-soft, #fef2f2);
+}
+
+.detail-tabs .tab-btn {
+    border: 0;
+    background: transparent;
+}
+
+.detail-tabs .tab-btn.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.detail-tabs .tab-btn.active {
+    background: var(--admin-primary, #16351f);
+    color: #ffffff;
+}
+
+.courts-header.card,
+.current-scale-card,
+.location-current-card {
+    padding: 0 0 16px;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+}
+
+.court-card.card {
+    border: 0;
+    border-bottom: 1px solid var(--admin-border, #d8e4dc);
+    border-radius: 0;
+    background: transparent;
+}
+
+.court-card.card.never-hover-class-placeholder {
+    background: var(--admin-surface-muted, #f8fafc);
+    box-shadow: none;
+    transform: none;
+}
+
+.approval-card {
+    border: 0;
+    border-left: 3px solid var(--admin-border, #d8e4dc);
+    border-radius: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+    box-shadow: none;
+}
+
+.approval-card.never-hover-class-placeholder {
+    box-shadow: none;
+}
+
+.document-upload-card {
+    border: 0;
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+/* Borderless owner cluster overview */
+.cluster-detail .surface-card,
+.cluster-detail .card,
+.cluster-detail .cluster-hero,
+.cluster-detail .cluster-hero-media,
+.cluster-detail .quick-stat,
+.cluster-detail .detail-tabs,
+.cluster-detail .tab-btn,
+.cluster-detail .info-overview-panel,
+.cluster-detail .info-section-header,
+.cluster-detail .info-summary-card,
+.cluster-detail .location-overview-card,
+.cluster-detail .location-readonly-header,
+.cluster-detail .location-readonly-body,
+.cluster-detail .location-info-row,
+.cluster-detail .location-map-frame {
+    border: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    box-shadow: none !important;
+}
+
+.cluster-detail .cluster-hero.surface-card {
+    padding-bottom: 8px;
+}
+
+.cluster-detail .status-pill {
+    border: 0 !important;
+}
+
+.cluster-hero-actions .btn-outline,
+.detail-tabs .tab-btn {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.cluster-hero-actions .btn-outline {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.detail-tabs {
+    gap: 8px;
+    padding: 0;
+}
+
+.detail-tabs .tab-btn {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.detail-tabs .tab-btn.active {
+    background: var(--admin-primary, #16351f);
+}
+
+.info-section-header {
+    padding-bottom: 8px;
+}
+
+.location-overview-card .location-readonly-header {
+    padding-bottom: 8px;
+}
+
+.location-overview-card .location-info-row {
+    padding: 9px 0;
+}
+
+
+/* Map-only location overview */
+.location-content-grid.map-only {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+}
+
+.location-content-grid.map-only .location-map-frame {
+    width: 100%;
+    min-width: 0;
+}
+
+.location-content-grid.map-only .map-container,
+.location-content-grid.map-only .map-readonly {
+    width: 100% !important;
+    min-height: 280px;
+}
+/* Disable hover effects for owner cluster tabs */
+.cluster-detail .detail-tabs .tab-btn,
+.cluster-detail .detail-tabs .tab-btn.never-hover-class-placeholder,
+.cluster-detail .detail-tabs .tab-btn:active {
+    transition: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.cluster-detail .detail-tabs .tab-btn:not(.active),
+.cluster-detail .detail-tabs .tab-btn:not(.active).never-hover-class-placeholder,
+.cluster-detail .detail-tabs .tab-btn:not(.active):active,
+.cluster-detail .detail-tabs .tab-btn:not(.active):focus {
+    background: var(--admin-surface-muted, #f8fafc) !important;
+    color: var(--admin-muted, #475569) !important;
+    border-color: transparent !important;
+    outline-color: transparent !important;
+}
+
+.cluster-detail .detail-tabs .tab-btn.active,
+.cluster-detail .detail-tabs .tab-btn.active.never-hover-class-placeholder,
+.cluster-detail .detail-tabs .tab-btn.active:active,
+.cluster-detail .detail-tabs .tab-btn.active:focus {
+    background: var(--admin-primary, #16351f) !important;
+    color: var(--admin-primary-text, #101c15) !important;
+    border-color: var(--admin-primary, #16351f) !important;
+    outline-color: transparent !important;
+}
+
+.cluster-restriction-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border-color: color-mix(in srgb, var(--admin-danger) 28%, var(--admin-border));
+    background: color-mix(in srgb, var(--admin-danger) 6%, var(--admin-surface));
+    color: var(--admin-text);
+}
+
+.cluster-restriction-banner.archived {
+    border-color: var(--admin-border);
+    background: var(--admin-surface-muted);
+}
+
+.cluster-restriction-banner strong {
+    display: block;
+    font-weight: 600;
+}
+
+.cluster-restriction-banner p {
+    margin: 4px 0 0;
+    color: var(--admin-muted);
+    line-height: 1.5;
+}
+
+.cluster-operation-zone {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.cluster-operation-zone:disabled {
+    opacity: 1;
 }
 </style>

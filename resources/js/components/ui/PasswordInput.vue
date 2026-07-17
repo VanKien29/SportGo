@@ -12,7 +12,7 @@
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
-        class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 !pe-10 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
+        class="flex h-10 w-full rounded-md border border-zinc-800 !bg-zinc-950 !px-3 !py-2 !pe-10 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
       />
       <button
         type="button"

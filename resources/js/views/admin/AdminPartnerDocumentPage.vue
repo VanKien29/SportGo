@@ -1,7 +1,7 @@
 <template>
   <div class="partner-document-page">
     <header class="page-head">
-      <button class="btn ghost" type="button" @click="router.push({ name: 'admin-partner-application-detail', params: { id: route.params.id } })">
+      <button class="btn ghost" type="button" @click="goBack">
         <AppIcon name="arrowLeft" size="16" />
         Quay lại hồ sơ
       </button>
@@ -81,14 +81,20 @@
 
         <section v-if="canSign" class="panel sign-panel">
           <h3>Ký đại diện SportGo</h3>
-          <p>Kiểm tra hợp đồng đã điền đầy đủ thông tin, sau đó ký để gửi người dùng kiểm tra và ký xác nhận.</p>
+          <p>Kiểm tra toàn bộ nội dung, ký tên và xác thực OTP gửi đến email tài khoản admin trước khi chuyển văn bản cho chủ sân.</p>
+
+          <div class="sign-steps" aria-label="Các bước ký văn bản">
+            <span class="done">1. Kiểm tra file</span>
+            <span :class="{ done: !signatureEmpty }">2. Ký tên</span>
+            <span :class="{ done: otpSent }">3. Xác thực OTP</span>
+          </div>
 
           <label class="confirm-line">
-            <input v-model="confirmed" type="checkbox" />
+            <input v-model="confirmed" type="checkbox" :disabled="otpSent || saving" />
             <span>{{ confirmationText }}</span>
           </label>
 
-          <div class="canvas-wrap">
+          <div class="canvas-wrap" :class="{ locked: otpSent }">
             <canvas
               ref="canvas"
               width="440"
@@ -101,11 +107,59 @@
             <span v-if="signatureEmpty">Ký vào đây</span>
           </div>
 
+          <div v-if="otpSent" class="otp-box" role="group" aria-labelledby="admin-sign-otp-label">
+            <label id="admin-sign-otp-label" for="admin-sign-otp">Mã OTP gồm 6 chữ số</label>
+            <input
+              id="admin-sign-otp"
+              v-model="otp"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              pattern="[0-9]*"
+              maxlength="6"
+              placeholder="Nhập 6 số OTP"
+              :aria-invalid="Boolean(otpError)"
+              aria-describedby="admin-sign-otp-help admin-sign-otp-error"
+              @input="normalizeOtpInput"
+              @keydown.enter.prevent="verifySignatureOtp"
+            />
+            <small id="admin-sign-otp-help">
+              OTP hết hạn lúc {{ formatDate(otpExpiresAt) }}. Mỗi lần gửi lại sẽ vô hiệu mã cũ.
+            </small>
+            <p v-if="otpError" id="admin-sign-otp-error" class="field-error" role="alert">{{ otpError }}</p>
+          </div>
+          <p v-else-if="otpError" id="admin-sign-otp-error" class="field-error" role="alert">{{ otpError }}</p>
+
           <div class="sign-actions">
-            <button class="btn ghost" type="button" @click="clearSignature">Ký lại</button>
-            <button class="btn primary" type="button" :disabled="signatureEmpty || !confirmed || saving" @click="submitSignature">
-              <AppIcon name="pencil" size="16" />
-              {{ saving ? 'Đang ký...' : 'Ký đại diện SportGo' }}
+            <button class="btn ghost" type="button" :disabled="saving" @click="clearSignature">Ký lại</button>
+            <button
+              v-if="otpSent"
+              class="btn ghost"
+              type="button"
+              :disabled="saving"
+              @click="requestSignatureOtp"
+            >
+              Gửi lại OTP
+            </button>
+            <button
+              v-if="!otpSent"
+              class="btn primary"
+              type="button"
+              :disabled="signatureEmpty || !confirmed || saving"
+              @click="requestSignatureOtp"
+            >
+              <AppIcon name="send" size="16" />
+              {{ saving ? 'Đang gửi OTP...' : 'Gửi OTP xác thực' }}
+            </button>
+            <button
+              v-else
+              class="btn primary"
+              type="button"
+              :disabled="otp.length !== 6 || saving"
+              @click="verifySignatureOtp"
+            >
+              <AppIcon name="check" size="16" />
+              {{ saving ? 'Đang xác thực...' : 'Xác thực và ký' }}
             </button>
           </div>
         </section>
@@ -139,6 +193,11 @@ const canvas = ref(null);
 const drawing = ref(false);
 const signatureEmpty = ref(true);
 const confirmed = ref(false);
+const otpSent = ref(false);
+const otp = ref('');
+const signingRequestId = ref('');
+const otpExpiresAt = ref(null);
+const otpError = ref('');
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isPartnerContract = computed(() => document.value?.document_type === 'partner_contract');
@@ -153,11 +212,17 @@ const canSign = computed(() => (
   isGeneratedDocument.value
   && isTwoPartyDocument.value
   && document.value?.status === 'pending_sportgo_signature'
+  && Boolean(document.value?.download_url)
   && !signatureBySide('sportgo')
 ));
-const confirmationText = computed(() => 'Tôi xác nhận đã kiểm tra toàn bộ nội dung hợp đồng, ký với vai trò đại diện SportGo/Admin được ủy quyền và chịu trách nhiệm về phiên bản văn bản đang hiển thị.');
+const confirmationText = computed(() => (
+  isPartnerContract.value
+    ? 'Tôi xác nhận đã kiểm tra toàn bộ nội dung hợp đồng, ký với vai trò đại diện SportGo/Admin được ủy quyền và chịu trách nhiệm về phiên bản văn bản đang hiển thị.'
+    : 'Tôi xác nhận đã kiểm tra toàn bộ nội dung phụ lục, ký với vai trò đại diện SportGo/Admin được ủy quyền và chịu trách nhiệm về phiên bản văn bản đang hiển thị.'
+));
 const readonlyHint = computed(() => {
   if (!isGeneratedDocument.value) return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
+  if (!document.value?.download_url) return 'File văn bản không còn tồn tại nên hệ thống đã khóa thao tác ký. Vui lòng tạo lại file trước khi tiếp tục.';
   if (document.value?.status === 'pending_owner_signature') return 'SportGo đã ký. Văn bản đang chờ người dùng ký xác nhận.';
   if (document.value?.status === 'completed') return 'Văn bản đã hoàn tất các chữ ký bắt buộc.';
   return 'Hiện chưa có thao tác ký dành cho admin trên văn bản này.';
@@ -166,17 +231,28 @@ const readonlyHint = computed(() => {
 onMounted(loadData);
 watch(() => [route.params.id, route.params.documentId, route.query.type], loadData);
 
+function goBack() {
+  if (route.query.from === 'venue-cluster' && route.query.clusterId) {
+    router.push({ name: 'admin-venue-cluster-detail', params: { id: route.query.clusterId } });
+    return;
+  }
+
+  router.push({ name: 'admin-partner-application-detail', params: { id: route.params.id } });
+}
+
 async function loadData() {
   loading.value = true;
   error.value = '';
   message.value = '';
+  resetOtpState();
+  confirmed.value = false;
 
   try {
     const response = await adminPartnerApplicationService.show(route.params.id);
     application.value = response.data;
     document.value = findDocument(application.value, route.params.documentId);
     if (!document.value) throw new Error('Không tìm thấy văn bản.');
-    if (document.value.source !== 'uploaded') {
+    if (document.value.source !== 'uploaded' && document.value.file_available !== false) {
       document.value.download_url = document.value.download_url || `/api/files/documents/${document.value.id}/download`;
     }
     await nextTick();
@@ -236,7 +312,7 @@ function pointerPosition(event) {
 }
 
 function startDraw(event) {
-  if (!canvas.value) return;
+  if (!canvas.value || otpSent.value) return;
   drawing.value = true;
   signatureEmpty.value = false;
   const context = canvas.value.getContext('2d');
@@ -246,7 +322,7 @@ function startDraw(event) {
 }
 
 function draw(event) {
-  if (!drawing.value || !canvas.value) return;
+  if (!drawing.value || !canvas.value || otpSent.value) return;
   const context = canvas.value.getContext('2d');
   const point = pointerPosition(event);
   context.lineTo(point.x, point.y);
@@ -260,6 +336,20 @@ function stopDraw() {
 function clearSignature() {
   prepareCanvas();
   confirmed.value = false;
+  resetOtpState();
+}
+
+function resetOtpState() {
+  otpSent.value = false;
+  otp.value = '';
+  signingRequestId.value = '';
+  otpExpiresAt.value = null;
+  otpError.value = '';
+}
+
+function normalizeOtpInput(event) {
+  otp.value = String(event.target?.value || '').replace(/\D/g, '').slice(0, 6);
+  otpError.value = '';
 }
 
 async function downloadCurrentDocument() {
@@ -276,31 +366,80 @@ async function downloadCurrentDocument() {
   }
 }
 
-async function submitSignature() {
+async function requestSignatureOtp() {
   if (!canvas.value || !document.value) return;
+
+  if (!document.value.download_url) {
+    otpError.value = 'File văn bản không còn tồn tại. Vui lòng tạo lại file trước khi ký.';
+    return;
+  }
 
   saving.value = true;
   error.value = '';
   message.value = '';
+  otpError.value = '';
 
   try {
-    const response = await adminPartnerApplicationService.signDocument(application.value.id, {
-      contract_id: document.value.partner_contract_id,
-      document_id: isPartnerContract.value ? undefined : document.value.id,
+    const response = await adminPartnerApplicationService.requestSignDocumentOtp(application.value.id, {
+      contract_id: isPartnerContract.value ? document.value.partner_contract_id : undefined,
+      document_id: document.value.id,
       signature_image: canvas.value.toDataURL('image/png'),
+      confirmed: confirmed.value,
+      confirmation_text: confirmationText.value,
     });
-    message.value = response.message || 'SportGo đã ký hợp đồng.';
-    await loadData();
+    signingRequestId.value = response.data?.signing_request_id || '';
+    otpExpiresAt.value = response.data?.expires_at || null;
+
+    if (!signingRequestId.value) {
+      throw new Error('Hệ thống không trả về mã giao dịch ký. Vui lòng thử lại.');
+    }
+
+    otpSent.value = true;
+    otp.value = '';
+    message.value = response.message || 'OTP đã được gửi đến email tài khoản admin.';
+    await nextTick();
+    globalThis.document?.getElementById('admin-sign-otp')?.focus();
   } catch (err) {
-    error.value = err.message || 'Không lưu được chữ ký.';
+    otpError.value = err.message || 'Không gửi được OTP ký văn bản.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function verifySignatureOtp() {
+  if (!signingRequestId.value) {
+    otpError.value = 'Không tìm thấy giao dịch ký. Vui lòng gửi lại OTP.';
+    return;
+  }
+
+  if (otp.value.length !== 6) {
+    otpError.value = 'Vui lòng nhập đủ 6 chữ số OTP.';
+    return;
+  }
+
+  saving.value = true;
+  error.value = '';
+  message.value = '';
+  otpError.value = '';
+
+  try {
+    const response = await adminPartnerApplicationService.verifySignDocumentOtp(application.value.id, {
+      signing_request_id: signingRequestId.value,
+      otp: otp.value,
+    });
+    const successMessage = response.message || 'SportGo đã ký văn bản bằng OTP.';
+    await loadData();
+    message.value = successMessage;
+  } catch (err) {
+    otpError.value = err.message || 'Không xác thực được OTP ký văn bản.';
   } finally {
     saving.value = false;
   }
 }
 
 function documentTypeLabel(type) {
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
@@ -370,9 +509,21 @@ dd { margin: 0; color: #0f172a; font-weight: 800; overflow-wrap: anywhere; }
 .otp-log-grid dd { font-weight: 750; }
 .confirm-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 0; color: #334155; font-size: 13px; font-weight: 750; line-height: 1.45; }
 .confirm-line input { margin-top: 2px; width: 16px; height: 16px; accent-color: #0f172a; }
+.sign-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.sign-steps span { border: 1px solid #dbe7df; border-radius: 999px; background: #f8fafc; color: #64748b; padding: 5px 9px; font-size: 12px; font-weight: 800; }
+.sign-steps span.done { border-color: #86efac; background: #f0fdf4; color: #166534; }
 .canvas-wrap { position: relative; border: 1px dashed #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; }
+.canvas-wrap.locked { background: #f8fafc; opacity: .78; }
+.canvas-wrap.locked canvas { cursor: not-allowed; }
 canvas { display: block; width: 100%; height: 190px; touch-action: none; cursor: crosshair; }
 .canvas-wrap span { position: absolute; inset: 0; display: grid; place-items: center; color: #cbd5e1; font-weight: 800; pointer-events: none; }
+.otp-box { display: grid; gap: 8px; margin-top: 12px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; padding: 12px; }
+.otp-box label { color: #14532d; font-size: 13px; font-weight: 850; }
+.otp-box input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid #86efac; border-radius: 8px; background: #fff; color: #0f172a; padding: 0 12px; font: inherit; font-size: 18px; font-weight: 800; letter-spacing: .24em; }
+.otp-box input:focus { border-color: #16a34a; outline: 3px solid rgba(34, 197, 94, .16); }
+.otp-box input[aria-invalid="true"] { border-color: #ef4444; }
+.otp-box small { color: #475569; font-size: 12px; line-height: 1.45; }
+.field-error { margin: 10px 0 0 !important; color: #b91c1c !important; font-weight: 750; }
 .sign-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 0 13px; font-weight: 800; border: 1px solid transparent; cursor: pointer; text-decoration: none; }
 .btn.primary { background: #0f172a; color: #fff; }

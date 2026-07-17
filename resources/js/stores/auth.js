@@ -47,6 +47,10 @@ function readOldAuth() {
   return readJson(OLD_AUTH_KEY, null);
 }
 
+function shouldClearAuthForError(error) {
+  return [401, 419, 423].includes(Number(error?.status));
+}
+
 export function saveAuth(payload) {
   const authData = normalizeAuth(payload, getToken());
 
@@ -103,8 +107,10 @@ export async function restoreAuth() {
   try {
     const payload = await authService.me();
     return saveAuth({ ...payload, token: currentToken });
-  } catch {
-    clearAuth();
+  } catch (err) {
+    if (shouldClearAuthForError(err)) {
+      clearAuth();
+    }
     return null;
   }
 }
@@ -116,8 +122,10 @@ export async function restoreAdminAuth() {
   try {
     const payload = await adminAuthService.me();
     return saveAuth({ ...payload, token: currentToken });
-  } catch {
-    clearAuth();
+  } catch (err) {
+    if (shouldClearAuthForError(err)) {
+      clearAuth();
+    }
     return null;
   }
 }
@@ -189,20 +197,33 @@ export function resetAdminPassword(identifier, otp, password, password_confirmat
 }
 
 export async function consumeGoogleCallback(query) {
-  if (!query.token) return null;
+  let payload = null;
 
-  if (query.needs_password_setup === '1') {
+  if (query.code) {
+    payload = await authService.googleExchange(query.code);
+  } else if (query.token) {
+    payload = {
+      token: query.token,
+      role_group: query.role_group || 'user',
+      redirect_to: query.redirect_to || '/',
+      needs_password_setup: query.needs_password_setup || '0',
+    };
+  }
+
+  if (!payload?.token) return null;
+
+  if (payload.needs_password_setup === '1') {
     localStorage.setItem(PW_SETUP_KEY, '1');
   } else {
     localStorage.removeItem(PW_SETUP_KEY);
   }
 
   saveAuth({
-    token: query.token,
+    token: payload.token,
     user: {},
-    roles: [],
-    role_group: query.role_group || 'user',
-    redirect_to: query.redirect_to || '/',
+    roles: payload.roles || [],
+    role_group: payload.role_group || 'user',
+    redirect_to: payload.redirect_to || '/',
   });
 
   return restoreAuth();

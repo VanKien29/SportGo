@@ -13,11 +13,21 @@ class SystemPostController extends Controller
      */
     public function index(Request $request)
     {
+        $categoryAliases = [
+            'announcement' => ['announcement', 'Thông báo'],
+            'guide' => ['guide', 'Hướng dẫn'],
+            'news' => ['news', 'Tin tức'],
+            'event' => ['event', 'Sự kiện'],
+        ];
+        $requestedCategory = (string) $request->category;
+        $categoryValues = $categoryAliases[$requestedCategory] ?? ($requestedCategory !== '' ? [$requestedCategory] : []);
+
         $posts = SystemPost::query()
             ->select(['id', 'title', 'slug', 'short_description', 'category', 'thumbnail_path', 'published_at', 'view_count'])
             ->where('status', 'published')
             ->when($request->keyword, fn ($query) => $query->where('title', 'like', "%{$request->keyword}%"))
-            ->when($request->category, fn ($query) => $query->where('category', $request->category))
+            ->when($categoryValues, fn ($query) => $query->whereIn('category', $categoryValues))
+            ->when($request->user_id, fn ($query) => $query->where('author_id', $request->user_id))
             ->orderByDesc('published_at')
             ->paginate($request->integer('per_page', 15));
 

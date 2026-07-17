@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('booking_configs', function (Blueprint $table) {
-            $table->char('venue_cluster_id', 36)->primary();
+            $table->unsignedBigInteger('venue_cluster_id')->primary();
             $table->unsignedInteger('min_duration_minutes')->default(30);
             $table->unsignedInteger('max_duration_minutes')->nullable();
             $table->unsignedInteger('slot_hold_minutes')->default(20);

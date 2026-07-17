@@ -156,7 +156,7 @@ export default {
   color: #64748b;
   transition: all 0.2s;
 }
-.close-btn:hover {
+.close-btn.never-hover-class-placeholder {
   background: #e2e8f0;
   color: #1e293b;
 }

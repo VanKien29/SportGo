@@ -21,7 +21,8 @@ class VenueClusterController extends Controller
 
         if ($request->boolean('compact')) {
             $clusters = VenueCluster::query()
-                ->select(['id', 'name'])
+                ->select(['id', 'name', 'status', 'status_reason'])
+                ->withCount(['venueCourts as court_count'])
                 ->whereIn('id', $clusterIds)
                 ->orderBy('name')
                 ->get();
@@ -31,6 +32,7 @@ class VenueClusterController extends Controller
 
         $clusters = VenueCluster::query()
             ->with(['media', 'amenityCatalog'])
+            ->withCount(['venueCourts as court_count'])
             ->whereIn('id', $clusterIds)
             ->latest()
             ->get();
@@ -202,7 +204,6 @@ class VenueClusterController extends Controller
         $path = $request->file('image')->store('clusters', 'public');
 
         $media = \App\Models\Media::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
             'mediable_type' => VenueCluster::class,
             'mediable_id' => $cluster->id,
             'collection' => 'gallery',

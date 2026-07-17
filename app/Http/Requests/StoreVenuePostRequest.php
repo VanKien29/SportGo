@@ -17,14 +17,24 @@ class StoreVenuePostRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'venue_cluster_id' => [
+        $venueClusterIdRule = ['nullable', 'integer', \Illuminate\Validation\Rule::exists('venue_clusters', 'id')];
+        if ($this->user() && $this->user()->role_group === 'owner') {
+            $venueClusterIdRule = [
                 'required', 
-                'uuid', 
+                'integer', 
                 \Illuminate\Validation\Rule::exists('venue_clusters', 'id')->where(function ($query) {
                     $query->where('owner_id', $this->user()->id);
                 })
-            ],
+            ];
+        }
+
+        $thumbnailRule = ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'];
+        if ($this->user() && $this->user()->role_group === 'owner') {
+            $thumbnailRule[0] = 'required';
+        }
+
+        return [
+            'venue_cluster_id' => $venueClusterIdRule,
             'title' => [
                 'required',
                 'string',
@@ -50,26 +60,15 @@ class StoreVenuePostRequest extends FormRequest
                     if (mb_strlen($value) > 30000) {
                         $fail('Nội dung quá dài, tối đa 30000 ký tự.');
                     }
-                    // Prevent XSS, script injection, iframe
-                    if (preg_match('/<script\b[^>]*>(.*?)<\/script>/is', $value)) {
-                        $fail('Nội dung chứa mã script không hợp lệ.');
-                    }
-                    if (preg_match('/<iframe\b[^>]*>(.*?)<\/iframe>/is', $value)) {
-                        $fail('Nội dung chứa iframe không hợp lệ.');
-                    }
-                    if (preg_match('/on\w+\s*=/i', $value)) {
-                        $fail('Nội dung chứa thuộc tính HTML độc hại (event handler).');
-                    }
-                    if (preg_match('/javascript:/i', $value)) {
-                        $fail('Nội dung chứa liên kết javascript độc hại.');
-                    }
                 },
             ],
             'meta_title' => ['nullable', 'string', 'max:255', 'regex:/^[^\<\>]+$/u'],
             'meta_description' => ['nullable', 'string', 'max:500', 'regex:/^[^\<\>]+$/u'],
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
-            'thumbnail' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'thumbnail' => $thumbnailRule,
+            'gallery' => ['nullable', 'array', 'max:10'],
+            'gallery.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'post_type' => ['required', 'string', 'in:promotion,tournament,news,notice,recruitment'],
             'is_draft' => ['nullable', 'boolean']
         ];
@@ -77,10 +76,22 @@ class StoreVenuePostRequest extends FormRequest
 
     public function prepareForValidation()
     {
+        $merged = [];
         if ($this->has('title')) {
-            $this->merge([
-                'title' => trim($this->title),
-            ]);
+            $merged['title'] = trim(strip_tags($this->title));
+        }
+        if ($this->has('short_description')) {
+            $merged['short_description'] = trim(strip_tags($this->short_description));
+        }
+        if ($this->has('meta_title')) {
+            $merged['meta_title'] = trim(strip_tags($this->meta_title));
+        }
+        if ($this->has('meta_description')) {
+            $merged['meta_description'] = trim(strip_tags($this->meta_description));
+        }
+        
+        if (!empty($merged)) {
+            $this->merge($merged);
         }
     }
 }

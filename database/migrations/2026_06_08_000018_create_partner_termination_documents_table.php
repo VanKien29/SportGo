@@ -14,13 +14,13 @@ return new class extends Migration
 
         Schema::create('partner_termination_documents', function (Blueprint $table): void {
             $table->id();
-            $table->char('partner_termination_request_id', 36);
-            $table->char('generated_document_id', 36)->nullable();
+            $table->unsignedBigInteger('partner_termination_request_id');
+            $table->unsignedBigInteger('generated_document_id')->nullable();
             $table->enum('document_type', ['owner_termination_request', 'mutual_liquidation_minutes', 'unilateral_notice', 'settlement_minutes', 'final_termination_file']);
-            $table->char('media_id', 36)->nullable();
+            $table->unsignedBigInteger('media_id')->nullable();
             $table->string('file_path', 1000)->nullable();
             $table->enum('status', ['generated', 'pending_signature', 'signed', 'completed', 'cancelled'])->default('generated');
-            $table->char('generated_by', 36)->nullable();
+            $table->unsignedBigInteger('generated_by')->nullable();
             $table->timestamp('generated_at')->nullable();
             $table->timestamps();
 

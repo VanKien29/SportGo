@@ -14,179 +14,266 @@
     </div>
 
     <!-- Content -->
-    <div v-else-if="venue" class="venue-content">
+    <template v-else-if="venue">
+        <section class="hero-band">
+          <div class="detail-container">
+            <router-link class="venue-back-link" :to="{ name: 'venues', query: searchQuery }">
+              <AppIcon name="chevronLeft" size="16" />
+              Quay lại tìm sân
+            </router-link>
+            <nav class="breadcrumbs" aria-label="Duong dan">
+              <router-link :to="{ name: 'home' }">Trang chủ</router-link>
+              <span>/</span>
+              <router-link :to="{ name: 'venues', query: searchQuery }">Tìm sân</router-link>
+              <span>/</span>
+              <strong>{{ venue.name }}</strong>
+            </nav>
 
-      <!-- ─── Hero ─── -->
-      <div class="hero">
-        <!-- Gallery -->
-        <div class="hero-gallery">
-          <div class="gallery-main">
-            <img
-              v-if="activeImage"
-              :src="activeImage"
-              :alt="venue.name"
-              class="gallery-main-img"
-              @error="onImgError"
+            <div class="hero-grid">
+              <div class="gallery">
+                <div class="gallery-main">
+                  <img v-if="activeImage" :src="activeImage" :alt="venue.name" @error="removeGalleryImage(activeImage)" />
+                  <div v-else class="gallery-empty">
+                    <span><AppIcon name="image" size="34" /></span>
+                    <strong>{{ initials(venue.name) }}</strong>
+                    <small>Hình ảnh đang được cập nhật</small>
+                  </div>
+                </div>
+                <div v-if="gallery.length > 1" class="gallery-thumbs">
+                  <button
+                    v-for="image in gallery"
+                    :key="image"
+                    type="button"
+                    :class="{ active: image === activeImage }"
+                    @click="activeImage = image"
+                  >
+                    <img :src="image" :alt="venue.name" @error="removeGalleryImage(image)" />
+                  </button>
+                </div>
+              </div>
+
+              <div class="hero-copy">
+                <div class="type-row">
+                  <span v-for="type in courtTypes" :key="type.id">{{ type.name }}</span>
+                  <span v-if="!courtTypes.length">Đa môn</span>
+                </div>
+                <h1>{{ venue.name }}</h1>
+                <p class="address">{{ fullAddress }}</p>
+
+                <div class="hero-stats">
+                  <div>
+                    <strong>{{ courtCount }}</strong>
+                    <span>Sân hoạt động</span>
+                  </div>
+                  <div>
+                    <strong>{{ ratingLabel }}</strong>
+                    <span>{{ ratingCountLabel }}</span>
+                  </div>
+                  <div>
+                    <strong>{{ priceLabel }}</strong>
+                    <span>Giá tham khảo</span>
+                  </div>
+                </div>
+
+                <div class="hero-actions">
+                  <button type="button" class="primary-action" @click="scrollToBooking">
+                    <AppIcon name="calendar" size="17" />
+                    Chọn lịch trống
+                  </button>
+                  <button type="button" class="ghost-action" @click="chatWithVenue">
+                    <AppIcon name="messageSquare" size="17" />
+                    Nhắn tin
+                  </button>
+                  <router-link class="ghost-action" :to="{ name: 'venues', query: searchQuery }">
+                    <AppIcon name="search" size="17" />
+                    Đổi sân
+                  </router-link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <nav class="detail-container venue-tabs" aria-label="Nội dung chi tiết sân">
+          <button
+            v-for="tab in venueTabs"
+            :key="tab.id"
+            type="button"
+            :class="{ active: activeTab === tab.id }"
+            :aria-pressed="activeTab === tab.id"
+            @click="setActiveTab(tab.id)"
+          >
+            <AppIcon :name="tab.icon" :size="17" />
+            {{ tab.label }}
+            <span v-if="tab.id === 'reviews' && reviewCount">{{ reviewCount }}</span>
+          </button>
+        </nav>
+
+        <section class="detail-container detail-layout">
+          <div class="detail-main">
+            <section v-if="activeTab === 'overview' && venue.description" class="detail-section">
+              <h2>Thông tin sân</h2>
+              <p class="description">{{ venue.description }}</p>
+            </section>
+
+            <section v-if="activeTab === 'overview' && amenities.length" class="detail-section">
+              <h2>Tiện ích</h2>
+              <div class="amenity-grid">
+                <article v-for="amenity in amenities" :key="amenity.id || amenity.name" class="amenity-item">
+                  <strong>{{ amenity.name || amenity }}</strong>
+                  <span v-if="amenity.description">{{ amenity.description }}</span>
+                </article>
+              </div>
+            </section>
+
+            <section v-if="activeTab === 'courts' && courtGroups.length" class="detail-section">
+              <h2>Loại sân và sân con</h2>
+              <div class="court-groups">
+                <article v-for="group in courtGroups" :key="group.typeId" class="court-group">
+                  <div>
+                    <h3>{{ group.typeName }}</h3>
+                    <span>{{ group.courts.length }} sân</span>
+                  </div>
+                  <p>{{ group.courts.map((court) => court.name).join(", ") }}</p>
+                </article>
+              </div>
+            </section>
+
+          <!-- On-site Services & Products -->
+          <section v-if="activeTab === 'overview' && groupedServices.length" class="detail-section">
+            <h2 class="section-title">Dịch vụ & Sản phẩm tại sân</h2>
+            <div class="services-by-category-container">
+              <div v-for="group in groupedServices" :key="group.key" class="service-category-block">
+                <h3 class="service-category-label">
+                  {{ group.label }}
+                </h3>
+                <div class="services-list-grid">
+                  <div v-for="item in group.items" :key="item.id" class="service-product-item">
+                    <div class="product-copy">
+                      <span class="product-name">{{ item.name }}</span>
+                      <span v-if="item.description" class="product-desc">{{ item.description }}</span>
+                    </div>
+                    <div class="product-value">
+                      <span class="product-price">{{ formatPrice(item.price) }}</span>
+                      <span class="product-unit">/ {{ item.unit }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+            <section v-if="activeTab === 'courts'" class="detail-section">
+              <h2>Chính sách sân</h2>
+              <div class="policy-grid">
+                <article v-for="policy in policies" :key="policy.label">
+                  <strong>{{ policy.label }}</strong>
+                  <span>{{ policy.value }}</span>
+                </article>
+              </div>
+            </section>
+
+            <section v-if="activeTab === 'courts' && (basePrices.length || priceSlots.length || holidayPrices.length)" class="detail-section">
+              <h2>Bảng giá</h2>
+              <div class="price-list">
+                <article v-for="price in basePrices" :key="`base-${price.id}`">
+                  <span>{{ price.court_type?.name || "Tất cả loại sân" }}</span>
+                  <strong>{{ formatCurrency(price.price) }}/giờ</strong>
+                </article>
+                <article v-for="slot in priceSlots" :key="`slot-${slot.id}`">
+                  <span>{{ slot.court_type?.name || "Tất cả loại sân" }} · {{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
+                  <strong>{{ formatCurrency(slot.price) }}/giờ</strong>
+                </article>
+                <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="holiday-price-item">
+                  <span>
+                    Giá ngày {{ formatDate(holiday.holiday_date) }} · {{ holiday.court_type?.name || "Tất cả loại sân" }}
+                    <small v-if="holiday.note">{{ holiday.note }}</small>
+                  </span>
+                  <strong>{{ formatCurrency(holiday.price) }}/giờ</strong>
+                </article>
+              </div>
+            </section>
+
+            <VenuePostsTab
+              v-if="activeTab === 'posts'"
+              :venue-id="venue.id"
+              :venue-name="venue.name"
             />
-            <div v-else class="gallery-placeholder">
-              <span>{{ (venue.name || '').slice(0, 2).toUpperCase() }}</span>
-            </div>
-          </div>
-          <div class="gallery-thumbs" v-if="gallery.length > 1">
-            <button
-              v-for="(img, i) in gallery"
-              :key="i"
-              :class="['thumb-btn', { active: activeImage === img }]"
-              @click="activeImage = img"
-            >
-              <img :src="img" :alt="`Ảnh ${i + 1}`" @error="e => e.target.parentNode.style.display='none'" />
-            </button>
-          </div>
-        </div>
 
-        <!-- Hero Info -->
-        <div class="hero-info">
+            <section v-if="activeTab === 'reviews'" class="detail-section">
+              <h2>Đánh giá</h2>
+              <p v-if="reviews.length && reviewCount > reviews.length" class="review-preview-note">
+                Hiển thị {{ reviews.length }} đánh giá gần nhất trong tổng số {{ reviewCount }} lượt.
+              </p>
+              <div v-if="reviews.length" class="review-list">
+                <article v-for="review in reviews" :key="review.id" class="review-item">
+                  <div>
+                    <strong>{{ review.author_name || "Khách hàng" }}</strong>
+                    <span>{{ Number(review.rating || 0).toFixed(1) }} ★</span>
+                  </div>
+                  <p v-if="review.content">{{ review.content }}</p>
+                  <small v-if="review.created_at">{{ formatDate(review.created_at) }}</small>
+                  <div v-if="review.reply_content" class="review-reply">
+                    <strong>Phản hồi từ sân</strong>
+                    <p>{{ review.reply_content }}</p>
+                  </div>
+                </article>
+              </div>
+              <p v-else class="muted-text">Sân chưa có đánh giá công khai.</p>
+            </section>
 
-          <div class="court-type-badges" v-if="venue.court_types?.length">
-            <span v-for="ct in venue.court_types" :key="ct.id" class="type-badge">{{ ct.name }}</span>
-          </div>
-
-          <h1 class="venue-name">{{ venue.name }}</h1>
-
-          <div class="venue-meta">
-            <div class="meta-item" v-if="venue.address">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-              </svg>
-              {{ venue.address }}
-            </div>
-            <div class="meta-item" v-if="venue.phone_contact">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6 6l.86-.86a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/>
-              </svg>
-              {{ venue.phone_contact }}
-            </div>
-            <div class="meta-item" v-if="venue.rating_count > 0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-              {{ venue.rating_avg?.toFixed(1) }} ({{ venue.rating_count }} đánh giá)
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ─── Main Layout ─── -->
-      <div class="main-layout">
-
-        <!-- LEFT: Detail Sections -->
-        <div class="detail-col">
-
-          <!-- Description -->
-          <section class="detail-section" v-if="venue.description">
-            <h2 class="section-title">Giới thiệu</h2>
-            <p class="description-text">{{ venue.description }}</p>
-          </section>
-
-          <!-- Amenities -->
-          <section class="detail-section" v-if="amenities.length">
-            <h2 class="section-title">Tiện ích</h2>
-            <div class="amenity-grid">
-              <div v-for="amenity in amenities" :key="amenity.id" class="amenity-item">
+            <section v-if="activeTab === 'location' && (mapEmbedUrl || mapExternalUrl)" class="detail-section">
+              <h2>Vị trí</h2>
+              <div class="location-summary">
                 <div>
-                  <span class="amenity-name">{{ amenity.name }}</span>
-                  <span v-if="amenity.description" class="amenity-desc">{{ amenity.description }}</span>
+                  <span class="location-icon"><AppIcon name="mapPin" size="19" /></span>
+                  <p>{{ fullAddress }}</p>
                 </div>
+                <a v-if="mapExternalUrl" :href="mapExternalUrl" target="_blank" rel="noopener noreferrer">
+                  Mở Google Maps
+                  <AppIcon name="externalLink" size="15" />
+                </a>
+                <a v-if="phoneUrl" :href="phoneUrl">
+                  Gọi {{ venue.phone_contact }}
+                </a>
               </div>
-            </div>
-          </section>
-
-          <!-- Court Types & Courts -->
-          <section class="detail-section" v-if="venue.venue_courts?.length">
-            <h2 class="section-title">Danh sách sân</h2>
-            <div class="courts-by-type" v-for="group in courtGroups" :key="group.typeId">
-              <h3 class="court-type-label">{{ group.typeName }}</h3>
-              <div class="court-chips">
-                <span v-for="court in group.courts" :key="court.id" class="court-chip">
-                  {{ court.name }}
-                </span>
-              </div>
-            </div>
-          </section>
-
-          <!-- Pricing -->
-          <section class="detail-section" v-if="priceSlots.length || basePrices.length">
-            <h2 class="section-title">Bảng giá</h2>
-
-            <!-- Base Prices -->
-            <div v-if="basePrices.length" class="price-block">
-              <p class="price-block-label">Giá cơ bản (áp dụng khi không có khung giờ)</p>
-              <div class="price-table">
-                <div class="price-row header-row">
-                  <span>Loại sân</span>
-                  <span>Giá / giờ</span>
-                </div>
-                <div v-for="bp in basePrices" :key="bp.id" class="price-row">
-                  <span>{{ bp.court_type?.name || 'Tất cả' }}</span>
-                  <span class="price-val">{{ formatPrice(bp.price) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Time-based Price Slots -->
-            <div v-if="priceSlots.length" class="price-block">
-              <p class="price-block-label">Giá theo khung giờ</p>
-              <div class="price-table">
-                <div class="price-row header-row">
-                  <span>Loại sân</span>
-                  <span>Khung giờ</span>
-                  <span>Ngày</span>
-                  <span>Giá / giờ</span>
-                </div>
-                <div v-for="slot in priceSlots" :key="slot.id" class="price-row">
-                  <span>{{ slot.court_type?.name || 'Tất cả' }}</span>
-                  <span>{{ slot.start_time?.slice(0,5) }} – {{ slot.end_time?.slice(0,5) }}</span>
-                  <span>{{ formatDays(slot.days_of_week) }}</span>
-                  <span class="price-val">{{ formatPrice(slot.price) }}</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Map -->
-          <section class="detail-section" v-if="venue.map_url || (venue.latitude && venue.longitude)">
-            <h2 class="section-title">Vị trí</h2>
-            <div class="map-embed-wrapper">
               <iframe
                 v-if="mapEmbedUrl"
+                class="map-frame"
                 :src="mapEmbedUrl"
-                class="map-iframe"
-                allowfullscreen=""
+                :title="`Bản đồ ${venue.name}`"
                 loading="lazy"
                 referrerpolicy="no-referrer-when-downgrade"
               ></iframe>
-              <div v-else class="map-text">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
-                {{ venue.address }}
-              </div>
-            </div>
-          </section>
+            </section>
 
-        </div>
+            <section v-if="activeTab === 'overview' && !venue.description && !amenities.length && !groupedServices.length" class="detail-section detail-empty-section">
+              <AppIcon name="fileText" :size="26" />
+              <h2>Thông tin đang được cập nhật</h2>
+              <p class="muted-text">Bạn vẫn có thể xem sân, bảng giá và lịch trống để đặt ngay.</p>
+            </section>
 
-        <!-- RIGHT: Sticky Booking Panel -->
-        <div class="booking-col" ref="bookingPanelRef">
-          <div class="booking-panel" id="booking-panel">
-            <div class="booking-panel-header">
-              <span class="panel-title">Đặt sân tại đây</span>
-              <span class="panel-price" v-if="venue.min_price">
-                Từ {{ formatPrice(venue.min_price) }}<span class="panel-price-unit">/giờ</span>
-              </span>
-            </div>
+            <section v-if="activeTab === 'location' && !mapEmbedUrl && !mapExternalUrl" class="detail-section detail-empty-section">
+              <AppIcon name="mapPin" :size="26" />
+              <h2>Vị trí đang được cập nhật</h2>
+              <p class="muted-text">Hãy nhắn tin với cụm sân để được hướng dẫn đường đi.</p>
+            </section>
+          </div>
 
+          <aside class="booking-panel" ref="bookingPanelRef">
             <div class="booking-form">
+              <header class="booking-panel-header">
+                <span><AppIcon name="calendar" size="16" /> Đặt sân nhanh</span>
+                <strong>{{ priceLabel }}</strong>
+                <p>Chọn ngày và khung giờ còn trống trước khi xác nhận.</p>
+              </header>
+
+              <div class="booking-flow">
+                <span class="active">1. Chọn ngày</span>
+                <span>2. Xem lịch</span>
+                <span>3. Xác nhận</span>
+              </div>
+
               <div class="bform-group">
                 <label class="bform-label" for="bp-date">Ngày chơi</label>
                 <input
@@ -198,168 +285,469 @@
                 />
               </div>
 
-              <div class="bform-group" v-if="courtTypes.length > 1">
-                <label class="bform-label" for="bp-type">Loại sân</label>
-                <select id="bp-type" v-model="bookCourtType" class="bform-input">
+              <label v-if="courtTypes.length" class="bform-group">
+                <span class="bform-label">Loại sân</span>
+                <select v-model="bookCourtType" class="bform-input">
                   <option value="">Tất cả loại sân</option>
-                  <option v-for="ct in courtTypes" :key="ct.id" :value="ct.id">{{ ct.name }}</option>
+                  <option v-for="type in courtTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
                 </select>
-              </div>
+              </label>
+
+              <section class="mini-schedule" aria-label="Lịch trống nhanh">
+                <div class="mini-schedule-head">
+                  <div>
+                    <strong>Lịch trống nhanh</strong>
+                    <span v-if="!previewLoading && !previewError">
+                      {{ previewAvailableCourtCount }} sân còn lịch
+                    </span>
+                  </div>
+                </div>
+
+                <div v-if="previewLoading" class="mini-schedule-state">
+                  Đang kiểm tra lịch...
+                </div>
+                <div v-else-if="previewError" class="mini-schedule-state error">
+                  {{ previewError }}
+                </div>
+                <div v-else-if="miniScheduleSlots.length" class="mini-slot-list">
+                  <button
+                    v-for="slot in miniScheduleSlots"
+                    :key="slot.start_time"
+                    type="button"
+                    :disabled="slot.available_count === 0 || slot.is_past"
+                    :class="{
+                      full: slot.available_count === 0,
+                      past: slot.is_past,
+                    }"
+                    @click="goToBooking(slot)"
+                  >
+                    <strong>{{ shortTime(slot.start_time) }}</strong>
+                    <span v-if="slot.is_past">Đã qua</span>
+                    <span v-else-if="slot.available_count > 0">
+                      {{ slot.available_count }}/{{ slot.total_count }} sân trống
+                    </span>
+                    <span v-else>Đã kín</span>
+                  </button>
+                </div>
+                <div v-else class="mini-schedule-state">
+                  {{ miniScheduleEmptyMessage }}
+                </div>
+              </section>
 
               <button
                 id="btn-view-schedule"
                 class="btn-primary btn-full"
                 :disabled="!bookDate"
-                @click="goToBooking"
+                @click="goToBooking()"
               >
-                Xem lịch trống &amp; Đặt sân
+                <AppIcon name="calendar" size="17" />
+                Xem toàn bộ lịch &amp; đặt sân
               </button>
 
               <button
-                class="btn-outline btn-full flex items-center justify-center gap-2"
-                style="margin-top: 10px; display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; font-weight: 500;"
-                @click="chatWithOwner"
+                class="btn-outline btn-full chat-action"
+                @click="chatWithVenue"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-                Nhắn tin hỏi chủ sân
+                <AppIcon name="messageSquare" size="17" />
+                Nhắn tin với cụm sân
               </button>
 
               <p class="panel-note">Chọn ngày để xem khung giờ còn trống</p>
             </div>
 
-            <!-- Quick Stats in Panel -->
-            <div class="panel-info-list">
-              <div class="panel-info-item" v-if="venue.booking_config?.allow_no_prepay">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Có thể đặt không cần trả trước
+              <div class="support-actions" aria-label="Hỗ trợ và an toàn">
+                <button type="button" @click="openComplaint">
+                  <AppIcon name="messageWarning" size="16" />
+                  Khiếu nại sân
+                </button>
+                <button type="button" @click="openReport">
+                  <AppIcon name="alert" size="16" />
+                  Báo cáo sân
+                </button>
               </div>
-              <div class="panel-info-item" v-if="venue.booking_config?.allow_deposit">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Hỗ trợ đặt cọc giữ chỗ
-              </div>
-              <div class="panel-info-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                {{ venue.court_count || venue.venue_courts?.length || 0 }} sân đang hoạt động
-              </div>
-            </div>
-          </div>
-        </div>
+          </aside>
+        </section>
+      </template>
 
-      </div>
-    </div>
+    <ComplaintModal
+      :is-open="showComplaintModal"
+      initial-type="venue"
+      :initial-venue-id="venue?.id || ''"
+      :initial-venue-name="venue?.name || ''"
+      @close="showComplaintModal = false"
+      @success="onComplaintSuccess"
+    />
+    <ReportModal
+      :is-open="showReportModal"
+      target-type="venue"
+      :target-id="venue?.id || ''"
+      :target-name="venue?.name || ''"
+      @close="showReportModal = false"
+      @success="onReportSuccess"
+    />
   </div>
 </template>
 
 <script>
-import PublicNavbar from '../../components/PublicNavbar.vue';
-import { venueService } from '../../services/venues.js';
-
-const DAY_NAMES = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+import PublicNavbar from "../../components/PublicNavbar.vue";
+import AppIcon from "../../components/AppIcon.vue";
+import ComplaintModal from "../../components/ComplaintModal.vue";
+import ReportModal from "../../components/ReportModal.vue";
+import VenuePostsTab from "../../components/VenuePostsTab.vue";
+import { venueService } from "../../services/venues.js";
+import { getAuth } from "../../stores/auth.js";
+import { useToast } from "vue-toastification";
 
 export default {
-  name: 'VenueDetail',
-  components: { PublicNavbar },
-
+  name: "VenueDetail",
+  components: { PublicNavbar, AppIcon, ComplaintModal, ReportModal, VenuePostsTab },
+  setup() {
+    return { toast: useToast() };
+  },
   data() {
     return {
       venue: null,
       loading: true,
-      error: null,
-
+      error: "",
       gallery: [],
-      activeImage: null,
-
+      activeImage: "",
       bookDate: this.todayStr(),
       bookCourtType: '',
+      showReportModal: false,
+      showActionMenu: false,
+      reportForm: {
+        reason: 'other',
+        content: ''
+      },
+      isSubmittingReport: false,
+      toastMessage: null,
+      toastType: 'success'
     };
   },
-
   computed: {
-    amenities() {
-      return this.venue?.amenities_detail || this.venue?.amenities || [];
+    searchQuery() {
+      const query = { ...this.$route.query };
+      delete query.id;
+      delete query.tab;
+      return query;
     },
-
+    amenities() {
+      return this.venue?.amenities_detail?.length ? this.venue.amenities_detail : (this.venue?.amenities || []);
+    },
     courtTypes() {
       return this.venue?.court_types || [];
     },
-
+    courtTypeSummary() {
+      const names = this.courtTypes.map((type) => type.name).filter(Boolean);
+      return names.length ? names.slice(0, 3).join(", ") : "Đa môn";
+    },
+    courtCount() {
+      return Number(this.venue?.court_count || this.venue?.venue_courts?.length || 0);
+    },
+    fullAddress() {
+      return [this.venue?.address, this.venue?.ward, this.venue?.province].filter(Boolean).join(", ") || "Đang cập nhật địa chỉ";
+    },
+    ratingLabel() {
+      const rating = Number(this.venue?.rating_avg || 0);
+      return rating > 0 ? `${rating.toFixed(1)} ★` : "Mới";
+    },
+    ratingCountLabel() {
+      const count = Number(this.venue?.rating_count || 0);
+      return count > 0 ? `${count.toLocaleString('vi-VN')} lượt đánh giá` : 'Chưa có đánh giá';
+    },
+    priceLabel() {
+      return this.venue?.min_price ? `Từ ${this.formatCurrency(this.venue.min_price)}/giờ` : "Liên hệ giá";
+    },
     courtGroups() {
-      const courts = this.venue?.venue_courts || [];
       const groups = {};
-      courts.forEach(court => {
-        const typeId = court.court_type?.id || 'other';
-        const typeName = court.court_type?.name || 'Khác';
+      (this.venue?.venue_courts || []).forEach((court) => {
+        const typeId = court.court_type?.id || "other";
+        const typeName = court.court_type?.name || "Khác";
         if (!groups[typeId]) groups[typeId] = { typeId, typeName, courts: [] };
         groups[typeId].courts.push(court);
       });
       return Object.values(groups);
     },
 
+    groupedServices() {
+      const services = this.venue?.services || [];
+      const groups = {};
+      
+      services.forEach(item => {
+        const catId = item.category_id || 'other';
+        const catName = item.category?.name || 'Dịch vụ khác';
+        if (!groups[catId]) {
+          groups[catId] = {
+            key: catId,
+            label: catName,
+            items: []
+          };
+        }
+        groups[catId].items.push(item);
+      });
+      
+      return Object.values(groups);
+    },
+
     priceSlots() {
       return this.venue?.price_slots || [];
     },
-
+    holidayPrices() {
+      return this.venue?.holiday_prices || [];
+    },
     basePrices() {
       return this.venue?.base_prices || [];
     },
+    policies() {
+      const policy = this.venue?.policies || {};
+      const hours = this.venue?.operating_hours || {};
+      const paymentMethods = [];
+      if (policy.allow_full_payment) paymentMethods.push("Thanh toán toàn bộ");
+      if (policy.allow_deposit) {
+        paymentMethods.push(policy.deposit_percent
+          ? `Đặt cọc ${Number(policy.deposit_percent).toLocaleString("vi-VN")}%`
+          : "Đặt cọc");
+      }
+      if (policy.allow_no_prepay) paymentMethods.push("Thanh toán tại sân");
 
-    mapEmbedUrl() {
-      if (this.venue?.latitude && this.venue?.longitude) {
-        return `https://www.google.com/maps?q=${this.venue.latitude},${this.venue.longitude}&output=embed`;
-      }
-      if (this.venue?.map_url) {
-        // Try to convert share URL to embed URL
-        const url = this.venue.map_url;
-        if (url.includes('google.com/maps/embed')) return url;
-        if (url.includes('google.com/maps')) {
-          return url.replace('/maps/', '/maps/embed/v1/place?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&q=') ;
-        }
-        return null;
-      }
-      return null;
+      return [
+        {
+          label: "Giờ hoạt động",
+          value: hours.fixed_open_time && hours.fixed_close_time
+            ? `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}`
+            : "Theo lịch từng ngày",
+        },
+        {
+          label: "Đặt trước tối thiểu",
+          value: this.durationLabel(policy.min_advance_booking_minutes),
+        },
+        {
+          label: "Hủy và hoàn tiền",
+          value: policy.cancel_before_hours !== null && policy.cancel_before_hours !== undefined
+            ? `Trước ${policy.cancel_before_hours} giờ · hoàn ${Number(policy.refund_percent || 0).toLocaleString("vi-VN")}%`
+            : "Theo chính sách hiện hành",
+        },
+        {
+          label: "Hình thức thanh toán",
+          value: paymentMethods.join(", ") || "Theo cấu hình của sân",
+        },
+      ];
     },
-
+    reviews() {
+      return this.venue?.reviews || [];
+    },
+    reviewCount() {
+      return Number(this.venue?.rating_count || this.reviews.length || 0);
+    },
     minDate() {
       return this.todayStr();
     },
-  },
+    mapEmbedUrl() {
+      if (this.venue?.map_url && this.venue.map_url.includes("google.com/maps/embed")) {
+        return this.venue.map_url;
+      }
+      if (this.venue?.latitude && this.venue?.longitude) {
+        const query = encodeURIComponent(`${this.venue.latitude},${this.venue.longitude}`);
+        return `https://maps.google.com/maps?q=${query}&z=15&output=embed`;
+      }
+      return "";
+    },
+    mapExternalUrl() {
+      if (this.venue?.latitude && this.venue?.longitude) {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${this.venue.latitude},${this.venue.longitude}`)}`;
+      }
+      if (this.venue?.map_url && /^https?:\/\//i.test(this.venue.map_url)) {
+        return this.venue.map_url;
+      }
+      if (this.fullAddress && this.fullAddress !== "Đang cập nhật địa chỉ") {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.fullAddress)}`;
+      }
+      return "";
+    },
+    phoneUrl() {
+      const phone = String(this.venue?.phone_contact || '').replace(/[^\d+]/g, '');
+      return phone ? `tel:${phone}` : '';
+    },
 
+    miniScheduleSlots() {
+      const slots = this.previewSchedule.time_slots || [];
+      const courts = this.previewSchedule.courts || [];
+      const statuses = this.previewSchedule.slot_statuses || [];
+
+      return slots.map(slot => {
+        const slotStatuses = statuses.filter(
+          status => status.start_time === slot.start_time
+            && courts.some(court => court.id === status.venue_court_id),
+        );
+        const available = slotStatuses.filter(status => status.is_available);
+
+        return {
+          ...slot,
+          available_count: available.length,
+          total_count: courts.length,
+          venue_court_id: available[0]?.venue_court_id || '',
+          is_past: this.isPreviewSlotPast(slot),
+        };
+      }).filter(slot => !slot.is_past).slice(0, 10);
+    },
+
+    previewAvailableCourtCount() {
+      const visibleStartTimes = new Set(
+        this.miniScheduleSlots.map(slot => slot.start_time),
+      );
+      const availableCourtIds = new Set(
+        (this.previewSchedule.slot_statuses || [])
+          .filter(
+            status =>
+              status.is_available && visibleStartTimes.has(status.start_time),
+          )
+          .map(status => status.venue_court_id),
+      );
+      return availableCourtIds.size;
+    },
+
+    miniScheduleEmptyMessage() {
+      if (!(this.previewSchedule.time_slots || []).length) {
+        return 'Cụm sân không mở cửa trong ngày này.';
+      }
+      return 'Không còn khung giờ nào trong ngày hôm nay.';
+    },
+  },
   mounted() {
+    this.activeTab = this.normalizeTab(this.$route.query.tab);
+    this.bookDate = this.normalizeBookingDate(this.$route.query.booking_date || this.$route.query.date);
+    this.bookCourtType = this.$route.query.court_type_id || this.$route.query.court_type || "";
     this.fetchVenue();
   },
 
+  watch: {
+    '$route.params.id'(nextId, previousId) {
+      if (nextId !== previousId) {
+        this.venue = null;
+        this.gallery = [];
+        this.activeImage = '';
+        this.fetchVenue();
+      }
+    },
+    '$route.query.tab'(tab) {
+      this.activeTab = this.normalizeTab(tab);
+    },
+    bookDate(value) {
+      const normalized = this.normalizeBookingDate(value);
+      if (value !== normalized) {
+        this.bookDate = normalized;
+        return;
+      }
+      if (this.venue) this.loadMiniSchedule();
+    },
+    bookCourtType() {
+      if (this.venue) this.loadMiniSchedule();
+    },
+  },
+
   methods: {
+    normalizeBookingDate(value) {
+      const today = this.todayStr();
+      const candidate = String(value || today);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate) || candidate < today) return today;
+      const date = new Date(`${candidate}T00:00:00`);
+      if (Number.isNaN(date.getTime()) || date.toLocaleDateString('en-CA') !== candidate) return today;
+      return candidate;
+    },
+    normalizeTab(tab) {
+      const value = String(tab || 'overview');
+      return this.venueTabs.some((item) => item.id === value) ? value : 'overview';
+    },
+
+    setActiveTab(tab) {
+      const nextTab = this.normalizeTab(tab);
+      this.activeTab = nextTab;
+      const query = { ...this.$route.query };
+      if (nextTab === 'overview') delete query.tab;
+      else query.tab = nextTab;
+      this.$router.replace({ name: 'venue-detail', params: { id: this.$route.params.id }, query });
+    },
+
+    initials(name) {
+      return String(name || "SG")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("");
+    },
+
+    formatCurrency(value) {
+      const amount = Number(value);
+      if (!Number.isFinite(amount)) return "Đang cập nhật";
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(amount);
+    },
+
+    formatDate(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(date);
+    },
+
+    timeLabel(value) {
+      return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    durationLabel(minutes) {
+      const total = Number(minutes);
+      if (!Number.isFinite(total) || total <= 0) return "Không yêu cầu";
+      if (total % 1440 === 0) return `${total / 1440} ngày`;
+      if (total % 60 === 0) return `${total / 60} giờ`;
+      return `${total} phút`;
+    },
+
     async fetchVenue() {
+      const requestId = ++this.venueRequestId;
+      this.scheduleRequestId += 1;
       this.loading = true;
-      this.error = null;
+      this.error = "";
       try {
         const id = this.$route.params.id;
         const res = await venueService.show(id);
+        if (requestId !== this.venueRequestId) return;
         this.venue = res.data || res;
 
         // Build gallery
-        const g = this.venue.gallery || [];
-        this.gallery = g.map(path => this.imageUrl(path)).filter(Boolean);
+        const g = [
+          this.venue.image_path,
+          this.venue.cover_image,
+          this.venue.thumbnail,
+          ...(this.venue.gallery || []),
+        ];
+        this.gallery = [...new Set(g.map(path => this.imageUrl(path)).filter(Boolean))];
         this.activeImage = this.gallery[0] || null;
+        this.loadMiniSchedule();
       } catch (err) {
+        if (requestId !== this.venueRequestId) return;
         this.error = err.message || 'Không thể tải thông tin sân.';
       } finally {
-        this.loading = false;
+        if (requestId === this.venueRequestId) this.loading = false;
       }
     },
 
     imageUrl(path) {
       if (!path) return null;
       if (path.startsWith('http')) return path;
+      if (path.startsWith('/')) return path;
       return `/storage/${path}`;
+    },
+
+    removeGalleryImage(image) {
+      this.gallery = this.gallery.filter((item) => item !== image);
+      if (this.activeImage === image) this.activeImage = this.gallery[0] || '';
     },
 
     onImgError(e) {
@@ -367,7 +755,11 @@ export default {
     },
 
     todayStr() {
-      return new Date().toISOString().slice(0, 10);
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     },
 
     formatPrice(val) {
@@ -385,410 +777,122 @@ export default {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
+    async submitReport() {
+      this.isSubmittingReport = true;
+      try {
+        const formData = new FormData();
+        formData.append('target_type', 'venue');
+        formData.append('target_id', this.venue.id);
+        formData.append('reason', this.reportForm.reason);
+        if (this.reportForm.content.trim()) {
+            formData.append('description', this.reportForm.content);
+        }
+
+        const files = this.$refs.reportEvidence?.files;
+        if (files && files.length > 0) {
+          // The backend expects 'evidence_image' as a single file, so we just take the first one
+          formData.append('evidence_image', files[0]);
+        }
+
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Vui lòng đăng nhập để gửi báo cáo.');
+            }
+            
+            if (response.status === 422) {
+                const data = await response.json();
+                const firstError = Object.values(data.errors)[0][0];
+                throw new Error(firstError || 'Thông tin không hợp lệ.');
+            }
+
+            throw new Error('Có lỗi xảy ra, vui lòng thử lại.');
+        }
+
+        this.toastMessage = 'Báo cáo của bạn đã được gửi thành công.';
+        this.toastType = 'success';
+        setTimeout(() => this.toastMessage = null, 3000);
+
+        this.showReportModal = false;
+        this.reportForm.content = '';
+        if (this.$refs.reportEvidence) this.$refs.reportEvidence.value = '';
+      } catch (err) {
+        this.toastMessage = err.message;
+        this.toastType = 'error';
+        setTimeout(() => this.toastMessage = null, 3000);
+      } finally {
+        this.isSubmittingReport = false;
+      }
+    },
+
     goToBooking() {
       if (!this.bookDate) return;
       const query = {
+        venue_cluster_id: this.venue.id,
         cluster: this.venue.id,
+        booking_date: this.bookDate,
         date: this.bookDate,
+        start_time: this.$route.query.start_time || "18:00:00",
+        end_time: this.$route.query.end_time || "19:00:00",
+        return_to: this.$route.fullPath,
       };
       if (this.bookCourtType) query.court_type = this.bookCourtType;
+      if (slot?.venue_court_id) query.venue_court_id = slot.venue_court_id;
+      if (slot?.start_time) query.start_time = slot.start_time;
+      if (slot?.end_time) query.end_time = slot.end_time;
       this.$router.push({ name: 'booking-create', query });
     },
 
-    chatWithOwner() {
+    chatWithVenue() {
       if (!this.venue) return;
       this.$router.push({
         path: '/chat',
         query: { venueId: this.venue.id }
       });
     },
+
+    requirePlayer() {
+      const auth = getAuth();
+      if (!auth) {
+        this.toast.info("Vui lòng đăng nhập để sử dụng chức năng hỗ trợ.");
+        this.$router.push({ name: "login", query: { redirect: this.$route.fullPath } });
+        return false;
+      }
+      if (auth.role_group !== "user") {
+        this.toast.info("Chức năng này dành cho tài khoản người dùng.");
+        return false;
+      }
+      return true;
+    },
+
+    openComplaint() {
+      if (this.requirePlayer()) this.showComplaintModal = true;
+    },
+
+    openReport() {
+      if (this.requirePlayer()) this.showReportModal = true;
+    },
+
+    onComplaintSuccess() {
+      this.showComplaintModal = false;
+      this.toast.success("Khiếu nại đã được ghi nhận. SportGo sẽ phản hồi sau khi kiểm tra.");
+    },
+
+    onReportSuccess() {
+      this.showReportModal = false;
+      this.toast.success("Báo cáo đã được ghi nhận để đội ngũ SportGo kiểm tra.");
+    },
   },
 };
 </script>
 
-<style scoped>
-/* ─── Base ─── */
-.venue-detail-page {
-  min-height: 100vh;
-  background: #09090b;
-  color: #ffffff;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-/* ─── Loading / Error ─── */
-.loading-screen, .error-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  gap: 16px;
-}
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(255,255,255,0.1);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.error-msg { font-size: 15px; color: rgba(255,255,255,0.5); }
-
-/* ─── Buttons ─── */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #ffffff;
-  color: #09090b;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  border: none;
-  border-radius: 9999px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-primary:hover { background: rgba(255,255,255,0.88); transform: translateY(-1px); }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.btn-primary.btn-full { width: 100%; justify-content: center; border-radius: 10px; }
-.btn-outline {
-  padding: 10px 22px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 9999px;
-  color: rgba(255,255,255,0.7);
-  font-family: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-outline:hover { border-color: rgba(255,255,255,0.4); color: #fff; }
-
-/* ─── Hero ─── */
-.hero {
-  padding-top: 72px;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding-left: 24px;
-  padding-right: 24px;
-  display: grid;
-  grid-template-columns: 1fr 420px;
-  gap: 48px;
-  align-items: start;
-  padding-bottom: 48px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-/* Gallery */
-.hero-gallery {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.gallery-main {
-  width: 100%;
-  aspect-ratio: 16/9;
-  border-radius: 14px;
-  overflow: hidden;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.gallery-main-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.gallery-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 56px;
-  font-weight: 900;
-  color: rgba(255,255,255,0.06);
-  letter-spacing: -2px;
-}
-.gallery-thumbs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.thumb-btn {
-  width: 72px;
-  height: 48px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: border-color 0.2s;
-  padding: 0;
-  background: none;
-}
-.thumb-btn img { width: 100%; height: 100%; object-fit: cover; }
-.thumb-btn.active { border-color: #ffffff; }
-.thumb-btn:hover { border-color: rgba(255,255,255,0.4); }
-
-/* Hero Info */
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.45);
-  text-decoration: none;
-  margin-bottom: 16px;
-  transition: color 0.2s;
-}
-.back-link:hover { color: #ffffff; }
-
-.court-type-badges {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-.type-badge {
-  padding: 3px 10px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.7);
-}
-
-.venue-name {
-  font-size: 36px;
-  font-weight: 900;
-  letter-spacing: -1px;
-  color: #ffffff;
-  margin: 0 0 16px;
-  line-height: 1.1;
-}
-
-.venue-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-.meta-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  font-size: 13.5px;
-  color: rgba(255,255,255,0.5);
-  line-height: 1.4;
-}
-.meta-item svg { flex-shrink: 0; margin-top: 1px; }
-
-.hero-stats {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 28px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.stat { display: flex; flex-direction: column; gap: 2px; }
-.stat-value { font-size: 20px; font-weight: 800; color: #ffffff; }
-.stat-label { font-size: 11px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.08); }
-
-/* ─── Main Layout ─── */
-.main-layout {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 48px 24px 80px;
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 48px;
-  align-items: start;
-}
-
-/* ─── Detail Sections ─── */
-.detail-col { display: flex; flex-direction: column; gap: 0; }
-.detail-section {
-  padding-bottom: 36px;
-  margin-bottom: 36px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.detail-section:last-child { border-bottom: none; }
-.section-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0 0 20px;
-  letter-spacing: -0.3px;
-}
-
-.description-text {
-  font-size: 14.5px;
-  color: rgba(255,255,255,0.55);
-  line-height: 1.75;
-  margin: 0;
-  white-space: pre-line;
-}
-
-/* Amenities */
-.amenity-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-.amenity-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 10px;
-}
-.amenity-item svg { flex-shrink: 0; color: rgba(255,255,255,0.6); margin-top: 2px; }
-.amenity-name { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,0.8); display: block; }
-.amenity-desc { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 2px; display: block; }
-
-/* Courts */
-.courts-by-type { margin-bottom: 20px; }
-.courts-by-type:last-child { margin-bottom: 0; }
-.court-type-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 10px;
-}
-.court-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.court-chip {
-  padding: 5px 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.65);
-}
-
-/* Pricing */
-.price-block { margin-bottom: 24px; }
-.price-block:last-child { margin-bottom: 0; }
-.price-block-label {
-  font-size: 12.5px;
-  color: rgba(255,255,255,0.35);
-  margin: 0 0 10px;
-  font-style: italic;
-}
-.price-table { display: flex; flex-direction: column; gap: 1px; border-radius: 10px; overflow: hidden; }
-.price-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  padding: 10px 14px;
-  font-size: 13.5px;
-  color: rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.02);
-}
-.price-row.header-row {
-  background: rgba(255,255,255,0.04);
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.35);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-/* 2-col base price table */
-.price-block:first-child .price-row { grid-template-columns: 1fr 1fr; }
-.price-val { font-weight: 700; color: #ffffff; }
-
-/* Map */
-.map-embed-wrapper { border-radius: 12px; overflow: hidden; }
-.map-iframe { width: 100%; height: 280px; border: none; display: block; }
-.map-text {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 20px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  font-size: 14px;
-  color: rgba(255,255,255,0.5);
-}
-
-/* ─── Booking Panel ─── */
-.booking-col { position: sticky; top: 88px; }
-.booking-panel {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
-  overflow: hidden;
-}
-.booking-panel-header {
-  padding: 20px 22px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-.panel-title { font-size: 16px; font-weight: 700; color: #ffffff; }
-.panel-price { font-size: 18px; font-weight: 800; color: #ffffff; }
-.panel-price-unit { font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.4); }
-
-.booking-form { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
-.bform-group { display: flex; flex-direction: column; gap: 6px; }
-.bform-label { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,0.5); }
-.bform-input {
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s;
-  width: 100%;
-  box-sizing: border-box;
-  -webkit-appearance: none;
-}
-.bform-input:focus { border-color: rgba(255,255,255,0.25); }
-.bform-input option { background: #1c1c1e; color: #ffffff; }
-.panel-note { font-size: 12px; color: rgba(255,255,255,0.3); text-align: center; margin: 0; }
-
-.panel-info-list {
-  padding: 16px 22px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.panel-info-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: rgba(255,255,255,0.45);
-}
-.panel-info-item svg { color: rgba(255,255,255,0.5); flex-shrink: 0; }
-
-/* ─── Responsive ─── */
-@media (max-width: 1024px) {
-  .hero { grid-template-columns: 1fr; gap: 28px; }
-  .main-layout { grid-template-columns: 1fr; }
-  .booking-col { position: static; }
-  .venue-name { font-size: 28px; }
-}
-@media (max-width: 640px) {
-  .hero { padding-top: 80px; padding-left: 16px; padding-right: 16px; }
-  .main-layout { padding: 32px 16px 60px; }
-  .venue-name { font-size: 24px; }
-  .price-row { grid-template-columns: 1fr 1fr; font-size: 12px; }
-  .price-row.header-row { display: none; }
-}
-</style>
+<style scoped src="../../../css/client-venue-detail.css"></style>

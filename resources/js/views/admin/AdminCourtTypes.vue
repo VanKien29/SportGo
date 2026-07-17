@@ -15,7 +15,7 @@
 
         <template v-else>
             <!-- SaaS Command Bar (Flat Style & High Contrast) -->
-            <div class="avc-filters card animate-fade-in" v-if="courtTypes.length > 0">
+            <div class="avc-filters animate-fade-in" v-if="courtTypes.length > 0">
                 <div class="filter-row">
                     <div class="filter-search">
                         <div class="search-box">
@@ -181,7 +181,6 @@
                         <div class="form-group">
                             <label for="name">
                                 {{ form.parent_id === null ? "Tên môn thể thao" : "Tên loại sân" }}
-                                <span class="required">*</span>
                             </label>
                             <input
                                 id="name"
@@ -237,8 +236,7 @@
 
                         <div v-if="form.parent_id !== null" class="form-group">
                             <label for="player_count"
-                                >Số người chơi tiêu chuẩn
-                                <span class="required">*</span></label
+                                >Số người chơi tiêu chuẩn</label
                             >
                             <input
                                 id="player_count"
@@ -290,8 +288,10 @@
                             ></textarea>
                         </div>
 
-                        <div class="form-group checkbox-group">
-                            <label class="checkbox-label">
+                    </div>
+                    <div class="modal-footer">
+                        <div class="footer-left-status">
+                            <label class="checkbox-label" style="margin: 0;">
                                 <input
                                     v-model="form.is_active"
                                     type="checkbox"
@@ -299,22 +299,22 @@
                                 <span>Kích hoạt hoạt động</span>
                             </label>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button
-                            type="button"
-                            class="btn btn-outline"
-                            @click="closeModal"
-                        >
-                            Hủy
-                        </button>
-                        <button
-                            type="submit"
-                            class="btn btn-primary"
-                            :disabled="submitting"
-                        >
-                            {{ submitting ? "Đang lưu..." : "Lưu lại" }}
-                        </button>
+                        <div class="footer-right-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline"
+                                @click="closeModal"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                :disabled="submitting"
+                            >
+                                {{ submitting ? "Đang lưu..." : "Lưu lại" }}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -570,23 +570,12 @@ export default {
     gap: 20px;
     max-width: 1000px;
     width: 100%;
+    min-width: 0;
     margin: 0 auto;
     box-sizing: border-box;
 }
 
-/* SaaS Filters */
-.avc-filters {
-    padding: 12px 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-:deep(.saas-table-container) {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
+
 .filter-row {
     display: flex;
     justify-content: space-between;
@@ -601,23 +590,25 @@ export default {
 
 .views-content-wrapper {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .grouped-court-types-list {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .court-type-group {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    border-radius: 0;
-    padding: 0;
+    border-radius: var(--admin-radius-lg);
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .court-type-group:last-child {
@@ -667,6 +658,15 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.group-items :deep(.saas-table-container),
+.group-items :deep(.saas-table-scroll) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* SaaS Table custom layouts */
@@ -789,7 +789,7 @@ export default {
     color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222222;
     border-color: #222222;
 }
@@ -800,7 +800,7 @@ export default {
     color: var(--sg-text);
 }
 
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--sg-surface);
 }
 
@@ -819,6 +819,9 @@ export default {
 .modal {
     width: 100%;
     max-width: 500px;
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
     box-shadow:
         0 20px 25px -5px rgba(0, 0, 0, 0.1),
         0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -826,12 +829,20 @@ export default {
     overflow: hidden;
 }
 
+.modal form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--sg-border);
+    flex-shrink: 0;
 }
 
 .modal-header h3 {
@@ -850,16 +861,18 @@ export default {
 }
 
 .modal-body {
-    padding: 24px;
+    padding: 16px 24px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .form-group label {
@@ -908,11 +921,18 @@ export default {
 
 .modal-footer {
     display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 20px 24px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
     border-top: 1px solid var(--sg-border);
     background: var(--sg-surface);
+    flex-shrink: 0;
+}
+
+.footer-right-actions {
+    display: flex;
+    gap: 12px;
 }
 
 .alert-danger {
@@ -938,22 +958,22 @@ export default {
     align-items: center;
     padding: 10px 14px;
     border-radius: 8px;
-    border: 1px solid var(--sg-border);
-    background: #fff;
+    border: 1px solid var(--admin-border, #cfded1);
+    background: var(--admin-surface, #ffffff);
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text, #101c15);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.custom-select-trigger:hover {
-    border-color: #000;
+.custom-select-trigger.never-hover-class-placeholder {
+    border-color: var(--admin-primary);
 }
 
 .select-arrow-icon {
     width: 16px;
     height: 16px;
-    color: rgba(15, 23, 42, 0.4);
+    color: var(--admin-faint, rgba(15, 23, 42, 0.4));
     transition: transform 0.2s ease;
 }
 
@@ -966,10 +986,10 @@ export default {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: #fff;
-    border: 1px solid var(--sg-border);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #cfded1);
     border-radius: 8px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--admin-shadow-lg);
     z-index: 1010;
     max-height: 220px;
     overflow-y: auto;
@@ -995,17 +1015,18 @@ export default {
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
-    color: var(--sg-text);
+    color: var(--admin-text, #101c15) !important;
     cursor: pointer;
     transition: background 0.15s ease;
 }
 
-.custom-select-option:hover {
-    background: rgba(0, 0, 0, 0.03);
+.custom-select-option.never-hover-class-placeholder {
+    background: var(--admin-hover, rgba(0, 0, 0, 0.03)) !important;
 }
 
 .custom-select-option.active {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--admin-primary-soft) !important;
+    color: var(--admin-primary-dark) !important;
     font-weight: 700;
 }
 
@@ -1019,13 +1040,13 @@ export default {
 }
 
 .option-badge-root {
-    background: rgba(0, 0, 0, 0.06);
-    color: rgba(0, 0, 0, 0.6);
+    background: var(--admin-border-soft, rgba(0, 0, 0, 0.06)) !important;
+    color: var(--admin-muted, rgba(0, 0, 0, 0.6)) !important;
 }
 
 .option-badge-parent {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
+    background: var(--admin-primary-soft, rgba(16, 185, 129, 0.1)) !important;
+    color: var(--admin-primary-dark, #059669) !important;
 }
 
 .option-text {
@@ -1089,7 +1110,7 @@ export default {
     display: inline-block;
 }
 
-.btn-float-add:hover {
+.btn-float-add.never-hover-class-placeholder {
     width: 145px;
     justify-content: flex-start;
     padding-left: 14px;
@@ -1097,27 +1118,26 @@ export default {
     background-color: #059669;
 }
 
-.btn-float-add:hover .btn-float-text {
+.btn-float-add.never-hover-class-placeholder .btn-float-text {
     max-width: 100px;
     opacity: 1;
     margin-left: 6px;
 }
 
 /* Theme overrides */
-.court-types-container .custom-select-option:hover {
-    background: rgba(232, 247, 236, 0.68);
+.court-types-container .custom-select-option.never-hover-class-placeholder {
+    background: var(--admin-hover, rgba(232, 247, 236, 0.68)) !important;
 }
 
 .court-types-container .custom-select-option.active {
-    border-color: rgba(47, 158, 68, 0.18);
-    background: rgba(47, 158, 68, 0.12);
-    color: var(--admin-primary-dark);
+    background: var(--admin-primary-soft, rgba(47, 158, 68, 0.12)) !important;
+    color: var(--admin-primary-dark) !important;
 }
 
-.court-types-container .custom-select-trigger:hover,
+.court-types-container .custom-select-trigger.never-hover-class-placeholder,
 .court-types-container .custom-select-trigger:focus-within {
-    border-color: rgba(47, 158, 68, 0.62);
-    box-shadow: 0 0 0 3px rgba(47, 158, 68, 0.14);
+    border-color: var(--admin-primary) !important;
+    box-shadow: 0 0 0 3px var(--admin-primary-ring) !important;
 }
 
 .court-types-container .btn-add-child,
@@ -1201,7 +1221,7 @@ export default {
         transform: none;
     }
 
-    .court-type-row-item:hover .row-right {
+    .court-type-row-item.never-hover-class-placeholder .row-right {
         transform: none;
     }
 }
@@ -1249,12 +1269,12 @@ export default {
         padding: 0 10px;
     }
 
-    .btn-float-add:hover {
+    .btn-float-add.never-hover-class-placeholder {
         width: 130px;
         padding-left: 12px;
     }
 
-    .btn-float-add:hover .btn-float-text {
+    .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
 }

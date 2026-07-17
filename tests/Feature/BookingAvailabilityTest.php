@@ -344,4 +344,32 @@ class BookingAvailabilityTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_same_day_slot_statuses_use_the_business_timezone(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-16 10:04:00', 'UTC'));
+
+        try {
+            BookingConfig::query()->where('venue_cluster_id', $this->cluster->id)->firstOrFail()->update([
+                'min_advance_booking_minutes' => 30,
+                'fixed_open_time' => '06:00',
+                'fixed_close_time' => '22:00',
+            ]);
+
+            $schedule = app(BookingService::class)->getAvailabilitySchedule(
+                (string) $this->cluster->id,
+                '2026-07-16',
+            );
+            $statuses = collect($schedule['slot_statuses'])
+                ->where('venue_court_id', $this->court->id)
+                ->keyBy('start_time');
+
+            $this->assertSame('past', $statuses->get('17:00:00')['slot_status']);
+            $this->assertSame('too_early', $statuses->get('17:30:00')['slot_status']);
+            $this->assertSame('available', $statuses->get('18:00:00')['slot_status']);
+            $this->assertSame([], $schedule['busy_intervals']->all());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
 }

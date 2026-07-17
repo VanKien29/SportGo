@@ -112,67 +112,67 @@
     </div>
 
     <div v-if="modal.open" class="modal-backdrop" @click.self="closeModal">
-      <div class="modal" style="max-width: 900px; width: 900px; padding: 0;">
-        <div class="modal-header" style="padding: 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; font-size: 20px; font-weight: 800; display: flex; align-items: center;">
-            <AppIcon name="edit" size="20" style="color: #10b981; margin-right: 8px;" />
+      <div class="modal modal-post-editor">
+        <div class="modal-header">
+          <h3 class="modal-title">
+            <AppIcon name="edit" size="20" class="modal-title-icon" />
             {{ modal.mode === 'edit' ? 'Chỉnh sửa bài viết' : 'Thêm bài viết mới' }}
           </h3>
-          <button class="icon-btn close-btn" type="button" @click="closeModal" style="border: none; background: transparent; cursor: pointer;">
+          <button class="icon-btn close-btn" type="button" @click="closeModal">
             <AppIcon name="x" size="20" />
           </button>
         </div>
 
         <form @submit.prevent="savePost">
-          <div class="modal-body" style="padding: 24px; display: flex; flex-direction: column; gap: 0; max-height: 70vh; overflow-y: auto;">
+          <div class="modal-body">
             
-            <div style="display: flex; flex-direction: row; gap: 24px;">
+            <div class="modal-layout">
               <!-- Left Form -->
-              <div style="flex: 2; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
-                <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Tiêu đề bài viết <span style="color: #ef4444;">*</span></span>
-                  <input v-model.trim="form.title" type="text" maxlength="255" required style="padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px;" placeholder="Tiêu đề ấn tượng (5-200 ký tự)" />
+              <div class="modal-main-column">
+                <label class="field">
+                  <span class="field-label">Tiêu đề bài viết <span class="required-mark">*</span></span>
+                  <input v-model.trim="form.title" type="text" maxlength="255" required placeholder="Tiêu đề ấn tượng (5-200 ký tự)" />
                 </label>
 
-                <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Mô tả ngắn <span style="color: #ef4444;">*</span></span>
-                  <textarea v-model.trim="form.short_description" rows="2" maxlength="500" required style="padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;" placeholder="Tóm tắt nội dung hấp dẫn người đọc..."></textarea>
+                <label class="field">
+                  <span class="field-label">Mô tả ngắn <span class="required-mark">*</span></span>
+                  <textarea v-model.trim="form.short_description" rows="2" maxlength="500" required placeholder="Tóm tắt nội dung hấp dẫn người đọc..."></textarea>
                 </label>
 
-                <div class="field" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Nội dung chi tiết <span style="color: #ef4444;">*</span></span>
-                  <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; flex: 1; min-height: 350px;">
-                    <RichTextEditor v-model="form.content" placeholder="Viết nội dung bài viết..." style="min-height: 350px;" />
+                <div class="field editor-field">
+                  <span class="field-label">Nội dung chi tiết <span class="required-mark">*</span></span>
+                  <div class="rich-editor-frame">
+                    <RichTextEditor v-model="form.content" placeholder="Viết nội dung bài viết..." class="post-editor" />
                   </div>
                 </div>
               </div>
 
               <!-- Right Sidebar -->
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 16px;">
-                <div class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh đại diện (Thumbnail)</span>
-                  <div class="upload-zone" style="aspect-ratio: 16/10; border: 2px dashed #cbd5e1; border-radius: 12px; position: relative; cursor: pointer; overflow: hidden; background: white;" @click="!imagePreview && $refs.imageInput.click()">
-                    <div v-if="imagePreview" style="position: absolute; inset: 0;">
-                      <img :src="imagePreview" style="width: 100%; height: 100%; object-fit: cover;" />
-                      <button type="button" @click.stop="clearThumbnail" style="position: absolute; top: 8px; right: 8px; background: rgba(239,68,68,0.9); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;">
+              <div class="modal-sidebar">
+                <div class="field">
+                  <span class="field-label">Ảnh đại diện (Thumbnail)</span>
+                  <div class="upload-zone" @click="!imagePreview && $refs.imageInput.click()">
+                    <div v-if="imagePreview" class="upload-preview">
+                      <img :src="imagePreview" class="upload-preview-img" />
+                      <button type="button" class="upload-clear-btn" @click.stop="clearThumbnail">
                         <AppIcon name="trash" size="14" />
                       </button>
                     </div>
-                    <div v-else style="position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #94a3b8;">
-                      <AppIcon name="upload" size="24" style="margin-bottom: 8px;" />
-                      <span style="font-size: 13px; font-weight: 700;">Tải ảnh lên</span>
+                    <div v-else class="upload-empty">
+                      <AppIcon name="upload" size="24" class="upload-icon" />
+                      <span class="upload-label">Tải ảnh lên</span>
                     </div>
-                    <input type="file" ref="imageInput" style="display: none;" @change="onImageSelected" accept="image/jpeg,image/png,image/gif,image/webp" />
+                    <input type="file" ref="imageInput" class="sr-only-input" @change="onImageSelected" accept="image/jpeg,image/png,image/gif,image/webp" />
                   </div>
                 </div>
 
-                <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Danh mục <span style="color: #ef4444;">*</span></span>
+                <label class="field compact">
+                  <span class="field-label field-label-compact">Danh mục <span class="required-mark">*</span></span>
                   <CustomSelect v-model="form.category" :options="categoryOptions" placeholder="-- Chọn danh mục --" />
                 </label>
 
-                <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Trạng thái <span style="color: #ef4444;">*</span></span>
+                <label class="field compact">
+                  <span class="field-label field-label-compact">Trạng thái <span class="required-mark">*</span></span>
                   <CustomSelect v-model="form.status" :options="statusOptions" placeholder="-- Chọn trạng thái --" />
                 </label>
               </div>
@@ -180,10 +180,10 @@
 
           </div>
 
-          <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc;">
-            <button class="btn ghost" type="button" @click="closeModal" style="padding: 10px 20px;">Hủy bỏ</button>
-            <button class="btn primary" type="submit" :disabled="saving" style="background: #0f172a; color: white; padding: 10px 20px;">
-              <AppIcon v-if="!saving" name="send" size="16" style="margin-right: 8px;" />
+          <div class="modal-footer">
+            <button class="btn ghost" type="button" @click="closeModal">Hủy bỏ</button>
+            <button class="btn primary" type="submit" :disabled="saving">
+              <AppIcon v-if="!saving" name="send" size="16" class="btn-icon" />
               <span>{{ saving ? 'Đang lưu...' : 'Lưu bài viết' }}</span>
             </button>
           </div>
@@ -400,312 +400,543 @@ export default {
 
 <style scoped>
 .admin-system-posts-page {
-  padding: 24px;
+  padding: 10px;
 }
+
 .page-header {
   margin-bottom: 24px;
 }
+
 .page-header h2 {
+  margin: 0 0 4px;
+  color: var(--admin-text);
   font-size: 24px;
   font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 4px;
 }
-.subtitle {
-  color: #64748b;
-  font-size: 14px;
+
+.subtitle,
+.muted,
+.post-desc {
+  color: var(--admin-faint);
+  font-size: 13px;
 }
+
 .card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.05);
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
   margin-bottom: 20px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-card-bg);
+  box-shadow: var(--admin-shadow-card);
 }
+
 .toolbar {
   padding: 16px;
 }
+
 .filters {
   display: flex;
-  gap: 16px;
   flex-wrap: wrap;
+  gap: 16px;
 }
+
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+
+.field-label,
 .field span {
+  color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 500;
-  color: #475569;
+  font-weight: 700;
 }
-.field input, .field select, .field textarea {
-  padding: 8px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+
+.field-label-compact {
+  color: var(--admin-faint);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.required-mark {
+  color: var(--admin-danger);
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 40px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
+  padding: 10px 14px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
-.field input:focus, .field select:focus, .field textarea:focus {
-  border-color: #3b82f6;
+
+.field textarea {
+  resize: vertical;
 }
-.field.compact input, .field.compact select {
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+.field.compact input,
+.field.compact select {
   min-width: 200px;
 }
+
 .field.full {
   width: 100%;
 }
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 15px;
 }
+
 .table-scroll {
   overflow-x: auto;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
 }
-th, td {
+
+th,
+td {
+  border-bottom: 1px solid var(--admin-border-soft);
   padding: 16px;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
 }
+
 th {
-  background: #f8fafc;
-  font-weight: 600;
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   font-size: 13px;
-  color: #475569;
+  font-weight: 600;
   text-transform: uppercase;
 }
-.center { text-align: center; }
-.right { text-align: right; }
+
+tbody tr.never-hover-class-placeholder {
+  background: var(--admin-hover);
+}
+
+.center {
+  text-align: center;
+}
+
+.right {
+  text-align: right;
+}
+
 .post-cell {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .post-thumb {
+  display: flex;
   width: 60px;
   height: 45px;
-  border-radius: 6px;
-  background: #f1f5f9;
-  display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  color: #94a3b8;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   font-size: 12px;
-  flex-shrink: 0;
 }
+
 .post-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
 .post-main {
   max-width: 300px;
 }
+
 .post-title {
-  font-weight: 600;
-  color: #0f172a;
-  font-size: 14px;
   margin-bottom: 4px;
-  white-space: nowrap;
   overflow: hidden;
+  color: var(--admin-text);
+  font-size: 14px;
+  font-weight: 600;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
 .post-desc {
-  font-size: 13px;
-  color: #64748b;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
 .status {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.status.published {
-  background: #dcfce7;
-  color: #166534;
-}
-.status.draft {
-  background: #f1f5f9;
-  color: #475569;
-}
-.status.hidden {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.muted {
-  color: #64748b;
   font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
 }
+
+.status.published {
+  color: var(--admin-success-text);
+}
+
+.status.draft {
+  color: var(--admin-blue);
+}
+
+.status.hidden {
+  color: var(--admin-danger-text);
+}
+
 .actions {
   display: flex;
-  gap: 8px;
   justify-content: flex-end;
+  gap: 8px;
 }
+
 .icon-btn {
+  display: inline-flex;
   width: 32px;
   height: 32px;
-  display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #64748b;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
-.icon-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+
+.icon-btn.never-hover-class-placeholder {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-dark);
+  transform: translateY(-1px);
 }
-.icon-btn.danger:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #ef4444;
+
+.icon-btn.danger {
+  color: var(--admin-danger-text);
 }
+
+.icon-btn.danger.never-hover-class-placeholder {
+  border-color: var(--admin-danger);
+  background: var(--admin-danger-hover);
+  color: var(--admin-danger-hover-text);
+}
+
+.close-btn {
+  border-color: transparent;
+  background: transparent;
+}
+
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
+  border-top: 1px solid var(--admin-border);
   padding: 16px;
-  border-top: 1px solid #f1f5f9;
+  color: var(--admin-muted);
 }
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
   padding: 20px;
+  background: color-mix(in srgb, var(--admin-bg) 68%, transparent);
+  backdrop-filter: blur(8px);
 }
+
 .modal {
-  background: #fff;
-  border-radius: 12px;
+  display: flex;
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
-  display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-card-bg);
+  box-shadow: var(--admin-shadow-lg);
 }
+
+.modal-post-editor {
+  width: min(900px, calc(100vw - 40px));
+  max-width: 900px;
+}
+
 .modal.large {
   max-width: 800px;
 }
-.modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
+
+.modal-header,
+.modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  padding: 16px 20px;
 }
-.modal-header h3 {
-  font-size: 18px;
-  font-weight: 600;
+
+.modal-header h3,
+.modal-title {
+  display: flex;
+  align-items: center;
   margin: 0;
+  color: var(--admin-text);
+  font-size: 18px;
+  font-weight: 700;
 }
+
+.modal-title-icon,
+.btn-icon {
+  margin-right: 8px;
+  color: var(--admin-primary-dark);
+}
+
 .modal-body {
-  padding: 20px;
+  display: flex;
+  max-height: 70vh;
+  flex-direction: column;
+  gap: 0;
   overflow-y: auto;
+  padding: 24px;
+}
+
+.modal-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+}
+
+.modal-main-column {
+  display: flex;
+  min-width: 0;
+  flex: 2;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-field {
+  flex: 1;
+}
+
+.rich-editor-frame {
+  flex: 1;
+  min-height: 350px;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+}
+
+.post-editor {
+  min-height: 350px;
+}
+
+.modal-sidebar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface-muted);
+  padding: 16px;
+}
+
+.upload-zone {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 2px dashed var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  cursor: pointer;
+}
+
+.upload-preview,
+.upload-empty {
+  position: absolute;
+  inset: 0;
+}
+
+.upload-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-clear-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--admin-danger) 42%, transparent);
+  border-radius: 999px;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
+  cursor: pointer;
+}
+
+.upload-empty {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-faint);
 }
+
+.upload-icon {
+  margin-bottom: 8px;
+}
+
+.upload-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sr-only-input {
+  display: none;
+}
+
 .modal-footer {
-  padding: 16px 20px;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 20px;
+  border-top: 1px solid var(--admin-border);
+  border-bottom: 0;
 }
+
 .btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--admin-radius);
+  padding: 10px 20px;
   cursor: pointer;
-  border: none;
+  font-size: 14px;
+  font-weight: 600;
 }
+
 .btn.ghost {
-  background: transparent;
-  color: #475569;
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
 }
-.btn.ghost:hover {
-  background: #f1f5f9;
+
+.btn.ghost.never-hover-class-placeholder {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-dark);
 }
+
 .btn.primary {
-  background: #3b82f6;
-  color: #fff;
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
 }
-.btn.primary:hover {
-  background: #2563eb;
+
+.btn.primary.never-hover-class-placeholder {
+  background: var(--admin-primary-dark);
 }
+
 .btn:disabled {
-  opacity: 0.7;
   cursor: not-allowed;
+  opacity: 0.7;
 }
+
 .preview {
-  margin-top: 10px;
   max-width: 200px;
-  border-radius: 6px;
+  margin-top: 10px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
 }
+
 .preview img {
-  width: 100%;
   display: block;
+  width: 100%;
 }
+
 .floating-add-container {
   position: fixed;
-  bottom: 30px;
   right: 30px;
+  bottom: 30px;
   z-index: 100;
 }
+
 .btn-float-add {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 20px;
-  background: #0f172a;
-  color: #fff;
-  border-radius: 999px;
   border: none;
-  font-weight: 600;
-  font-size: 15px;
+  border-radius: 999px;
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
+  box-shadow: 0 4px 12px var(--admin-primary-ring);
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
-  transition: all 0.2s;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 20px;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
-.btn-float-add:hover {
+
+.btn-float-add.never-hover-class-placeholder {
+  background: var(--admin-primary-dark);
+  box-shadow: 0 6px 16px var(--admin-primary-ring);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.4);
 }
+
 .quill-wrapper {
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
   overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
 }
+
 .quill-wrapper :deep(.ql-container) {
   min-height: 250px;
-  font-size: 15px;
   font-family: inherit;
+  font-size: 15px;
+}
+
+@media (max-width: 900px) {
+  .modal-layout {
+    flex-direction: column;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

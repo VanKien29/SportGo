@@ -5,19 +5,9 @@
                 <h2>Xử lý hoàn tiền và rút tiền</h2>
                 <p>Đối soát yêu cầu, số dư online và hóa đơn tài chính.</p>
             </div>
-            <button
-                class="icon-only"
-                type="button"
-                title="Tải lại"
-                aria-label="Tải lại"
-                :disabled="loading"
-                @click="loadData(1)"
-            >
-                <AppIcon name="refresh" size="17" />
-            </button>
         </header>
 
-        <div class="tabs" role="tablist">
+        <div class="tabs" role="tablist" aria-label="Loại yêu cầu tài chính">
             <button
                 :class="{ active: tab === 'refunds' }"
                 type="button"
@@ -958,8 +948,8 @@
                                                 aria-hidden="true"
                                             ></span>
                                             <span
-                                                >Đang chờ SePay xác nhận giao
-                                                dịch tiền ra...</span
+                                                >Đang chờ xác nhận giao dịch
+                                                tiền ra...</span
                                             >
                                         </div>
                                     </div>
@@ -1135,6 +1125,12 @@ export default {
         },
     },
     mounted() {
+        if (["refunds", "withdrawals"].includes(String(this.$route.query.tab))) {
+            this.tab = String(this.$route.query.tab);
+        }
+        if (["owner", "user"].includes(String(this.$route.query.scope))) {
+            this.withdrawalScope = String(this.$route.query.scope);
+        }
         this.loadData(1);
     },
     beforeUnmount() {
@@ -1866,11 +1862,11 @@ export default {
 .page-header h2,
 .receipt-modal h3 {
     margin: 0 0 4px;
-    color: #0f172a;
+    color: var(--admin-text);
 }
 .page-header p {
     margin: 0;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 .tabs {
@@ -1883,22 +1879,22 @@ export default {
     border-bottom: 3px solid transparent;
     background: transparent;
     padding: 10px 18px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-weight: 800;
     cursor: pointer;
 }
 .tabs button.active {
-    border-color: #16a34a;
-    color: #166534;
+    border-color: var(--admin-primary);
+    color: var(--admin-success-text);
 }
 .scope-tabs {
     display: inline-flex;
     width: fit-content;
     gap: 4px;
     padding: 4px;
-    border: 1px solid #dbe7dd;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #f8fcf9;
+    background: var(--admin-surface-muted);
 }
 .scope-tabs button {
     min-height: 34px;
@@ -1906,30 +1902,30 @@ export default {
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: #52635a;
+    color: var(--admin-muted);
     font-weight: 800;
     cursor: pointer;
 }
 .scope-tabs button.active {
-    background: #16a34a;
-    color: #fff;
+    background: var(--admin-primary);
+    color: var(--admin-primary-text);
 }
 .sub-line {
     display: block;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 12px;
 }
 .transfer-subline {
     display: block;
     margin-top: 4px;
-    color: #15803d;
+    color: var(--admin-success-text);
     font-size: 12px;
     font-weight: 800;
 }
 .inline-warning {
     display: block;
     margin-top: 4px;
-    color: #b45309;
+    color: var(--admin-warning);
     font-size: 12px;
     font-weight: 800;
 }
@@ -1939,8 +1935,8 @@ export default {
     margin-top: 6px;
     padding: 3px 8px;
     border-radius: 999px;
-    background: #f0fdf4;
-    color: #15803d;
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
     font-size: 11px;
     font-weight: 800;
 }
@@ -1954,10 +1950,10 @@ export default {
 .action-modal select,
 .action-modal input,
 .action-modal textarea {
-    border: 1px solid #dbe2ea;
+    border: 1px solid var(--admin-border);
     border-radius: 7px;
-    background: #fff;
-    color: #0f172a;
+    background: var(--admin-surface);
+    color: var(--admin-text);
     padding: 9px 10px;
     font: inherit;
 }
@@ -1966,10 +1962,10 @@ export default {
     align-items: center;
     gap: 8px;
     min-width: 290px;
-    border: 1px solid #dbe2ea;
+    border: 1px solid var(--admin-border);
     border-radius: 7px;
     padding: 0 10px;
-    background: #fff;
+    background: var(--admin-surface);
 }
 .search-field input {
     flex: 1;
@@ -1982,15 +1978,15 @@ export default {
     align-items: center;
     gap: 8px;
     padding: 0 8px;
-    border: 1px solid #dbe2ea;
+    border: 1px solid var(--admin-border);
     border-radius: 7px;
-    background: #f8fafc;
-    color: #64748b;
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
 }
 .date-range-fields input {
     width: 142px;
     border-color: transparent;
-    background: #fff;
+    background: var(--admin-surface);
 }
 .primary-btn,
 .secondary-btn,
@@ -2006,46 +2002,46 @@ export default {
     cursor: pointer;
 }
 .primary-btn {
-    border: 1px solid #16a34a;
-    background: #16a34a;
-    color: #fff;
+    border: 1px solid var(--admin-primary);
+    background: var(--admin-primary);
+    color: var(--admin-primary-text);
     padding: 9px 12px;
 }
 .primary-btn.danger {
-    border-color: #dc2626;
-    background: #dc2626;
+    border-color: var(--admin-danger);
+    background: var(--admin-danger);
 }
 .secondary-btn,
 .export-btn {
-    border: 1px solid #dbe2ea;
-    background: #f8fafc;
-    color: #334155;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
     padding: 9px 12px;
 }
 .export-btn {
     margin-left: auto;
-    border-color: #2563eb;
-    color: #1d4ed8;
-    background: #eff6ff;
+    border-color: var(--admin-blue);
+    color: var(--admin-blue);
+    background: var(--admin-blue-soft);
 }
 .pay-command {
-    border: 1px solid #16a34a;
-    background: #ecfdf5;
-    color: #15803d;
+    border: 1px solid var(--admin-primary);
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
     padding: 8px 10px;
     font-size: 12px;
 }
 .pay-command.cash {
-    border-color: #f59e0b;
-    background: #fffbeb;
-    color: #b45309;
+    border-color: var(--admin-warning);
+    background: var(--admin-warning-soft);
+    color: var(--admin-warning);
 }
 .icon-only {
     width: 34px;
     height: 34px;
-    border: 1px solid #dbe2ea;
-    background: #fff;
-    color: #475569;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-muted);
 }
 button:disabled {
     opacity: 0.55;
@@ -2057,18 +2053,18 @@ button:disabled {
     font-size: 13px;
 }
 .alert.error {
-    background: #fef2f2;
-    color: #b91c1c;
+    background: var(--admin-danger-soft);
+    color: var(--admin-danger-text);
 }
 .alert.success {
-    background: #ecfdf5;
-    color: #047857;
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
 }
 .table-wrap {
     overflow: auto;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface);
 }
 table {
     width: 100%;
@@ -2078,27 +2074,27 @@ table {
 th,
 td {
     padding: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--admin-border);
     text-align: left;
     vertical-align: top;
     font-size: 13px;
 }
 th {
-    background: #f8fafc;
-    color: #334155;
+    background: var(--admin-surface-muted);
+    color: var(--admin-text);
     font-weight: 800;
 }
 .empty {
     padding: 28px;
     text-align: center;
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .status-pill {
     display: inline-flex;
     padding: 4px 8px;
     border-radius: 999px;
-    background: #e2e8f0;
-    color: #334155;
+    background: var(--admin-border);
+    color: var(--admin-text);
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -2107,32 +2103,32 @@ th {
 .status-pill.pending_confirmation,
 .status-pill.pending_owner_confirmation,
 .status-pill.reviewing {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--admin-warning-soft);
+    color: var(--admin-warning);
 }
 .status-pill.processing,
 .status-pill.admin_processing,
 .status-pill.owner_confirmed,
 .status-pill.approved {
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--admin-blue-soft);
+    color: var(--admin-blue);
 }
 .status-pill.completed,
 .status-pill.completed_cash,
 .status-pill.paid {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
 }
 .status-pill.failed,
 .status-pill.rejected,
 .status-pill.owner_rejected,
 .status-pill.cancelled {
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--admin-danger-soft);
+    color: var(--admin-danger-text);
 }
 .status-pill.policy_blocked {
-    background: #fef2f2;
-    color: #b91c1c;
+    background: var(--admin-danger-soft);
+    color: var(--admin-danger-text);
 }
 
 /* Policy evaluation badge */
@@ -2148,20 +2144,20 @@ th {
     line-height: 1.4;
 }
 .policy-badge.compliant {
-    background: #ecfdf5;
-    color: #15803d;
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
 }
 .policy-badge.non-compliant {
-    background: #fef2f2;
-    color: #b91c1c;
+    background: var(--admin-danger-soft);
+    color: var(--admin-danger-text);
 }
 .policy-badge.neutral {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--admin-warning-soft);
+    color: var(--admin-warning);
 }
 .policy-badge.muted {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
 }
 .policy-icon {
     display: inline-flex;
@@ -2187,25 +2183,25 @@ th {
     border-radius: 4px;
     flex-shrink: 0;
 }
-.policy-expand:hover {
-    background: rgba(0, 0, 0, 0.08);
+.policy-expand.never-hover-class-placeholder {
+    background: color-mix(in srgb, var(--admin-text) 8%, transparent);
 }
 .policy-detail {
     margin-top: 6px;
     padding: 8px 10px;
     border-radius: 6px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--admin-surface-muted);
+    border: 1px solid var(--admin-border);
     font-size: 12px;
 }
 .policy-detail-grid {
     display: grid;
     grid-template-columns: 90px 1fr;
     gap: 4px 10px;
-    color: #64748b;
+    color: var(--admin-muted);
 }
 .policy-detail-grid strong {
-    color: #0f172a;
+    color: var(--admin-text);
     font-weight: 700;
 }
 .policy-violation {
@@ -2215,8 +2211,8 @@ th {
     margin-top: 6px;
     padding: 5px 8px;
     border-radius: 5px;
-    background: #fef2f2;
-    color: #b91c1c;
+    background: var(--admin-danger-soft);
+    color: var(--admin-danger-text);
     font-weight: 700;
     line-height: 1.4;
 }
@@ -2225,7 +2221,7 @@ th {
     border: 0;
     padding: 0;
     background: transparent;
-    color: #15803d;
+    color: var(--admin-success-text);
     font-weight: 800;
     text-decoration: underline;
     cursor: pointer;
@@ -2240,15 +2236,15 @@ th {
     min-height: 30px;
     padding: 0 10px;
     border-radius: 999px;
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
     font-size: 12px;
     font-weight: 800;
 }
 .pagination {
     justify-content: flex-end;
     gap: 12px;
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 .modal-backdrop {
@@ -2258,7 +2254,7 @@ th {
     display: grid;
     place-items: center;
     padding: 20px;
-    background: rgba(15, 23, 42, 0.48);
+    background: color-mix(in srgb, var(--admin-bg) 68%, transparent);
 }
 .action-modal,
 .receipt-modal,
@@ -2266,7 +2262,7 @@ th {
     width: min(540px, calc(100vw - 32px));
     padding: 22px;
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface);
 }
 .payout-modal {
     width: min(760px, calc(100vw - 32px));
@@ -2294,7 +2290,7 @@ th {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    color: #334155;
+    color: var(--admin-text);
     font-size: 13px;
     font-weight: 700;
 }
@@ -2303,7 +2299,7 @@ th {
     gap: 8px;
 }
 .eyebrow {
-    color: #64748b;
+    color: var(--admin-muted);
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
@@ -2313,11 +2309,11 @@ th {
     grid-template-columns: 130px 1fr;
     gap: 8px 14px;
     margin: 18px 0;
-    color: #475569;
+    color: var(--admin-muted);
     font-size: 13px;
 }
 .receipt-facts strong {
-    color: #0f172a;
+    color: var(--admin-text);
 }
 .receipt-facts.compact {
     margin: 0;
@@ -2337,24 +2333,24 @@ th {
 }
 .detail-note-grid section {
     padding: 12px 14px;
-    border: 1px solid #dbe7dd;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #f8fcf9;
+    background: var(--admin-surface-muted);
 }
 .detail-note-grid strong {
     display: block;
     margin-bottom: 6px;
-    color: #334155;
+    color: var(--admin-text);
     font-size: 12px;
     text-transform: uppercase;
 }
 .detail-note-grid p {
     margin: 0;
-    color: #0f172a;
+    color: var(--admin-text);
     line-height: 1.5;
 }
 .transfer-code {
-    color: #15803d !important;
+    color: var(--admin-success-text) !important;
     letter-spacing: 0.04em;
 }
 .payout-content {
@@ -2367,9 +2363,9 @@ th {
 .payout-content img {
     width: 280px;
     max-width: 100%;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface);
 }
 .payout-info {
     display: flex;
@@ -2391,27 +2387,27 @@ th {
     display: grid;
     gap: 5px;
     padding: 12px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface);
 }
 .collect-summary > div.highlight {
-    border-color: #86efac;
-    background: #ecfdf5;
+    border-color: var(--admin-success-soft);
+    background: var(--admin-success-soft);
 }
 .collect-summary dt {
-    color: #607267;
+    color: var(--admin-muted);
     font-size: 11px;
     font-weight: 800;
 }
 .collect-summary dd {
     margin: 0;
-    color: #16231a;
+    color: var(--admin-text);
     font-size: 14px;
     font-weight: 900;
 }
 .collect-summary .highlight dd {
-    color: #047857;
+    color: var(--admin-success-text);
     font-size: 18px;
 }
 .method-row {
@@ -2425,19 +2421,19 @@ th {
     justify-content: center;
     gap: 8px;
     min-height: 44px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
-    color: #475b4d;
+    background: var(--admin-surface);
+    color: var(--admin-muted);
     font: inherit;
     font-weight: 800;
     cursor: pointer;
 }
 .method-row button.active {
-    border-color: #16a34a;
-    background: #ecfdf5;
-    color: #15803d;
-    box-shadow: inset 0 0 0 1px #16a34a;
+    border-color: var(--admin-primary);
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
+    box-shadow: inset 0 0 0 1px var(--admin-primary);
 }
 .method-row button:disabled {
     opacity: 0.5;
@@ -2446,9 +2442,9 @@ th {
     display: grid;
     gap: 12px;
     padding: 12px;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #f7fbf5;
+    background: var(--admin-surface-muted);
 }
 .user-transfer-layout {
     display: grid;
@@ -2460,9 +2456,9 @@ th {
     width: 100%;
     max-width: 300px;
     justify-self: center;
-    border: 1px solid #d9e8d9;
+    border: 1px solid var(--admin-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--admin-surface);
 }
 .user-transfer-info {
     display: grid;
@@ -2485,17 +2481,17 @@ th {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    color: #334155;
+    color: var(--admin-text);
     font-size: 12px;
     font-weight: 800;
 }
 .bank-transfer-review input,
 .payout-note-field textarea {
     width: 100%;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--admin-border);
     border-radius: 7px;
-    background: #fff;
-    color: #0f172a;
+    background: var(--admin-surface);
+    color: var(--admin-text);
     padding: 9px 10px;
     font: inherit;
     font-weight: 500;
@@ -2504,8 +2500,8 @@ th {
     margin: 0;
     padding: 11px 12px;
     border-radius: 8px;
-    background: #f8fafc;
-    color: #52635a;
+    background: var(--admin-surface-muted);
+    color: var(--admin-muted);
     font-size: 13px;
     line-height: 1.45;
 }
@@ -2527,18 +2523,18 @@ th {
     align-items: center;
     gap: 9px;
     padding: 10px 12px;
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--admin-blue-soft);
     border-radius: 7px;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--admin-blue-soft);
+    color: var(--admin-blue);
     font-size: 13px;
     font-weight: 700;
 }
 .spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid #bfdbfe;
-    border-top-color: #2563eb;
+    border: 2px solid var(--admin-blue-soft);
+    border-top-color: var(--admin-blue);
     border-radius: 999px;
     animation: spin 0.8s linear infinite;
     flex: 0 0 auto;
@@ -2556,18 +2552,18 @@ th {
     font-weight: 700;
 }
 .inline-success {
-    color: #15803d;
+    color: var(--admin-success-text);
 }
 .inline-error {
-    color: #b91c1c;
+    color: var(--admin-danger-text);
 }
 pre {
     max-height: 240px;
     overflow: auto;
     padding: 10px;
     border-radius: 6px;
-    background: #0f172a;
-    color: #d1fae5;
+    background: var(--admin-text);
+    color: var(--admin-success-soft);
     font-size: 11px;
     white-space: pre-wrap;
 }

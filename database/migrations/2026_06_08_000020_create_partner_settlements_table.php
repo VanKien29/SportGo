@@ -13,12 +13,12 @@ return new class extends Migration
         }
 
         Schema::create('partner_settlements', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('settlement_code', 50)->unique();
-            $table->char('partner_termination_request_id', 36);
-            $table->char('partner_contract_id', 36);
-            $table->char('owner_id', 36);
-            $table->char('venue_cluster_id', 36)->nullable();
+            $table->unsignedBigInteger('partner_termination_request_id');
+            $table->unsignedBigInteger('partner_contract_id');
+            $table->unsignedBigInteger('owner_id');
+            $table->unsignedBigInteger('venue_cluster_id')->nullable();
             $table->decimal('owner_wallet_available_amount', 14, 2)->default(0);
             $table->decimal('owner_wallet_pending_amount', 14, 2)->default(0);
             $table->decimal('platform_fee_remaining_refund_amount', 14, 2)->default(0);
@@ -28,8 +28,8 @@ return new class extends Migration
             $table->decimal('final_payable_to_owner', 14, 2)->default(0);
             $table->decimal('final_receivable_from_owner', 14, 2)->default(0);
             $table->enum('status', ['draft', 'calculated', 'pending_approval', 'approved', 'payout_created', 'completed', 'cancelled'])->default('draft');
-            $table->char('calculated_by', 36)->nullable();
-            $table->char('approved_by', 36)->nullable();
+            $table->unsignedBigInteger('calculated_by')->nullable();
+            $table->unsignedBigInteger('approved_by')->nullable();
             $table->timestamp('approved_at')->nullable();
             $table->text('note')->nullable();
             $table->timestamps();

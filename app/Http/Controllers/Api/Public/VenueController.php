@@ -11,7 +11,10 @@ use App\Services\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class VenueController extends Controller
 {
@@ -25,12 +28,29 @@ class VenueController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'court_type_id' => ['nullable', 'integer', 'exists:court_types,id'],
             'area' => ['nullable', 'string', 'max:100'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0'],
             'min_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            'sort' => ['nullable', 'in:recommended,name,price,courts,rating'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
             'start_time' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['nullable', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
         ]);
+
+        if (isset($validated['min_price'], $validated['max_price'])
+            && (float) $validated['max_price'] < (float) $validated['min_price']) {
+            throw ValidationException::withMessages([
+                'max_price' => 'Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.',
+            ]);
+        }
+
+        if (! empty($validated['start_time']) && ! empty($validated['end_time'])
+            && $this->timeToMinutes($validated['end_time']) <= $this->timeToMinutes($validated['start_time'])) {
+            throw ValidationException::withMessages([
+                'end_time' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.',
+            ]);
+        }
 
         $query = VenueCluster::query()
             ->with(['venueCourts' => function ($query) {
@@ -45,12 +65,19 @@ class VenueController extends Controller
             $keyword = $validated['q'];
             $query->where(function ($query) use ($keyword) {
                 $query->where('name', 'like', "%{$keyword}%")
-                    ->orWhere('address', 'like', "%{$keyword}%");
+                    ->orWhere('address', 'like', "%{$keyword}%")
+                    ->orWhere('ward', 'like', "%{$keyword}%")
+                    ->orWhere('province', 'like', "%{$keyword}%");
             });
         }
 
         if (! empty($validated['area'])) {
-            $query->where('address', 'like', '%'.$validated['area'].'%');
+            $area = $validated['area'];
+            $query->where(function ($areaQuery) use ($area) {
+                $areaQuery->where('address', 'like', "%{$area}%")
+                    ->orWhere('ward', 'like', "%{$area}%")
+                    ->orWhere('province', 'like', "%{$area}%");
+            });
         }
 
         if (isset($validated['min_rating'])) {
@@ -100,8 +127,33 @@ class VenueController extends Controller
         }
 
         $clusters = $clusters
-            ->when(! empty($validated['limit']), fn (Collection $clusters) => $clusters->take((int) $validated['limit']))
-            ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster));
+            ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster))
+            ->filter(function (array $cluster) use ($validated) {
+                $price = $cluster['min_price'];
+
+                if (isset($validated['min_price']) && ($price === null || $price < (float) $validated['min_price'])) {
+                    return false;
+                }
+
+                if (isset($validated['max_price']) && ($price === null || $price > (float) $validated['max_price'])) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->sort(function (array $left, array $right) use ($validated) {
+                return match ($validated['sort'] ?? 'recommended') {
+                    'name' => strnatcasecmp($left['name'] ?? '', $right['name'] ?? ''),
+                    'price' => ($left['min_price'] ?? PHP_INT_MAX) <=> ($right['min_price'] ?? PHP_INT_MAX),
+                    'courts' => ((int) ($right['court_count'] ?? 0)) <=> ((int) ($left['court_count'] ?? 0)),
+                    'rating' => ((float) ($right['rating_avg'] ?? 0)) <=> ((float) ($left['rating_avg'] ?? 0)),
+                    default => ((float) ($right['rating_avg'] ?? 0)) <=> ((float) ($left['rating_avg'] ?? 0))
+                        ?: (($left['min_price'] ?? PHP_INT_MAX) <=> ($right['min_price'] ?? PHP_INT_MAX))
+                        ?: strnatcasecmp($left['name'] ?? '', $right['name'] ?? ''),
+                };
+            })
+            ->values()
+            ->when(! empty($validated['limit']), fn (Collection $clusters) => $clusters->take((int) $validated['limit']));
 
         return response()->json(['data' => $clusters]);
     }
@@ -120,6 +172,9 @@ class VenueController extends Controller
                 },
                 'affiliateProducts' => function ($query) {
                     $query->where('is_active', true)->latest();
+                },
+                'services' => function ($query) {
+                    $query->with('category')->where('status', 'active')->latest();
                 },
             ])
             ->where('status', 'active')
@@ -146,7 +201,10 @@ class VenueController extends Controller
                 'layout_decorations' => $cluster->layout_decorations,
                 'amenities' => $cluster->amenities ?? [],
                 'amenities_detail' => $amenitiesDetail,
+                'services' => $cluster->services,
                 'booking_config' => $cluster->bookingConfig,
+                'operating_hours' => $this->operatingHoursPayload($cluster),
+                'policies' => $this->policyPayload($cluster),
                 'venue_courts' => $cluster->venueCourts,
                 'price_slots' => PriceSlot::query()
                     ->with('courtType:id,name,parent_id')
@@ -169,7 +227,7 @@ class VenueController extends Controller
                     ->get(),
                 'gallery' => $this->gallery($cluster),
                 'affiliate_products' => $cluster->affiliateProducts ?? [],
-                'reviews' => [],
+                'reviews' => $this->reviewPreview($cluster),
             ]),
         ]);
     }
@@ -220,10 +278,6 @@ class VenueController extends Controller
             ->map(fn ($price) => (float) $price)
             ->min();
 
-        if ($minPrice === null && $courtTypeIds->isNotEmpty()) {
-            $minPrice = 10000.0;
-        }
-
         $courtTypes = $cluster->venueCourts
             ->pluck('courtType')
             ->filter()
@@ -252,7 +306,74 @@ class VenueController extends Controller
             'court_types' => $courtTypes,
             'min_price' => $minPrice,
             'image_path' => $this->coverImage($cluster),
+            'availability_hint' => $cluster->venueCourts->isNotEmpty() ? 'available' : 'closed',
         ];
+    }
+
+    private function operatingHoursPayload(VenueCluster $cluster): array
+    {
+        $config = $cluster->bookingConfig;
+
+        return [
+            'fixed_open_time' => $config?->fixed_open_time,
+            'fixed_close_time' => $config?->fixed_close_time,
+            'weekly_operating_hours' => $config?->weekly_operating_hours ?? [],
+            'min_duration_minutes' => $config?->min_duration_minutes,
+            'max_duration_minutes' => $config?->max_duration_minutes,
+        ];
+    }
+
+    private function policyPayload(VenueCluster $cluster): array
+    {
+        $config = $cluster->bookingConfig;
+
+        return [
+            'allow_full_payment' => (bool) ($config?->allow_full_payment ?? true),
+            'allow_deposit' => (bool) ($config?->allow_deposit ?? true),
+            'allow_no_prepay' => (bool) ($config?->allow_no_prepay ?? true),
+            'deposit_percent' => $config?->deposit_percent !== null ? (float) $config->deposit_percent : null,
+            'cancel_before_hours' => $config?->cancel_before_hours,
+            'refund_percent' => $config?->refund_percent,
+            'min_advance_booking_minutes' => $config?->min_advance_booking_minutes,
+            'slot_hold_minutes' => $config?->slot_hold_minutes,
+        ];
+    }
+
+    private function reviewPreview(VenueCluster $cluster): array
+    {
+        if (! Schema::hasTable('reviews')) {
+            return [];
+        }
+
+        return DB::table('reviews')
+            ->leftJoin('users', 'users.id', '=', 'reviews.customer_id')
+            ->where('reviews.venue_cluster_id', $cluster->id)
+            ->where('reviews.is_visible', true)
+            ->latest('reviews.created_at')
+            ->limit(10)
+            ->get([
+                'reviews.id',
+                'reviews.rating',
+                'reviews.comment',
+                'reviews.reply_content',
+                'reviews.replied_at',
+                'reviews.created_at',
+                'users.full_name as author_name',
+                'users.username as author_username',
+            ])
+            ->map(fn (object $review): array => [
+                'id' => $review->id,
+                'author_name' => $review->author_name ?: $review->author_username ?: 'Khách hàng SportGo',
+                'rating' => (float) $review->rating,
+                'content' => $review->comment,
+                'reply_content' => $review->reply_content,
+                'replied_at' => $review->replied_at
+                    ? Carbon::parse($review->replied_at, config('app.timezone'))->toIso8601String()
+                    : null,
+                'created_at' => Carbon::parse($review->created_at, config('app.timezone'))->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 
     private function coverImage(VenueCluster $cluster): ?string
@@ -268,6 +389,9 @@ class VenueController extends Controller
         $paths = DB::table('media')
             ->where('mediable_type', VenueCluster::class)
             ->where('mediable_id', $cluster->id)
+            ->where('mime_type', 'like', 'image/%')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->pluck('file_path')
             ->all();
 
@@ -298,6 +422,13 @@ class VenueController extends Controller
         }
 
         return array_values(array_unique($ids));
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
+
+        return $hour * 60 + $minute;
     }
 
     private function courtTypeIdsWithAncestors(Collection $courtTypeIds): array

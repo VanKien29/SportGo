@@ -21,7 +21,16 @@
           <span>📅 {{ dateTime(post.created_at) }}</span>
         </div>
         <div v-if="post.media && post.media.length" class="post-media">
-          <img v-for="m in post.media" :key="m.id" :src="m.url" alt="Media" class="post-media-img" />
+          <template v-for="m in post.media" :key="m.id">
+            <img
+              v-if="!failedMedia[`post-${m.id}`]"
+              :src="m.url"
+              alt="Ảnh bài đăng"
+              class="post-media-img"
+              @error="markMediaFailed(`post-${m.id}`)"
+            />
+            <span v-else class="media-unavailable">Ảnh không sẵn sàng</span>
+          </template>
         </div>
       </article>
 
@@ -31,13 +40,26 @@
           <article v-for="comment in comments" :key="comment.id" class="comment-item content-card">
             <div class="content-card-body">
               <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
-                <img v-if="comment.user_avatar" :src="comment.user_avatar" class="avatar-sm" />
+                <img
+                  v-if="comment.user_avatar && !failedMedia[`avatar-${comment.id}`]"
+                  :src="comment.user_avatar"
+                  class="avatar-sm"
+                  @error="markMediaFailed(`avatar-${comment.id}`)"
+                />
                 <div v-else class="avatar-sm-placeholder">{{ initials(comment.user_name) }}</div>
                 <strong>{{ comment.user_name || 'Người dùng' }}</strong>
               </div>
               <p class="content-text">{{ comment.content }}</p>
               <div v-if="comment.media && comment.media.length" class="content-media-preview">
-                <img v-for="m in comment.media" :key="m.id" :src="m.url" class="media-thumb" />
+                <template v-for="m in comment.media" :key="m.id">
+                  <img
+                    v-if="!failedMedia[`comment-${m.id}`]"
+                    :src="m.url"
+                    class="media-thumb"
+                    @error="markMediaFailed(`comment-${m.id}`)"
+                  />
+                  <span v-else class="media-unavailable compact">Ảnh không sẵn sàng</span>
+                </template>
               </div>
               <div class="content-meta">
                 <span>📅 {{ dateTime(comment.created_at) }}</span>
@@ -73,6 +95,7 @@ export default {
       commentsMeta: { current_page: 1, last_page: 1, total: 0 },
       loading: false,
       error: '',
+      failedMedia: {},
     };
   },
   mounted() {
@@ -106,6 +129,9 @@ export default {
     initials(name) {
       return String(name || 'SG').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
     },
+    markMediaFailed(key) {
+      this.failedMedia = { ...this.failedMedia, [key]: true };
+    },
   },
 };
 </script>
@@ -131,11 +157,13 @@ export default {
 
 /* Content Cards */
 .content-card { display: flex; justify-content: space-between; gap: 16px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow 0.2s; }
-.content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.content-card.never-hover-class-placeholder { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
 .content-card-body { display: grid; gap: 8px; flex: 1; min-width: 0; }
 .content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .media-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
+.media-unavailable { display: inline-grid; min-width: 180px; min-height: 96px; place-items: center; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; }
+.media-unavailable.compact { min-width: 80px; min-height: 60px; }
 .content-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; flex-wrap: wrap; align-items: center; }
 
 .avatar-sm { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }

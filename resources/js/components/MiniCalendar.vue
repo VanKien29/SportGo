@@ -1,5 +1,11 @@
 <template>
-    <div class="mini-cal" :class="{ 'mini-cal--range': mode === 'range' }">
+    <div
+        class="mini-cal"
+        :class="{
+            'mini-cal--range': mode === 'range',
+            'mini-cal--multiple': mode === 'multiple',
+        }"
+    >
         <header class="mini-cal__header">
             <button
                 type="button"
@@ -41,6 +47,7 @@
                 :class="dayClasses(cell)"
                 :disabled="cell.disabled"
                 :title="cell.iso"
+                :aria-pressed="isDaySelected(cell)"
                 @click="selectDay(cell)"
                 @mouseenter="onDayHover(cell)"
             >
@@ -90,23 +97,38 @@ export default {
         startDate: { type: String, default: '' },
         /** Range mode: end date */
         endDate: { type: String, default: '' },
-        /** 'single' | 'range' */
+        /** Multiple mode: selected dates */
+        selectedDates: { type: Array, default: () => [] },
+        /** 'single' | 'range' | 'multiple' */
         mode: { type: String, default: 'single' },
         /** Min selectable date (YYYY-MM-DD) */
         minDate: { type: String, default: '' },
         /** Max selectable date (YYYY-MM-DD) */
         maxDate: { type: String, default: '' },
+        /** Optional range highlighted behind independently selected dates */
+        highlightStartDate: { type: String, default: '' },
+        highlightEndDate: { type: String, default: '' },
         /**
          * Array of { date: 'YYYY-MM-DD', color: '#hex' }
          * Shows colored dots under the day number
          */
         markedDates: { type: Array, default: () => [] },
     },
-    emits: ['update:modelValue', 'update:startDate', 'update:endDate', 'select', 'range-change'],
+    emits: [
+        'update:modelValue',
+        'update:startDate',
+        'update:endDate',
+        'update:selectedDates',
+        'select',
+        'range-change',
+    ],
     data() {
-        const ref = this.mode === 'range'
-            ? parseIso(this.startDate) || new Date()
-            : parseIso(this.modelValue) || new Date();
+        const referenceDate = this.mode === 'range'
+            ? this.startDate
+            : this.mode === 'multiple'
+                ? this.selectedDates[0]
+                : this.modelValue;
+        const ref = parseIso(referenceDate) || new Date();
         return {
             viewMonth: ref.getMonth(),
             viewYear: ref.getFullYear(),
@@ -216,6 +238,19 @@ export default {
                 }
             }
         },
+        selectedDates(newVal, oldVal) {
+            if (
+                this.mode === 'multiple' &&
+                newVal?.length &&
+                newVal[0] !== oldVal?.[0]
+            ) {
+                const d = parseIso(newVal[0]);
+                if (d) {
+                    this.viewMonth = d.getMonth();
+                    this.viewYear = d.getFullYear();
+                }
+            }
+        },
     },
     methods: {
         prevMonth() {
@@ -248,9 +283,22 @@ export default {
             const classes = [];
             if (cell.outside) classes.push('outside');
             if (cell.iso === this.todayIso) classes.push('today');
+            if (
+                !cell.outside &&
+                this.highlightStartDate &&
+                this.highlightEndDate &&
+                cell.iso >= this.highlightStartDate &&
+                cell.iso <= this.highlightEndDate
+            ) {
+                classes.push('template-window');
+            }
 
             if (this.mode === 'single') {
                 if (cell.iso === this.modelValue) classes.push('selected');
+            } else if (this.mode === 'multiple') {
+                if (this.selectedDates.includes(cell.iso)) {
+                    classes.push('selected');
+                }
             } else {
                 // Range mode
                 const start = this.effectiveRangeStart;
@@ -272,11 +320,29 @@ export default {
 
             return classes;
         },
+        isDaySelected(cell) {
+            if (this.mode === 'single') return cell.iso === this.modelValue;
+            if (this.mode === 'multiple') {
+                return this.selectedDates.includes(cell.iso);
+            }
+            return (
+                Boolean(this.effectiveRangeStart) &&
+                cell.iso >= this.effectiveRangeStart &&
+                cell.iso <= this.effectiveRangeEnd
+            );
+        },
         selectDay(cell) {
             if (cell.disabled) return;
 
             if (this.mode === 'single') {
                 this.$emit('update:modelValue', cell.iso);
+                this.$emit('select', cell.iso);
+            } else if (this.mode === 'multiple') {
+                const selected = this.selectedDates.includes(cell.iso)
+                    ? this.selectedDates.filter((date) => date !== cell.iso)
+                    : [...this.selectedDates, cell.iso];
+                const sorted = [...selected].sort();
+                this.$emit('update:selectedDates', sorted);
                 this.$emit('select', cell.iso);
             } else {
                 // Range mode
@@ -319,9 +385,10 @@ export default {
     width: 100%;
     max-width: 276px;
     padding: 10px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 12px;
-    background: #fff;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #0f172a);
     user-select: none;
 }
 
@@ -337,15 +404,15 @@ export default {
     place-items: center;
     width: 30px;
     height: 30px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 8px;
-    background: #fff;
-    color: #475569;
+    background: var(--admin-bg-soft, #fff);
+    color: var(--admin-muted, #475569);
     cursor: pointer;
     transition: all 0.15s ease;
 }
 
-.mini-cal__nav:hover {
+.mini-cal__nav.never-hover-class-placeholder {
     border-color: #cbd5e1;
     background: #f1f5f9;
     color: #0f172a;
@@ -363,18 +430,18 @@ export default {
     transition: background 0.15s ease;
 }
 
-.mini-cal__title:hover {
+.mini-cal__title.never-hover-class-placeholder {
     background: #f1f5f9;
 }
 
 .mini-cal__month {
-    color: #0f172a;
+    color: var(--admin-text, #0f172a);
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 500;
 }
 
 .mini-cal__year {
-    color: #64748b;
+    color: var(--admin-muted, #64748b);
     font-size: 13px;
     font-weight: 750;
 }
@@ -390,9 +457,9 @@ export default {
     display: grid;
     place-items: center;
     height: 24px;
-    color: #94a3b8;
+    color: var(--admin-faint, #94a3b8);
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 500;
     letter-spacing: 0.03em;
 }
 
@@ -412,25 +479,25 @@ export default {
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: #1e293b;
+    color: inherit;
     font: inherit;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.12s ease;
 }
 
-.mini-cal__day:hover:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
+.mini-cal__day.never-hover-class-placeholder:not(:disabled):not(.selected):not(.range-start):not(.range-end) {
     background: #f1f5f9;
 }
 
 .mini-cal__day:disabled {
-    color: #cbd5e1;
+    color: var(--admin-faint, #cbd5e1);
     cursor: not-allowed;
 }
 
 .mini-cal__day.outside {
-    color: #cbd5e1;
+    color: var(--admin-faint, #cbd5e1);
 }
 
 .mini-cal__day.today .mini-cal__day-num {
@@ -446,16 +513,23 @@ export default {
     width: 14px;
     height: 2px;
     border-radius: 2px;
-    background: var(--admin-primary, #16a34a);
+    background: var(--admin-success, var(--admin-primary, #22a653));
+}
+
+.mini-cal__day.template-window:not(.selected) {
+    background: var(--admin-primary-soft, #ecfdf3);
+    color: var(--admin-primary-dark, #166534);
 }
 
 .mini-cal__day.selected,
 .mini-cal__day.range-start,
 .mini-cal__day.range-end {
-    background: var(--admin-primary, #16a34a);
-    color: #fff;
-    font-weight: 900;
-    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+    background: transparent;
+    background-color: transparent;
+    color: inherit;
+    font-weight: 400;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+    border-radius: 8px;
 }
 
 .mini-cal__day.selected .mini-cal__day-num::after,

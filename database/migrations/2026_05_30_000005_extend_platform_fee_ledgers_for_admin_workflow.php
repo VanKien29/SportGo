@@ -22,7 +22,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('venue_platform_fee_ledgers', 'payment_proof_media_id')) {
-                $table->char('payment_proof_media_id', 36)->nullable()->after('amount_paid')->comment('File bằng chứng thanh toán gần nhất trong media.');
+                $table->unsignedBigInteger('payment_proof_media_id')->nullable()->after('amount_paid')->comment('File bằng chứng thanh toán gần nhất trong media.');
                 $table->foreign('payment_proof_media_id', 'vpfl_payment_proof_media_foreign')->references('id')->on('media')->onDelete('set null');
             }
 
@@ -35,13 +35,13 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('venue_platform_fee_ledgers', 'payment_confirmed_by')) {
-                $table->char('payment_confirmed_by', 36)->nullable()->after('paid_at')->comment('Admin xác nhận thanh toán.');
+                $table->unsignedBigInteger('payment_confirmed_by')->nullable()->after('paid_at')->comment('Admin xác nhận thanh toán.');
                 $table->timestamp('payment_confirmed_at')->nullable()->after('payment_confirmed_by')->comment('Thời điểm xác nhận thanh toán.');
                 $table->foreign('payment_confirmed_by', 'vpfl_confirmed_by_foreign')->references('id')->on('users')->onDelete('set null');
             }
 
             if (! Schema::hasColumn('venue_platform_fee_ledgers', 'payment_rejected_by')) {
-                $table->char('payment_rejected_by', 36)->nullable()->after('payment_confirmed_at')->comment('Admin từ chối bằng chứng thanh toán.');
+                $table->unsignedBigInteger('payment_rejected_by')->nullable()->after('payment_confirmed_at')->comment('Admin từ chối bằng chứng thanh toán.');
                 $table->timestamp('payment_rejected_at')->nullable()->after('payment_rejected_by')->comment('Thời điểm từ chối bằng chứng.');
                 $table->text('payment_reject_reason')->nullable()->after('payment_rejected_at')->comment('Lý do từ chối bằng chứng thanh toán.');
                 $table->foreign('payment_rejected_by', 'vpfl_rejected_by_foreign')->references('id')->on('users')->onDelete('set null');
@@ -52,7 +52,7 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('venue_platform_fee_ledgers', 'internal_receipt_id') && Schema::hasTable('internal_receipts')) {
-                $table->char('internal_receipt_id', 36)->nullable()->after('locked_venue_at')->comment('Phiếu/hóa đơn nội bộ phát hành cho kỳ phí.');
+                $table->unsignedBigInteger('internal_receipt_id')->nullable()->after('locked_venue_at')->comment('Phiếu/hóa đơn nội bộ phát hành cho kỳ phí.');
                 $table->foreign('internal_receipt_id', 'vpfl_internal_receipt_foreign')->references('id')->on('internal_receipts')->onDelete('set null');
             }
         });

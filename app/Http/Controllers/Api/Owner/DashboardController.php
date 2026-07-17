@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\VenuePost;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -74,6 +75,10 @@ class DashboardController extends Controller
                 'rating' => 0,
                 'venue_cluster_id' => null,
                 'wallet' => $walletData,
+                'today_booking_summary' => $this->emptyTodayBookingSummary(),
+                'today_bookings' => [],
+                'pending_bookings' => [],
+                'cancelled_today' => [],
                 'golden_hours' => [],
                 'court_revenues' => [],
                 'published_posts' => [],
@@ -93,6 +98,55 @@ class DashboardController extends Controller
         $rating = DB::table('venue_clusters')
             ->whereIn('id', $clusterIds)
             ->avg('rating_avg') ?? 0;
+
+        $today = now()->toDateString();
+        $todayBookingQuery = Booking::query()
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->whereDate('booking_date', $today);
+
+        $todayRevenue = DB::table('payments')
+            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
+            ->whereIn('bookings.venue_cluster_id', $clusterIds)
+            ->whereDate('bookings.booking_date', $today)
+            ->where('payments.status', 'paid')
+            ->sum('payments.amount') ?? 0;
+
+        $todaySummary = [
+            'date' => $today,
+            'total' => (clone $todayBookingQuery)->count(),
+            'pending_approval' => (clone $todayBookingQuery)->where('status', 'pending_approval')->count(),
+            'pending_payment' => (clone $todayBookingQuery)->where('status', 'pending_payment')->count(),
+            'paid' => (clone $todayBookingQuery)
+                ->whereIn('status', ['confirmed', 'checked_in', 'completed'])
+                ->whereHas('payments', fn ($query) => $query->where('status', 'paid'))
+                ->count(),
+            'cancelled' => (clone $todayBookingQuery)->whereIn('status', ['cancelled', 'rejected', 'expired'])->count(),
+            'revenue' => (float) $todayRevenue,
+        ];
+
+        $todayBookings = $this->bookingDashboardQuery($clusterIds)
+            ->whereDate('booking_date', $today)
+            ->orderBy('start_time')
+            ->limit(12)
+            ->get()
+            ->map(fn (Booking $booking): array => $this->bookingDashboardPayload($booking));
+
+        $pendingBookings = $this->bookingDashboardQuery($clusterIds)
+            ->whereDate('booking_date', '>=', $today)
+            ->whereIn('status', ['pending_approval', 'pending_payment'])
+            ->orderBy('booking_date')
+            ->orderBy('start_time')
+            ->limit(10)
+            ->get()
+            ->map(fn (Booking $booking): array => $this->bookingDashboardPayload($booking));
+
+        $cancelledToday = $this->bookingDashboardQuery($clusterIds)
+            ->whereDate('booking_date', $today)
+            ->whereIn('status', ['cancelled', 'rejected', 'expired'])
+            ->orderByDesc('updated_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (Booking $booking): array => $this->bookingDashboardPayload($booking));
 
         $goldenHours = DB::table('bookings')
             ->select(DB::raw("CONCAT(SUBSTRING(start_time, 1, 5), ' - ', SUBSTRING(end_time, 1, 5)) as time_slot"), DB::raw('count(*) as count'))
@@ -151,10 +205,137 @@ class DashboardController extends Controller
             'rating' => round((float) $rating, 2),
             'venue_cluster_id' => $selectedClusterId,
             'wallet' => $walletData,
+            'today_booking_summary' => $todaySummary,
+            'today_bookings' => $todayBookings,
+            'pending_bookings' => $pendingBookings,
+            'cancelled_today' => $cancelledToday,
             'golden_hours' => $goldenHours,
             'court_revenues' => $courtRevenues,
             'published_posts' => $publishedPosts,
         ]);
+    }
+
+    private function bookingDashboardQuery($clusterIds)
+    {
+        return Booking::query()
+            ->with([
+                'customer:id,username,full_name,phone,email',
+                'venueCourt:id,name,court_type_id',
+                'venueCourt.courtType:id,name',
+                'items:id,booking_id,venue_court_id,start_time,end_time,subtotal,status',
+                'items.venueCourt:id,name,court_type_id',
+                'payments:id,booking_id,amount,status,method,payment_kind,paid_at',
+            ])
+            ->whereIn('venue_cluster_id', $clusterIds);
+    }
+
+    private function bookingDashboardPayload(Booking $booking): array
+    {
+        $paidAmount = (float) $booking->payments->where('status', 'paid')->sum('amount');
+        $totalPrice = (float) $booking->total_price;
+        $outstandingAmount = max($totalPrice - $paidAmount, 0);
+        $items = $booking->items->isNotEmpty()
+            ? $booking->items
+            : collect([(object) [
+                'venueCourt' => $booking->venueCourt,
+                'start_time' => $booking->start_time,
+                'end_time' => $booking->end_time,
+            ]]);
+
+        return [
+            'id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'booking_date' => $booking->booking_date?->toDateString(),
+            'time_label' => $this->bookingTimeLabel($items),
+            'court_label' => $items
+                ->map(fn ($item) => $item->venueCourt?->name)
+                ->filter()
+                ->unique()
+                ->values()
+                ->implode(', ') ?: ($booking->venueCourt?->name ?: 'Sân'),
+            'court_type_label' => $booking->venueCourt?->courtType?->name,
+            'customer_name' => $booking->customer?->full_name
+                ?: $booking->customer?->username
+                ?: $booking->walk_in_name
+                ?: 'Khách hàng',
+            'customer_phone' => $booking->customer?->phone ?: $booking->walk_in_phone,
+            'status' => $booking->status,
+            'status_label' => $this->bookingStatusLabel($booking->status),
+            'payment_option' => $booking->payment_option,
+            'payment_option_label' => $this->paymentOptionLabel($booking->payment_option),
+            'payment_state' => $this->paymentState($paidAmount, $totalPrice),
+            'payment_state_label' => $this->paymentStateLabel($paidAmount, $totalPrice),
+            'source' => $booking->source,
+            'source_label' => $booking->source === 'online' ? 'Online' : 'Tại quầy',
+            'total_price' => $totalPrice,
+            'paid_amount' => $paidAmount,
+            'outstanding_amount' => $outstandingAmount,
+            'created_at' => $booking->created_at,
+            'updated_at' => $booking->updated_at,
+        ];
+    }
+
+    private function bookingTimeLabel($items): string
+    {
+        return $items
+            ->map(fn ($item) => sprintf('%s - %s', substr((string) $item->start_time, 0, 5), substr((string) $item->end_time, 0, 5)))
+            ->unique()
+            ->values()
+            ->implode(', ');
+    }
+
+    private function bookingStatusLabel(?string $status): string
+    {
+        return [
+            'pending_approval' => 'Chờ xác nhận',
+            'pending_payment' => 'Chờ thanh toán',
+            'confirmed' => 'Đã xác nhận',
+            'checked_in' => 'Đang chơi',
+            'completed' => 'Hoàn thành',
+            'cancelled' => 'Đã hủy',
+            'rejected' => 'Từ chối',
+            'expired' => 'Quá hạn',
+        ][$status] ?? ($status ?: 'Không rõ');
+    }
+
+    private function paymentOptionLabel(?string $option): string
+    {
+        return [
+            'no_prepay' => 'Thu sau',
+            'deposit' => 'Đặt cọc',
+            'full_payment' => 'Thanh toán đủ',
+        ][$option] ?? ($option ?: 'Không rõ');
+    }
+
+    private function paymentState(float $paidAmount, float $totalPrice): string
+    {
+        if ($totalPrice <= 0 || $paidAmount >= $totalPrice) {
+            return 'paid';
+        }
+
+        return $paidAmount > 0 ? 'partial' : 'unpaid';
+    }
+
+    private function paymentStateLabel(float $paidAmount, float $totalPrice): string
+    {
+        return [
+            'paid' => 'Đã thanh toán',
+            'partial' => 'Thanh toán một phần',
+            'unpaid' => 'Chưa thanh toán',
+        ][$this->paymentState($paidAmount, $totalPrice)];
+    }
+
+    private function emptyTodayBookingSummary(): array
+    {
+        return [
+            'date' => now()->toDateString(),
+            'total' => 0,
+            'pending_approval' => 0,
+            'pending_payment' => 0,
+            'paid' => 0,
+            'cancelled' => 0,
+            'revenue' => 0,
+        ];
     }
 
     private function visibleClusterIds(string $userId)

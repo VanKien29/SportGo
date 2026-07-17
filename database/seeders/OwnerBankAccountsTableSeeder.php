@@ -18,16 +18,15 @@ class OwnerBankAccountsTableSeeder extends Seeder
 
         $admin = User::query()->where('username', 'admin')->first();
         $owner = User::query()->where('username', 'owner')->first();
-        $user = User::query()->where('username', 'user')->first();
+        $ownerSun = User::query()->where('username', 'owner_sun')->first();
 
-        if (! $owner || ! $user) {
+        if (! $owner || ! $ownerSun) {
             return;
         }
 
         $accounts = [
-            [$owner, 'SportGo Cầu Giấy', 'Vietcombank', 'VCB', '0123456789', 'CHU SAN SPORTGO', 'active', true, null],
-            [$user, 'SportGo Thanh Xuân', 'TPBank', 'TPB', '0987654321', 'NGUYEN VAN USER', 'pending', true, null],
-            [$user, 'SportGo Long Biên', 'Techcombank', 'TCB', '1122334455', 'NGUYEN VAN USER', 'rejected', false, 'Tên chủ tài khoản không khớp với hồ sơ đăng ký.'],
+            [$owner, 'Green Sport Ba Đình', 'Vietcombank', 'VCB', '0123456789', 'NGUYEN MINH QUAN', 'active', true, null],
+            [$ownerSun, 'Sun Sport Cầu Giấy', 'TPBank', 'TPB', '0987654321', 'LE HOANG ANH', 'pending', true, null],
         ];
 
         foreach ($accounts as [$accountOwner, $venueName, $bankName, $bankCode, $accountNumber, $holder, $status, $isDefault, $rejectedReason]) {

@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('system_bank_accounts', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('name', 100)->default('Tài khoản nhận tiền hệ thống')->comment('Tên gợi nhớ nội bộ.');
             $table->string('bank_name', 100)->nullable()->comment('Tên ngân hàng hiển thị cho người dùng.');
             $table->string('bank_code', 50)->comment('Mã ngân hàng dùng để tạo QR SePay.');

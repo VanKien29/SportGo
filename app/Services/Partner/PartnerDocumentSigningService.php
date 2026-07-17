@@ -33,6 +33,9 @@ class PartnerDocumentSigningService
         ?string $signatureImage,
         Request $request
     ): DocumentSigningRequest {
+        if ($signatureImage !== null) {
+            $this->validateSignatureImage($signatureImage);
+        }
         $document = $document->fresh();
         $fileHash = $this->currentFileHash($document);
         $identifier = $signer->email;
@@ -45,7 +48,7 @@ class PartnerDocumentSigningService
 
         $this->cancelOpenRequests($document, $signer, $signerSide);
 
-        $nonce = (string) Str::uuid();
+        $nonce = Str::random(40);
         $otpType = 'partner_document_signature:' . $nonce;
         $verificationType = 'email_verify';
         $otp = $this->otpService->generate();
@@ -99,6 +102,52 @@ class PartnerDocumentSigningService
         }
 
         return $signingRequest->fresh(['document']);
+    }
+
+    public function approveWithAuthenticatedSession(
+        GeneratedDocument $document,
+        User $signer,
+        string $signerSide,
+        string $action,
+        string $checkboxText,
+        string $signatureImage,
+        Request $request
+    ): DocumentSigningRequest {
+        $this->validateSignatureImage($signatureImage);
+        $document = $document->fresh();
+        $fileHash = $this->currentFileHash($document);
+        $this->cancelOpenRequests($document, $signer, $signerSide);
+
+        return DocumentSigningRequest::query()->create([
+            'generated_document_id' => $document->id,
+            'verification_code_id' => null,
+            'user_id' => $signer->id,
+            'signer_side' => $signerSide,
+            'action' => $action,
+            'document_type' => $document->document_type,
+            'document_code' => $document->document_code,
+            'document_version' => $document->document_version ?: 1,
+            'file_hash' => $fileHash,
+            'nonce' => Str::random(40),
+            'otp_type' => 'authenticated_admin_session',
+            'otp_channel' => 'session',
+            'otp_identifier' => (string) $signer->id,
+            'otp_sent_at' => null,
+            'otp_verified_at' => null,
+            'expires_at' => now()->addMinutes(self::OTP_MINUTES),
+            'status' => 'verified',
+            'checkbox_text' => $checkboxText,
+            'signature_image' => $signatureImage,
+            'ip_address' => $request->ip(),
+            'user_agent' => (string) $request->userAgent(),
+            'metadata' => [
+                'document_title' => $document->title,
+                'viewed_at' => now()->toISOString(),
+                'hash_short' => substr($fileHash, 0, 16),
+                'verification_method' => 'authenticated_admin_session',
+                'signature_position' => $this->signaturePosition($document->document_type, $signerSide),
+            ],
+        ])->fresh(['document']);
     }
 
     public function verifyOtp(DocumentSigningRequest $signingRequest, User $signer, string $otp): DocumentSigningRequest
@@ -222,6 +271,23 @@ class PartnerDocumentSigningService
         $signingRequest->forceFill(['status' => 'cancelled'])->save();
     }
 
+    private function validateSignatureImage(string $signatureImage): void
+    {
+        $prefix = 'data:image/png;base64,';
+        if (! str_starts_with($signatureImage, $prefix) || strlen($signatureImage) > 3000000) {
+            throw ValidationException::withMessages([
+                'signature_image' => 'Chữ ký phải là ảnh PNG hợp lệ và không vượt quá 2 MB.',
+            ]);
+        }
+
+        $decoded = base64_decode(substr($signatureImage, strlen($prefix)), true);
+        if ($decoded === false || strlen($decoded) > 2000000 || ! str_starts_with($decoded, "\x89PNG\r\n\x1a\n")) {
+            throw ValidationException::withMessages([
+                'signature_image' => 'Chữ ký phải là ảnh PNG hợp lệ và không vượt quá 2 MB.',
+            ]);
+        }
+    }
+
     private function signaturePosition(?string $documentType, string $signerSide): string
     {
         if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
@@ -236,6 +302,8 @@ class PartnerDocumentSigningService
             'partner_contract:owner' => 'Khối ĐẠI DIỆN BÊN B - ĐỐI TÁC/CHỦ SÂN / placeholder {{signature_owner}}',
             'owner_termination_request:owner',
             'termination_request:owner' => 'Khối NGƯỜI LÀM ĐƠN / placeholder {{signature_owner}}',
+            'termination_cancellation_request:owner' => 'Khối CHỦ SÂN/ĐỐI TÁC / placeholder {{signature_owner}}',
+            'unilateral_termination_notice:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
             'mutual_liquidation_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',
             'mutual_liquidation_minutes:owner' => 'Khối ĐẠI DIỆN ĐỐI TÁC / placeholder {{signature_owner}}',
             'settlement_minutes:sportgo' => 'Khối ĐẠI DIỆN SPORTGO / placeholder {{signature_sportgo}}',

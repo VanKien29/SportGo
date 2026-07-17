@@ -176,7 +176,6 @@ class VoucherValidationTest extends TestCase
     private function createUser(string $username, string $email): User
     {
         return User::query()->create([
-            'id' => (string) Str::uuid(),
             'username' => $username,
             'full_name' => $username,
             'email' => $email,
@@ -192,7 +191,7 @@ class VoucherValidationTest extends TestCase
             'user_id' => $user->id,
             'role_id' => $role->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
     }
 }

@@ -14,7 +14,9 @@ export const POLICY_TYPE_LABELS = {
 
 export const TARGET_TYPE_LABELS = {
   community_post: 'Bài đăng cộng đồng',
+  community_post_comment: 'Bình luận (Cộng đồng)',
   venue_post: 'Bài đăng sân',
+  venue_post_comment: 'Bình luận (Sân)',
   comment: 'Bình luận',
   user: 'Người dùng',
   venue_cluster: 'Cụm sân',

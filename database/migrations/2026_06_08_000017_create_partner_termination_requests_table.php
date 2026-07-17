@@ -13,19 +13,19 @@ return new class extends Migration
         }
 
         Schema::create('partner_termination_requests', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('termination_code', 50)->unique();
-            $table->char('partner_contract_id', 36);
-            $table->char('partner_application_id', 36)->nullable();
-            $table->char('owner_id', 36);
-            $table->char('venue_cluster_id', 36)->nullable();
+            $table->unsignedBigInteger('partner_contract_id');
+            $table->unsignedBigInteger('partner_application_id')->nullable();
+            $table->unsignedBigInteger('owner_id');
+            $table->unsignedBigInteger('venue_cluster_id')->nullable();
             $table->enum('termination_type', ['mutual_agreement', 'unilateral_by_owner', 'unilateral_by_sportgo']);
-            $table->char('requested_by', 36);
+            $table->unsignedBigInteger('requested_by');
             $table->timestamp('requested_at')->useCurrent();
             $table->text('reason');
             $table->date('requested_effective_date')->nullable();
             $table->enum('status', ['draft', 'submitted', 'reviewing', 'approved', 'pending_signature', 'settlement_processing', 'settlement_completed', 'transition_period', 'completed', 'rejected', 'cancelled'])->default('draft');
-            $table->char('approved_by', 36)->nullable();
+            $table->unsignedBigInteger('approved_by')->nullable();
             $table->timestamp('approved_at')->nullable();
             $table->text('reject_reason')->nullable();
             $table->timestamp('effective_termination_date')->nullable();

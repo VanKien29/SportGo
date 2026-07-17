@@ -86,4 +86,73 @@ export const adminPartnerApplicationService = {
   courtTypes() {
     return api('/api/admin/court-types');
   },
+
+  terminationRequests(params = {}) {
+    return api(`/api/admin/partner-termination-requests${query(params)}`);
+  },
+
+  terminationRequest(id) {
+    return api(`/api/admin/partner-termination-requests/${id}`);
+  },
+
+  markTerminationReady(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/mark-ready-final-document`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  previewTerminationFinalDocument(id) {
+    return api(`/api/admin/partner-termination-requests/${id}/final-document/preview`, {
+      method: 'POST',
+    });
+  },
+
+
+  signTerminationFinalDocument(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/final-document/sign`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  manualResolveTerminationBooking(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/manual-resolve-booking`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+
+  signUnilateralNotice(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/sign`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  withdrawUnilateralNotice(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  resolveUnilateralReconsideration(id, payload = {}) {
+    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/reconsideration/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  terminationSettings() {
+    return api('/api/admin/partner-termination-requests/settings');
+  },
+
+  updateTerminationSettings(payload = {}) {
+    return api('/api/admin/termination-settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
 };

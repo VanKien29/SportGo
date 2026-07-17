@@ -13,15 +13,15 @@ return new class extends Migration
         }
 
         Schema::create('generated_document_signatures', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('generated_document_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('generated_document_id');
             $table->enum('signer_side', ['owner', 'sportgo', 'witness', 'system']);
-            $table->char('signer_user_id', 36)->nullable();
+            $table->unsignedBigInteger('signer_user_id')->nullable();
             $table->string('signer_full_name', 255);
             $table->string('signer_title', 255)->nullable();
             $table->string('signer_organization', 255)->nullable();
             $table->enum('signature_method', ['uploaded_image', 'drawn', 'typed_confirm', 'otp_confirm', 'digital'])->default('typed_confirm');
-            $table->char('signature_media_id', 36)->nullable();
+            $table->unsignedBigInteger('signature_media_id')->nullable();
             $table->timestamp('signed_at')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->string('user_agent', 500)->nullable();

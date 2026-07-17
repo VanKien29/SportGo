@@ -1,5 +1,5 @@
 <template>
-  <div class="partner-document-page">
+  <div class="partner-document-page partner-client-page sg-client-page">
     <PublicNavbar v-if="!isOwnerDocumentRoute" />
 
     <main class="partner-document-main">
@@ -16,10 +16,9 @@
         </div>
 
         <div class="partner-doc-actions">
-          <button v-if="document" class="btn btn-primary" type="button" :disabled="!document.download_url" @click="scrollToDocument">
-            <AppIcon name="eye" size="16" />
-            Xem file
-          </button>
+          <span v-if="document" class="partner-status-pill partner-document-status" :class="document.status">
+            {{ documentStatusLabel(document.status, document.source) }}
+          </span>
           <button v-if="document?.download_url" class="btn btn-secondary" type="button" @click="downloadFile(document.download_url)">
             <AppIcon name="download" size="16" />
             Tải file
@@ -41,7 +40,7 @@
             <div class="partner-card-head">
               <div>
                 <h2>Nội dung văn bản</h2>
-                <p>Văn bản phải được xem từ file hệ thống đã sinh trước khi ký xác nhận.</p>
+                <p>{{ viewerDescription }}</p>
               </div>
             </div>
             <div class="partner-card-body">
@@ -50,7 +49,9 @@
                   <AppIcon name="fileText" size="48" />
                   <h2>{{ documentTypeLabel(document.document_type, document.source) }}</h2>
                   <p class="partner-doc-warning">
-                    File văn bản chưa sẵn sàng hoặc bản cũ đã mất file. Vui lòng quay lại tạo lại văn bản.
+                    {{ document.source === 'uploaded'
+                      ? 'File gốc không còn trên hệ thống. Vui lòng liên hệ SportGo hoặc bổ sung lại khi hồ sơ cho phép.'
+                      : 'File văn bản chưa sẵn sàng hoặc bản cũ đã mất file. Vui lòng quay lại tạo lại văn bản.' }}
                   </p>
                 </div>
               </div>
@@ -60,13 +61,13 @@
             </div>
           </section>
 
-          <aside>
+          <aside class="partner-document-aside">
             <section class="partner-card">
               <div class="partner-card-head">
-                <h3>Trạng thái chữ ký</h3>
+                <h3>{{ requiredSides.length ? 'Trạng thái chữ ký' : 'Thông tin tài liệu' }}</h3>
               </div>
               <div class="partner-card-body">
-                <div class="partner-sign-status">
+                <div v-if="requiredSides.length" class="partner-sign-status">
                   <article
                     v-for="side in requiredSides"
                     :key="side.key"
@@ -77,6 +78,20 @@
                     <strong>{{ signatureBySide(side.key) ? formatDate(signatureBySide(side.key).signed_at) : 'Chưa ký' }}</strong>
                   </article>
                 </div>
+                <dl v-else class="partner-document-meta">
+                  <div>
+                    <dt>Loại tài liệu</dt>
+                    <dd>{{ documentTypeLabel(document.document_type, document.source) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Trạng thái</dt>
+                    <dd>{{ documentStatusLabel(document.status, document.source) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Tên file</dt>
+                    <dd>{{ document.file_name || document.title || 'Văn bản hồ sơ' }}</dd>
+                  </div>
+                </dl>
               </div>
             </section>
 
@@ -84,10 +99,15 @@
               <div class="partner-card-head">
                 <div>
                   <h3>Ký điện tử</h3>
-                  <p>OTP chỉ gửi sau khi bạn đã mở file và bấm ký xác nhận.</p>
+                  <p>OTP được gửi tới email tài khoản chủ sân ở bước cuối.</p>
                 </div>
               </div>
               <div class="partner-card-body partner-action-stack">
+                <div class="partner-sign-steps" aria-label="Ba bước ký văn bản">
+                  <span :class="{ done: hasViewedFile }">1. Xem file</span>
+                  <span :class="{ done: !signatureEmpty }">2. Ký tên</span>
+                  <span :class="{ done: otpSent }">3. Xác thực OTP</span>
+                </div>
                 <div v-if="!hasViewedFile" class="partner-alert">
                   <strong>Cần xem file trước</strong>
                   <p>Vui lòng kiểm tra nội dung văn bản đang hiển thị ở khung bên trái trước khi ký.</p>
@@ -132,7 +152,7 @@
                     @click="requestSignatureOtp"
                   >
                     <AppIcon name="pencil" size="16" />
-                    {{ saving ? 'Đang gửi OTP...' : 'Ký xác nhận' }}
+                    {{ saving ? 'Đang gửi OTP...' : 'Gửi OTP để ký' }}
                   </button>
                   <button
                     v-else
@@ -142,13 +162,13 @@
                     @click="verifySignatureOtp"
                   >
                     <AppIcon name="check" size="16" />
-                    {{ saving ? 'Đang xác thực...' : 'Xác thực OTP' }}
+                    {{ saving ? 'Đang xác thực...' : 'Xác nhận OTP và ký' }}
                   </button>
                 </div>
               </div>
             </section>
 
-            <section v-else class="partner-card">
+            <section v-else-if="requiredSides.length" class="partner-card">
               <div class="partner-card-head">
                 <h3>Thao tác</h3>
               </div>
@@ -211,17 +231,42 @@ const isOwnerSignableDocument = computed(() => [
 const isTwoPartyDocument = computed(() => isContract.value || isChangeAppendix.value);
 const requiredSides = computed(() => {
   if (document.value?.source === 'uploaded') return [];
+  if (!isOwnerSignableDocument.value) {
+    return [...new Set(
+      (document.value?.signatures || [])
+        .filter((signature) => signature.status === 'signed')
+        .map((signature) => signature.signer_side)
+    )].map((side) => ({
+      key: side,
+      label: side === 'sportgo' ? 'SportGo' : (side === 'owner' ? 'Chủ sân' : 'Bên ký'),
+    }));
+  }
   return isTwoPartyDocument.value
     ? [{ key: 'sportgo', label: 'SportGo' }, { key: 'owner', label: 'Chủ sân' }]
     : [{ key: 'owner', label: isVenueChangeRequest.value ? 'Chủ sân' : 'Người đăng ký' }];
 });
-const canSign = computed(() => (
-  isGeneratedDocument.value
-  && isOwnerSignableDocument.value
-  && document.value?.status === 'pending_owner_signature'
-  && Boolean(document.value?.download_url)
-  && !signatureBySide('owner')
-));
+const canSign = computed(() => {
+  if (
+    !isGeneratedDocument.value
+    || !isOwnerSignableDocument.value
+    || document.value?.status !== 'pending_owner_signature'
+    || !document.value?.download_url
+    || signatureBySide('owner')
+  ) {
+    return false;
+  }
+
+  if (isApplicationForm.value) {
+    return application.value?.status === 'draft';
+  }
+
+  if (isContract.value) {
+    return application.value?.status === 'contract_pending_owner_signature'
+      && Boolean(document.value.partner_contract_id || contract.value?.id);
+  }
+
+  return true;
+});
 const confirmationText = computed(() => {
   if (isTwoPartyDocument.value) {
     return 'Tôi xác nhận đã đọc, hiểu rõ toàn bộ nội dung hợp đồng, đồng ý giao kết hợp đồng này với SportGo và xác nhận thông tin trong hợp đồng là đúng.';
@@ -232,6 +277,15 @@ const confirmationText = computed(() => {
   }
 
   return 'Tôi xác nhận đã đọc, kiểm tra và chịu trách nhiệm về tính chính xác, hợp pháp của toàn bộ thông tin, tài liệu trong đơn đăng ký này.';
+});
+const viewerDescription = computed(() => {
+  if (!document.value?.download_url) {
+    return 'File gốc hiện không có sẵn trên hệ thống; thông tin tài liệu vẫn được giữ để tra cứu.';
+  }
+
+  return canSign.value
+    ? 'Kiểm tra toàn bộ nội dung file trước khi xác nhận và ký điện tử.'
+    : 'Xem nội dung từ file lưu trên hệ thống. Bạn có thể tải bản gốc để đối chiếu.';
 });
 const readonlyHint = computed(() => {
   if (document.value?.source === 'uploaded') return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
@@ -332,9 +386,10 @@ function signatureBySide(side) {
 function prepareCanvas() {
   if (!canvas.value) return;
   const ctx = canvas.value.getContext('2d');
-  ctx.fillStyle = '#fff';
+  const theme = getComputedStyle(canvas.value.closest('.partner-client-page') || globalThis.document.documentElement);
+  ctx.fillStyle = theme.getPropertyValue('--surface-color').trim() || 'white';
   ctx.fillRect(0, 0, canvas.value.width, canvas.value.height);
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = theme.getPropertyValue('--text-main').trim() || 'black';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
   signatureEmpty.value = true;
@@ -386,6 +441,11 @@ function resetOtpState() {
 
 async function requestSignatureOtp() {
   if (!canvas.value || !document.value) return;
+  if (isContract.value && !(document.value.partner_contract_id || contract.value?.id)) {
+    otpError.value = 'Không tìm thấy hợp đồng liên kết với văn bản này. Vui lòng quay lại hồ sơ và mở lại hợp đồng cần ký.';
+    return;
+  }
+
   saving.value = true;
   otpError.value = '';
 
@@ -486,16 +546,34 @@ function statusLabel(status) {
   }[status] || status || '-';
 }
 
+function documentStatusLabel(status, source) {
+  if (source === 'uploaded') return 'Tài liệu đính kèm';
+  return {
+    generated: 'Đã sinh',
+    pending_owner_signature: 'Chờ bạn ký',
+    pending_sportgo_signature: 'Chờ SportGo ký',
+    completed: 'Đã hoàn tất',
+    cancelled: 'Đã hủy',
+  }[status] || status || 'Đang xử lý';
+}
+
 function documentTypeLabel(type, source) {
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   if (source === 'uploaded') return 'Tài liệu phụ lục';
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
     partner_contract: 'Hợp đồng đối tác kinh doanh',
+    termination_request: 'Đơn yêu cầu chấm dứt hợp tác',
+    owner_termination_request: 'Đơn yêu cầu chấm dứt hợp tác',
+    termination_cancellation_request: 'Đơn xác nhận hủy yêu cầu chấm dứt',
+    mutual_liquidation_minutes: 'Biên bản thanh lý',
+    unilateral_termination_notice: 'Công văn chấm dứt từ SportGo',
+    settlement_minutes: 'Biên bản quyết toán',
+    final_termination_file: 'Biên bản chấm dứt cuối',
   }[type] || 'Văn bản hệ thống';
 }
 
@@ -506,26 +584,6 @@ function formatDate(value) {
 }
 </script>
 
-<style>
-@import "../../../css/partner/partner.css";
-
-.partner-document-card .partner-card-body {
-  min-height: 760px;
-}
-
-.partner-inline-document-viewer {
-  height: calc(100vh - 240px);
-  min-height: 760px;
-}
-
-.partner-inline-document-viewer .document-preview-pane {
-  min-height: 100%;
-}
-
-@media (max-width: 980px) {
-  .partner-inline-document-viewer {
-    height: auto;
-    min-height: 620px;
-  }
-}
-</style>
+<style src="../../../css/partner/partner.css"></style>
+<style src="../../../css/partner/client-partner-shared.css"></style>
+<style scoped src="../../../css/partner/client-partner-document.css"></style>

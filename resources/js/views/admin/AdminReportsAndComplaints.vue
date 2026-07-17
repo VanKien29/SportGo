@@ -1,24 +1,12 @@
 <template>
   <div class="moderation-page">
-    <div class="toolbar card" style="margin-bottom: 24px; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <div class="tabs-header" style="display: flex; gap: 8px;">
-        <button
-          class="tab-btn"
-          :class="{ active: activeModuleTab === 'reports' }"
-          @click="selectModuleTab('reports')"
-        >
-          <AppIcon name="messageWarning" size="16" />
-          <span>Báo cáo</span>
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ active: activeModuleTab === 'complaints' }"
-          @click="selectModuleTab('complaints')"
-        >
-          <AppIcon name="shieldCheck" size="16" />
-          <span>Khiếu nại</span>
-        </button>
-      </div>
+    <div style="display: flex; gap: 12px; margin-bottom: 24px; margin-top: 10px;">
+      <button class="tab-btn" :class="{ active: activeModuleTab === 'reports' }" @click="selectModuleTab('reports')">
+        <AppIcon name="flag" size="18" /> Báo cáo
+      </button>
+      <button class="tab-btn" :class="{ active: activeModuleTab === 'complaints' }" @click="selectModuleTab('complaints')">
+        <AppIcon name="message-square" size="18" /> Khiếu nại
+      </button>
     </div>
 
     <!-- Render tab tương ứng -->
@@ -98,7 +86,7 @@ export default {
   transition: all 0.2s;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
   background: #f8fafc;
   color: #334155;
   border-color: #cbd5e1;

@@ -13,7 +13,7 @@ return new class extends Migration
         }
 
         Schema::create('backup_jobs', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('backup_code', 50)->unique()->comment('Mã backup để admin tra cứu.');
             $table->string('file_name', 255)->nullable()->comment('Tên file backup đã tạo.');
             $table->string('file_path', 1000)->nullable()->comment('Đường dẫn file backup ngoài DB.');
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->enum('type', ['manual', 'auto'])->default('manual')->comment('Backup thủ công hay tự động.');
             $table->enum('status', ['pending', 'running', 'completed', 'failed'])->default('pending')
                 ->comment('Trạng thái job backup.');
-            $table->char('created_by', 36)->nullable()->comment('Admin tạo backup thủ công.');
+            $table->unsignedBigInteger('created_by')->nullable()->comment('Admin tạo backup thủ công.');
             $table->timestamp('started_at')->nullable()->comment('Thời điểm bắt đầu backup.');
             $table->timestamp('completed_at')->nullable()->comment('Thời điểm hoàn tất backup.');
             $table->text('error_message')->nullable()->comment('Lỗi backup nếu thất bại.');

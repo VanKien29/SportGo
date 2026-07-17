@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            $table->char('system_bank_account_id', 36)->nullable()->after('booking_id')->comment('Tài khoản hệ thống nhận tiền cho payment này.');
+            $table->unsignedBigInteger('system_bank_account_id')->nullable()->after('booking_id')->comment('Tài khoản hệ thống nhận tiền cho payment này.');
             $table->index('system_bank_account_id', 'payments_system_bank_account_id_index');
             $table->foreign('system_bank_account_id')->references('id')->on('system_bank_accounts')->onDelete('set null');
         });

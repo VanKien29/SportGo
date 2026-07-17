@@ -40,7 +40,7 @@ class AdminCommentController extends Controller
                     'status' => $postModel->status,
                     'author_name' => $postModel->author?->full_name ?: $postModel->author?->username,
                     'media' => $postModel->media->map(fn($m) => [
-                        'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                        'url' => $m->file_path,
                     ]),
                     'created_at' => $postModel->created_at,
                 ],

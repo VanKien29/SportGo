@@ -13,19 +13,19 @@ return new class extends Migration
         }
 
         Schema::create('partner_contracts', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
+            $table->id();
             $table->string('contract_code', 50)->unique();
-            $table->char('partner_application_id', 36);
-            $table->char('owner_id', 36);
-            $table->char('venue_cluster_id', 36)->nullable();
+            $table->unsignedBigInteger('partner_application_id');
+            $table->unsignedBigInteger('owner_id');
+            $table->unsignedBigInteger('venue_cluster_id')->nullable();
             $table->string('contract_title', 255);
             $table->enum('status', ['draft', 'generated', 'pending_owner_signature', 'pending_sportgo_signature', 'signed_active', 'cancelled', 'terminated'])->default('draft');
-            $table->char('generated_document_id', 36)->nullable();
-            $table->char('generated_file_media_id', 36)->nullable();
-            $table->char('signed_file_media_id', 36)->nullable();
-            $table->char('final_file_media_id', 36)->nullable();
-            $table->char('generated_by', 36)->nullable();
-            $table->char('approved_by', 36)->nullable();
+            $table->unsignedBigInteger('generated_document_id')->nullable();
+            $table->unsignedBigInteger('generated_file_media_id')->nullable();
+            $table->unsignedBigInteger('signed_file_media_id')->nullable();
+            $table->unsignedBigInteger('final_file_media_id')->nullable();
+            $table->unsignedBigInteger('generated_by')->nullable();
+            $table->unsignedBigInteger('approved_by')->nullable();
             $table->timestamp('owner_signed_at')->nullable();
             $table->timestamp('sportgo_signed_at')->nullable();
             $table->timestamp('effective_from')->nullable();

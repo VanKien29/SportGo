@@ -111,6 +111,7 @@ class AdminContentModerationController extends Controller
 
         if (in_array($type, ['venue_post', 'venue_posts'], true)) {
             $query = VenuePost::query()
+                ->whereNotNull('venue_cluster_id')
                 ->with(['author:id,username,full_name,email,phone,avatar_url', 'venueCluster:id,name,slug', 'media', 'hashtags']);
 
             if ($statusFilter === 'published') {
@@ -141,7 +142,7 @@ class AdminContentModerationController extends Controller
             ]);
         }
 
-        // Mặc định là community_posts
+        // Bài chia sẻ cộng đồng nằm trong bảng community_posts, tách biệt bài của cụm sân.
         $query = CommunityPost::query()
             ->with(['author:id,username,full_name,email,phone,avatar_url', 'media', 'hashtags']);
 
@@ -183,14 +184,15 @@ class AdminContentModerationController extends Controller
         $post = $this->findPost($type, $id);
         $tableName = $this->getPostTableName($type);
 
-        if (!in_array($post->status, ['pending_review', 'pending', 'draft'], true)) {
+        if (!in_array($post->status, ['pending_review', 'pending', 'draft', 'hidden', 'rejected'], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bài viết không ở trạng thái chờ duyệt.',
+                'message' => 'Bài viết không ở trạng thái có thể duyệt.',
             ], 422);
         }
 
         $oldValues = $post->toArray();
+        $isReapprove = in_array($oldValues['status'], ['hidden', 'rejected'], true);
 
         $post->status = 'published';
         $post->reviewed_by = $request->user()?->id;
@@ -200,11 +202,12 @@ class AdminContentModerationController extends Controller
         // Gửi thông báo in-app cho tác giả
         $this->sendNotification(
             $post->author_id,
-            'post_approved',
-            'Bài viết của bạn đã được duyệt',
-            'Bài viết của bạn đã được phê duyệt và hiển thị công khai.',
+            $isReapprove ? 'post_restored' : 'post_approved',
+            $isReapprove ? 'Bài viết của bạn đã được hiển thị lại' : 'Bài viết của bạn đã được duyệt',
+            $isReapprove ? 'Bài viết của bạn đã được quản trị viên khôi phục và cho phép hiển thị công khai trở lại.' : 'Bài viết của bạn đã được phê duyệt và hiển thị công khai.',
             $tableName,
-            $post->id
+            $post->id,
+            isset($post->slug) ? ['slug' => $post->slug] : null
         );
 
         // Ghi Audit Log
@@ -375,6 +378,59 @@ class AdminContentModerationController extends Controller
             'status' => 'success',
             'message' => 'Đã gỡ bài viết thành công (chuyển trạng thái ẩn).',
             'data' => $post,
+        ]);
+    }
+
+    public function notifyAuthor(Request $request, string $type, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'moderation.manage');
+
+        if (! in_array($type, [
+            'community_post',
+            'community_posts',
+            'venue_post',
+            'venue_posts',
+            'system_post',
+            'system_posts',
+        ], true)) {
+            throw ValidationException::withMessages([
+                'type' => 'Loại bài viết không hợp lệ.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:4000'],
+        ], [
+            'message.required' => 'Vui lòng nhập nội dung thông báo.',
+        ]);
+
+        $post = $this->findPost($type, $id);
+        $tableName = $this->getPostTableName($type);
+
+        if (! $post->author_id) {
+            throw ValidationException::withMessages([
+                'author' => 'Không tìm thấy tác giả để gửi thông báo.',
+            ]);
+        }
+
+        $this->sendNotification(
+            (string) $post->author_id,
+            'post_moderation_notice',
+            'Thông báo kiểm duyệt nội dung',
+            $data['message'],
+            $tableName,
+            (string) $post->id,
+            isset($post->slug) ? ['slug' => $post->slug] : null
+        );
+
+        $this->audit->log($request, 'moderation', 'post.author_notified', $tableName, $post->id, [], [], [
+            'reason' => $data['message'],
+            'severity' => 'info',
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã gửi thông báo cho tác giả.',
         ]);
     }
 
@@ -559,7 +615,8 @@ class AdminContentModerationController extends Controller
         string $title,
         string $body,
         ?string $refType = null,
-        ?string $refId = null
+        ?string $refId = null,
+        ?array $data = null
     ): void {
         if (! Schema::hasTable('notifications')) {
             return;
@@ -572,7 +629,7 @@ class AdminContentModerationController extends Controller
             'body' => $body,
             'reference_type' => $refType,
             'reference_id' => $refId,
-            'data' => null,
+            'data' => $data,
             'is_read' => false,
         ]);
     }

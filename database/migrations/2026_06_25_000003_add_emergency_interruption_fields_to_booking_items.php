@@ -29,7 +29,7 @@ return new class extends Migration
                 $table->string('incident_resolution', 40)->nullable()->after('incident_refund_ratio');
             }
             if (! Schema::hasColumn('booking_items', 'incident_original_court_id')) {
-                $table->char('incident_original_court_id', 36)->nullable()->after('incident_resolution');
+                $table->unsignedBigInteger('incident_original_court_id')->nullable()->after('incident_resolution');
             }
         });
     }

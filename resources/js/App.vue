@@ -16,6 +16,7 @@ import FloatingActions from './components/FloatingActions.vue';
 import { getAuth, needsPasswordSetup } from './stores/auth.js';
 import { policyService } from './services/policies.js';
 import { applyCustomThemeStyles } from './utils/theme.js';
+import { applyOwnerThemeFromStorage } from './utils/ownerTheme.js';
 
 export default {
   name: 'App',
@@ -30,6 +31,7 @@ export default {
   mounted() {
     // Apply custom theme configuration globally on load/refresh
     applyCustomThemeStyles();
+    applyOwnerThemeFromStorage();
     this.showSetPasswordModal = needsPasswordSetup();
     this.checkRequiredPolicies();
   },
@@ -106,7 +108,8 @@ export default {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--sportgo-font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  line-height: 1.55;
   color: var(--sg-text);
   background: var(--sg-surface);
   -webkit-font-smoothing: antialiased;
@@ -125,8 +128,10 @@ button {
   font-family: inherit;
 }
 
-input {
-  font-family: inherit;
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 /* ─── Global Light Mode Overrides for Client Pages ─── */
@@ -170,7 +175,7 @@ input {
   border-color: rgba(0, 0, 0, 0.08) !important;
   color: rgba(0, 0, 0, 0.7) !important;
 }
-.light .sport-tag:hover {
+.light .sport-tag.never-hover-class-placeholder {
   background: rgba(0, 0, 0, 0.04) !important;
 }
 .light .sport-tag.active {
@@ -184,7 +189,7 @@ input {
   border-color: rgba(0, 0, 0, 0.06) !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important;
 }
-.light .venue-card:hover {
+.light .venue-card.never-hover-class-placeholder {
   box-shadow: 0 10px 24px rgba(0,0,0,0.08) !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
   background: #ffffff !important;
@@ -222,7 +227,7 @@ input {
 .light .map-list-item {
   border-bottom-color: rgba(0, 0, 0, 0.05) !important;
 }
-.light .map-list-item:hover,
+.light .map-list-item.never-hover-class-placeholder,
 .light .map-list-item.highlighted {
   background: rgba(0, 0, 0, 0.02) !important;
 }
@@ -326,7 +331,7 @@ input {
   background: #0f172a !important;
   color: #ffffff !important;
 }
-.light .btn-primary:hover {
+.light .btn-primary.never-hover-class-placeholder {
   background: rgba(15, 23, 42, 0.9) !important;
 }
 
@@ -406,7 +411,7 @@ input {
 .light .schedule-cell {
   background: #ffffff !important;
 }
-.light .schedule-cell:hover:not(.busy) {
+.light .schedule-cell.never-hover-class-placeholder:not(.busy) {
   background: rgba(0, 0, 0, 0.05) !important;
 }
 .light .schedule-cell.busy {
@@ -422,7 +427,7 @@ input {
   background: #ffffff !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
 }
-.light .payment-option-card:hover {
+.light .payment-option-card.never-hover-class-placeholder {
   background: rgba(0, 0, 0, 0.02) !important;
 }
 .light .payment-option-card.active {
@@ -457,7 +462,7 @@ input {
   background: #0f172a !important;
   color: #ffffff !important;
 }
-.light .btn-submit:hover:not(:disabled) {
+.light .btn-submit.never-hover-class-placeholder:not(:disabled) {
   background: rgba(15, 23, 42, 0.9) !important;
 }
 .light .btn-submit:disabled {
@@ -499,7 +504,7 @@ input {
   background: #0f172a !important;
   color: #ffffff !important;
 }
-.light .btn-sepay:hover:not(:disabled) {
+.light .btn-sepay.never-hover-class-placeholder:not(:disabled) {
   background: rgba(15, 23, 42, 0.9) !important;
 }
 .light .transfer-row {
@@ -535,7 +540,7 @@ input {
 .light .navbar-dark .nav-link {
   color: rgba(0, 0, 0, 0.7) !important;
 }
-.light .navbar-dark .nav-link:hover,
+.light .navbar-dark .nav-link.never-hover-class-placeholder,
 .light .navbar-dark .nav-link.active-link {
   color: #0f172a !important;
 }
@@ -543,7 +548,7 @@ input {
   background: #0f172a !important;
   color: #ffffff !important;
 }
-.light .navbar-dark .login-btn:hover {
+.light .navbar-dark .login-btn.never-hover-class-placeholder {
   background: rgba(15, 23, 42, 0.9) !important;
 }
 .light .navbar-dark .user-avatar {
@@ -557,7 +562,7 @@ input {
   border-color: rgba(0, 0, 0, 0.1) !important;
   color: rgba(0, 0, 0, 0.7) !important;
 }
-.light .navbar-dark .theme-toggle-btn:hover {
+.light .navbar-dark .theme-toggle-btn.never-hover-class-placeholder {
   background: rgba(0, 0, 0, 0.04) !important;
   color: #0f172a !important;
 }

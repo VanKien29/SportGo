@@ -2,8 +2,12 @@
   <div class="cluster-action-floating" :class="{ 'has-scroll-top': hasScrollTop }" v-if="!isLocked">
     <button 
       class="btn-floating" 
+      :class="{ 'is-open': isOpen }"
       @click.stop="toggleMenu" 
       title="Menu yêu cầu hành động"
+      type="button"
+      :aria-expanded="isOpen ? 'true' : 'false'"
+      aria-label="Menu yeu cau hanh dong"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -105,28 +109,39 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
-  color: var(--sg-text, #0f172a);
-  border: 1px solid var(--sg-border, #e2e8f0);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: var(--admin-floating-bg, #1f2937);
+  color: var(--admin-floating-fg, #ffffff);
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
 }
 
-.btn-floating:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  background-color: var(--sg-surface, #f1f5f9);
+.btn-floating.never-hover-class-placeholder,
+.btn-floating.is-open {
+  transform: translateY(-2px);
+  background-color: var(--admin-floating-hover, #111827);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+}
+
+.btn-floating:active {
+  transform: translateY(0) scale(0.97);
+  background-color: var(--admin-floating-active, #0f172a);
+}
+
+.btn-floating:focus-visible {
+  outline: 2px solid var(--admin-primary, #18181b);
+  outline-offset: 3px;
 }
 
 .floating-dropdown {
   position: absolute;
   bottom: calc(100% + 10px);
   right: 0;
-  background: #fff;
-  border: 1px solid var(--sg-border, #e2e8f0);
+  background: var(--admin-floating-panel-bg, #18181b);
+  border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
   border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
   z-index: 9999;
   min-width: 220px;
   padding: 6px 0;
@@ -145,13 +160,18 @@ export default {
   text-align: left;
   font-size: 13px;
   font-weight: 600;
-  color: var(--sg-text, #0f172a);
+  color: var(--admin-floating-fg, #ffffff);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 120ms ease-out;
 }
 
-.floating-dropdown button:hover {
-  background: var(--sg-surface, #f1f5f9);
+.floating-dropdown button.never-hover-class-placeholder {
+  background: var(--admin-floating-hover, rgba(255, 255, 255, 0.08));
+}
+
+.floating-dropdown button:focus-visible {
+  outline: 2px solid var(--admin-primary, #18181b);
+  outline-offset: -2px;
 }
 
 @media (max-width: 768px) {

@@ -53,7 +53,7 @@ class OwnerCounterPaymentTest extends TestCase
             'user_id' => $this->owner->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         $courtType = CourtType::create([
@@ -563,6 +563,76 @@ class OwnerCounterPaymentTest extends TestCase
         ]);
     }
 
+    public function test_recurring_booking_can_use_explicit_dates_with_separate_schedules(): void
+    {
+        $firstDate = now()->addWeek()->startOfDay();
+        $secondDate = $firstDate->copy()->addDays(11);
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/recurring', [
+                'venue_cluster_id' => $this->cluster->id,
+                'venue_court_id' => $this->court->id,
+                'recurring_start_date' => $firstDate->toDateString(),
+                'recurring_end_date' => $secondDate->toDateString(),
+                'recurrence_type' => 'monthly',
+                'recurrence_interval' => 1,
+                'recurring_dates' => [
+                    $firstDate->toDateString(),
+                    $secondDate->toDateString(),
+                ],
+                'date_time_ranges' => [
+                    [
+                        'date' => $firstDate->toDateString(),
+                        'time_ranges' => [[
+                            'venue_court_id' => $this->court->id,
+                            'start_time' => '10:00:00',
+                            'end_time' => '11:00:00',
+                        ]],
+                    ],
+                    [
+                        'date' => $secondDate->toDateString(),
+                        'time_ranges' => [[
+                            'venue_court_id' => $this->secondCourt->id,
+                            'start_time' => '14:00:00',
+                            'end_time' => '15:30:00',
+                        ]],
+                    ],
+                ],
+                'start_time' => '10:00:00',
+                'end_time' => '11:00:00',
+                'time_ranges' => [[
+                    'venue_court_id' => $this->court->id,
+                    'start_time' => '10:00:00',
+                    'end_time' => '11:00:00',
+                ]],
+                'payment_option' => 'no_prepay',
+                'walk_in_name' => 'Khách chọn ngày',
+                'walk_in_phone' => '0907654321',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.created_count', 2);
+
+        $groupCode = $response->json('data.recurring_group_code');
+
+        $this->assertDatabaseHas('bookings', [
+            'recurring_group_code' => $groupCode,
+            'booking_date' => $firstDate->toDateString(),
+            'venue_court_id' => $this->court->id,
+            'start_time' => '10:00:00',
+            'end_time' => '11:00:00',
+        ]);
+        $this->assertDatabaseHas('bookings', [
+            'recurring_group_code' => $groupCode,
+            'booking_date' => $secondDate->toDateString(),
+            'venue_court_id' => $this->secondCourt->id,
+            'start_time' => '14:00:00',
+            'end_time' => '15:30:00',
+        ]);
+        $this->assertSame(2, Booking::query()
+            ->where('recurring_group_code', $groupCode)
+            ->count());
+    }
+
     public function test_owner_can_list_and_collect_recurring_group_bill(): void
     {
         $firstDate = now()->addWeek()->startOfDay();
@@ -800,6 +870,36 @@ class OwnerCounterPaymentTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['venue_court_id']);
+    }
+
+    public function test_owner_can_create_counter_bookings_for_multiple_dates_atomically(): void
+    {
+        $dates = [
+            now()->addDay()->toDateString(),
+            now()->addDays(2)->toDateString(),
+        ];
+
+        $response = $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/owner/bookings/counter', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $dates[0],
+                'booking_dates' => $dates,
+                'start_time' => '14:00:00',
+                'end_time' => '15:00:00',
+                'payment_option' => 'no_prepay',
+                'payment_method' => 'cash',
+                'walk_in_name' => 'Khách nhiều ngày',
+                'walk_in_phone' => '0901234570',
+            ])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('payment_qr', null);
+
+        $this->assertSame(
+            $dates,
+            collect($response->json('data'))->pluck('booking_date')->sort()->values()->all(),
+        );
+        $this->assertDatabaseCount('bookings', 2);
     }
 
     private function createPayLaterCounterBooking(): Booking

@@ -44,6 +44,12 @@ class VenueClusterController extends Controller
                 'venueCourts.courtType:id,name',
                 'latestPlatformFeeLedger',
                 'media',
+            ])
+            ->withCount([
+                'approvalRequests as pending_approval_count' => fn($q) => $q->where('status', 'pending'),
+                'locationChangeRequests as pending_location_count' => fn($q) => $q->where('status', 'pending'),
+                'informationChangeRequests as pending_information_count' => fn($q) => $q->where('status', 'pending'),
+                'unlockRequests as pending_unlock_count' => fn($q) => $q->where('status', 'pending'),
             ]);
 
         // Filter trạng thái
@@ -793,6 +799,10 @@ class VenueClusterController extends Controller
             'court_count'  => $courts->count(),
             'court_types'  => $courtTypes,
             'fee_status'   => $c->latestPlatformFeeLedger?->status ?? 'no_fee',
+            'has_pending_requests' => (($c->pending_approval_count ?? 0) + 
+                                       ($c->pending_location_count ?? 0) + 
+                                       ($c->pending_information_count ?? 0) + 
+                                       ($c->pending_unlock_count ?? 0)) > 0,
             'image_path'   => $c->media->first()?->file_path ?? null,
             'owner'        => $c->owner ? [
                 'id'        => $c->owner->id,
@@ -925,6 +935,10 @@ class VenueClusterController extends Controller
             'document_code' => $document->document_code,
             'document_type' => $document->document_type,
             'document_version' => $document->document_version,
+            'partner_application_id' => $document->partner_application_id,
+            'partner_contract_id' => $document->partner_contract_id,
+            'owner_id' => $document->owner_id,
+            'venue_cluster_id' => $document->venue_cluster_id,
             'title' => $document->title,
             'status' => $document->status,
             'file_hash' => $document->file_hash,
@@ -961,8 +975,8 @@ class VenueClusterController extends Controller
         $application = $contract?->application ?: $this->partnerApplicationForCluster($cluster);
 
         $titlePrefix = $documentType === 'venue_scale_appendix'
-            ? 'Phu luc hop dong thay doi quy mo san '
-            : 'Phu luc hop dong thay doi vi tri cum san ';
+            ? 'Phụ lục hợp đồng thay đổi quy mô sân '
+            : 'Phụ lục hợp đồng thay đổi vị trí cụm sân ';
 
         return $this->documents->generateDocument($documentType, $requestModel, $renderData, $actor, [
             'reference_type' => $requestModel::class,
@@ -1000,8 +1014,11 @@ class VenueClusterController extends Controller
             ->unique()
             ->implode('; ');
         $requestDocument = $approvalRequest->generatedDocument()->first();
+        $appendixSequence = $this->nextAppendixSequence($cluster, $contract, $approvalRequest);
 
         return [
+            'appendix_sequence' => $appendixSequence,
+            'appendix_number' => $this->toRomanNumeral($appendixSequence),
             'owner_full_name' => $ownerName,
             'owner_signer_name' => $ownerName,
             'owner_signer_full_name' => $ownerName,
@@ -1060,8 +1077,11 @@ class VenueClusterController extends Controller
             ?: $owner?->full_name
             ?: $owner?->username;
         $requestDocument = $locationRequest->generatedDocument()->first();
+        $appendixSequence = $this->nextAppendixSequence($cluster, $contract, $locationRequest);
 
         return [
+            'appendix_sequence' => $appendixSequence,
+            'appendix_number' => $this->toRomanNumeral($appendixSequence),
             'owner_full_name' => $ownerName,
             'owner_signer_name' => $ownerName,
             'owner_signer_full_name' => $ownerName,
@@ -1206,6 +1226,58 @@ class VenueClusterController extends Controller
         }
 
         return implode(' | ', $parts) ?: ($approvalRequest->name . ' - ' . ($approvalRequest->courtType?->name ?? 'Loai san'));
+    }
+
+    private function nextAppendixSequence(VenueCluster $cluster, ?PartnerContract $contract, $requestModel): int
+    {
+        $query = GeneratedDocument::query()
+            ->whereIn('document_type', ['venue_scale_appendix', 'venue_location_appendix'])
+            ->whereNotIn('status', ['draft_preview', 'cancelled', 'voided']);
+
+        if ($contract?->id) {
+            $query->where('partner_contract_id', $contract->id);
+        } else {
+            $query->where('venue_cluster_id', $cluster->id);
+        }
+
+        if ($requestModel?->getKey()) {
+            $query->where(function ($nested) use ($requestModel): void {
+                $nested->where('reference_type', '!=', $requestModel::class)
+                    ->orWhere('reference_id', '!=', (string) $requestModel->getKey());
+            });
+        }
+
+        return max(1, $query->count() + 1);
+    }
+
+    private function toRomanNumeral(int $number): string
+    {
+        $number = max(1, min(3999, $number));
+        $map = [
+            1000 => 'M',
+            900 => 'CM',
+            500 => 'D',
+            400 => 'CD',
+            100 => 'C',
+            90 => 'XC',
+            50 => 'L',
+            40 => 'XL',
+            10 => 'X',
+            9 => 'IX',
+            5 => 'V',
+            4 => 'IV',
+            1 => 'I',
+        ];
+
+        $result = '';
+        foreach ($map as $value => $roman) {
+            while ($number >= $value) {
+                $result .= $roman;
+                $number -= $value;
+            }
+        }
+
+        return $result;
     }
 
     private function activePartnerContractForCluster(VenueCluster $cluster): ?PartnerContract
@@ -1364,7 +1436,6 @@ class VenueClusterController extends Controller
                     \Illuminate\Support\Facades\Storage::disk('public')->move($tempPath, $newPath);
 
                     \App\Models\Media::create([
-                        'id' => (string) \Illuminate\Support\Str::uuid(),
                         'mediable_type' => VenueCluster::class,
                         'mediable_id' => $clusterId,
                         'collection' => 'gallery',

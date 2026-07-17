@@ -40,32 +40,27 @@
             Duyệt
           </button>
           <button
-            v-if="canReviewApplication"
-            class="btn danger"
-            type="button"
-            @click="actionMode = 'reject'"
-          >
-            <AppIcon name="x" size="16" />
-            Từ chối
-          </button>
-          <button
-            v-if="canReviewApplication"
-            class="btn warning"
-            type="button"
-            @click="actionMode = 'supplement'"
-          >
-            <AppIcon name="fileText" size="16" />
-            Bổ sung
-          </button>
-          <button
             v-if="pendingSportgoDocument"
             class="btn primary"
             type="button"
             @click="openDocument(pendingSportgoDocument)"
           >
             <AppIcon name="pencil" size="16" />
-            Ký hợp đồng
+            Xem và ký văn bản
           </button>
+          <details v-if="canReviewApplication" class="review-more">
+            <summary class="btn ghost">
+              Thao tác khác <AppIcon name="chevronDown" size="15" />
+            </summary>
+            <div class="review-more-menu">
+              <button type="button" @click="actionMode = 'supplement'">
+                <AppIcon name="fileText" size="15" /> Yêu cầu bổ sung
+              </button>
+              <button class="danger" type="button" @click="actionMode = 'reject'">
+                <AppIcon name="x" size="15" /> Từ chối hồ sơ
+              </button>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -269,12 +264,13 @@
                 <div>
                   <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
                   <p>{{ document.document_code }} · {{ documentStatusLabel(document.status) }} · {{ signatureSummary(document.signatures) }}</p>
+                  <p v-if="document.file_available === false" class="doc-file-warning">File gốc không còn trên hệ thống. Không thể xem hoặc tải xuống.</p>
                 </div>
                 <div class="row-actions">
-                  <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document)">
+                  <button class="btn primary small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Xem'" type="button" :disabled="document.file_available === false" @click="openDocument(document)">
                     <AppIcon name="eye" size="15" />
                   </button>
-                  <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadGeneratedDocument(document)">
+                  <button class="btn ghost small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Tải xuống'" type="button" :disabled="document.file_available === false" @click="downloadGeneratedDocument(document)">
                     <AppIcon name="download" size="15" />
                   </button>
                 </div>
@@ -300,12 +296,13 @@
                 <div>
                   <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
                   <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+                  <p v-if="document.file_available === false" class="doc-file-warning">File đã tải lên không còn trên hệ thống. Vui lòng yêu cầu đối tác bổ sung lại.</p>
                 </div>
                 <div class="row-actions">
-                  <button class="btn primary small icon-only" title="Xem" type="button" @click="openDocument(document, 'uploaded')">
+                  <button class="btn primary small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Xem'" type="button" :disabled="document.file_available === false" @click="openDocument(document, 'uploaded')">
                     <AppIcon name="eye" size="15" />
                   </button>
-                  <button class="btn ghost small icon-only" title="Tải xuống" type="button" @click="downloadUploadedDocument(document)">
+                  <button class="btn ghost small icon-only" :title="document.file_available === false ? 'File không khả dụng' : 'Tải xuống'" type="button" :disabled="document.file_available === false" @click="downloadUploadedDocument(document)">
                     <AppIcon name="download" size="15" />
                   </button>
                 </div>
@@ -318,7 +315,10 @@
 
       <section v-if="activeTab === 'signing'" class="content-card">
         <div class="card-head">
-          <h3>Nhật ký ký số / OTP</h3>
+          <div>
+            <h3>Nhật ký chữ ký điện tử</h3>
+            <p class="muted">OTP chỉ áp dụng cho bước xác nhận của chủ sân; admin ký trực tiếp bằng tài khoản đang đăng nhập.</p>
+          </div>
           <span>{{ signingLogs.length }} giao dịch</span>
         </div>
 
@@ -349,7 +349,7 @@
               </dl>
             </div>
           </article>
-          <p v-if="!signingLogs.length" class="empty-text">Chưa có giao dịch OTP/ký số nào.</p>
+          <p v-if="!signingLogs.length" class="empty-text">Chưa có giao dịch chữ ký nào.</p>
         </div>
       </section>
 
@@ -376,12 +376,20 @@
         <div class="card-head">
           <h3>Quyết toán và chấm dứt</h3>
           <div class="head-actions">
-            <span>{{ application.termination_requests?.length || 0 }} yêu cầu</span>
+            <span>{{ activeTerminationRequests.length }} đang xử lý</span>
+            <button
+              v-if="closedTerminationRequests.length"
+              class="btn ghost small"
+              type="button"
+              @click="showClosedTerminations = !showClosedTerminations"
+            >
+              {{ showClosedTerminations ? 'Ẩn lịch sử' : `Lịch sử (${closedTerminationRequests.length})` }}
+            </button>
             <button
               v-if="activeContract && !pendingTerminationRequest"
               class="btn danger small"
               type="button"
-              @click="terminationModal.open = true; terminationModal.reason = ''"
+              @click="openTerminationDraftModal"
             >
               <AppIcon name="xCircle" size="14" /> Đơn phương chấm dứt
             </button>
@@ -389,86 +397,202 @@
         </div>
 
         <div class="termination-list">
-          <article v-for="request in application.termination_requests || []" :key="request.id" class="termination-card">
+          <article v-for="request in displayedTerminationRequests" :key="request.id" class="termination-card">
             <div class="term-header">
               <div>
                 <strong>{{ request.termination_code || 'Yêu cầu chấm dứt' }}</strong>
                 <span class="badge" :class="`badge-${request.status}`">{{ terminationStatusLabel(request.status) }}</span>
               </div>
+            </div>
+
+            <div class="termination-next-action">
+              <strong>{{ terminationNextAction(request).title }}</strong>
+              <p>{{ terminationNextAction(request).description }}</p>
+              <div class="termination-task-actions">
+                <button
+                  v-if="canConfirmTerminationRequest(request)"
+                  class="btn primary small"
+                  type="button"
+                  :disabled="saving"
+                  @click="handleConfirmTermination(request)"
+                >
+                  <AppIcon name="check" size="14" /> Xác nhận yêu cầu
+                </button>
+                <button
+                  v-if="isUnilateralNotice(request) && isTerminationDraftStatus(request.status)"
+                  class="btn primary small"
+                  type="button"
+                  :disabled="saving"
+                  @click="openUnilateralNotice(request)"
+                >
+                  <AppIcon name="pencil" size="14" /> Xem và ký công văn
+                </button>
+                <button
+                  v-if="canWithdrawUnilateralNotice(request)"
+                  class="btn ghost small"
+                  type="button"
+                  :disabled="saving"
+                  @click="openTerminationInlineAction(request, 'withdraw')"
+                >
+                  Thu hồi công văn
+                </button>
+                <button
+                  v-if="hasPendingReconsideration(request)"
+                  class="btn ghost small"
+                  type="button"
+                  :disabled="saving"
+                  @click="openTerminationInlineAction(request, 'keep')"
+                >
+                  Giữ nguyên sau xem xét
+                </button>
+              </div>
+              <div class="termination-progress">
+                <span v-for="step in terminationAdminSteps(request)" :key="step.key" :class="step.state">
+                  {{ step.label }}
+                </span>
+              </div>
+            </div>
+
+            <div class="termination-finance-grid">
+              <div><span class="label">Booking tương lai</span><strong>{{ terminationFinancial(request, 'future_booking_count') }}</strong></div>
+              <div><span class="label">Có thể rút</span><strong class="amount positive">{{ money(terminationFinancial(request, 'withdrawable_amount')) }}</strong></div>
+              <div><span class="label">Nợ booking online</span><strong class="amount negative">{{ money(terminationFinancial(request, 'future_online_booking_liability')) }}</strong></div>
+              <div><span class="label">Hoàn/rút tiền treo</span><strong>{{ money(Number(terminationFinancial(request, 'pending_refund_liability')) + Number(terminationFinancial(request, 'pending_withdrawal_amount'))) }}</strong></div>
+            </div>
+
+            <div v-if="hasPendingReconsideration(request)" class="reconsideration-alert">
+              <strong>Chủ sân yêu cầu xem xét lại</strong>
+              <p>{{ request.workflow_state?.latest_reconsideration_reason }}</p>
+            </div>
+
+            <form
+              v-if="terminationInlineAction.requestId === request.id"
+              class="termination-inline-form"
+              @submit.prevent="submitTerminationInlineAction(request)"
+            >
+              <label class="field">
+                <span>{{ terminationInlineAction.type === 'withdraw' ? 'Lý do thu hồi công văn' : 'Phản hồi giữ nguyên công văn' }}</span>
+                <textarea v-model.trim="terminationInlineAction.note" rows="3" minlength="10" maxlength="1000" required></textarea>
+              </label>
+              <div class="actions compact">
+                <button class="btn ghost small" type="button" @click="closeTerminationInlineAction">Đóng</button>
+                <button class="btn primary small" type="submit" :disabled="saving || terminationInlineAction.note.length < 10">
+                  {{ terminationInlineAction.type === 'withdraw' ? 'Xác nhận thu hồi' : 'Gửi phản hồi' }}
+                </button>
+              </div>
+            </form>
+
+            <div class="termination-actions">
               <button
-                v-if="['submitted', 'reviewing'].includes(request.status) && request.termination_type !== 'unilateral_by_sportgo'"
+                v-if="canPrepareFinalDocument(request)"
                 class="btn primary small"
                 type="button"
                 :disabled="saving"
-                @click="handleConfirmTermination(request)"
+                @click="handleMarkTerminationReady(request)"
               >
-                <AppIcon name="check" size="14" /> Xác nhận thanh lý
+                <AppIcon name="fileText" size="14" /> Xác nhận thủ công & sinh biên bản
+              </button>
+              <button
+                v-if="isTerminationFinalSignatureStatus(request.status)"
+                class="btn primary small"
+                type="button"
+                :disabled="saving"
+                @click="handlePreviewFinalDocument(request)"
+              >
+                <AppIcon name="eye" size="14" />
+                {{ terminationFinalAdminSigned(request) ? 'Xem biên bản cuối' : 'Mở file và ký biên bản' }}
               </button>
             </div>
 
-            <div class="term-info-grid">
-              <div><span class="label">Loại</span><span>{{ terminationTypeLabel(request.termination_type) }}</span></div>
-              <div><span class="label">Ngày yêu cầu</span><span>{{ formatDate(request.requested_at) }}</span></div>
-              <div><span class="label">Ngày duyệt</span><span>{{ formatDate(request.approved_at) }}</span></div>
-              <div><span class="label">Ngày thu hồi quyền</span><span>{{ formatDate(request.transition_end_at) }}</span></div>
-              <div class="full"><span class="label">Lý do</span><span>{{ request.reason || '-' }}</span></div>
-            </div>
+            <details class="termination-detail-disclosure">
+              <summary>
+                <span>Chi tiết hồ sơ, booking và quyết toán</span>
+                <small>{{ request.documents?.length || 0 }} văn bản</small>
+              </summary>
+              <div class="termination-detail-body">
+                <div class="term-info-grid">
+                  <div><span class="label">Loại</span><span>{{ terminationTypeLabel(request.termination_type) }}</span></div>
+                  <div><span class="label">Ngày yêu cầu</span><span>{{ formatDate(request.requested_at) }}</span></div>
+                  <div><span class="label">Ngày duyệt</span><span>{{ formatDate(request.approved_at) }}</span></div>
+                  <div><span class="label">Ngày thu hồi quyền</span><span>{{ formatDate(request.transition_end_at) }}</span></div>
+                  <div v-if="isUnilateralNotice(request)"><span class="label">Chủ sân xác nhận nhận</span><span>{{ formatDate(request.workflow_state?.owner_acknowledged_at) }}</span></div>
+                  <div class="full"><span class="label">Lý do</span><span>{{ request.reason || '-' }}</span></div>
+                </div>
 
-            <!-- Settlement Details -->
-            <div v-if="request.settlement" class="settlement-box">
-              <h4>Quyết toán</h4>
-              <div class="term-info-grid">
-                <div><span class="label">Mã quyết toán</span><span>{{ request.settlement.settlement_code }}</span></div>
-                <div><span class="label">Trạng thái</span><span>{{ settlementStatusLabel(request.settlement.status) }}</span></div>
-                <div><span class="label">Tổng chi trả chủ sân</span><span class="amount positive">{{ money(request.settlement.final_payable_to_owner) }}</span></div>
-                <div><span class="label">Phí chưa thanh toán</span><span class="amount negative">{{ money(request.settlement.unpaid_platform_fee_amount) }}</span></div>
-              </div>
+                <div v-if="request.booking_actions?.length" class="settlement-box">
+                  <h4>Booking tương lai</h4>
+                  <div v-for="action in request.booking_actions" :key="action.id" class="withdrawal-row">
+                    <span>{{ action.booking?.booking_code || action.booking_id }}</span>
+                    <span>{{ bookingActionLabel(action.action) }}</span>
+                    <span class="badge" :class="`badge-${action.status}`">{{ action.status }}</span>
+                    <button
+                      v-if="action.status !== 'resolved'"
+                      class="btn ghost small"
+                      type="button"
+                      :disabled="saving"
+                      @click="handleManualResolveBooking(request, action)"
+                    >
+                      Xử lý xong
+                    </button>
+                  </div>
+                </div>
 
-              <table v-if="request.settlement.items?.length" class="settlement-table">
-                <thead>
-                  <tr><th>Hạng mục</th><th>Hướng</th><th>Số tiền</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in request.settlement.items" :key="item.id">
-                    <td>{{ item.description }}</td>
-                    <td>{{ item.direction === 'payable_to_owner' ? 'Trả chủ sân' : 'Thu từ chủ sân' }}</td>
-                    <td class="amount" :class="item.direction === 'payable_to_owner' ? 'positive' : 'negative'">{{ money(item.amount) }}</td>
-                  </tr>
-                </tbody>
-              </table>
+                <div v-if="request.settlement" class="settlement-box">
+                  <h4>Quyết toán</h4>
+                  <div class="term-info-grid">
+                    <div><span class="label">Mã quyết toán</span><span>{{ request.settlement.settlement_code }}</span></div>
+                    <div><span class="label">Trạng thái</span><span>{{ settlementStatusLabel(request.settlement.status) }}</span></div>
+                    <div><span class="label">Tổng chi trả chủ sân</span><span class="amount positive">{{ money(request.settlement.final_payable_to_owner) }}</span></div>
+                    <div><span class="label">Phí chưa thanh toán</span><span class="amount negative">{{ money(request.settlement.unpaid_platform_fee_amount) }}</span></div>
+                  </div>
 
-              <!-- Withdrawal Requests -->
-              <div v-if="request.settlement.withdrawal_requests?.length" class="withdrawal-section">
-                <h5>Lệnh rút tiền</h5>
-                <div v-for="wd in request.settlement.withdrawal_requests" :key="wd.id" class="withdrawal-row">
-                  <span>{{ money(wd.amount) }}</span>
-                  <span class="badge" :class="`badge-${wd.status}`">{{ withdrawalStatusLabel(wd.status) }}</span>
-                  <span class="muted">{{ formatDate(wd.created_at) }}</span>
+                  <table v-if="request.settlement.items?.length" class="settlement-table">
+                    <thead>
+                      <tr><th>Hạng mục</th><th>Hướng</th><th>Số tiền</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in request.settlement.items" :key="item.id">
+                        <td>{{ item.description }}</td>
+                        <td>{{ item.direction === 'payable_to_owner' ? 'Trả chủ sân' : 'Thu từ chủ sân' }}</td>
+                        <td class="amount" :class="item.direction === 'payable_to_owner' ? 'positive' : 'negative'">{{ money(item.amount) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div v-if="request.settlement.withdrawal_requests?.length" class="withdrawal-section">
+                    <h5>Lệnh rút tiền</h5>
+                    <div v-for="wd in request.settlement.withdrawal_requests" :key="wd.id" class="withdrawal-row">
+                      <span>{{ money(wd.amount) }}</span>
+                      <span class="badge" :class="`badge-${wd.status}`">{{ withdrawalStatusLabel(wd.status) }}</span>
+                      <span class="muted">{{ formatDate(wd.created_at) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="request.documents?.length" class="term-documents">
+                  <h4>Văn bản</h4>
+                  <div v-for="doc in request.documents" :key="doc.id" class="doc-row">
+                    <div>
+                      <strong>{{ documentTypeLabel(doc.document_type) }}</strong>
+                      <p class="muted">{{ formatDate(doc.generated_at) }}</p>
+                    </div>
+                    <div class="row-actions">
+                      <button v-if="doc.generated_document" class="btn ghost small" type="button" @click="openDocument(doc.generated_document)">
+                        <AppIcon name="eye" size="14" /> Xem
+                      </button>
+                      <button v-if="doc.generated_document" class="btn ghost small" type="button" @click="downloadGeneratedDocument(doc.generated_document)">
+                        <AppIcon name="download" size="14" /> Tải
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <!-- Termination Documents -->
-            <div v-if="request.documents?.length" class="term-documents">
-              <h4>Tài liệu thanh lý</h4>
-              <div v-for="doc in request.documents" :key="doc.id" class="doc-row">
-                <div>
-                  <strong>{{ documentTypeLabel(doc.document_type) }}</strong>
-                  <p class="muted">{{ formatDate(doc.generated_at) }}</p>
-                </div>
-                <div class="row-actions">
-                  <button v-if="doc.generated_document" class="btn ghost small" type="button" @click="openDocument(doc.generated_document)">
-                    <AppIcon name="eye" size="14" /> Xem
-                  </button>
-                  <button v-if="doc.generated_document" class="btn ghost small" type="button" @click="downloadGeneratedDocument(doc.generated_document)">
-                    <AppIcon name="download" size="14" /> Tải
-                  </button>
-                </div>
-              </div>
-            </div>
+            </details>
           </article>
 
-          <p v-if="!application.termination_requests?.length" class="empty-text">Chưa có yêu cầu chấm dứt hoặc quyết toán.</p>
+          <p v-if="!displayedTerminationRequests.length" class="empty-text">
+            {{ closedTerminationRequests.length ? 'Không có hồ sơ chấm dứt đang xử lý. Mở lịch sử để xem hồ sơ đã kết thúc.' : 'Chưa có yêu cầu chấm dứt hoặc quyết toán.' }}
+          </p>
         </div>
       </section>
 
@@ -482,27 +606,133 @@
             </button>
           </div>
           <div class="modal-body">
-            <p class="muted">Hành động này sẽ gửi công văn chấm dứt hợp tác tới đối tác và tạo quyết toán.</p>
+            <p class="muted">Bước này chỉ tạo bản xem trước. Công văn chưa gửi và cụm sân chưa bị khóa cho đến khi admin xem file, ký và xác nhận phát hành.</p>
             <label class="field">
               <span>Lý do chấm dứt</span>
               <textarea v-model.trim="terminationModal.reason" rows="4" required maxlength="2000" placeholder="Nhập lý do chấm dứt..."></textarea>
             </label>
+            <label class="field">
+              <span>Mô tả chi tiết</span>
+              <textarea v-model.trim="terminationModal.detail_reason" rows="4" maxlength="5000" placeholder="Nêu căn cứ, sự kiện và dữ liệu cần đối tác biết"></textarea>
+            </label>
+            <div class="modal-form-grid">
+              <label class="field">
+                <span>Ngày dự kiến hoàn tất</span>
+                <input v-model="terminationModal.requested_effective_date" type="date" required />
+              </label>
+              <label class="field">
+                <span>Phương án booking đang tồn tại</span>
+                <select v-model="terminationModal.future_booking_policy" required>
+                  <option value="manual_per_booking">Xử lý thủ công từng booking</option>
+                  <option value="serve_until_last_booking">Tiếp tục phục vụ đến booking cuối</option>
+                  <option value="cancel_all_refund_to_user_balance">Hủy và hoàn tiền toàn bộ</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div class="modal-foot">
             <button class="btn ghost" type="button" @click="terminationModal.open = false">Hủy</button>
-            <button class="btn danger" type="submit" :disabled="saving">{{ saving ? 'Đang xử lý...' : 'Gửi công văn chấm dứt' }}</button>
+            <button class="btn primary" type="submit" :disabled="saving">{{ saving ? 'Đang tạo file...' : 'Tạo bản xem trước' }}</button>
           </div>
         </form>
       </div>
 
     </template>
+
+    <DocumentViewerModal :show="unilateralNoticeModal.open" :document="unilateralNoticeModal.document" action-mode @close="closeUnilateralNotice">
+      <template #actions>
+        <div class="unilateral-sign-panel">
+          <div class="admin-signing-context">
+            <strong>Công văn chấm dứt hợp tác</strong>
+            <p class="muted">Kiểm tra file, ký vào khung và xác nhận phát hành bằng tài khoản admin đang đăng nhập.</p>
+          </div>
+          <div class="admin-signature-field">
+            <div>
+              <strong>Chữ ký đại diện SportGo</strong>
+              <button type="button" @click="prepareUnilateralNoticeSignature">Xóa</button>
+            </div>
+            <canvas
+              ref="unilateralNoticeCanvas"
+              class="termination-signature-pad"
+              width="520"
+              height="150"
+              @pointerdown="startUnilateralNoticeSignature"
+              @pointermove="drawUnilateralNoticeSignature"
+              @pointerup="stopUnilateralNoticeSignature"
+              @pointerleave="stopUnilateralNoticeSignature"
+            ></canvas>
+          </div>
+          <label class="admin-sign-confirm">
+            <input v-model="unilateralNoticeModal.accepted" type="checkbox" />
+            <span>Tôi xác nhận đại diện SportGo đã kiểm tra đúng văn bản đang hiển thị và đồng ý phát hành.</span>
+          </label>
+          <div class="actions compact admin-sign-submit">
+            <button
+              class="btn primary small"
+              type="button"
+              :disabled="saving || unilateralNoticeSignatureEmpty || !unilateralNoticeModal.accepted"
+              @click="signAndIssueUnilateralNotice"
+            >
+              {{ saving ? 'Đang phát hành...' : 'Ký và phát hành công văn' }}
+            </button>
+          </div>
+        </div>
+      </template>
+    </DocumentViewerModal>
+
+    <DocumentViewerModal
+      :show="terminationFinalModal.open"
+      :document="terminationFinalModal.document"
+      :action-mode="!!terminationFinalModal.request && !terminationFinalAdminSigned(terminationFinalModal.request)"
+      @close="closeTerminationFinalModal"
+    >
+      <template #actions>
+        <div v-if="terminationFinalModal.request && !terminationFinalAdminSigned(terminationFinalModal.request)" class="unilateral-sign-panel">
+          <div class="admin-signing-context">
+            <strong>Biên bản chấm dứt cuối</strong>
+            <p class="muted">SportGo ký bằng tài khoản admin hiện tại; chủ sân chỉ được ký sau khi chữ ký này được lưu vào file.</p>
+          </div>
+          <div class="admin-signature-field">
+            <div>
+              <strong>Chữ ký đại diện SportGo</strong>
+              <button type="button" @click="clearTerminationFinalSignature">Xóa</button>
+            </div>
+            <canvas
+              ref="terminationFinalCanvas"
+              class="termination-signature-pad"
+              width="520"
+              height="150"
+              @pointerdown="startTerminationFinalSignature"
+              @pointermove="drawTerminationFinalSignature"
+              @pointerup="stopTerminationFinalSignature"
+              @pointerleave="stopTerminationFinalSignature"
+            ></canvas>
+          </div>
+          <label class="admin-sign-confirm">
+            <input v-model="terminationFinalSigning.accepted" type="checkbox" />
+            <span>Tôi xác nhận đại diện SportGo đã kiểm tra đúng biên bản đang hiển thị và đồng ý ký.</span>
+          </label>
+          <div class="actions compact admin-sign-submit">
+            <button
+              class="btn primary small"
+              type="button"
+              :disabled="saving || terminationFinalSignatureEmpty || !terminationFinalSigning.accepted"
+              @click="handleSignTerminationFinalDocument(terminationFinalModal.request)"
+            >
+              {{ saving ? 'Đang lưu chữ ký...' : 'Ký biên bản' }}
+            </button>
+          </div>
+        </div>
+      </template>
+    </DocumentViewerModal>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, defineComponent, h, watch } from 'vue';
+import { computed, onMounted, reactive, ref, defineComponent, h, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../../components/AppIcon.vue';
+import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 const route = useRoute();
@@ -515,11 +745,48 @@ const message = ref('');
 const actionError = ref('');
 const application = ref(null);
 const courtTypes = ref([]);
-const activeTab = ref('overview');
+const detailTabs = ['overview', 'courts', 'documents', 'signing', 'history', 'settlement'];
+const activeTab = ref(detailTabs.includes(String(route.query.tab)) ? String(route.query.tab) : 'overview');
 const actionMode = ref(route.query.action || '');
 const fieldErrors = reactive({});
-const terminationModal = reactive({ open: false, reason: '' });
-
+const terminationModal = reactive({
+  open: false,
+  reason: '',
+  detail_reason: '',
+  requested_effective_date: '',
+  future_booking_policy: 'manual_per_booking',
+});
+const terminationInlineAction = reactive({ requestId: null, type: '', note: '' });
+const showClosedTerminations = ref(false);
+const unilateralNoticeModal = reactive({
+  open: false,
+  requestId: null,
+  document: null,
+  accepted: false,
+});
+const unilateralNoticeCanvas = ref(null);
+const unilateralNoticeDrawing = ref(false);
+const unilateralNoticeSignatureEmpty = ref(true);
+const terminationFinalModal = reactive({ open: false, request: null, document: null });
+const terminationFinalSigning = reactive({ accepted: false });
+const terminationFinalCanvas = ref(null);
+const terminationFinalDrawing = ref(false);
+const terminationFinalSignatureEmpty = ref(true);
+const TERMINATING_STATUSES = [
+  'draft',
+  'submitted',
+  'reviewing',
+  'settlement_processing',
+  'settlement_completed',
+  'pending_signature',
+  'transition_period',
+  'draft_preview',
+  'cancellation_in_progress',
+  'future_bookings_processing',
+  'waiting_final_settlement',
+  'waiting_final_document_signature',
+  'terminating',
+];
 const approveForm = reactive({
   initial_court_name: '',
   court_type_id: '',
@@ -534,7 +801,7 @@ const tabs = [
   { value: 'overview', label: 'Tổng quan' },
   { value: 'courts', label: 'Sân quản lý' },
   { value: 'documents', label: 'Tài liệu & văn bản' },
-  { value: 'signing', label: 'Nhật ký ký số / OTP' },
+  { value: 'signing', label: 'Chữ ký điện tử' },
   { value: 'history', label: 'Lịch sử' },
   { value: 'settlement', label: 'Hủy/chấm dứt & quyết toán' },
 ];
@@ -558,7 +825,14 @@ const pendingSportgoDocument = computed(() => generatedDocuments.value.find((doc
 )) || null);
 const canReviewApplication = computed(() => isReviewable(application.value?.status));
 const activeContract = computed(() => (application.value?.contracts || []).find(c => c.status === 'signed_active') || null);
-const pendingTerminationRequest = computed(() => (application.value?.termination_requests || []).find(r => ['submitted', 'reviewing', 'transition_period'].includes(r.status)) || null);
+const activeTerminationRequests = computed(() => (application.value?.termination_requests || []).filter((request) => TERMINATING_STATUSES.includes(request.status)));
+const closedTerminationRequests = computed(() => (application.value?.termination_requests || []).filter((request) => !TERMINATING_STATUSES.includes(request.status)));
+const displayedTerminationRequests = computed(() => (
+  showClosedTerminations.value
+    ? [...activeTerminationRequests.value, ...closedTerminationRequests.value]
+    : activeTerminationRequests.value
+));
+const pendingTerminationRequest = computed(() => activeTerminationRequests.value[0] || null);
 const readonlyActionTitle = computed(() => {
   if (application.value?.status === 'need_supplement') return 'Đang chờ người dùng bổ sung';
   if (application.value?.status === 'rejected') return 'Hồ sơ đã bị từ chối';
@@ -576,6 +850,7 @@ const readonlyActionText = computed(() => {
 
 onMounted(async () => {
   await Promise.all([loadApplication(), loadCourtTypes()]);
+  prepareTerminationFinalSignature();
 });
 
 watch(() => route.params.id, () => {
@@ -585,6 +860,10 @@ watch(() => route.params.id, () => {
 
 watch(() => route.query.action, (action) => {
   actionMode.value = canReviewApplication.value ? (action || '') : '';
+});
+
+watch(() => route.query.tab, (tab) => {
+  if (detailTabs.includes(String(tab))) activeTab.value = String(tab);
 });
 
 async function loadApplication() {
@@ -597,6 +876,8 @@ async function loadApplication() {
     if (!isReviewable(application.value?.status) && ['approve', 'reject', 'supplement'].includes(actionMode.value)) {
       actionMode.value = '';
     }
+    await nextTick();
+    prepareTerminationFinalSignature();
   } catch (err) {
     error.value = err.message || 'Không tải được hồ sơ đối tác.';
   } finally {
@@ -614,9 +895,20 @@ async function loadCourtTypes() {
 }
 
 function openDocument(doc, type = 'generated') {
+  if (doc?.file_available === false) {
+    clearAlerts();
+    error.value = type === 'uploaded'
+      ? 'File đã tải lên không còn trên hệ thống. Vui lòng yêu cầu đối tác bổ sung lại.'
+      : 'File văn bản không còn trên hệ thống nên chưa thể xem.';
+    return;
+  }
+
+  const documentApplicationId = doc?.partner_application_id || application.value?.id;
+  if (!documentApplicationId || !doc?.id) return;
+
   router.push({
     name: 'admin-partner-application-document',
-    params: { id: application.value.id, documentId: doc.id },
+    params: { id: documentApplicationId, documentId: doc.id },
     query: type === 'uploaded' ? { type: 'uploaded' } : {},
   });
 }
@@ -629,6 +921,10 @@ function openSiblingApplication(item) {
 async function downloadGeneratedDocument(document) {
   if (!document?.id) return;
   clearAlerts();
+  if (document.file_available === false) {
+    error.value = 'File văn bản không còn trên hệ thống nên chưa thể tải xuống.';
+    return;
+  }
   try {
     await adminPartnerApplicationService.downloadDocument(document.id);
   } catch (err) {
@@ -639,6 +935,10 @@ async function downloadGeneratedDocument(document) {
 async function downloadUploadedDocument(document) {
   if (!document?.id) return;
   clearAlerts();
+  if (document.file_available === false) {
+    error.value = 'File đã tải lên không còn trên hệ thống. Vui lòng yêu cầu đối tác bổ sung lại.';
+    return;
+  }
   try {
     await adminPartnerApplicationService.downloadUploadedDocument(document.id);
   } catch (err) {
@@ -735,18 +1035,282 @@ function isReviewable(status) {
   return ['pending', 'reviewing', 'submitted'].includes(status);
 }
 
+function terminationStatusIn(status, values) {
+  return values.includes(status);
+}
+
+function terminationFinancial(request, key) {
+  return request?.financial_summary?.[key] ?? request?.[key] ?? 0;
+}
+
+function isTerminationDraftStatus(status) {
+  return terminationStatusIn(status, ['draft', 'draft_preview']);
+}
+
+function isTerminationSubmittedStatus(status) {
+  return terminationStatusIn(status, ['submitted', 'cancellation_in_progress']);
+}
+
+function isTerminationFutureBookingStatus(status) {
+  return terminationStatusIn(status, ['reviewing', 'future_bookings_processing']);
+}
+
+function isTerminationSettlementStatus(status) {
+  return terminationStatusIn(status, ['settlement_processing', 'settlement_completed', 'waiting_final_settlement']);
+}
+
+function isTerminationFinalSignatureStatus(status) {
+  return terminationStatusIn(status, ['pending_signature', 'waiting_final_document_signature']);
+}
+
+function isTerminationTransitionStatus(status) {
+  return terminationStatusIn(status, ['transition_period', 'terminating']);
+}
+
+function isTerminationCompletedStatus(status) {
+  return terminationStatusIn(status, ['completed', 'terminated']);
+}
+
+function isTerminationCancelledStatus(status) {
+  return terminationStatusIn(status, ['cancelled', 'owner_cancelled_request']);
+}
+
+function isTerminationRejectedStatus(status) {
+  return terminationStatusIn(status, ['rejected', 'admin_rejected']);
+}
+
+function canConfirmTerminationRequest(request) {
+  return isTerminationSubmittedStatus(request.status) && request.termination_type !== 'unilateral_by_sportgo';
+}
+
+function isUnilateralNotice(request) {
+  return request?.termination_type === 'unilateral_by_sportgo';
+}
+
+function hasPendingReconsideration(request) {
+  return Boolean(isUnilateralNotice(request) && request.workflow_state?.reconsideration_pending);
+}
+
+function canWithdrawUnilateralNotice(request) {
+  return Boolean(
+    isUnilateralNotice(request)
+    && ['draft', 'submitted', 'reviewing', 'settlement_processing'].includes(request.status)
+    && !request.final_document_ready_at
+    && !terminationFinalAdminSigned(request)
+  );
+}
+
+function openTerminationDraftModal() {
+  const defaultDate = new Date();
+  defaultDate.setDate(defaultDate.getDate() + 30);
+  terminationModal.open = true;
+  terminationModal.reason = '';
+  terminationModal.detail_reason = '';
+  terminationModal.requested_effective_date = defaultDate.toISOString().slice(0, 10);
+  terminationModal.future_booking_policy = 'manual_per_booking';
+}
+
 async function handleUnilateralTermination() {
   if (!terminationModal.reason) return;
-  if (!confirm('Bạn có chắc chắn muốn đơn phương chấm dứt hợp đồng này?')) return;
   clearAlerts();
   saving.value = true;
   try {
-    const response = await adminPartnerApplicationService.terminate(application.value.id, { reason: terminationModal.reason });
-    message.value = response.message || 'Đã gửi công văn chấm dứt.';
+    const response = await adminPartnerApplicationService.terminate(application.value.id, {
+      reason: terminationModal.reason,
+      detail_reason: terminationModal.detail_reason || null,
+      requested_effective_date: terminationModal.requested_effective_date,
+      future_booking_policy: terminationModal.future_booking_policy,
+    });
+    message.value = response.message || 'Đã tạo bản xem trước công văn.';
     terminationModal.open = false;
     await loadApplication();
+    const request = (application.value?.termination_requests || []).find((item) => item.id === response.data?.id) || response.data;
+    await openUnilateralNotice(request);
   } catch (err) {
-    error.value = err.message || 'Lỗi khi chấm dứt hợp đồng.';
+    error.value = err.message || 'Không thể tạo bản xem trước công văn.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+function unilateralNoticeDocument(request) {
+  const row = [...(request?.documents || [])]
+    .reverse()
+    .find((item) => ['unilateral_notice', 'unilateral_termination_notice'].includes(item.document_type));
+  const document = row?.generated_document;
+  if (!document?.id) return null;
+
+  return {
+    ...document,
+    title: document.title || 'Công văn chấm dứt hợp tác',
+    download_url: `/api/files/documents/${document.id}/download`,
+  };
+}
+
+function terminationFinalDocument(request) {
+  const row = [...(request?.documents || [])]
+    .reverse()
+    .find((item) => ['settlement_minutes', 'final_termination_file'].includes(item.document_type));
+  const document = row?.generated_document;
+  if (!document?.id) return null;
+
+  return {
+    ...document,
+    title: document.title || 'Biên bản chấm dứt hợp tác cuối',
+    download_url: `/api/files/documents/${document.id}/download`,
+  };
+}
+
+function terminationFinalSignedBy(request, signerSide) {
+  return (terminationFinalDocument(request)?.signatures || [])
+    .some((signature) => signature.signer_side === signerSide && signature.status === 'signed');
+}
+
+function terminationFinalAdminSigned(request) {
+  return Boolean(request?.final_document_admin_signed_at) || terminationFinalSignedBy(request, 'sportgo');
+}
+
+function terminationFinalOwnerSigned(request) {
+  return Boolean(request?.final_document_owner_signed_at) || terminationFinalSignedBy(request, 'owner');
+}
+
+async function openUnilateralNotice(request) {
+  const document = unilateralNoticeDocument(request);
+  if (!document) {
+    error.value = 'Không tìm thấy file công văn để xem và ký.';
+    return;
+  }
+
+  unilateralNoticeModal.open = true;
+  unilateralNoticeModal.requestId = request.id;
+  unilateralNoticeModal.document = document;
+  unilateralNoticeModal.accepted = false;
+  await nextTick();
+  prepareUnilateralNoticeSignature();
+}
+
+function closeUnilateralNotice() {
+  unilateralNoticeModal.open = false;
+  unilateralNoticeModal.requestId = null;
+  unilateralNoticeModal.document = null;
+  unilateralNoticeModal.accepted = false;
+}
+
+async function openTerminationFinalModal(request, generatedDocument = null) {
+  const document = generatedDocument?.id
+    ? {
+      ...generatedDocument,
+      title: generatedDocument.title || 'Biên bản chấm dứt hợp tác cuối',
+      download_url: `/api/files/documents/${generatedDocument.id}/download`,
+    }
+    : terminationFinalDocument(request);
+
+  if (!document) {
+    error.value = 'Không tìm thấy file biên bản cuối để xem và ký.';
+    return;
+  }
+
+  terminationFinalModal.open = true;
+  terminationFinalModal.request = request;
+  terminationFinalModal.document = document;
+  terminationFinalSigning.accepted = false;
+  await nextTick();
+  prepareTerminationFinalSignature();
+}
+
+function closeTerminationFinalModal() {
+  terminationFinalModal.open = false;
+  terminationFinalModal.request = null;
+  terminationFinalModal.document = null;
+  terminationFinalSigning.accepted = false;
+}
+
+function prepareUnilateralNoticeSignature() {
+  const canvas = unilateralNoticeCanvas.value;
+  if (!canvas) return;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = '#0f172a';
+  context.lineWidth = 2.4;
+  context.lineCap = 'round';
+  unilateralNoticeSignatureEmpty.value = true;
+  unilateralNoticeModal.accepted = false;
+}
+
+function unilateralNoticePoint(event) {
+  const canvas = unilateralNoticeCanvas.value;
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+  };
+}
+
+function startUnilateralNoticeSignature(event) {
+  if (!unilateralNoticeCanvas.value) return;
+  unilateralNoticeDrawing.value = true;
+  unilateralNoticeSignatureEmpty.value = false;
+  const context = unilateralNoticeCanvas.value.getContext('2d');
+  const point = unilateralNoticePoint(event);
+  context.beginPath();
+  context.moveTo(point.x, point.y);
+}
+
+function drawUnilateralNoticeSignature(event) {
+  if (!unilateralNoticeDrawing.value || !unilateralNoticeCanvas.value) return;
+  const context = unilateralNoticeCanvas.value.getContext('2d');
+  const point = unilateralNoticePoint(event);
+  context.lineTo(point.x, point.y);
+  context.stroke();
+}
+
+function stopUnilateralNoticeSignature() {
+  unilateralNoticeDrawing.value = false;
+}
+
+async function signAndIssueUnilateralNotice() {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.signUnilateralNotice(unilateralNoticeModal.requestId, {
+      signature_image: unilateralNoticeCanvas.value?.toDataURL('image/png') || '',
+      confirmation: true,
+    });
+    message.value = response.message;
+    closeUnilateralNotice();
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Không thể ký và gửi công văn.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openTerminationInlineAction(request, type) {
+  terminationInlineAction.requestId = request.id;
+  terminationInlineAction.type = type;
+  terminationInlineAction.note = '';
+}
+
+function closeTerminationInlineAction() {
+  terminationInlineAction.requestId = null;
+  terminationInlineAction.type = '';
+  terminationInlineAction.note = '';
+}
+
+async function submitTerminationInlineAction(request) {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = terminationInlineAction.type === 'withdraw'
+      ? await adminPartnerApplicationService.withdrawUnilateralNotice(request.id, { reason: terminationInlineAction.note })
+      : await adminPartnerApplicationService.resolveUnilateralReconsideration(request.id, { note: terminationInlineAction.note });
+    message.value = response.message;
+    closeTerminationInlineAction();
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Không thể xử lý công văn.';
   } finally {
     saving.value = false;
   }
@@ -762,6 +1326,256 @@ async function handleConfirmTermination(request) {
     await loadApplication();
   } catch (err) {
     error.value = err.message || 'Lỗi khi xác nhận thanh lý.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+function terminationNextAction(request) {
+  if (isUnilateralNotice(request) && isTerminationDraftStatus(request.status)) {
+    return {
+      title: 'Cần admin xem và ký công văn',
+      description: 'File mới là bản xem trước. Admin mở văn bản, ký trực tiếp và phát hành; trước đó cụm sân chưa bị khóa bởi công văn này.',
+    };
+  }
+  if (isUnilateralNotice(request) && isTerminationSubmittedStatus(request.status)) {
+    return {
+      title: 'Chờ chủ sân xác nhận đã nhận',
+      description: 'Công văn đã ký và gửi, cụm sân đã dừng nhận booking mới. Chủ sân cần đọc file và xác nhận tiếp nhận.',
+    };
+  }
+  if (isTerminationDraftStatus(request.status)) {
+    return {
+      title: 'Chờ chủ sân ký gửi yêu cầu',
+      description: 'Chủ sân đã tạo bản xem trước nhưng chưa ký OTP gửi chính thức. Admin chưa cần xử lý cho đến khi đơn được gửi.',
+    };
+  }
+  if (canConfirmTerminationRequest(request)) {
+    return {
+      title: 'Cần admin xác nhận yêu cầu',
+      description: 'Kiểm tra đơn chủ sân đã ký, lý do chấm dứt và nghĩa vụ liên quan rồi xác nhận để bắt đầu xử lý thanh lý.',
+    };
+  }
+  if (isTerminationFutureBookingStatus(request.status)) {
+    return {
+      title: 'Cần xử lý booking tương lai',
+      description: 'Các booking chưa hoàn tất phải được hủy/hoàn tiền, phục vụ xong hoặc admin đánh dấu đã xử lý thủ công.',
+    };
+  }
+  if (isTerminationSettlementStatus(request.status)) {
+    return {
+      title: 'Cần xác nhận quyết toán thủ công',
+      description: 'Nếu booking và công nợ đã xử lý ngoài hệ thống, admin xác nhận thủ công để sinh biên bản chấm dứt cuối.',
+    };
+  }
+  if (isTerminationFinalSignatureStatus(request.status) && !terminationFinalAdminSigned(request)) {
+    return {
+      title: 'Cần SportGo ký biên bản cuối',
+      description: 'SportGo ký bằng tài khoản admin hiện tại trước, sau đó chủ sân mới ký OTP xác nhận hoàn tất.',
+    };
+  }
+  if (isTerminationFinalSignatureStatus(request.status) && terminationFinalAdminSigned(request) && !terminationFinalOwnerSigned(request)) {
+    return {
+      title: 'Chờ chủ sân ký biên bản cuối',
+      description: 'SportGo đã ký. Chủ sân cần vào màn hồ sơ chấm dứt để ký OTP phần bên B.',
+    };
+  }
+  if (isTerminationTransitionStatus(request.status)) {
+    return {
+      title: 'Đang trong thời gian xem hồ sơ',
+      description: 'Hai bên đã ký biên bản cuối. Hệ thống sẽ thu hồi quyền chủ sân sau thời gian cấu hình.',
+    };
+  }
+  if (isTerminationCompletedStatus(request.status)) {
+    return {
+      title: 'Đã chấm dứt hoàn tất',
+      description: 'Hợp đồng đã kết thúc, cụm sân chuyển sang trạng thái chấm dứt hợp tác.',
+    };
+  }
+  if (isTerminationCancelledStatus(request.status)) {
+    if (isUnilateralNotice(request)) {
+      return {
+        title: 'SportGo đã thu hồi công văn',
+        description: 'Cụm sân đã được mở lại nếu không còn khóa khác. File đã ký và lịch sử thu hồi vẫn được giữ để đối soát.',
+      };
+    }
+    return {
+      title: 'Chủ sân đã hủy yêu cầu',
+      description: 'Yêu cầu dừng xử lý. Kiểm tra lịch sử nếu đã có thao tác thủ công phát sinh.',
+    };
+  }
+  if (isTerminationRejectedStatus(request.status)) {
+    return {
+      title: 'Yêu cầu đã bị từ chối',
+      description: 'Admin đã từ chối yêu cầu chấm dứt. Kiểm tra lý do và lịch sử xử lý trước khi tạo yêu cầu mới.',
+    };
+  }
+  return {
+    title: 'Theo dõi hồ sơ',
+    description: 'Kiểm tra booking, công nợ, văn bản và chữ ký để chuyển hồ sơ sang bước tiếp theo.',
+  };
+}
+
+function terminationAdminSteps(request) {
+  const status = request.status;
+  const adminSigned = terminationFinalAdminSigned(request);
+  const ownerSigned = terminationFinalOwnerSigned(request);
+  const bookingResolved = !Number(request.future_booking_count || 0) || isTerminationSettlementStatus(status) || isTerminationFinalSignatureStatus(status) || isTerminationTransitionStatus(status) || isTerminationCompletedStatus(status);
+  const requestDone = !isTerminationDraftStatus(status) && !isTerminationSubmittedStatus(status);
+
+  if (isUnilateralNotice(request)) {
+    const acknowledged = Boolean(request.workflow_state?.owner_acknowledged_at);
+    return [
+      { key: 'notice', label: 'Ký công văn', state: isTerminationDraftStatus(status) ? 'current' : 'done' },
+      { key: 'ack', label: 'Chủ sân xác nhận', state: isTerminationSubmittedStatus(status) ? 'current' : (acknowledged ? 'done' : 'pending') },
+      { key: 'booking', label: 'Booking', state: isTerminationFutureBookingStatus(status) ? 'current' : (bookingResolved ? 'done' : 'pending') },
+      { key: 'settlement', label: 'Đối soát', state: isTerminationSettlementStatus(status) ? 'current' : ((isTerminationFinalSignatureStatus(status) || isTerminationTransitionStatus(status) || isTerminationCompletedStatus(status)) ? 'done' : 'pending') },
+      { key: 'final', label: 'Biên bản cuối', state: (adminSigned || ownerSigned) ? 'current' : ((isTerminationTransitionStatus(status) || isTerminationCompletedStatus(status)) ? 'done' : 'pending') },
+    ];
+  }
+
+  return [
+    { key: 'request', label: 'Duyệt yêu cầu', state: isTerminationDraftStatus(status) || isTerminationSubmittedStatus(status) ? 'current' : (requestDone ? 'done' : 'pending') },
+    { key: 'booking', label: 'Booking', state: isTerminationFutureBookingStatus(status) ? 'current' : (bookingResolved ? 'done' : 'pending') },
+    { key: 'settlement', label: 'Quyết toán', state: isTerminationSettlementStatus(status) ? 'current' : ((isTerminationFinalSignatureStatus(status) || isTerminationTransitionStatus(status) || isTerminationCompletedStatus(status)) ? 'done' : 'pending') },
+    { key: 'admin-sign', label: 'SportGo ký', state: adminSigned ? 'done' : (isTerminationFinalSignatureStatus(status) ? 'current' : 'pending') },
+    { key: 'owner-sign', label: 'Chủ sân ký', state: ownerSigned ? 'done' : (adminSigned && isTerminationFinalSignatureStatus(status) ? 'current' : 'pending') },
+  ];
+}
+
+function canPrepareFinalDocument(request) {
+  return isTerminationSettlementStatus(request.status);
+}
+
+async function handleMarkTerminationReady(request) {
+  if (!confirm('Xác nhận booking/công nợ đã xử lý thủ công và sinh biên bản chấm dứt cuối?')) return;
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.markTerminationReady(request.id, {
+      note: 'Admin xác nhận thủ công booking/công nợ đã xử lý và sinh biên bản chấm dứt cuối.',
+    });
+    message.value = response.message || 'Đã xác nhận thủ công và sinh biên bản chấm dứt cuối.';
+    await loadApplication();
+    const refreshedRequest = (application.value?.termination_requests || [])
+      .find((item) => item.id === request.id) || response.data;
+    await openTerminationFinalModal(refreshedRequest);
+  } catch (err) {
+    error.value = err.message || 'Không thể sinh biên bản chấm dứt cuối.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handlePreviewFinalDocument(request) {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.previewTerminationFinalDocument(request.id);
+    message.value = terminationFinalAdminSigned(request)
+      ? 'Đã mở biên bản chấm dứt cuối.'
+      : (response.message || 'Đã mở biên bản chấm dứt cuối để SportGo ký.');
+    await loadApplication();
+    const refreshedRequest = (application.value?.termination_requests || [])
+      .find((item) => item.id === request.id) || request;
+    await openTerminationFinalModal(refreshedRequest, response.data);
+  } catch (err) {
+    error.value = err.message || 'Không thể làm mới biên bản chấm dứt cuối.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+function prepareTerminationFinalSignature() {
+  const canvas = terminationFinalCanvas.value;
+  if (!canvas) return;
+
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = '#0f172a';
+  context.lineWidth = 2.4;
+  context.lineCap = 'round';
+  terminationFinalSignatureEmpty.value = true;
+}
+
+function terminationSignaturePoint(event) {
+  const canvas = terminationFinalCanvas.value;
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+  };
+}
+
+function startTerminationFinalSignature(event) {
+  const canvas = terminationFinalCanvas.value;
+  if (!canvas) return;
+
+  terminationFinalDrawing.value = true;
+  terminationFinalSignatureEmpty.value = false;
+
+  const context = canvas.getContext('2d');
+  const current = terminationSignaturePoint(event);
+  context.beginPath();
+  context.moveTo(current.x, current.y);
+}
+
+function drawTerminationFinalSignature(event) {
+  const canvas = terminationFinalCanvas.value;
+  if (!terminationFinalDrawing.value || !canvas) return;
+
+  const context = canvas.getContext('2d');
+  const current = terminationSignaturePoint(event);
+  context.lineTo(current.x, current.y);
+  context.stroke();
+}
+
+function stopTerminationFinalSignature() {
+  terminationFinalDrawing.value = false;
+}
+
+function clearTerminationFinalSignature() {
+  prepareTerminationFinalSignature();
+  terminationFinalSigning.accepted = false;
+}
+
+function terminationFinalSignatureImage() {
+  return terminationFinalCanvas.value?.toDataURL('image/png') || '';
+}
+
+async function handleSignTerminationFinalDocument(request) {
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.signTerminationFinalDocument(request.id, {
+      signature_image: terminationFinalSignatureImage(),
+      confirmation: true,
+    });
+    message.value = response.message || 'SportGo đã ký biên bản chấm dứt cuối.';
+    terminationFinalSigning.accepted = false;
+    await loadApplication();
+    closeTerminationFinalModal();
+  } catch (err) {
+    error.value = err.message || 'Không thể ký biên bản chấm dứt cuối.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function handleManualResolveBooking(request, action) {
+  if (!confirm('Xác nhận booking này đã được xử lý thủ công?')) return;
+  clearAlerts();
+  saving.value = true;
+  try {
+    const response = await adminPartnerApplicationService.manualResolveTerminationBooking(request.id, {
+      booking_id: action.booking_id,
+      note: 'Admin xác nhận booking đã được xử lý thủ công.',
+    });
+    message.value = response.message || 'Đã ghi nhận booking được xử lý.';
+    await loadApplication();
+  } catch (err) {
+    error.value = err.message || 'Không thể cập nhật booking.';
   } finally {
     saving.value = false;
   }
@@ -801,7 +1615,12 @@ function identityLabel(value) {
 }
 
 function applicantTypeLabel(value) {
-  return { individual: 'Cá nhân', business: 'Hộ kinh doanh', company: 'Doanh nghiệp' }[value] || value || '-';
+  return {
+    individual: 'Cá nhân',
+    business: 'Hộ kinh doanh',
+    household_business: 'Hộ kinh doanh',
+    company: 'Doanh nghiệp',
+  }[value] || value || '-';
 }
 
 function bankVerificationLabel(status) {
@@ -816,10 +1635,12 @@ function bankVerificationLabel(status) {
 }
 
 function documentTypeLabel(type) {
+  if (type === 'owner_termination_request') return 'Đơn chủ sân yêu cầu chấm dứt';
+  if (type === 'termination_cancellation_request') return 'Đơn chủ sân xác nhận hủy yêu cầu chấm dứt';
   if (type === 'venue_scale_request') return 'Đơn yêu cầu thay đổi quy mô sân';
   if (type === 'venue_location_change_request') return 'Đơn yêu cầu thay đổi vị trí cụm sân';
-  if (type === 'venue_scale_appendix') return 'Phu luc thay doi quy mo san';
-  if (type === 'venue_location_appendix') return 'Phu luc thay doi vi tri cum san';
+  if (type === 'venue_scale_appendix') return 'Phụ lục thay đổi quy mô sân';
+  if (type === 'venue_location_appendix') return 'Phụ lục thay đổi vị trí cụm sân';
 
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
@@ -873,8 +1694,8 @@ function generatedDocumentGroupMeta(document) {
   if (type === 'venue_location_change_request') {
     return { key: 'location_request', label: 'Đơn yêu cầu thay đổi vị trí' };
   }
-  if (['termination_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
-    return { key: 'termination', label: 'Công văn, hủy yêu cầu đối tác' };
+  if (['termination_request', 'owner_termination_request', 'termination_cancellation_request', 'mutual_liquidation_minutes', 'unilateral_termination_notice', 'settlement_minutes'].includes(type)) {
+    return { key: 'termination', label: 'Văn bản chấm dứt hợp tác' };
   }
   return { key: 'other', label: 'Văn bản khác' };
 }
@@ -914,11 +1735,25 @@ function contractStatusLabel(status) {
 
 function terminationStatusLabel(status) {
   return {
+    draft: 'Chờ chủ sân ký gửi',
+    draft_preview: 'Chờ chủ sân ký gửi',
+    cancellation_in_progress: 'Chủ sân đã gửi yêu cầu',
+    future_bookings_processing: 'Đang xử lý booking',
+    waiting_final_settlement: 'Chờ quyết toán cuối',
+    waiting_final_document_signature: 'Chờ ký biên bản cuối',
+    terminating: 'Đang trong thời gian xem hồ sơ',
+    terminated: 'Đã chấm dứt',
+    owner_cancelled_request: 'Chủ sân đã hủy',
+    admin_rejected: 'Admin từ chối',
     submitted: 'Chờ xác nhận',
     reviewing: 'Đang xem xét',
+    settlement_processing: 'Chờ quyết toán cuối',
+    settlement_completed: 'Chờ ký biên bản cuối',
+    pending_signature: 'Chờ ký biên bản cuối',
     transition_period: 'Giai đoạn chuyển tiếp',
     completed: 'Đã hoàn tất',
     rejected: 'Đã từ chối',
+    cancelled: 'Đã hủy',
   }[status] || status || '-';
 }
 
@@ -928,6 +1763,14 @@ function terminationTypeLabel(type) {
     unilateral_by_owner: 'Đơn phương từ chủ sân',
     unilateral_by_sportgo: 'Đơn phương từ SportGo',
   }[type] || type || '-';
+}
+
+function bookingActionLabel(action) {
+  return {
+    cancel_all_refund_to_user_balance: 'Hủy và hoàn tiền',
+    serve_until_last_booking: 'Phục vụ đến booking cuối',
+    manual_per_booking: 'Xử lý thủ công',
+  }[action] || action || '-';
 }
 
 function settlementStatusLabel(status) {
@@ -1114,7 +1957,60 @@ function dateOnly(value) {
 
 .action-buttons,
 .row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.review-more {
+  position: relative;
+}
+
+.review-more > summary {
+  list-style: none;
+}
+
+.review-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.review-more-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 190px;
+  gap: 4px;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--admin-surface, #fff);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
+  padding: 6px;
+}
+
+.review-more-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-text, #0f172a);
+  cursor: pointer;
+  padding: 9px 10px;
+  font-weight: 750;
+  text-align: left;
+}
+
+.review-more-menu button:hover {
+  background: var(--admin-surface-muted, #f8fafc);
+}
+
+.review-more-menu button.danger {
+  color: #b91c1c;
 }
 
 .tabs {
@@ -1137,8 +2033,8 @@ function dateOnly(value) {
 }
 
 .tabs button.active {
-  border-color: #0f172a;
-  background: #0f172a;
+  border-color: #16844a;
+  background: #16844a;
   color: #fff;
 }
 
@@ -1346,6 +2242,11 @@ dd {
   gap: 12px;
 }
 
+.doc-row .doc-file-warning {
+  color: #b91c1c;
+  font-weight: 750;
+}
+
 .cluster-list {
   display: grid;
   gap: 10px;
@@ -1503,6 +2404,245 @@ dd {
   }
 
   dl {
+    grid-template-columns: 1fr;
+  }
+}
+.termination-finance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.termination-next-action {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  padding: 12px;
+}
+
+.termination-next-action strong {
+  color: #14532d;
+}
+
+.termination-next-action p {
+  margin: 0;
+  color: #475569;
+}
+
+.termination-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.termination-inline-form,
+.reconsideration-alert {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  padding: 12px 14px;
+}
+
+.reconsideration-alert p {
+  margin: 0;
+  color: #78350f;
+}
+
+.modal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.unilateral-sign-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.unilateral-sign-panel p {
+  margin: 4px 0 0;
+}
+
+.admin-signing-context {
+  border-left: 3px solid #16a34a;
+  background: #f0fdf4;
+  padding: 10px 12px;
+}
+
+.admin-signing-context strong {
+  color: #166534;
+  font-size: 13px;
+}
+
+.admin-signing-context p {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-signature-field {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-signature-field > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.admin-signature-field button {
+  border: 0;
+  background: transparent;
+  color: #15803d;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.admin-sign-submit .btn {
+  width: 100%;
+}
+
+.termination-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.termination-progress span {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
+.termination-progress span.current {
+  border-color: #22c55e;
+  color: #166534;
+}
+
+.termination-progress span.done {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.termination-finance-grid > div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.termination-finance-grid .label,
+.termination-finance-grid strong {
+  display: block;
+}
+
+.termination-finance-grid .label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.termination-finance-grid strong {
+  color: #17231d;
+  font-size: 15px;
+}
+
+.term-header > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.termination-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.termination-actions .actions.compact {
+  margin: 0;
+}
+
+.termination-detail-disclosure {
+  margin-top: 12px;
+  border-top: 1px solid var(--admin-border, #e2e8f0);
+}
+
+.termination-detail-disclosure > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.termination-detail-disclosure > summary small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.termination-detail-body {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--admin-border, #e2e8f0);
+  padding-top: 14px;
+}
+
+.termination-signature-pad {
+  width: 100%;
+  max-width: 100%;
+  height: 160px;
+  touch-action: none;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-sign-confirm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--admin-text, #334155);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .termination-finance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .termination-finance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-form-grid {
     grid-template-columns: 1fr;
   }
 }

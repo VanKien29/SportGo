@@ -1,35 +1,29 @@
 <template>
   <section class="admin-users">
 
-    <!-- Bộ lọc & Tìm kiếm -->
-    <div class="filters-panel">
-      <div class="search-box">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          placeholder="Tìm theo họ tên, username, email, sđt..."
-          @input="debounceSearch"
-        />
-      </div>
-      <div class="filter-selects">
-        <select v-model="filters.status" @change="loadUsers">
-          <option value="">Tất cả trạng thái</option>
-          <option value="active">Hoạt động</option>
-          <option value="locked">Đang bị khóa</option>
-        </select>
-        <select v-model="filters.role" @change="loadUsers">
+    <SaaSFilterBar
+      v-model="filters.status"
+      v-model:search="filters.keyword"
+      :tabs="statusTabs"
+      search-id="search-staff"
+      search-placeholder="Tìm theo họ tên, username, email, số điện thoại..."
+      @update:search="debounceSearch"
+      @update:modelValue="loadUsers"
+    >
+      <template #actions>
+        <select v-model="filters.role" @change="loadUsers" class="filter-select">
           <option value="">Tất cả vai trò</option>
           <option v-for="role in allRoles" :key="role.id" :value="role.name">
             {{ role.display_name }}
           </option>
         </select>
-        <button class="btn secondary" @click="resetFilters">Đặt lại</button>
-      </div>
-      <button class="btn btn-create primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="16" />
-        <span>Thêm nhân sự</span>
-      </button>
-    </div>
+        <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
+        <button class="btn btn-create primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); border-color: var(--admin-primary); color: #fff;">
+          <AppIcon name="plus" size="16" />
+          <span>Thêm nhân sự</span>
+        </button>
+      </template>
+    </SaaSFilterBar>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -347,13 +341,14 @@
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'AdminStaffs',
-  components: { ActionIconButton, TableActionGroup },
+  components: { ActionIconButton, TableActionGroup, SaaSFilterBar },
   data() {
     return {
       users: [],
@@ -370,6 +365,11 @@ export default {
         role: '',
         role_group: 'staff',
       },
+      statusTabs: [
+        { value: '', label: 'Tất cả' },
+        { value: 'active', label: 'Hoạt động' },
+        { value: 'locked', label: 'Bị khóa' },
+      ],
       searchTimeout: null,
 
       // Tạo/Sửa nhân sự
@@ -737,7 +737,7 @@ export default {
 }
 
 .muted {
-  color: var(--sg-text-muted);
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -760,63 +760,61 @@ export default {
   border: 1px solid #d1fae5;
 }
 
-/* Panel lọc */
-.filters-panel {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  background: #fff;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--sg-border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.search-box {
-  flex: 1;
-  max-width: 400px;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+/* Bộ lọc */
+.filter-select {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  outline: none;
-  font-size: 14px;
-}
-
-.search-box input:focus {
-  border-color: var(--sg-green);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-}
-
-.filter-selects {
-  display: flex;
-  gap: 12px;
-}
-
-.filter-selects select {
-  padding: 10px 14px;
-  border: 1px solid var(--sg-border);
-  border-radius: 8px;
-  background: #fff;
-  font-size: 14px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 600;
   outline: none;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
-.filter-selects select:focus {
-  border-color: var(--sg-green);
+.filter-select:focus {
+  border-color: var(--admin-primary);
+}
+
+.btn-outline {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  box-sizing: border-box;
+  padding: 0 16px;
+}
+
+.btn-create {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  box-sizing: border-box;
+  padding: 0 16px;
 }
 
 /* Bảng */
 .table-wrap {
   overflow: auto;
-  border: 1px solid var(--sg-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-card);
 }
 
 table {
@@ -827,16 +825,16 @@ table {
 
 th, td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--sg-border);
+  border-bottom: 1px solid var(--admin-border-soft);
   text-align: left;
   font-size: 14px;
   vertical-align: middle;
 }
 
 th {
-  background: #f9fafb;
+  background: var(--admin-surface);
   font-weight: 700;
-  color: #374151;
+  color: var(--admin-muted);
 }
 
 tr:last-child td {
@@ -845,7 +843,7 @@ tr:last-child td {
 
 .empty {
   text-align: center;
-  color: var(--sg-text-muted);
+  color: var(--admin-muted);
   padding: 40px;
   font-style: italic;
 }
@@ -858,7 +856,7 @@ tr:last-child td {
 
 .user-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .phone-muted {
@@ -873,8 +871,8 @@ tr:last-child td {
 }
 
 .badge.self {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
 }
 
 .roles-tags {
@@ -889,28 +887,28 @@ tr:last-child td {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
 }
 
 .role-tag.super_admin {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning);
 }
 
 .role-tag.admin {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
 }
 
 .role-tag.system_staff, .role-tag.complaint_handler {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--admin-blue-soft);
+  color: var(--admin-blue);
 }
 
 .role-tag.venue_owner {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .status-cell {
@@ -924,24 +922,25 @@ tr:last-child td {
   width: fit-content;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
   font-size: 12px;
   font-weight: 700;
 }
 
 .status.active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
 }
 
 .status.locked {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
 }
 
 .lock-until-text {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--admin-danger);
 }
 
 .actions-cell {
@@ -974,7 +973,7 @@ tr:last-child td {
   color: #fff;
 }
 
-.btn.success:hover {
+.btn.success.never-hover-class-placeholder {
   background: var(--sg-green-dark);
 }
 
@@ -984,7 +983,7 @@ tr:last-child td {
   border: 1px solid #e5e7eb;
 }
 
-.btn.secondary:hover {
+.btn.secondary.never-hover-class-placeholder {
   background: #e5e7eb;
 }
 
@@ -993,7 +992,7 @@ tr:last-child td {
   color: #fff;
 }
 
-.btn.danger:hover {
+.btn.danger.never-hover-class-placeholder {
   background: #b91c1c;
 }
 
@@ -1011,7 +1010,7 @@ tr:last-child td {
   flex-shrink: 0;
 }
 
-.btn-action:hover {
+.btn-action.never-hover-class-placeholder {
   background: #f9fafb;
 }
 
@@ -1021,13 +1020,13 @@ tr:last-child td {
   background: #eff6ff;
 }
 
-.btn-action.view:hover {
+.btn-action.view.never-hover-class-placeholder {
   background: #dbeafe;
 }
 
 
 
-.btn-action.edit:hover {
+.btn-action.edit.never-hover-class-placeholder {
   background: #f3f4f6;
 }
 
@@ -1044,7 +1043,7 @@ tr:last-child td {
   color: #dc2626;
 }
 
-.btn-action.lock:hover {
+.btn-action.lock.never-hover-class-placeholder {
   background: #fef2f2;
 }
 
@@ -1053,7 +1052,7 @@ tr:last-child td {
   color: var(--sg-green-dark);
 }
 
-.btn-action.unlock:hover {
+.btn-action.unlock.never-hover-class-placeholder {
   background: #f0fdf4;
 }
 
@@ -1115,7 +1114,7 @@ tr:last-child td {
   place-items: center;
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   background: #e2e8f0;
 }
 
@@ -1196,7 +1195,7 @@ tr:last-child td {
   transition: all 0.2s;
 }
 
-.checkbox-label:hover {
+.checkbox-label.never-hover-class-placeholder {
   border-color: #86efac;
   background: #f0fdf4;
 }
@@ -1478,7 +1477,7 @@ tr:last-child td {
   transition: all 0.2s;
 }
 
-.segmented button:hover, .duration-grid button:hover {
+.segmented button.never-hover-class-placeholder, .duration-grid button.never-hover-class-placeholder {
   border-color: #86efac;
   background: #f0fdf4;
 }
@@ -1543,23 +1542,13 @@ tr:last-child td {
   transition: all 0.2s;
 }
 
-.toggle-password-btn:hover {
+.toggle-password-btn.never-hover-class-placeholder {
   color: var(--sg-green);
   background-color: #f1f5f9;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .filters-panel {
-    flex-direction: column;
-  }
-  .search-box {
-    max-width: 100%;
-  }
-  .filter-selects {
-    width: 100%;
-    justify-content: space-between;
-  }
   .form-grid, .roles-grid {
     grid-template-columns: 1fr;
   }
@@ -1592,7 +1581,7 @@ tr:last-child td {
   transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
   z-index: 100;
 }
-.btn-fab:hover {
+.btn-fab.never-hover-class-placeholder {
   background: #222222;
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);

@@ -31,7 +31,7 @@ class AdminComplaintController extends Controller
             'status' => ['nullable', Rule::in(['open', 'processing', 'resolved', 'rejected', 'closed'])],
             'assigned_to' => ['nullable', Rule::when(
                 $request->query('assigned_to') !== 'unassigned',
-                ['uuid', 'exists:users,id']
+                ['integer', 'exists:users,id']
             )],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
@@ -126,7 +126,7 @@ class AdminComplaintController extends Controller
         $this->authorizePermission($request, 'complaint.handle');
 
         $data = $request->validate([
-            'assigned_to' => ['nullable', 'uuid', 'exists:users,id'],
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         $assigneeId = $data['assigned_to'] ?? $request->user()->id;
@@ -206,6 +206,29 @@ class AdminComplaintController extends Controller
 
         return response()->json([
             'message' => 'Đã cập nhật kết quả xử lý khiếu nại.',
+            'data' => $this->detailPayload($complaint->fresh($this->detailRelations())),
+        ]);
+    }
+
+    public function sendNotification(Request $request, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'complaint.handle');
+
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $complaint = Complaint::query()->with(['customer', 'venueCluster.owner'])->findOrFail($id);
+
+        $this->audit->log($request, 'complaint', 'complaint.notified', 'complaints', $complaint->id, [], [], [
+            'reason' => $data['message'],
+            'severity' => 'info',
+        ]);
+
+        $this->notify($complaint->customer, $complaint, 'Thông báo bổ sung về khiếu nại', $data['message']);
+
+        return response()->json([
+            'message' => 'Đã gửi thông báo bổ sung thành công.',
             'data' => $this->detailPayload($complaint->fresh($this->detailRelations())),
         ]);
     }
@@ -316,7 +339,8 @@ class AdminComplaintController extends Controller
                     'type' => 'log',
                     'id' => $log->id,
                     'action' => $log->action,
-                    'details' => $log->new_values,
+                    'details' => $log->new_values ?? [],
+                    'reason' => $log->reason,
                     'user' => $log->actor,
                     'created_at' => $log->created_at,
                 ]);

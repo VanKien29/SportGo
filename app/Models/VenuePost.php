@@ -2,18 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VenuePost extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'venue_cluster_id',
@@ -71,7 +66,7 @@ class VenuePost extends Model
     public function hashtags()
     {
         return $this->belongsToMany(Hashtag::class, 'post_hashtags', 'post_id', 'hashtag_id')
-            ->where('post_hashtags.post_type', 'venue_posts');
+            ->withPivotValue('post_type', 'venue_posts');
     }
 
     public function comments()
@@ -85,5 +80,10 @@ class VenuePost extends Model
             ->where('status', 'published')
             ->whereNull('parent_id')
             ->latest();
+    }
+
+    public function likers()
+    {
+        return $this->belongsToMany(User::class, 'venue_post_likes', 'post_id', 'user_id');
     }
 }

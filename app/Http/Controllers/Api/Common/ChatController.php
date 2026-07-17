@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Events\ConversationUpdated;
 use App\Events\MessageSent;
 use App\Models\Conversation;
+use App\Models\Booking;
+use App\Models\BookingSupportRequest;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
 use App\Models\VenueCluster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ChatController extends Controller
@@ -27,7 +30,7 @@ class ChatController extends Controller
             $query->where('user_id', $userId);
         })
         ->with([
-            'participants.user:id,full_name,username,avatar_url',
+            'participants.user:id,full_name,username,avatar_url,email,phone',
         ])
         ->get();
 
@@ -85,6 +88,9 @@ class ChatController extends Controller
                     'id' => $otherUser->id,
                     'full_name' => $otherUser->full_name,
                     'username' => $otherUser->username,
+                    'avatar_url' => $otherUser->avatar_url,
+                    'email' => $otherUser->email,
+                    'phone' => $otherUser->phone,
                 ] : null,
                 'last_message' => $lastMessage ? [
                     'content' => $lastMessage->content,
@@ -116,20 +122,30 @@ class ChatController extends Controller
         }
 
         $messages = Message::where('conversation_id', $conversationId)
-            ->with('sender:id,full_name,username,avatar_url')
+            ->with('sender:id,full_name,username,avatar_url,email,phone')
             ->orderBy('created_at', 'asc')
             ->limit(100)
             ->get();
 
         // Check if other participant has read these messages
-        $participants = ConversationParticipant::where('conversation_id', $conversationId)->get();
+        $participants = ConversationParticipant::where('conversation_id', $conversationId)
+            ->with('user:id,full_name,username,avatar_url,email,phone')
+            ->get();
 
         return response()->json([
-            'messages' => $messages,
+            'messages' => $messages->map(fn (Message $message) => $this->messagePayload($message))->values(),
             'participants' => $participants->map(function ($p) {
                 return [
                     'user_id' => $p->user_id,
                     'last_read_at' => $p->last_read_at ? $p->last_read_at->toIso8601String() : null,
+                    'user' => $p->user ? [
+                        'id' => $p->user->id,
+                        'full_name' => $p->user->full_name,
+                        'username' => $p->user->username,
+                        'avatar_url' => $p->user->avatar_url,
+                        'email' => $p->user->email,
+                        'phone' => $p->user->phone,
+                    ] : null,
                 ];
             }),
         ]);
@@ -150,10 +166,21 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        $request->validate([
-            'content' => 'nullable|string',
+        $rules = [
+            'content' => 'nullable|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
-        ]);
+        ];
+
+        $replySupported = Schema::hasColumn('messages', 'reply_to_id');
+        if ($replySupported) {
+            $rules['reply_to_id'] = 'nullable|integer|exists:messages,id';
+        } elseif ($request->filled('reply_to_id')) {
+            return response()->json([
+                'message' => 'Chức năng trả lời tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
+        $request->validate($rules);
 
         if (!$request->filled('content') && !$request->hasFile('image')) {
             return response()->json(['message' => 'Nội dung tin nhắn hoặc hình ảnh là bắt buộc.'], 400);
@@ -162,13 +189,43 @@ class ChatController extends Controller
         $imagePath = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $imagePath = $file->store('chats', 'public');
+
+            if (! class_exists(\Intervention\Image\ImageManager::class)
+                || ! class_exists(\Intervention\Image\Drivers\Gd\Driver::class)) {
+                return response()->json([
+                    'message' => 'Chức năng gửi ảnh đang tạm thời chưa sẵn sàng. Vui lòng thử lại sau.',
+                ], 503);
+            }
+
+            try {
+                // Chuyển mã sang webp để loại bỏ metadata và nội dung dư thừa của tệp ảnh gốc.
+                $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
+                $image = $manager->decodePath($file->getPathname());
+
+                $filename = 'chat_' . uniqid('', true) . '.webp';
+                $imagePath = 'chats/' . $filename;
+
+                if (! \Illuminate\Support\Facades\Storage::disk('public')->exists('chats')) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('chats');
+                }
+
+                $image->save(storage_path('app/public/' . $imagePath), 80);
+            } catch (\Throwable $exception) {
+                if ($imagePath) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
+                }
+
+                report($exception);
+
+                return response()->json([
+                    'message' => 'Không thể xử lý ảnh này. Vui lòng chọn ảnh JPG, PNG, GIF hoặc WebP khác.',
+                ], 422);
+            }
         }
 
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
             $now = now();
-            $msg = Message::create([
-                'id' => (string) Str::uuid(),
+            $messageData = [
                 'conversation_id' => $conversationId,
                 'sender_id' => $userId,
                 'content' => $request->input('content') ?: '[Hình ảnh]',
@@ -176,7 +233,11 @@ class ChatController extends Controller
                 'reference_type' => $imagePath ? 'image' : null,
                 'reference_id' => $imagePath ?: null,
                 'created_at' => $now,
-            ]);
+            ];
+            if (Schema::hasColumn('messages', 'reply_to_id')) {
+                $messageData['reply_to_id'] = $request->input('reply_to_id');
+            }
+            $msg = Message::create($messageData);
 
             Conversation::where('id', $conversationId)->update([
                 'last_message_at' => $now,
@@ -194,7 +255,104 @@ class ChatController extends Controller
         // Broadcast real-time update to all other participants
         $this->broadcastMessage($message, $conversationId, $userId);
 
-        return response()->json($message->load('sender:id,full_name,username,avatar_url'));
+        return response()->json($this->messagePayload($message));
+    }
+
+    /**
+     * React to a message with an emoji
+     */
+    public function reactToMessage(Request $request, $messageId)
+    {
+        if (! Schema::hasColumn('messages', 'reactions')) {
+            return response()->json([
+                'message' => 'Chức năng cảm xúc tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
+        $request->validate([
+            'emoji' => 'required|string|max:50',
+        ]);
+
+        $emoji = $request->input('emoji');
+        $user = $request->user();
+
+        $message = Message::findOrFail($messageId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $message->conversation_id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        $reactions = $message->reactions ?: [];
+        $existingIndex = -1;
+
+        foreach ($reactions as $index => $react) {
+            if ($react['user_id'] === $user->id) {
+                $existingIndex = $index;
+                break;
+            }
+        }
+
+        if ($existingIndex !== -1) {
+            $existingReaction = $reactions[$existingIndex];
+            if ($existingReaction['emoji'] === $emoji) {
+                array_splice($reactions, $existingIndex, 1);
+            } else {
+                $reactions[$existingIndex]['emoji'] = $emoji;
+            }
+        } else {
+            $reactions[] = [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'full_name' => $user->full_name,
+                'emoji' => $emoji,
+            ];
+        }
+
+        $message->update(['reactions' => $reactions]);
+
+        broadcast(new \App\Events\MessageReacted($message->conversation_id, $message->id, $reactions))->toOthers();
+
+        return response()->json([
+            'message_id' => $message->id,
+            'reactions' => $reactions,
+        ]);
+    }
+
+    /**
+     * Toggle message pin state
+     */
+    public function togglePinMessage(Request $request, $messageId)
+    {
+        if (! Schema::hasColumn('messages', 'is_pinned')) {
+            return response()->json([
+                'message' => 'Chức năng ghim tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
+        $user = $request->user();
+        $message = Message::findOrFail($messageId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $message->conversation_id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        $isPinned = !$message->is_pinned;
+        $message->update(['is_pinned' => $isPinned]);
+
+        broadcast(new \App\Events\MessagePinned($message->conversation_id, $message->id, $isPinned))->toOthers();
+
+        return response()->json([
+            'message_id' => $message->id,
+            'is_pinned' => $isPinned,
+        ]);
     }
 
     /**
@@ -202,7 +360,7 @@ class ChatController extends Controller
      */
     private function broadcastMessage(Message $message, string $conversationId, int|string $senderId): void
     {
-        $messageData = $message->load('sender:id,full_name,username,avatar_url')->toArray();
+        $messageData = $this->messagePayload($message);
 
         // Broadcast to the conversation channel (all participants listening)
         broadcast(new MessageSent($conversationId, $messageData))->toOthers();
@@ -227,6 +385,262 @@ class ChatController extends Controller
         }
     }
 
+    public function getEligibleBookings(Request $request, $conversationId)
+    {
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+
+        if (empty($clusterIds)) {
+            return response()->json([]);
+        }
+
+        $bookings = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->where('customer_id', $request->user()->id)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->orderByDesc('booking_date')
+            ->orderByDesc('start_time')
+            ->limit(20)
+            ->get()
+            ->map(fn (Booking $booking) => $this->bookingMessagePayload($booking))
+            ->values();
+
+        return response()->json($bookings);
+    }
+
+    public function getRelatedBookings(Request $request, $conversationId)
+    {
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
+        $customerIds = $this->conversationCustomerIds($conversation, $clusterIds);
+
+        if (empty($clusterIds) || empty($customerIds)) {
+            return response()->json([]);
+        }
+
+        $bookings = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->whereIn('customer_id', $customerIds)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN 0 ELSE 1 END", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN booking_date END ASC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN start_time END ASC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date < ? THEN booking_date END DESC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date < ? THEN start_time END DESC", [now()->toDateString()])
+            ->limit(12)
+            ->get()
+            ->map(fn (Booking $booking) => $this->bookingMessagePayload($booking))
+            ->values();
+
+        return response()->json($bookings);
+    }
+
+    public function sendBooking(Request $request, $conversationId)
+    {
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:bookings,id',
+        ]);
+
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+        $operatorClusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
+        $customerIds = $this->conversationCustomerIds($conversation, $operatorClusterIds);
+
+        $bookingQuery = Booking::query()
+            ->with([
+                'venueCourt.venueCluster',
+                'venueCourt.courtType',
+                'venueCluster',
+                'payments' => fn ($query) => $query->latest('created_at'),
+            ])
+            ->where('id', $validated['booking_id']);
+
+        if (! empty($operatorClusterIds)) {
+            if (empty($customerIds)) {
+                return response()->json([
+                    'message' => 'Khong tim thay khach hang hop le trong hoi thoai nay.',
+                ], 403);
+            }
+
+            $bookingQuery
+                ->whereIn('venue_cluster_id', $operatorClusterIds)
+                ->whereIn('customer_id', $customerIds);
+        } else {
+            $bookingQuery
+                ->where('customer_id', $request->user()->id)
+                ->whereIn('venue_cluster_id', $clusterIds);
+        }
+
+        $booking = $bookingQuery->first();
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Booking nay khong thuoc cum san cua hoi thoai hoac ban khong co quyen gui booking nay.',
+            ], 403);
+        }
+
+        $message = DB::transaction(function () use ($conversationId, $request, $booking) {
+            $now = now();
+            $msg = Message::create([
+                'conversation_id' => $conversationId,
+                'sender_id' => $request->user()->id,
+                'content' => 'Da gui booking #'.$booking->booking_code,
+                'is_system' => false,
+                'reference_type' => 'booking',
+                'reference_id' => $booking->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $conversationId)->update([
+                'last_message_at' => $now,
+            ]);
+
+            ConversationParticipant::where('conversation_id', $conversationId)
+                ->where('user_id', $request->user()->id)
+                ->update([
+                    'last_read_at' => $now,
+                ]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $conversationId, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
+    }
+    public function createBookingSupportRequest(Request $request, $conversationId)
+    {
+        if (! Schema::hasTable('booking_support_requests')) {
+            return response()->json([
+                'message' => 'Chức năng yêu cầu hỗ trợ booking chưa sẵn sàng. Vui lòng thử lại sau khi hệ thống hoàn tất cập nhật dữ liệu.',
+            ], 503);
+        }
+
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:bookings,id',
+            'request_type' => 'required|string|in:reschedule,change_court,cancel_booking,payment,late_arrival,refund,other',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
+
+        $booking = Booking::query()
+            ->with(['venueCourt.venueCluster', 'venueCourt.courtType', 'venueCluster', 'payments' => fn ($query) => $query->latest('created_at')])
+            ->where('id', $validated['booking_id'])
+            ->where('customer_id', $request->user()->id)
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->first();
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Booking nay khong thuoc hoi thoai hoac khong phai booking cua ban.',
+            ], 403);
+        }
+
+        $message = DB::transaction(function () use ($conversationId, $request, $booking, $validated) {
+            $now = now();
+            $supportRequest = BookingSupportRequest::create([
+                'id' => (string) Str::uuid(),
+                'conversation_id' => $conversationId,
+                'booking_id' => $booking->id,
+                'customer_id' => $request->user()->id,
+                'venue_cluster_id' => $booking->venue_cluster_id,
+                'request_type' => $validated['request_type'],
+                'note' => $validated['note'] ?? null,
+                'status' => 'pending',
+            ]);
+
+            $msg = Message::create([
+                'conversation_id' => $conversationId,
+                'sender_id' => $request->user()->id,
+                'content' => 'Yeu cau ho tro booking #'.$booking->booking_code,
+                'is_system' => false,
+                'reference_type' => 'booking_support_request',
+                'reference_id' => $supportRequest->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $conversationId)->update(['last_message_at' => $now]);
+            ConversationParticipant::where('conversation_id', $conversationId)
+                ->where('user_id', $request->user()->id)
+                ->update(['last_read_at' => $now]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $conversationId, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
+    }
+
+    public function updateBookingSupportRequest(Request $request, $id)
+    {
+        if (! Schema::hasTable('booking_support_requests')) {
+            return response()->json([
+                'message' => 'Chức năng yêu cầu hỗ trợ booking chưa sẵn sàng. Vui lòng thử lại sau khi hệ thống hoàn tất cập nhật dữ liệu.',
+            ], 503);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|string|in:acknowledged,resolved,rejected',
+            'resolution_note' => 'nullable|string|max:1000',
+        ]);
+
+        $supportRequest = BookingSupportRequest::query()
+            ->with(['booking.venueCourt.venueCluster', 'booking.venueCourt.courtType', 'booking.venueCluster', 'booking.payments' => fn ($query) => $query->latest('created_at')])
+            ->findOrFail($id);
+
+        $conversation = $this->participantConversation($supportRequest->conversation_id, $request->user()->id);
+        $operatorClusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
+
+        if (! in_array($supportRequest->venue_cluster_id, $operatorClusterIds, true)) {
+            return response()->json([
+                'message' => 'Ban khong co quyen xu ly yeu cau nay.',
+            ], 403);
+        }
+
+        $message = DB::transaction(function () use ($supportRequest, $request, $validated) {
+            $now = now();
+            $supportRequest->update([
+                'status' => $validated['status'],
+                'handled_by' => $request->user()->id,
+                'handled_at' => $now,
+                'resolution_note' => $validated['resolution_note'] ?? $supportRequest->resolution_note,
+            ]);
+
+            $msg = Message::create([
+                'conversation_id' => $supportRequest->conversation_id,
+                'sender_id' => $request->user()->id,
+                'content' => 'Cap nhat yeu cau booking #'.$supportRequest->booking?->booking_code,
+                'is_system' => false,
+                'reference_type' => 'booking_support_request',
+                'reference_id' => $supportRequest->id,
+                'created_at' => $now,
+            ]);
+
+            Conversation::where('id', $supportRequest->conversation_id)->update(['last_message_at' => $now]);
+            ConversationParticipant::where('conversation_id', $supportRequest->conversation_id)
+                ->where('user_id', $request->user()->id)
+                ->update(['last_read_at' => $now]);
+
+            return $msg;
+        });
+
+        $this->broadcastMessage($message, $supportRequest->conversation_id, $request->user()->id);
+
+        return response()->json($this->messagePayload($message));
+    }
     /**
      * Mark conversation as read
      */
@@ -276,6 +690,7 @@ class ChatController extends Controller
                 'username' => $u->username,
                 'avatar_url' => $u->avatar_url,
                 'email' => $u->email,
+                'phone' => $u->phone,
             ];
         }));
     }
@@ -321,7 +736,6 @@ class ChatController extends Controller
             $conversation = DB::transaction(function () use ($userId, $targetUserId) {
                 $now = now();
                 $conv = Conversation::create([
-                    'id' => (string) Str::uuid(),
                     'type' => 'direct',
                     'created_by' => $userId,
                     'last_message_at' => $now,
@@ -377,14 +791,17 @@ class ChatController extends Controller
                 ->first();
 
             if ($existing) {
+                $this->syncVenueConversationParticipants($existing, $venue, $userId);
+
                 return response()->json(['id' => $existing->id]);
             }
 
+            $participantIds = $this->venueContactParticipantIds($venue, $userId);
+
             // Create new venue contact conversation
-            $conversation = DB::transaction(function () use ($userId, $ownerId, $venueId) {
+            $conversation = DB::transaction(function () use ($userId, $venueId, $participantIds) {
                 $now = now();
                 $conv = Conversation::create([
-                    'id' => (string) Str::uuid(),
                     'type' => 'venue_contact',
                     'reference_type' => 'venue_cluster',
                     'reference_id' => $venueId,
@@ -392,17 +809,13 @@ class ChatController extends Controller
                     'last_message_at' => $now,
                 ]);
 
-                ConversationParticipant::create([
-                    'conversation_id' => $conv->id,
-                    'user_id' => $userId,
-                    'last_read_at' => $now,
-                ]);
-
-                ConversationParticipant::create([
-                    'conversation_id' => $conv->id,
-                    'user_id' => $ownerId,
-                    'last_read_at' => null,
-                ]);
+                foreach ($participantIds as $participantId) {
+                    ConversationParticipant::create([
+                        'conversation_id' => $conv->id,
+                        'user_id' => $participantId,
+                        'last_read_at' => $participantId === $userId ? $now : null,
+                    ]);
+                }
 
                 return $conv;
             });
@@ -429,7 +842,6 @@ class ChatController extends Controller
             $conversation = DB::transaction(function () use ($userId) {
                 $now = now();
                 $conv = Conversation::create([
-                    'id' => (string) Str::uuid(),
                     'type' => 'direct',
                     'created_by' => $userId,
                     'last_message_at' => $now,
@@ -448,6 +860,270 @@ class ChatController extends Controller
         }
 
         return response()->json(['message' => 'Loại cuộc trò chuyện không hợp lệ.'], 400);
+    }
+
+    private function venueContactParticipantIds(VenueCluster $venue, string $customerId): array
+    {
+        $staffIds = DB::table('venue_staff_assignments')
+            ->where('venue_cluster_id', $venue->id)
+            ->where('status', 'active')
+            ->pluck('user_id')
+            ->all();
+
+        return collect([$customerId, $venue->owner_id])
+            ->merge($staffIds)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function syncVenueConversationParticipants(Conversation $conversation, VenueCluster $venue, string $customerId): void
+    {
+        $participantIds = $this->venueContactParticipantIds($venue, $customerId);
+        $existingIds = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->pluck('user_id')
+            ->all();
+
+        $missingIds = array_values(array_diff($participantIds, $existingIds));
+        foreach ($missingIds as $participantId) {
+            ConversationParticipant::create([
+                'conversation_id' => $conversation->id,
+                'user_id' => $participantId,
+                'last_read_at' => null,
+            ]);
+        }
+    }
+
+    private function conversationOperatorClusterIds(Conversation $conversation, string $currentUserId): array
+    {
+        $managedClusterIds = collect($this->managedClusterIdsForUser($currentUserId));
+
+        if ($managedClusterIds->isEmpty()) {
+            return [];
+        }
+
+        if ($conversation->type === 'venue_contact' && $conversation->reference_type === 'venue_cluster' && $conversation->reference_id) {
+            return $managedClusterIds
+                ->intersect([$conversation->reference_id])
+                ->values()
+                ->all();
+        }
+
+        return $managedClusterIds->values()->all();
+    }
+
+    private function managedClusterIdsForUser(string $userId): array
+    {
+        $ownerClusterIds = VenueCluster::query()
+            ->where('owner_id', $userId)
+            ->pluck('id');
+
+        $staffClusterIds = DB::table('venue_staff_assignments')
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->pluck('venue_cluster_id');
+
+        return $ownerClusterIds
+            ->merge($staffClusterIds)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function conversationCustomerIds(Conversation $conversation, array $clusterIds): array
+    {
+        if (empty($clusterIds)) {
+            return [];
+        }
+
+        $participantIds = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->pluck('user_id')
+            ->all();
+
+        if (empty($participantIds)) {
+            return [];
+        }
+
+        $operatorIds = VenueCluster::query()
+            ->whereIn('id', $clusterIds)
+            ->pluck('owner_id')
+            ->filter()
+            ->merge(
+                DB::table('venue_staff_assignments')
+                    ->whereIn('venue_cluster_id', $clusterIds)
+                    ->where('status', 'active')
+                    ->pluck('user_id')
+            )
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($conversation->created_by && ! in_array($conversation->created_by, $operatorIds, true)) {
+            return in_array($conversation->created_by, $participantIds, true)
+                ? [$conversation->created_by]
+                : [];
+        }
+
+        return collect($participantIds)
+            ->diff($operatorIds)
+            ->values()
+            ->all();
+    }
+
+    private function participantConversation(string $conversationId, string $userId): Conversation
+    {
+        $conversation = Conversation::query()->findOrFail($conversationId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $conversationId)
+            ->where('user_id', $userId)
+            ->exists();
+
+        abort_unless($isParticipant, 403, 'B?n kh?ng thu?c cu?c tr? chuy?n n?y.');
+
+        return $conversation;
+    }
+
+    private function conversationManagedClusterIds(Conversation $conversation, string $currentUserId): array
+    {
+        $clusterIds = collect();
+
+        if ($conversation->type === 'venue_contact' && $conversation->reference_type === 'venue_cluster' && $conversation->reference_id) {
+            $clusterIds->push($conversation->reference_id);
+        }
+
+        $otherParticipantIds = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', '!=', $currentUserId)
+            ->pluck('user_id');
+
+        if ($otherParticipantIds->isNotEmpty()) {
+            $ownerClusterIds = VenueCluster::query()
+                ->whereIn('owner_id', $otherParticipantIds)
+                ->pluck('id');
+
+            $staffClusterIds = DB::table('venue_staff_assignments')
+                ->whereIn('user_id', $otherParticipantIds)
+                ->where('status', 'active')
+                ->pluck('venue_cluster_id');
+
+            $clusterIds = $clusterIds->merge($ownerClusterIds)->merge($staffClusterIds);
+        }
+
+        return $clusterIds->filter()->unique()->values()->all();
+    }
+
+    private function messagePayload(Message $message): array
+    {
+        $message->loadMissing([
+            'sender:id,full_name,username,avatar_url,email,phone',
+            'replyTo:id,content,sender_id,reference_type,reference_id',
+            'replyTo.sender:id,full_name,username',
+        ]);
+        $payload = $message->toArray();
+
+        if ($message->reference_type === 'booking' && $message->reference_id) {
+            $booking = Booking::query()
+                ->with(['venueCourt.venueCluster', 'venueCourt.courtType', 'venueCluster', 'payments' => fn ($query) => $query->latest('created_at')])
+                ->find($message->reference_id);
+
+            if ($booking) {
+                $payload['booking'] = $this->bookingMessagePayload($booking);
+            }
+        }
+
+        if ($message->reference_type === 'booking_support_request'
+            && $message->reference_id
+            && Schema::hasTable('booking_support_requests')) {
+            $supportRequest = BookingSupportRequest::query()
+                ->with([
+                    'booking.venueCourt.venueCluster',
+                    'booking.venueCourt.courtType',
+                    'booking.venueCluster',
+                    'booking.payments' => fn ($query) => $query->latest('created_at'),
+                    'customer:id,full_name,username,phone,email',
+                    'handledBy:id,full_name,username',
+                ])
+                ->find($message->reference_id);
+
+            if ($supportRequest) {
+                $payload['support_request'] = $this->bookingSupportRequestPayload($supportRequest);
+            }
+        }
+
+        return $payload;
+    }
+
+    private function bookingSupportRequestPayload(BookingSupportRequest $supportRequest): array
+    {
+        $supportRequest->loadMissing([
+            'booking.venueCourt.venueCluster',
+            'booking.venueCourt.courtType',
+            'booking.venueCluster',
+            'booking.payments' => fn ($query) => $query->latest('created_at'),
+            'customer:id,full_name,username,phone,email',
+            'handledBy:id,full_name,username',
+        ]);
+
+        return [
+            'id' => $supportRequest->id,
+            'conversation_id' => $supportRequest->conversation_id,
+            'booking_id' => $supportRequest->booking_id,
+            'customer_id' => $supportRequest->customer_id,
+            'venue_cluster_id' => $supportRequest->venue_cluster_id,
+            'request_type' => $supportRequest->request_type,
+            'note' => $supportRequest->note,
+            'status' => $supportRequest->status,
+            'handled_by' => $supportRequest->handled_by,
+            'handled_at' => $supportRequest->handled_at ? $supportRequest->handled_at->toIso8601String() : null,
+            'resolution_note' => $supportRequest->resolution_note,
+            'created_at' => $supportRequest->created_at ? $supportRequest->created_at->toIso8601String() : null,
+            'updated_at' => $supportRequest->updated_at ? $supportRequest->updated_at->toIso8601String() : null,
+            'booking' => $supportRequest->booking ? $this->bookingMessagePayload($supportRequest->booking) : null,
+            'customer' => $supportRequest->customer ? [
+                'id' => $supportRequest->customer->id,
+                'full_name' => $supportRequest->customer->full_name,
+                'username' => $supportRequest->customer->username,
+                'phone' => $supportRequest->customer->phone,
+                'email' => $supportRequest->customer->email,
+            ] : null,
+            'handled_by_user' => $supportRequest->handledBy ? [
+                'id' => $supportRequest->handledBy->id,
+                'full_name' => $supportRequest->handledBy->full_name,
+                'username' => $supportRequest->handledBy->username,
+            ] : null,
+        ];
+    }
+    private function bookingMessagePayload(Booking $booking): array
+    {
+        $payments = $booking->payments ?? collect();
+        $latestPayment = $payments->first();
+        $paidAmount = (float) $payments->where('status', 'paid')->sum('amount');
+        $isRefunded = $payments->contains(fn ($payment) => $payment->status === 'refunded');
+        $bookingDate = $booking->booking_date instanceof \Carbon\Carbon
+            ? $booking->booking_date->toDateString()
+            : (string) $booking->booking_date;
+
+        return [
+            'id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'booking_date' => $bookingDate,
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'duration_minutes' => (int) $booking->duration_minutes,
+            'total_price' => (float) $booking->total_price,
+            'required_payment_amount' => (float) $booking->required_payment_amount,
+            'paid_amount' => $paidAmount,
+            'payment_option' => $booking->payment_option,
+            'payment_status' => $isRefunded
+                ? 'refunded'
+                : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            'status' => $booking->status,
+            'status_reason' => $booking->status_reason,
+            'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
+            'venue_court' => $booking->venueCourt,
+        ];
     }
 
     /**
@@ -495,6 +1171,10 @@ class ChatController extends Controller
         $isAOwner = in_array('venue_owner', $rolesA);
         $isBOwner = in_array('venue_owner', $rolesB);
 
+        if ($isAUser && $isBUser) {
+            return true;
+        }
+
         if (($isAUser && $isBOwner) || ($isBUser && $isAOwner)) {
             return true;
         }
@@ -533,10 +1213,20 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        DB::transaction(function () use ($id) {
+        DB::transaction(function () use ($id, $userId) {
             Message::where('conversation_id', $id)->delete();
             ConversationParticipant::where('conversation_id', $id)->delete();
             Conversation::where('id', $id)->delete();
+
+            \App\Models\AuditLog::create([
+                'actor_id' => $userId,
+                'actor_type' => 'user',
+                'action' => 'delete',
+                'module' => 'chat',
+                'entity_type' => 'conversation',
+                'entity_id' => $id,
+                'reason' => 'User deleted conversation',
+            ]);
         });
 
         return response()->json(['success' => true]);
@@ -557,7 +1247,19 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        Message::where('conversation_id', $id)->delete();
+        DB::transaction(function () use ($id, $userId) {
+            Message::where('conversation_id', $id)->delete();
+
+            \App\Models\AuditLog::create([
+                'actor_id' => $userId,
+                'actor_type' => 'user',
+                'action' => 'clear_messages',
+                'module' => 'chat',
+                'entity_type' => 'conversation',
+                'entity_id' => $id,
+                'reason' => 'User cleared message history',
+            ]);
+        });
 
         return response()->json(['success' => true]);
     }

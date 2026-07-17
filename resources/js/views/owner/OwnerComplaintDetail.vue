@@ -17,7 +17,7 @@
           <div>
             <h1 class="page-title">Chi tiết khiếu nại</h1>
             <p class="subtitle">
-              Mã khiếu nại: <strong>{{ complaint.id.split('-')[0] }}</strong> ·
+              Tham chiếu: <strong>{{ complaintReferenceLabel }}</strong> ·
               Tạo lúc: {{ formatDate(complaint.created_at) }}
             </p>
           </div>
@@ -101,10 +101,15 @@
                 <p class="evidence-title">Bằng chứng đính kèm:</p>
                 <div class="media-grid">
                   <a v-for="media in complaint.evidence" :key="media.id" href="#" @click.prevent="media.mime_type?.startsWith('image/') ? openImagePreview(media.file_path) : window.open(media.file_path, '_blank')" class="media-item">
-                    <img v-if="media.mime_type?.startsWith('image/')" :src="media.file_path" :alt="media.file_name" />
+                    <img
+                      v-if="media.mime_type?.startsWith('image/') && !failedEvidence.has(media.id)"
+                      :src="media.file_path"
+                      :alt="media.file_name"
+                      @error="markEvidenceFailed(media.id)"
+                    />
                     <div v-else class="media-doc">
                       <AppIcon name="fileText" size="24" />
-                      <span>{{ media.file_name }}</span>
+                      <span>{{ failedEvidence.has(media.id) ? `Không tải được ảnh: ${media.file_name}` : media.file_name }}</span>
                     </div>
                   </a>
                 </div>
@@ -153,10 +158,15 @@
                 <div class="evidence-list" v-if="item.evidence?.length">
                   <div class="media-grid">
                     <a v-for="media in item.evidence" :key="media.id" href="#" @click.prevent="media.file_name?.match(/\.(jpg|jpeg|png)$/i) ? openImagePreview(media.file_path) : window.open(media.file_path, '_blank')" class="media-item">
-                      <img v-if="media.file_name?.match(/\.(jpg|jpeg|png)$/i)" :src="media.file_path" :alt="media.file_name" />
+                      <img
+                        v-if="media.file_name?.match(/\.(jpg|jpeg|png)$/i) && !failedEvidence.has(media.id)"
+                        :src="media.file_path"
+                        :alt="media.file_name"
+                        @error="markEvidenceFailed(media.id)"
+                      />
                       <div v-else class="media-doc">
                         <AppIcon name="fileText" size="24" />
-                        <span>{{ media.file_name }}</span>
+                        <span>{{ failedEvidence.has(media.id) ? `Không tải được ảnh: ${media.file_name}` : media.file_name }}</span>
                       </div>
                     </a>
                   </div>
@@ -258,7 +268,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, apiFormData } from '../../services/api.js';
 import AppIcon from '../../components/AppIcon.vue';
@@ -270,6 +280,7 @@ const loading = ref(true);
 const complaint = ref(null);
 const timeline = ref([]);
 const error = ref('');
+const failedEvidence = ref(new Set());
 
 const submitting = ref(false);
 const replyError = ref('');
@@ -289,6 +300,14 @@ const zoomState = ref({
     startY: 0
 });
 
+const complaintReferenceLabel = computed(() => {
+    const data = complaint.value;
+    if (!data) return '-';
+    return data.booking_detail?.booking_code
+        || data.venue_cluster?.name
+        || getComplaintTypeLabel(data.complaint_type);
+});
+
 const loadData = async () => {
   loading.value = true;
   error.value = '';
@@ -302,6 +321,10 @@ const loadData = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const markEvidenceFailed = (id) => {
+  failedEvidence.value = new Set([...failedEvidence.value, id]);
 };
 
 onMounted(() => {

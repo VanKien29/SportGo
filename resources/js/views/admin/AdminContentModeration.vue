@@ -1,27 +1,12 @@
 <template>
   <div class="moderation-page">
-    <!-- Toolbar bộ lọc và chuyển tab -->
-    <div class="toolbar card">
-      <div class="tabs-header">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.value }"
-          type="button"
-          @click="changeTab(tab.value)"
-        >
-          <AppIcon :name="tab.icon" size="16" />
-          <span>{{ tab.label }}</span>
-        </button>
-      </div>
 
       <!-- Lọc theo Trạng thái -->
-      <nav class="status-tabs" aria-label="Lọc nhanh trạng thái bài viết">
+      <nav class="custom-tabs" aria-label="Lọc nhanh trạng thái bài viết">
         <button
           v-for="st in statusTabs"
           :key="st.value"
-          :class="{ active: filters.status === st.value }"
+          :class="['custom-tab-btn', { active: filters.status === st.value }]"
           type="button"
           @click="setStatus(st.value)"
         >
@@ -40,23 +25,15 @@
           />
         </label>
 
-
-
-
-        <div class="auto-approve-wrapper">
-          <label class="switch">
-            <input type="checkbox" v-model="autoApproveEnabled" @change="toggleAutoApprove" />
-            <span class="slider"></span>
+        <div class="custom-switch-wrapper" title="Tự động tìm & duyệt các bài mới mỗi 5 giây">
+          <label class="custom-switch">
+            <input type="checkbox" :checked="autoApproveStore.isEnabled" @change="toggleAutoApprove" />
+            <span class="custom-slider"></span>
           </label>
-          <span class="switch-label">Duyệt tự động (5s)</span>
+          <span class="custom-switch-label">Duyệt tự động (5s)</span>
         </div>
 
-        <button class="btn ghost btn-refresh" type="button" @click="refresh">
-          <AppIcon name="refresh" size="16" />
-          <span>Làm mới</span>
-        </button>
       </div>
-    </div>
 
     <!-- Thông báo kết quả -->
     <div v-if="message" class="notice success">{{ message }}</div>
@@ -207,9 +184,19 @@
                 <div v-else class="fb-avatar-text">SG</div>
               </div>
               <div class="fb-post-meta">
-                <strong>
+                <strong style="display: flex; align-items: center; gap: 8px;">
                   <template v-if="activeTab === 'system_posts'">Hệ thống SportGo</template>
                   <template v-else>{{ activeItem.author?.full_name || activeItem.author?.username || '-' }}</template>
+                  <button
+                    v-if="activeItem.status === 'hidden' && activeTab !== 'system_posts'"
+                    type="button"
+                    class="icon-btn tool-primary"
+                    title="Gửi thông báo cho tác giả"
+                    @click.stop="openNotifyModal(activeItem)"
+                    style="padding: 2px; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center; border-radius: 50%; background: #e0f2fe; color: #0284c7; border: none; cursor: pointer;"
+                  >
+                    <AppIcon name="bell" size="14" />
+                  </button>
                 </strong>
                 <span>{{ formatDate(activeItem.created_at) }}</span>
               </div>
@@ -430,6 +417,43 @@
       :postId="activeLikesPostId" 
       @close="showLikesModal = false" 
     />
+
+    <!-- MODAL GỬI THÔNG BÁO CHO TÁC GIẢ -->
+    <div v-if="notifyModal.open" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeNotifyModal)">
+      <div class="modal small" @mousedown.stop>
+        <div class="modal-header">
+          <h3>Gửi thông báo cho tác giả</h3>
+          <button class="icon-btn" type="button" title="Đóng" @click="closeNotifyModal">
+            <AppIcon name="x" size="18" />
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="muted">Gửi thông báo để giải thích cho tác giả lý do bài viết bị ẩn.</p>
+          <label class="field" style="margin-top: 15px;">
+            <span>Nội dung thông báo (Bắt buộc)</span>
+            <textarea
+              v-model.trim="notifyModal.message"
+              rows="4"
+              placeholder="Nhập nội dung thông báo..."
+            ></textarea>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" @click="closeNotifyModal">Hủy</button>
+          <button
+            class="btn primary"
+            type="button"
+            :disabled="sendingNotification || !notifyModal.message"
+            @click="submitNotifyModal"
+          >
+            <span v-if="sendingNotification">Đang gửi...</span>
+            <span v-else>Gửi thông báo</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -438,6 +462,7 @@ import AppIcon from '../../components/AppIcon.vue';
 import PostLikesModal from '../../components/admin/PostLikesModal.vue';
 import { adminModerationService } from '../../services/adminModeration.js';
 import { adminUserService } from '../../services/adminUserService.js';
+import { autoApproveStore } from '../../stores/autoApprove.js';
 
 export default {
   name: 'AdminContentModeration',
@@ -471,8 +496,15 @@ export default {
         { label: 'Bài đăng chờ duyệt', value: 'pending' },
         { label: 'Bài đăng đã ẩn', value: 'hidden' },
       ],
+      autoApproveStore: autoApproveStore,
       detailModal: { open: false },
       actionModal: { open: false },
+      notifyModal: {
+        open: false,
+        message: '',
+        targetPost: null
+      },
+      sendingNotification: false,
       activeItem: null,
       showComments: false,
       actionForm: {
@@ -486,8 +518,6 @@ export default {
       showLikesModal: false,
       activeLikesPostId: null,
       mousedownWasOnBackdrop: false,
-      autoApproveEnabled: false,
-      autoApproveInterval: null,
       modalTab: 'post',
       postComments: [],
       loadingComments: false,
@@ -532,14 +562,48 @@ export default {
       });
     },
   },
+  watch: {
+    'autoApproveStore.lastActionTime'() {
+      // Refresh list if an auto-approve action occurred while we are looking at pending posts
+      if (this.filters.status === 'pending_review' || this.filters.status === 'pending') {
+        this.refresh();
+      }
+    }
+  },
   mounted() {
     this.loadData();
     this.fetchAutoApproveConfig();
   },
-  beforeUnmount() {
-    this.stopAutoApprove();
-  },
   methods: {
+    openNotifyModal(item) {
+      this.notifyModal = {
+        open: true,
+        message: 'Bài viết của bạn đã bị ẩn do vi phạm chính sách nội dung của chúng tôi.',
+        targetPost: item
+      };
+    },
+    closeNotifyModal() {
+      this.notifyModal.open = false;
+      this.notifyModal.targetPost = null;
+    },
+    async submitNotifyModal() {
+      if (!this.notifyModal.message || !this.notifyModal.targetPost) return;
+      this.sendingNotification = true;
+      try {
+        const type = this.activeTab === 'system_posts' ? 'system_post' : (this.activeTab === 'venue_posts' ? 'venue_post' : 'community_post');
+        await adminModerationService.notifyAuthor(
+          type,
+          this.notifyModal.targetPost.id,
+          this.notifyModal.message
+        );
+        this.closeNotifyModal();
+        alert('Đã gửi thông báo cho tác giả thành công');
+      } catch (err) {
+        console.error(err);
+      } finally {
+        this.sendingNotification = false;
+      }
+    },
     async copyPostLink(postId) {
       try {
         const link = window.location.origin + '/posts/' + postId;
@@ -585,21 +649,14 @@ export default {
     },
     changeTab(tabValue) {
       this.activeTab = tabValue;
-      if (this.filters.status !== 'pending') {
-        this.autoApproveEnabled = false;
-        this.stopAutoApprove();
-      }
       this.clearAlerts();
       this.filters.search = '';
       this.loadData(1);
     },
     setStatus(status) {
       this.filters.status = status;
-      if (status !== 'pending') {
-        this.autoApproveEnabled = false;
-        this.stopAutoApprove();
-      }
       this.clearAlerts();
+      this.filters.search = '';
       this.loadData(1);
     },
     onFilterChange() {
@@ -741,80 +798,8 @@ export default {
       }
     },
     toggleAutoApprove() {
-      if (this.autoApproveEnabled) {
-        if (this.filters.status !== 'pending') {
-          this.setStatus('pending');
-        }
-        this.startAutoApprove();
-      } else {
-        this.stopAutoApprove();
-      }
-      this.$emit('auto-approve-changed', this.autoApproveEnabled);
-    },
-    startAutoApprove() {
-      this.stopAutoApprove();
-      this.autoApproveInterval = setInterval(async () => {
-        if (this.loading || this.savingAction) {
-          return;
-        }
-
-        // 1. Kiểm tra tab hiện tại trước để ưu tiên duyệt
-        let targetItem = this.items.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
-        let targetType = this.activeTab;
-
-        // 2. Nếu tab hiện tại không có bài viết chờ duyệt, quét qua các tab khác trong nền
-        if (!targetItem) {
-          const allTypes = ['community_posts', 'venue_posts', 'system_posts'];
-          const otherTypes = allTypes.filter(t => t !== this.activeTab);
-
-          for (const type of otherTypes) {
-            try {
-              const response = await adminModerationService.getQueue({
-                type: type,
-                status: 'pending',
-                page: 1,
-              });
-              const paginator = response.data || {};
-              const list = paginator.data || [];
-              const found = list.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
-              if (found) {
-                targetItem = found;
-                targetType = type;
-                break; // Tìm thấy bài chờ duyệt thì dừng quét để tiến hành duyệt bài này
-              }
-            } catch (err) {
-              console.error(`Lỗi quét tự động duyệt cho tab ${type}:`, err);
-            }
-          }
-        }
-
-        // 3. Nếu tìm thấy bài viết chờ duyệt ở bất kỳ tab nào, tiến hành duyệt
-        if (targetItem) {
-          this.savingAction = true;
-          try {
-            await adminModerationService.approvePost(targetType, targetItem.id);
-            // Nếu bài được duyệt thuộc tab hiện tại, load lại danh sách để cập nhật màn hình
-            if (targetType === this.activeTab) {
-              await this.loadData(this.pagination.current_page);
-            }
-          } catch (err) {
-            console.error('Duyệt tự động bài viết thất bại:', err);
-          } finally {
-            this.savingAction = false;
-          }
-        } else {
-          // Nếu không còn bài viết chờ duyệt nào ở tất cả các tab, reload tab hiện tại để kiểm tra lại
-          await this.loadData(1);
-        }
-      }, 5000);
-    },
-    stopAutoApprove() {
-      if (this.autoApproveInterval) {
-        clearInterval(this.autoApproveInterval);
-        this.autoApproveInterval = null;
-      }
-      this.autoApproveEnabled = false;
-      this.$emit('auto-approve-changed', false);
+      this.autoApproveStore.toggle();
+      this.$emit('auto-approve-changed', this.autoApproveStore.isEnabled);
     },
 
     // Hành động xử lý nhanh cho Post
@@ -938,7 +923,7 @@ export default {
 </script>
 
 <style scoped>
-@import "../../../css/admin/moderation.css";
+
 
 .moderation-page {
   display: flex;
@@ -960,6 +945,95 @@ export default {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
+}
+
+.custom-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.custom-tab-btn {
+  padding: 8px 18px;
+  border-radius: 50px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.custom-tab-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.custom-tab-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.custom-switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.custom-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.custom-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.custom-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.custom-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+input:checked + .custom-slider {
+  background-color: #10b981;
+}
+
+input:checked + .custom-slider:before {
+  transform: translateX(20px);
+}
+
+.custom-switch-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
 }
 
 .tabs-header {
@@ -984,7 +1058,7 @@ export default {
   transition: all 0.2s;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
   background: #f8fafc;
   color: #0f172a;
 }
@@ -1059,7 +1133,7 @@ export default {
   color: #fff;
 }
 
-.btn.primary:hover {
+.btn.primary.never-hover-class-placeholder {
   background: #1e293b;
 }
 
@@ -1069,7 +1143,7 @@ export default {
   color: var(--sg-text);
 }
 
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: #f8fafc;
 }
 
@@ -1078,7 +1152,7 @@ export default {
   color: #fff;
 }
 
-.btn.danger:hover {
+.btn.danger.never-hover-class-placeholder {
   background: #b91c1c;
 }
 
@@ -1095,7 +1169,7 @@ export default {
   color: #334155;
 }
 
-.icon-btn:hover {
+.icon-btn.never-hover-class-placeholder {
   background: #f1f5f9;
 }
 
@@ -1103,7 +1177,7 @@ export default {
   color: #15803d;
 }
 
-.icon-btn.approve:hover {
+.icon-btn.approve.never-hover-class-placeholder {
   background: #f0fdf4;
 }
 
@@ -1111,7 +1185,7 @@ export default {
   color: #dc2626;
 }
 
-.icon-btn.danger:hover {
+.icon-btn.danger.never-hover-class-placeholder {
   background: #fef2f2;
 }
 
@@ -1482,7 +1556,7 @@ th {
   transition: transform 0.2s;
 }
 
-.media-item img:hover {
+.media-item img.never-hover-class-placeholder {
   transform: scale(1.05);
 }
 
@@ -1556,6 +1630,19 @@ th {
   cursor: pointer;
 }
 
+.action-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 18px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  appearance: auto;
+}
+
 .modal-footer {
   padding: 16px 20px;
   border-top: 1px solid var(--sg-border);
@@ -1598,145 +1685,7 @@ th {
   border-radius: 4px;
 }
 
-/* AUTO APPROVE TOGGLE */
-.auto-approve-wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #f1f5f9;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-}
 
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #cbd5e1;
-  transition: .4s;
-  border-radius: 22px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: #10b981;
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px #10b981;
-}
-
-input:checked + .slider:before {
-  transform: translateX(18px);
-}
-
-.switch-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #334155;
-}
-
-/* Custom styling overrides for alignment and modern aesthetics */
-.sg-shell-admin .content-area .moderation-page .toolbar.card {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  gap: 16px !important;
-  padding: 20px !important;
-}
-
-.sg-shell-admin .content-area .moderation-page .filters {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: flex-end !important;
-  justify-content: flex-start !important;
-  gap: 16px !important;
-  width: 100% !important;
-  flex-wrap: wrap !important;
-}
-
-.moderation-page .filters > .field.compact {
-  flex: 1 1 240px !important;
-  max-width: 320px !important;
-  margin-bottom: 0 !important;
-}
-
-.moderation-page .auto-approve-wrapper {
-  height: 42px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  padding: 0 16px !important;
-  background: #f8fafc !important;
-  border: 1px solid var(--admin-border) !important;
-  border-radius: var(--admin-radius) !important;
-  margin-bottom: 0 !important;
-  box-sizing: border-box !important;
-}
-
-.moderation-page .btn-refresh {
-  height: 42px !important;
-  min-height: 42px !important;
-  margin-left: auto !important;
-}
-
-.status-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.status-tabs button {
-  border: 1px solid #dbe3ef;
-  background: #fff;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-weight: 800;
-  cursor: pointer;
-  font-size: 13px;
-  color: #475569;
-  transition: all 0.15s;
-}
-
-.status-tabs button.active {
-  background: #dcfce7;
-  border-color: #22c55e;
-  color: #166534;
-}
-
-.status-tabs button:hover:not(.active) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
 
 .status.active {
   background: #dcfce7;

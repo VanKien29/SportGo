@@ -35,7 +35,7 @@ class StoreVenuePostCommentRequest extends FormRequest
                     }
                 },
             ],
-            'parent_id' => ['nullable', 'uuid', 'exists:venue_post_comments,id']
+            'parent_id' => ['nullable', 'integer', 'exists:venue_post_comments,id']
         ];
     }
 
@@ -43,7 +43,7 @@ class StoreVenuePostCommentRequest extends FormRequest
     {
         if ($this->has('content')) {
             $this->merge([
-                'content' => trim(strip_tags($this->content)),
+                'content' => trim(strip_tags($this->input('content'))),
             ]);
         }
     }

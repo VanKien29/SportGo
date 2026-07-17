@@ -9,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('booking_items', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
+            $table->id();
 
             // --- Liên kết ---
-            $table->char('booking_id', 36)
+            $table->unsignedBigInteger('booking_id')
                 ->comment('Đơn đặt sân cha.');
-            $table->char('venue_court_id', 36)
+            $table->unsignedBigInteger('venue_court_id')
                 ->comment('Sân con thực tế được gán.');
-            $table->char('requested_venue_court_id', 36)->nullable()
+            $table->unsignedBigInteger('requested_venue_court_id')->nullable()
                 ->comment('Sân con khách yêu cầu ban đầu.');
 
             // --- Thời gian ---
@@ -34,7 +34,7 @@ return new class extends Migration
                 ->comment('Thành tiền = (duration/60) * unit_price.');
 
             // --- Đổi sân ---
-            $table->char('court_changed_by', 36)->nullable()
+            $table->unsignedBigInteger('court_changed_by')->nullable()
                 ->comment('Người đổi sân.');
             $table->timestamp('court_changed_at')->nullable()
                 ->comment('Thời điểm đổi sân.');
@@ -64,7 +64,7 @@ return new class extends Migration
 
         // --- Thêm booking_item_id vào slot_locks ---
         Schema::table('slot_locks', function (Blueprint $table) {
-            $table->char('booking_item_id', 36)->nullable()->after('booking_id')
+            $table->unsignedBigInteger('booking_item_id')->nullable()->after('booking_id')
                 ->comment('Item cụ thể được lock.');
             $table->index('booking_item_id', 'slot_locks_booking_item_id_index');
             $table->foreign('booking_item_id')

@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::dropIfExists('venue_post_comments');
 
         Schema::create('venue_post_comments', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_post_id', 36);
-            $table->char('user_id', 36);
-            $table->char('parent_id', 36)->nullable();
+            $table->id();
+            $table->unsignedBigInteger('venue_post_id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('parent_id')->nullable();
             $table->text('content');
             $table->enum('status', ['published', 'hidden', 'deleted'])->default('published');
             $table->timestamps();

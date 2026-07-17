@@ -26,12 +26,12 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('payments', 'user_wallet_id')) {
-                    $table->char('user_wallet_id', 36)->nullable()->after('system_bank_account_id')
+                    $table->unsignedBigInteger('user_wallet_id')->nullable()->after('system_bank_account_id')
                         ->comment('Ví user dùng trong payment nếu thanh toán bằng ví hoặc mixed.');
                 }
 
                 if (! Schema::hasColumn('payments', 'user_wallet_ledger_id')) {
-                    $table->char('user_wallet_ledger_id', 36)->nullable()->after('user_wallet_id')
+                    $table->unsignedBigInteger('user_wallet_ledger_id')->nullable()->after('user_wallet_id')
                         ->comment('Ledger debit ví user liên quan payment này.');
                 }
             });
@@ -54,7 +54,7 @@ return new class extends Migration
         if (Schema::hasTable('refunds')) {
             Schema::table('refunds', function (Blueprint $table) {
                 if (! Schema::hasColumn('refunds', 'customer_id')) {
-                    $table->char('customer_id', 36)->nullable()->after('booking_id')
+                    $table->unsignedBigInteger('customer_id')->nullable()->after('booking_id')
                         ->comment('User nhận hoàn tiền, denormalized từ booking.');
                 }
 
@@ -65,27 +65,27 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('refunds', 'user_wallet_id')) {
-                    $table->char('user_wallet_id', 36)->nullable()->after('refund_destination')
+                    $table->unsignedBigInteger('user_wallet_id')->nullable()->after('refund_destination')
                         ->comment('Ví user nhận tiền hoàn nếu refund_destination=user_wallet.');
                 }
 
                 if (! Schema::hasColumn('refunds', 'user_wallet_ledger_id')) {
-                    $table->char('user_wallet_ledger_id', 36)->nullable()->after('user_wallet_id')
+                    $table->unsignedBigInteger('user_wallet_ledger_id')->nullable()->after('user_wallet_id')
                         ->comment('Ledger credit ví user khi hoàn tiền vào ví.');
                 }
 
                 if (! Schema::hasColumn('refunds', 'user_payout_account_id')) {
-                    $table->char('user_payout_account_id', 36)->nullable()->after('user_wallet_ledger_id')
+                    $table->unsignedBigInteger('user_payout_account_id')->nullable()->after('user_wallet_ledger_id')
                         ->comment('Tài khoản ngân hàng user nhận tiền nếu hoàn về bank.');
                 }
 
                 if (! Schema::hasColumn('refunds', 'owner_wallet_ledger_id')) {
-                    $table->char('owner_wallet_ledger_id', 36)->nullable()->after('user_payout_account_id')
+                    $table->unsignedBigInteger('owner_wallet_ledger_id')->nullable()->after('user_payout_account_id')
                         ->comment('Ledger debit ví owner nếu refund làm giảm doanh thu chủ sân.');
                 }
 
                 if (! Schema::hasColumn('refunds', 'owner_confirmed_by')) {
-                    $table->char('owner_confirmed_by', 36)->nullable()->after('status_reason')
+                    $table->unsignedBigInteger('owner_confirmed_by')->nullable()->after('status_reason')
                         ->comment('Owner/nhân viên sân xác nhận hoàn tiền.');
                     $table->timestamp('owner_confirmed_at')->nullable()->after('owner_confirmed_by')
                         ->comment('Thời điểm owner xác nhận hoàn tiền.');
@@ -94,7 +94,7 @@ return new class extends Migration
                 }
 
                 if (! Schema::hasColumn('refunds', 'admin_confirmed_by')) {
-                    $table->char('admin_confirmed_by', 36)->nullable()->after('processed_at')
+                    $table->unsignedBigInteger('admin_confirmed_by')->nullable()->after('processed_at')
                         ->comment('Admin xác nhận refund hoàn tất sau khi API/giao dịch thành công.');
                     $table->timestamp('admin_confirmed_at')->nullable()->after('admin_confirmed_by')
                         ->comment('Thời điểm admin xác nhận refund hoàn tất.');

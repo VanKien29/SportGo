@@ -43,7 +43,7 @@ class VenuePostPolicy
      */
     public function create(User $user): bool
     {
-        return $this->hasRole($user, ['admin', 'super_admin', 'venue_owner', 'owner']);
+        return true;
     }
 
     /**

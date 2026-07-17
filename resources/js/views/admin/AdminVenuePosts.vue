@@ -11,12 +11,7 @@
         <p>Kiểm tra, phê duyệt, từ chối hoặc quản lý các bài viết đăng tải từ chủ sân.</p>
       </div>
 
-      <div class="sg-page-actions">
-        <button class="icon-btn sg-primary-action" type="button" title="Làm mới" aria-label="Làm mới" @click="loadPosts(1)">
-          <AppIcon name="refresh" size="16" />
-          <span>Làm mới</span>
-        </button>
-      </div>
+
     </header>
 
     <div class="toolbar card sg-filter-panel">

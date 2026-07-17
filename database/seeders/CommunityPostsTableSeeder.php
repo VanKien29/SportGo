@@ -15,16 +15,18 @@ class CommunityPostsTableSeeder extends Seeder
             return;
         }
 
-        $user = User::query()->where('username', 'user')->first();
+        $nam = User::query()->where('username', 'user')->first();
+        $linh = User::query()->where('username', 'user1')->first();
         $staff = User::query()->where('username', 'systemstaff')->first();
 
-        if (! $user) {
+        if (! $nam || ! $linh) {
             return;
         }
 
         $posts = [
             [
-                'Tìm đội giao lưu cầu lông tối thứ 7 tại Cầu Giấy.',
+                $nam,
+                'Cuối tuần này nhóm mình chơi cầu lông tại Green Sport Ba Đình, ai muốn giao lưu nhẹ nhàng có thể bình luận để ghép đội.',
                 'published',
                 $staff?->id,
                 now()->subDays(2),
@@ -34,31 +36,22 @@ class CommunityPostsTableSeeder extends Seeder
                 1,
             ],
             [
-                'Bài viết đang chờ duyệt: tuyển thêm người chơi pickleball cuối tuần.',
-                'pending_review',
-                null,
-                null,
-                null,
-                0,
-                0,
-                0,
-            ],
-            [
-                'Bài viết mẫu đã bị ẩn do bị báo cáo spam.',
-                'hidden',
+                $linh,
+                'Mình đang tìm thêm bạn tập pickleball buổi sáng, ưu tiên người mới muốn tập đều mỗi tuần.',
+                'published',
                 $staff?->id,
                 now()->subDay(),
-                'Nội dung bị nhiều người báo cáo là spam.',
-                12,
-                1,
+                null,
+                18,
+                3,
                 0,
             ],
         ];
 
-        foreach ($posts as [$content, $status, $reviewedBy, $reviewedAt, $reason, $views, $likes, $comments]) {
+        foreach ($posts as [$author, $content, $status, $reviewedBy, $reviewedAt, $reason, $views, $likes, $comments]) {
             CommunityPost::query()->updateOrCreate(
                 [
-                    'author_id' => $user->id,
+                    'author_id' => $author->id,
                     'content' => $content,
                 ],
                 [
@@ -69,36 +62,6 @@ class CommunityPostsTableSeeder extends Seeder
                     'view_count' => $views,
                     'like_count' => $likes,
                     'comment_count' => $comments,
-                ]
-            );
-        }
-
-        // Thêm dữ liệu fake
-        $user1 = User::query()->where('username', 'user1')->first();
-        $user2 = User::query()->where('username', 'user2')->first();
-
-        if ($user1) {
-            CommunityPost::query()->updateOrCreate(
-                ['content' => "Tuyển gấp 2 bạn đánh giao lưu tối nay lúc 20h tại sân Cầu Giấy. Trình độ trung bình khá trở lên, vui vẻ hòa đồng. Ai đi được comment nhé!"],
-                [
-                    'author_id' => $user1->id,
-                    'status' => 'published',
-                    'view_count' => 120,
-                    'like_count' => 5,
-                    'comment_count' => 4,
-                ]
-            );
-        }
-
-        if ($user2) {
-            CommunityPost::query()->updateOrCreate(
-                ['content' => "Góc thanh lý: Mình cần pass lại vợt Yonex Astrox 88D Pro tình trạng 95%, giá cả học sinh sinh viên. Ib để ép giá :))"],
-                [
-                    'author_id' => $user2->id,
-                    'status' => 'published',
-                    'view_count' => 85,
-                    'like_count' => 12,
-                    'comment_count' => 2,
                 ]
             );
         }

@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::table('partner_applications', function (Blueprint $table): void {
             if (! Schema::hasColumn('partner_applications', 'current_contract_id')) {
-                $table->char('current_contract_id', 36)->nullable()->after('approved_venue_cluster_id');
+                $table->unsignedBigInteger('current_contract_id')->nullable()->after('approved_venue_cluster_id');
                 $table->index('current_contract_id', 'partner_applications_current_contract_index');
             }
         });

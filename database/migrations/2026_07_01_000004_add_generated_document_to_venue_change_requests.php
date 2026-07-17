@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('venue_court_approval_requests', function (Blueprint $table): void {
             if (! Schema::hasColumn('venue_court_approval_requests', 'generated_document_id')) {
-                $table->char('generated_document_id', 36)->nullable()->after('signed_at');
+                $table->unsignedBigInteger('generated_document_id')->nullable()->after('signed_at');
                 $table->index('generated_document_id', 'venue_court_approval_generated_document_index');
                 $table->foreign('generated_document_id', 'venue_court_approval_generated_document_foreign')
                     ->references('id')->on('generated_documents')->nullOnDelete();
@@ -19,7 +19,7 @@ return new class extends Migration
 
         Schema::table('venue_location_change_requests', function (Blueprint $table): void {
             if (! Schema::hasColumn('venue_location_change_requests', 'generated_document_id')) {
-                $table->char('generated_document_id', 36)->nullable()->after('signed_at');
+                $table->unsignedBigInteger('generated_document_id')->nullable()->after('signed_at');
                 $table->index('generated_document_id', 'venue_location_change_generated_document_index');
                 $table->foreign('generated_document_id', 'venue_location_change_generated_document_foreign')
                     ->references('id')->on('generated_documents')->nullOnDelete();

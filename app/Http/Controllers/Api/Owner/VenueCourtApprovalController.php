@@ -18,7 +18,6 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -86,19 +85,19 @@ class VenueCourtApprovalController extends Controller
             'requested_courts.*.court_type_id' => ['required_with:requested_courts', 'integer', 'exists:court_types,id'],
             'requested_courts.*.name' => ['required_with:requested_courts', 'string', 'max:100'],
             'removed_court_ids' => ['nullable', 'array', 'max:20'],
-            'removed_court_ids.*' => ['uuid', 'exists:venue_courts,id'],
+            'removed_court_ids.*' => ['integer', 'exists:venue_courts,id'],
             'note'           => ['nullable', 'string', 'max:1000'],
             'evidence_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'preview_document_id' => ['nullable', 'uuid'],
+            'preview_document_id' => ['nullable', 'integer'],
         ]);
         $data = $this->normalizeScaleRequestData($data, $cluster);
 
         $courtType = CourtType::query()->findOrFail($data['court_type_id']);
         $previewRequest = new VenueCourtApprovalRequest();
         $previewRequest->forceFill([
-            'id' => (string) Str::uuid(),
+            'id' => 0,
             'venue_cluster_id' => $cluster->id,
             'court_type_id' => $courtType->id,
             'name' => $data['name'],
@@ -123,7 +122,7 @@ class VenueCourtApprovalController extends Controller
 
         $document = $this->documents->generateDocument('venue_scale_request', $cluster, $renderData, $request->user(), [
             'reference_type' => 'venue_scale_request_preview',
-            'reference_id' => (string) Str::uuid(),
+            'reference_id' => 'venue_scale_preview_'.$cluster->id.'_'.now()->timestamp,
             'owner_id' => $cluster->owner_id,
             'venue_cluster_id' => $cluster->id,
             'entity_type' => VenueCluster::class,
@@ -169,12 +168,12 @@ class VenueCourtApprovalController extends Controller
             'requested_courts.*.court_type_id' => ['required_with:requested_courts', 'integer', 'exists:court_types,id'],
             'requested_courts.*.name' => ['required_with:requested_courts', 'string', 'max:100'],
             'removed_court_ids' => ['nullable', 'array', 'max:20'],
-            'removed_court_ids.*' => ['uuid', 'exists:venue_courts,id'],
+            'removed_court_ids.*' => ['integer', 'exists:venue_courts,id'],
             'note'           => ['nullable', 'string', 'max:1000'],
             'evidence_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'preview_document_id' => ['nullable', 'uuid'],
+            'preview_document_id' => ['nullable', 'integer'],
         ], [
             'court_type_id.required'  => 'Vui lòng chọn loại sân.',
             'court_type_id.exists'    => 'Loại sân không tồn tại.',
@@ -261,7 +260,7 @@ class VenueCourtApprovalController extends Controller
             'note' => ['nullable', 'string', 'max:1000'],
             'supplementary_documents' => ['required', 'array', 'min:1', 'max:10'],
             'supplementary_documents.*' => ['file', 'mimes:jpeg,jpg,png,webp,pdf,doc,docx', 'max:10240'],
-            'preview_document_id' => ['nullable', 'uuid'],
+            'preview_document_id' => ['nullable', 'integer'],
         ], [
             'supplementary_documents.required' => 'Vui lòng tải lên ít nhất một giấy tờ bổ sung.',
             'supplementary_documents.*.mimes' => 'Giấy tờ bổ sung phải có định dạng: jpg, jpeg, png, webp, pdf, doc, docx.',

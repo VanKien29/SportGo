@@ -15,10 +15,6 @@
                     <option value="month">Tháng này</option>
                     <option value="year">Năm nay</option>
                 </select>
-                <button class="ghost-button" type="button" @click="loadDashboard">
-                    <AppIcon name="refresh" size="17" />
-                    <span>Tải lại</span>
-                </button>
             </div>
         </section>
 
@@ -563,5 +559,3 @@ export default {
     },
 };
 </script>
-
-<style src="../../../css/admin/dashboard.css" scoped></style>

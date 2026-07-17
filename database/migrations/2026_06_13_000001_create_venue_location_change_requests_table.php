@@ -9,10 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_location_change_requests', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36);
-            $table->char('requested_by', 36);
-            $table->char('reviewed_by', 36)->nullable();
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
+            $table->unsignedBigInteger('requested_by');
+            $table->unsignedBigInteger('reviewed_by')->nullable();
 
             $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled'])->default('pending');
             $table->text('note')->nullable();           // lý do owner muốn đổi vị trí

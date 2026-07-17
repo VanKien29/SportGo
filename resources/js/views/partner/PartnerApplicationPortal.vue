@@ -1,125 +1,112 @@
 <template>
-  <div class="partner-portal-page">
+  <div class="partner-portal-page partner-client-page sg-client-page">
     <PublicNavbar />
-
     <main class="portal-main">
       <!-- ───── LIST VIEW ───── -->
       <template v-if="!formOpen">
-        <div class="flex-between mb-4">
-          <div>
+        <header class="portal-heading">
+          <div class="portal-heading-copy">
             <p class="portal-label">SportGo Partner</p>
             <h1 class="portal-title">Đăng ký đối tác chủ sân</h1>
-            <p class="portal-subtitle" style="margin-bottom: 0;">Gửi hồ sơ, theo dõi tiến trình xét duyệt và ký số văn bản ngay trên nền tảng.</p>
+            <p class="portal-subtitle portal-subtitle--flush">Gửi hồ sơ, theo dõi tiến trình xét duyệt và ký số văn bản ngay trên nền tảng.</p>
           </div>
           <button v-if="canRegister" type="button" class="btn btn-primary" @click="startNewApplication">
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            <AppIcon name="plus" size="18" />
             Đăng ký hồ sơ mới
           </button>
-        </div>
+        </header>
 
-        <div class="stat-grid">
-          <div class="stat-card">
-            <p class="stat-label">Tổng hồ sơ</p>
-            <p class="stat-value">{{ applications.length }}</p>
-            <p class="stat-label" style="color: var(--primary-color);">Đã gửi</p>
+        <ol class="portal-flow" aria-label="Quy trình đăng ký đối tác">
+          <li><span>1</span><strong>Hoàn thiện hồ sơ</strong><small>Thông tin và giấy tờ</small></li>
+          <li><span>2</span><strong>Ký đơn đăng ký</strong><small>Xác thực bằng OTP</small></li>
+          <li><span>3</span><strong>SportGo xét duyệt</strong><small>Theo dõi và bổ sung</small></li>
+          <li><span>4</span><strong>Ký hợp đồng</strong><small>Kích hoạt đối tác</small></li>
+        </ol>
+
+        <div v-if="pageError" class="portal-card application-notice application-notice--danger portal-load-error" role="alert">
+          <div>
+            <strong>Chưa thể tải trạng thái hồ sơ.</strong>
+            <span>{{ pageError }}</span>
           </div>
-          <div class="stat-card">
-            <p class="stat-label">Đang xét duyệt</p>
-            <p class="stat-value">{{ reviewingCount }}</p>
-            <p class="stat-label" style="color: #b45309;">Chờ phản hồi</p>
-          </div>
-          <div class="stat-card">
-            <p class="stat-label">Hồ sơ nháp</p>
-            <p class="stat-value">{{ draft ? 1 : 0 }}</p>
-            <p class="stat-label">Chưa gửi</p>
-          </div>
+          <button type="button" class="btn btn-outline" :disabled="loading" @click="refreshApplications">
+            <AppIcon name="refresh" size="16" />
+            {{ loading ? 'Đang thử lại...' : 'Thử lại' }}
+          </button>
         </div>
 
         <div v-if="draft" class="draft-banner">
           <div>
-            <p class="title">{{ draft.venue_name || 'Chưa đặt tên cụm sân' }} <span style="font-weight: 400; color: #b45309;">— đang lưu nháp</span></p>
-            <p style="font-size: 13px; color: #b45309; margin-top: 4px;">Lưu lúc {{ formatDate(draft.saved_at) }}</p>
+            <p class="title">{{ draft.venue_name || 'Chưa đặt tên cụm sân' }} <span class="draft-state">— đang lưu nháp</span></p>
+            <p class="draft-time">Lưu lúc {{ formatDate(draft.saved_at) }}</p>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn btn-secondary" style="background: transparent; border-color: #f59e0b; color: #b45309;" @click="clearDraft">Xóa nháp</button>
-            <button type="button" class="btn btn-primary" style="background: #f59e0b; color: white; border-color: #f59e0b;" @click="continueDraft">Tiếp tục điền</button>
+          <div class="draft-actions">
+            <button type="button" class="btn btn-secondary draft-delete" @click="clearDraft">Xóa nháp</button>
+            <button type="button" class="btn btn-primary draft-continue" @click="continueDraft">Tiếp tục điền</button>
           </div>
         </div>
 
         <div class="flex-between mb-4">
           <p style="font-size: 14px; color: var(--text-muted);">{{ applications.length }} hồ sơ</p>
-          <button type="button" class="btn btn-outline" @click="loadApplications">Làm mới</button>
         </div>
 
-        <div v-if="loading" style="text-align: center; padding: 60px;">
+        <div v-if="loading" class="portal-state">
           <p class="portal-subtitle">Đang tải hồ sơ...</p>
         </div>
 
-        <div v-else-if="applications.length === 0 && !draft" class="portal-card" style="text-align: center; padding: 60px 20px;">
-          <svg style="margin: 0 auto; height: 48px; color: #cbd5e1;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 style="margin-top: 16px; font-weight: 600; font-size: 16px;">Chưa có hồ sơ nào</h3>
-          <p style="margin-top: 8px; color: var(--text-muted); font-size: 14px;">Bắt đầu bằng cách tạo hồ sơ đăng ký đầu tiên của bạn.</p>
+        <div v-else-if="applications.length === 0 && !draft && !pageError" class="portal-card portal-state portal-state--empty">
+          <AppIcon name="fileText" size="44" />
+          <h3>Chưa có hồ sơ nào</h3>
+          <p>Bắt đầu bằng cách tạo hồ sơ đăng ký đầu tiên của bạn.</p>
         </div>
 
         <div v-else>
           <article v-for="application in applications" :key="application.id" class="app-list-item">
-            <div style="flex: 1; min-width: 0;">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <h3 style="font-size: 16px; font-weight: 600;">{{ application.venue_name }}</h3>
+            <div class="application-summary">
+              <div class="application-title-row">
+                <h3>{{ application.venue_name }}</h3>
                 <span class="badge" :class="statusClass(application.status)">
                   {{ statusLabel(application.status) }}
                 </span>
               </div>
-              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+              <p class="application-meta">
                 {{ application.venue_address }} • Gửi {{ formatDate(application.submitted_at) }}
               </p>
 
-              <div v-if="application.status === 'rejected'" style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
-                <strong style="color: #991b1b;">Lý do từ chối:</strong> <span style="color: #b91c1c;">{{ application.status_reason || 'SportGo chưa cung cấp lý do chi tiết.' }}</span>
+              <div v-if="application.status === 'rejected'" class="application-notice application-notice--danger">
+                <strong>Lý do từ chối:</strong> <span>{{ application.status_reason || 'SportGo chưa cung cấp lý do chi tiết.' }}</span>
               </div>
-              <div v-if="application.status === 'need_supplement'" style="background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
-                <strong style="color: #92400e;">Cần bổ sung hồ sơ:</strong> <span style="color: #b45309;">{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</span>
+              <div v-if="application.status === 'need_supplement'" class="application-notice application-notice--warning">
+                <strong>Cần bổ sung hồ sơ:</strong> <span>{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</span>
               </div>
-              <div v-if="application.status === 'contract_pending_owner_signature'" style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: inline-block;">
-                <strong style="color: #065f46;">🎉 Hồ sơ đã được duyệt!</strong> <span style="color: #047857;">Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất quá trình đăng ký.</span>
+              <div v-if="application.status === 'contract_pending_owner_signature'" class="application-notice application-notice--success">
+                <strong>Hồ sơ đã được duyệt.</strong> <span>Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất đăng ký.</span>
               </div>
             </div>
 
             <div class="app-list-actions">
-              <button v-if="needsChangeAppendixSignature(application)" type="button" class="btn btn-primary" title="Ky phu luc hop dong" @click="openApplicationDocument(changeAppendixWord(application), application)">
-                <AppIcon name="fileText" size="16" />
-                Ky phu luc
+              <button
+                v-if="applicationPrimaryAction(application)"
+                type="button"
+                class="btn btn-primary"
+                :disabled="actioningApplicationId === application.id"
+                @click="runApplicationPrimaryAction(application)"
+              >
+                <AppIcon :name="applicationPrimaryAction(application).icon" size="16" />
+                {{ actioningApplicationId === application.id ? 'Đang xử lý...' : applicationPrimaryAction(application).label }}
               </button>
-              <button type="button" class="btn btn-secondary action-detail" title="Xem chi tiết" @click="openApplicationDetail(application)">
-                <AppIcon name="eye" size="16" />
-                Chi tiết
+              <button type="button" class="btn btn-secondary action-detail" @click="openApplicationDetail(application)">
+                <AppIcon name="eye" size="16" /> Chi tiết
               </button>
-              <button v-if="application.status === 'need_supplement'" type="button" class="btn btn-primary action-document" title="Bổ sung/chỉnh sửa hồ sơ" @click="editApplication(application)">
-                <AppIcon name="edit" size="16" />
-                Bổ sung
-              </button>
-              <button v-if="application.status === 'rejected'" type="button" class="btn btn-secondary action-document" title="Tạo bản sao hồ sơ đăng ký" @click="duplicateApplication(application)">
-                <AppIcon name="copy" size="16" />
-                Tạo bản sao
-              </button>
-              <button v-if="needsApplicationSignature(application)" type="button" class="btn btn-secondary action-document" title="Ký đơn đăng ký" @click="openApplicationDocument(applicationWord(application), application)">
-                <AppIcon name="edit" size="16" />
-                Ký đơn
-              </button>
-              <button v-if="needsContractSignature(application)" type="button" class="btn btn-primary" title="Ký hợp đồng" @click="openApplicationDocument(contractWord(application), application)">
-                <AppIcon name="fileText" size="16" />
-                Ký hợp đồng
-              </button>
-              <button v-if="canSubmitSignedApplication(application)" type="button" class="btn btn-primary action-submit" title="Gửi hồ sơ" @click="submitSignedApplication(application)">
-                <AppIcon name="send" size="16" />
-                Gửi hồ sơ
-              </button>
-              <button v-if="canCancel(application)" type="button" class="btn btn-outline action-cancel" title="Hủy hồ sơ" @click="cancelApplication(application)">
-                <AppIcon name="trash" size="16" />
-                Hủy
-              </button>
+              <details v-if="canCancel(application)" class="application-more">
+                <summary class="icon-action" title="Thao tác khác" aria-label="Thao tác khác">
+                  <AppIcon name="moreHorizontal" size="18" />
+                </summary>
+                <div class="application-more-menu">
+                  <button type="button" class="danger-menu-action" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
+                    <AppIcon name="trash" size="15" /> Hủy hồ sơ
+                  </button>
+                </div>
+              </details>
             </div>
           </article>
         </div>
@@ -128,22 +115,34 @@
       <!-- ───── FORM VIEW WIZARD ───── -->
       <template v-else>
         <div class="mb-4">
-          <BackButton @click="formOpen = false" title="Quay lại danh sách" />
+          <BackButton @click="closeForm" title="Quay lại danh sách" />
         </div>
 
         <div class="wizard-container">
-          <!-- Header removed for single form layout -->
+          <header class="wizard-heading">
+            <div>
+              <p class="portal-label">Hồ sơ đăng ký</p>
+              <h1>Thông tin đối tác và cụm sân</h1>
+              <p>Hoàn thành lần lượt bốn nhóm thông tin. Bạn có thể lưu nháp để tiếp tục sau.</p>
+            </div>
+            <nav class="registration-progress" aria-label="Các phần của hồ sơ">
+              <a href="#partner-step-personal"><span>1</span>Cá nhân</a>
+              <a href="#partner-step-business"><span>2</span>Kinh doanh</a>
+              <a href="#partner-step-venue"><span>3</span>Cụm sân</a>
+              <a href="#partner-step-documents"><span>4</span>Ngân hàng & file</a>
+            </nav>
+          </header>
 
-          <form novalidate @submit.prevent="submit" style="display: flex; flex-direction: column; flex: 1;">
+          <form class="wizard-form" novalidate @submit.prevent="submit">
             
             <div class="wizard-body">
-              <div v-if="formBanner" class="notice error mb-4" style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 8px;">
+              <div v-if="formBanner" class="notice error mb-4 form-banner">
                 {{ formBanner }}
               </div>
 
               <!-- STEP 1: Cá nhân -->
-              <div class="step-content">
-                <FormSection title="Thông tin người đăng ký / đại diện">
+              <div id="partner-step-personal" class="step-content section-anchor">
+                <FormSection title="Thông tin người đăng ký / đại diện" :open="true">
                   <div class="form-grid">
                     <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
                       <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
@@ -180,7 +179,7 @@
               </div>
 
               <!-- STEP 2: Kinh doanh -->
-              <div class="step-content" style="margin-top: 40px;">
+              <div id="partner-step-business" class="step-content step-content--spaced section-anchor">
                 <FormSection title="Thông tin kinh doanh">
                   <div class="form-grid">
                     <FormField label="Tên đơn vị / Cá nhân kinh doanh" required :error="fieldErrors.business_name">
@@ -206,7 +205,7 @@
               </div>
 
               <!-- STEP 3: Cụm sân -->
-              <div class="step-content" style="margin-top: 40px;">
+              <div id="partner-step-venue" class="step-content step-content--spaced section-anchor">
                 <FormSection title="Địa chỉ và thông tin Cụm sân">
                   <div class="form-grid">
                     <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
@@ -220,11 +219,11 @@
                     </FormField>
                     <FormField class="full-width" label="Link Google Maps (Bắt buộc để lấy tọa độ)" required :error="mapError || fieldErrors.venue_map_url">
                       <input v-model.trim="form.venue_map_url" :class="inputClass(mapError || fieldErrors.venue_map_url)" placeholder="Dán link Google Maps có tọa độ" @input="onMapUrlInput" />
-                      <div v-if="mapSuggestion" style="margin-top: 8px; background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px;">
-                        <p style="font-size: 13px; color: #92400e; margin-bottom: 8px;">{{ mapSuggestion.message }}</p>
-                        <button v-if="mapSuggestion.province_code || mapSuggestion.ward_code" type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
+                      <div v-if="mapSuggestion" class="map-suggestion">
+                        <p>{{ mapSuggestion.message }}</p>
+                        <button v-if="mapSuggestion.province_code || mapSuggestion.ward_code" type="button" class="btn btn-secondary btn-compact" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
                       </div>
-                      <p v-else-if="mapStatus" style="margin-top: 4px; font-size: 13px; color: #059669;">{{ mapStatus }}</p>
+                      <p v-else-if="mapStatus" class="map-status">{{ mapStatus }}</p>
                     </FormField>
                     <FormField class="full-width" label="Chọn vị trí trên bản đồ" required :error="fieldErrors.venue_coordinates">
                       <div class="map-picker-shell">
@@ -239,8 +238,9 @@
                             <input v-model.trim="form.venue_longitude" :class="inputClass(fieldErrors.venue_longitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_longitude')" />
                           </label>
                         </div>
-                        <button type="button" class="btn btn-secondary btn-sm" style="margin-top: 8px; margin-bottom: 8px;" @click="getCurrentLocation">
-                          📍 Lấy vị trí hiện tại
+                        <button type="button" class="btn btn-secondary btn-sm current-location-button" @click="getCurrentLocation">
+                          <AppIcon name="mapPin" size="16" />
+                          Lấy vị trí hiện tại
                         </button>
                         <p class="map-help">Click trên bản đồ hoặc kéo marker để chọn tọa độ cụm sân. Link Google Maps nếu có tọa độ sẽ tự đặt marker.</p>
                       </div>
@@ -263,7 +263,7 @@
                   </div>
                 </FormSection>
 
-                <FormSection title="Cấu hình sân con" style="margin-top: 24px;">
+                <FormSection class="section-spaced" title="Cấu hình sân con">
                   <div class="form-grid">
                     <FormField label="Số lượng sân con" required :error="fieldErrors.court_count_total">
                       <input v-model.trim="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" inputmode="numeric" @input="onCourtCountInput" />
@@ -273,11 +273,11 @@
                     </FormField>
                   </div>
 
-                  <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+                  <div class="court-config-list">
                     <div
                       v-for="(court, index) in form.courts"
                       :key="court.local_id"
-                      style="display: grid; gap: 12px; background: #f8fafc; border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; grid-template-columns: 1fr 1fr auto; align-items: end;"
+                      class="court-config-row"
                     >
                       <FormField :label="'Tên sân ' + (index + 1)" required :error="fieldErrors['courts.' + index + '.name']">
                         <input v-model.trim="court.name" :class="inputClass(fieldErrors['courts.' + index + '.name'])" />
@@ -287,8 +287,7 @@
                       </FormField>
                       <button
                         type="button"
-                        class="btn btn-outline"
-                        style="color: #ef4444; border-color: #fecaca; background: white;"
+                        class="btn btn-outline btn-danger"
                         :disabled="form.courts.length <= 1"
                         @click="removeCourt(index)"
                       >
@@ -297,16 +296,16 @@
                     </div>
                   </div>
                   
-                  <div v-if="amenities.length" style="margin-top: 20px;">
-                    <p class="form-label" style="margin-bottom: 8px;">Tiện ích có sẵn</p>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <div v-if="amenities.length" class="amenities-field">
+                    <p class="form-label amenities-label">Tiện ích có sẵn</p>
+                    <div class="amenities-list">
                       <label
                         v-for="amenity in amenities"
                         :key="amenity.id || amenity.name"
-                        style="display: inline-flex; cursor: pointer; align-items: center; gap: 8px; border: 1px solid var(--border-color); background: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; transition: all 0.2s;"
-                        :style="form.amenities.includes(amenity.name) ? 'border-color: var(--primary-color); background: #ecfdf5;' : ''"
+                        class="amenity-option"
+                        :class="{ selected: form.amenities.includes(amenity.name) }"
                       >
-                        <input v-model="form.amenities" type="checkbox" :value="amenity.name" style="accent-color: var(--primary-color);" />
+                        <input v-model="form.amenities" type="checkbox" :value="amenity.name" />
                         {{ amenity.name }}
                       </label>
                     </div>
@@ -315,7 +314,7 @@
               </div>
 
               <!-- STEP 4: Tài liệu & Ngân hàng -->
-              <div class="step-content" style="margin-top: 40px;">
+              <div id="partner-step-documents" class="step-content step-content--spaced section-anchor">
                 <FormSection title="Thông tin ngân hàng">
                   <div class="form-grid">
                     <FormField label="Ngân hàng" required :error="fieldErrors.bank_code">
@@ -338,25 +337,25 @@
                   </div>
                 </FormSection>
 
-                <FormSection title="Tài liệu đính kèm" style="margin-top: 24px;">
+                <FormSection class="section-spaced" title="Tài liệu đính kèm">
                   <div class="form-grid">
-                    <UploadBox :key="`identity-${uploadResetKey}`" title="CCCD/CMND người đại diện" required :files="files.identity" :existing-files="existingDocuments.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
-                    <UploadBox :key="`business-${uploadResetKey}`" title="Giấy ĐKKD/Pháp lý" required :files="files.business_license" :existing-files="existingDocuments.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
-                    <UploadBox :key="`facility-${uploadResetKey}`" title="Hình ảnh cơ sở/sân" required :files="files.facility" :existing-files="existingDocuments.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
-                    <UploadBox :key="`bank-${uploadResetKey}`" title="Chứng từ ngân hàng" required :files="files.bank" :existing-files="existingDocuments.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
-                    <UploadBox :key="`lease-${uploadResetKey}`" title="Hợp đồng thuê mặt bằng" required :files="files.lease" :existing-files="existingDocuments.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
-                    <UploadBox :key="`additional-${uploadResetKey}`" title="Giấy tờ khác" :files="files.additional" :existing-files="existingDocuments.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
+                    <UploadBox :key="`identity-${uploadResetKey}`" title="CCCD/CMND người đại diện" required :max-files="5" :files="files.identity" :existing-files="existingDocuments.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
+                    <UploadBox :key="`business-${uploadResetKey}`" title="Giấy ĐKKD/Pháp lý" required :max-files="5" :files="files.business_license" :existing-files="existingDocuments.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
+                    <UploadBox :key="`facility-${uploadResetKey}`" title="Hình ảnh cơ sở/sân" required :max-files="12" :files="files.facility" :existing-files="existingDocuments.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+                    <UploadBox :key="`bank-${uploadResetKey}`" title="Chứng từ ngân hàng" required :max-files="5" :files="files.bank" :existing-files="existingDocuments.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
+                    <UploadBox :key="`lease-${uploadResetKey}`" title="Hợp đồng thuê mặt bằng" required :max-files="5" :files="files.lease" :existing-files="existingDocuments.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                    <UploadBox :key="`additional-${uploadResetKey}`" title="Giấy tờ khác" :max-files="10" :files="files.additional" :existing-files="existingDocuments.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
                   </div>
                 </FormSection>
 
-                <div class="portal-card" style="background: #f8fafc; margin-top: 24px;" :class="fieldErrors.confirmed ? 'border-red-400' : ''">
-                  <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
-                    <input v-model="confirmed" type="checkbox" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--primary-color);" />
-                    <span style="font-size: 14px; color: var(--text-main); line-height: 1.5;">
+                <div class="portal-card confirmation-card" :class="fieldErrors.confirmed ? 'has-error' : ''">
+                  <label class="confirmation-label">
+                    <input v-model="confirmed" type="checkbox" />
+                    <span>
                       Tôi xác nhận thông tin trong hồ sơ là chính xác và đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.
                     </span>
                   </label>
-                  <p v-if="fieldErrors.confirmed" style="margin-top: 8px; margin-left: 30px; font-size: 13px; color: #ef4444;">{{ fieldErrors.confirmed }}</p>
+                  <p v-if="fieldErrors.confirmed" class="confirmation-error">{{ fieldErrors.confirmed }}</p>
                 </div>
               </div>
             </div>
@@ -364,10 +363,10 @@
             <!-- Form Actions -->
             <div class="wizard-footer">
               <div></div>
-              <div style="display: flex; gap: 12px;">
+              <div class="wizard-actions">
                 <button type="button" class="btn btn-outline" @click="saveDraft">Lưu nháp</button>
                 <button type="submit" class="btn btn-primary" :disabled="submitDisabled">
-                  <span v-if="submitting" style="margin-right: 8px; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+                  <span v-if="submitting" class="submit-spinner"></span>
                   {{ submitting ? 'Đang xử lý...' : 'Gửi hồ sơ đăng ký' }}
                 </button>
               </div>
@@ -379,111 +378,32 @@
     </main>
 
     <FloatingActions />
+    <ConfirmActionModal
+      :is-open="Boolean(cancelTarget)"
+      title="Hủy hồ sơ đăng ký?"
+      :description="cancelTarget ? `Hồ sơ ${cancelTarget.venue_name || ''} sẽ ngừng xử lý. Các tài liệu đã nộp vẫn được lưu để tra cứu.` : ''"
+      confirm-text="Hủy hồ sơ"
+      :loading="Boolean(cancelTarget && actioningApplicationId === cancelTarget.id)"
+      :error="cancelError"
+      @close="closeCancelConfirmation"
+      @confirm="confirmCancelApplication"
+    />
   </div>
 </template>
 
-<style scoped>
-@import "../../../css/partner/partner.css";
-
-.form-group {
-  min-width: 0;
-}
-
-.form-group :deep(.combo-wrapper) {
-  width: 100%;
-}
-
-.form-group input:not([type="checkbox"]):not([type="radio"]),
-.form-group textarea,
-:deep(.form-select) {
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid #dbe3ef;
-  border-radius: 10px;
-  background: #fff;
-  padding: 10px 12px;
-  color: #0f172a;
-  font-size: 14px;
-  line-height: 1.4;
-  outline: none;
-  transition: border-color .18s ease, box-shadow .18s ease;
-}
-
-.form-group textarea {
-  min-height: 72px;
-  resize: vertical;
-}
-
-.form-group input:not([type="checkbox"]):not([type="radio"]):focus,
-.form-group textarea:focus,
-:deep(.form-select:focus) {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, .16);
-}
-
-.form-group input.border-red-400,
-.form-group textarea.has-error,
-:deep(.form-select.has-error) {
-  border-color: #f87171;
-}
-
-.map-picker-shell {
-  display: grid;
-  gap: 12px;
-}
-
-.map-picker {
-  min-height: 320px;
-  width: 100%;
-  overflow: hidden;
-  border: 1px solid #dbe3ef;
-  border-radius: 12px;
-  background: #eef2f7;
-}
-
-.map-coordinate-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.map-coordinate-grid label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #334155;
-}
-
-.map-coordinate-grid label.invalid input {
-  border-color: #f87171;
-}
-
-.map-help {
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-@media (max-width: 640px) {
-  .map-coordinate-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-</style>
+<style src="../../../css/partner/partner.css"></style>
+<style src="../../../css/partner/client-partner-shared.css"></style>
+<style scoped src="../../../css/partner/client-partner-portal.css"></style>
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import PublicNavbar from '../../components/PublicNavbar.vue';
+import ConfirmActionModal from '../../components/ConfirmActionModal.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
 import BackButton from '../../components/BackButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
@@ -502,13 +422,17 @@ const BANK_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 const FormSection = defineComponent({
   name: 'FormSection',
-  props: { title: { type: String, required: true } },
-  setup(props, { slots }) {
-    return () => h('section', { class: 'portal-card' }, [
-      h('div', { class: '' }, [
+  props: {
+    title: { type: String, required: true },
+    open: { type: Boolean, default: false },
+  },
+  setup(props, { slots, attrs }) {
+    return () => h('details', { ...attrs, class: ['portal-card', 'form-section', attrs.class], open: props.open }, [
+      h('summary', { class: 'form-section-summary' }, [
         h('h2', { class: 'form-section-title' }, props.title),
+        h('span', { class: 'form-section-chevron', 'aria-hidden': 'true' }, '⌄'),
       ]),
-      slots.default?.(),
+      h('div', { class: 'form-section-body' }, slots.default?.()),
     ]);
   },
 });
@@ -535,11 +459,13 @@ const FormField = defineComponent({
 // ─── State ───────────────────────────────────────────────────────────────────
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 const user = getAuth();
 
 const loading = ref(false);
 const applications = ref([]);
-const canRegister = ref(true);
+const canRegister = ref(false);
+const pageError = ref('');
 const draft = ref(null);
 const formOpen = ref(false);
 const fieldErrors = reactive({});
@@ -554,6 +480,9 @@ const existingDocuments = reactive(blankExistingDocuments());
 const uploadResetKey = ref(0);
 const confirmed = ref(false);
 const submitting = ref(false);
+const actioningApplicationId = ref('');
+const cancelTarget = ref(null);
+const cancelError = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
@@ -563,7 +492,6 @@ const mapMarker = ref(null);
 const mapReverseBusy = ref(false);
 const editingApplicationId = ref('');
 const editingApplicationStatus = ref('');
-const existingDocumentTypes = ref(new Set());
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -589,9 +517,23 @@ const reviewingCount = computed(() => applications.value.filter((a) => ['pending
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(async () => {
-  if (!user) { router.replace({ name: 'login' }); return; }
+  if (!user) { router.replace({ name: 'login', query: { redirect: route.fullPath } }); return; }
   loadDraft();
-  await Promise.all([loadApplications(), loadBanks(), loadProvinces(), loadCourtTypes(), loadAmenities()]);
+  const loaders = [
+    ['hồ sơ đã gửi', loadApplications],
+    ['danh sách ngân hàng', loadBanks],
+    ['Tỉnh/Thành phố', loadProvinces],
+    ['loại sân', loadCourtTypes],
+    ['tiện ích', loadAmenities],
+  ];
+  const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
+  const failedLabels = results
+    .map((result, index) => (result.status === 'rejected' ? loaders[index][0] : null))
+    .filter(Boolean);
+  if (failedLabels.length) {
+    formBanner.value = `Không thể tải ${failedLabels.join(', ')}. Vui lòng làm mới trang hoặc thử lại sau.`;
+    toast.error(formBanner.value);
+  }
   await openDraftFromRoute();
 });
 
@@ -655,21 +597,53 @@ function readCache(key) {
 function writeCache(key, value, ttl) { localStorage.setItem(key, JSON.stringify({ value, expires_at: Date.now() + ttl })); }
 
 function inputClass(error, extra = '') {
-  return ['w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:bg-gray-50', error ? 'border-red-400' : 'border-gray-200', extra].filter(Boolean).join(' ');
+  return ['form-control', error ? 'has-error' : '', extra].filter(Boolean).join(' ');
 }
 function textareaClass(error) { return ['form-textarea', error ? 'has-error' : '']; }
 // ─── Data loaders ─────────────────────────────────────────────────────────────
 async function loadApplications() {
   loading.value = true;
-  try { const r = await api('/api/user/partner-application'); applications.value = r.data?.history || []; canRegister.value = Boolean(r.data?.can_register); } finally { loading.value = false; }
+  try {
+    const r = await api('/api/user/partner-application');
+    applications.value = r.data?.history || [];
+    canRegister.value = Boolean(r.data?.can_register);
+    pageError.value = '';
+  } catch (error) {
+    canRegister.value = false;
+    pageError.value = error.message || 'Không thể tải danh sách hồ sơ. Quyền tạo hồ sơ mới tạm khóa để tránh gửi trùng.';
+    throw error;
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function refreshApplications() {
+  try {
+    await loadApplications();
+  } catch {
+    toast.error(pageError.value);
+  }
 }
 async function loadBanks() {
   const cached = readCache(BANK_CACHE_KEY);
   if (cached?.length) { banks.value = cached; return; }
-  try { const r = await api('/api/user/partner-application/banks'); banks.value = normalizeList(r.data); if (banks.value.length) writeCache(BANK_CACHE_KEY, banks.value, BANK_CACHE_TTL); } catch (e) { console.error('Lỗi tải ngân hàng:', e); }
+  const r = await api('/api/user/partner-application/banks');
+  banks.value = normalizeList(r.data);
+  if (banks.value.length) writeCache(BANK_CACHE_KEY, banks.value, BANK_CACHE_TTL);
 }
 async function loadProvinces() { const r = await api('/api/user/partner-application/provinces'); provinces.value = normalizeList(r.data); }
-async function loadWards(code) { if (!code) return; const r = await api(`/api/user/partner-application/provinces/${code}/wards`); wards.value = normalizeList(r.data); }
+async function loadWards(code) {
+  if (!code) return;
+  try {
+    const r = await api(`/api/user/partner-application/provinces/${code}/wards`);
+    wards.value = normalizeList(r.data);
+    delete fieldErrors.venue_ward_code;
+  } catch (error) {
+    wards.value = [];
+    fieldErrors.venue_ward_code = error.message || 'Không thể tải danh sách Phường/Xã. Vui lòng thử lại.';
+    toast.error(fieldErrors.venue_ward_code);
+  }
+}
 async function loadCourtTypes() { const r = await api('/api/court-types'); courtTypes.value = normalizeList(r.data); }
 async function loadAmenities() { const r = await api('/api/amenities?active_only=1'); amenities.value = normalizeList(r.data); }
 
@@ -677,7 +651,6 @@ async function loadAmenities() { const r = await api('/api/amenities?active_only
 function startNewApplication() {
   editingApplicationId.value = '';
   editingApplicationStatus.value = '';
-  existingDocumentTypes.value = new Set();
   resetForm(defaultForm(user));
   formOpen.value = true;
 }
@@ -700,11 +673,23 @@ function persistDraft(showMessage = false) {
   const payload = { ...form, editing_application_id: editingApplicationId.value || '', saved_at: new Date().toISOString() };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
   draft.value = payload;
-  if (showMessage) formBanner.value = '�? l�u nh�p h? s� tr�n tr?nh duy?t.';
+  if (showMessage) formBanner.value = 'Đã lưu nháp hồ sơ trên trình duyệt.';
 }
 
 function saveDraft() {
   persistDraft(true);
+}
+
+function closeForm(event) {
+  event?.preventDefault();
+  persistDraft(false);
+  formOpen.value = false;
+
+  if (route.query.editDraft) {
+    const query = { ...route.query };
+    delete query.editDraft;
+    router.replace({ query });
+  }
 }
 
 function loadDraft() {
@@ -713,10 +698,35 @@ function loadDraft() {
 
 async function continueDraft() {
   if (!draft.value) return;
-  editingApplicationId.value = draft.value.editing_application_id || editingApplicationId.value || '';
-  resetForm({ ...defaultForm(user), ...draft.value });
+  const localDraft = { ...draft.value };
+  const applicationId = localDraft.editing_application_id || editingApplicationId.value || '';
+  editingApplicationId.value = applicationId;
+
+  if (applicationId) {
+    try {
+      const response = await api(`/api/user/partner-application/${applicationId}`);
+      const application = response.data;
+      if (!application || !['draft', 'need_supplement'].includes(application.status)) {
+        toast.error('Hồ sơ này không còn ở trạng thái cho phép chỉnh sửa.');
+        await refreshApplications();
+        return;
+      }
+      loadApplicationIntoForm(application);
+      Object.keys(defaultForm(user)).forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(localDraft, key)) form[key] = localDraft[key];
+      });
+    } catch (error) {
+      toast.error(error.message || 'Không thể tải hồ sơ gốc để tiếp tục bản nháp. Vui lòng thử lại.');
+      return;
+    }
+  } else {
+    editingApplicationStatus.value = '';
+    resetForm({ ...defaultForm(user), ...localDraft });
+  }
+
   formOpen.value = true;
   if (form.venue_province_code) await loadWards(form.venue_province_code);
+  syncVenueAddress();
 }
 
 function clearDraft() {
@@ -724,7 +734,6 @@ function clearDraft() {
   draft.value = null;
   editingApplicationId.value = '';
   editingApplicationStatus.value = '';
-  existingDocumentTypes.value = new Set();
 }
 
 async function openDraftFromRoute() {
@@ -766,7 +775,6 @@ async function duplicateApplication(application) {
   editingApplicationStatus.value = '';
   loadApplicationIntoForm(application);
   editingApplicationStatus.value = '';
-  existingDocumentTypes.value = new Set();
   Object.assign(existingDocuments, blankExistingDocuments());
   uploadResetKey.value += 1;
   confirmed.value = false;
@@ -778,9 +786,8 @@ async function duplicateApplication(application) {
 
 function loadApplicationIntoForm(application) {
   const savedDocuments = application.documents || application.uploaded_documents || [];
-  const activeSavedDocuments = savedDocuments.filter((doc) => doc.status !== 'rejected');
+  const activeSavedDocuments = savedDocuments.filter((doc) => doc.status !== 'rejected' && doc.file_available !== false);
   editingApplicationStatus.value = application.status || '';
-  existingDocumentTypes.value = new Set(activeSavedDocuments.map((doc) => doc.document_type));
   resetForm({
     ...defaultForm(user),
     applicant_full_name: application.applicant_full_name || '',
@@ -824,17 +831,43 @@ function loadApplicationIntoForm(application) {
     account_holder_name: application.account_holder_name || '',
     bank_branch: application.bank_branch || '',
   });
-  Object.assign(existingDocuments, groupExistingDocuments(savedDocuments));
+  Object.assign(existingDocuments, groupExistingDocuments(activeSavedDocuments));
   confirmed.value = true;
 }
 
 function groupExistingDocuments(documents = []) {
   const groups = blankExistingDocuments();
   documents.forEach((document) => {
-    const group = document.document_type || document.document_group;
-    if (groups[group]) groups[group].push(document);
+    if (document.status === 'rejected' || document.file_available === false) return;
+    const group = existingDocumentGroup(document);
+    if (group && groups[group]) groups[group].push(document);
   });
   return groups;
+}
+
+function existingDocumentGroup(document) {
+  const type = document?.document_type;
+  const typeGroups = {
+    identity: 'identity', identity_front: 'identity', identity_back: 'identity',
+    business_license: 'business_license', business_registration: 'business_license',
+    facility: 'facility', venue_front_image: 'facility', court_area_image: 'facility', parking_area_image: 'facility',
+    bank: 'bank', bank_account_proof: 'bank',
+    lease: 'lease', lease_contract: 'lease',
+    additional: 'additional',
+  };
+  if (typeGroups[type]) return typeGroups[type];
+  return {
+    legal_identity: 'identity',
+    identity_documents: 'identity',
+    business_license: 'business_license',
+    business_documents: 'business_license',
+    facility_images: 'facility',
+    venue_images: 'facility',
+    bank_documents: 'bank',
+    lease_contract: 'lease',
+    land_documents: 'lease',
+    additional_documents: 'additional',
+  }[document?.document_group] || null;
 }
 
 function dateInputValue(value) {
@@ -857,12 +890,12 @@ function streetFromVenueAddress(application) {
 function applicationCourtsForForm(application) {
   const rows = (application.courts || []).map((court, index) => ({
     local_id: localId(),
-    name: court.name || `S�n ${index + 1}`,
+    name: court.name || `Sân ${index + 1}`,
     court_type_id: court.court_type_id || '',
     note: court.note || '',
   }));
 
-  return rows.length ? rows : [{ local_id: localId(), name: 'S�n 1', court_type_id: '', note: '' }];
+  return rows.length ? rows : [{ local_id: localId(), name: 'Sân 1', court_type_id: '', note: '' }];
 }
 
 // ─── Input handlers ───────────────────────────────────────────────────────────
@@ -962,11 +995,11 @@ function getCurrentLocation() {
         }
       },
       () => {
-        alert('Không thể lấy được vị trí. Vui lòng kiểm tra quyền truy cập vị trí của trình duyệt.');
+        mapError.value = 'Không thể lấy vị trí. Hãy kiểm tra quyền truy cập vị trí của trình duyệt.';
       }
     );
   } else {
-    alert('Trình duyệt của bạn không hỗ trợ tính năng định vị.');
+    mapError.value = 'Trình duyệt này không hỗ trợ định vị. Bạn vẫn có thể chọn vị trí trực tiếp trên bản đồ.';
   }
 }
 
@@ -1063,7 +1096,7 @@ async function reverseCoordinates(latitude, longitude, options = {}) {
     await compareResolvedAddress(r.data || {}, options);
   } catch (e) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Kh�ng x�c minh ��?c T?nh/Th�nh ph? v� Ph�?ng/X? t? t?a �? n�y. Vui l?ng ch?n l?i v? tr� r? h�n tr�n b?n �?.' };
+    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
   } finally {
     mapReverseBusy.value = false;
   }
@@ -1080,7 +1113,7 @@ async function compareResolvedAddress(resolved, options = {}) {
 
   if (!rp || !rw) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Kh�ng x�c �?nh ��?c T?nh/Th�nh ph? v� Ph�?ng/X? t? t?a �? n�y. Vui l?ng ch?n l?i v? tr� r? h�n tr�n b?n �?.' };
+    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
     return;
   }
   
@@ -1122,11 +1155,8 @@ function removeCourt(index) { if (form.courts.length <= 1) return; form.courts.s
 function setFiles(group, event) { files[group] = Array.from(event.target.files || []); }
 function removeFile(group, index) { files[group].splice(index, 1); }
 function hasDocumentForGroup(group) {
-  if (editingApplicationStatus.value === 'need_supplement' && group !== 'additional') {
-    return files[group]?.length > 0;
-  }
-
-  return files[group]?.length > 0 || existingDocumentTypes.value.has(group);
+  return files[group]?.length > 0 || (existingDocuments[group] || [])
+    .some((document) => document.status !== 'rejected' && document.file_available !== false);
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -1161,7 +1191,7 @@ function validateForm() {
   if (form.applicant_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.applicant_email)) fieldErrors.applicant_email = 'Email không đúng định dạng.';
   if (form.venue_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.venue_email)) fieldErrors.venue_email = 'Email sân không đúng định dạng.';
   if (form.tax_code && !/^\d{10}(-?\d{3})?$/.test(form.tax_code)) fieldErrors.tax_code = 'Mã số thuế phải gồm 10 số hoặc 13 số, có thể có dấu gạch ngang sau 10 số.';
-  if (form.account_number && !/^\d+$/.test(form.account_number)) fieldErrors.account_number = 'Số tài khoản chỉ được nhập chữ số.';
+  if (form.account_number && !/^\d{6,19}$/.test(form.account_number)) fieldErrors.account_number = 'Số tài khoản phải gồm từ 6 đến 19 chữ số.';
   if (!isValidIdentity()) fieldErrors.representative_identity_number = 'Số giấy tờ không đúng định dạng đã chọn.';
   if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) {
     fieldErrors.venue_map_url = 'Vui lòng dùng link Google Maps có tọa độ hợp lệ hoặc chọn vị trí trên bản đồ.';
@@ -1174,12 +1204,12 @@ function validateForm() {
     fieldErrors.venue_coordinates = 'Tọa độ bản đồ chưa khớp với địa chỉ đã chọn.';
   }
   if (mapReverseBusy.value) {
-    fieldErrors.venue_coordinates = 'H? th?ng �ang c?p nh?t �?a ch? theo t?a �?. Vui l?ng ch? ho�n t?t r?i g?i l?i.';
+    fieldErrors.venue_coordinates = 'Hệ thống đang cập nhật địa chỉ theo tọa độ. Vui lòng chờ hoàn tất rồi gửi lại.';
   }
   const courtCount = Number(form.court_count_total);
   if (!Number.isInteger(courtCount) || courtCount < 1 || courtCount > 100) fieldErrors.court_count_total = 'Số lượng sân con phải từ 1 đến 100.';
   const basePrice = Number(form.base_price_per_hour);
-  if (!Number.isFinite(basePrice) || basePrice < 1000) fieldErrors.base_price_per_hour = 'Giá cơ bản phải từ 1.000 VNĐ trở lên.';
+  if (!Number.isFinite(basePrice) || basePrice < 1000 || basePrice > 100000000) fieldErrors.base_price_per_hour = 'Giá cơ bản phải từ 1.000 đến 100.000.000 VNĐ.';
   // if (!bankVerified.value && !bankManualMode.value) fieldErrors.account_number = bankError.value || 'Vui lòng chờ xác minh tài khoản ngân hàng thành công.';
   if (!form.account_holder_name) fieldErrors.account_holder_name = 'Vui lòng nhập tên chủ tài khoản.';
   if (!hasDocumentForGroup('identity')) fieldErrors.identity_documents = 'Vui lòng tải lên CCCD/CMND.';
@@ -1197,7 +1227,12 @@ function validateForm() {
 
 async function focusFirstError() {
   await nextTick();
-  const first = document.querySelector('.border-red-400, .border-red-300, .has-error, .upload-box--error, .form-error');
+  const first = document.querySelector('.has-error, .upload-box--error, .form-error');
+  const section = first?.closest('details.form-section');
+  if (section) {
+    section.open = true;
+    await nextTick();
+  }
   if (first && typeof first.focus === 'function') first.focus({ preventScroll: false });
   first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
 }
@@ -1285,20 +1320,32 @@ async function submit() {
 }
 
 // ─── Application actions ──────────────────────────────────────────────────────
-async function cancelApplication(application) {
-  const ok = window.confirm([
-    `Hủy hồ sơ đăng ký cho ${application.venue_name}?`,
-    '',
-    'Sau khi hủy, hồ sơ sẽ ngừng xử lý và không được cấp quyền chủ sân từ hồ sơ này.',
-    'Các file đã nộp vẫn được lưu trong lịch sử để tra cứu khi cần.',
-  ].join('\n'));
-  if (!ok) return;
+function cancelApplication(application) {
+  if (!application?.id || actioningApplicationId.value) return;
+  cancelTarget.value = application;
+  cancelError.value = '';
+}
+
+function closeCancelConfirmation() {
+  if (actioningApplicationId.value) return;
+  cancelTarget.value = null;
+  cancelError.value = '';
+}
+
+async function confirmCancelApplication() {
+  const application = cancelTarget.value;
+  if (!application?.id || actioningApplicationId.value) return;
+
+  actioningApplicationId.value = application.id;
   try {
     await api(`/api/user/partner-application/${application.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Người dùng hủy hồ sơ từ trang đăng ký đối tác.' }) });
-    alert('Đã hủy hồ sơ thành công.');
+    cancelTarget.value = null;
+    toast.success('Đã hủy hồ sơ thành công.');
     await loadApplications();
   } catch (err) {
-    alert(err.message || 'Không thể hủy hồ sơ lúc này.');
+    cancelError.value = err.message || 'Không thể hủy hồ sơ lúc này.';
+  } finally {
+    actioningApplicationId.value = '';
   }
 }
 
@@ -1317,13 +1364,44 @@ function canSubmitSignedApplication(application) {
 }
 
 async function submitSignedApplication(application) {
-  if (!application?.id) return;
-  await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
-  await loadApplications();
+  if (!application?.id || actioningApplicationId.value) return;
+
+  actioningApplicationId.value = application.id;
+  try {
+    await api(`/api/user/partner-application/${application.id}/submit`, { method: 'POST' });
+    toast.success('Hồ sơ đã được gửi để SportGo xét duyệt.');
+    await loadApplications();
+  } catch (err) {
+    toast.error(err.message || 'Không thể gửi hồ sơ lúc này.');
+  } finally {
+    actioningApplicationId.value = '';
+  }
 }
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
+function applicationPrimaryAction(application) {
+  if (needsChangeAppendixSignature(application)) return { type: 'appendix', icon: 'fileText', label: 'Xem và ký phụ lục' };
+  if (needsApplicationSignature(application)) return { type: 'application', icon: 'pencil', label: 'Xem và ký đơn' };
+  if (needsContractSignature(application)) return { type: 'contract', icon: 'fileText', label: 'Xem và ký hợp đồng' };
+  if (canSubmitSignedApplication(application)) return { type: 'submit', icon: 'send', label: 'Gửi hồ sơ' };
+  if (application?.status === 'need_supplement') return { type: 'supplement', icon: 'edit', label: 'Bổ sung hồ sơ' };
+  if (application?.status === 'rejected') return { type: 'duplicate', icon: 'copy', label: 'Tạo hồ sơ mới từ bản này' };
+  return null;
+}
+
+function runApplicationPrimaryAction(application) {
+  const action = applicationPrimaryAction(application);
+  if (!action) return;
+  if (action.type === 'appendix') return openApplicationDocument(changeAppendixWord(application), application);
+  if (action.type === 'application') return openApplicationDocument(applicationWord(application), application);
+  if (action.type === 'contract') return openApplicationDocument(contractWord(application), application);
+  if (action.type === 'submit') return submitSignedApplication(application);
+  if (action.type === 'supplement') return editApplication(application);
+  if (action.type === 'duplicate') return duplicateApplication(application);
+}
+
 function needsApplicationSignature(application) {
+  if (application?.status !== 'draft') return false;
   const doc = applicationWord(application);
   if (!doc || doc.status === 'completed') return false;
   return !doc.signatures?.some(s => s.signer_side === 'owner' && s.status === 'signed');
@@ -1370,15 +1448,9 @@ function statusLabel(status) {
   return { draft: 'Chờ ký đơn', pending: 'Chờ xét duyệt', submitted: 'Chờ xét duyệt', reviewing: 'Đang xem xét', need_supplement: 'Cần bổ sung', contract_pending_owner_signature: 'Đã duyệt, chờ ký hợp đồng', contract_pending_sportgo_signature: 'Chờ SportGo ký', completed: 'Đang hoạt động', rejected: 'Bị từ chối', cancelled: 'Đã hủy' }[status] || status || '-';
 }
 function statusClass(status) {
-  if (['rejected', 'cancelled'].includes(status)) return 'bg-red-50 text-red-700';
-  if (status === 'completed') return 'bg-emerald-50 text-emerald-700';
-  if (status === 'need_supplement') return 'bg-amber-50 text-amber-700';
-  return 'bg-amber-50 text-amber-700';
-}
-function statusDotClass(status) {
-  if (['rejected', 'cancelled'].includes(status)) return 'bg-red-400';
-  if (status === 'completed') return 'bg-emerald-400';
-  return 'bg-amber-400';
+  if (['rejected', 'cancelled'].includes(status)) return 'badge-red';
+  if (status === 'completed') return 'badge-emerald';
+  return 'badge-amber';
 }
 function coordinateText(a) { if (!a?.venue_latitude || !a?.venue_longitude) return '-'; return `${a.venue_latitude}, ${a.venue_longitude}`; }
 function formatDate(value) {
@@ -1399,10 +1471,3 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n);
 }
 </script>
-<style>
-@import "../../../css/partner/partner.css";
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-</style>

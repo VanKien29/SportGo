@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venue_base_prices', function (Blueprint $table) {
-            $table->char('id', 36)->primary();
-            $table->char('venue_cluster_id', 36);
+            $table->id();
+            $table->unsignedBigInteger('venue_cluster_id');
             $table->unsignedBigInteger('court_type_id');
             $table->decimal('price', 12, 2)->default(10000);
             $table->timestamps();

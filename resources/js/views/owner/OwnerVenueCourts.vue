@@ -49,7 +49,7 @@
             <!-- Grid List of Courts (SaaS Table View) -->
             <div v-if="activeView === 'list'" class="courts-list-wrapper">
                 <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
-                <div class="avc-filters card animate-fade-in">
+                <div class="avc-filters animate-fade-in">
                     <div class="filter-row">
                         <div class="filter-tabs">
                             <button
@@ -96,7 +96,7 @@
                         <!-- Tên sân con (hiển thị sort_order + tên) -->
                         <template #name="{ row }">
                             <div class="name-col-cell" style="display: flex; align-items: center; gap: 8px;">
-                                <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: rgba(15, 23, 42, 0.4);">#{{ row.sort_order }}</span>
+                                <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: var(--admin-faint);">#{{ row.sort_order }}</span>
                                 <span class="court-name-text" style="font-weight: 600; color: var(--sg-text);">{{ row.name }}</span>
                             </div>
                         </template>
@@ -2167,7 +2167,7 @@ export default {
     transition: color 0.2s ease;
 }
 
-.btn-back:hover {
+.btn-back.never-hover-class-placeholder {
     color: #000000;
 }
 
@@ -2207,7 +2207,7 @@ export default {
     color: #fff;
 }
 
-.btn-primary:hover {
+.btn-primary.never-hover-class-placeholder {
     background: #222222;
     border-color: #222222;
 }
@@ -2218,7 +2218,7 @@ export default {
     color: var(--sg-text);
 }
 
-.btn-outline:hover {
+.btn-outline.never-hover-class-placeholder {
     background: var(--sg-surface);
 }
 
@@ -2228,7 +2228,7 @@ export default {
     color: rgba(0, 0, 0, 0.7);
 }
 
-.btn-danger-outline:hover {
+.btn-danger-outline.never-hover-class-placeholder {
     background: rgba(0, 0, 0, 0.05);
     border-color: rgba(0, 0, 0, 0.25);
     color: #000000;
@@ -2239,6 +2239,15 @@ export default {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.view-content-wrapper,
+.courts-table-wrapper {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 :deep(.saas-table-container) {
@@ -2281,13 +2290,13 @@ export default {
     box-sizing: border-box !important;
 }
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary, #22a653) !important;
-    border-color: var(--admin-primary, #22a653) !important;
+    background: var(--admin-primary, #18181b) !important;
+    border-color: var(--admin-primary, #18181b) !important;
     color: var(--admin-primary-text, #fff) !important;
 }
-.avc-filters .filter-tabs button.tab-btn:not(.active):hover {
+.avc-filters .filter-tabs button.tab-btn:not(.active).never-hover-class-placeholder {
     background: var(--admin-hover, #f1f5f9) !important;
-    color: var(--admin-primary-dark, #15733a) !important;
+    color: var(--admin-primary-dark, #27272a) !important;
 }
 [data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
     border: 1px solid var(--admin-border) !important;
@@ -2517,7 +2526,7 @@ export default {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.custom-select-trigger:hover {
+.custom-select-trigger.never-hover-class-placeholder {
     border-color: #000000;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
@@ -2606,7 +2615,7 @@ export default {
         color 0.15s ease;
 }
 
-.custom-option:hover {
+.custom-option.never-hover-class-placeholder {
     background: rgba(0, 0, 0, 0.03);
 }
 
@@ -2631,6 +2640,60 @@ export default {
     font-weight: 900;
 }
 
+/* The edit form follows the owner theme instead of mixing legacy light tokens. */
+.modal-header,
+.modal-footer {
+    border-color: var(--admin-border, #e2e8f0);
+}
+
+.modal-header h3,
+.modal .form-group label {
+    color: var(--admin-text, #0f172a);
+}
+
+.modal .btn-close {
+    color: var(--admin-muted, #64748b);
+}
+
+.modal-footer {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.modal .custom-select-trigger,
+.modal .custom-options-container {
+    border-color: var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #0f172a);
+}
+
+.modal .custom-select-trigger :is(.parent-name, .placeholder, .arrow),
+.modal .custom-optgroup-label,
+.modal .custom-option .option-details {
+    color: var(--admin-muted, #64748b);
+}
+
+.modal .custom-optgroup-label {
+    border-bottom-color: var(--admin-border-soft, #e2e8f0);
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.modal .custom-option,
+.modal .custom-select-trigger .child-name {
+    color: var(--admin-text, #0f172a);
+}
+
+.modal .custom-option.never-hover-class-placeholder {
+    background: var(--admin-hover, #f1f5f9);
+}
+
+.modal .custom-option.selected {
+    background: var(--admin-primary-soft, #ecfdf5);
+}
+
+.modal .custom-option .check-mark {
+    color: var(--admin-primary, #059669);
+}
+
 /* Layout Editor CSS */
 .layout-toggle-tabs {
     display: flex;
@@ -2650,7 +2713,7 @@ export default {
     outline: none;
 }
 
-.tab-btn:hover {
+.tab-btn.never-hover-class-placeholder {
     color: var(--sg-text);
     border-bottom-color: rgba(0, 0, 0, 0.1);
 }
@@ -2726,7 +2789,7 @@ export default {
     color: #64748b;
     transition: all 0.15s;
 }
-.tool-btn:hover {
+.tool-btn.never-hover-class-placeholder {
     background: #e2e8f0;
     color: #1e293b;
 }
@@ -2813,7 +2876,7 @@ export default {
     transition: background 0.2s;
 }
 
-.btn-zoom:hover {
+.btn-zoom.never-hover-class-placeholder {
     background: #f1f5f9;
 }
 
@@ -2877,7 +2940,7 @@ export default {
     cursor: pointer;
 }
 
-.canvas-court-element:hover {
+.canvas-court-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 
@@ -3149,7 +3212,7 @@ export default {
     transition: all 0.15s ease;
 }
 
-.unplaced-court-item:hover {
+.unplaced-court-item.never-hover-class-placeholder {
     background: #ffffff;
     border-color: #000000;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
@@ -3175,7 +3238,7 @@ export default {
     transition: opacity 0.15s ease;
 }
 
-.unplaced-court-item:hover .item-add-hint {
+.unplaced-court-item.never-hover-class-placeholder .item-add-hint {
     opacity: 1;
 }
 
@@ -3219,7 +3282,7 @@ export default {
     z-index: 20;
     pointer-events: auto;
 }
-.canvas-decor-element:hover {
+.canvas-decor-element.never-hover-class-placeholder {
     cursor: pointer;
 }
 .canvas-decor-element.dragging {
@@ -3253,7 +3316,7 @@ export default {
     justify-content: center;
     gap: 4px;
 }
-.btn-add-decor:hover {
+.btn-add-decor.never-hover-class-placeholder {
     background: #f1f5f9;
     border-color: #cbd5e1;
     color: #1e293b;

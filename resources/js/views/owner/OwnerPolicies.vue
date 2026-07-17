@@ -244,6 +244,7 @@ export default {
       noticeModal: false,
       noticeForm: this.emptyNotice(),
       showScrollTop: false,
+      loadRequestId: 0,
     };
   },
   computed: {
@@ -273,34 +274,49 @@ export default {
       return { id: null, title: '', content: '', status: 'active' };
     },
     async loadClusters() {
+      const initialClusterId = this.selectedClusterId;
+      const initialLoad = initialClusterId ? this.load() : null;
       try {
         const response = await venueClusterService.getClusters();
         this.clusters = response.data || [];
-        if (!this.selectedClusterId && this.clusters[0]) {
+        const hasSelectedCluster = this.clusters.some(
+          (cluster) => String(cluster.id) === String(this.selectedClusterId),
+        );
+        if (!hasSelectedCluster && this.clusters[0]) {
           this.selectedClusterId = this.clusters[0].id;
           localStorage.setItem('selected_cluster', this.selectedClusterId);
         }
-        await this.load();
+        if (!initialLoad || String(initialClusterId) !== String(this.selectedClusterId)) {
+          await this.load();
+        } else {
+          await initialLoad;
+        }
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách cụm sân.';
       }
     },
     async load() {
       if (!this.selectedClusterId) return;
+      const requestId = ++this.loadRequestId;
+      const clusterId = this.selectedClusterId;
       this.loading = true;
       this.error = '';
       try {
-        localStorage.setItem('selected_cluster', this.selectedClusterId);
-        const response = await ownerPolicyService.list(this.selectedClusterId);
+        localStorage.setItem('selected_cluster', clusterId);
+        const response = await ownerPolicyService.list(clusterId);
+        if (requestId !== this.loadRequestId) return;
         const data = response.data || {};
-        this.currentCluster = data.venue_cluster || this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
+        this.currentCluster = data.venue_cluster || this.clusters.find((cluster) => String(cluster.id) === String(clusterId)) || null;
         this.systemPolicies = data.system_policies || [];
         this.venueRules = data.venue_rules || [];
         this.customerNotices = data.customer_notices || [];
       } catch (error) {
+        if (requestId !== this.loadRequestId) return;
         this.error = error.message || 'Không thể tải chính sách sân.';
       } finally {
-        this.loading = false;
+        if (requestId === this.loadRequestId) {
+          this.loading = false;
+        }
       }
     },
     async changeCluster() {
@@ -503,10 +519,10 @@ export default {
 .section-head h3, .policy-card h3, .modal h3 { margin: 0 0 6px; }
 .section-head p, .summary-block p, .notice-card p, .modal-head p, small { margin: 0; color: var(--admin-muted); }
 .cluster-picker, .cluster-badge { display: grid; gap: 6px; min-width: 260px; font-weight: 800; }
-.cluster-badge { background: var(--admin-surface-muted); border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; }
+.cluster-badge { background: var(--admin-surface-muted); border: 1px solid var(--admin-border); border-radius: 10px; padding: 10px 12px; }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.tabs button { border: 1px solid #dbe3ef; background: var(--admin-surface); border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
-.tabs .active { background: #dcfce7; border-color: #22c55e; color: #166534; }
+.tabs button { border: 1px solid var(--admin-border); background: var(--admin-surface); border-radius: 8px; padding: 10px 14px; font-weight: 500; cursor: pointer; }
+.tabs .active { background: var(--admin-primary); border-color: var(--admin-primary); color: var(--admin-primary-text); }
 .policy-section { display: grid; gap: 14px; }
 .inheritance-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .inheritance-flow article { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: start; background: var(--admin-surface); border: 1px solid #dbeafe; border-radius: 12px; padding: 14px; }

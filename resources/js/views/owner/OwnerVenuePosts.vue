@@ -1,18 +1,10 @@
 <template>
   <div class="posts-page">
-    <div class="page-header sg-page-header">
-      <div class="header-left sg-page-heading">
-        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
-          <router-link to="/owner/dashboard">Dashboard</router-link>
-          <span>/</span>
-          <span>Quản lý bài viết</span>
-        </nav>
-        <h2>Quản lý bài viết</h2>
-        <p class="muted">Đăng tin tức, hướng dẫn sử dụng, quảng bá sân bãi và giải đấu.</p>
-      </div>
-      <button class="btn btn-create primary sg-primary-action" type="button" @click="openForm()">
-        <i class="fas fa-plus mr-2"></i>
-        <span>Tạo bài viết mới</span>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container">
+      <button class="btn-float-add" type="button" @click="openForm()" title="Tạo bài viết mới">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Tạo bài viết</span>
       </button>
     </div>
 
@@ -84,7 +76,7 @@
 
     <!-- Posts Grid -->
     <transition-group v-else name="list" tag="div" class="posts-list grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
-      <div v-for="post in posts" :key="post.id" class="post-card card premium-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div v-for="post in posts" :key="post.id" class="post-card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08); transition: all 0.3s;">
         
         <!-- Image Cover -->
         <div class="cover-image" style="height: 200px; position: relative; background: #f8fafc; cursor: pointer; border-bottom: 1px solid #f1f5f9; overflow: hidden;">
@@ -97,7 +89,7 @@
           />
           <div v-else style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; background: #f1f5f9;"><AppIcon name="image" size="36" /></div>
           
-          <span class="status-badge" :class="post.status || 'draft'" style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.95); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px);">
+          <span :style="statusBadgeStyle(post.status)">
             {{ statusLabel(post) }}
           </span>
           <span style="position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; background: rgba(15,23,42,0.85); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); color: #fff; backdrop-filter: blur(4px);">
@@ -261,6 +253,40 @@
                 <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.thumbnail[0] }}</p>
               </div>
 
+              <div class="field" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh bài viết</span>
+                  <span style="font-size: 12px; color: #64748b;">{{ galleryImageCount }}/{{ MAX_GALLERY_IMAGES }}</span>
+                </div>
+                <input
+                  ref="galleryInputRef"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  style="display: none;"
+                  @change="handleGalleryUpload"
+                />
+                <button
+                  v-if="editingPostStatus !== 'pending_review' && galleryImageCount < MAX_GALLERY_IMAGES"
+                  class="btn ghost compact"
+                  type="button"
+                  @click="galleryInputRef?.click()"
+                >
+                  <AppIcon name="image" size="16" /> Thêm ảnh
+                </button>
+                <div v-if="existingGallery.length || galleryFiles.length" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                  <div v-for="media in existingGallery" :key="media.id" style="position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <img :src="normalizeMediaUrl(media)" alt="Ảnh bài viết" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <button v-if="editingPostStatus !== 'pending_review'" type="button" class="icon-btn" title="Xóa ảnh" @click="removeExistingGallery(media)" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.9); color: #fff;"><AppIcon name="trash" size="14" /></button>
+                  </div>
+                  <div v-for="item in galleryFiles" :key="item.preview" style="position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <img :src="item.preview" alt="Ảnh mới chọn" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <button type="button" class="icon-btn" title="Xóa ảnh" @click="removeGalleryFile(item)" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.9); color: #fff;"><AppIcon name="trash" size="14" /></button>
+                  </div>
+                </div>
+                <p class="error-msg" v-if="errors.gallery" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.gallery[0] }}</p>
+              </div>
+
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
                 <CustomSelect v-model="form.venue_cluster_id" :options="clusterOptions" placeholder="-- Chọn cụm sân --" :class="{ 'is-invalid': errors.venue_cluster_id }" disabled />
@@ -355,8 +381,13 @@ const isEditing = ref(false);
 const editingPostId = ref(null);
 const editingPostStatus = ref('');
 const fileInputRef = ref(null);
+const galleryInputRef = ref(null);
 
 const thumbnailPreview = ref('');
+const galleryFiles = ref([]);
+const existingGallery = ref([]);
+const removedGalleryMediaIds = ref([]);
+const MAX_GALLERY_IMAGES = 10;
 const deletingPost = ref(null);
 
 const categoryOptions = [
@@ -370,6 +401,8 @@ const categoryOptions = [
 const clusterOptions = computed(() => {
   return venueClusters.value.map(c => ({ label: c.name, value: c.id }));
 });
+
+const galleryImageCount = computed(() => existingGallery.value.length + galleryFiles.value.length);
 
 const pagination = reactive({
   current_page: 1,
@@ -521,6 +554,43 @@ const handleFileUpload = async (e) => {
   }
 };
 
+const handleGalleryUpload = (event) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  const files = Array.from(event.target.files || []);
+  const availableSlots = MAX_GALLERY_IMAGES - galleryImageCount.value;
+  const accepted = files.filter((file) => allowedTypes.includes(file.type) && file.size <= MAX_SOURCE_IMAGE_BYTES).slice(0, availableSlots);
+
+  if (accepted.length !== files.length) {
+    errors.value.gallery = ['Chỉ nhận tối đa 10 ảnh JPG, PNG hoặc WEBP, mỗi ảnh không quá 5MB.'];
+    toast.error('Kiểm tra lại số lượng, định dạng hoặc dung lượng ảnh bài viết.');
+  } else {
+    errors.value.gallery = null;
+  }
+
+  galleryFiles.value.push(...accepted.map((file) => ({ file, preview: URL.createObjectURL(file) })));
+  event.target.value = '';
+};
+
+const removeGalleryFile = (item) => {
+  URL.revokeObjectURL(item.preview);
+  galleryFiles.value = galleryFiles.value.filter((candidate) => candidate !== item);
+};
+
+const removeExistingGallery = (media) => {
+  existingGallery.value = existingGallery.value.filter((candidate) => candidate.id !== media.id);
+  if (!removedGalleryMediaIds.value.includes(media.id)) {
+    removedGalleryMediaIds.value.push(media.id);
+  }
+};
+
+const resetGallery = () => {
+  galleryFiles.value.forEach((item) => URL.revokeObjectURL(item.preview));
+  galleryFiles.value = [];
+  existingGallery.value = [];
+  removedGalleryMediaIds.value = [];
+  if (galleryInputRef.value) galleryInputRef.value.value = '';
+};
+
 const compressImage = (file, maxBytes) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -579,6 +649,7 @@ const clearThumbnail = () => {
 const openForm = (post = null) => {
   errors.value = {};
   clearThumbnail();
+  resetGallery();
 
   if (post) {
     isEditing.value = true;
@@ -599,6 +670,7 @@ const openForm = (post = null) => {
     
     // Existing image preview
     thumbnailPreview.value = getThumbnail(post);
+    existingGallery.value = Array.isArray(post.media) ? post.media.filter((media) => media.collection === 'gallery') : [];
   } else {
     isEditing.value = false;
     editingPostId.value = null;
@@ -673,6 +745,12 @@ const submitForm = async () => {
   
   if (form.thumbnail) {
     formData.append('thumbnail', form.thumbnail);
+  }
+  for (const { file: image } of galleryFiles.value) {
+    formData.append('gallery[]', image);
+  }
+  for (const mediaId of removedGalleryMediaIds.value) {
+    formData.append('removed_gallery_media_ids[]', mediaId);
   }
   
   try {
@@ -824,6 +902,18 @@ const statusLabel = (post) => {
   return map[post.status] || post.status;
 };
 
+const statusBadgeStyle = (status) => {
+  const styles = {
+    'published': { bg: 'rgba(16, 185, 129, 0.95)', color: 'white' },
+    'pending_review': { bg: 'rgba(59, 130, 246, 0.95)', color: 'white' },
+    'draft': { bg: 'rgba(241, 245, 249, 0.95)', color: '#475569' },
+    'rejected': { bg: 'rgba(249, 115, 22, 0.95)', color: 'white' },
+    'hidden': { bg: 'rgba(239, 68, 68, 0.95)', color: 'white' }
+  };
+  const s = styles[status] || { bg: 'rgba(100, 116, 139, 0.95)', color: 'white' };
+  return `position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px); background: ${s.bg}; color: ${s.color}; z-index: 10;`;
+};
+
 const formatCategory = (type) => {
   const map = {
     'promotion': 'Khuyến mãi',
@@ -912,7 +1002,7 @@ const formatDate = (dateString) => {
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.btn-create:hover {
+.btn-create.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
@@ -926,7 +1016,7 @@ const formatDate = (dateString) => {
   color: #fff;
   border-radius: 8px;
 }
-.btn.primary.btn-submit:hover {
+.btn.primary.btn-submit.never-hover-class-placeholder {
   background: #1e293b;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
 }
@@ -937,7 +1027,7 @@ const formatDate = (dateString) => {
   color: #334155;
 }
 
-.btn.ghost:hover {
+.btn.ghost.never-hover-class-placeholder {
   background: #f8fafc;
   border-color: #cbd5e1;
 }
@@ -948,7 +1038,7 @@ const formatDate = (dateString) => {
   background: #fef2f2;
 }
 
-.btn.ghost.danger:hover {
+.btn.ghost.danger.never-hover-class-placeholder {
   background: #fee2e2;
   border-color: #fca5a5;
 }
@@ -1005,24 +1095,25 @@ const formatDate = (dateString) => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border: 1px solid transparent;
-  background: #f8fafc;
-  color: #64748b;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 99px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.tab-btn.pill:hover {
-  background: #f1f5f9;
-  color: #334155;
+.tab-btn.pill.never-hover-class-placeholder {
+  background: var(--admin-hover);
+  color: var(--admin-primary-dark);
 }
 
 .tab-btn.pill.active {
-  background: #10b981;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: var(--admin-primary-text);
+  box-shadow: 0 2px 8px var(--admin-primary-ring);
 }
 
 .filters {
@@ -1057,7 +1148,7 @@ const formatDate = (dateString) => {
   min-width: 200px;
 }
 
-.modern-select:hover {
+.modern-select.never-hover-class-placeholder {
   border-color: #cbd5e1;
 }
 .modern-select:focus {
@@ -1122,7 +1213,7 @@ const formatDate = (dateString) => {
   flex-direction: column;
   gap: 16px;
 }
-.post-card:hover {
+.post-card.never-hover-class-placeholder {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
@@ -1195,7 +1286,7 @@ const formatDate = (dateString) => {
   transition: background 0.2s;
   cursor: default;
 }
-.hashtag.pill:hover {
+.hashtag.pill.never-hover-class-placeholder {
   background: rgba(16, 185, 129, 0.15);
 }
 
@@ -1256,7 +1347,7 @@ const formatDate = (dateString) => {
   transition: transform 0.3s ease;
 }
 
-.media-item:hover img {
+.media-item.never-hover-class-placeholder img {
   transform: scale(1.05);
 }
 
@@ -1324,7 +1415,7 @@ const formatDate = (dateString) => {
   transition: color 0.2s;
   cursor: pointer;
 }
-.stat-item:hover {
+.stat-item.never-hover-class-placeholder {
   color: #0ea5e9;
 }
 
@@ -1332,7 +1423,7 @@ const formatDate = (dateString) => {
   border: none;
   background: #f8fafc;
 }
-.action-btn:hover {
+.action-btn.never-hover-class-placeholder {
   background: #e2e8f0;
 }
 
@@ -1394,7 +1485,7 @@ const formatDate = (dateString) => {
   cursor: pointer;
   transition: all 0.2s;
 }
-.close-btn:hover {
+.close-btn.never-hover-class-placeholder {
   background: #e2e8f0;
   color: #0f172a;
 }
@@ -1461,7 +1552,7 @@ const formatDate = (dateString) => {
   gap: 12px;
 }
 
-.modern-upload:hover {
+.modern-upload.never-hover-class-placeholder {
   border-color: #10b981;
   background: #ecfdf5;
 }
@@ -1529,10 +1620,10 @@ const formatDate = (dateString) => {
   transition: all 0.2s;
   backdrop-filter: blur(4px);
 }
-.preview-item:hover .remove-btn {
+.preview-item.never-hover-class-placeholder .remove-btn {
   opacity: 1;
 }
-.remove-btn:hover {
+.remove-btn.never-hover-class-placeholder {
   background: #ef4444;
   transform: scale(1.1);
 }
@@ -1631,4 +1722,5 @@ const formatDate = (dateString) => {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
 }
+
 </style>

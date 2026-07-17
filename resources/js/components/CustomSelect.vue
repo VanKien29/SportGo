@@ -1,100 +1,91 @@
 <template>
-  <div class="custom-select" :class="{ 'is-open': isOpen, 'disabled': disabled }" v-click-outside="closeDropdown">
-    <div class="select-trigger" @click="toggleDropdown">
+  <div ref="root" class="custom-select" :class="{ open: isOpen, disabled }">
+    <button
+      type="button"
+      class="select-trigger"
+      :disabled="disabled"
+      :aria-expanded="isOpen"
+      aria-haspopup="listbox"
+      @click="isOpen = !isOpen"
+    >
       <span class="selected-text">{{ selectedLabel }}</span>
-      <svg v-if="!disabled" class="chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"></polyline>
-      </svg>
-      <svg v-else class="lock-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-      </svg>
-    </div>
-    <transition name="dropdown-fade">
-      <ul v-if="isOpen" class="options-list">
-        <li 
-          v-for="option in normalizedOptions" 
+      <AppIcon :name="disabled ? 'lock' : 'chevronDown'" size="15" />
+    </button>
+
+    <Transition name="select-fade">
+      <ul v-if="isOpen" class="options-list" role="listbox">
+        <li
+          v-for="option in normalizedOptions"
           :key="option.value"
-          class="option-item"
-          :class="{ 'is-selected': modelValue === option.value }"
+          role="option"
+          tabindex="0"
+          :aria-selected="sameValue(modelValue, option.value)"
+          :class="{ selected: sameValue(modelValue, option.value) }"
           @click="selectOption(option)"
+          @keydown.enter.prevent="selectOption(option)"
+          @keydown.space.prevent="selectOption(option)"
         >
-          {{ option.label }}
+          <span>{{ option.label }}</span>
+          <AppIcon v-if="sameValue(modelValue, option.value)" name="check" size="15" />
         </li>
       </ul>
-    </transition>
+    </Transition>
   </div>
 </template>
 
 <script>
+import AppIcon from './AppIcon.vue';
+
 export default {
   name: 'CustomSelect',
+  components: { AppIcon },
   props: {
-    modelValue: {
-      type: [String, Number],
-      default: ''
-    },
-    options: {
-      type: Array,
-      default: () => []
-    },
-    placeholder: {
-      type: String,
-      default: 'Chọn...'
-    },
-    disabled: {
-      type: Boolean,
-      default: false
-    }
+    modelValue: { type: [String, Number], default: '' },
+    options: { type: Array, default: () => [] },
+    placeholder: { type: String, default: 'Chọn...' },
+    disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue', 'change'],
   data() {
-    return {
-      isOpen: false
-    };
+    return { isOpen: false };
   },
   computed: {
     normalizedOptions() {
-      // If options are strings, convert to { label, value }
-      if (this.options.length > 0 && typeof this.options[0] !== 'object') {
-        return this.options.map(opt => ({ label: opt, value: opt }));
-      }
-      return this.options;
+      return this.options.map((option) => (
+        typeof option === 'object' ? option : { label: option, value: option }
+      ));
     },
     selectedLabel() {
-      const selected = this.normalizedOptions.find(opt => opt.value === this.modelValue);
-      return selected ? selected.label : this.placeholder;
-    }
+      return this.normalizedOptions.find((option) => this.sameValue(option.value, this.modelValue))?.label
+        || this.placeholder;
+    },
+  },
+  watch: {
+    disabled(disabled) {
+      if (disabled) this.isOpen = false;
+    },
+  },
+  mounted() {
+    document.addEventListener('click', this.onOutsideClick);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.onOutsideClick);
   },
   methods: {
-    toggleDropdown() {
-      if (this.disabled) return;
-      this.isOpen = !this.isOpen;
-    },
-    closeDropdown() {
-      this.isOpen = false;
+    sameValue(left, right) {
+      return String(left ?? '') === String(right ?? '');
     },
     selectOption(option) {
       this.$emit('update:modelValue', option.value);
       this.$emit('change', option.value);
       this.isOpen = false;
-    }
-  },
-  directives: {
-    clickOutside: {
-      mounted(el, binding) {
-        el.clickOutsideEvent = function(event) {
-          if (!(el === event.target || el.contains(event.target))) {
-            binding.value(event);
-          }
-        };
-        document.addEventListener('click', el.clickOutsideEvent);
-      },
-      unmounted(el) {
-        document.removeEventListener('click', el.clickOutsideEvent);
+    },
+    onOutsideClick(event) {
+      if (this.isOpen && this.$refs.root && !this.$refs.root.contains(event.target)) {
+        this.isOpen = false;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -102,99 +93,87 @@ export default {
 .custom-select {
   position: relative;
   min-width: 160px;
-  user-select: none;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--admin-font-size-base);
 }
 
 .select-trigger {
   display: flex;
+  width: 100%;
+  min-height: 40px;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: #fff;
-  border: 1px solid #dbe3ef;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
-  height: 40px;
-  box-sizing: border-box;
 }
 
-.custom-select.is-open .select-trigger {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+.custom-select.open .select-trigger {
+  border-color: var(--admin-primary);
 }
 
-.custom-select.disabled .select-trigger {
-  background-color: #f1f5f9;
+.select-trigger:disabled {
+  background: var(--admin-surface-muted);
+  color: var(--admin-faint);
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.72;
 }
 
 .selected-text {
-  font-size: 14px;
-  color: #0f172a;
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-right: 8px;
-}
-
-.chevron {
-  color: #64748b;
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
-}
-
-.custom-select.is-open .chevron {
-  transform: rotate(180deg);
+  white-space: nowrap;
 }
 
 .options-list {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+  top: calc(100% + 5px);
   right: 0;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  list-style: none;
-  padding: 4px;
-  margin: 0;
-  max-height: 250px;
+  left: 0;
+  z-index: 120;
+  max-height: 240px;
   overflow-y: auto;
-  z-index: 100;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+  list-style: none;
 }
 
-.option-item {
-  padding: 8px 12px;
-  border-radius: 4px;
+.options-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--admin-radius);
+  color: var(--admin-text);
   cursor: pointer;
-  color: #334155;
-  transition: background 0.15s ease;
+  outline: none;
 }
 
-.option-item:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+.options-list li:hover,
+.options-list li:focus-visible,
+.options-list li.selected {
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary-dark);
 }
 
-.option-item.is-selected {
-  background: #eff6ff;
-  color: #1e40af;
-  font-weight: 700;
+.select-fade-enter-active,
+.select-fade-leave-active {
+  transition: opacity var(--admin-transition-fast) ease, transform var(--admin-transition-fast) ease;
 }
 
-.dropdown-fade-enter-active,
-.dropdown-fade-leave-active {
-  transition: opacity 0.2s, transform 0.2s;
-}
-
-.dropdown-fade-enter-from,
-.dropdown-fade-leave-to {
+.select-fade-enter-from,
+.select-fade-leave-to {
   opacity: 0;
-  transform: translateY(-5px);
+  transform: translateY(-4px);
 }
 </style>

@@ -14,6 +14,12 @@ export const ownerNavigationSections = [
         to: '/owner/partner-profile',
         activeNames: ['owner-partner-profile'],
       },
+      {
+        label: 'Tin nhắn',
+        icon: 'messageSquare',
+        to: '/owner/chat',
+        activeNames: ['owner-chat'],
+      },
     ],
   },
   {
@@ -44,10 +50,22 @@ export const ownerNavigationSections = [
         activeNames: ['owner-counter-booking'],
       },
       {
+        label: 'Danh sách booking',
+        icon: 'fileText',
+        to: '/owner/booking-list',
+        activeNames: ['owner-booking-list'],
+      },
+      {
         label: 'Cấu hình giá',
         icon: 'settings',
         to: '/owner/pricing',
         activeNames: ['owner-pricing'],
+      },
+      {
+        label: 'Dịch vụ tại sân',
+        icon: 'shopping-bag',
+        to: '/owner/services',
+        activeNames: ['owner-services'],
       },
       {
         label: 'Cấu hình đặt sân',
@@ -55,6 +73,7 @@ export const ownerNavigationSections = [
         to: '/owner/booking-settings',
         activeNames: ['owner-booking-settings'],
       },
+
       {
         label: 'Giao lưu tại sân',
         icon: 'users',
@@ -79,7 +98,7 @@ export const ownerNavigationSections = [
         activeNames: ['owner-refunds'],
       },
       {
-        label: 'Ví tài chính',
+        label: 'Tài chính & số dư',
         icon: 'banknote',
         to: '/owner/finance',
         activeNames: ['owner-finance'],
@@ -125,6 +144,12 @@ export const ownerNavigationSections = [
         to: '/owner/staff',
         activeNames: ['owner-staff'],
       },
+      {
+        label: 'Ca trực & Chấm công',
+        icon: 'calendar',
+        to: '/owner/staff-shifts',
+        activeNames: ['owner-staff-shifts'],
+      },
     ],
   },
 ];
@@ -133,18 +158,22 @@ export const ownerNavigationSections = [
 export const ownerRouteTitles = {
   'owner-dashboard': 'Bảng điều hành',
   'owner-partner-profile': 'Hồ sơ đối tác',
+  'owner-chat': 'Tin nhắn',
   'owner-profile': 'Thông tin cá nhân',
   'owner-venue-clusters': 'Quản lý cụm sân',
   'owner-venue-courts': 'Quản lý sân con',
   'owner-bookings': 'Lịch sân',
   'owner-counter-booking': 'Booking tại quầy',
+  'owner-booking-list': 'Danh sách booking',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
+  'owner-settings': 'Cấu hình giao diện',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',
   'owner-platform-fees': 'Phí nền tảng',
-  'owner-finance': 'Ví tài chính',
+  'owner-finance': 'Tài chính & số dư',
   'owner-refunds': 'Yêu cầu hoàn/hủy',
   'owner-staff': 'Nhân viên sân',
+  'owner-staff-shifts': 'Ca trực & Chấm công',
   'owner-vouchers': 'Voucher của sân',
   'owner-complaints': 'Quản lý khiếu nại',
   'owner-complaint-detail': 'Chi tiết khiếu nại',
@@ -154,6 +183,7 @@ export const ownerRouteTitles = {
   'owner-venue-posts': 'Quản lý bài viết',
   'owner-matchmaking': 'Giao lưu tại sân',
   'owner-affiliate': 'Tiếp thị liên kết',
+  'owner-services': 'Quản lý dịch vụ tại sân',
 };
 
 export const ownerRouteSectionLabels = {

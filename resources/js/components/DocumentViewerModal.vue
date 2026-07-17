@@ -1,141 +1,147 @@
 <template>
-  <div v-if="show" class="fixed inset-0 z-[600] flex items-center justify-center p-4 sm:p-6">
-    <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm transition-opacity" @click="$emit('close')"></div>
+  <Teleport to="body">
+    <div v-if="show" class="document-viewer-overlay">
+      <div class="document-viewer-backdrop"></div>
 
-    <div class="relative w-full h-full max-h-[90vh] max-w-6xl flex flex-col md:flex-row overflow-hidden rounded-xl bg-[var(--admin-surface)] shadow-2xl transition-all">
-      <!-- Document Area -->
-      <div class="flex-1 flex flex-col min-w-0 bg-gray-100 border-r border-[var(--admin-border)]">
-        <div class="border-b border-[var(--admin-border)] px-4 py-3 bg-[var(--admin-surface)] flex justify-between items-center shrink-0">
-          <h3 class="text-base font-semibold text-[var(--admin-text)] truncate pr-4">{{ document?.title || 'Xem trước văn bản' }}</h3>
-          <div class="flex items-center gap-2">
-            <button v-if="document?.download_url" @click="downloadDocument" class="text-[var(--admin-muted)] hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md text-sm font-medium transition">
-              Tải xuống
-            </button>
-            <button @click="$emit('close')" class="text-[var(--admin-faint)] hover:text-gray-600 md:hidden">
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-        </div>
-        
-        <div class="flex-1 overflow-auto relative p-4 flex justify-center" ref="scrollContainer">
-          <div v-if="loading" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100/80 z-10">
-            <span class="h-8 w-8 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin mb-3"></span>
-            <span class="text-sm font-medium text-gray-600">Đang tải nội dung văn bản...</span>
-          </div>
-          <div v-else-if="error" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10 px-6 text-center">
-            <svg class="w-12 h-12 text-red-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            <p class="text-gray-800 font-medium mb-1">Không thể hiển thị văn bản</p>
-            <p class="text-sm text-[var(--admin-muted)] mb-4">{{ error }}</p>
-            <button v-if="document?.download_url" @click="downloadDocument" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
-              Tải xuống để xem
-            </button>
-          </div>
-          
-          <div v-show="fileType === 'docx'" ref="docxContainer" class="bg-[var(--admin-surface)] shadow-sm ring-1 ring-gray-900/5 min-h-[800px] w-full max-w-[800px] p-0" :class="{ 'opacity-0': loading }"></div>
-          
-          <iframe v-if="fileType === 'pdf'" :src="fileUrl" class="w-full min-h-[800px] border-0 rounded bg-[var(--admin-surface)] shadow-sm ring-1 ring-gray-900/5" :class="{ 'opacity-0': loading }"></iframe>
-          
-          <div v-if="fileType === 'image'" class="flex items-start justify-center min-h-[800px] w-full bg-transparent p-4">
-            <img :src="fileUrl" class="max-w-full h-auto shadow-sm ring-1 ring-gray-900/5 rounded bg-[var(--admin-surface)]" :class="{ 'opacity-0': loading }" alt="Preview" />
-          </div>
-          
-          <div v-if="fileType === 'unsupported'" class="flex flex-col items-center justify-center min-h-[400px] w-full bg-[var(--admin-surface)] rounded-lg shadow-sm ring-1 ring-gray-900/5 p-8 text-center" :class="{ 'opacity-0': loading }">
-            <svg class="w-16 h-16 text-[var(--admin-faint)] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-            <h4 class="text-lg font-medium text-[var(--admin-text)] mb-2">Định dạng tệp không được hỗ trợ để xem trước</h4>
-            <p class="text-[var(--admin-muted)] mb-6 max-w-md">Vui lòng tải tệp xuống để xem nội dung.</p>
-            <button v-if="document?.download_url" @click="downloadDocument" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition">
-              Tải xuống
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Info & Signatures Area -->
-      <div class="w-full md:w-80 bg-[var(--admin-surface)] flex flex-col shrink-0">
-        <div class="border-b border-[var(--admin-border)] px-5 py-4 flex justify-between items-center shrink-0">
-          <h3 class="text-base font-semibold text-[var(--admin-text)]">Thông tin chữ ký</h3>
-          <button @click="$emit('close')" class="text-[var(--admin-faint)] hover:text-[var(--admin-muted)] hidden md:block">
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto p-5">
-          <div v-if="!document?.signatures || document.signatures.length === 0" class="text-center py-10">
-            <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            <p class="mt-3 text-sm text-[var(--admin-muted)]">Chưa có chữ ký nào.</p>
-          </div>
-          
-          <div v-else class="space-y-4">
-            <div v-for="sig in document.signatures" :key="sig.id" class="rounded-lg border border-[var(--admin-border)] bg-[var(--admin-surface-muted)] p-4 relative overflow-hidden">
-              <div class="absolute top-0 right-0 p-2">
-                <span v-if="sig.status === 'signed'" class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Đã ký</span>
-                <span v-else class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Chờ ký</span>
-              </div>
-              
-              <div class="flex items-center gap-2 mb-3">
-                <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold uppercase text-xs">
-                  {{ sig.signer_side === 'owner' ? 'CS' : 'SG' }}
-                </div>
-                <div>
-                  <p class="text-sm font-semibold text-[var(--admin-text)]">{{ sig.signer_full_name || (sig.signer_side === 'owner' ? 'Chủ sân' : 'Đại diện SportGo') }}</p>
-                  <p class="text-xs text-[var(--admin-muted)]">{{ sig.signer_title }} {{ sig.signer_organization ? `(${sig.signer_organization})` : '' }}</p>
-                </div>
-              </div>
-              
-              <div v-if="sig.status === 'signed'" class="space-y-1 mt-2 pt-2 border-t border-[var(--admin-border)]/60">
-                <p class="text-xs text-[var(--admin-muted)] flex items-center gap-1.5">
-                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  {{ formatDate(sig.signed_at) }}
-                </p>
-                <p class="text-xs text-[var(--admin-muted)] flex items-center gap-1.5" v-if="sig.ip_address">
-                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  IP: {{ sig.ip_address }}
-                </p>
-              </div>
+      <section class="document-modal-shell" role="dialog" aria-modal="true" :aria-label="document?.title || 'Xem văn bản'">
+        <header class="document-modal-header">
+          <div class="document-modal-title">
+            <span class="document-modal-icon"><AppIcon name="fileText" size="18" /></span>
+            <div>
+              <h2>{{ document?.title || 'Xem văn bản' }}</h2>
+              <p>{{ document?.document_code || 'Văn bản điện tử SportGo' }}</p>
             </div>
           </div>
+          <div class="document-modal-tools">
+            <button v-if="document?.download_url" class="document-tool-button" type="button" title="Tải văn bản" @click="downloadDocument">
+              <AppIcon name="download" size="17" />
+              <span>Tải xuống</span>
+            </button>
+            <button class="document-close-button" type="button" title="Đóng" aria-label="Đóng màn xem văn bản" @click="$emit('close')">
+              <AppIcon name="x" size="21" />
+            </button>
+          </div>
+        </header>
+
+        <div class="document-modal-body" :class="{ 'has-signing-actions': actionMode }">
+          <main class="document-stage">
+            <div class="document-stage-bar">
+              <span><AppIcon name="eye" size="16" /> Nội dung văn bản</span>
+              <small>Cuộn để kiểm tra toàn bộ file</small>
+            </div>
+
+            <div ref="scrollContainer" class="document-scroll-area">
+              <div v-if="loading" class="document-state-layer">
+                <span class="document-spinner"></span>
+                <strong>Đang tải văn bản...</strong>
+              </div>
+              <div v-else-if="error" class="document-state-layer document-state-error">
+                <AppIcon name="alert" size="36" />
+                <strong>Không thể hiển thị văn bản</strong>
+                <p>{{ error }}</p>
+                <button v-if="document?.download_url" class="document-primary-button" type="button" @click="downloadDocument">Tải file để xem</button>
+              </div>
+
+              <div v-show="fileType === 'docx'" ref="docxContainer" class="document-preview-docx" :class="{ 'is-loading': loading }"></div>
+              <iframe v-if="fileType === 'pdf'" :src="fileUrl" class="document-preview-frame" :class="{ 'is-loading': loading }" title="Nội dung PDF"></iframe>
+              <div v-if="fileType === 'image'" class="document-preview-image">
+                <img :src="fileUrl" :class="{ 'is-loading': loading }" alt="Nội dung văn bản" />
+              </div>
+              <div v-if="fileType === 'unsupported'" class="document-unsupported" :class="{ 'is-loading': loading }">
+                <AppIcon name="fileSearch" size="42" />
+                <strong>Chưa hỗ trợ xem định dạng này</strong>
+                <button v-if="document?.download_url" class="document-primary-button" type="button" @click="downloadDocument">Tải file</button>
+              </div>
+            </div>
+          </main>
+
+          <aside class="document-side-panel">
+            <div v-if="actionMode" class="document-signing-workspace">
+              <div class="document-side-heading">
+                <span class="document-side-step">Thao tác cần làm</span>
+                <h3>Ký xác nhận văn bản</h3>
+              </div>
+              <div class="document-action-scroll">
+                <slot name="actions"></slot>
+
+                <details class="document-signature-history">
+                  <summary>Lịch sử chữ ký <span>{{ document?.signatures?.length || 0 }}</span></summary>
+                  <div class="document-signature-list">
+                    <p v-if="!document?.signatures?.length" class="document-empty-signature">Chưa có chữ ký được lưu.</p>
+                    <article v-for="sig in document?.signatures || []" :key="sig.id" class="document-signature-item">
+                      <div class="signature-avatar">{{ sig.signer_side === 'owner' ? 'CS' : 'SG' }}</div>
+                      <div>
+                        <strong>{{ sig.signer_full_name || (sig.signer_side === 'owner' ? 'Chủ sân' : 'Đại diện SportGo') }}</strong>
+                        <p>{{ sig.signer_title || (sig.signer_side === 'owner' ? 'Chủ sân' : 'Đại diện SportGo') }}</p>
+                        <small v-if="sig.status === 'signed'">Đã ký lúc {{ formatDate(sig.signed_at) }}</small>
+                      </div>
+                    </article>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <div v-else class="document-signature-summary">
+              <div class="document-side-heading">
+                <span class="document-side-step">Hồ sơ điện tử</span>
+                <h3>Thông tin chữ ký</h3>
+              </div>
+              <div class="document-signature-list">
+                <p v-if="!document?.signatures?.length" class="document-empty-signature">Văn bản chưa có chữ ký.</p>
+                <article v-for="sig in document?.signatures || []" :key="sig.id" class="document-signature-item">
+                  <div class="signature-avatar">{{ sig.signer_side === 'owner' ? 'CS' : 'SG' }}</div>
+                  <div>
+                    <span class="signature-status" :class="{ pending: sig.status !== 'signed' }">{{ sig.status === 'signed' ? 'Đã ký' : 'Chờ ký' }}</span>
+                    <strong>{{ sig.signer_full_name || (sig.signer_side === 'owner' ? 'Chủ sân' : 'Đại diện SportGo') }}</strong>
+                    <p>{{ sig.signer_title }}{{ sig.signer_organization ? ` · ${sig.signer_organization}` : '' }}</p>
+                    <small v-if="sig.status === 'signed'">{{ formatDate(sig.signed_at) }}</small>
+                    <small v-if="sig.ip_address">IP: {{ sig.ip_address }}</small>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </aside>
         </div>
-        
-        <div v-if="$slots.actions" class="p-4 border-t border-[var(--admin-border)] bg-[var(--admin-surface-muted)] mt-auto shrink-0">
-          <slot name="actions"></slot>
-        </div>
-      </div>
+      </section>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onUnmounted } from 'vue';
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { renderAsync } from 'docx-preview';
+import AppIcon from './AppIcon.vue';
 import { apiDownload, readToken } from '../services/api.js';
 
 const props = defineProps({
   show: Boolean,
-  document: Object
+  document: Object,
+  actionMode: Boolean,
 });
 
 const emit = defineEmits(['close']);
 
 const docxContainer = ref(null);
+const scrollContainer = ref(null);
 const loading = ref(false);
 const error = ref(null);
 const fileType = ref(null);
 const fileUrl = ref(null);
+let resizeObserver = null;
+let scaleFrame = null;
+let loadSequence = 0;
 
-watch(() => props.show, async (newVal) => {
-  if (newVal && props.document) {
+watch([() => props.show, () => props.document?.download_url], async ([show, downloadUrl]) => {
+  if (show && downloadUrl) {
+    await nextTick();
     loadDocument();
   } else {
-    error.value = null;
+    loadSequence += 1;
+    loading.value = false;
+    error.value = show ? 'Không tìm thấy đường dẫn văn bản.' : null;
     cleanup();
   }
-});
-
-watch(() => props.document, (newDoc) => {
-  if (props.show && newDoc) {
-    loadDocument();
-  }
-});
+}, { immediate: true, flush: 'post' });
 
 async function loadDocument() {
   if (!props.document?.download_url) {
@@ -143,6 +149,8 @@ async function loadDocument() {
     return;
   }
   
+  const currentLoad = ++loadSequence;
+  cleanup();
   loading.value = true;
   error.value = null;
   if (docxContainer.value) docxContainer.value.innerHTML = '';
@@ -152,28 +160,32 @@ async function loadDocument() {
     const response = await fetch(props.document.download_url, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
+    if (currentLoad !== loadSequence) return;
     
     if (!response.ok) throw new Error(`HTTP ${response.status} - Lỗi tải file`);
     
     const blob = await response.blob();
+    if (currentLoad !== loadSequence) return;
+    if (!blob.size) throw new Error('File văn bản đang rỗng. Vui lòng tạo lại văn bản.');
     const mimeType = blob.type.toLowerCase();
+    const detectedType = detectFileType(mimeType, response);
     
     await nextTick();
     
-    if (mimeType === 'application/pdf') {
+    if (detectedType === 'pdf') {
       fileType.value = 'pdf';
       fileUrl.value = URL.createObjectURL(blob);
-    } else if (mimeType.startsWith('image/')) {
+    } else if (detectedType === 'image') {
       fileType.value = 'image';
       fileUrl.value = URL.createObjectURL(blob);
-    } else if (mimeType.includes('officedocument.wordprocessingml') || mimeType.includes('msword')) {
+    } else if (detectedType === 'docx') {
       fileType.value = 'docx';
       if (docxContainer.value) {
         await renderAsync(blob, docxContainer.value, null, {
           className: 'docx',
           inWrapper: true,
-          ignoreWidth: true,
-          ignoreHeight: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
           ignoreFonts: false,
           breakPages: true,
           ignoreLastRenderedPageBreak: true,
@@ -181,15 +193,19 @@ async function loadDocument() {
           trimXmlDeclaration: true,
           debug: false,
         });
+        await nextTick();
+        observeDocumentSize();
+        scheduleDocumentScale();
       }
     } else {
       fileType.value = 'unsupported';
     }
   } catch (err) {
+    if (currentLoad !== loadSequence) return;
     console.error('Error rendering DOCX:', err);
     error.value = err.message || 'Lỗi không xác định khi xem văn bản.';
   } finally {
-    loading.value = false;
+    if (currentLoad === loadSequence) loading.value = false;
   }
 }
 
@@ -199,10 +215,77 @@ function cleanup() {
     fileUrl.value = null;
   }
   fileType.value = null;
-  if (docxContainer.value) docxContainer.value.innerHTML = '';
+  if (docxContainer.value) {
+    const page = docxContainer.value.querySelector('section.docx');
+    page?.style.removeProperty('width');
+    page?.style.removeProperty('min-width');
+    docxContainer.value.innerHTML = '';
+    docxContainer.value.style.removeProperty('--document-scale');
+  }
 }
 
+function detectFileType(mimeType, response) {
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const source = [
+    mimeType,
+    disposition,
+    props.document?.download_url,
+    props.document?.file_name,
+    props.document?.title,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (source.includes('application/pdf') || source.includes('.pdf')) return 'pdf';
+  if (source.includes('image/') || /\.(png|jpe?g|webp|gif)(\?|$|\s|")/.test(source)) return 'image';
+  if (
+    source.includes('officedocument.wordprocessingml')
+    || source.includes('application/msword')
+    || /\.(docx?|dotx)(\?|$|\s|")/.test(source)
+  ) return 'docx';
+
+  return 'unsupported';
+}
+
+function observeDocumentSize() {
+  if (resizeObserver || !scrollContainer.value) return;
+  resizeObserver = new ResizeObserver(scheduleDocumentScale);
+  resizeObserver.observe(scrollContainer.value);
+}
+
+function scheduleDocumentScale() {
+  if (scaleFrame) cancelAnimationFrame(scaleFrame);
+  scaleFrame = requestAnimationFrame(() => {
+    scaleFrame = null;
+    updateDocumentScale();
+  });
+}
+
+function updateDocumentScale() {
+  const container = docxContainer.value;
+  const scrollArea = scrollContainer.value;
+  const section = container?.querySelector('section.docx');
+  if (!container || !scrollArea || !section) return;
+
+  container.style.setProperty('--document-scale', '1');
+  section.style.removeProperty('width');
+  section.style.removeProperty('min-width');
+  const areaStyle = window.getComputedStyle(scrollArea);
+  const horizontalPadding = parseFloat(areaStyle.paddingLeft || 0) + parseFloat(areaStyle.paddingRight || 0);
+  const availableWidth = Math.max(0, scrollArea.clientWidth - horizontalPadding);
+  const pageWidth = section.offsetWidth || section.getBoundingClientRect().width;
+  const documentWidth = Math.max(pageWidth, section.scrollWidth || 0);
+  section.style.setProperty('width', `${documentWidth}px`, 'important');
+  section.style.setProperty('min-width', `${documentWidth}px`, 'important');
+  const scale = documentWidth > 0 ? Math.min(1, availableWidth / documentWidth) : 1;
+  container.style.setProperty('--document-scale', Math.max(0.25, scale).toFixed(4));
+}
+
+onMounted(() => window.addEventListener('resize', scheduleDocumentScale));
+
 onUnmounted(() => {
+  window.removeEventListener('resize', scheduleDocumentScale);
+  if (scaleFrame) cancelAnimationFrame(scaleFrame);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   cleanup();
 });
 
@@ -218,14 +301,4 @@ function formatDate(dateString) {
 }
 </script>
 
-<style>
-/* Custom overrides for docx-preview if needed */
-.docx-wrapper {
-  background: transparent !important;
-  padding: 0 !important;
-}
-.docx {
-  box-shadow: none !important;
-  margin-bottom: 0 !important;
-}
-</style>
+<style src="../../css/client-document-viewer.css"></style>

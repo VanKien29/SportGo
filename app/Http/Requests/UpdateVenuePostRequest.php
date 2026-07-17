@@ -43,18 +43,6 @@ class UpdateVenuePostRequest extends FormRequest
                     if (mb_strlen($value) > 30000) {
                         $fail('Nội dung quá dài, tối đa 30000 ký tự.');
                     }
-                    if (preg_match('/<script\b[^>]*>(.*?)<\/script>/is', $value)) {
-                        $fail('Nội dung chứa mã script không hợp lệ.');
-                    }
-                    if (preg_match('/<iframe\b[^>]*>(.*?)<\/iframe>/is', $value)) {
-                        $fail('Nội dung chứa iframe không hợp lệ.');
-                    }
-                    if (preg_match('/on\w+\s*=/i', $value)) {
-                        $fail('Nội dung chứa thuộc tính HTML độc hại (event handler).');
-                    }
-                    if (preg_match('/javascript:/i', $value)) {
-                        $fail('Nội dung chứa liên kết javascript độc hại.');
-                    }
                 },
             ],
             'meta_title' => ['nullable', 'string', 'max:255', 'regex:/^[^\<\>]+$/u'],
@@ -62,6 +50,10 @@ class UpdateVenuePostRequest extends FormRequest
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
             'thumbnail' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'gallery' => ['nullable', 'array'],
+            'gallery.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'removed_gallery_media_ids' => ['nullable', 'array', 'max:20'],
+            'removed_gallery_media_ids.*' => ['integer', 'min:1', 'distinct'],
             'post_type' => ['sometimes', 'string', 'in:promotion,tournament,news,notice,recruitment'],
             'is_draft' => ['nullable', 'boolean']
         ];
@@ -69,10 +61,22 @@ class UpdateVenuePostRequest extends FormRequest
 
     public function prepareForValidation()
     {
+        $merged = [];
         if ($this->has('title')) {
-            $this->merge([
-                'title' => trim($this->title),
-            ]);
+            $merged['title'] = trim(strip_tags($this->title));
+        }
+        if ($this->has('short_description')) {
+            $merged['short_description'] = trim(strip_tags($this->short_description));
+        }
+        if ($this->has('meta_title')) {
+            $merged['meta_title'] = trim(strip_tags($this->meta_title));
+        }
+        if ($this->has('meta_description')) {
+            $merged['meta_description'] = trim(strip_tags($this->meta_description));
+        }
+        
+        if (!empty($merged)) {
+            $this->merge($merged);
         }
     }
 }

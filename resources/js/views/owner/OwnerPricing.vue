@@ -42,7 +42,7 @@
         <label class="cluster-select">
           Cụm sân
           <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
-            <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
+            <option v-for="cluster in clusters" :key="cluster.id" :value="String(cluster.id)">{{ cluster.name }}</option>
           </select>
         </label>
       </div>
@@ -106,7 +106,6 @@
       <div v-if="isLoading" class="empty-state">Đang tải cấu hình giá...</div>
       <div v-else-if="loadFailed" class="empty-state load-error">
         <span>Không thể tải dữ liệu cấu hình giá.</span>
-        <button class="btn secondary" type="button" @click="loadPricing">Tải lại</button>
       </div>
       <div v-else-if="!filteredRows.length" class="empty-state no-results">
         <span>{{ hasActiveFilters ? 'Không có kết quả' : 'Chưa có dữ liệu' }}</span>
@@ -291,7 +290,7 @@ export default {
   },
   computed: {
     selectedCluster() {
-      return this.clusters.find((cluster) => cluster.id === this.selectedClusterId) || null;
+      return this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
     },
     courtTypes() {
       return this.courtTypesByCluster[this.selectedClusterId] || [];
@@ -329,10 +328,10 @@ export default {
     },
     rows() {
       if (this.activeTab === 'weekly') {
-        return this.priceSlots.filter((row) => row.venue_cluster_id === this.selectedClusterId);
+        return this.priceSlots.filter((row) => this.belongsToSelectedCluster(row));
       }
       return this.holidayPrices.filter((row) => (
-        row.venue_cluster_id === this.selectedClusterId
+        this.belongsToSelectedCluster(row)
         && row.date_type === this.activeTab
       ));
     },
@@ -383,7 +382,8 @@ export default {
       };
     },
     async handleClusterChanged(event) {
-      this.selectedClusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
+      const clusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
+      this.selectedClusterId = clusterId ? String(clusterId) : '';
     },
     async loadPricing() {
       this.isLoading = true;
@@ -399,8 +399,8 @@ export default {
         this.systemDefaultPrice = Number(data.system_default_price || 10000);
         this.priceSlots = data.price_slots || [];
         this.holidayPrices = data.holiday_prices || [];
-        if (!this.clusters.some((cluster) => cluster.id === this.selectedClusterId)) {
-          this.selectedClusterId = this.clusters[0]?.id || '';
+        if (!this.clusters.some((cluster) => String(cluster.id) === String(this.selectedClusterId))) {
+          this.selectedClusterId = this.clusters[0]?.id ? String(this.clusters[0].id) : '';
         }
         this.syncBasePriceDrafts();
       } catch (error) {
@@ -420,17 +420,20 @@ export default {
     },
     tabCount(tab) {
       if (tab === 'weekly') {
-        return this.priceSlots.filter((row) => row.venue_cluster_id === this.selectedClusterId).length;
+        return this.priceSlots.filter((row) => this.belongsToSelectedCluster(row)).length;
       }
       return this.holidayPrices.filter((row) => (
-        row.venue_cluster_id === this.selectedClusterId && row.date_type === tab
+        this.belongsToSelectedCluster(row) && row.date_type === tab
       )).length;
     },
     basePriceRecord(courtTypeId) {
       return this.basePrices.find((row) => (
-        row.venue_cluster_id === this.selectedClusterId
+        this.belongsToSelectedCluster(row)
         && Number(row.court_type_id) === Number(courtTypeId)
       )) || null;
+    },
+    belongsToSelectedCluster(row) {
+      return String(row?.venue_cluster_id ?? '') === String(this.selectedClusterId ?? '');
     },
     hasSavedBasePrice(courtTypeId) {
       return Boolean(this.basePriceRecord(courtTypeId));
@@ -645,5 +648,3 @@ export default {
   },
 };
 </script>
-
-<style src="../../../css/owner/pricing.css" scoped></style>

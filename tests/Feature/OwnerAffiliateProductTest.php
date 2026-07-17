@@ -41,7 +41,7 @@ class OwnerAffiliateProductTest extends TestCase
             'user_id' => $this->owner->id,
             'role_id' => $ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         // Create Venue Cluster
@@ -143,7 +143,6 @@ class OwnerAffiliateProductTest extends TestCase
 
         $oldFile = UploadedFile::fake()->image('old.webp', 100, 100);
         $product = AffiliateProduct::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
             'venue_cluster_id' => $this->cluster->id,
             'name' => 'Original Product',
             'affiliate_url' => 'https://shopee.vn/original',
@@ -183,7 +182,6 @@ class OwnerAffiliateProductTest extends TestCase
 
         $file = UploadedFile::fake()->image('image.webp', 100, 100);
         $product = AffiliateProduct::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
             'venue_cluster_id' => $this->cluster->id,
             'name' => 'Original Product',
             'affiliate_url' => 'https://shopee.vn/original',

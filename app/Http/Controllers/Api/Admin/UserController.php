@@ -369,7 +369,7 @@ class UserController extends Controller
                 'created_at' => $post->created_at,
                 'media' => $post->media->map(fn ($m) => [
                     'id' => $m->id,
-                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    'url' => $m->file_path,
                     'mime_type' => $m->mime_type,
                 ]),
             ])
@@ -395,7 +395,7 @@ class UserController extends Controller
                 'created_at' => $comment->created_at,
                 'media' => $comment->media->map(fn ($m) => [
                     'id' => $m->id,
-                    'url' => str_starts_with($m->file_path, 'http') ? $m->file_path : \Illuminate\Support\Facades\Storage::url($m->file_path),
+                    'url' => $m->file_path,
                     'mime_type' => $m->mime_type,
                 ]),
             ])
@@ -1051,8 +1051,7 @@ class UserController extends Controller
 
     private function scopeLabel(?string $scopeType, ?string $scopeId): string
     {
-        $zeroUuid = '00000000-0000-0000-0000-000000000000';
-        if (! $scopeType || $scopeType === 'system' || ! $scopeId || $scopeId === $zeroUuid) {
+        if (! $scopeType || $scopeType === 'system' || ! $scopeId || (string) $scopeId === '0') {
             return 'Toàn hệ thống';
         }
 

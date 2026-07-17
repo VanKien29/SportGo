@@ -1,5 +1,8 @@
+@import './portals.css';
+@import './client.css';
+
 @import 'tailwindcss';
-@import './admin/index.css';
+@custom-variant dark (&:where(.dark, .dark *));
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -8,17 +11,19 @@
 @source '../**/*.vue';
 
 @theme {
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --radius: 1rem;
     --color-accent: oklch(0.89 0 0);
     --color-destructive-foreground: var(--destructive-foreground);
-    --font-weight-bold: 500;
-    --font-weight-semibold: 500;
-    --font-weight-extrabold: 600;
+    --font-weight-bold: 700;
+    --font-weight-semibold: 600;
+    --font-weight-extrabold: 800;
 }
 
 :root {
     --destructive-foreground: oklch(0.985 0 0);
+    --sportgo-font-body: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --sportgo-font-display: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark {
@@ -27,32 +32,30 @@
 }
 
 .auth-layout input,
-.dark input,
-.modal-overlay input {
+[data-theme='dark'] input {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff;
 }
 
+.auth-layout input {
+    background-color: #09090b !important;
+}
+
 .auth-layout input::selection,
-.dark input::selection,
-.modal-overlay input::selection {
+[data-theme='dark'] input::selection {
     color: #fff;
     background: rgba(34, 197, 94, .35);
 }
 
 .auth-layout input:-webkit-autofill,
-.auth-layout input:-webkit-autofill:hover,
+.auth-layout input:-webkit-autofill.never-hover-class-placeholder,
 .auth-layout input:-webkit-autofill:focus,
 .auth-layout input:-webkit-autofill:active,
-.dark input:-webkit-autofill,
-.dark input:-webkit-autofill:hover,
-.dark input:-webkit-autofill:focus,
-.dark input:-webkit-autofill:active,
-.modal-overlay input:-webkit-autofill,
-.modal-overlay input:-webkit-autofill:hover,
-.modal-overlay input:-webkit-autofill:focus,
-.modal-overlay input:-webkit-autofill:active {
+[data-theme='dark'] input:-webkit-autofill,
+[data-theme='dark'] input:-webkit-autofill.never-hover-class-placeholder,
+[data-theme='dark'] input:-webkit-autofill:focus,
+[data-theme='dark'] input:-webkit-autofill:active {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     caret-color: #fff !important;
@@ -62,8 +65,7 @@
 }
 
 .auth-layout input:autofill,
-.dark input:autofill,
-.modal-overlay input:autofill {
+[data-theme='dark'] input:autofill {
     color: #fff !important;
     -webkit-text-fill-color: #fff !important;
     box-shadow: 0 0 0 1000px #09090b inset !important;
@@ -89,10 +91,56 @@ input[type='week']::-webkit-calendar-picker-indicator {
     filter: none;
 }
 
+html,
+body {
+    font-family: var(--sportgo-font-body);
+}
+
+body {
+    line-height: 1.55;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
 strong, b {
-    font-weight: 500 !important;
+    font-weight: 700;
 }
 
 h1, h2, h3, h4, h5, h6 {
-    font-weight: 600 !important;
+    font-family: var(--sportgo-font-display);
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+/* Counter-booking drawers stay light even when Chrome restores autofill while
+   the application theme class is transitioning. */
+[data-theme='dark'] .booking-side input:-webkit-autofill,
+[data-theme='dark'] .booking-side input:-webkit-autofill:hover,
+[data-theme='dark'] .booking-side input:-webkit-autofill:focus,
+[data-theme='dark'] .booking-side input:-webkit-autofill:active {
+    color: #101c15 !important;
+    -webkit-text-fill-color: #101c15 !important;
+    caret-color: #101c15 !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    transition: background-color 0s;
+}
+
+[data-theme='dark'] .booking-side input:autofill {
+    color: #101c15 !important;
+    -webkit-text-fill-color: #101c15 !important;
+    box-shadow: 0 0 0 1000px #fff inset !important;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+}
+
+.booking-side input::placeholder,
+.booking-side .voucher-code-row input::placeholder {
+    color: #7b8a80 !important;
+    -webkit-text-fill-color: #7b8a80 !important;
+    opacity: 1 !important;
 }
