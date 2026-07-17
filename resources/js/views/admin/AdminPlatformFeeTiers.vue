@@ -26,11 +26,7 @@
             search-id="search-tier"
             search-placeholder="Tìm theo tên bậc phí..."
         >
-            <template #actions>
-                <button class="btn btn-outline" type="button" @click="reloadFromDb" title="Làm mới">
-                    <span>Làm mới</span>
-                </button>
-            </template>
+
         </SaaSFilterBar>
 
         <section class="panel">

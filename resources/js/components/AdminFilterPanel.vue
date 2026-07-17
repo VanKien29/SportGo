@@ -3,12 +3,7 @@
     <div class="filter-controls">
       <slot></slot>
     </div>
-    <div v-if="showRefresh" class="filter-actions">
-      <button class="btn-refresh" type="button" @click="$emit('refresh')" title="Làm mới">
-        <AppIcon name="refresh" size="18" />
-        <span>Làm mới</span>
-      </button>
-    </div>
+
   </div>
 </template>
 

@@ -189,7 +189,7 @@
 
                         <div class="form-group">
                             <label for="name">
-                                Tên tiện ích <span class="required">*</span>
+                                Tên tiện ích
                             </label>
                             <input
                                 id="name"
@@ -215,15 +215,47 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="status">
-                                Trạng thái
-                            </label>
-                            <select id="status" v-model="form.status" class="form-control">
-                                <option value="active">Đang hoạt động</option>
-                                <option value="inactive">Tạm khóa</option>
-                                <option value="pending_review" disabled>Chờ duyệt</option>
-                                <option value="rejected" disabled>Bị từ chối</option>
-                            </select>
+                            <label>Trạng thái</label>
+                            <div class="custom-select-container">
+                                <div 
+                                    class="custom-select-trigger" 
+                                    :class="{ open: isStatusSelectOpen }"
+                                    @click="toggleStatusSelect"
+                                >
+                                    <span class="option-text">{{ formStatusText }}</span>
+                                    <AppIcon name="chevronDown" size="14" class="select-arrow-icon" :class="{ rotated: isStatusSelectOpen }" />
+                                </div>
+                                <div v-if="isStatusSelectOpen" class="custom-select-options-wrapper">
+                                    <div 
+                                        class="custom-select-option" 
+                                        :class="{ active: form.status === 'active' }"
+                                        @click="selectFormStatus('active')"
+                                    >
+                                        <span class="option-text">Đang hoạt động</span>
+                                    </div>
+                                    <div 
+                                        class="custom-select-option" 
+                                        :class="{ active: form.status === 'inactive' }"
+                                        @click="selectFormStatus('inactive')"
+                                    >
+                                        <span class="option-text">Tạm khóa</span>
+                                    </div>
+                                    <div 
+                                        v-if="form.status === 'pending_review'"
+                                        class="custom-select-option disabled" 
+                                        :class="{ active: true }"
+                                    >
+                                        <span class="option-text">Chờ duyệt</span>
+                                    </div>
+                                    <div 
+                                        v-if="form.status === 'rejected'"
+                                        class="custom-select-option disabled" 
+                                        :class="{ active: true }"
+                                    >
+                                        <span class="option-text">Bị từ chối</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -298,6 +330,7 @@ export default {
                 status: "active",
             },
             showScrollTop: false,
+            isStatusSelectOpen: false,
         };
     },
     computed: {
@@ -321,6 +354,15 @@ export default {
             }
 
             return result;
+        },
+        formStatusText() {
+            switch (this.form.status) {
+                case 'active': return 'Đang hoạt động';
+                case 'inactive': return 'Tạm khóa';
+                case 'pending_review': return 'Chờ duyệt';
+                case 'rejected': return 'Bị từ chối';
+                default: return '';
+            }
         }
     },
     methods: {
@@ -372,6 +414,14 @@ export default {
             this.showModal = false;
             this.editingId = null;
             this.modalError = null;
+            this.isStatusSelectOpen = false;
+        },
+        toggleStatusSelect() {
+            this.isStatusSelectOpen = !this.isStatusSelectOpen;
+        },
+        selectFormStatus(status) {
+            this.form.status = status;
+            this.isStatusSelectOpen = false;
         },
         async handleSubmit() {
             this.submitting = true;
@@ -1009,5 +1059,99 @@ export default {
     .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
+}
+
+/* Custom Select Dropdown */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+    user-select: none;
+}
+
+.custom-select-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--sg-border, #e2e8f0);
+    background: var(--sg-surface, #ffffff);
+    font-size: 14px;
+    color: var(--sg-text, #101c15);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 42px;
+    box-sizing: border-box;
+}
+
+.custom-select-trigger:focus-within,
+.custom-select-trigger.open {
+    border-color: #0f172a;
+}
+
+.select-arrow-icon {
+    width: 16px;
+    height: 16px;
+    color: rgba(15, 23, 42, 0.4);
+    transition: transform 0.2s ease;
+}
+
+.select-arrow-icon.rotated {
+    transform: rotate(180deg);
+}
+
+.custom-select-options-wrapper {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--sg-surface, #ffffff);
+    border: 1px solid var(--sg-border, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 1010;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px;
+    animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--sg-text, #101c15) !important;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.custom-select-option:hover {
+    background: rgba(0, 0, 0, 0.03) !important;
+}
+
+.custom-select-option.active {
+    background: rgba(15, 23, 42, 0.05) !important;
+    color: #0f172a !important;
+    font-weight: 700;
+}
+
+.custom-select-option.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 </style>

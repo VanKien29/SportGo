@@ -20,9 +20,7 @@
           <span class="work-center-eyebrow">Trung tâm công việc</span>
           <h2>{{ actionCount ? `${actionCount} việc cần xử lý` : 'Không có việc tồn đọng' }}</h2>
         </div>
-        <button class="work-center-icon-btn" type="button" title="Tải lại" :disabled="loading" @click="load(true)">
-          <AppIcon name="refresh" size="16" />
-        </button>
+
       </header>
 
       <div class="work-center-tabs" role="tablist" aria-label="Loại nội dung">

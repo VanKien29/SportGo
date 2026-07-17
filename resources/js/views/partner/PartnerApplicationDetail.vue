@@ -215,10 +215,7 @@
                   <AppIcon name="fileText" size="16" />
                   Hợp đồng đối tác
                 </button>
-                <button class="btn btn-secondary" type="button" @click="loadApplication">
-                  <AppIcon name="refresh" size="16" />
-                  Làm mới
-                </button>
+
               </div>
             </section>
 

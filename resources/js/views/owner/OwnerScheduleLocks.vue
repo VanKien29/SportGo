@@ -639,14 +639,7 @@
                     >
                         {{ unlockMode ? "Thoát mở khóa" : "Mở khóa" }}
                     </button>
-                    <button
-                        class="secondary-btn btn-compact"
-                        type="button"
-                        :disabled="loading || unlockMode"
-                        @click="loadData"
-                    >
-                        Làm mới
-                    </button>
+
                 </div>
             </div>
 

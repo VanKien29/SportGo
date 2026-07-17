@@ -5,7 +5,6 @@
         <h1>Yêu cầu hoàn/hủy</h1>
         <p>Xác nhận yêu cầu hoàn tiền; SportGo sẽ cộng tiền hoàn vào ví của khách sau khi xử lý.</p>
       </div>
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
     </header>
 
     <div class="status-tabs" role="tablist" aria-label="Lọc trạng thái hoàn tiền">
@@ -29,7 +28,6 @@
       <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from" />
       <ActionIconButton icon="filter" label="Lọc" variant="primary" type="submit" />
       <ActionIconButton icon="x" label="Xóa lọc" @click="clearFilters" />
-      <ActionIconButton icon="refresh" label="Tải lại" :disabled="loading" @click="loadRefunds" />
     </form>
 
     <div v-if="error" class="alert error">{{ error }}</div>

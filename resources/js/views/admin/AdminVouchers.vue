@@ -125,14 +125,6 @@
                     <span class="eyebrow">Lịch sử sử dụng voucher</span>
                     <h3>Voucher hệ thống đã trừ quỹ</h3>
                 </div>
-                <button
-                    class="btn secondary"
-                    type="button"
-                    :disabled="budgetLoading"
-                    @click="loadBudget"
-                >
-                    Tải lại
-                </button>
             </div>
             <div v-if="budgetLoading" class="state">
                 Đang tải lịch sử voucher...

@@ -5,9 +5,6 @@
         <h2>Quản lý hồ sơ đối tác</h2>
         <p>Theo dõi hồ sơ, hợp đồng, chữ ký điện tử và chấm dứt hợp tác của chủ sân.</p>
       </div>
-      <button class="icon-btn" type="button" title="Làm mới" @click="refresh">
-        <AppIcon name="refresh" size="16" />
-      </button>
     </header>
 
     <section class="partner-kpis">

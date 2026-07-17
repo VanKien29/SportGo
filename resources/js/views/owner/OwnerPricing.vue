@@ -106,7 +106,6 @@
       <div v-if="isLoading" class="empty-state">Đang tải cấu hình giá...</div>
       <div v-else-if="loadFailed" class="empty-state load-error">
         <span>Không thể tải dữ liệu cấu hình giá.</span>
-        <button class="btn secondary" type="button" @click="loadPricing">Tải lại</button>
       </div>
       <div v-else-if="!filteredRows.length" class="empty-state no-results">
         <span>{{ hasActiveFilters ? 'Không có kết quả' : 'Chưa có dữ liệu' }}</span>

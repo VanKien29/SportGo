@@ -1,34 +1,29 @@
 <template>
   <section class="admin-users">
 
-    <div class="filters-panel">
-      <div class="search-box">
-        <input
-          v-model="filters.keyword"
-          type="search"
-          placeholder="Tìm theo họ tên, username, email, số điện thoại..."
-          @input="debounceSearch"
-        />
-      </div>
-      <div class="filter-selects">
-        <select v-model="filters.status" @change="loadUsers">
-          <option value="">Tất cả trạng thái</option>
-          <option value="active">Hoạt động</option>
-          <option value="locked">Đang bị khóa</option>
-        </select>
-        <select v-model="filters.role" @change="loadUsers">
+    <SaaSFilterBar
+      v-model="filters.status"
+      v-model:search="filters.keyword"
+      :tabs="statusTabs"
+      search-id="search-staff"
+      search-placeholder="Tìm theo họ tên, username, email, số điện thoại..."
+      @update:search="debounceSearch"
+      @update:modelValue="loadUsers"
+    >
+      <template #actions>
+        <select v-model="filters.role" @change="loadUsers" class="filter-select">
           <option value="">Tất cả vai trò</option>
           <option v-for="role in allRoles" :key="role.id" :value="role.name">
             {{ role.display_name }}
           </option>
         </select>
-        <button class="btn secondary" type="button" @click="resetFilters">Xóa lọc</button>
-      </div>
-      <button class="btn btn-create primary" type="button" @click="openCreateModal">
-        <AppIcon name="plus" size="16" />
-        <span>Thêm nhân sự</span>
-      </button>
-    </div>
+        <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
+        <button class="btn btn-create primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); border-color: var(--admin-primary); color: #fff;">
+          <AppIcon name="plus" size="16" />
+          <span>Thêm nhân sự</span>
+        </button>
+      </template>
+    </SaaSFilterBar>
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -346,13 +341,14 @@
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'AdminStaffs',
-  components: { ActionIconButton, TableActionGroup },
+  components: { ActionIconButton, TableActionGroup, SaaSFilterBar },
   data() {
     return {
       users: [],
@@ -369,6 +365,11 @@ export default {
         role: '',
         role_group: 'staff',
       },
+      statusTabs: [
+        { value: '', label: 'Tất cả' },
+        { value: 'active', label: 'Hoạt động' },
+        { value: 'locked', label: 'Bị khóa' },
+      ],
       searchTimeout: null,
 
       // Tạo/Sửa nhân sự
@@ -759,54 +760,52 @@ export default {
   border: 1px solid #d1fae5;
 }
 
-/* Panel lọc */
-.filters-panel {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  background: #fff;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--sg-border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.search-box {
-  flex: 1;
-  max-width: 400px;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--sg-border);
+/* Bộ lọc */
+.filter-select {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-border);
   border-radius: 8px;
-  outline: none;
-  font-size: 14px;
-}
-
-.search-box input:focus {
-  border-color: var(--sg-green);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-}
-
-.filter-selects {
-  display: flex;
-  gap: 12px;
-}
-
-.filter-selects select {
-  padding: 10px 14px;
-  border: 1px solid var(--sg-border);
-  border-radius: 8px;
-  background: #fff;
-  font-size: 14px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 600;
   outline: none;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
-.filter-selects select:focus {
-  border-color: var(--sg-green);
+.filter-select:focus {
+  border-color: var(--admin-primary);
+}
+
+.btn-outline {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-muted);
+  box-sizing: border-box;
+  padding: 0 16px;
+}
+
+.btn-create {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  box-sizing: border-box;
+  padding: 0 16px;
 }
 
 /* Bảng */
@@ -1550,16 +1549,6 @@ tr:last-child td {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .filters-panel {
-    flex-direction: column;
-  }
-  .search-box {
-    max-width: 100%;
-  }
-  .filter-selects {
-    width: 100%;
-    justify-content: space-between;
-  }
   .form-grid, .roles-grid {
     grid-template-columns: 1fr;
   }

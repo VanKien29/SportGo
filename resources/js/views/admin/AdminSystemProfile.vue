@@ -9,10 +9,6 @@
                     thông tin liên hệ và logo dùng trên các màn vận hành.
                 </p>
             </div>
-            <button type="button" class="ghost-button" :disabled="loading" @click="loadProfile">
-                <span>↻</span>
-                Tải lại
-            </button>
         </section>
 
         <div v-if="message" class="alert success">{{ message }}</div>

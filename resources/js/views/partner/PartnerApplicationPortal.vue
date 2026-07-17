@@ -48,7 +48,6 @@
 
         <div class="flex-between mb-4">
           <p style="font-size: 14px; color: var(--text-muted);">{{ applications.length }} hồ sơ</p>
-          <button type="button" class="btn btn-outline" @click="loadApplications">Làm mới</button>
         </div>
 
         <div v-if="loading" style="text-align: center; padding: 60px;">
