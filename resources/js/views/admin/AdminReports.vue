@@ -1,5 +1,7 @@
 <template>
-  <section class="moderation-page">
+  <div class="complaints-page">
+    <div v-if="success" class="notice success">{{ success }}</div>
+    <div v-if="error" class="notice error">{{ error }}</div>
 
     <div v-if="!detailOpen">
         <div class="filter-toolbar card" style="margin-bottom: 24px;">
@@ -162,13 +164,13 @@
                   <span class="label" style="color: #64748b;">Họ tên:</span>
                   <span class="value" style="font-weight: 500;">{{ selected.reporter?.full_name || 'N/A' }}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: #64748b; font-size: 0.9rem;">Ngưỡng thực hiện thao tác (Ẩn/Khóa):</span>
-                  <strong style="color: #dc2626;">{{ currentAutoConfig.action_threshold }}</strong>
+                <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                  <span class="label" style="color: #64748b;">SĐT:</span>
+                  <span class="value" style="font-weight: 500;">{{ selected.reporter?.phone || 'N/A' }}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: #64748b; font-size: 0.9rem;">Số người báo cáo khác nhau:</span>
-                  <strong style="color: #2563eb;">{{ currentAutoConfig.unique_reporters_threshold }} người</strong>
+                <div class="info-row" style="display: flex; justify-content: space-between; font-size: 14px;">
+                  <span class="label" style="color: #64748b;">Email:</span>
+                  <span class="value" style="font-weight: 500;">{{ selected.reporter?.email || 'N/A' }}</span>
                 </div>
               </div>
               
@@ -277,86 +279,10 @@
                 </div>
               </div>
             </div>
-
-            <!-- Cấu hình chỉnh sửa -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center;">
-                <span style="color: #334155; font-size: 0.9rem; font-weight: 600;">Tự động xử lý vi phạm:</span>
-                <!-- Switch toggle -->
-                <div 
-                  class="toggle-slider" 
-                  :class="{ on: currentAutoConfig.is_auto_resolve_enabled }" 
-                  @click="currentAutoConfig.is_auto_resolve_enabled = !currentAutoConfig.is_auto_resolve_enabled"
-                  style="width: 48px; height: 26px; border-radius: 13px; background: #e2e8f0; cursor: pointer; transition: background 0.2s; position: relative;"
-                  :style="currentAutoConfig.is_auto_resolve_enabled ? 'background: #16a34a;' : ''"
-                >
-                  <div 
-                    style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"
-                    :style="currentAutoConfig.is_auto_resolve_enabled ? 'transform: translateX(22px);' : ''"
-                  ></div>
-                </div>
-              </div>
-              <div v-if="currentAutoConfig.is_auto_resolve_enabled" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-                <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: 13px; color: #334155;">
-                  <span style="color: #64748b;">Lý do xử lý tự động:</span>
-                  <input type="text" v-model="currentAutoConfig.reason" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 500;" placeholder="Ví dụ: Vi phạm tiêu chuẩn cộng đồng" />
-                </label>
-              </div>
-            </div>
-          </div>
-          
-          <div style="margin-top: 4px; padding: 10px 12px; background: #eff6ff; border-radius: 8px; font-size: 0.85rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
-            <AppIcon name="info" size="16" style="flex-shrink: 0; margin-top: 2px;" />
-            <div>
-              Khi số người báo cáo khác nhau đạt <strong>ngưỡng thực hiện thao tác</strong> và tự động xử lý đang bật, hệ thống sẽ tự động thực thi ẩn bài viết/bình luận hoặc khóa cụm sân.
-            </div>
-          </div>
-          
-          <div style="text-align: center; margin-top: 8px;">
-            <router-link v-if="autoResolveConfigData.policy_id" :to="`/admin/policies/${autoResolveConfigData.policy_id}`" class="btn secondary" style="text-decoration: none; display: inline-block; font-size: 0.85rem; padding: 8px 12px; font-weight: 800; border-radius: 6px; background: #f1f5f9; color: #334155;">
-              Chỉnh ngưỡng tại Chính sách hệ thống →
-            </router-link>
           </div>
         </template>
-
-        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
-          <button type="button" class="btn secondary" @click="closeAutoResolveModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
-          <button type="button" class="btn primary" style="background: #10b981; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="saveAutoResolveConfig" :disabled="autoResolveSaving">Lưu cấu hình</button>
-        </footer>
-      </div>
     </div>
-
-    <!-- Modal Khóa Tài Khoản -->
-    <div v-if="showLockUserModal" class="detail-backdrop" @click.self="closeLockUserModal" style="z-index: 10000;">
-      <div class="modal" style="max-width: 450px; background: #fff; border-radius: 12px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-        <h3 style="margin: 0;">Khóa tài khoản</h3>
-        <p class="muted" style="margin: 0; color: #64748b; font-size: 14px;">Bạn đang khóa tài khoản <strong>{{ selected?.reported_user?.full_name }}</strong>.</p>
-        
-        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: #334155;">
-          <span>Thời hạn khóa (để trống nếu khóa vĩnh viễn):</span>
-          <input type="datetime-local" v-model="lockUserForm.locked_until" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
-        </label>
-        
-        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; color: #334155;">
-          <span>Lý do khóa:</span>
-          <textarea v-model="lockUserForm.status_reason" rows="3" placeholder="Nhập lý do khóa..." style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
-        </label>
-
-        <footer style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
-          <button type="button" class="btn secondary" @click="closeLockUserModal" style="border: 0; background: #f1f5f9; color: #334155; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;">Hủy</button>
-          <button type="button" class="btn danger" style="background: #dc2626; color: white; border: 0; padding: 10px 14px; font-weight: 800; border-radius: 8px; cursor: pointer;" @click="submitLockUser" :disabled="lockUserSaving">Khóa tài khoản</button>
-        </footer>
-      </div>
-    </div>
-
-    <!-- Nút cấu hình nổi (Floating Action Button) -->
-    <div class="floating-config-container" :class="{ 'has-scroll': showScrollTop }">
-      <button class="floating-config-btn" @click="openAutoResolveModal" title="Cấu hình tự động xử lý báo cáo">
-        <AppIcon name="settings" size="20" />
-        <span class="floating-config-text">Cấu hình tự động xử lý</span>
-      </button>
-    </div>
-  </section>
+  </div>
 </template>
 
 <script>
@@ -404,14 +330,6 @@ export default {
         { value: 'resolved', label: 'Đã xử lý' },
         { value: 'dismissed', label: 'Đã bỏ qua' },
       ],
-      reportActionOptions: [
-        { value: '', label: 'Không áp dụng thao tác bổ sung' },
-        { value: 'warning', label: 'Cảnh báo người dùng' },
-        { value: 'content_hidden', label: 'Ẩn nội dung' },
-        { value: 'content_deleted', label: 'Gỡ nội dung' },
-        { value: 'account_locked', label: 'Khóa tài khoản' },
-        { value: 'venue_locked', label: 'Khóa cụm sân' },
-      ],
       selected: null,
       auditLogs: [],
       detailOpen: false,
@@ -420,14 +338,22 @@ export default {
       saving: false,
       error: '',
       success: '',
-      form: { action_taken: '', action_note: '', lock_days: null },
-      notificationForm: { recipient: 'reporter', message: '' },
+      form: { action_taken: '', action_note: '', lock_days: null, notify_message: '' },
       showAutoResolveModal: false,
       autoResolveLoading: false,
       autoResolveSaving: false,
       autoResolveConfigData: null,
       activeAutoTab: 'community_post',
       showScrollTop: false,
+      previewImage: null,
+      zoomState: {
+          scale: 1,
+          x: 0,
+          y: 0,
+          isDragging: false,
+          startX: 0,
+          startY: 0
+      },
     };
   },
   computed: {
@@ -483,9 +409,12 @@ export default {
         case 'post':
         case 'venue_post':
         case 'player_post':
-          return window.location.origin + '/community/' + slug;
+        case 'community_post':
+          return window.location.origin + '/community/' + (report.target?.post_slug || slug);
         case 'comment':
-          return window.location.origin + '/community/' + (report.target?.post?.slug || report.parent_id || slug);
+        case 'venue_post_comment':
+        case 'community_post_comment':
+          return window.location.origin + '/community/' + (report.target?.post_slug || report.target?.post?.slug || report.parent_id || slug) + '?admin_view=1&open_comment=' + slug;
         case 'user':
           return this.$router.resolve({ name: 'admin-user-detail', params: { id } }).href;
         case 'venue':
@@ -524,9 +453,10 @@ export default {
           action_taken: this.selected.action_taken || '',
           action_note: this.selected.action_note || '',
           lock_days: null,
+          notify_recipient: 'reporter',
+          notify_message: '',
         };
-        this.notificationForm = { recipient: 'reporter', message: '' };
-        
+
         if (this.selected.reported_user) {
           try {
             const vrResponse = await adminReportService.getViolationRecord('user', this.selected.reported_user.id);
@@ -542,28 +472,22 @@ export default {
         this.detailLoading = false;
       }
     },
+
     closeDetail() {
       this.detailOpen = false;
       this.selected = null;
     },
-    async takeReview() {
-      this.saving = true;
-      try {
-        const response = await adminReportService.review(this.selected.id);
-        this.form = { action_taken: '', action_note: '', lock_days: null };
-        await this.refreshDetail();
-        this.success = response.message || 'Đã nhận kiểm duyệt báo cáo.';
-        await this.loadReports();
-      } catch (error) {
-        this.error = error.message;
-      } finally {
-        this.saving = false;
-      }
-    },
     async submitDecision(decision) {
       this.saving = true;
       try {
-        const response = await adminReportService.resolve(this.selected.id, { ...this.form, decision });
+        const payload = {
+            decision,
+            action_note: this.form.action_note,
+        };
+        if (decision === 'resolved') {
+            payload.action_taken = this.form.action_taken;
+        }
+        const response = await adminReportService.resolve(this.selected.id, payload);
         this.success = response.message;
         await this.loadReports();
         await this.refreshDetail();
@@ -574,7 +498,7 @@ export default {
       }
     },
     async sendAdditionalNotification() {
-      if (!this.selected?.id || !this.notificationForm.message) return;
+      if (!this.form.notify_message || !this.selected) return;
       this.saving = true;
       try {
         const payload = {
@@ -600,7 +524,7 @@ export default {
           recipient: 'reporter',
           message: reporterMsg
         });
-        
+
         const reportedMsg = "Xin chào! Chúng tôi gửi thông báo này để nhắc nhở bạn về việc vi phạm chính sách của SportGo. Vui lòng rà soát lại các nội dung/hoạt động của bạn và tuân thủ đúng quy định. Nếu có thắc mắc, vui lòng liên hệ trung tâm hỗ trợ.";
         await adminReportService.notify(this.selected.id, {
           recipient: 'reported',
@@ -671,22 +595,48 @@ export default {
         venue_locked: 'Khóa cụm sân',
       }[value] || (value ? value : 'Chưa xử lý');
     },
-    auditLabel(value) {
-      return {
-        'report.reviewing': 'Nhận kiểm duyệt',
-        'report.resolved': 'Xử lý báo cáo',
-        'report.dismissed': 'Bỏ qua báo cáo',
+    auditLabel(action) {
+      if (!action) return '-';
+      const cleanAction = String(action).trim().toLowerCase();
+      const labels = {
+        'report.created': 'Tạo báo cáo',
+        'report.reviewing': 'Bắt đầu kiểm duyệt',
+        'report.resolved': 'Xác nhận vi phạm',
+        'report.dismissed': 'Bỏ qua báo (Báo cáo sai)',
+        'report.notified': 'Gửi thông báo',
+        'post.approved': 'Duyệt bài viết',
+        'post.rejected': 'Từ chối bài viết',
+        'venue_post.created': 'Đăng bài viết cụm sân',
+        'community_post.created': 'Đăng bài viết cộng đồng',
+        'player_post.created': 'Đăng bài kèo',
         'content.hidden': 'Ẩn nội dung',
         'content.deleted': 'Xóa nội dung',
+        'content.restored': 'Khôi phục nội dung',
+        'user.warned': 'Cảnh cáo người dùng',
+        'user.locked_by_admin': 'Khóa tài khoản',
         'user.locked_by_report': 'Khóa tài khoản',
+        'user.unlocked_by_admin': 'Mở khóa tài khoản',
+        'venue.locked_by_admin': 'Khóa cụm sân',
         'venue.locked_by_report': 'Khóa cụm sân',
-      }[value] || value;
+        'venue.unlocked_by_admin': 'Mở khóa cụm sân',
+      };
+      return labels[cleanAction] || action;
     },
     reportLabel(report) {
       if (!report) return '';
       const target = this.targetLabel(report.target_type);
       const reason = this.reasonLabel(report.reason);
       return reason ? `${target} · ${reason}` : target;
+    },
+    fillTemplateActionNote() {
+      this.form.action_note = "Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã xem xét nội dung và xác nhận vi phạm. Đội ngũ kiểm duyệt đã tiến hành xử lý nội dung/tài khoản vi phạm theo đúng chính sách của SportGo. Cảm ơn bạn đã góp phần giữ gìn cộng đồng an toàn và minh bạch!";
+    },
+    fillTemplateNotifyMessage() {
+      if (this.form.notify_recipient === 'reporter') {
+        this.form.notify_message = "Xin chào! Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã tiếp nhận và xử lý vi phạm liên quan đến nội dung này. Nếu bạn có thêm thông tin, vui lòng liên hệ qua trung tâm hỗ trợ. Chúc bạn một ngày tốt lành!";
+      } else {
+        this.form.notify_message = "Xin chào! Chúng tôi gửi thông báo này để nhắc nhở bạn về việc vi phạm chính sách của SportGo. Vui lòng rà soát lại các nội dung/hoạt động của bạn và tuân thủ đúng quy định. Nếu có thắc mắc, vui lòng liên hệ trung tâm hỗ trợ.";
+      }
     },
     formatDateTime(value) {
       return value ? new Date(value).toLocaleString('vi-VN') : '-';
@@ -695,7 +645,9 @@ export default {
       return value ? `${Math.max(1, Math.round(value / 1024))} KB` : '0 KB';
     },
     mediaUrl(path) {
-      return path?.startsWith('http') ? path : `/storage/${path}`;
+      if (!path) return '';
+      if (path.startsWith('http') || path.startsWith('/storage')) return path;
+      return `/storage/${path}`;
     },
     async openAutoResolveModal() {
       this.showAutoResolveModal = true;
@@ -730,81 +682,340 @@ export default {
         this.autoResolveSaving = false;
       }
     },
+    openImagePreview(url) {
+        this.previewImage = url;
+        this.resetZoom();
+    },
+    closeImagePreview() {
+        this.previewImage = null;
+        this.resetZoom();
+    },
+    resetZoom() {
+        this.zoomState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+    },
+    handleWheelZoom(e) {
+        e.preventDefault();
+        const zoomFactor = 0.15;
+        const direction = e.deltaY < 0 ? 1 : -1;
+        const newScale = Math.max(1, Math.min(this.zoomState.scale + direction * zoomFactor, 5));
+
+        if (newScale === 1) {
+            this.resetZoom();
+            return;
+        }
+
+        const rect = e.target.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+
+        const ratio = newScale / this.zoomState.scale;
+        const diffX = cursorX * ratio - cursorX;
+        const diffY = cursorY * ratio - cursorY;
+
+        this.zoomState.x -= diffX;
+        this.zoomState.y -= diffY;
+        this.zoomState.scale = newScale;
+    },
+    startPan(e) {
+        if (this.zoomState.scale <= 1) return;
+        this.zoomState.isDragging = true;
+        this.zoomState.startX = e.clientX - this.zoomState.x;
+        this.zoomState.startY = e.clientY - this.zoomState.y;
+    },
+    doPan(e) {
+        if (!this.zoomState.isDragging) return;
+        this.zoomState.x = e.clientX - this.zoomState.startX;
+        this.zoomState.y = e.clientY - this.zoomState.startY;
+    },
+    endPan() {
+        this.zoomState.isDragging = false;
+    },
   },
 };
 </script>
 
 <style scoped>
-.moderation-page .card-title {
-  width: 100%;
-  max-width: 100%;
+.complaints-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.moderation-page .card-title strong {
-  white-space: normal;
-  overflow-wrap: anywhere;
+.notice {
+  padding: 12px 16px;
+  border-radius: var(--admin-radius-md);
+  font-size: 14px;
+  font-weight: 500;
+}
+.notice.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+.notice.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
 }
 
-.side-panel .modal-actions {
+.filter-toolbar {
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs-header {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.filters-row {
+  display: flex;
+  gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--admin-surface-muted);
+  border-top: 1px solid var(--admin-border);
 }
 
-.side-panel .modal-actions .btn {
-  flex: 1 1 120px;
+.field.compact {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--admin-faint);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.floating-config-container {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  z-index: 999;
-  transition: right 0.3s ease;
+.search-field {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 36px;
+  gap: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-field:focus-within {
+  border-color: var(--admin-blue);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+.search-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text);
+  padding: 0;
+  height: 100%;
+  text-transform: none;
 }
 
-.floating-config-container.has-scroll {
-  right: 84px;
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--admin-muted);
+  gap: 16px;
 }
 
-.floating-config-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--admin-border);
+  border-top-color: var(--admin-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.table-container {
+  overflow: hidden;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  min-width: 1000px;
+}
+
+th {
+  background: var(--admin-surface-muted);
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--admin-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--admin-border);
+  white-space: nowrap;
+}
+
+td {
+  padding: 16px;
+  border-bottom: 1px solid var(--admin-border);
+  vertical-align: top;
+}
+
+th.right, td.right {
+  text-align: right;
+}
+
+th.center, td.center {
+  text-align: center;
+}
+
+.complaint-row.never-hover-class-placeholder {
+  background: var(--admin-surface-muted);
+}
+
+.author-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.author-cell strong {
+  color: var(--admin-text);
+  font-size: 14px;
+}
+.muted {
+  color: var(--admin-muted);
+}
+.small {
+  font-size: 12px;
+}
+
+.info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.post-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-text);
+  line-height: 1.4;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--admin-surface-hover);
+  color: var(--admin-text);
+}
+
+.post-court {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--admin-text);
+}
+.muted-icon {
+  color: var(--admin-muted);
+}
+
+.booking-code {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--admin-primary);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+.status-info {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+.status-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+.status-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+.status-muted {
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+}
+
+.date-cell {
+  font-size: 13px;
+  color: var(--admin-muted);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
-  color: #0f172a;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-  white-space: nowrap;
-  padding: 0 11px;
+  padding: 16px;
+  gap: 16px;
+  border-top: 1px solid var(--admin-border);
+}
+.page-info {
+  font-size: 14px;
+  color: var(--admin-muted);
+  font-weight: 500;
+}
+.mt-1 {
+  margin-top: 4px;
 }
 
-.floating-config-btn .floating-config-text {
-  max-width: 0;
-  opacity: 0;
-  margin-left: 0;
-  font-weight: 700;
-  font-size: 13px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: inline-block;
-}
-
-.floating-config-btn.never-hover-class-placeholder {
-  width: 215px;
-  justify-content: flex-start;
-  padding-left: 14px;
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  background-color: #f8fafc;
-}
-
-.floating-config-btn.never-hover-class-placeholder .floating-config-text {
-  max-width: 170px;
-  opacity: 1;
-  margin-left: 6px;
+@media (max-width: 768px) {
+  .tabs-header {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 8px; /* Room for scrollbar */
+  }
+  .tab-btn {
+    flex-shrink: 0;
+  }
+  .search-field {
+    width: 100%;
+    max-width: none;
+  }
 }
 </style>

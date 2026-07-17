@@ -365,7 +365,6 @@
                   Báo cáo sân
                 </button>
               </div>
-            </div>
           </aside>
         </section>
       </template>
@@ -387,7 +386,6 @@
       @success="onReportSuccess"
     />
   </div>
-</div>
 </template>
 
 <script>
