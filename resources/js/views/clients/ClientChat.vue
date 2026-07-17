@@ -1,14 +1,11 @@
 <template>
-  <Chat />
+  <div class="client-chat-host sg-client-page">
+    <Chat />
+  </div>
 </template>
 
-<script>
+<script setup>
 import Chat from '../Chat.vue';
-
-export default {
-  name: 'ClientChat',
-  components: {
-    Chat
-  }
-};
 </script>
+
+<style scoped src="../../../css/client-chat-shell.css"></style>

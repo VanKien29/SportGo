@@ -39,8 +39,10 @@ class ReportController extends Controller
 
         $modelClass = self::TARGET_TYPES[$targetType] ?? null;
         if (!$modelClass) {
-            return response()->json(['message' => 'Loại đối tượng không hợp lệ.'], 400);
+            return response()->json(['message' => 'Loại đối tượng không hợp lệ.'], 422);
         }
+
+        $modelClass::query()->findOrFail($targetId);
 
         // Check if user already reported this target recently
         $existingReport = Report::where('reporter_id', $request->user()->id)

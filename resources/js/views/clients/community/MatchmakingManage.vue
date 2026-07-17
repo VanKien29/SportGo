@@ -1,311 +1,394 @@
 <template>
-  <div class="matchmaking-manage-page">
+  <div class="matchmaking-manage-page sg-client-page">
     <PublicNavbar />
-    <div class="manage-content">
-      <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải dữ liệu...</p>
+
+    <main class="sg-client-reading-shell manage-content">
+      <router-link :to="{ name: 'ClientCommunityList' }" class="back-link">
+        <AppIcon name="chevronLeft" size="16" />
+        Cộng đồng
+      </router-link>
+
+      <div v-if="loading" class="sg-client-state page-state" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Đang tải yêu cầu tham gia...</p>
       </div>
-      
-      <!-- Error State -->
-      <div v-else-if="error" class="error-state">
-        <i class="fas fa-exclamation-circle"></i>
+
+      <div v-else-if="error" class="sg-client-state page-state page-state--error" role="alert">
+        <AppIcon name="alert" size="26" />
+        <strong>Không thể tải bài giao lưu</strong>
         <p>{{ error }}</p>
-        <button class="btn primary" @click="fetchParticipants">Thử lại</button>
+        <button type="button" class="sg-client-button" @click="fetchParticipants()">Thử lại</button>
       </div>
 
-      <template v-else>
-        <!-- Header Info -->
-        <div class="post-header">
-          <h2>Quản lý yêu cầu ghép kèo</h2>
-          <div class="post-info" v-if="post">
-            <p><i class="fas fa-map-marker-alt"></i> {{ post.venue_name }}</p>
-            <p><i class="far fa-clock"></i> {{ post.time }}</p>
-            <p>
-              <i class="fas fa-users"></i> Đang cần tuyển: 
-              <strong>{{ post.needed_players }} người</strong>
-            </p>
+      <template v-else-if="post">
+        <header class="page-header">
+          <div>
+            <span class="sg-client-eyebrow">Quản lý bài giao lưu</span>
+            <h1>Yêu cầu tham gia</h1>
+            <p>Duyệt người chơi phù hợp với buổi giao lưu của bạn.</p>
           </div>
-        </div>
+          <span class="post-status" :class="`post-status--${displayPostStatus}`">{{ postStatusLabel }}</span>
+        </header>
 
-        <!-- Participants List -->
-        <div class="participants-section">
-          <h3>Danh sách xin tham gia ({{ participants.length }})</h3>
-          
-          <div v-if="participants.length === 0" class="empty-state">
-            <i class="fas fa-user-friends"></i>
-            <p>Hiện chưa có ai gửi yêu cầu tham gia.</p>
+        <section class="booking-summary" aria-label="Thông tin buổi giao lưu">
+          <article class="sg-client-card">
+            <AppIcon name="mapPin" size="19" />
+            <span><small>Cụm sân</small><strong>{{ post.venue_name || 'Chưa xác định' }}</strong></span>
+          </article>
+          <article class="sg-client-card">
+            <AppIcon name="clock" size="19" />
+            <span><small>Thời gian</small><strong>{{ post.time || 'Chưa xác định' }}</strong></span>
+          </article>
+          <article class="sg-client-card">
+            <AppIcon name="users" size="19" />
+            <span><small>Còn cần</small><strong>{{ post.needed_players }} người</strong></span>
+          </article>
+        </section>
+
+        <aside class="decision-guide" :class="{ 'decision-guide--locked': !canApprove }">
+          <AppIcon :name="canApprove ? 'circleCheck' : 'alert'" size="20" />
+          <div>
+            <strong>{{ decisionGuideTitle }}</strong>
+            <p>{{ decisionGuideMessage }}</p>
+          </div>
+        </aside>
+
+        <section class="participants-panel sg-client-card">
+          <header class="panel-header">
+            <div>
+              <h2>Người xin tham gia</h2>
+              <p>{{ participants.length }} yêu cầu đã gửi đến bài giao lưu này.</p>
+            </div>
+            <button
+              type="button"
+              class="sg-client-button refresh-button"
+              :disabled="refreshing"
+              @click="fetchParticipants(true)"
+            >
+              <AppIcon name="refresh" size="16" :class="{ rotating: refreshing }" />
+              {{ refreshing ? 'Đang tải' : 'Làm mới' }}
+            </button>
+          </header>
+
+          <nav v-if="participants.length" class="request-filters" aria-label="Lọc yêu cầu tham gia">
+            <button
+              v-for="filter in requestFilters"
+              :key="filter.value"
+              type="button"
+              :class="{ active: activeFilter === filter.value }"
+              :aria-pressed="activeFilter === filter.value"
+              @click="activeFilter = filter.value"
+            >
+              <span>{{ filter.label }}</span>
+              <strong>{{ filter.count }}</strong>
+            </button>
+          </nav>
+
+          <div v-if="!participants.length" class="empty-state">
+            <AppIcon name="users" size="28" />
+            <strong>Chưa có yêu cầu tham gia</strong>
+            <span>Các yêu cầu mới sẽ xuất hiện tại đây.</span>
+          </div>
+
+          <div v-else-if="!filteredParticipants.length" class="empty-state empty-state--compact">
+            <AppIcon name="filter" size="24" />
+            <strong>Không có yêu cầu ở trạng thái này</strong>
+            <button type="button" class="sg-client-button" @click="activeFilter = 'all'">Xem tất cả</button>
           </div>
 
           <div v-else class="participant-list">
-            <div class="participant-card" v-for="p in participants" :key="p.user_id">
-              <div class="p-info">
-                <div class="p-avatar">
-                  <img v-if="p.avatar" :src="getAvatarUrl(p.avatar)" alt="avatar" />
-                  <div v-else class="p-avatar-placeholder">{{ p.name.charAt(0).toUpperCase() }}</div>
+            <article
+              v-for="participant in filteredParticipants"
+              :key="participant.user_id"
+              class="participant-card"
+            >
+              <div class="participant-main">
+                <div class="participant-info">
+                  <div class="avatar" aria-hidden="true">
+                    <img
+                      v-if="participant.avatar"
+                      :src="getAvatarUrl(participant.avatar)"
+                      :alt="participant.name"
+                    />
+                    <span v-else>{{ initial(participant.name) }}</span>
+                  </div>
+                  <div>
+                    <router-link :to="`/user/${participant.user_id}`">{{ participant.name }}</router-link>
+                    <small>Gửi lúc {{ formatTime(participant.created_at) }}</small>
+                  </div>
                 </div>
-                <div class="p-details">
-                  <span class="p-name">{{ p.name }}</span>
-                  <span class="p-time">{{ formatTime(p.created_at) }}</span>
+
+                <div v-if="participant.status === 'pending'" class="participant-actions">
+                  <button
+                    type="button"
+                    class="sg-client-button sg-client-button--primary"
+                    :disabled="isProcessing(participant.user_id) || !canApprove"
+                    @click="approve(participant.user_id)"
+                  >
+                    <AppIcon name="check" size="16" />
+                    {{ isProcessing(participant.user_id, 'approve') ? 'Đang duyệt...' : 'Đồng ý' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="sg-client-button sg-client-button--danger"
+                    :disabled="isProcessing(participant.user_id)"
+                    @click="openRejectConfirm(participant.user_id)"
+                  >
+                    <AppIcon name="close" size="16" />
+                    Từ chối
+                  </button>
+                </div>
+
+                <span v-else class="participant-status" :class="`participant-status--${participant.status}`">
+                  <AppIcon :name="participantStatusIcon(participant.status)" size="15" />
+                  {{ participantStatusLabel(participant.status) }}
+                </span>
+              </div>
+
+              <div
+                v-if="isRejectConfirmOpen(participant.user_id)"
+                class="reject-confirm"
+                role="alert"
+                aria-live="polite"
+              >
+                <div>
+                  <strong>Xác nhận từ chối {{ participant.name }}?</strong>
+                  <span>Yêu cầu sẽ chuyển sang trạng thái “Đã từ chối”.</span>
+                </div>
+                <div class="reject-confirm-actions">
+                  <button
+                    type="button"
+                    class="sg-client-button"
+                    :disabled="isProcessing(participant.user_id)"
+                    @click="closeRejectConfirm"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    class="sg-client-button sg-client-button--danger"
+                    :disabled="isProcessing(participant.user_id)"
+                    @click="reject(participant.user_id)"
+                  >
+                    <AppIcon name="close" size="16" />
+                    {{ isProcessing(participant.user_id, 'reject') ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+                  </button>
                 </div>
               </div>
-              
-              <div class="p-actions" v-if="p.status === 'pending'">
-                <button class="btn-approve" @click="approve(p.user_id)" :disabled="processingId === p.user_id">
-                  <i class="fas fa-check"></i> Đồng ý
-                </button>
-                <button class="btn-reject" @click="reject(p.user_id)" :disabled="processingId === p.user_id">
-                  <i class="fas fa-times"></i> Từ chối
-                </button>
-              </div>
-              <div class="p-status" v-else>
-                <span class="status-badge approved" v-if="p.status === 'approved'">Đã chấp nhận</span>
-                <span class="status-badge rejected" v-if="p.status === 'rejected'">Đã từ chối</span>
-              </div>
-            </div>
+            </article>
           </div>
-        </div>
+        </section>
       </template>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useToast } from 'vue-toastification';
+import AppIcon from '@/components/AppIcon.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import { api } from '@/services/api.js';
-import { useToast } from 'vue-toastification';
 
 const route = useRoute();
 const toast = useToast();
-const postId = route.params.id;
 
 const loading = ref(true);
-const error = ref(null);
+const refreshing = ref(false);
+const error = ref('');
 const post = ref(null);
 const participants = ref([]);
 const processingId = ref(null);
+const processingAction = ref('');
+const confirmRejectId = ref(null);
+const activeFilter = ref('all');
 
-const fetchParticipants = async () => {
-  loading.value = true;
-  error.value = null;
+const bookingStartAt = computed(() => {
+  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!match) return null;
+  const [, hour, minute, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+
+const isSessionExpired = computed(() => Boolean(
+  bookingStartAt.value && bookingStartAt.value.getTime() <= Date.now(),
+));
+
+const canApprove = computed(() => post.value?.status === 'open'
+  && Number(post.value?.needed_players || 0) > 0
+  && !isSessionExpired.value);
+
+const displayPostStatus = computed(() => isSessionExpired.value ? 'expired' : post.value?.status);
+
+const postStatusLabel = computed(() => {
+  if (isSessionExpired.value) return 'Đã kết thúc';
+  return {
+    open: 'Đang tuyển',
+    full: 'Đã đủ người',
+    closed: 'Đã đóng',
+    cancelled: 'Đã hủy',
+  }[post.value?.status] || post.value?.status || 'Không xác định';
+});
+
+const requestCounts = computed(() => participants.value.reduce((counts, participant) => {
+  const status = participant.status || 'pending';
+  counts[status] = (counts[status] || 0) + 1;
+  return counts;
+}, { pending: 0, approved: 0, rejected: 0, cancelled: 0 }));
+
+const requestFilters = computed(() => [
+  { value: 'all', label: 'Tất cả', count: participants.value.length },
+  { value: 'pending', label: 'Chờ duyệt', count: requestCounts.value.pending },
+  { value: 'approved', label: 'Đã đồng ý', count: requestCounts.value.approved },
+  { value: 'rejected', label: 'Đã từ chối', count: requestCounts.value.rejected },
+]);
+
+const orderedParticipants = computed(() => {
+  const order = { pending: 0, approved: 1, rejected: 2, cancelled: 3 };
+  return [...participants.value].sort((a, b) => {
+    const statusOrder = (order[a.status] ?? 4) - (order[b.status] ?? 4);
+    if (statusOrder !== 0) return statusOrder;
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+});
+
+const filteredParticipants = computed(() => activeFilter.value === 'all'
+  ? orderedParticipants.value
+  : orderedParticipants.value.filter((participant) => participant.status === activeFilter.value));
+
+const decisionGuideTitle = computed(() => {
+  if (isSessionExpired.value) return 'Buổi giao lưu đã qua thời gian diễn ra';
+  return canApprove.value
+    ? 'Ưu tiên xử lý các yêu cầu đang chờ'
+    : 'Bài giao lưu hiện không nhận thêm người';
+});
+
+const decisionGuideMessage = computed(() => {
+  if (isSessionExpired.value) {
+    return 'Không thể duyệt thêm người cho lịch đã kết thúc. Bạn vẫn có thể từ chối yêu cầu còn tồn để hoàn tất danh sách.';
+  }
+  return canApprove.value
+    ? 'Khi đồng ý, số người còn cần sẽ giảm. Hãy kiểm tra hồ sơ trước khi xác nhận.'
+    : 'Nút đồng ý được khóa để tránh vượt quá số người cần. Bạn vẫn có thể xem lại lịch sử xử lý.';
+});
+
+async function fetchParticipants(silent = false) {
+  if (silent) refreshing.value = true;
+  else {
+    loading.value = true;
+    post.value = null;
+    participants.value = [];
+  }
+  error.value = '';
+
   try {
-    const res = await api(`/api/matchmaking-posts/${postId}/participants`);
-    post.value = res.post;
-    participants.value = res.participants;
-  } catch (err) {
-    error.value = err.message || 'Lỗi tải dữ liệu.';
+    const response = await api(`/api/matchmaking-posts/${route.params.id}/participants`);
+    post.value = response.post;
+    participants.value = Array.isArray(response.participants) ? response.participants : [];
+  } catch (requestError) {
+    const message = requestError.message || 'Không thể tải dữ liệu.';
+    if (silent) toast.error(message);
+    else error.value = message;
   } finally {
     loading.value = false;
+    refreshing.value = false;
   }
-};
+}
 
-const approve = async (userId) => {
+async function updateParticipant(userId, action) {
+  if (processingId.value !== null) return;
   processingId.value = userId;
+  processingAction.value = action;
+
   try {
-    await api(`/api/matchmaking-posts/${postId}/participants/${userId}/approve`, { method: 'POST' });
-    toast.success('Đã chấp nhận người chơi này.');
-    const p = participants.value.find(x => x.user_id === userId);
-    if (p) p.status = 'approved';
-  } catch (err) {
-    toast.error(err.message || 'Lỗi thao tác.');
+    await api(`/api/matchmaking-posts/${route.params.id}/participants/${userId}/${action}`, { method: 'POST' });
+    toast.success(action === 'approve' ? 'Đã chấp nhận người chơi.' : 'Đã từ chối yêu cầu.');
+    closeRejectConfirm();
+    await fetchParticipants(true);
+  } catch (requestError) {
+    toast.error(requestError.message || 'Không thể cập nhật yêu cầu.');
   } finally {
     processingId.value = null;
+    processingAction.value = '';
   }
-};
+}
 
-const reject = async (userId) => {
-  processingId.value = userId;
-  try {
-    await api(`/api/matchmaking-posts/${postId}/participants/${userId}/reject`, { method: 'POST' });
-    toast.success('Đã từ chối yêu cầu.');
-    const p = participants.value.find(x => x.user_id === userId);
-    if (p) p.status = 'rejected';
-  } catch (err) {
-    toast.error(err.message || 'Lỗi thao tác.');
-  } finally {
-    processingId.value = null;
-  }
-};
+function approve(userId) {
+  updateParticipant(userId, 'approve');
+}
 
-const formatTime = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
-};
+function reject(userId) {
+  updateParticipant(userId, 'reject');
+}
 
-const getAvatarUrl = (path) => {
-  if (!path) return '';
-  if (/^https?:\/\//.test(path)) return path;
-  if (path.startsWith('/')) return path;
+function openRejectConfirm(userId) {
+  if (processingId.value !== null) return;
+  confirmRejectId.value = userId;
+}
+
+function closeRejectConfirm() {
+  confirmRejectId.value = null;
+}
+
+function isRejectConfirmOpen(userId) {
+  return String(confirmRejectId.value ?? '') === String(userId ?? '');
+}
+
+function isProcessing(userId, action = '') {
+  const sameUser = String(processingId.value ?? '') === String(userId ?? '');
+  return sameUser && (!action || processingAction.value === action);
+}
+
+function participantStatusLabel(status) {
+  return {
+    approved: 'Đã chấp nhận',
+    rejected: 'Đã từ chối',
+    cancelled: 'Đã rút yêu cầu',
+    pending: 'Đang chờ duyệt',
+  }[status] || status || 'Không xác định';
+}
+
+function participantStatusIcon(status) {
+  return {
+    approved: 'circleCheck',
+    rejected: 'circleX',
+    cancelled: 'clock',
+    pending: 'clock',
+  }[status] || 'alert';
+}
+
+function formatTime(value) {
+  if (!value) return 'không rõ';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'không rõ';
+  return date.toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function getAvatarUrl(path) {
+  if (!path || /^https?:\/\//.test(path) || path.startsWith('/')) return path || '';
   return `/storage/${path}`;
-};
+}
 
-onMounted(() => {
+function initial(name) {
+  return String(name || 'N').trim().charAt(0).toUpperCase();
+}
+
+function resetAndFetch() {
+  activeFilter.value = 'all';
+  confirmRejectId.value = null;
   fetchParticipants();
-});
+}
+
+watch(() => route.params.id, resetAndFetch);
+onMounted(fetchParticipants);
 </script>
 
-<style scoped>
-.matchmaking-manage-page {
-  background-color: #f8fafc;
-  min-height: 100vh;
-  padding-top: 80px;
-}
-.manage-content {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-}
-.post-header {
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  margin-bottom: 24px;
-}
-.post-header h2 {
-  margin: 0 0 16px 0;
-  font-size: 1.5rem;
-  color: #1e293b;
-}
-.post-info p {
-  margin: 8px 0;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.post-info i {
-  color: #3b82f6;
-  width: 20px;
-}
-
-.participants-section h3 {
-  font-size: 1.2rem;
-  margin-bottom: 16px;
-  color: #334155;
-}
-
-.participant-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.p-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.p-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-}
-.p-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.p-avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: #3b82f6;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  font-weight: bold;
-}
-.p-details {
-  display: flex;
-  flex-direction: column;
-}
-.p-name {
-  font-weight: 600;
-  color: #1e293b;
-}
-.p-time {
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-top: 4px;
-}
-.p-actions {
-  display: flex;
-  gap: 8px;
-}
-.btn-approve, .btn-reject {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.btn-approve {
-  background: #10b981;
-  color: white;
-}
-.btn-approve:hover:not(:disabled) { background: #059669; }
-.btn-reject {
-  background: #ef4444;
-  color: white;
-}
-.btn-reject:hover:not(:disabled) { background: #dc2626; }
-.btn-approve:disabled, .btn-reject:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.status-badge.approved {
-  background: #d1fae5;
-  color: #047857;
-}
-.status-badge.rejected {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #64748b;
-  background: white;
-  border-radius: 12px;
-}
-.empty-state i {
-  font-size: 3rem;
-  color: #cbd5e1;
-  margin-bottom: 16px;
-}
-.loading-state, .error-state {
-  text-align: center;
-  padding: 40px;
-}
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-</style>
+<style scoped src="../../../../css/client-matchmaking-manage.css"></style>

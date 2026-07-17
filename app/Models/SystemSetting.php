@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
@@ -164,7 +165,7 @@ class SystemSetting extends Model
 
     public static function integer(string $key, int $default): int
     {
-        if (! Schema::hasTable((new static())->getTable())) {
+        if (! Schema::hasTable((new static)->getTable())) {
             return $default;
         }
 
@@ -174,5 +175,29 @@ class SystemSetting extends Model
         }
 
         return (int) $setting->value;
+    }
+
+    public static function profilePayload(): array
+    {
+        $payload = [];
+
+        foreach (self::PROFILE_FIELDS as $key => $meta) {
+            $payload[$key] = $meta['default'];
+        }
+
+        if (! Schema::hasTable('system_settings')) {
+            return $payload;
+        }
+
+        $stored = self::query()
+            ->whereIn('key', array_keys(self::PROFILE_FIELDS))
+            ->get()
+            ->keyBy('key');
+
+        foreach (self::PROFILE_FIELDS as $key => $meta) {
+            $payload[$key] = $stored->get($key)?->value ?? $meta['default'];
+        }
+
+        return $payload;
     }
 }

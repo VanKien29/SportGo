@@ -40,7 +40,6 @@ import BookingHistory from "../views/clients/booking/BookingHistory.vue";
 import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
 import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
-import NewsList from '../views/clients/news/NewsList.vue';
 import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
@@ -580,7 +579,7 @@ router.beforeEach(async (to, from, next) => {
             return next(
                 requiredRole === "admin"
                     ? { name: "admin-login" }
-                    : { name: "login" },
+                    : { name: "login", query: { redirect: to.fullPath } },
             );
         }
 
@@ -592,7 +591,7 @@ router.beforeEach(async (to, from, next) => {
             return next(
                 requiredRole === "admin"
                     ? { name: "admin-login" }
-                    : { name: "login" },
+                    : { name: "login", query: { redirect: to.fullPath } },
             );
         }
 

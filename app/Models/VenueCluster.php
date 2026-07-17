@@ -131,6 +131,11 @@ class VenueCluster extends Model
         return $this->hasMany(AffiliateProduct::class, 'venue_cluster_id');
     }
 
+    public function services()
+    {
+        return $this->hasMany(VenueClusterService::class, 'venue_cluster_id');
+    }
+
     public function approvalRequests()
     {
         return $this->hasMany(VenueCourtApprovalRequest::class, 'venue_cluster_id');

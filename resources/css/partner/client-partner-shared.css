@@ -1,0 +1,130 @@
+.partner-client-page {
+  --primary-color: var(--sg-client-primary);
+  --primary-hover: var(--sg-client-primary-dark);
+  --surface-color: var(--sg-client-surface);
+  --bg-color: var(--sg-client-page);
+  --text-main: var(--sg-client-text);
+  --text-muted: var(--sg-client-muted);
+  --border-color: var(--sg-client-border);
+  --danger-color: var(--sg-client-danger);
+  --warning-color: var(--sg-client-warning);
+  --shadow-sm: none;
+  --shadow-md: var(--sg-client-modal-shadow);
+  --shadow-lg: var(--sg-client-modal-shadow);
+  background: var(--sg-client-page);
+  color: var(--sg-client-text);
+  font-family: var(--sg-client-font-family);
+}
+
+.partner-review-main,
+.partner-document-main {
+  box-sizing: border-box;
+  width: min(calc(100% - (var(--sg-client-space-6) * 2)), var(--sg-client-shell));
+  padding-top: calc(var(--sg-client-nav-offset) + var(--sg-client-space-5));
+  padding-bottom: var(--sg-client-space-8);
+}
+
+.partner-client-page .partner-page-header {
+  gap: var(--sg-client-space-4);
+  margin-bottom: var(--sg-client-space-4);
+}
+
+.partner-client-page .partner-page-title {
+  min-width: 0;
+}
+
+.partner-client-page .partner-page-title p {
+  color: var(--sg-client-primary-dark);
+  font-size: var(--sg-client-font-xs);
+}
+
+.partner-client-page .partner-page-title h1 {
+  color: var(--sg-client-text);
+  font-size: clamp(var(--sg-client-font-2xl), 3vw, 28px);
+  overflow-wrap: anywhere;
+}
+
+.partner-client-page .partner-page-title small {
+  color: var(--sg-client-muted);
+  font-size: var(--sg-client-font-sm);
+  overflow-wrap: anywhere;
+}
+
+.partner-client-page .btn {
+  min-height: var(--sg-client-control-height);
+  border-radius: var(--sg-client-radius-sm);
+  font-size: var(--sg-client-font-base);
+  transition: border-color var(--sg-client-transition), background-color var(--sg-client-transition), color var(--sg-client-transition);
+}
+
+.partner-client-page .btn-primary {
+  border-color: var(--sg-client-primary);
+  background: var(--sg-client-primary);
+  color: var(--sg-client-primary-text);
+  box-shadow: none;
+}
+
+.partner-client-page .btn-primary:hover:not(:disabled) {
+  border-color: var(--sg-client-primary-dark);
+  background: var(--sg-client-primary-dark);
+  box-shadow: none;
+  transform: none;
+}
+
+.partner-client-page .btn-secondary,
+.partner-client-page .btn-outline {
+  border-color: var(--sg-client-border-strong);
+  background: var(--sg-client-surface);
+  color: var(--sg-client-text);
+  box-shadow: none;
+}
+
+.partner-client-page .btn-secondary:hover:not(:disabled),
+.partner-client-page .btn-outline:hover:not(:disabled) {
+  border-color: var(--sg-client-primary);
+  background: var(--sg-client-primary-soft);
+  color: var(--sg-client-primary-dark);
+}
+
+.partner-client-page .partner-card {
+  min-width: 0;
+  border-color: var(--sg-client-border);
+  border-radius: var(--sg-client-radius-md);
+  background: var(--sg-client-surface);
+  box-shadow: none;
+}
+
+.partner-client-page .partner-card-head {
+  border-color: var(--sg-client-border);
+}
+
+.partner-client-page .partner-card-head p,
+.partner-client-page .partner-empty {
+  color: var(--sg-client-muted);
+}
+
+.partner-client-page .partner-field-error {
+  color: var(--sg-client-danger);
+}
+
+@media (max-width: 720px) {
+  .partner-review-main,
+  .partner-document-main {
+    width: min(calc(100% - (var(--sg-client-space-3) * 2)), var(--sg-client-shell));
+    padding-top: calc(var(--sg-client-nav-offset) + var(--sg-client-space-3));
+  }
+
+  .partner-client-page .partner-page-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .partner-client-page .partner-page-header > .btn {
+    width: fit-content;
+  }
+
+  .partner-client-page .partner-card-head,
+  .partner-client-page .partner-card-body {
+    padding: var(--sg-client-space-4);
+  }
+}

@@ -170,11 +170,18 @@ class PartnerTerminationController extends Controller
     public function cancelSendOtp(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
+            'generated_document_id' => ['required', 'integer', 'exists:generated_documents,id'],
             'signature_image' => ['required', 'string'],
         ]);
 
         $termination = PartnerTerminationRequest::query()->findOrFail($id);
-        $signingRequest = $this->terminations->sendOwnerCancelOtp($termination, $request->user(), $data['signature_image'], $request);
+        $signingRequest = $this->terminations->sendOwnerCancelOtp(
+            $termination,
+            $request->user(),
+            (int) $data['generated_document_id'],
+            $data['signature_image'],
+            $request
+        );
 
         return response()->json([
             'status' => 'success',
@@ -185,6 +192,28 @@ class PartnerTerminationController extends Controller
                 'hash_short' => substr($signingRequest->file_hash, 0, 12),
             ],
         ]);
+    }
+
+    public function cancelPreview(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        $termination = PartnerTerminationRequest::query()->findOrFail($id);
+        $document = $this->terminations->previewOwnerCancellation(
+            $termination,
+            $request->user(),
+            $data['reason']
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã tạo bản xem trước văn bản hủy yêu cầu.',
+            'data' => [
+                'document' => $document->load('signatures.signer'),
+            ],
+        ], 201);
     }
 
     public function cancel(Request $request, string $id): JsonResponse

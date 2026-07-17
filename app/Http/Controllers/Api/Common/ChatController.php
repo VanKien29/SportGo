@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Models\VenueCluster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
@@ -164,11 +166,21 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        $request->validate([
+        $rules = [
             'content' => 'nullable|string|max:5000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240', // tối đa 10MB
-            'reply_to_id' => 'nullable|uuid|exists:messages,id',
-        ]);
+        ];
+
+        $replySupported = Schema::hasColumn('messages', 'reply_to_id');
+        if ($replySupported) {
+            $rules['reply_to_id'] = 'nullable|integer|exists:messages,id';
+        } elseif ($request->filled('reply_to_id')) {
+            return response()->json([
+                'message' => 'Chức năng trả lời tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
+        $request->validate($rules);
 
         if (!$request->filled('content') && !$request->hasFile('image')) {
             return response()->json(['message' => 'Nội dung tin nhắn hoặc hình ảnh là bắt buộc.'], 400);
@@ -177,33 +189,55 @@ class ChatController extends Controller
         $imagePath = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            
-            // Chuyển mã sang webp để triệt tiêu malware ẩn trong metadata của tệp ảnh gốc
-            $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
-            $image = $manager->decodePath($file->getPathname());
-            
-            $filename = 'chat_' . uniqid('', true) . '.webp';
-            $imagePath = 'chats/' . $filename;
-            
-            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists('chats')) {
-                \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('chats');
+
+            if (! class_exists(\Intervention\Image\ImageManager::class)
+                || ! class_exists(\Intervention\Image\Drivers\Gd\Driver::class)) {
+                return response()->json([
+                    'message' => 'Chức năng gửi ảnh đang tạm thời chưa sẵn sàng. Vui lòng thử lại sau.',
+                ], 503);
             }
-            
-            $image->save(storage_path('app/public/' . $imagePath), 80);
+
+            try {
+                // Chuyển mã sang webp để loại bỏ metadata và nội dung dư thừa của tệp ảnh gốc.
+                $manager = \Intervention\Image\ImageManager::usingDriver(new \Intervention\Image\Drivers\Gd\Driver());
+                $image = $manager->decodePath($file->getPathname());
+
+                $filename = 'chat_' . uniqid('', true) . '.webp';
+                $imagePath = 'chats/' . $filename;
+
+                if (! \Illuminate\Support\Facades\Storage::disk('public')->exists('chats')) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory('chats');
+                }
+
+                $image->save(storage_path('app/public/' . $imagePath), 80);
+            } catch (\Throwable $exception) {
+                if ($imagePath) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
+                }
+
+                report($exception);
+
+                return response()->json([
+                    'message' => 'Không thể xử lý ảnh này. Vui lòng chọn ảnh JPG, PNG, GIF hoặc WebP khác.',
+                ], 422);
+            }
         }
 
         $message = DB::transaction(function () use ($conversationId, $userId, $request, $imagePath) {
             $now = now();
-            $msg = Message::create([
+            $messageData = [
                 'conversation_id' => $conversationId,
-                'reply_to_id' => $request->input('reply_to_id'),
                 'sender_id' => $userId,
                 'content' => $request->input('content') ?: '[Hình ảnh]',
                 'is_system' => false,
                 'reference_type' => $imagePath ? 'image' : null,
                 'reference_id' => $imagePath ?: null,
                 'created_at' => $now,
-            ]);
+            ];
+            if (Schema::hasColumn('messages', 'reply_to_id')) {
+                $messageData['reply_to_id'] = $request->input('reply_to_id');
+            }
+            $msg = Message::create($messageData);
 
             Conversation::where('id', $conversationId)->update([
                 'last_message_at' => $now,
@@ -229,6 +263,12 @@ class ChatController extends Controller
      */
     public function reactToMessage(Request $request, $messageId)
     {
+        if (! Schema::hasColumn('messages', 'reactions')) {
+            return response()->json([
+                'message' => 'Chức năng cảm xúc tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
         $request->validate([
             'emoji' => 'required|string|max:50',
         ]);
@@ -287,6 +327,12 @@ class ChatController extends Controller
      */
     public function togglePinMessage(Request $request, $messageId)
     {
+        if (! Schema::hasColumn('messages', 'is_pinned')) {
+            return response()->json([
+                'message' => 'Chức năng ghim tin nhắn đang chờ cập nhật dữ liệu hệ thống.',
+            ], 409);
+        }
+
         $user = $request->user();
         $message = Message::findOrFail($messageId);
 
@@ -402,7 +448,7 @@ class ChatController extends Controller
     public function sendBooking(Request $request, $conversationId)
     {
         $validated = $request->validate([
-            'booking_id' => 'required|uuid|exists:bookings,id',
+            'booking_id' => 'required|integer|exists:bookings,id',
         ]);
 
         $conversation = $this->participantConversation($conversationId, $request->user()->id);
@@ -446,7 +492,6 @@ class ChatController extends Controller
         $message = DB::transaction(function () use ($conversationId, $request, $booking) {
             $now = now();
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $request->user()->id,
                 'content' => 'Da gui booking #'.$booking->booking_code,
@@ -475,8 +520,14 @@ class ChatController extends Controller
     }
     public function createBookingSupportRequest(Request $request, $conversationId)
     {
+        if (! Schema::hasTable('booking_support_requests')) {
+            return response()->json([
+                'message' => 'Chức năng yêu cầu hỗ trợ booking chưa sẵn sàng. Vui lòng thử lại sau khi hệ thống hoàn tất cập nhật dữ liệu.',
+            ], 503);
+        }
+
         $validated = $request->validate([
-            'booking_id' => 'required|uuid|exists:bookings,id',
+            'booking_id' => 'required|integer|exists:bookings,id',
             'request_type' => 'required|string|in:reschedule,change_court,cancel_booking,payment,late_arrival,refund,other',
             'note' => 'nullable|string|max:1000',
         ]);
@@ -511,7 +562,6 @@ class ChatController extends Controller
             ]);
 
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $conversationId,
                 'sender_id' => $request->user()->id,
                 'content' => 'Yeu cau ho tro booking #'.$booking->booking_code,
@@ -536,6 +586,12 @@ class ChatController extends Controller
 
     public function updateBookingSupportRequest(Request $request, $id)
     {
+        if (! Schema::hasTable('booking_support_requests')) {
+            return response()->json([
+                'message' => 'Chức năng yêu cầu hỗ trợ booking chưa sẵn sàng. Vui lòng thử lại sau khi hệ thống hoàn tất cập nhật dữ liệu.',
+            ], 503);
+        }
+
         $validated = $request->validate([
             'status' => 'required|string|in:acknowledged,resolved,rejected',
             'resolution_note' => 'nullable|string|max:1000',
@@ -564,7 +620,6 @@ class ChatController extends Controller
             ]);
 
             $msg = Message::create([
-                'id' => (string) Str::uuid(),
                 'conversation_id' => $supportRequest->conversation_id,
                 'sender_id' => $request->user()->id,
                 'content' => 'Cap nhat yeu cau booking #'.$supportRequest->booking?->booking_code,
@@ -978,7 +1033,9 @@ class ChatController extends Controller
             }
         }
 
-        if ($message->reference_type === 'booking_support_request' && $message->reference_id) {
+        if ($message->reference_type === 'booking_support_request'
+            && $message->reference_id
+            && Schema::hasTable('booking_support_requests')) {
             $supportRequest = BookingSupportRequest::query()
                 ->with([
                     'booking.venueCourt.venueCluster',

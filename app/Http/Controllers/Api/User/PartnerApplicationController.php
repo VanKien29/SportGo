@@ -7,6 +7,7 @@ use App\Models\CourtType;
 use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
+use App\Models\PartnerApplicationDocument;
 use App\Models\PartnerContract;
 use App\Models\VenueCluster;
 use App\Models\VenueCourtApprovalRequest;
@@ -104,11 +105,14 @@ class PartnerApplicationController extends Controller
         $data = $this->validatedApplicationData($request, false);
         $data = $this->enrichLocationNames($data);
         $data = $this->enrichBankVerification($data);
-        $data['document_files'] = $this->documentFiles($request);
+        $documentFiles = $this->documentFiles($request);
 
         $application = PartnerApplication::query()
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
+
+        $this->assertRequiredDocumentFilesAvailable($application, $documentFiles);
+        $data['document_files'] = $documentFiles;
 
         $application = $this->partners->updateDraftApplication($application, $request->user(), $data, $request);
 
@@ -821,6 +825,9 @@ class PartnerApplicationController extends Controller
 
     private function uploadedDocumentPayload($document): array
     {
+        $path = $this->uploadedDocumentPath($document);
+        $fileAvailable = $path !== null;
+
         return [
             'id' => $document->id,
             'partner_application_id' => $document->partner_application_id,
@@ -831,12 +838,93 @@ class PartnerApplicationController extends Controller
             'status' => $document->status,
             'reject_reason' => $document->reject_reason,
             'reviewed_at' => $document->reviewed_at,
-            'file_name' => $document->media?->file_name,
-            'mime_type' => $document->media?->mime_type,
-            'file_size' => $document->media?->file_size,
+            'file_name' => $document->media?->file_name ?: ($path ? basename($path) : null),
+            'mime_type' => $fileAvailable
+                ? (Storage::disk('public')->mimeType($path) ?: $document->media?->mime_type)
+                : $document->media?->mime_type,
+            'file_size' => $fileAvailable ? Storage::disk('public')->size($path) : 0,
+            'file_available' => $fileAvailable,
             'uploaded_at' => $document->created_at,
-            'download_url' => '/api/user/partner-application/documents/' . $document->id . '/download',
+            'download_url' => $fileAvailable
+                ? '/api/user/partner-application/documents/' . $document->id . '/download'
+                : null,
         ];
+    }
+
+    /**
+     * @param array<string, array<int, UploadedFile>> $documentFiles
+     */
+    private function assertRequiredDocumentFilesAvailable(PartnerApplication $application, array $documentFiles): void
+    {
+        $requiredDocuments = [
+            'identity' => ['field' => 'identity_documents', 'label' => 'CCCD/CMND người đăng ký'],
+            'business_license' => ['field' => 'business_license_documents', 'label' => 'giấy đăng ký kinh doanh/pháp lý'],
+            'facility' => ['field' => 'facility_images', 'label' => 'hình ảnh cơ sở/sân'],
+            'bank' => ['field' => 'bank_documents', 'label' => 'chứng từ ngân hàng'],
+            'lease' => ['field' => 'lease_documents', 'label' => 'hợp đồng hoặc giấy tờ thuê mặt bằng'],
+        ];
+
+        $application->loadMissing('documents.media');
+        $availableTypes = $application->documents
+            ->filter(fn (PartnerApplicationDocument $document): bool => $document->status !== 'rejected')
+            ->filter(fn (PartnerApplicationDocument $document): bool => $this->uploadedDocumentPath($document) !== null)
+            ->map(fn (PartnerApplicationDocument $document): ?string => $this->normalizedDocumentType($document))
+            ->filter()
+            ->unique();
+
+        $errors = [];
+        foreach ($requiredDocuments as $type => $definition) {
+            $hasNewFile = collect($documentFiles[$type] ?? [])
+                ->contains(fn ($file): bool => $file instanceof UploadedFile);
+
+            if (! $hasNewFile && ! $availableTypes->contains($type)) {
+                $errors[$definition['field']] = 'Vui lòng tải lên ' . $definition['label']
+                    . ' vì hồ sơ hiện tại không còn file hợp lệ trên hệ thống.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function uploadedDocumentPath(PartnerApplicationDocument $document): ?string
+    {
+        foreach ([
+            $document->getRawOriginal('file_path'),
+            $document->media?->getRawOriginal('file_path'),
+        ] as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && Storage::disk('public')->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizedDocumentType(PartnerApplicationDocument $document): ?string
+    {
+        $type = match ($document->document_type) {
+            'identity', 'identity_front', 'identity_back' => 'identity',
+            'business_license', 'business_registration' => 'business_license',
+            'facility', 'venue_front_image', 'court_area_image', 'parking_area_image' => 'facility',
+            'bank', 'bank_account_proof' => 'bank',
+            'lease', 'lease_contract' => 'lease',
+            default => null,
+        };
+
+        if ($type !== null) {
+            return $type;
+        }
+
+        return match ($document->document_group) {
+            'legal_identity', 'identity_documents' => 'identity',
+            'business_license', 'business_documents' => 'business_license',
+            'facility_images', 'venue_images' => 'facility',
+            'bank_documents' => 'bank',
+            'lease_contract', 'land_documents' => 'lease',
+            default => null,
+        };
     }
 
     private function validatedApplicationData(Request $request, bool $includeFiles): array

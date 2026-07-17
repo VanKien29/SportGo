@@ -708,13 +708,16 @@
 </template>
 
 <script>
-import PublicNavbar from "../../components/PublicNavbar.vue";
-import ReportModal from "../../components/ReportModal.vue";
-import { api } from "../../services/api.js";
-import { normalizeMediaUrl } from "../../utils/mediaUrl.js";
-import { getAuth } from "../../stores/auth.js";
+import { useToast } from 'vue-toastification';
+import AppIcon from '../../components/AppIcon.vue';
+import ClientAuthorBadges from '../../components/ClientAuthorBadges.vue';
+import PublicNavbar from '../../components/PublicNavbar.vue';
+import ReportModal from '../../components/ReportModal.vue';
+import { api } from '../../services/api.js';
+import { getAuth } from '../../stores/auth.js';
+import { normalizeMediaUrl } from '../../utils/mediaUrl.js';
 
-const fallbackImage = "/images/home/badminton-cover.webp";
+const fallbackImage = '/images/home/badminton-cover.webp';
 
 export default {
     name: "NewsDetail",

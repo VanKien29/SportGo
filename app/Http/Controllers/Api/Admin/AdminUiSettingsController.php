@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AdminUiSettingsController extends Controller
 {
@@ -228,9 +229,13 @@ class AdminUiSettingsController extends Controller
 
     public function getSettings(): JsonResponse
     {
+        if (! Schema::hasTable('system_settings')) {
+            return response()->json($this->getDefaultSettings());
+        }
+
         $setting = SystemSetting::where('key', self::SETTING_KEY)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             $default = $this->getDefaultSettings();
             $setting = SystemSetting::create([
                 'key' => self::SETTING_KEY,
@@ -243,6 +248,12 @@ class AdminUiSettingsController extends Controller
 
     public function updateSettings(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('system_settings')) {
+            return response()->json([
+                'message' => 'Chưa thể lưu giao diện vì dữ liệu cấu hình hệ thống chưa được khởi tạo.',
+            ], 409);
+        }
+
         $data = $request->validate([
             'active_theme_id' => ['required', 'string'],
             'sidebar_style' => ['required', 'string'],

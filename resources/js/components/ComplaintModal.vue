@@ -1,442 +1,291 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay" @click.self="close">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h3 class="modal-title">Gửi khiếu nại</h3>
-        <button class="close-btn" @click="close">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+  <div v-if="isOpen" class="modal-overlay" role="presentation" @click.self="close">
+    <section
+      class="complaint-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="complaint-modal-title"
+    >
+      <header class="modal-header">
+        <div>
+          <span class="modal-kicker">Trung tâm hỗ trợ</span>
+          <h2 id="complaint-modal-title">Gửi khiếu nại</h2>
+        </div>
+        <button type="button" class="icon-button" aria-label="Đóng" @click="close">
+          <AppIcon name="x" size="18" />
         </button>
-      </div>
-      
-      <div class="modal-body">
-        <p class="desc-text">Vui lòng cung cấp chi tiết để chúng tôi hỗ trợ bạn tốt nhất.</p>
-        
-        <form @submit.prevent="submit" class="complaint-form">
-          
-          <div class="input-area">
-            <label class="field-label">Loại khiếu nại <span class="required">*</span></label>
-            <div class="radio-group">
-              <label class="radio-label" :class="{ active: form.complaint_type === 'system' }">
-                <input type="radio" v-model="form.complaint_type" value="system" required />
-                <div class="radio-text">
-                  <strong>Hệ thống SportGo</strong>
-                  <p>Lỗi ứng dụng, thanh toán, tài khoản...</p>
-                </div>
-              </label>
-              <label class="radio-label" :class="{ active: form.complaint_type === 'venue' }">
-                <input type="radio" v-model="form.complaint_type" value="venue" required />
-                <div class="radio-text">
-                  <strong>Sân / Chủ sân</strong>
-                  <p>Dịch vụ sân, thái độ nhân viên, sai lịch...</p>
-                </div>
-              </label>
-            </div>
-          </div>
+      </header>
 
-          <!-- Nếu chọn khiếu nại sân -->
+      <div class="modal-body">
+        <p class="modal-description">
+          Khiếu nại dùng cho vấn đề cần được hỗ trợ và phản hồi. Nếu bạn chỉ muốn thông báo nội dung vi phạm, hãy dùng chức năng báo cáo.
+        </p>
+
+        <form class="complaint-form" @submit.prevent="submit">
+          <fieldset class="type-list">
+            <legend>Vấn đề liên quan</legend>
+            <label class="type-option" :class="{ selected: form.complaint_type === 'system' }">
+              <input v-model="form.complaint_type" type="radio" value="system" required />
+              <span>
+                <strong>Hệ thống SportGo</strong>
+                <small>Tài khoản, thanh toán hoặc lỗi sử dụng hệ thống.</small>
+              </span>
+            </label>
+            <label class="type-option" :class="{ selected: form.complaint_type === 'venue' }">
+              <input v-model="form.complaint_type" type="radio" value="venue" required />
+              <span>
+                <strong>Sân hoặc đơn vị vận hành</strong>
+                <small>Chất lượng dịch vụ, nhân viên hoặc thông tin lịch sân.</small>
+              </span>
+            </label>
+          </fieldset>
+
           <template v-if="form.complaint_type === 'venue'">
-            <div class="input-area mt-3">
-              <label class="field-label">Lịch đặt sân / Cụm sân liên quan <span class="required">*</span></label>
-              <select v-model="form.booking_id" class="content-input" @change="onBookingChange">
-                <option value="">-- Chọn lịch đặt sân gần đây (Tuỳ chọn) --</option>
-                <option v-for="bk in recentBookings" :key="bk.id" :value="bk.id">
-                  {{ formatDate(bk.booking_date) }} - {{ bk.venue_cluster?.name || bk.venueCluster?.name || 'Sân không xác định' }} (Mã: {{ bk.booking_code }})
+            <label class="field-block">
+              <span>Lịch đặt sân liên quan <small>Không bắt buộc</small></span>
+              <select v-model="form.booking_id" class="field-control" @change="onBookingChange">
+                <option value="">Không gắn với lịch đặt cụ thể</option>
+                <option v-for="booking in recentBookings" :key="booking.id" :value="booking.id">
+                  {{ bookingOptionLabel(booking) }}
                 </option>
               </select>
-            </div>
-            
-            <div class="input-area mt-3" v-if="!form.booking_id">
-              <label class="field-label">Hoặc chọn Cụm sân <span class="required">*</span></label>
-              <select v-model="form.venue_cluster_id" class="content-input" :required="!form.booking_id">
-                <option value="">-- Chọn cụm sân --</option>
-                <option v-for="vc in uniqueVenueClusters" :key="vc.id" :value="vc.id">
-                  {{ vc.name }}
+            </label>
+
+            <label v-if="!form.booking_id" class="field-block">
+              <span>Cụm sân <small>Bắt buộc</small></span>
+              <select v-model="form.venue_cluster_id" class="field-control" required>
+                <option value="" disabled>Chọn cụm sân cần khiếu nại</option>
+                <option v-for="cluster in availableVenueClusters" :key="cluster.id" :value="cluster.id">
+                  {{ cluster.name }}
                 </option>
               </select>
-              <small class="help-text">Danh sách sân bạn đã từng đặt.</small>
-            </div>
+              <small v-if="bookingsLoading" class="field-hint">Đang tải các sân từ lịch đặt gần đây...</small>
+              <small v-else-if="!availableVenueClusters.length" class="field-hint">
+                Chưa có cụm sân phù hợp trong lịch đặt của bạn.
+              </small>
+            </label>
           </template>
 
-          <div class="input-area mt-3">
-            <label class="field-label">Nội dung chi tiết <span class="required">*</span></label>
-            <textarea 
-              v-model="form.content" 
-              class="content-input" 
-              rows="4" 
+          <label class="field-block">
+            <span>Nội dung chi tiết <small>Bắt buộc</small></span>
+            <textarea
+              v-model.trim="form.content"
+              class="field-control"
+              rows="4"
+              maxlength="2000"
               required
-              placeholder="Mô tả cụ thể vấn đề bạn gặp phải..."
+              placeholder="Mô tả sự việc, thời điểm và hỗ trợ bạn mong muốn"
             ></textarea>
-          </div>
+            <small class="character-count">{{ form.content.length }}/2000</small>
+          </label>
 
-          <div class="input-area mt-3">
-            <label class="field-label">Ảnh minh chứng (nếu có)</label>
-            <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" @change="onImageSelected" class="content-input" style="padding: 8px;" />
-            
-            <div v-if="imagePreview" class="image-preview" style="margin-top: 8px; position: relative; max-width: 200px;">
-              <img :src="imagePreview" style="width: 100%; border-radius: 6px; border: 1px solid #ced0d4;" />
-              <button type="button" @click="removeImage" style="position: absolute; top: -8px; right: -8px; background: white; border: 1px solid #ced0d4; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
-            </div>
-          </div>
+          <label class="field-block">
+            <span>Ảnh minh chứng <small>JPG, PNG hoặc WebP, tối đa 5 MB</small></span>
+            <input
+              ref="fileInput"
+              class="field-control file-control"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              @change="onImageSelected"
+            />
+          </label>
 
-          <div v-if="errorMsg" class="error-alert mt-3">
-            {{ errorMsg }}
-          </div>
-
-          <div class="form-actions">
-            <button type="button" class="btn secondary" @click="close" :disabled="isSubmitting">Hủy</button>
-            <button type="submit" class="btn primary submit-btn" :disabled="isSubmitting || !isValid">
-              <span v-if="isSubmitting" class="spinner"></span>
-              <span v-else>Gửi khiếu nại</span>
+          <div v-if="imagePreview" class="image-preview">
+            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" />
+            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeImage">
+              <AppIcon name="trash" size="16" />
             </button>
           </div>
+
+          <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
+
+          <footer class="form-actions">
+            <SgButton type="secondary" :disabled="isSubmitting" @click="close">Hủy</SgButton>
+            <SgButton native-type="submit" type="primary" :loading="isSubmitting" :disabled="!isValid">
+              Gửi khiếu nại
+            </SgButton>
+          </footer>
         </form>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import AppIcon from './AppIcon.vue';
+import SgButton from './common/SgButton.vue';
 import { api, apiFormData } from '@/services/api';
 
 const props = defineProps({
-  isOpen: Boolean,
+  isOpen: { type: Boolean, default: false },
+  initialType: { type: String, default: 'system' },
+  initialVenueId: { type: [String, Number], default: '' },
+  initialVenueName: { type: String, default: '' },
+  initialBookingId: { type: [String, Number], default: '' },
 });
 
 const emit = defineEmits(['close', 'success']);
-
-const form = ref({
+const form = reactive({
   complaint_type: 'system',
   venue_cluster_id: '',
   booking_id: '',
   content: '',
-  imageFile: null
+  imageFile: null,
 });
-
+const recentBookings = ref([]);
+const bookingsLoading = ref(false);
 const isSubmitting = ref(false);
 const errorMsg = ref('');
-const imagePreview = ref(null);
-const recentBookings = ref([]);
+const imagePreview = ref('');
+const fileInput = ref(null);
 
-const uniqueVenueClusters = computed(() => {
-  const map = new Map();
-  recentBookings.value.forEach(bk => {
-    const vc = bk.venue_cluster || bk.venueCluster;
-    if (vc) {
-      map.set(vc.id, vc);
-    }
+const availableVenueClusters = computed(() => {
+  const clusters = new Map();
+  recentBookings.value.forEach((booking) => {
+    const cluster = booking.venue_cluster || booking.venueCluster || booking.venue_court?.venue_cluster;
+    if (cluster?.id) clusters.set(String(cluster.id), cluster);
   });
-  return Array.from(map.values());
+  if (props.initialVenueId) {
+    clusters.set(String(props.initialVenueId), {
+      id: props.initialVenueId,
+      name: props.initialVenueName || 'Cụm sân đang xem',
+    });
+  }
+  return Array.from(clusters.values());
 });
 
 const isValid = computed(() => {
-  if (!form.value.complaint_type || !form.value.content) return false;
-  if (form.value.complaint_type === 'venue') {
-    if (!form.value.booking_id && !form.value.venue_cluster_id) return false;
-  }
-  return true;
+  if (!form.content || !form.complaint_type) return false;
+  return form.complaint_type !== 'venue' || Boolean(form.venue_cluster_id);
 });
 
-const fetchBookings = async () => {
+function applyInitialContext() {
+  form.complaint_type = props.initialType === 'venue' ? 'venue' : 'system';
+  form.venue_cluster_id = props.initialVenueId ? String(props.initialVenueId) : '';
+  form.booking_id = props.initialBookingId ? String(props.initialBookingId) : '';
+}
+
+async function fetchBookings() {
+  bookingsLoading.value = true;
   try {
-    const res = await api('/api/bookings?per_page=50');
-    recentBookings.value = res.data || [];
-  } catch (err) {
-    console.error('Lỗi tải danh sách booking', err);
-  }
-};
-
-watch(() => props.isOpen, (newVal) => {
-  if (newVal) {
-    fetchBookings();
-  }
-});
-
-watch(() => form.value.complaint_type, (newVal) => {
-  if (newVal === 'system') {
-    form.value.venue_cluster_id = '';
-    form.value.booking_id = '';
-  }
-});
-
-const onBookingChange = () => {
-  const selectedBooking = recentBookings.value.find(b => b.id === form.value.booking_id);
-  if (selectedBooking) {
-    const vc = selectedBooking.venue_cluster || selectedBooking.venueCluster;
-    form.value.venue_cluster_id = selectedBooking.venue_cluster_id || (vc ? vc.id : '');
-  } else {
-    form.value.venue_cluster_id = '';
-  }
-};
-
-const formatDate = (val) => {
-  if (!val) return '';
-  return new Date(val).toLocaleDateString('vi-VN');
-};
-
-const onImageSelected = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    if (file.size > 5 * 1024 * 1024) {
-      errorMsg.value = 'Vui lòng chọn ảnh nhỏ hơn 5MB.';
-      return;
+    const response = await api('/api/bookings?per_page=50');
+    recentBookings.value = Array.isArray(response.data) ? response.data : [];
+    if (form.booking_id) onBookingChange();
+  } catch (error) {
+    recentBookings.value = [];
+    if (!props.initialVenueId) {
+      errorMsg.value = error.message || 'Không thể tải lịch đặt sân gần đây.';
     }
-    form.value.imageFile = file;
-    imagePreview.value = URL.createObjectURL(file);
-    errorMsg.value = '';
+  } finally {
+    bookingsLoading.value = false;
   }
-};
+}
 
-const removeImage = () => {
-  form.value.imageFile = null;
-  if (imagePreview.value) {
-    URL.revokeObjectURL(imagePreview.value);
-    imagePreview.value = null;
+function bookingCluster(booking) {
+  return booking?.venue_cluster || booking?.venueCluster || booking?.venue_court?.venue_cluster || null;
+}
+
+function bookingOptionLabel(booking) {
+  const date = booking.booking_date
+    ? new Date(`${booking.booking_date}T00:00:00`).toLocaleDateString('vi-VN')
+    : 'Chưa rõ ngày';
+  const cluster = bookingCluster(booking)?.name || 'Cụm sân';
+  const code = booking.booking_code || booking.code || booking.id;
+  return `${date} · ${cluster} · ${code}`;
+}
+
+function onBookingChange() {
+  const booking = recentBookings.value.find((item) => String(item.id) === String(form.booking_id));
+  if (!booking) {
+    if (!props.initialVenueId) form.venue_cluster_id = '';
+    return;
   }
-};
+  const cluster = bookingCluster(booking);
+  form.venue_cluster_id = String(booking.venue_cluster_id || cluster?.id || '');
+}
 
-const close = () => {
-  form.value.complaint_type = 'system';
-  form.value.venue_cluster_id = '';
-  form.value.booking_id = '';
-  form.value.content = '';
+function revokePreview() {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
+  imagePreview.value = '';
+}
+
+function removeImage() {
+  form.imageFile = null;
+  revokePreview();
+  if (fileInput.value) fileInput.value.value = '';
+}
+
+function reset() {
+  form.content = '';
   removeImage();
   errorMsg.value = '';
-  emit('close');
-};
+  applyInitialContext();
+}
 
-const submit = async () => {
-  if (!isValid.value) return;
-  
+function close() {
+  if (isSubmitting.value) return;
+  reset();
+  emit('close');
+}
+
+function onImageSelected(event) {
+  const file = event.target.files?.[0];
+  removeImage();
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    errorMsg.value = 'Ảnh minh chứng phải nhỏ hơn hoặc bằng 5 MB.';
+    return;
+  }
+  form.imageFile = file;
+  imagePreview.value = URL.createObjectURL(file);
+  errorMsg.value = '';
+}
+
+async function submit() {
+  if (!isValid.value || isSubmitting.value) return;
   isSubmitting.value = true;
   errorMsg.value = '';
-
   try {
-    const formData = new FormData();
-    formData.append('complaint_type', form.value.complaint_type);
-    formData.append('content', form.value.content);
-    if (form.value.complaint_type === 'venue') {
-      let clusterId = form.value.venue_cluster_id;
-      
-      if (form.value.booking_id) {
-        formData.append('booking_id', form.value.booking_id);
-        const selectedBooking = recentBookings.value.find(b => b.id === form.value.booking_id);
-        if (selectedBooking) {
-          const vc = selectedBooking.venue_cluster || selectedBooking.venueCluster;
-          clusterId = selectedBooking.venue_cluster_id || (vc ? vc.id : '') || clusterId;
-        }
-      }
-      
-      if (clusterId) {
-        formData.append('venue_cluster_id', clusterId);
-      }
+    const payload = new FormData();
+    payload.append('complaint_type', form.complaint_type);
+    payload.append('content', form.content);
+    if (form.complaint_type === 'venue') {
+      payload.append('venue_cluster_id', String(form.venue_cluster_id));
+      if (form.booking_id) payload.append('booking_id', String(form.booking_id));
     }
-    if (form.value.imageFile) {
-      formData.append('evidence_image', form.value.imageFile);
-    }
+    if (form.imageFile) payload.append('evidence_image', form.imageFile);
 
-    await apiFormData('/api/complaints', formData);
-    
-    emit('success');
-    close();
-  } catch (err) {
-    errorMsg.value = err.message || 'Đã xảy ra lỗi khi gửi khiếu nại.';
+    const response = await apiFormData('/api/complaints', payload);
+    emit('success', response);
+    reset();
+    emit('close');
+  } catch (error) {
+    errorMsg.value = error.message || 'Không thể gửi khiếu nại. Vui lòng thử lại.';
   } finally {
     isSubmitting.value = false;
   }
-};
+}
+
+watch(() => form.complaint_type, (type) => {
+  if (type === 'system') {
+    form.booking_id = '';
+    form.venue_cluster_id = '';
+  } else if (props.initialVenueId && !form.venue_cluster_id) {
+    form.venue_cluster_id = String(props.initialVenueId);
+  }
+});
+
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    applyInitialContext();
+    fetchBookings();
+  } else if (!isSubmitting.value) {
+    reset();
+  }
+});
+
+onBeforeUnmount(revokePreview);
 </script>
 
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-  backdrop-filter: blur(2px);
-}
-.modal-container {
-  background: #ffffff;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 500px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  max-height: 90vh;
-}
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e4e6eb;
-}
-.modal-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1c1e21;
-}
-.close-btn {
-  background: #e4e6eb;
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #65676b;
-  transition: background 0.2s;
-}
-.close-btn:hover {
-  background: #d8dadf;
-}
-.modal-body {
-  padding: 20px;
-  overflow-y: auto;
-}
-.desc-text {
-  font-size: 14px;
-  color: #65676b;
-  margin-bottom: 16px;
-}
-.field-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #050505;
-  margin-bottom: 8px;
-}
-.required {
-  color: #e41e3f;
-}
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.radio-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  cursor: pointer;
-  padding: 12px;
-  border: 1px solid #ced0d4;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-.radio-label:hover {
-  background: #f0f2f5;
-}
-.radio-label.active {
-  border-color: #1877f2;
-  background: #e7f3ff;
-}
-.radio-label input[type="radio"] {
-  margin-top: 4px;
-}
-.radio-text strong {
-  display: block;
-  font-size: 15px;
-  color: #1c1e21;
-}
-.radio-label.active .radio-text strong {
-  color: #1877f2;
-}
-.radio-text p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #65676b;
-}
-.content-input {
-  width: 100%;
-  border: 1px solid #ced0d4;
-  border-radius: 8px;
-  padding: 12px;
-  font-family: inherit;
-  font-size: 14px;
-  resize: vertical;
-  color: #050505;
-  background-color: #ffffff;
-}
-select.content-input option {
-  color: #050505;
-  background-color: #ffffff;
-}
-.content-input:focus {
-  outline: none;
-  border-color: #1877f2;
-  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
-}
-.help-text {
-  font-size: 12px;
-  color: #65676b;
-  display: block;
-  margin-top: 4px;
-}
-.mt-3 {
-  margin-top: 16px;
-}
-.error-alert {
-  background: #ffebe8;
-  color: #fa3e3e;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 14px;
-}
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-.btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  font-size: 15px;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn.secondary {
-  background: #e4e6eb;
-  color: #050505;
-}
-.btn.secondary:hover:not(:disabled) {
-  background: #d8dadf;
-}
-.btn.primary {
-  background: #1877f2;
-  color: #fff;
-}
-.btn.primary:hover:not(:disabled) {
-  background: #166fe5;
-}
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-</style>
+<style scoped src="../../css/components/client-complaint-modal.css"></style>

@@ -117,6 +117,8 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::get('/system-profile', [AdminSystemSettingController::class, 'show']);
+        Route::post('/system-profile', [AdminSystemSettingController::class, 'update']);
         Route::get('/pending-counts', [\App\Http\Controllers\Api\Admin\AdminPendingCountsController::class, 'index']);
         Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'admin']);
         Route::patch('/work-center/notifications/{notificationId}/read', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'markNotificationRead']);
@@ -376,6 +378,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::get('/termination-requests/{id}/future-bookings', [OwnerPartnerTerminationController::class, 'futureBookings']);
         Route::post('/termination-requests/{id}/future-bookings/bulk-action', [OwnerPartnerTerminationController::class, 'bulkAction']);
         Route::post('/termination-requests/{id}/withdrawals', [OwnerPartnerTerminationController::class, 'storeWithdrawal']);
+        Route::post('/termination-requests/{id}/cancel/preview', [OwnerPartnerTerminationController::class, 'cancelPreview']);
         Route::post('/termination-requests/{id}/cancel/send-otp', [OwnerPartnerTerminationController::class, 'cancelSendOtp']);
         Route::post('/termination-requests/{id}/cancel', [OwnerPartnerTerminationController::class, 'cancel']);
         Route::post('/termination-requests/{id}/final-document/sign/send-otp', [OwnerPartnerTerminationController::class, 'finalDocumentSignSendOtp']);

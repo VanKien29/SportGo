@@ -132,7 +132,7 @@ class WorkCenterService
                         category: 'signature',
                         priority: 'critical',
                         title: 'Ký công văn chấm dứt: ' . ($request->venueCluster?->name ?: $request->termination_code),
-                        description: 'Bản xem trước đã tạo nhưng công văn chưa được ký OTP và chưa gửi cho chủ sân.',
+                        description: 'Bản xem trước đã tạo nhưng công văn chưa được admin ký và chưa gửi cho chủ sân.',
                         actionLabel: 'Xem và ký công văn',
                         target: '/admin/partner-applications/' . $request->partner_application_id . '?tab=settlement&focus=termination-' . $request->id,
                         createdAt: $request->updated_at,
@@ -150,6 +150,11 @@ class WorkCenterService
                         target: '/admin/partner-applications/' . $request->partner_application_id . '?tab=settlement&focus=termination-' . $request->id,
                         createdAt: $request->updated_at,
                     );
+                }
+
+                // Owner drafts are intentionally private until they are signed and submitted.
+                if ($request->status === 'draft') {
+                    return null;
                 }
 
                 [$title, $description, $actionLabel, $priority] = match ($request->status) {

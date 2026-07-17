@@ -41,7 +41,7 @@
                 </small>
             </label>
 
-            <div class="actions">
+            <div class="settings-actions">
                 <button class="btn primary icon-text" type="submit" :disabled="saving || !hasUnsavedChanges">
                     <AppIcon name="check" size="17" />
                     <span>{{ saving ? "Đang lưu..." : "Lưu cài đặt" }}</span>
@@ -215,11 +215,11 @@ export default {
 .panel, .modal { border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
 .form { display:grid; gap:16px; padding:20px; }
 label { display:flex; flex-direction:column; gap:6px; color:#334155; font-weight:800; }
-input, textarea { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font:inherit; }
+input, textarea { box-sizing:border-box; width:100%; min-width:0; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font:inherit; }
 .field-meta { justify-self:end; color:#64748b; font-size:12px; font-weight:700; }
 .field-error { color:#dc2626; font-size:12px; font-weight:850; }
-.actions, .modal-head, .modal-actions, .icon-text { display:flex; align-items:center; gap:10px; }
-.actions { flex-wrap:wrap; }
+.settings-actions, .modal-head, .modal-actions, .icon-text { display:flex; align-items:center; gap:10px; }
+.settings-actions { flex-wrap:wrap; }
 .btn { border:0; border-radius:8px; padding:10px 14px; font-weight:900; cursor:pointer; }
 .btn.primary { background:#16a34a; color:#fff; }
 .btn.secondary { background:#e2e8f0; color:#334155; }
@@ -235,5 +235,9 @@ input, textarea { width:100%; border:1px solid #cbd5e1; border-radius:8px; paddi
 .icon-close { display:inline-grid; width:32px; height:32px; place-items:center; border:1px solid #dbe3ea; border-radius:8px; background:#fff; cursor:pointer; }
 .modal > p { padding:20px; color:#475569; line-height:1.55; }
 .modal-actions { justify-content:flex-end; padding:14px 20px; border-top:1px solid #e2e8f0; background:#f8fafc; }
-@media (max-width:640px) { .actions { display:grid; } .actions .btn { width:100%; } }
+@media (max-width:640px) {
+  .settings-page, .panel, .form { width:100%; min-width:0; max-width:100%; }
+  .settings-actions { display:grid; grid-template-columns:1fr; }
+  .settings-actions .btn { width:100%; min-width:0; white-space:normal; }
+}
 </style>

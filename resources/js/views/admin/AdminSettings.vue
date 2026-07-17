@@ -5,6 +5,9 @@
       <AppIcon name="check" size="18" />
       <span>{{ successMessage }}</span>
     </div>
+    <div v-if="errorMessage" class="alert error" role="alert" style="margin-bottom: 0px; border-radius: 12px;">
+      <span>{{ errorMessage }}</span>
+    </div>
 
     <!-- Sidebar Style Selection -->
     <div class="settings-card">
@@ -405,9 +408,9 @@ const PRESETS = [
       accent: '#f0f9ff',
       muted: '#475569',
       destructive: '#e11d48',
-      border: '#e2e8f0',
+      border: '#bfdbfe',
       card: '#ffffff',
-      background: '#f0f4f8',
+      background: '#f0f6ff',
     },
     dark: {
       primary: '#3b82f6',
@@ -415,7 +418,7 @@ const PRESETS = [
       accent: '#1e293b',
       muted: '#94a3b8',
       destructive: '#f43f5e',
-      border: '#1e293b',
+      border: '#1e3a8a',
       card: '#0f172a',
       background: '#090d16',
     }
@@ -430,9 +433,9 @@ const PRESETS = [
       accent: '#f5f3ff',
       muted: '#4b5563',
       destructive: '#dc2626',
-      border: '#e5e7eb',
+      border: '#ddd6fe',
       card: '#ffffff',
-      background: '#f5f6fa',
+      background: '#faf7ff',
     },
     dark: {
       primary: '#8b5cf6',
@@ -440,7 +443,7 @@ const PRESETS = [
       accent: '#2e1065',
       muted: '#9ca3af',
       destructive: '#ef4444',
-      border: '#374151',
+      border: '#4c1d95',
       card: '#111827',
       background: '#030712',
     }
@@ -455,7 +458,7 @@ const PRESETS = [
       accent: '#fffbeb',
       muted: '#4b5563',
       destructive: '#dc2626',
-      border: '#e5e7eb',
+      border: '#fde68a',
       card: '#ffffff',
       background: '#fdfbf7',
     },
@@ -465,7 +468,7 @@ const PRESETS = [
       accent: '#451a03',
       muted: '#9ca3af',
       destructive: '#ef4444',
-      border: '#374151',
+      border: '#78350f',
       card: '#1e1b4b',
       background: '#0c0a09',
     }
@@ -870,6 +873,8 @@ export default {
       }
     },
     async saveTheme() {
+      this.successMessage = '';
+      this.errorMessage = '';
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
@@ -895,7 +900,12 @@ export default {
         };
         await adminUiSettingsService.updateSettings(payloadDb);
       } catch (e) {
-        console.error('Failed to save UI settings to DB', e);
+        this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          this.errorMessage = '';
+        }, 5000);
+        return;
       }
       
       this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';

@@ -5,6 +5,9 @@
       <AppIcon name="check" size="18" />
       <span>{{ successMessage }}</span>
     </div>
+    <div v-if="errorMessage" class="alert error" role="alert" style="margin-bottom: 0px; border-radius: 12px;">
+      <span>{{ errorMessage }}</span>
+    </div>
 
     <!-- Sidebar Style Selection -->
     <div class="settings-card">
@@ -722,6 +725,8 @@ export default {
       }
     },
     async saveTheme() {
+      this.successMessage = '';
+      this.errorMessage = '';
       const payload = {
         light: this.theme.light,
         dark: this.theme.dark,
@@ -756,7 +761,12 @@ export default {
         };
         await ownerUiSettingsService.updateSettings(payloadDb);
       } catch (e) {
-        console.error('Failed to save UI settings to DB', e);
+        this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          this.errorMessage = '';
+        }, 5000);
+        return;
       }
       
       this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';

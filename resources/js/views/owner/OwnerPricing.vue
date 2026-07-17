@@ -290,7 +290,7 @@ export default {
   },
   computed: {
     selectedCluster() {
-      return this.clusters.find((cluster) => cluster.id === this.selectedClusterId) || null;
+      return this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
     },
     courtTypes() {
       return this.courtTypesByCluster[this.selectedClusterId] || [];
@@ -382,7 +382,8 @@ export default {
       };
     },
     async handleClusterChanged(event) {
-      this.selectedClusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
+      const clusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
+      this.selectedClusterId = clusterId ? String(clusterId) : '';
     },
     async loadPricing() {
       this.isLoading = true;
@@ -398,8 +399,8 @@ export default {
         this.systemDefaultPrice = Number(data.system_default_price || 10000);
         this.priceSlots = data.price_slots || [];
         this.holidayPrices = data.holiday_prices || [];
-        if (!this.clusters.some((cluster) => cluster.id === this.selectedClusterId)) {
-          this.selectedClusterId = this.clusters[0]?.id || '';
+        if (!this.clusters.some((cluster) => String(cluster.id) === String(this.selectedClusterId))) {
+          this.selectedClusterId = this.clusters[0]?.id ? String(this.clusters[0].id) : '';
         }
         this.syncBasePriceDrafts();
       } catch (error) {

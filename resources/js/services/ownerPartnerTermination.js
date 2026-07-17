@@ -59,6 +59,13 @@ export const ownerPartnerTerminationService = {
     });
   },
 
+  cancelPreview(id, payload) {
+    return api(`/api/owner/termination-requests/${id}/cancel/preview`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   cancel(id, payload) {
     return api(`/api/owner/termination-requests/${id}/cancel`, {
       method: 'POST',

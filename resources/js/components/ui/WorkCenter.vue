@@ -86,7 +86,13 @@
     </section>
 
     <Teleport to="body">
-      <aside v-if="toastItem" class="work-center-toast" data-testid="work-center-toast">
+      <aside
+        v-if="toastItem"
+        class="work-center-toast"
+        role="status"
+        aria-live="polite"
+        data-testid="work-center-toast"
+      >
         <span class="work-center-toast-icon"><AppIcon :name="categoryIcon(toastItem.category)" size="18" /></span>
         <div>
           <small>Việc cần xử lý</small>
@@ -121,6 +127,7 @@ export default {
       tasks: [],
       notifications: [],
       toastItem: null,
+      toastTimer: null,
       pollTimer: null,
     };
   },
@@ -145,6 +152,7 @@ export default {
     document.removeEventListener('pointerdown', this.closeFromOutside);
     document.removeEventListener('keydown', this.closeOnEscape);
     if (this.pollTimer) window.clearInterval(this.pollTimer);
+    if (this.toastTimer) window.clearTimeout(this.toastTimer);
   },
   methods: {
     async load(force = false) {
@@ -196,9 +204,16 @@ export default {
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, 'shown');
       this.toastItem = topTask;
+      if (this.toastTimer) window.clearTimeout(this.toastTimer);
+      this.toastTimer = window.setTimeout(() => {
+        this.toastItem = null;
+        this.toastTimer = null;
+      }, 10_000);
     },
     dismissToast() {
       this.toastItem = null;
+      if (this.toastTimer) window.clearTimeout(this.toastTimer);
+      this.toastTimer = null;
     },
     badgeLabel(value) {
       return value > 99 ? '99+' : String(value);
@@ -587,8 +602,7 @@ export default {
   }
 
   .work-center-toast {
-    right: 14px;
-    bottom: 14px;
+    display: none;
   }
 }
 </style>

@@ -7,6 +7,7 @@ use App\Models\CourtType;
 use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
+use App\Models\PartnerApplicationDocument;
 use App\Models\PartnerContract;
 use App\Models\PartnerTerminationRequest;
 use App\Services\Partner\PartnerApplicationService;
@@ -735,22 +736,7 @@ class PartnerApplicationController extends Controller
             });
         $payload['uploaded_documents'] = $application->documents
             ->values()
-            ->map(fn ($document) => [
-                'id' => $document->id,
-                'partner_application_id' => $document->partner_application_id,
-                'document_type' => $document->document_type,
-                'document_group' => $document->document_group,
-                'title' => $document->title,
-                'description' => $document->description,
-                'status' => $document->status,
-                'reject_reason' => $document->reject_reason,
-                'reviewed_at' => $document->reviewed_at,
-                'file_name' => $document->media?->file_name,
-                'mime_type' => $document->media?->mime_type,
-                'file_size' => $document->media?->file_size,
-                'uploaded_at' => $document->created_at,
-                'download_url' => '/api/admin/partner-profiles/documents/' . $document->id . '/download',
-            ]);
+            ->map(fn (PartnerApplicationDocument $document): array => $this->uploadedDocumentPayload($document));
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
         $payload['termination_requests'] = $application->terminationRequests->map(function (PartnerTerminationRequest $termination): PartnerTerminationRequest {
@@ -795,6 +781,39 @@ class PartnerApplicationController extends Controller
             ->values();
 
         return $payload;
+    }
+
+    private function uploadedDocumentPayload(PartnerApplicationDocument $document): array
+    {
+        $path = collect([
+            $document->getRawOriginal('file_path'),
+            $document->media?->getRawOriginal('file_path'),
+        ])->first(fn ($candidate): bool => is_string($candidate)
+            && $candidate !== ''
+            && Storage::disk('public')->exists($candidate));
+        $fileAvailable = is_string($path) && $path !== '';
+
+        return [
+            'id' => $document->id,
+            'partner_application_id' => $document->partner_application_id,
+            'document_type' => $document->document_type,
+            'document_group' => $document->document_group,
+            'title' => $document->title,
+            'description' => $document->description,
+            'status' => $document->status,
+            'reject_reason' => $document->reject_reason,
+            'reviewed_at' => $document->reviewed_at,
+            'file_name' => $document->media?->file_name ?: ($fileAvailable ? basename($path) : null),
+            'mime_type' => $fileAvailable
+                ? (Storage::disk('public')->mimeType($path) ?: $document->media?->mime_type)
+                : $document->media?->mime_type,
+            'file_size' => $fileAvailable ? Storage::disk('public')->size($path) : 0,
+            'file_available' => $fileAvailable,
+            'uploaded_at' => $document->created_at,
+            'download_url' => $fileAvailable
+                ? '/api/admin/partner-profiles/documents/' . $document->id . '/download'
+                : null,
+        ];
     }
 
     private function signingRequestPayload(DocumentSigningRequest $request, GeneratedDocument $document): array

@@ -9,6 +9,7 @@ use App\Models\PolicyEvaluationLog;
 use App\Models\PolicyRule;
 use App\Models\Refund;
 use App\Models\RefundStatusHistory;
+use App\Models\SlotLock;
 use App\Models\SystemPolicy;
 use App\Models\User;
 use App\Models\VenuePolicyRule;
@@ -707,6 +708,8 @@ class RefundCancellationPolicyService
                 'cancellation_reason_type' => 'customer_request',
                 'cancelled_at' => now(),
             ])->save();
+
+            SlotLock::query()->where('booking_id', $booking->id)->delete();
 
             $refunds = $this->createRefundRequests($booking, $result, $actor, $reason);
             $this->auditCancellation($booking->fresh(), $actor, $oldBooking, $result, $refunds, $reason);

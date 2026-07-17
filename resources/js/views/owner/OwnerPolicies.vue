@@ -244,6 +244,7 @@ export default {
       noticeModal: false,
       noticeForm: this.emptyNotice(),
       showScrollTop: false,
+      loadRequestId: 0,
     };
   },
   computed: {
@@ -273,34 +274,49 @@ export default {
       return { id: null, title: '', content: '', status: 'active' };
     },
     async loadClusters() {
+      const initialClusterId = this.selectedClusterId;
+      const initialLoad = initialClusterId ? this.load() : null;
       try {
         const response = await venueClusterService.getClusters();
         this.clusters = response.data || [];
-        if (!this.selectedClusterId && this.clusters[0]) {
+        const hasSelectedCluster = this.clusters.some(
+          (cluster) => String(cluster.id) === String(this.selectedClusterId),
+        );
+        if (!hasSelectedCluster && this.clusters[0]) {
           this.selectedClusterId = this.clusters[0].id;
           localStorage.setItem('selected_cluster', this.selectedClusterId);
         }
-        await this.load();
+        if (!initialLoad || String(initialClusterId) !== String(this.selectedClusterId)) {
+          await this.load();
+        } else {
+          await initialLoad;
+        }
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách cụm sân.';
       }
     },
     async load() {
       if (!this.selectedClusterId) return;
+      const requestId = ++this.loadRequestId;
+      const clusterId = this.selectedClusterId;
       this.loading = true;
       this.error = '';
       try {
-        localStorage.setItem('selected_cluster', this.selectedClusterId);
-        const response = await ownerPolicyService.list(this.selectedClusterId);
+        localStorage.setItem('selected_cluster', clusterId);
+        const response = await ownerPolicyService.list(clusterId);
+        if (requestId !== this.loadRequestId) return;
         const data = response.data || {};
-        this.currentCluster = data.venue_cluster || this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
+        this.currentCluster = data.venue_cluster || this.clusters.find((cluster) => String(cluster.id) === String(clusterId)) || null;
         this.systemPolicies = data.system_policies || [];
         this.venueRules = data.venue_rules || [];
         this.customerNotices = data.customer_notices || [];
       } catch (error) {
+        if (requestId !== this.loadRequestId) return;
         this.error = error.message || 'Không thể tải chính sách sân.';
       } finally {
-        this.loading = false;
+        if (requestId === this.loadRequestId) {
+          this.loading = false;
+        }
       }
     },
     async changeCluster() {

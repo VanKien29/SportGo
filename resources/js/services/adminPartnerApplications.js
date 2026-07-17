@@ -108,12 +108,6 @@ export const adminPartnerApplicationService = {
     });
   },
 
-  sendTerminationFinalOtp(id, payload = {}) {
-    return api(`/api/admin/partner-termination-requests/${id}/final-document/sign/send-otp`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
 
   signTerminationFinalDocument(id, payload = {}) {
     return api(`/api/admin/partner-termination-requests/${id}/final-document/sign`, {
@@ -129,12 +123,6 @@ export const adminPartnerApplicationService = {
     });
   },
 
-  sendUnilateralNoticeOtp(id, payload = {}) {
-    return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/sign/send-otp`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
 
   signUnilateralNotice(id, payload = {}) {
     return api(`/api/admin/partner-termination-requests/${id}/unilateral-notice/sign`, {

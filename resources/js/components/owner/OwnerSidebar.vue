@@ -332,6 +332,16 @@ export default {
     box-shadow: var(--admin-shadow-sm);
 }
 
+.owner-cluster-card.cluster-mode-terminating {
+  border-color: color-mix(in srgb, var(--admin-danger) 35%, var(--admin-border));
+  background: color-mix(in srgb, var(--admin-danger) 7%, var(--admin-surface));
+}
+
+.owner-cluster-card.cluster-mode-archived {
+  border-color: var(--admin-border);
+  background: var(--admin-surface-muted);
+}
+
 .owner-cluster-card span {
     color: var(--admin-faint);
     font-size: 10px;
@@ -344,6 +354,25 @@ export default {
     color: var(--admin-text);
     font-size: 13px;
     font-weight: 800;
+}
+
+.cluster-state-label {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.nav-disabled {
+  width: 100%;
+  border: 0;
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.admin-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .custom-select-wrapper {

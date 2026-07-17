@@ -61,8 +61,13 @@
               <td>
                 <div class="banner-cell">
                   <div class="banner-thumb">
-                    <img v-if="imageSrc(banner)" :src="imageSrc(banner)" :alt="banner.title" />
-                    <span v-else>Ảnh</span>
+                    <img
+                      v-if="imageSrc(banner) && !failedBannerImages[banner.id]"
+                      :src="imageSrc(banner)"
+                      :alt="banner.title"
+                      @error="markBannerImageFailed(banner.id)"
+                    />
+                    <span v-else>Ảnh không sẵn sàng</span>
                   </div>
                   <div class="banner-main">
                     <div class="banner-title">{{ banner.title }}</div>
@@ -237,6 +242,7 @@ export default {
         { value: 'venue_detail', label: 'Chi tiết sân' },
       ],
       showScrollTop: false,
+      failedBannerImages: {},
     };
   },
   mounted() {
@@ -263,6 +269,7 @@ export default {
     async loadBanners(page = 1) {
       this.loading = true;
       this.error = '';
+      this.failedBannerImages = {};
       try {
         const response = await adminBannerService.list({
           ...this.filters,
@@ -375,6 +382,9 @@ export default {
       if (banner.image_path) return `/storage/${banner.image_path}`;
       if (banner.image_url) return banner.image_url;
       return '';
+    },
+    markBannerImageFailed(id) {
+      this.failedBannerImages = { ...this.failedBannerImages, [id]: true };
     },
     positionLabel(position) {
       return this.positionOptions.find((option) => option.value === position)?.label || position || '-';

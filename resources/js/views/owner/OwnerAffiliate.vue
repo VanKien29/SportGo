@@ -387,6 +387,7 @@ export default {
             affiliateProducts: [],
             loadingProducts: false,
             productsError: null,
+            productsRequestId: 0,
 
             // Modal
             showProductModal: false,
@@ -486,23 +487,11 @@ export default {
             }
         },
         async loadClusterFromLocalStorage(clusterId) {
-            this.loadingProducts = true;
-            try {
-                // Tải danh sách cụm sân để tìm đối tượng cụm sân đầy đủ
-                const { venueClusterService } = await import("../../services/venueClusters");
-                const res = await venueClusterService.getClusters();
-                const list = res.data || [];
-                const cluster = list.find(c => String(c.id) === String(clusterId));
-                if (cluster) {
-                    this.selectedCluster = cluster;
-                    this.fetchAffiliateProducts(cluster.id);
-                } else {
-                    this.loadingProducts = false;
-                }
-            } catch (err) {
-                console.error("Lỗi khi đồng bộ cụm sân:", err);
-                this.loadingProducts = false;
-            }
+            // OwnerLayout chịu trách nhiệm xác thực cụm sân đã lưu và sẽ phát
+            // owner-cluster-changed nếu cần đổi cụm. Tải sản phẩm ngay để không
+            // chặn màn hình bởi một request danh sách cụm sân trùng lặp.
+            this.selectedCluster = { id: clusterId };
+            await this.fetchAffiliateProducts(clusterId);
         },
         handleClusterChange(event) {
             const cluster = event.detail;
@@ -510,20 +499,28 @@ export default {
                 this.selectedCluster = cluster;
                 this.fetchAffiliateProducts(cluster.id);
             } else {
+                this.productsRequestId += 1;
                 this.selectedCluster = null;
                 this.affiliateProducts = [];
+                this.loadingProducts = false;
+                this.productsError = null;
             }
         },
         async fetchAffiliateProducts(clusterId) {
+            const requestId = ++this.productsRequestId;
             this.loadingProducts = true;
             this.productsError = null;
             try {
                 const res = await affiliateProductService.listForOwner(clusterId);
+                if (requestId !== this.productsRequestId) return;
                 this.affiliateProducts = res.data || [];
             } catch (err) {
+                if (requestId !== this.productsRequestId) return;
                 this.productsError = err.message || "Không thể tải danh sách sản phẩm tiếp thị.";
             } finally {
-                this.loadingProducts = false;
+                if (requestId === this.productsRequestId) {
+                    this.loadingProducts = false;
+                }
             }
         },
         openCreateProductModal() {

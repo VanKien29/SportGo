@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Player;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\Complaint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,7 +14,7 @@ class ComplaintController extends Controller
 {
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'complaint_type' => ['required', 'string', 'in:system,venue'],
             'venue_cluster_id' => ['required_if:complaint_type,venue', 'nullable', 'exists:venue_clusters,id'],
             'booking_id' => ['nullable', 'string', 'exists:bookings,id'],
@@ -21,12 +22,28 @@ class ComplaintController extends Controller
             'evidence_image' => ['nullable', 'image', 'max:5120'], // max 5MB
         ]);
 
+        $booking = null;
+        if ($validated['complaint_type'] === 'venue' && ! empty($validated['booking_id'])) {
+            $booking = Booking::query()->findOrFail($validated['booking_id']);
+            if ((string) $booking->customer_id !== (string) $request->user()->id) {
+                return response()->json([
+                    'message' => 'Bạn chỉ có thể khiếu nại từ lịch đặt sân của chính mình.',
+                ], 403);
+            }
+
+            if ((string) $booking->venue_cluster_id !== (string) $validated['venue_cluster_id']) {
+                return response()->json([
+                    'message' => 'Cụm sân không khớp với lịch đặt sân đã chọn.',
+                ], 422);
+            }
+        }
+
         $complaint = Complaint::create([
-            'complaint_type' => $request->complaint_type,
+            'complaint_type' => $validated['complaint_type'],
             'customer_id' => $request->user()->id,
-            'venue_cluster_id' => $request->complaint_type === 'venue' ? $request->venue_cluster_id : null,
-            'booking_id' => $request->booking_id,
-            'content' => $request->content,
+            'venue_cluster_id' => $validated['complaint_type'] === 'venue' ? $validated['venue_cluster_id'] : null,
+            'booking_id' => $validated['complaint_type'] === 'venue' ? $booking?->id : null,
+            'content' => $validated['content'],
             'status' => 'open',
         ]);
 

@@ -1,235 +1,274 @@
 <template>
   <AuthLayout
-    :title="step === 'register' ? 'Đăng ký tài khoản' : 'Xác thực OTP'"
-    :subtitle="step === 'register' ? 'Nhập thông tin bên dưới để đăng ký tài khoản' : 'Nhập mã OTP gồm 6 chữ số đã được gửi tới email của bạn'"
-    imageSrc="https://i.ibb.co/HTZ6DPsS/original-33b8479c324a5448d6145b3cad7c51e7-removebg-preview.png"
-    quoteText="Vkien bán 32tv giá 1l :D"
-    backTo="/"
+    class="sg-account-auth"
+    :title="step === 'register' ? 'Tạo tài khoản SportGo' : 'Xác thực email'"
+    :subtitle="step === 'register' ? 'Một tài khoản cho đặt sân, lịch chơi và cộng đồng' : 'Nhập mã gồm 6 chữ số đã gửi đến email đăng ký'"
+    :image-src="authVisual"
+    quote-text="Tạo tài khoản để tìm sân, đặt lịch và kết nối cùng cộng đồng thể thao."
+    back-to="/"
   >
-    <!-- STEP 1: REGISTER FORM -->
-    <form v-if="step === 'register'" @submit.prevent="handleRegister" class="flex flex-col gap-5 w-full text-left mt-2" autocomplete="off" novalidate>
-      <!-- Error message -->
-      <transition name="shake">
-        <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 text-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-          <span>{{ error }}</span>
-        </div>
-      </transition>
-
-      <!-- Step Indicator (chỉ hiển thị ở màn hình nhỏ) -->
-      <div v-if="isSmallScreen" class="flex flex-col gap-1.5 mb-2">
-        <div class="flex justify-between items-center text-xs text-zinc-400 font-medium">
-          <span>Bước {{ registerSubStep }} / 2</span>
-          <span>{{ registerSubStep === 1 ? 'Thông tin cá nhân' : 'Bảo mật mật khẩu' }}</span>
-        </div>
-        <div class="w-full h-1 bg-zinc-900 rounded-full overflow-hidden">
-          <div 
-            class="h-full bg-zinc-200 transition-all duration-300"
-            :style="{ width: registerSubStep === 1 ? '50%' : '100%' }"
-          ></div>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-4">
-        <!-- Nhóm thông tin cơ bản: username, full_name, phone, email -->
-        <div v-show="!isSmallScreen || registerSubStep === 1" class="flex flex-col gap-4">
-          <div class="flex flex-col gap-2">
-            <label for="username" class="text-sm font-medium text-zinc-200 text-left">
-              Tên đăng nhập <span class="text-red-500">*</span>
-            </label>
-            <input
-              id="username"
-              v-model.trim="form.username"
-              type="text"
-              placeholder="Tên đăng nhập"
-              autocomplete="username"
-              class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
-            />
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label for="full_name" class="text-sm font-medium text-zinc-200 text-left">
-              Họ và tên <span class="text-red-500">*</span>
-            </label>
-            <input
-              id="full_name"
-              v-model.trim="form.full_name"
-              type="text"
-              placeholder="Họ và tên"
-              autocomplete="name"
-              class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
-            />
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label for="phone" class="text-sm font-medium text-zinc-200 text-left">
-              Số điện thoại <span class="text-red-500">*</span>
-            </label>
-            <input
-              id="phone"
-              v-model.trim="form.phone"
-              type="tel"
-              placeholder="Số điện thoại"
-              autocomplete="tel"
-              class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
-            />
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label for="email" class="text-sm font-medium text-zinc-200 text-left">
-              Email <span class="text-red-500">*</span>
-            </label>
-            <input
-              id="email"
-              v-model.trim="form.email"
-              type="email"
-              placeholder="m@example.com"
-              autocomplete="email"
-              class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
-            />
-          </div>
-        </div>
-
-        <!-- Nhóm bảo mật mật khẩu -->
-        <div v-show="!isSmallScreen || registerSubStep === 2" class="flex flex-col gap-4">
-          <div class="flex flex-col gap-2">
-            <PasswordInput
-              v-model="form.password"
-              label="Mật khẩu"
-              placeholder="Mật khẩu"
-              autocomplete="new-password"
-            />
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <PasswordInput
-              v-model="form.password_confirmation"
-              label="Xác nhận mật khẩu"
-              placeholder="Xác nhận mật khẩu"
-              autocomplete="new-password"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Các nút bấm điều hướng đăng ký -->
-      <div class="flex flex-col gap-3 mt-2">
-        <button
-          type="submit"
-          :disabled="isLoading"
-          class="flex h-10 w-full items-center justify-center rounded-md !border !border-solid !border-zinc-700 !bg-zinc-900 text-zinc-100 hover:!bg-zinc-800 hover:!border-zinc-600 transition-all font-medium text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span v-if="!isLoading">
-            {{ (isSmallScreen && registerSubStep === 1) ? 'Tiếp tục' : 'Đăng ký' }}
-          </span>
-          <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-        </button>
-
-        <button
-          v-if="isSmallScreen && registerSubStep === 2"
-          type="button"
-          @click="registerSubStep = 1"
-          class="flex h-10 w-full items-center justify-center rounded-md !border !border-solid !border-zinc-800 !bg-zinc-950 text-zinc-400 hover:text-zinc-200 hover:!border-zinc-700 transition-all font-medium text-sm cursor-pointer"
-        >
-          Quay lại bước trước
-        </button>
-      </div>
-
-      <div class="relative flex py-1 items-center">
-        <div class="flex-grow border-t border-zinc-800"></div>
-        <span class="flex-shrink mx-3 text-xs text-zinc-500 uppercase tracking-wider font-medium">HOẶC TIẾP TỤC VỚI</span>
-        <div class="flex-grow border-t border-zinc-800"></div>
-      </div>
-
-      <button
-        type="button"
-        @click.prevent="handleGoogleLogin"
-        class="flex h-10 w-full items-center justify-center gap-2 rounded-md !border !border-solid !border-zinc-700 !bg-zinc-950 text-zinc-100 hover:!bg-zinc-900 hover:!border-zinc-600 transition-all font-medium text-sm cursor-pointer"
+    <form
+      v-if="step === 'register'"
+      class="sg-account-form sg-register-form"
+      autocomplete="on"
+      novalidate
+      @submit.prevent="handleRegister"
+    >
+      <div
+        v-if="error"
+        class="sg-auth-alert sg-auth-alert--error"
+        role="alert"
+        aria-live="assertive"
       >
-        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google icon" class="h-4 w-4" />
+        <AppIcon name="alert" :size="18" />
+        <span>{{ error }}</span>
+      </div>
+
+      <div v-if="isCompactScreen" class="sg-register-progress" aria-label="Tiến độ đăng ký">
+        <div>
+          <span>Bước {{ registerSubStep }} / 2</span>
+          <strong>{{ registerSubStep === 1 ? 'Thông tin cá nhân' : 'Tạo mật khẩu' }}</strong>
+        </div>
+        <span class="sg-register-progress-track" aria-hidden="true">
+          <span :class="{ 'is-complete': registerSubStep === 2 }"></span>
+        </span>
+      </div>
+
+      <div v-show="!isCompactScreen || registerSubStep === 1" class="sg-register-section">
+        <div class="sg-auth-field">
+          <label for="username">Tên đăng nhập <span aria-hidden="true">*</span></label>
+          <input
+            id="username"
+            ref="usernameInput"
+            v-model.trim="form.username"
+            class="sg-auth-input"
+            :class="{ 'sg-auth-input--error': fieldErrors.username }"
+            type="text"
+            placeholder="Ví dụ: nguyenvana"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="50"
+            :aria-invalid="Boolean(fieldErrors.username)"
+            @input="clearFieldError('username')"
+          />
+          <p v-if="fieldErrors.username" class="sg-auth-field-error">{{ fieldErrors.username }}</p>
+        </div>
+
+        <div class="sg-auth-field">
+          <label for="full_name">Họ và tên <span aria-hidden="true">*</span></label>
+          <input
+            id="full_name"
+            ref="fullNameInput"
+            v-model.trim="form.full_name"
+            class="sg-auth-input"
+            :class="{ 'sg-auth-input--error': fieldErrors.full_name }"
+            type="text"
+            placeholder="Nguyễn Văn A"
+            autocomplete="name"
+            maxlength="255"
+            :aria-invalid="Boolean(fieldErrors.full_name)"
+            @input="clearFieldError('full_name')"
+          />
+          <p v-if="fieldErrors.full_name" class="sg-auth-field-error">{{ fieldErrors.full_name }}</p>
+        </div>
+
+        <div class="sg-auth-field">
+          <label for="phone">Số điện thoại <span aria-hidden="true">*</span></label>
+          <input
+            id="phone"
+            ref="phoneInput"
+            v-model.trim="form.phone"
+            class="sg-auth-input"
+            :class="{ 'sg-auth-input--error': fieldErrors.phone }"
+            type="tel"
+            inputmode="tel"
+            placeholder="09xxxxxxxx"
+            autocomplete="tel"
+            maxlength="20"
+            :aria-invalid="Boolean(fieldErrors.phone)"
+            @input="clearFieldError('phone')"
+          />
+          <p v-if="fieldErrors.phone" class="sg-auth-field-error">{{ fieldErrors.phone }}</p>
+        </div>
+
+        <div class="sg-auth-field">
+          <label for="email">Email <span aria-hidden="true">*</span></label>
+          <input
+            id="email"
+            ref="emailInput"
+            v-model.trim="form.email"
+            class="sg-auth-input"
+            :class="{ 'sg-auth-input--error': fieldErrors.email }"
+            type="email"
+            placeholder="ban@example.com"
+            autocomplete="email"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="255"
+            :aria-invalid="Boolean(fieldErrors.email)"
+            @input="clearFieldError('email')"
+          />
+          <p v-if="fieldErrors.email" class="sg-auth-field-error">{{ fieldErrors.email }}</p>
+        </div>
+      </div>
+
+      <div v-show="!isCompactScreen || registerSubStep === 2" class="sg-register-section">
+        <div class="sg-auth-field">
+          <PasswordInput
+            v-model="form.password"
+            class="sg-auth-password"
+            :class="{ 'sg-auth-password--error': fieldErrors.password }"
+            label="Mật khẩu *"
+            placeholder="Tối thiểu 8 ký tự"
+            autocomplete="new-password"
+            @update:model-value="clearFieldError('password')"
+          />
+          <p v-if="fieldErrors.password" class="sg-auth-field-error">{{ fieldErrors.password }}</p>
+        </div>
+
+        <ul class="sg-password-rules" aria-label="Yêu cầu mật khẩu">
+          <li :class="{ passed: passwordChecks.length }">8–50 ký tự</li>
+          <li :class="{ passed: passwordChecks.uppercase }">Có chữ hoa</li>
+          <li :class="{ passed: passwordChecks.number }">Có chữ số</li>
+          <li :class="{ passed: passwordChecks.special }">Có ký tự đặc biệt</li>
+        </ul>
+
+        <div class="sg-auth-field">
+          <PasswordInput
+            v-model="form.password_confirmation"
+            class="sg-auth-password"
+            :class="{ 'sg-auth-password--error': fieldErrors.password_confirmation }"
+            label="Xác nhận mật khẩu *"
+            placeholder="Nhập lại mật khẩu"
+            autocomplete="new-password"
+            @update:model-value="clearFieldError('password_confirmation')"
+          />
+          <p v-if="fieldErrors.password_confirmation" class="sg-auth-field-error">
+            {{ fieldErrors.password_confirmation }}
+          </p>
+        </div>
+      </div>
+
+      <div class="sg-auth-action-stack">
+        <button class="sg-auth-submit" type="submit" :disabled="isLoading">
+          <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
+          <span>{{ submitLabel }}</span>
+        </button>
+        <button
+          v-if="isCompactScreen && registerSubStep === 2"
+          class="sg-auth-secondary"
+          type="button"
+          :disabled="isLoading"
+          @click="goToRegisterStep(1)"
+        >
+          <AppIcon name="chevronLeft" :size="17" />
+          Quay lại thông tin cá nhân
+        </button>
+      </div>
+
+      <div class="sg-auth-divider"><span>Hoặc</span></div>
+      <button class="sg-auth-secondary" type="button" @click="handleGoogleLogin">
+        <span class="sg-auth-provider-mark" aria-hidden="true">G</span>
         Tiếp tục với Google
       </button>
-
-      <div class="text-center text-sm text-zinc-400 mt-4">
+      <p class="sg-auth-switch">
         Đã có tài khoản?
-        <router-link to="/login" class="font-semibold text-zinc-100 hover:underline pl-1">
-          Đăng nhập
-        </router-link>
-      </div>
+        <router-link to="/login">Đăng nhập</router-link>
+      </p>
     </form>
 
-    <!-- STEP 2: OTP VERIFICATION FORM -->
-    <form v-else @submit.prevent="handleVerifyOtp" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
-      <!-- Success / Message -->
-      <transition name="fade">
-        <div v-if="successMsg" class="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          <span>{{ successMsg }}</span>
-        </div>
-      </transition>
-
-      <!-- Error message -->
-      <transition name="shake">
-        <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 text-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-          <span>{{ error }}</span>
-        </div>
-      </transition>
-
-      <p class="text-sm text-zinc-400 leading-relaxed">
-        Vui lòng nhập mã OTP gồm 6 chữ số được gửi tới email của bạn <strong class="text-zinc-200">{{ form.email }}</strong>.
-      </p>
-
-      <div class="flex flex-col gap-2">
-        <label for="otp" class="text-sm font-medium text-zinc-200 text-left">
-          Mã OTP <span class="text-red-500">*</span>
-        </label>
-        <input
-          id="otp"
-          v-model.trim="otp"
-          type="text"
-          inputmode="numeric"
-          maxlength="6"
-          placeholder="Mã OTP"
-          autocomplete="one-time-code"
-          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 tracking-widest text-center font-bold"
-        />
+    <form
+      v-else
+      class="sg-account-form"
+      autocomplete="one-time-code"
+      novalidate
+      @submit.prevent="handleVerifyOtp"
+    >
+      <div
+        v-if="successMsg"
+        class="sg-auth-alert sg-auth-alert--success"
+        role="status"
+        aria-live="polite"
+      >
+        <AppIcon name="circleCheck" :size="18" />
+        <span>{{ successMsg }}</span>
+      </div>
+      <div
+        v-if="error"
+        class="sg-auth-alert sg-auth-alert--error"
+        role="alert"
+        aria-live="assertive"
+      >
+        <AppIcon name="alert" :size="18" />
+        <span>{{ error }}</span>
       </div>
 
-      <button
-        type="submit"
-        :disabled="isLoading || isResending"
-        class="flex h-10 w-full items-center justify-center rounded-md !border !border-solid !border-zinc-700 !bg-zinc-900 text-zinc-100 hover:!bg-zinc-800 hover:!border-zinc-600 transition-all font-medium text-sm mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span v-if="!isLoading">Xác nhận tài khoản</span>
-        <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-      </button>
+      <p class="sg-auth-context">
+        Mã xác thực đã được gửi đến <strong>{{ form.email }}</strong>. Mã gồm đúng 6 chữ số.
+      </p>
+      <div class="sg-auth-field">
+        <label for="otp">Mã OTP <span aria-hidden="true">*</span></label>
+        <input
+          id="otp"
+          ref="otpInput"
+          v-model.trim="otp"
+          class="sg-auth-input sg-auth-otp"
+          :class="{ 'sg-auth-input--error': fieldErrors.otp }"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="6"
+          placeholder="000000"
+          autocomplete="one-time-code"
+          :aria-invalid="Boolean(fieldErrors.otp)"
+          @input="clearFieldError('otp')"
+        />
+        <p v-if="fieldErrors.otp" class="sg-auth-field-error">{{ fieldErrors.otp }}</p>
+      </div>
 
-      <button
-        type="button"
-        :disabled="isResending"
-        @click="handleResendOtp"
-        class="flex h-10 w-full items-center justify-center gap-2 rounded-md !border !border-solid !border-zinc-700 !bg-zinc-950 text-zinc-100 hover:!bg-zinc-900 hover:!border-zinc-600 transition-all font-medium text-sm cursor-pointer"
-      >
-        <span>{{ isResending ? 'Đang gửi lại...' : 'Gửi lại mã OTP' }}</span>
+      <button class="sg-auth-submit" type="submit" :disabled="isLoading || isResending">
+        <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
+        <span>{{ isLoading ? 'Đang xác nhận...' : 'Xác nhận tài khoản' }}</span>
       </button>
+      <div class="sg-auth-inline-actions">
+        <button type="button" :disabled="isLoading || isResending" @click="handleResendOtp">
+          {{ isResending ? 'Đang gửi lại...' : 'Gửi lại mã' }}
+        </button>
+        <button type="button" :disabled="isLoading || isResending" @click="editRegistration">
+          Đổi email
+        </button>
+      </div>
     </form>
   </AuthLayout>
 </template>
 
 <script>
 import { register, verifyRegisterOtp, resendRegisterOtp, loginWithGoogle } from '../stores/auth.js';
+import AppIcon from '../components/AppIcon.vue';
 import AuthLayout from '../components/ui/AuthLayout.vue';
 import PasswordInput from '../components/ui/PasswordInput.vue';
+
+const emptyFieldErrors = () => ({
+  username: '',
+  full_name: '',
+  phone: '',
+  email: '',
+  password: '',
+  password_confirmation: '',
+  otp: '',
+});
 
 export default {
   name: 'RegisterView',
   components: {
+    AppIcon,
     AuthLayout,
     PasswordInput,
   },
   data() {
     return {
+      authVisual: '/images/home/anhbia2.webp',
       form: {
         username: '',
         full_name: '',
@@ -241,139 +280,173 @@ export default {
       step: 'register',
       otp: '',
       error: '',
+      fieldErrors: emptyFieldErrors(),
       successMsg: '',
       isLoading: false,
       isResending: false,
-      isSmallScreen: false,
+      isCompactScreen: false,
       registerSubStep: 1,
     };
+  },
+  computed: {
+    passwordChecks() {
+      return {
+        length: this.form.password.length >= 8 && this.form.password.length <= 50,
+        uppercase: /[A-Z]/.test(this.form.password),
+        number: /\d/.test(this.form.password),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(this.form.password),
+      };
+    },
+    submitLabel() {
+      if (this.isLoading) return 'Đang tạo tài khoản...';
+      if (this.isCompactScreen && this.registerSubStep === 1) return 'Tiếp tục';
+      return 'Tạo tài khoản';
+    },
   },
   mounted() {
     this.checkScreenSize();
     window.addEventListener('resize', this.checkScreenSize);
+    this.$refs.usernameInput?.focus();
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.checkScreenSize);
   },
   methods: {
     checkScreenSize() {
-      // Laptop có chiều cao nhỏ thường là < 800px hoặc màn hình mobile/tablet < 1024px
-      this.isSmallScreen = window.innerWidth < 1024 || window.innerHeight < 820;
+      this.isCompactScreen = window.innerWidth < 1024 || window.innerHeight < 820;
+      if (!this.isCompactScreen) this.registerSubStep = 1;
     },
-    async handleRegister() {
+    clearMessages() {
       this.error = '';
       this.successMsg = '';
+    },
+    clearFieldError(field) {
+      this.fieldErrors[field] = '';
+      if (!Object.values(this.fieldErrors).some(Boolean)) this.error = '';
+    },
+    setFieldError(field, message) {
+      this.fieldErrors[field] = message;
+      this.error = message;
+      const refMap = {
+        username: 'usernameInput',
+        full_name: 'fullNameInput',
+        phone: 'phoneInput',
+        email: 'emailInput',
+        otp: 'otpInput',
+      };
+      this.$nextTick(() => this.$refs[refMap[field]]?.focus());
+      return false;
+    },
+    validateIdentity() {
+      if (!this.form.username) return this.setFieldError('username', 'Vui lòng nhập tên đăng nhập.');
+      if (this.form.username.length > 50) return this.setFieldError('username', 'Tên đăng nhập tối đa 50 ký tự.');
+      if (!this.form.full_name) return this.setFieldError('full_name', 'Vui lòng nhập họ và tên.');
+      if (!this.form.phone) return this.setFieldError('phone', 'Vui lòng nhập số điện thoại.');
+      if (!/^(0|84|\+84)?[35789]\d{8}$/.test(this.form.phone)) {
+        return this.setFieldError('phone', 'Số điện thoại không đúng định dạng Việt Nam.');
+      }
+      if (!this.form.email) return this.setFieldError('email', 'Vui lòng nhập địa chỉ email.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
+        return this.setFieldError('email', 'Địa chỉ email không đúng định dạng.');
+      }
+      return true;
+    },
+    validatePassword() {
+      if (!this.form.password) return this.setFieldError('password', 'Vui lòng nhập mật khẩu.');
+      if (!this.passwordChecks.length) return this.setFieldError('password', 'Mật khẩu phải từ 8 đến 50 ký tự.');
+      if (!this.passwordChecks.uppercase) return this.setFieldError('password', 'Mật khẩu phải có ít nhất một chữ hoa.');
+      if (!this.passwordChecks.number) return this.setFieldError('password', 'Mật khẩu phải có ít nhất một chữ số.');
+      if (!this.passwordChecks.special) return this.setFieldError('password', 'Mật khẩu phải có ít nhất một ký tự đặc biệt.');
+      if (!this.form.password_confirmation) {
+        return this.setFieldError('password_confirmation', 'Vui lòng nhập lại mật khẩu.');
+      }
+      if (this.form.password !== this.form.password_confirmation) {
+        return this.setFieldError('password_confirmation', 'Xác nhận mật khẩu không khớp.');
+      }
+      return true;
+    },
+    goToRegisterStep(step) {
+      this.registerSubStep = step;
+      this.clearMessages();
+      if (step === 1) this.$nextTick(() => this.$refs.usernameInput?.focus());
+    },
+    applyBackendErrors(requestError) {
+      const errors = requestError.data?.errors || {};
+      const knownFields = Object.keys(this.fieldErrors);
+      const firstField = knownFields.find((field) => Array.isArray(errors[field]) && errors[field][0]);
+      if (firstField) {
+        this.setFieldError(firstField, errors[firstField][0]);
+        if (this.isCompactScreen && ['username', 'full_name', 'phone', 'email'].includes(firstField)) {
+          this.registerSubStep = 1;
+        }
+        return;
+      }
+      this.error = requestError.message || 'Đăng ký không thành công.';
+    },
+    async handleRegister() {
+      this.clearMessages();
+      this.fieldErrors = emptyFieldErrors();
 
-      if (!this.form.username) {
-        this.error = 'Vui lòng nhập tên đăng nhập.';
+      if (!this.validateIdentity()) {
+        if (this.isCompactScreen) this.registerSubStep = 1;
         return;
       }
-      if (!this.form.full_name) {
-        this.error = 'Vui lòng nhập họ và tên.';
-        return;
-      }
-      if (!this.form.phone) {
-        this.error = 'Vui lòng nhập số điện thoại.';
-        return;
-      }
-      
-      const phoneRegex = /^(0|84|\+84)?[35789]\d{8}$/;
-      if (!phoneRegex.test(this.form.phone)) {
-        this.error = 'Số điện thoại không đúng định dạng Việt Nam.';
-        return;
-      }
-      if (!this.form.email) {
-        this.error = 'Vui lòng nhập địa chỉ email.';
-        return;
-      }
-      
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(this.form.email)) {
-        this.error = 'Địa chỉ email không đúng định dạng.';
-        return;
-      }
-
-      // Nếu là màn hình nhỏ và đang ở bước 1, chuyển sang bước 2
-      if (this.isSmallScreen && this.registerSubStep === 1) {
+      if (this.isCompactScreen && this.registerSubStep === 1) {
         this.registerSubStep = 2;
         return;
       }
-
-      if (!this.form.password) {
-        this.error = 'Vui lòng nhập mật khẩu.';
-        return;
-      }
-      if (this.form.password.length < 8 || this.form.password.length > 50) {
-        this.error = 'Mật khẩu phải từ 8 đến 50 ký tự.';
-        return;
-      }
-      if (!/[A-Z]/.test(this.form.password)) {
-        this.error = 'Mật khẩu phải chứa ít nhất 1 chữ hoa.';
-        return;
-      }
-      if (!/\d/.test(this.form.password)) {
-        this.error = 'Mật khẩu phải chứa ít nhất 1 chữ số.';
-        return;
-      }
-      if (!/[!@#$%^&*(),.?":{}|<>]/.test(this.form.password)) {
-        this.error = 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt.';
-        return;
-      }
-      if (!this.form.password_confirmation) {
-        this.error = 'Vui lòng nhập xác nhận mật khẩu.';
-        return;
-      }
-
-      if (this.form.password !== this.form.password_confirmation) {
-        this.error = 'Xác nhận mật khẩu không khớp.';
-        return;
-      }
+      if (!this.validatePassword()) return;
 
       this.isLoading = true;
       try {
         const response = await register(this.form);
         this.step = 'otp';
         this.successMsg = response.message || 'Mã xác thực đã được gửi về email.';
-      } catch (error) {
-        this.error = error.message || 'Đăng ký không thành công.';
+        this.$nextTick(() => this.$refs.otpInput?.focus());
+      } catch (requestError) {
+        this.applyBackendErrors(requestError);
       } finally {
         this.isLoading = false;
       }
     },
     async handleVerifyOtp() {
-      this.error = '';
-      this.successMsg = '';
-
-      if (!this.otp) {
-        this.error = 'Vui lòng nhập mã OTP.';
+      this.clearMessages();
+      this.fieldErrors.otp = '';
+      if (!/^\d{6}$/.test(this.otp)) {
+        this.setFieldError('otp', 'Mã OTP phải gồm đúng 6 chữ số.');
         return;
       }
 
       this.isLoading = true;
-
       try {
         const response = await verifyRegisterOtp(this.form.email, this.otp);
         this.successMsg = response.message || 'Xác thực thành công.';
-        setTimeout(() => this.$router.push('/login'), 1200);
-      } catch (error) {
-        this.error = error.message || 'Mã OTP không đúng.';
+        window.setTimeout(() => this.$router.push('/login'), 1200);
+      } catch (requestError) {
+        this.setFieldError('otp', requestError.message || 'Mã OTP không đúng hoặc đã hết hạn.');
       } finally {
         this.isLoading = false;
       }
     },
     async handleResendOtp() {
-      this.error = '';
-      this.successMsg = '';
+      this.clearMessages();
       this.isResending = true;
-
       try {
         const response = await resendRegisterOtp(this.form.email);
         this.successMsg = response.message || 'Đã gửi lại mã OTP.';
-      } catch (error) {
-        this.error = error.message || 'Không thể gửi lại mã OTP.';
+      } catch (requestError) {
+        this.error = requestError.message || 'Không thể gửi lại mã OTP.';
       } finally {
         this.isResending = false;
       }
+    },
+    editRegistration() {
+      this.step = 'register';
+      this.otp = '';
+      this.registerSubStep = 1;
+      this.fieldErrors = emptyFieldErrors();
+      this.clearMessages();
+      this.$nextTick(() => this.$refs.emailInput?.focus());
     },
     handleGoogleLogin() {
       loginWithGoogle();
@@ -382,21 +455,4 @@ export default {
 };
 </script>
 
-<style scoped>
-.shake-enter-active {
-  animation: shakeAnim .4s ease;
-}
-@keyframes shakeAnim {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
-}
-.fade-enter-active, .fade-leave-active {
-  transition: opacity .3s;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-</style>
+<style scoped src="/resources/css/views/client-register.css"></style>

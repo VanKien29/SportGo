@@ -1,12 +1,13 @@
 <template>
-  <div class="upload-box" :class="{ 'upload-box--error': error }">
+  <div class="upload-box" :class="{ 'upload-box--error': visibleError }">
     <div class="upload-box__head">
       <div>
         <p class="upload-box__label">
           {{ title }}<span v-if="required">*</span>
         </p>
         <p class="upload-box__hint">
-          JPG, PNG, WEBP, PDF, DOC hoặc DOCX. File cũ chỉ để đối chiếu; chọn file mới để thay thế/bổ sung.
+          JPG, PNG, WEBP, PDF, DOC hoặc DOCX; tối đa {{ maxFiles }} file, {{ maxSizeMb }} MB/file.
+          File cũ chỉ để đối chiếu; chọn file mới để thay thế/bổ sung.
         </p>
       </div>
 
@@ -30,7 +31,7 @@
       @change="handleChange"
     />
 
-    <p v-if="error" class="upload-box__error">{{ error }}</p>
+    <p v-if="visibleError" class="upload-box__error">{{ visibleError }}</p>
 
     <div v-if="existingFiles.length" class="upload-box__saved">
       <p>File đã nộp trước</p>
@@ -72,26 +73,48 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { apiDownload } from '../services/api.js';
 
-defineProps({
+const props = defineProps({
   title: { type: String, required: true },
   required: { type: Boolean, default: false },
   files: { type: Array, default: () => [] },
   existingFiles: { type: Array, default: () => [] },
   error: { type: String, default: '' },
+  maxFiles: { type: Number, default: 5 },
+  maxSizeMb: { type: Number, default: 10 },
 });
 
 const emit = defineEmits(['change', 'remove', 'preview']);
 const fileInput = ref(null);
+const selectionError = ref('');
+const visibleError = computed(() => selectionError.value || props.error);
+const allowedExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx']);
 
 function openPicker() {
   fileInput.value?.click();
 }
 
 function handleChange(event) {
-  emit('change', event);
+  const selectedFiles = Array.from(event.target.files || []);
+  const invalidType = selectedFiles.find((file) => {
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    return !allowedExtensions.has(extension);
+  });
+  const oversizedFile = selectedFiles.find((file) => file.size > props.maxSizeMb * 1024 * 1024);
+
+  if (selectedFiles.length > props.maxFiles) {
+    selectionError.value = `Chỉ được chọn tối đa ${props.maxFiles} file cho nhóm này.`;
+  } else if (invalidType) {
+    selectionError.value = `File ${invalidType.name} không đúng định dạng được hỗ trợ.`;
+  } else if (oversizedFile) {
+    selectionError.value = `File ${oversizedFile.name} vượt quá ${props.maxSizeMb} MB.`;
+  } else {
+    selectionError.value = '';
+    emit('change', event);
+  }
+
   event.target.value = '';
 }
 

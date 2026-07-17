@@ -1,5 +1,5 @@
 <template>
-  <div class="partner-review-page">
+  <div class="partner-review-page partner-client-page sg-client-page">
     <PublicNavbar />
 
     <main class="partner-review-main">
@@ -11,7 +11,7 @@
 
         <div class="partner-page-title">
           <p>Hồ sơ đối tác</p>
-          <h1>{{ application?.venue_name || 'Đang tải hồ sơ' }}</h1>
+          <h1>{{ application?.venue_name || (loading ? 'Đang tải hồ sơ' : 'Không thể mở hồ sơ') }}</h1>
           <small v-if="application">{{ application.venue_address || 'Chưa có địa chỉ cụm sân' }}</small>
         </div>
 
@@ -29,6 +29,36 @@
       </section>
 
       <template v-else-if="application">
+        <section class="partner-card partner-workflow-card">
+          <div class="partner-workflow-copy">
+            <div>
+              <p class="partner-workflow-eyebrow">Tiến trình hồ sơ</p>
+              <h2>{{ statusLabel(application.status) }}</h2>
+              <p>{{ statusGuidance }}</p>
+            </div>
+            <button
+              v-if="workflowDocument"
+              class="btn btn-primary"
+              type="button"
+              @click="openDocumentPage(workflowDocument)"
+            >
+              <AppIcon :name="canOpenSigning(workflowDocument) ? 'pencil' : 'eye'" size="16" />
+              {{ workflowActionLabel }}
+            </button>
+          </div>
+          <ol class="partner-workflow-steps" aria-label="Bốn bước xử lý hồ sơ">
+            <li
+              v-for="step in workflowSteps"
+              :key="step.key"
+              :class="{ completed: step.completed, current: step.current }"
+              :aria-current="step.current ? 'step' : undefined"
+            >
+              <span>{{ step.order }}</span>
+              <strong>{{ step.label }}</strong>
+            </li>
+          </ol>
+        </section>
+
         <div class="partner-layout-grid">
           <div>
             <section v-if="application.status === 'need_supplement'" class="partner-card">
@@ -165,13 +195,14 @@
                       <div>
                         <strong>{{ document.title || uploadedTypeLabel(document.document_type) }}</strong>
                         <p>{{ document.file_name || uploadedTypeLabel(document.document_type) }} · {{ fileSize(document.file_size) }}</p>
+                        <p v-if="!document.download_url" class="partner-doc-warning">File gốc không còn trên hệ thống. Vui lòng liên hệ SportGo hoặc bổ sung lại khi hồ sơ cho phép.</p>
                       </div>
                       <div class="partner-doc-actions">
-                        <button class="btn btn-secondary" type="button" @click="previewDocument({ ...document, source: 'uploaded' })">
+                        <button class="btn btn-secondary" type="button" :disabled="!document.download_url" @click="previewDocument({ ...document, source: 'uploaded' })">
                           <AppIcon name="eye" size="16" />
                           Xem
                         </button>
-                        <button class="btn btn-outline icon-only" type="button" title="Tải file" @click="downloadFile(document.download_url)">
+                        <button class="btn btn-outline icon-only" type="button" title="Tải file" :disabled="!document.download_url" @click="downloadFile(document.download_url)">
                           <AppIcon name="download" size="16" />
                         </button>
                       </div>
@@ -240,11 +271,6 @@
       </template>
     </main>
 
-    <PartnerFilePreviewDialog
-      :show="previewOpen"
-      :document="previewingDocument"
-      @close="previewOpen = false"
-    />
   </div>
 </template>
 
@@ -253,7 +279,6 @@ import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import PartnerFilePreviewDialog from '../../components/partner/PartnerFilePreviewDialog.vue';
 import { api, apiDownload, apiFormData } from '../../services/api.js';
 
 const route = useRoute();
@@ -262,8 +287,6 @@ const router = useRouter();
 const loading = ref(true);
 const error = ref('');
 const application = ref(null);
-const previewOpen = ref(false);
-const previewingDocument = ref(null);
 const supplementNote = ref('');
 const supplementFiles = ref([]);
 const supplementError = ref('');
@@ -287,6 +310,54 @@ const generatedDocumentGroups = computed(() => groupDocuments(generatedDocuments
 const uploadedDocumentGroups = computed(() => groupDocuments(uploadedDocuments.value, uploadedDocumentGroupMeta));
 const applicationForm = computed(() => preferredGeneratedDocument('partner_application_form'));
 const contractDocument = computed(() => preferredGeneratedDocument('partner_contract'));
+const workflowStage = computed(() => ({
+  draft: 1,
+  submitted: 2,
+  pending: 2,
+  reviewing: 2,
+  need_supplement: 2,
+  rejected: 2,
+  cancelled: 2,
+  contract_pending_sportgo_signature: 3,
+  contract_pending_owner_signature: 3,
+  completed: 4,
+}[application.value?.status] || 1));
+const workflowSteps = computed(() => [
+  { key: 'application', order: 1, label: 'Hồ sơ' },
+  { key: 'review', order: 2, label: 'Xét duyệt' },
+  { key: 'contract', order: 3, label: 'Hợp đồng' },
+  { key: 'complete', order: 4, label: 'Hoàn tất' },
+].map((step) => ({
+  ...step,
+  completed: step.order < workflowStage.value || application.value?.status === 'completed',
+  current: step.order === workflowStage.value && application.value?.status !== 'completed',
+})));
+const statusGuidance = computed(() => ({
+  draft: 'Kiểm tra đơn đăng ký đã sinh và ký điện tử để gửi SportGo xét duyệt.',
+  submitted: 'Hồ sơ đã được gửi. SportGo sẽ cập nhật trạng thái khi bắt đầu xem xét.',
+  pending: 'Hồ sơ đang chờ SportGo tiếp nhận và xét duyệt.',
+  reviewing: 'SportGo đang kiểm tra thông tin và giấy tờ trong hồ sơ.',
+  need_supplement: 'Bổ sung đúng nội dung được yêu cầu để hồ sơ tiếp tục được xét duyệt.',
+  contract_pending_sportgo_signature: 'Hồ sơ đã được duyệt và đang chờ SportGo ký hợp đồng.',
+  contract_pending_owner_signature: 'Hợp đồng đã sẵn sàng. Hãy xem toàn bộ nội dung trước khi ký.',
+  completed: 'Hồ sơ và hợp đồng đã hoàn tất. Quan hệ đối tác đang hoạt động.',
+  rejected: 'Hồ sơ đã bị từ chối. Kiểm tra lý do và thông tin lịch sử bên dưới.',
+  cancelled: 'Hồ sơ đã được hủy và không còn tiếp tục xử lý.',
+}[application.value?.status] || 'Theo dõi trạng thái và các yêu cầu xử lý của hồ sơ tại đây.'));
+const workflowDocument = computed(() => {
+  if (application.value?.status === 'draft') return applicationForm.value;
+  if (['contract_pending_sportgo_signature', 'contract_pending_owner_signature', 'completed'].includes(application.value?.status)) {
+    return contractDocument.value || applicationForm.value;
+  }
+  return null;
+});
+const workflowActionLabel = computed(() => {
+  if (!workflowDocument.value) return '';
+  if (canOpenSigning(workflowDocument.value)) {
+    return workflowDocument.value.document_type === 'partner_contract' ? 'Xem và ký hợp đồng' : 'Xem và ký đơn';
+  }
+  return workflowDocument.value.document_type === 'partner_contract' ? 'Xem hợp đồng' : 'Xem đơn đăng ký';
+});
 
 const InfoBox = defineComponent({
   props: { title: String, items: Array },
@@ -321,29 +392,20 @@ async function loadApplication() {
 
 function previewDocument(document) {
   if (!document?.download_url && document?.file_available === false) {
-    error.value = 'File văn bản này không còn tồn tại. Vui lòng tạo lại văn bản từ hồ sơ.';
+    error.value = document?.source === 'uploaded'
+      ? 'File gốc không còn trên hệ thống. Vui lòng liên hệ SportGo hoặc bổ sung lại khi hồ sơ cho phép.'
+      : 'File văn bản này không còn tồn tại. Vui lòng tạo lại văn bản từ hồ sơ.';
     return;
   }
 
-  previewingDocument.value = normalizeDocument(document);
-  previewOpen.value = true;
-}
-
-function normalizeDocument(document) {
-  if (!document) return null;
-  if (document.source === 'uploaded') return document;
-  const downloadUrl = document.download_url || (document.file_available !== false ? `/api/files/documents/${document.id}/download` : null);
-  return {
-    ...document,
-    source: 'generated',
-    download_url: downloadUrl,
-  };
+  openDocumentPage(document);
 }
 
 function openDocumentPage(document) {
   router.push({
     name: 'partner-application-document',
     params: { id: application.value.id, documentId: document.id },
+    query: document.source === 'uploaded' ? { type: 'uploaded' } : undefined,
   });
 }
 
@@ -453,22 +515,37 @@ function documentTypeLabel(type) {
   return {
     partner_application_form: 'Đơn đăng ký đối tác',
     partner_contract: 'Hợp đồng đối tác kinh doanh',
-  }[type] || type || 'Văn bản';
+    termination_request: 'Đơn yêu cầu chấm dứt hợp tác',
+    owner_termination_request: 'Đơn yêu cầu chấm dứt hợp tác',
+    termination_cancellation_request: 'Đơn xác nhận hủy yêu cầu chấm dứt',
+    mutual_liquidation_minutes: 'Biên bản thanh lý',
+    unilateral_termination_notice: 'Công văn chấm dứt từ SportGo',
+    settlement_minutes: 'Biên bản quyết toán',
+    final_termination_file: 'Biên bản chấm dứt cuối',
+  }[type] || 'Văn bản hệ thống';
 }
 
 function uploadedTypeLabel(type) {
   return {
     identity: 'CCCD/CMND/Hộ chiếu',
+    identity_front: 'Mặt trước giấy tờ tùy thân',
+    identity_back: 'Mặt sau giấy tờ tùy thân',
     business_license: 'Giấy đăng ký kinh doanh',
+    business_registration: 'Giấy đăng ký kinh doanh',
     facility: 'Ảnh cơ sở/sân',
+    venue_front_image: 'Ảnh mặt tiền cụm sân',
+    court_area_image: 'Ảnh khu vực sân chơi',
+    parking_area_image: 'Ảnh khu vực gửi xe',
     bank: 'Chứng từ ngân hàng',
+    bank_account_proof: 'Chứng từ tài khoản ngân hàng',
     lease: 'Hợp đồng thuê mặt bằng',
+    lease_contract: 'Hợp đồng thuê mặt bằng',
     scale_request_documents: 'Hồ sơ yêu cầu thay đổi quy mô',
     scale_request_supplement: 'Hồ sơ yêu cầu thay đổi quy mô',
     location_change_documents: 'Hồ sơ yêu cầu thay đổi vị trí',
     location_change_supplement: 'Hồ sơ yêu cầu thay đổi vị trí',
     additional: 'Tài liệu bổ sung',
-  }[type] || type || 'Tài liệu';
+  }[type] || 'Tài liệu bổ sung';
 }
 
 function groupDocuments(documents, metaResolver) {
@@ -505,7 +582,21 @@ function generatedDocumentGroupMeta(document) {
 
 function uploadedDocumentGroupMeta(document) {
   const type = document?.document_type || document?.category;
-  if (['identity', 'business_license', 'facility', 'bank', 'lease'].includes(type)) {
+  if ([
+    'identity',
+    'identity_front',
+    'identity_back',
+    'business_license',
+    'business_registration',
+    'facility',
+    'venue_front_image',
+    'court_area_image',
+    'parking_area_image',
+    'bank',
+    'bank_account_proof',
+    'lease',
+    'lease_contract',
+  ].includes(type)) {
     return { key: 'registration', label: 'Hồ sơ đăng ký đối tác' };
   }
   if (['scale_request_documents', 'scale_request_supplement'].includes(type)) {
@@ -559,27 +650,6 @@ function dateOnly(value) {
 }
 </script>
 
-<style scoped>
-
-
-.partner-doc-group {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.partner-doc-group-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #0f172a;
-}
-
-.partner-doc-group-head span {
-  color: #64748b;
-  font-size: 0.85rem;
-}
-</style>
+<style src="../../../css/partner/partner.css"></style>
+<style src="../../../css/partner/client-partner-shared.css"></style>
+<style scoped src="../../../css/partner/client-partner-detail.css"></style>
