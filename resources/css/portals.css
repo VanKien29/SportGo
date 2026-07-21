@@ -5765,14 +5765,6 @@ input, select, textarea {
     align-items: end;
 }
 
-.booking-list-filters {
-    display: grid;
-    grid-template-columns:
-        minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr)
-        minmax(160px, 0.8fr) minmax(220px, 1.2fr) auto;
-    gap: 10px;
-    align-items: end;
-}
 
 .schedule-skeleton,
 .table-skeleton {
@@ -6113,26 +6105,16 @@ input, select, textarea {
 }
 
 .source-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 26px;
-    border-radius: 999px;
-    padding: 5px 10px;
-    background: #ecfdf5;
-    color: #15803d;
     font-size: 12px;
     font-weight: 900;
     white-space: nowrap;
 }
 
 .source-pill.online {
-    background: #dbeafe;
     color: #1d4ed8;
 }
 
 .source-pill.counter {
-    background: #fef3c7;
     color: #92400e;
 }
 
@@ -6221,10 +6203,6 @@ input, select, textarea {
 }
 
 .group-code {
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: #e8f7ec;
     color: #0f7a31 !important;
     font-weight: 850 !important;
 }
@@ -8874,17 +8852,17 @@ input.invalid {
 }
 
 [data-theme="dark"] .group-code {
-    background: rgba(52, 211, 153, 0.2);
+    background: transparent;
     color: var(--admin-success) !important;
 }
 
 [data-theme="dark"] .source-pill.online {
-    background: rgba(59, 130, 246, 0.2);
+    background: transparent;
     color: #60a5fa;
 }
 
 [data-theme="dark"] .source-pill.counter {
-    background: rgba(245, 158, 11, 0.2);
+    background: transparent;
     color: #fbbf24;
 }
 

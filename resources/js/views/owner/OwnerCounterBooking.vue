@@ -3,125 +3,13 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <div class="tabs-and-actions">
-            <div v-if="!isBookingListRoute" class="tabs">
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'counter' }"
-                    @click="setActiveTab('counter')"
-                >
-                    <AppIcon name="plus" size="16" />
-                    <span>Booking tại quầy</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurring' }"
-                    @click="setActiveTab('recurring')"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </button>
-            </div>
-            <div v-else class="tabs context-tabs">
-                <router-link class="tab-nav-link" :to="counterBookingPath">
-                    <AppIcon name="plus" size="16" />
-                    <span>Tạo booking tại quầy</span>
-                </router-link>
-                <router-link
-                    class="tab-nav-link"
-                    :to="{ name: counterBookingRouteName, query: { tab: 'recurring' } }"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </router-link>
-            </div>
-            <SgButton type="secondary" size="sm" :icon="true" @click="refreshActiveTab">
-                <template #icon><AppIcon name="refresh" size="16" /></template>
-                {{ activeTab === "bookingList" ? "Tải lại danh sách" : "Tải lại lịch" }}
-            </SgButton>
-        </div>
+
 
         <section v-if="activeTab === 'counter'" class="counter-board">
             <div class="schedule-panel">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch sân trong ngày</h2>
-                        <p>{{ currentScheduleLabel }}</p>
-                    </div>
-                    <button
-                        class="icon-btn"
-                        type="button"
-                        title="Tải lại lịch"
-                        @click="loadSchedule"
-                    >
-                        <AppIcon name="refresh" size="17" />
-                    </button>
-                </div>
 
-                <div class="filters schedule-filters counter-toolbar">
-                    <label class="schedule-filter-field cluster-field">
-                        <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label class="schedule-filter-field date-field">
-                        <span>Ngày chơi</span>
-                        <div class="date-stepper">
-                            <button
-                                type="button"
-                                aria-label="Ngày trước"
-                                @click="shiftCounterDate(-1)"
-                            >
-                                <AppIcon name="chevronLeft" size="15" />
-                            </button>
-                            <input
-                                v-model="form.booking_date"
-                                type="date"
-                                @change="handleScheduleDateChange"
-                            />
-                            <button
-                                type="button"
-                                aria-label="Ngày sau"
-                                @click="shiftCounterDate(1)"
-                            >
-                                <AppIcon name="chevronRight" size="15" />
-                            </button>
-                            <button
-                                type="button"
-                                class="today-btn"
-                                @click="setCounterDateToday"
-                            >
-                                Hôm nay
-                            </button>
-                        </div>
-                    </label>
-                    <label class="schedule-filter-field type-field">
-                        <span>Loại sân</span>
-                        <select
-                            v-model="selectedCourtTypeId"
-                            @change="loadSchedule"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="type in courtTypeOptions"
-                                :key="type.id"
-                                :value="type.id"
-                            >
-                                {{ type.name }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
+
+
 
                 <p v-if="selectionError" class="selection-error">
                     {{ selectionError }}
@@ -149,40 +37,10 @@
                     Không có sân phù hợp với bộ lọc hiện tại.
                 </div>
                 <div v-else class="time-board">
-                    <div class="selected-court-strip">
-                        <div>
-                            <span>Sân đã chọn</span>
-                            <strong>{{ selectedCourtText }}</strong>
-                        </div>
-                        <div>
-                            <span>Khung giờ</span>
-                            <strong>{{
-                                hasCounterSelection
-                                    ? selectedTimeText
-                                    : "Chưa chọn"
-                            }}</strong>
-                        </div>
-                        <div>
-                            <span>Tổng tiền</span>
-                            <strong>{{ formatCurrency(selectedTotal) }}</strong>
-                        </div>
-                    </div>
+
 
                     <div class="period-row">
-                        <div class="period-tabs">
-                            <button
-                                v-for="period in dynamicTimePeriods"
-                                :key="period.key"
-                                type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
-                                @click="activeTimePeriod = period.key"
-                            >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
-                            </button>
-                        </div>
+
 
                         <div class="legend">
                             <span><i></i>Lịch trống</span>
@@ -608,12 +466,7 @@
 
         <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
             <div class="form-card">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch cố định</h2>
-                        <p>Nhóm lịch sẽ dùng cùng mã cố định để dễ theo dõi.</p>
-                    </div>
-                </div>
+
 
                 <div class="form-grid recurring-form-grid">
                     <div class="readonly-field">
@@ -806,20 +659,7 @@
                     </div>
 
                     <div class="period-row">
-                        <div class="period-tabs">
-                            <button
-                                v-for="period in dynamicTimePeriods"
-                                :key="period.key"
-                                type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
-                                @click="activeTimePeriod = period.key"
-                            >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
-                            </button>
-                        </div>
+
 
                         <div class="legend">
                             <span><i></i>Trống</span>
@@ -1126,113 +966,12 @@
         </section>
 
         <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking</h2>
-                    <p>
-                        Theo dõi booking lẻ và booking cố định trong cùng một
-                        màn; lọc theo sân, ngày, trạng thái và thanh toán.
-                    </p>
-                </div>
-                <button
-                    class="icon-btn"
-                    type="button"
-                    title="Tải lại"
-                    @click="loadCurrentBookingList"
-                >
-                    <AppIcon name="refresh" size="17" />
-                </button>
-            </div>
 
-            <div class="booking-list-mode-tabs" role="tablist" aria-label="Loại danh sách booking">
-                <button
-                    type="button"
-                    :class="{ active: bookingListMode === 'single' }"
-                    @click="setBookingListMode('single')"
-                >
-                    <AppIcon name="calendar" size="15" />
-                    <span>Booking lẻ</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: bookingListMode === 'recurring' }"
-                    @click="setBookingListMode('recurring')"
-                >
-                    <AppIcon name="fileText" size="15" />
-                    <span>Booking cố định</span>
-                </button>
-            </div>
+
+
 
             <template v-if="bookingListMode === 'single'">
-            <div class="filters booking-list-filters">
-                <label>
-                    <span>Sân con</span>
-                    <select
-                        v-model="bookingListFilters.venue_court_id"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option
-                            v-for="court in courts"
-                            :key="court.id"
-                            :value="court.id"
-                        >
-                            {{ court.name }}
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    <span>Ngày chơi</span>
-                    <input
-                        v-model="bookingListFilters.booking_date"
-                        type="date"
-                        @change="loadBookingList"
-                    />
-                </label>
-                <label>
-                    <span>Nguồn đặt</span>
-                    <select
-                        v-model="bookingListFilters.source"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option value="online">Online</option>
-                        <option value="counter">Tại quầy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Trạng thái</span>
-                    <select
-                        v-model="bookingListFilters.status"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option value="pending_approval">Chờ duyệt</option>
-                        <option value="pending_payment">Chờ thanh toán</option>
-                        <option value="confirmed">Đã xác nhận</option>
-                        <option value="checked_in">Đã check-in</option>
-                        <option value="completed">Hoàn thành</option>
-                        <option value="cancelled">Đã hủy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Tìm kiếm</span>
-                    <input
-                        v-model.trim="bookingListFilters.q"
-                        type="search"
-                        placeholder="Mã booking, khách, SĐT"
-                        @keyup.enter="loadBookingList"
-                    />
-                </label>
-                <button
-                    class="secondary-btn"
-                    type="button"
-                    @click="loadBookingList"
-                >
-                    <AppIcon name="search" size="16" />
-                    <span>Lọc</span>
-                </button>
-            </div>
+
 
             <div v-if="bookingListLoading" class="table-skeleton">
                 <div
@@ -1339,23 +1078,7 @@
             </template>
 
             <template v-else>
-            <div class="list-toolbar compact-list-toolbar">
-                <div>
-                    <h2>Danh sách booking cố định</h2>
-                    <p>
-                        Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và số
-                        tiền còn phải thu.
-                    </p>
-                </div>
-                <button
-                    class="icon-btn"
-                    type="button"
-                    title="Tải lại"
-                    @click="loadRecurringGroups"
-                >
-                    <AppIcon name="refresh" size="17" />
-                </button>
-            </div>
+
 
             <div class="filters recurring-list-filters">
                 <label>
@@ -5306,36 +5029,7 @@ export default {
     border-top: 1px solid var(--admin-border-soft, #e4eee4);
 }
 
-.booking-list-mode-tabs {
-    display: inline-flex;
-    width: fit-content;
-    gap: 4px;
-    padding: 4px;
-    border: 1px solid var(--admin-border, #d5e4d6);
-    border-radius: 8px;
-    background: var(--admin-surface-muted, #f6fbf7);
-}
 
-.booking-list-mode-tabs button {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 36px;
-    border: 0;
-    border-radius: 6px;
-    padding: 0 14px;
-    background: transparent;
-    color: var(--admin-muted, #5d6d63);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-}
-
-.booking-list-mode-tabs button.active {
-    background: var(--admin-primary, #16a34a);
-    color: var(--admin-primary-text, #fff);
-    box-shadow: 0 8px 20px rgba(22, 163, 74, 0.16);
-}
 
 .recurring-list-filters {
     display: grid;
@@ -5346,14 +5040,6 @@ export default {
     align-items: end;
 }
 
-.booking-list-filters {
-    display: grid;
-    grid-template-columns:
-        minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr)
-        minmax(160px, 0.8fr) minmax(220px, 1.2fr) auto;
-    gap: 10px;
-    align-items: end;
-}
 
 .schedule-skeleton,
 .table-skeleton {
@@ -5694,26 +5380,16 @@ export default {
 }
 
 .source-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 26px;
-    border-radius: 4px;
-    padding: 5px 10px;
-    background: var(--admin-success-soft, #ecfdf5);
-    color: var(--admin-success-text, #15803d);
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
 }
 
 .source-pill.online {
-    background: var(--admin-info-soft, #dbeafe);
     color: var(--admin-info, #1d4ed8);
 }
 
 .source-pill.counter {
-    background: var(--admin-warning-soft, #fef3c7);
     color: var(--admin-warning, #92400e);
 }
 
@@ -5802,10 +5478,6 @@ export default {
 }
 
 .group-code {
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: var(--admin-success-soft, #e8f7ec);
     color: var(--admin-success-text, #0f7a31) !important;
     font-weight: 500 !important;
 }

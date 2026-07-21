@@ -16,14 +16,16 @@
 
     <!-- Skeleton Loading -->
     <div v-if="loading" class="loading-skeleton-layout">
-      <div class="skeleton-stats-row">
-        <div class="skeleton-card" v-for="i in 4" :key="i"></div>
+      <div class="skeleton-main-with-sidebar">
+        <div class="skeleton-main-column">
+          <div class="skeleton-middle-row">
+            <div class="skeleton-panel"></div>
+            <div class="skeleton-panel"></div>
+          </div>
+          <div class="skeleton-full"></div>
+        </div>
+        <div class="skeleton-sidebar"></div>
       </div>
-      <div class="skeleton-middle-row">
-        <div class="skeleton-panel"></div>
-        <div class="skeleton-panel"></div>
-      </div>
-      <div class="skeleton-full"></div>
     </div>
 
     <template v-else>
@@ -39,242 +41,227 @@
         </router-link>
       </header>
 
-      <!-- STATS OVERVIEW CARDS -->
-      <div class="stats-grid">
-        <article class="stat-card stat-blue">
-          <div class="stat-icon-area">
-            <AppIcon name="activity" size="20" />
-          </div>
-          <div class="stat-body">
-            <strong class="stat-number">{{ stats.active_courts_count }}<span class="stat-total"> / {{ stats.total_courts_count }}</span></strong>
-            <span class="stat-label">Sân hoạt động</span>
-          </div>
-          <div class="stat-ring stat-ring-blue"></div>
-        </article>
+      <div class="dashboard-layout">
+        <!-- MAIN CONTENT COLUMN -->
+        <div class="dashboard-main-content">
+          <!-- MIDDLE ROW: SHIFT + NOTIFICATIONS -->
+          <div class="dashboard-middle">
 
-        <router-link to="/staff/bookings" class="stat-card stat-purple clickable" style="text-decoration:none;">
-          <div class="stat-icon-area">
-            <AppIcon name="calendar" size="20" />
-          </div>
-          <div class="stat-body">
-            <strong class="stat-number">{{ stats.today_bookings_count }}</strong>
-            <span class="stat-label">Đơn đặt hôm nay</span>
-          </div>
-          <div class="stat-ring stat-ring-purple"></div>
-        </router-link>
+            <!-- TODAY'S TASKS (TO-DO LIST) -->
+            <section class="panel shift-panel tasks-panel">
+              <header class="panel-header">
+                <h2 class="panel-title">Nhiệm vụ hôm nay</h2>
+              </header>
 
-        <article class="stat-card stat-green">
-          <div class="stat-icon-area">
-            <AppIcon name="users" size="20" />
-          </div>
-          <div class="stat-body">
-            <strong class="stat-number">{{ stats.playing_now_count }}</strong>
-            <span class="stat-label">Khách đang chơi</span>
-          </div>
-          <div class="stat-ring stat-ring-green"></div>
-        </article>
+              <div class="panel-body todo-list-body">
+                <!-- Shift Check-in Task -->
+                <div v-if="stats.my_shift_today" class="todo-item" :class="{ 'todo-done': stats.my_shift_today.status !== 'scheduled' }">
+                  <div class="todo-item-left">
+                    <span class="todo-checkbox-styled" :class="{ 'checked': stats.my_shift_today.status !== 'scheduled' }" @click="stats.my_shift_today.status === 'scheduled' && canCheckIn(stats.my_shift_today) && handleCheckIn(stats.my_shift_today.id)">
+                      <span v-if="stats.my_shift_today.status !== 'scheduled'" class="checkmark">✓</span>
+                    </span>
+                    <div class="todo-text">
+                      <span class="todo-label">Check-in ca trực: {{ stats.my_shift_today.shift?.name || 'Ca trực' }}</span>
+                      <small class="todo-desc">
+                        {{ formatShiftTime(stats.my_shift_today) }}
+                        <span v-if="stats.my_shift_today.check_in_at" class="todo-time-stamp">
+                          · Vào lúc: {{ formatDateTime(stats.my_shift_today.check_in_at) }}
+                        </span>
+                      </small>
+                    </div>
+                  </div>
+                  <div v-if="stats.my_shift_today.status === 'scheduled'" class="todo-action-area">
+                    <button
+                      type="button"
+                      class="todo-mini-btn"
+                      :disabled="actionLoading || !canCheckIn(stats.my_shift_today)"
+                      @click="handleCheckIn(stats.my_shift_today.id)"
+                    >
+                      <span v-if="actionLoading" class="spinner-mini"></span>
+                      <span v-else>Check-in</span>
+                    </button>
+                  </div>
+                </div>
 
-        <router-link to="/staff/bookings" class="stat-card stat-orange clickable" style="text-decoration:none;">
-          <div class="stat-icon-area">
-            <AppIcon name="clock" size="20" />
-          </div>
-          <div class="stat-body">
-            <strong class="stat-number">{{ stats.upcoming_bookings_count }}</strong>
-            <span class="stat-label">Khách sắp đến</span>
-          </div>
-          <div class="stat-ring stat-ring-orange"></div>
-        </router-link>
-      </div>
+                <!-- Shift Check-out Task -->
+                <div v-if="stats.my_shift_today" class="todo-item" :class="{ 'todo-done': stats.my_shift_today.status === 'checked_out' }">
+                  <div class="todo-item-left">
+                    <span class="todo-checkbox-styled" :class="{ 'checked': stats.my_shift_today.status === 'checked_out' }" @click="stats.my_shift_today.status === 'checked_in' && handleCheckOut(stats.my_shift_today.id)">
+                      <span v-if="stats.my_shift_today.status === 'checked_out'" class="checkmark">✓</span>
+                    </span>
+                    <div class="todo-text">
+                      <span class="todo-label">Check-out ca trực</span>
+                      <small class="todo-desc">
+                        Kết thúc ca làm việc
+                        <span v-if="stats.my_shift_today.check_out_at" class="todo-time-stamp">
+                          · Ra lúc: {{ formatDateTime(stats.my_shift_today.check_out_at) }}
+                        </span>
+                      </small>
+                    </div>
+                  </div>
+                  <div v-if="stats.my_shift_today.status === 'checked_in'" class="todo-action-area">
+                    <button
+                      type="button"
+                      class="todo-mini-btn btn-danger"
+                      :disabled="actionLoading"
+                      @click="handleCheckOut(stats.my_shift_today.id)"
+                    >
+                      <span v-if="actionLoading" class="spinner-mini"></span>
+                      <span v-else>Check-out</span>
+                    </button>
+                  </div>
+                </div>
 
-      <!-- MIDDLE ROW: SHIFT + NOTIFICATIONS -->
-      <div class="dashboard-middle">
+                <!-- Local Static Tasks -->
+                <div v-for="task in localTasks" :key="task.id" class="todo-item" :class="{ 'todo-done': task.done }">
+                  <div class="todo-item-left">
+                    <span class="todo-checkbox-styled" :class="{ 'checked': task.done }" @click="toggleLocalTask(task)">
+                      <span v-if="task.done" class="checkmark">✓</span>
+                    </span>
+                    <div class="todo-text">
+                      <span class="todo-label">{{ task.label }}</span>
+                      <small class="todo-desc">Nhiệm vụ vận hành hàng ngày</small>
+                    </div>
+                  </div>
+                </div>
 
-        <!-- MY SHIFT TODAY -->
-        <section class="panel shift-panel">
-          <header class="panel-header">
-            <div class="panel-header-icon panel-icon-primary">
-              <AppIcon name="calendar" size="14" />
-            </div>
-            <h2 class="panel-title">Ca trực hôm nay</h2>
-          </header>
+                <!-- Lời nhắn từ chủ sân (nếu có) -->
+                <div v-if="stats.my_shift_today && stats.my_shift_today.notes" class="todo-memo-box">
+                  <AppIcon name="info" size="14" class="memo-icon" />
+                  <div>
+                    <strong>Lưu ý từ chủ sân:</strong>
+                    <p>{{ stats.my_shift_today.notes }}</p>
+                  </div>
+                </div>
 
-          <div v-if="stats.my_shift_today" class="panel-body">
-            <!-- Status ribbon -->
-            <div class="shift-status-bar" :class="'shift-status-' + stats.my_shift_today.status">
-              <span class="shift-status-dot"></span>
-              <span class="shift-status-label">{{ statusLabel(stats.my_shift_today.status) }}</span>
-              <span class="shift-time-chip">
-                <AppIcon name="clock" size="11" />
-                {{ formatShiftTime(stats.my_shift_today) }}
-              </span>
-            </div>
-
-            <!-- Shift name -->
-            <div class="shift-name-row">
-              <span class="shift-name">{{ stats.my_shift_today.shift?.name || 'Ca trực' }}</span>
-            </div>
-
-            <!-- Notes -->
-            <div v-if="stats.my_shift_today.notes" class="shift-notes">
-              <span class="shift-notes-label">Ghi chú từ chủ sân</span>
-              <p>{{ stats.my_shift_today.notes }}</p>
-            </div>
-
-            <!-- Attendance logs -->
-            <div v-if="stats.my_shift_today.check_in_at || stats.my_shift_today.check_out_at" class="attendance-timeline">
-              <div v-if="stats.my_shift_today.check_in_at" class="timeline-item timeline-in">
-                <div class="timeline-dot"></div>
-                <span class="timeline-label">Check-in</span>
-                <strong class="timeline-time">{{ formatDateTime(stats.my_shift_today.check_in_at) }}</strong>
+                <!-- Case: Không có ca trực hôm nay -->
+                <div v-if="!stats.my_shift_today" class="todo-no-shift-info">
+                  <AppIcon name="info" size="14" />
+                  <span>Hôm nay bạn không có ca trực phân bổ.</span>
+                </div>
               </div>
-              <div v-if="stats.my_shift_today.check_out_at" class="timeline-item timeline-out">
-                <div class="timeline-dot"></div>
-                <span class="timeline-label">Check-out</span>
-                <strong class="timeline-time">{{ formatDateTime(stats.my_shift_today.check_out_at) }}</strong>
-              </div>
-            </div>
+            </section>
 
-            <!-- Actions -->
-            <div class="shift-actions">
-              <button
-                v-if="stats.my_shift_today.status === 'scheduled'"
-                type="button"
-                class="action-btn action-btn-checkin"
-                :disabled="actionLoading || !canCheckIn(stats.my_shift_today)"
-                @click="handleCheckIn(stats.my_shift_today.id)"
+            <!-- NOTIFICATIONS -->
+            <section class="panel notifications-panel">
+              <header class="panel-header">
+                <div class="panel-header-icon panel-icon-bell">
+                  <AppIcon name="bell" size="14" />
+                </div>
+                <h2 class="panel-title">Thông báo</h2>
+                <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
+                <button
+                  v-if="hasUnreadNotifications"
+                  type="button"
+                  class="mark-read-btn"
+                  @click="markAllNotificationsRead"
+                >
+                  Đánh dấu tất cả đã đọc
+                </button>
+              </header>
+
+              <div v-if="stats.notifications && stats.notifications.length > 0" class="notif-list">
+                <article
+                  v-for="notif in stats.notifications"
+                  :key="notif.id"
+                  class="notif-item"
+                  :class="{ 'is-unread': !notif.is_read }"
+                  @click="handleNotificationClick(notif)"
+                >
+                  <div class="notif-unread-dot" v-if="!notif.is_read"></div>
+                  <div class="notif-content">
+                    <h4 class="notif-title">{{ notif.title }}</h4>
+                    <p class="notif-desc">{{ notif.body }}</p>
+                    <time class="notif-time">{{ formatTimeAgo(notif.created_at) }}</time>
+                  </div>
+                </article>
+              </div>
+
+              <div v-else class="panel-empty">
+                <div class="panel-empty-icon">
+                  <AppIcon name="bell" size="22" />
+                </div>
+                <p class="panel-empty-title">Chưa có thông báo</p>
+                <p class="panel-empty-desc">Bạn sẽ nhận thông báo khi có cập nhật mới.</p>
+              </div>
+            </section>
+          </div>
+
+          <!-- COURT AVAILABILITIES -->
+          <section class="panel court-panel">
+            <header class="panel-header panel-header-flat">
+              <div class="panel-header-text">
+                <h2 class="panel-title">Thời gian trống của từng sân</h2>
+                <p class="panel-subtitle">Cập nhật theo thời gian thực — hỗ trợ tư vấn cho khách vãng lai</p>
+              </div>
+            </header>
+
+            <div v-if="stats.court_availabilities && stats.court_availabilities.length > 0" class="courts-grid">
+              <article
+                v-for="court in stats.court_availabilities"
+                :key="court.court_id"
+                class="court-card"
+                :class="{ 'court-full': court.is_fully_booked }"
               >
-                <span v-if="actionLoading" class="spinner-mini"></span>
-                <AppIcon v-else name="checkCircle" size="14" />
-                <span>Check-in ngay</span>
-              </button>
+                <div class="court-card-top">
+                  <div class="court-info">
+                    <h3 class="court-name">{{ court.court_name }}</h3>
+                    <span class="court-type">{{ court.court_type }}</span>
+                  </div>
+                  <span class="court-status-pill" :class="court.is_fully_booked ? 'pill-full' : 'pill-free'">
+                    {{ court.is_fully_booked ? 'Kín lịch' : 'Còn trống' }}
+                  </span>
+                </div>
 
-              <button
-                v-if="stats.my_shift_today.status === 'checked_in'"
-                type="button"
-                class="action-btn action-btn-checkout"
-                :disabled="actionLoading"
-                @click="handleCheckOut(stats.my_shift_today.id)"
-              >
-                <span v-if="actionLoading" class="spinner-mini"></span>
-                <AppIcon v-else name="logOut" size="14" />
-                <span>Check-out</span>
-              </button>
+                <div class="court-card-body">
+                  <p class="slots-label">Khung giờ trống</p>
+                  <div v-if="!court.is_fully_booked" class="slot-chips">
+                    <span v-for="(slot, idx) in court.free_slots" :key="idx" class="slot-chip">
+                      {{ slot }}
+                    </span>
+                  </div>
+                  <p v-else class="no-slots-msg">Sân đã kín lịch hoặc đang khóa toàn bộ khung giờ trong ngày.</p>
+                </div>
+              </article>
+            </div>
 
-              <div v-if="stats.my_shift_today.status === 'checked_out'" class="shift-completed">
-                <AppIcon name="checkCircle" size="16" />
-                <span>Ca trực hoàn thành. Cảm ơn bạn!</span>
+            <div v-else class="panel-empty panel-empty-lg">
+              <div class="panel-empty-icon">
+                <AppIcon name="info" size="24" />
               </div>
-
-              <p v-if="stats.my_shift_today.status === 'scheduled' && !canCheckIn(stats.my_shift_today)" class="checkin-hint">
-                Check-in mở trước 30 phút so với giờ bắt đầu ca
-              </p>
+              <p class="panel-empty-title">Không tìm thấy sân nào</p>
+              <p class="panel-empty-desc">Không tìm thấy sân con nào thuộc cụm sân hiện tại.</p>
             </div>
-          </div>
-
-          <div v-else class="panel-empty">
-            <div class="panel-empty-icon">
-              <AppIcon name="info" size="22" />
-            </div>
-            <p class="panel-empty-title">Không có ca trực hôm nay</p>
-            <p class="panel-empty-desc">Bạn chưa được phân công ca nào tại cụm sân này.</p>
-            <router-link to="/staff/schedules" class="panel-link">Xem lịch trực tuần →</router-link>
-          </div>
-        </section>
-
-        <!-- NOTIFICATIONS -->
-        <section class="panel notifications-panel">
-          <header class="panel-header">
-            <div class="panel-header-icon panel-icon-bell">
-              <AppIcon name="bell" size="14" />
-            </div>
-            <h2 class="panel-title">Thông báo</h2>
-            <span v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
-            <button
-              v-if="hasUnreadNotifications"
-              type="button"
-              class="mark-read-btn"
-              @click="markAllNotificationsRead"
-            >
-              Đánh dấu tất cả đã đọc
-            </button>
-          </header>
-
-          <div v-if="stats.notifications && stats.notifications.length > 0" class="notif-list">
-            <article
-              v-for="notif in stats.notifications"
-              :key="notif.id"
-              class="notif-item"
-              :class="{ 'is-unread': !notif.is_read }"
-              @click="handleNotificationClick(notif)"
-            >
-              <div class="notif-unread-dot" v-if="!notif.is_read"></div>
-              <div class="notif-content">
-                <h4 class="notif-title">{{ notif.title }}</h4>
-                <p class="notif-desc">{{ notif.body }}</p>
-                <time class="notif-time">{{ formatTimeAgo(notif.created_at) }}</time>
-              </div>
-            </article>
-          </div>
-
-          <div v-else class="panel-empty">
-            <div class="panel-empty-icon">
-              <AppIcon name="bell" size="22" />
-            </div>
-            <p class="panel-empty-title">Chưa có thông báo</p>
-            <p class="panel-empty-desc">Bạn sẽ nhận thông báo khi có cập nhật mới.</p>
-          </div>
-        </section>
-      </div>
-
-      <!-- COURT AVAILABILITIES -->
-      <section class="panel court-panel">
-        <header class="panel-header panel-header-flat">
-          <div class="panel-header-icon panel-icon-primary">
-            <AppIcon name="activity" size="14" />
-          </div>
-          <div class="panel-header-text">
-            <h2 class="panel-title">Thời gian trống của từng sân</h2>
-            <p class="panel-subtitle">Cập nhật theo thời gian thực — hỗ trợ tư vấn cho khách vãng lai</p>
-          </div>
-        </header>
-
-        <div v-if="stats.court_availabilities && stats.court_availabilities.length > 0" class="courts-grid">
-          <article
-            v-for="court in stats.court_availabilities"
-            :key="court.court_id"
-            class="court-card"
-            :class="{ 'court-full': court.is_fully_booked }"
-          >
-            <div class="court-card-top">
-              <div class="court-info">
-                <h3 class="court-name">{{ court.court_name }}</h3>
-                <span class="court-type">{{ court.court_type }}</span>
-              </div>
-              <span class="court-status-pill" :class="court.is_fully_booked ? 'pill-full' : 'pill-free'">
-                {{ court.is_fully_booked ? 'Kín lịch' : 'Còn trống' }}
-              </span>
-            </div>
-
-            <div class="court-card-body">
-              <p class="slots-label">Khung giờ trống</p>
-              <div v-if="!court.is_fully_booked" class="slot-chips">
-                <span v-for="(slot, idx) in court.free_slots" :key="idx" class="slot-chip">
-                  {{ slot }}
-                </span>
-              </div>
-              <p v-else class="no-slots-msg">Sân đã kín lịch hoặc đang khóa toàn bộ khung giờ trong ngày.</p>
-            </div>
-          </article>
+          </section>
         </div>
 
-        <div v-else class="panel-empty panel-empty-lg">
-          <div class="panel-empty-icon">
-            <AppIcon name="info" size="24" />
-          </div>
-          <p class="panel-empty-title">Không tìm thấy sân nào</p>
-          <p class="panel-empty-desc">Không tìm thấy sân con nào thuộc cụm sân hiện tại.</p>
-        </div>
-      </section>
+        <!-- SIDEBAR COLUMN -->
+        <aside class="dashboard-sidebar">
+          <section class="panel stats-sidebar-panel">
+            <header class="panel-header">
+              <h2 class="panel-title">Chỉ số hôm nay</h2>
+            </header>
+            <div class="panel-body stats-sidebar-list">
+              <div class="stat-sidebar-item">
+                <span class="stat-sidebar-label">Sân hoạt động</span>
+                <strong class="stat-sidebar-value">{{ stats.active_courts_count }} / {{ stats.total_courts_count }}</strong>
+              </div>
+              <router-link to="/staff/bookings" class="stat-sidebar-item clickable" style="text-decoration:none;">
+                <span class="stat-sidebar-label">Đơn đặt hôm nay</span>
+                <strong class="stat-sidebar-value">{{ stats.today_bookings_count }}</strong>
+              </router-link>
+              <div class="stat-sidebar-item">
+                <span class="stat-sidebar-label">Khách đang chơi</span>
+                <strong class="stat-sidebar-value">{{ stats.playing_now_count }}</strong>
+              </div>
+              <router-link to="/staff/bookings" class="stat-sidebar-item clickable" style="text-decoration:none;">
+                <span class="stat-sidebar-label">Khách sắp đến</span>
+                <strong class="stat-sidebar-value">{{ stats.upcoming_bookings_count }}</strong>
+              </router-link>
+            </div>
+          </section>
+        </aside>
+      </div>
     </template>
   </section>
 </template>
@@ -305,7 +292,27 @@ export default {
       actionLoading: false,
       error: '',
       success: '',
+      localTasks: [
+        { id: 'clean', label: 'Kiểm tra thiết bị và vệ sinh sân trước giờ chơi', done: false },
+        { id: 'handover', label: 'Bàn giao ca trực & chốt số dư két tiền mặt', done: false }
+      ],
     };
+  },
+  created() {
+    const savedTasks = localStorage.getItem('staff_daily_tasks');
+    if (savedTasks) {
+      try {
+        const parsed = JSON.parse(savedTasks);
+        this.localTasks.forEach(task => {
+          const match = parsed.find(t => t.id === task.id);
+          if (match) {
+            task.done = match.done;
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
   },
   computed: {
     hasUnreadNotifications() {
@@ -331,6 +338,10 @@ export default {
     window.removeEventListener('owner-cluster-changed', this.onClusterChanged);
   },
   methods: {
+    toggleLocalTask(task) {
+      task.done = !task.done;
+      localStorage.setItem('staff_daily_tasks', JSON.stringify(this.localTasks));
+    },
     async onClusterChanged() {
       await this.loadOverview();
     },
@@ -473,7 +484,7 @@ export default {
 .staff-dashboard-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px 0 40px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -582,11 +593,85 @@ export default {
   background: var(--admin-primary-dark);
 }
 
-/* ─── Stats Grid ─────────────────────────────────────── */
-.stats-grid {
+/* ─── Dashboard Layout ────────────────────────────────── */
+.dashboard-layout {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.dashboard-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.dashboard-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.stats-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+}
+.stat-sidebar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--admin-border-soft);
+  color: var(--admin-text);
+}
+.stat-sidebar-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.stat-sidebar-item.clickable {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.stat-sidebar-item.clickable:hover {
+  opacity: 0.8;
+}
+.stat-sidebar-label {
+  font-size: 13px;
+  color: var(--admin-muted);
+  font-weight: 500;
+}
+.stat-sidebar-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--admin-text);
+}
+
+/* ─── Skeleton Sidebar ────────────────────────────────── */
+.skeleton-main-with-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+@media (max-width: 1024px) {
+  .skeleton-main-with-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
+.skeleton-main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.skeleton-sidebar {
+  height: 220px;
+  background: linear-gradient(90deg, var(--admin-border-soft) 25%, var(--admin-bg-soft) 50%, var(--admin-border-soft) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--admin-radius-lg);
 }
 
 .stat-card {
@@ -775,153 +860,149 @@ export default {
   gap: 16px;
 }
 
-/* ─── Shift Panel ────────────────────────────────────── */
-.shift-status-bar {
+/* ─── Task List (To-Do List) ────────────────────────── */
+.todo-list-body {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: var(--admin-radius);
-  font-size: 12px;
-  font-weight: 600;
+  flex-direction: column;
+  gap: 14px;
 }
-.shift-status-bar.shift-status-scheduled   { background: var(--admin-bg-soft);            color: var(--admin-muted); }
-.shift-status-bar.shift-status-checked_in  { background: var(--admin-success-soft); color: var(--admin-success-text); }
-.shift-status-bar.shift-status-checked_out { background: var(--admin-bg-soft);            color: var(--admin-muted); }
-.shift-status-bar.shift-status-absent      { background: var(--admin-danger-soft);        color: var(--admin-danger); }
-.shift-status-bar.shift-status-cancelled   { background: var(--admin-bg-soft);            color: var(--admin-muted); }
-
-.shift-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--admin-border-soft);
+  gap: 12px;
 }
-.shift-status-label { flex: 1; }
-.shift-time-chip {
+.todo-item:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.todo-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+}
+.todo-checkbox-styled {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-muted, #94a3b8);
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  background: var(--admin-surface);
+  margin-top: 2px;
+}
+.todo-checkbox-styled.checked {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+}
+.todo-checkbox-styled .checkmark {
+  color: #fff;
   font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+}
+.todo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.todo-label {
+  font-size: 13.5px;
   font-weight: 600;
-  opacity: 0.85;
-}
-
-.shift-name-row { }
-.shift-name {
-  font-size: 17px;
-  font-weight: 700;
   color: var(--admin-text);
-  letter-spacing: -0.01em;
+  line-height: 1.35;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
 }
-
-.shift-notes {
+.todo-done .todo-label {
+  color: var(--admin-muted);
+  text-decoration: line-through;
+}
+.todo-desc {
+  font-size: 11.5px;
+  color: var(--admin-muted);
+}
+.todo-time-stamp {
+  color: var(--admin-success-text);
+  font-weight: 500;
+}
+.todo-action-area {
+  flex-shrink: 0;
+}
+.todo-mini-btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: var(--admin-radius-sm, 4px);
+  background: var(--admin-primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.todo-mini-btn:hover:not(:disabled) {
+  background: var(--admin-primary-dark);
+}
+.todo-mini-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.todo-mini-btn.btn-danger {
+  background: var(--admin-danger-soft, #fef2f2);
+  color: var(--admin-danger, #ef4444);
+  border: 1px solid var(--admin-danger-soft);
+}
+.todo-mini-btn.btn-danger:hover:not(:disabled) {
+  background: var(--admin-danger);
+  color: #fff;
+}
+.todo-memo-box {
   background: var(--admin-bg-soft);
   border-left: 2px solid var(--admin-primary);
   border-radius: 0 6px 6px 0;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
 }
-.shift-notes-label {
+.todo-memo-box .memo-icon {
+  margin-top: 2px;
+  color: var(--admin-primary);
+}
+.todo-memo-box strong {
   display: block;
   font-size: 11px;
   font-weight: 600;
   color: var(--admin-muted);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
-.shift-notes p {
+.todo-memo-box p {
   margin: 0;
   color: var(--admin-text);
-  line-height: 1.5;
+  line-height: 1.45;
 }
-
-.attendance-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 0;
-  border-top: 1px dashed var(--admin-border-soft);
-}
-.timeline-item {
+.todo-no-shift-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   font-size: 12px;
-}
-.timeline-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.timeline-in  .timeline-dot { background: var(--admin-success); }
-.timeline-out .timeline-dot { background: var(--admin-muted); }
-.timeline-label { color: var(--admin-muted); flex: 1; }
-.timeline-time {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--admin-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.shift-actions {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.action-btn {
-  width: 100%;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: var(--admin-radius);
-  cursor: pointer;
-  border: none;
-  transition: background 0.15s ease, opacity 0.15s ease;
-}
-.action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.action-btn-checkin {
-  background: var(--admin-primary);
-  color: var(--admin-primary-text, #fff);
-}
-.action-btn-checkin:hover:not(:disabled) { background: var(--admin-primary-dark); }
-
-.action-btn-checkout {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border-soft);
-  color: var(--admin-text);
-}
-.action-btn-checkout:hover:not(:disabled) { background: var(--admin-bg-soft); }
-
-.shift-completed {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  color: var(--admin-success-text);
-  font-size: 13px;
-  font-weight: 600;
-  background: var(--admin-success-soft);
-  border-radius: var(--admin-radius);
-  padding: 9px 12px;
-}
-
-.checkin-hint {
-  font-size: 11px;
   color: var(--admin-muted);
-  text-align: center;
-  margin: 0;
-  line-height: 1.4;
+  background: var(--admin-bg-soft);
+  padding: 8px 12px;
+  border-radius: var(--admin-radius);
 }
 
 .spinner-mini {
@@ -1129,7 +1210,6 @@ export default {
 
 /* ─── Responsive ─────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .courts-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 768px) {
@@ -1137,7 +1217,6 @@ export default {
   .skeleton-middle-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .courts-grid { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; align-items: flex-start; }
   .cta-btn { align-self: flex-start; }

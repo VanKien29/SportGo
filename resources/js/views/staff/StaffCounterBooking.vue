@@ -3,116 +3,13 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <div class="tabs-and-actions">
-            <div class="tabs">
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'counter' }"
-                    @click="setActiveTab('counter')"
-                >
-                    <AppIcon name="plus" size="16" />
-                    <span>Booking tại quầy</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurring' }"
-                    @click="setActiveTab('recurring')"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'bookingList' }"
-                    @click="setActiveTab('bookingList')"
-                >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách booking</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurringList' }"
-                    @click="setActiveTab('recurringList')"
-                >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách cố định</span>
-                </button>
-            </div>
-        </div>
+
 
         <section v-if="activeTab === 'counter'" class="counter-board">
             <div class="schedule-panel">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch sân trong ngày</h2>
-                        <p>{{ currentScheduleLabel }}</p>
-                    </div>
-                </div>
 
-                <div class="filters schedule-filters counter-toolbar">
-                    <label class="schedule-filter-field cluster-field">
-                        <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label class="schedule-filter-field date-field">
-                        <span>Ngày chơi</span>
-                        <div class="date-stepper">
-                            <button
-                                type="button"
-                                aria-label="Ngày trước"
-                                @click="shiftCounterDate(-1)"
-                            >
-                                <AppIcon name="chevronLeft" size="15" />
-                            </button>
-                            <input
-                                v-model="form.booking_date"
-                                type="date"
-                                @change="handleScheduleDateChange"
-                            />
-                            <button
-                                type="button"
-                                aria-label="Ngày sau"
-                                @click="shiftCounterDate(1)"
-                            >
-                                <AppIcon name="chevronRight" size="15" />
-                            </button>
-                            <button
-                                type="button"
-                                class="today-btn"
-                                @click="setCounterDateToday"
-                            >
-                                Hôm nay
-                            </button>
-                        </div>
-                    </label>
-                    <label class="schedule-filter-field type-field">
-                        <span>Loại sân</span>
-                        <select
-                            v-model="selectedCourtTypeId"
-                            @change="loadSchedule"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="type in courtTypeOptions"
-                                :key="type.id"
-                                :value="type.id"
-                            >
-                                {{ type.name }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
+
+
 
                 <p v-if="selectionError" class="selection-error">
                     {{ selectionError }}
@@ -140,40 +37,10 @@
                     Không có sân phù hợp với bộ lọc hiện tại.
                 </div>
                 <div v-else class="time-board">
-                    <div class="selected-court-strip">
-                        <div>
-                            <span>Sân đã chọn</span>
-                            <strong>{{ selectedCourtText }}</strong>
-                        </div>
-                        <div>
-                            <span>Khung giờ</span>
-                            <strong>{{
-                                hasCounterSelection
-                                    ? selectedTimeText
-                                    : "Chưa chọn"
-                            }}</strong>
-                        </div>
-                        <div>
-                            <span>Tổng tiền</span>
-                            <strong>{{ formatCurrency(selectedTotal) }}</strong>
-                        </div>
-                    </div>
+
 
                     <div class="period-row">
-                        <div class="period-tabs">
-                            <button
-                                v-for="period in dynamicTimePeriods"
-                                :key="period.key"
-                                type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
-                                @click="activeTimePeriod = period.key"
-                            >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
-                            </button>
-                        </div>
+
 
                         <div class="legend">
                             <span><i></i>Lịch trống</span>
@@ -593,12 +460,7 @@
 
         <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
             <div class="form-card">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch cố định</h2>
-                        <p>Nhóm lịch sẽ dùng cùng mã cố định để dễ theo dõi.</p>
-                    </div>
-                </div>
+
 
                 <div class="form-grid recurring-form-grid">
                     <div class="readonly-field">
@@ -791,20 +653,7 @@
                     </div>
 
                     <div class="period-row">
-                        <div class="period-tabs">
-                            <button
-                                v-for="period in dynamicTimePeriods"
-                                :key="period.key"
-                                type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
-                                @click="activeTimePeriod = period.key"
-                            >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
-                            </button>
-                        </div>
+
 
                         <div class="legend">
                             <span><i></i>Trống</span>
@@ -1111,86 +960,9 @@
         </section>
 
         <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking</h2>
-                    <p>
-                        Theo dõi booking online và booking tại quầy theo ngày,
-                        sân, trạng thái và thanh toán.
-                    </p>
-                </div>
 
-            </div>
 
-            <div class="filters booking-list-filters">
-                <label>
-                    <span>Sân con</span>
-                    <select
-                        v-model="bookingListFilters.venue_court_id"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option
-                            v-for="court in courts"
-                            :key="court.id"
-                            :value="court.id"
-                        >
-                            {{ court.name }}
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    <span>Ngày chơi</span>
-                    <input
-                        v-model="bookingListFilters.booking_date"
-                        type="date"
-                        @change="loadBookingList"
-                    />
-                </label>
-                <label>
-                    <span>Nguồn đặt</span>
-                    <select
-                        v-model="bookingListFilters.source"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option value="online">Online</option>
-                        <option value="counter">Tại quầy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Trạng thái</span>
-                    <select
-                        v-model="bookingListFilters.status"
-                        @change="loadBookingList"
-                    >
-                        <option value="">Tất cả</option>
-                        <option value="pending_approval">Chờ duyệt</option>
-                        <option value="pending_payment">Chờ thanh toán</option>
-                        <option value="confirmed">Đã xác nhận</option>
-                        <option value="checked_in">Đã check-in</option>
-                        <option value="completed">Hoàn thành</option>
-                        <option value="cancelled">Đã hủy</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Tìm kiếm</span>
-                    <input
-                        v-model.trim="bookingListFilters.q"
-                        type="search"
-                        placeholder="Mã booking, khách, SĐT"
-                        @keyup.enter="loadBookingList"
-                    />
-                </label>
-                <button
-                    class="secondary-btn"
-                    type="button"
-                    @click="loadBookingList"
-                >
-                    <AppIcon name="search" size="16" />
-                    <span>Lọc</span>
-                </button>
-            </div>
+
 
             <div v-if="bookingListLoading" class="table-skeleton">
                 <div
@@ -1297,16 +1069,7 @@
         </section>
 
         <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking cố định</h2>
-                    <p>
-                        Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và số
-                        tiền còn phải thu.
-                    </p>
-                </div>
 
-            </div>
 
             <div class="filters recurring-list-filters">
                 <label>
@@ -3027,8 +2790,18 @@ export default {
         activeTab() {
             this.queueRecurringPreview();
         },
+        "$route.name"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.tab"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.view"() {
+            this.handleRouteModeChange();
+        },
     },
     async created() {
+        this.syncActiveTabFromRoute();
         await this.loadOwnerData();
     },
     mounted() {
@@ -3046,6 +2819,32 @@ export default {
         clearTimeout(this.recurringPreviewTimer);
     },
     methods: {
+        syncActiveTabFromRoute() {
+            if (this.$route.name === "staff-booking-list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.view === "list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.tab === "recurring") {
+                this.activeTab = "recurring";
+                return;
+            }
+
+            this.activeTab = "counter";
+        },
+        async handleRouteModeChange() {
+            const before = this.activeTab;
+            this.syncActiveTabFromRoute();
+
+            if (before === this.activeTab || !this.selectedClusterId) return;
+
+            await this.refreshActiveTab();
+        },
         sameDateSet(a = [], b = []) {
             if (a.length !== b.length) return false;
             return [...a].sort().join("|") === [...b].sort().join("|");
