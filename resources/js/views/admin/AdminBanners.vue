@@ -1,5 +1,36 @@
 <template>
   <div class="admin-banners-page">
+    <div class="toolbar card">
+      <div class="filters">
+        <label class="field compact">
+          <span>Tìm kiếm</span>
+          <input
+            v-model="filters.search"
+            type="search"
+            placeholder="Tên banner, liên kết"
+            @input="onFilterChange"
+          />
+        </label>
+        <label class="field compact">
+          <span>Vị trí</span>
+          <select v-model="filters.position" @change="loadBanners(1)">
+            <option value="">Tất cả vị trí</option>
+            <option v-for="option in positionOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <label class="field compact">
+          <span>Trạng thái</span>
+          <select v-model="filters.is_active" @change="loadBanners(1)">
+            <option value="">Tất cả trạng thái</option>
+            <option value="1">Đang bật</option>
+            <option value="0">Đang tắt</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
@@ -30,8 +61,13 @@
               <td>
                 <div class="banner-cell">
                   <div class="banner-thumb">
-                    <img v-if="imageSrc(banner)" :src="imageSrc(banner)" :alt="banner.title" />
-                    <span v-else>Ảnh</span>
+                    <img
+                      v-if="imageSrc(banner) && !failedBannerImages[banner.id]"
+                      :src="imageSrc(banner)"
+                      :alt="banner.title"
+                      @error="markBannerImageFailed(banner.id)"
+                    />
+                    <span v-else>Ảnh không sẵn sàng</span>
                   </div>
                   <div class="banner-main">
                     <div class="banner-title">{{ banner.title }}</div>
@@ -206,6 +242,7 @@ export default {
         { value: 'venue_detail', label: 'Chi tiết sân' },
       ],
       showScrollTop: false,
+      failedBannerImages: {},
     };
   },
   mounted() {
@@ -232,6 +269,7 @@ export default {
     async loadBanners(page = 1) {
       this.loading = true;
       this.error = '';
+      this.failedBannerImages = {};
       try {
         const response = await adminBannerService.list({
           ...this.filters,
@@ -344,6 +382,9 @@ export default {
       if (banner.image_path) return `/storage/${banner.image_path}`;
       if (banner.image_url) return banner.image_url;
       return '';
+    },
+    markBannerImageFailed(id) {
+      this.failedBannerImages = { ...this.failedBannerImages, [id]: true };
     },
     positionLabel(position) {
       return this.positionOptions.find((option) => option.value === position)?.label || position || '-';

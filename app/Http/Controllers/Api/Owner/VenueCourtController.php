@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
-use App\Services\VenueStaffAccessService;
 use App\Models\VenueCourtApprovalRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,10 +13,6 @@ use Illuminate\Validation\Rule;
 
 class VenueCourtController extends Controller
 {
-    public function __construct(
-        private readonly VenueStaffAccessService $venueStaffAccess,
-    ) {}
-
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -26,7 +21,6 @@ class VenueCourtController extends Controller
         ]);
 
         $cluster = VenueCluster::query()->findOrFail($request->query('venue_cluster_id'));
-        $allowedCourtTypeIds = $this->venueStaffAccess->allowedCourtTypeIds($request->user(), (string) $cluster->id);
 
         $isAccessible = $cluster->owner_id === $request->user()->id || 
             DB::table('venue_staff_assignments')
@@ -42,13 +36,31 @@ class VenueCourtController extends Controller
         $courts = VenueCourt::query()
             ->with(['courtType'])
             ->where('venue_cluster_id', $cluster->id)
-            ->when($allowedCourtTypeIds !== null, fn ($query) => $query->whereIn('court_type_id', $allowedCourtTypeIds))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->query('status')))
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
 
         return response()->json(['data' => $courts]);
+    }
+
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $court = VenueCourt::query()->with('courtType')->findOrFail($id);
+        $cluster = VenueCluster::query()->findOrFail($court->venue_cluster_id);
+
+        $isAccessible = $cluster->owner_id === $request->user()->id
+            || DB::table('venue_staff_assignments')
+                ->where('user_id', $request->user()->id)
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('status', 'active')
+                ->exists();
+
+        if (! $isAccessible) {
+            return response()->json(['message' => 'Bạn không có quyền xem sân con này.'], 403);
+        }
+
+        return response()->json(['data' => $court]);
     }
 
     public function store(Request $request): JsonResponse

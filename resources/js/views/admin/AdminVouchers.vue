@@ -1,5 +1,30 @@
 <template>
     <section class="page">
+        <section class="filters">
+            <input
+                v-model.trim="filters.keyword"
+                type="search"
+                placeholder="Tìm mã hoặc tên voucher"
+                @keyup.enter="load"
+            />
+            <select v-model="filters.status" @change="load">
+                <option value="">Tất cả trạng thái</option>
+                <option value="draft">Bản nháp</option>
+                <option value="active">Đang áp dụng</option>
+                <option value="inactive">Đã tắt</option>
+                <option value="expired">Hết hạn</option>
+            </select>
+            <select v-model="filters.discount_type" @change="load">
+                <option value="">Tất cả loại giảm</option>
+                <option value="percent">Phần trăm</option>
+                <option value="fixed">Số tiền</option>
+            </select>
+            <ActionIconButton
+                icon="filter"
+                label="Lọc danh sách"
+                @click="load"
+            />
+        </section>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
@@ -100,14 +125,6 @@
                     <span class="eyebrow">Lịch sử sử dụng voucher</span>
                     <h3>Voucher hệ thống đã trừ quỹ</h3>
                 </div>
-                <button
-                    class="btn secondary"
-                    type="button"
-                    :disabled="budgetLoading"
-                    @click="loadBudget"
-                >
-                    Tải lại
-                </button>
             </div>
             <div v-if="budgetLoading" class="state">
                 Đang tải lịch sử voucher...

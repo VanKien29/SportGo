@@ -1,0 +1,477 @@
+.refund-balance-panel {
+  display: grid;
+  gap: var(--sg-client-space-4);
+}
+
+.refund-balance-heading,
+.refund-section-heading,
+.refund-explainer,
+.refund-transaction,
+.refund-transaction-modal > header,
+.withdrawal-list article {
+  display: flex;
+  align-items: center;
+}
+
+.refund-balance-heading,
+.refund-section-heading,
+.refund-transaction-modal > header {
+  justify-content: space-between;
+  gap: var(--sg-client-space-4);
+}
+
+.refund-balance-heading h1,
+.refund-balance-heading p,
+.refund-section-heading h2,
+.refund-section-heading p,
+.refund-explainer p,
+.refund-transaction-modal h2,
+.refund-transaction-modal p,
+.refund-empty p {
+  margin: 0;
+}
+
+.refund-balance-heading h1 {
+  margin-top: var(--sg-client-space-1);
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-3xl);
+  line-height: 1.2;
+}
+
+.refund-balance-heading > div > p:last-child,
+.refund-section-heading p,
+.refund-explainer p,
+.refund-empty p {
+  margin-top: var(--sg-client-space-1);
+  color: var(--sg-client-muted);
+  font-size: var(--sg-client-font-sm);
+  line-height: 1.5;
+}
+
+.refund-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sg-client-space-3);
+}
+
+.refund-summary-card {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--sg-client-space-3);
+  padding: var(--sg-client-space-4);
+}
+
+.refund-summary-card--primary {
+  border-color: color-mix(in srgb, var(--sg-client-primary) 42%, var(--sg-client-border));
+  background: var(--sg-client-primary-soft);
+}
+
+.summary-icon,
+.transaction-icon {
+  display: grid;
+  place-items: center;
+  border-radius: var(--sg-client-radius-sm);
+}
+
+.summary-icon {
+  width: var(--sg-client-control-height);
+  height: var(--sg-client-control-height);
+  flex: 0 0 var(--sg-client-control-height);
+  background: var(--sg-client-surface-muted);
+  color: var(--sg-client-primary-dark);
+}
+
+.refund-summary-card--primary .summary-icon {
+  background: var(--sg-client-primary);
+  color: var(--sg-client-primary-text);
+}
+
+.refund-summary-card span,
+.refund-summary-card strong,
+.refund-summary-card small {
+  display: block;
+}
+
+.refund-summary-card > div {
+  min-width: 0;
+}
+
+.refund-summary-card > div > span,
+.refund-summary-card small {
+  color: var(--sg-client-muted);
+  font-size: var(--sg-client-font-xs);
+}
+
+.refund-summary-card strong {
+  margin-block: var(--sg-client-space-1);
+  overflow-wrap: anywhere;
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-xl);
+  font-weight: 600;
+}
+
+.refund-explainer {
+  gap: var(--sg-client-space-3);
+  padding: var(--sg-client-space-4);
+  border-color: color-mix(in srgb, var(--sg-client-info) 28%, var(--sg-client-border));
+  background: var(--sg-client-info-soft);
+}
+
+.refund-explainer > span {
+  color: var(--sg-client-info);
+}
+
+.refund-explainer > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.refund-explainer strong {
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-sm);
+  font-weight: 600;
+}
+
+.refund-explainer .sg-client-button {
+  flex: 0 0 auto;
+}
+
+.refund-history,
+.refund-withdrawals {
+  overflow: hidden;
+}
+
+.refund-section-heading {
+  padding: var(--sg-client-space-4);
+  border-bottom: 1px solid var(--sg-client-border);
+}
+
+.refund-section-heading h2 {
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-lg);
+}
+
+.refund-filters {
+  display: flex;
+  gap: var(--sg-client-space-1);
+  overflow-x: auto;
+}
+
+.refund-filters button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--sg-client-border);
+  border-radius: var(--sg-client-radius-pill);
+  padding-inline: var(--sg-client-space-3);
+  background: var(--sg-client-surface);
+  color: var(--sg-client-muted);
+  font-size: var(--sg-client-font-xs);
+  font-weight: 600;
+}
+
+.refund-filters button.active {
+  border-color: var(--sg-client-primary);
+  background: var(--sg-client-primary-soft);
+  color: var(--sg-client-primary-dark);
+}
+
+.refund-transaction-list {
+  display: grid;
+}
+
+.refund-transaction {
+  width: 100%;
+  min-width: 0;
+  gap: var(--sg-client-space-3);
+  border: 0;
+  border-bottom: 1px solid var(--sg-client-border);
+  padding: var(--sg-client-space-3) var(--sg-client-space-4);
+  background: var(--sg-client-surface);
+  color: var(--sg-client-text);
+  text-align: left;
+  transition: background-color var(--sg-client-transition);
+}
+
+.refund-transaction:last-child {
+  border-bottom: 0;
+}
+
+.refund-transaction:hover {
+  background: var(--sg-client-surface-muted);
+}
+
+.transaction-icon {
+  width: var(--sg-client-control-height);
+  height: var(--sg-client-control-height);
+  flex: 0 0 var(--sg-client-control-height);
+  background: var(--sg-client-surface-muted);
+  color: var(--sg-client-muted);
+}
+
+.transaction-icon.credit {
+  background: var(--sg-client-primary-soft);
+  color: var(--sg-client-primary-dark);
+}
+
+.transaction-icon.debit {
+  background: var(--sg-client-warning-soft);
+  color: var(--sg-client-warning);
+}
+
+.transaction-copy,
+.transaction-amount {
+  min-width: 0;
+}
+
+.transaction-copy {
+  flex: 1;
+}
+
+.transaction-copy strong,
+.transaction-copy small,
+.transaction-amount strong,
+.transaction-amount small {
+  display: block;
+}
+
+.transaction-copy strong,
+.transaction-amount strong {
+  font-size: var(--sg-client-font-sm);
+  font-weight: 600;
+}
+
+.transaction-copy small,
+.transaction-amount small {
+  margin-top: var(--sg-client-space-1);
+  color: var(--sg-client-muted);
+  font-size: var(--sg-client-font-xs);
+}
+
+.transaction-amount {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.transaction-amount.credit,
+.transaction-detail-amount.credit {
+  color: var(--sg-client-primary-dark);
+}
+
+.transaction-amount.debit,
+.transaction-detail-amount.debit {
+  color: var(--sg-client-warning);
+}
+
+.transaction-chevron {
+  flex: 0 0 auto;
+  color: var(--sg-client-muted);
+}
+
+.refund-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  align-content: center;
+  gap: var(--sg-client-space-2);
+  padding: var(--sg-client-space-5);
+  color: var(--sg-client-muted);
+  text-align: center;
+}
+
+.refund-empty strong {
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-base);
+  font-weight: 600;
+}
+
+.withdrawal-list {
+  display: grid;
+}
+
+.withdrawal-list article {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sg-client-space-3);
+  padding: var(--sg-client-space-3) var(--sg-client-space-4);
+  border-bottom: 1px solid var(--sg-client-border);
+}
+
+.withdrawal-list article:last-child {
+  border-bottom: 0;
+}
+
+.withdrawal-list article > div:last-of-type {
+  text-align: right;
+}
+
+.withdrawal-list strong,
+.withdrawal-list span,
+.withdrawal-list small {
+  display: block;
+}
+
+.withdrawal-list strong {
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-base);
+  font-weight: 600;
+}
+
+.withdrawal-list span,
+.withdrawal-list small,
+.withdrawal-list p {
+  margin: var(--sg-client-space-1) 0 0;
+  color: var(--sg-client-muted);
+  font-size: var(--sg-client-font-xs);
+}
+
+.withdrawal-list p {
+  width: 100%;
+  color: var(--sg-client-danger);
+}
+
+.withdrawal-status {
+  font-weight: 600;
+}
+
+.withdrawal-status.paid,
+.withdrawal-status.approved {
+  color: var(--sg-client-primary-dark);
+}
+
+.withdrawal-status.rejected {
+  color: var(--sg-client-danger);
+}
+
+.refund-error {
+  border-color: color-mix(in srgb, var(--sg-client-danger) 30%, var(--sg-client-border));
+  color: var(--sg-client-danger);
+}
+
+.refund-spinner {
+  width: var(--sg-client-space-7);
+  height: var(--sg-client-space-7);
+  border: var(--sg-client-space-1) solid var(--sg-client-border);
+  border-top-color: var(--sg-client-primary);
+  border-radius: var(--sg-client-radius-pill);
+  animation: refund-spin .8s linear infinite;
+}
+
+.refund-modal-backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sg-client-space-4);
+  background: var(--sg-client-overlay);
+}
+
+.refund-transaction-modal {
+  display: grid;
+  width: min(100%, 460px);
+  gap: var(--sg-client-space-4);
+  border: 1px solid var(--sg-client-border);
+  border-radius: var(--sg-client-radius-lg);
+  padding: var(--sg-client-space-5);
+  background: var(--sg-client-surface);
+  box-shadow: var(--sg-client-modal-shadow);
+}
+
+.refund-transaction-modal h2 {
+  color: var(--sg-client-text);
+  font-size: var(--sg-client-font-xl);
+}
+
+.transaction-detail-amount {
+  border-radius: var(--sg-client-radius-md);
+  padding: var(--sg-client-space-4);
+  background: var(--sg-client-surface-muted);
+  font-size: var(--sg-client-font-3xl);
+  font-weight: 600;
+  text-align: center;
+}
+
+.refund-transaction-modal dl {
+  display: grid;
+  gap: var(--sg-client-space-2);
+  margin: 0;
+}
+
+.refund-transaction-modal dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sg-client-space-4);
+  border-bottom: 1px solid var(--sg-client-border);
+  padding-block: var(--sg-client-space-2);
+}
+
+.refund-transaction-modal dt,
+.refund-transaction-modal dd {
+  margin: 0;
+  font-size: var(--sg-client-font-sm);
+}
+
+.refund-transaction-modal dt {
+  color: var(--sg-client-muted);
+}
+
+.refund-transaction-modal dd {
+  overflow-wrap: anywhere;
+  color: var(--sg-client-text);
+  font-weight: 600;
+  text-align: right;
+}
+
+.refund-transaction-modal > .sg-client-button {
+  width: 100%;
+}
+
+@keyframes refund-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 820px) {
+  .refund-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .refund-balance-heading,
+  .refund-section-heading,
+  .refund-explainer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .refund-balance-heading .sg-client-button,
+  .refund-explainer .sg-client-button {
+    width: 100%;
+  }
+
+  .refund-filters {
+    width: 100%;
+  }
+
+  .refund-transaction {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--sg-client-space-2);
+    padding-inline: var(--sg-client-space-3);
+  }
+
+  .transaction-amount {
+    grid-column: 2 / -1;
+    text-align: left;
+  }
+
+  .transaction-chevron {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .refund-transaction-modal {
+    padding: var(--sg-client-space-4);
+  }
+}

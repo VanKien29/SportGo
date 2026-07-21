@@ -13,7 +13,7 @@ class PartnerApplicationDocumentDownloadController extends Controller
     public function __invoke(Request $request, string $documentId): StreamedResponse
     {
         $document = PartnerApplicationDocument::query()
-            ->with('partnerApplication:id,user_id')
+            ->with(['partnerApplication:id,user_id', 'media'])
             ->findOrFail($documentId);
 
         $user = $request->user();
@@ -28,20 +28,37 @@ class PartnerApplicationDocumentDownloadController extends Controller
         ]);
 
         abort_unless($isAdmin || $document->partnerApplication?->user_id === $user->id, 403);
-        abort_unless($document->file_path && Storage::disk('public')->exists($document->file_path), 404);
+        $path = $this->downloadPath($document);
+        abort_unless($path, 404);
 
-        $fileName = $this->downloadName($document);
+        $fileName = $this->downloadName($document, $path);
 
-        return response()->streamDownload(function () use ($document): void {
-            echo Storage::disk('public')->get($document->file_path);
+        return response()->streamDownload(function () use ($path): void {
+            echo Storage::disk('public')->get($path);
         }, $fileName, [
-            'Content-Type' => Storage::disk('public')->mimeType($document->file_path) ?: 'application/octet-stream',
+            'Content-Type' => Storage::disk('public')->mimeType($path) ?: 'application/octet-stream',
         ]);
     }
 
-    private function downloadName(PartnerApplicationDocument $document): string
+    private function downloadPath(PartnerApplicationDocument $document): ?string
     {
-        $extension = pathinfo((string) $document->file_path, PATHINFO_EXTENSION);
+        $candidates = [
+            $document->getRawOriginal('file_path'),
+            $document->media?->getRawOriginal('file_path'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && Storage::disk('public')->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function downloadName(PartnerApplicationDocument $document, string $path): string
+    {
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
         $base = str($document->document_type ?: 'tai-lieu')
             ->slug()
             ->append('-', (string) $document->id)

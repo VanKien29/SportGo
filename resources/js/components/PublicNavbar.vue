@@ -14,6 +14,23 @@
           <span class="brand-text">{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></span>
         </router-link>
 
+        <button
+          ref="mobileNavToggle"
+          class="mobile-nav-toggle"
+          type="button"
+          :aria-label="showMobileNav ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
+          aria-controls="public-mobile-navigation"
+          :aria-expanded="showMobileNav"
+          @click.stop="toggleMobileNav"
+        >
+          <svg v-if="!showMobileNav" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/venues" class="nav-link" active-class="active-link">Tìm sân</router-link>
@@ -56,8 +73,14 @@
           <router-link to="/register" class="register-btn">Đăng ký</router-link>
         </template>
 
-        <div v-if="user" class="notification-menu" @mouseenter="showNotifDropdown = true" @mouseleave="scheduleNotifHide">
-          <button class="notif-btn" @click="toggleNotifDropdown">
+        <div v-if="user" class="notification-menu" @mouseleave="scheduleNotifHide">
+          <button
+            class="notif-btn"
+            type="button"
+            aria-label="Mở thông báo"
+            :aria-expanded="showNotifDropdown"
+            @click.stop="toggleNotifDropdown"
+          >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="22" height="22">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2"/>
@@ -87,8 +110,14 @@
           </transition>
         </div>
 
-        <div v-if="user" class="user-menu" @mouseenter="showDropdown = true" @mouseleave="scheduleHide">
-          <button class="user-btn" @click="toggleDropdown">
+        <div v-if="user" class="user-menu" @mouseleave="scheduleHide">
+          <button
+            class="user-btn"
+            type="button"
+            aria-label="Mở menu tài khoản"
+            :aria-expanded="showDropdown"
+            @click.stop="toggleDropdown"
+          >
             <div class="user-avatar">{{ userInitial }}</div>
           </button>
 
@@ -109,6 +138,32 @@
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
                 Thông tin cá nhân
+              </router-link>
+
+              <router-link
+                v-if="user.role === 'user'"
+                to="/bookings"
+                class="dd-item"
+                @click="showDropdown = false"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="16" rx="2"/>
+                  <path d="M16 3v4M8 3v4M3 10h18"/>
+                </svg>
+                Lịch đặt sân
+              </router-link>
+
+              <router-link
+                v-if="user.role === 'user'"
+                :to="{ name: 'profile', query: { tab: 'refunds' } }"
+                class="dd-item"
+                @click="showDropdown = false"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/>
+                  <path d="M16 12h4M2 9h20"/>
+                </svg>
+                Số dư hoàn tiền
               </router-link>
 
               <router-link to="/chat" class="dd-item" @click="showDropdown = false">
@@ -209,6 +264,51 @@
         </div>
       </div>
     </div>
+
+    <transition name="mobile-nav">
+      <div
+        v-if="showMobileNav"
+        id="public-mobile-navigation"
+        class="mobile-nav-panel"
+        aria-label="Điều hướng di động"
+      >
+        <router-link to="/" class="mobile-nav-link" exact-active-class="active-link" @click="closeMobileNav">
+          Trang chủ
+        </router-link>
+        <router-link to="/venues" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
+          Tìm sân
+        </router-link>
+        <a href="/#sports" class="mobile-nav-link" @click="closeMobileNav">Môn thể thao</a>
+        <router-link to="/news" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
+          Tin tức
+        </router-link>
+        <router-link to="/community" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
+          Cộng đồng
+        </router-link>
+        <router-link to="/become-partner" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
+          Chủ sân
+        </router-link>
+        <a href="/#support" class="mobile-nav-link" @click="closeMobileNav">Hỗ trợ</a>
+        <router-link
+          v-if="user && user.role === 'user'"
+          to="/bookings"
+          class="mobile-nav-link"
+          active-class="active-link"
+          @click="closeMobileNav"
+        >
+          Lịch đặt sân
+        </router-link>
+        <router-link
+          v-if="user && user.role === 'user'"
+          :to="{ name: 'profile', query: { tab: 'refunds' } }"
+          class="mobile-nav-link"
+          active-class="active-link"
+          @click="closeMobileNav"
+        >
+          Số dư hoàn tiền
+        </router-link>
+      </div>
+    </transition>
   </nav>
 
   <ComplaintModal 
@@ -246,17 +346,26 @@ export default {
       unreadCount: 0,
       notifPollTimer: null,
       showComplaintModal: false,
+      showMobileNav: false,
       isDark: document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark',
     };
   },
   mounted() {
+    document.addEventListener('pointerdown', this.handleOutsidePointer);
+    document.addEventListener('keydown', this.handleEscape);
+    window.addEventListener('resize', this.handleViewportResize);
     if (this.user) {
       this.fetchNotifications();
       this.notifPollTimer = setInterval(this.fetchNotifications, 30000); // Tự động load thông báo mỗi 30s
     }
   },
   unmounted() {
+    document.removeEventListener('pointerdown', this.handleOutsidePointer);
+    document.removeEventListener('keydown', this.handleEscape);
+    window.removeEventListener('resize', this.handleViewportResize);
     if (this.notifPollTimer) clearInterval(this.notifPollTimer);
+    if (this.hideTimer) clearTimeout(this.hideTimer);
+    if (this.notifHideTimer) clearTimeout(this.notifHideTimer);
   },
   computed: {
     appliedTheme() {
@@ -292,7 +401,34 @@ export default {
       return "/profile";
     },
   },
+  watch: {
+    '$route.fullPath'() {
+      this.closeMobileNav();
+    },
+  },
   methods: {
+    toggleMobileNav() {
+      this.showMobileNav = !this.showMobileNav;
+      if (this.showMobileNav) {
+        this.showDropdown = false;
+        this.showNotifDropdown = false;
+      }
+    },
+    closeMobileNav() {
+      this.showMobileNav = false;
+    },
+    handleEscape(event) {
+      if (event.key === 'Escape') {
+        this.closeMobileNav();
+        this.showDropdown = false;
+        this.showNotifDropdown = false;
+      }
+    },
+    handleViewportResize() {
+      if (this.$refs.mobileNavToggle && window.getComputedStyle(this.$refs.mobileNavToggle).display === 'none') {
+        this.closeMobileNav();
+      }
+    },
     toggleThemeMode() {
       const isCurrentlyDark = document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark';
       if (isCurrentlyDark) {
@@ -310,9 +446,15 @@ export default {
       }
     },
     toggleDropdown() {
+      this.cancelHide();
       this.showDropdown = !this.showDropdown;
+      if (this.showDropdown) {
+        this.showNotifDropdown = false;
+        this.closeMobileNav();
+      }
     },
     scheduleHide() {
+      this.cancelHide();
       this.hideTimer = setTimeout(() => { this.showDropdown = false; }, 200);
     },
     cancelHide() {
@@ -342,13 +484,24 @@ export default {
       this.$router.push("/login");
     },
     toggleNotifDropdown() {
+      this.cancelNotifHide();
       this.showNotifDropdown = !this.showNotifDropdown;
+      if (this.showNotifDropdown) {
+        this.showDropdown = false;
+        this.closeMobileNav();
+      }
     },
     scheduleNotifHide() {
+      this.cancelNotifHide();
       this.notifHideTimer = setTimeout(() => { this.showNotifDropdown = false; }, 200);
     },
     cancelNotifHide() {
       if (this.notifHideTimer) clearTimeout(this.notifHideTimer);
+    },
+    handleOutsidePointer(event) {
+      if (!event.target.closest?.('.notification-menu')) this.showNotifDropdown = false;
+      if (!event.target.closest?.('.user-menu')) this.showDropdown = false;
+      if (!event.target.closest?.('.mobile-nav-toggle, .mobile-nav-panel')) this.closeMobileNav();
     },
     async fetchNotifications() {
       try {
@@ -371,7 +524,14 @@ export default {
       }
       
       // Navigation handling
-      if (notif.type === 'matchmaking_join_request') {
+      const actionUrl = notif.data?.action_url;
+      if (typeof actionUrl === 'string' && actionUrl.startsWith('/')) {
+        this.$router.push(actionUrl);
+        this.showNotifDropdown = false;
+      } else if (notif.reference_type === 'partner_application' && notif.reference_id) {
+        this.$router.push(`/partner-application/${notif.reference_id}`);
+        this.showNotifDropdown = false;
+      } else if (notif.type === 'matchmaking_join_request') {
         this.$router.push(`/matchmaking-posts/${notif.reference_id}/manage`);
         this.showNotifDropdown = false;
       } else if (notif.type === 'matchmaking_join_approved' || notif.type === 'matchmaking_join_rejected') {
@@ -393,7 +553,6 @@ export default {
             this.$router.push('/news');
           }
         }
-        this.showNotifDropdown = false;
       } else if (notif.type === 'report_processed') {
         if (notif.data && notif.data.target_type && (notif.data.target_type.includes('comment') || notif.data.target_type.includes('post'))) {
           if (notif.data.post_slug) {
@@ -403,6 +562,13 @@ export default {
             }
             this.$router.push(url);
           }
+        }
+        this.showNotifDropdown = false;
+      } else if (['post_like', 'post_comment', 'comment_reply'].includes(notif.type)) {
+        if (notif.data && notif.data.slug) {
+          this.$router.push(`/community/${notif.data.slug}`);
+        } else {
+          this.$router.push('/community');
         }
         this.showNotifDropdown = false;
       }
@@ -883,5 +1049,101 @@ export default {
   .register-btn {
     display: none;
   }
+}
+</style>
+
+<style>
+/* Dark Mode Support for Navbar (Unscoped) */
+.dark .navbar {
+  background: rgba(9, 9, 11, .94) !important;
+  border-bottom: 1px solid rgba(39, 39, 42, .9) !important;
+}
+
+.dark .brand-text {
+  color: #ffffff !important;
+}
+
+.dark .nav-link {
+  color: #a1a1aa !important;
+}
+
+.dark .nav-link:hover,
+.dark .nav-link.active-link {
+  color: #10b981 !important;
+}
+
+.dark .hotline strong {
+  color: #ffffff !important;
+}
+
+.dark .hotline small {
+  color: #a1a1aa !important;
+}
+
+.dark .login-btn {
+  background: transparent !important;
+  color: #ffffff !important;
+  border-color: #27272a !important;
+}
+
+.dark .login-btn:hover {
+  background: #27272a !important;
+}
+
+.dark .notif-btn {
+  color: #a1a1aa !important;
+}
+
+.dark .notif-btn:hover {
+  background: #27272a !important;
+  color: #ffffff !important;
+}
+
+.dark .brand-icon {
+  background: #064e3b !important;
+}
+
+.dark .dropdown,
+.dark .notif-dropdown {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, .8) !important;
+}
+
+.dark .dd-name,
+.dark .notif-title {
+  color: #ffffff !important;
+}
+
+.dark .dd-role,
+.dark .notif-body,
+.dark .notif-time,
+.dark .no-notif {
+  color: #a1a1aa !important;
+}
+
+.dark .dd-divider {
+  background: #27272a !important;
+}
+
+.dark .dd-item {
+  color: #a1a1aa !important;
+}
+
+.dark .dd-item:hover {
+  background: #27272a !important;
+  color: #10b981 !important;
+}
+
+.dark .notif-item {
+  border-bottom-color: #27272a !important;
+}
+
+.dark .notif-item:hover {
+  background: #27272a !important;
+}
+
+.dark .notif-item.unread {
+  background: rgba(14, 165, 233, 0.1) !important;
 }
 </style>

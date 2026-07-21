@@ -2239,6 +2239,15 @@ export default {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.view-content-wrapper,
+.courts-table-wrapper {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 :deep(.saas-table-container) {
@@ -2629,6 +2638,60 @@ export default {
     margin-left: auto;
     color: #000000;
     font-weight: 900;
+}
+
+/* The edit form follows the owner theme instead of mixing legacy light tokens. */
+.modal-header,
+.modal-footer {
+    border-color: var(--admin-border, #e2e8f0);
+}
+
+.modal-header h3,
+.modal .form-group label {
+    color: var(--admin-text, #0f172a);
+}
+
+.modal .btn-close {
+    color: var(--admin-muted, #64748b);
+}
+
+.modal-footer {
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.modal .custom-select-trigger,
+.modal .custom-options-container {
+    border-color: var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #fff);
+    color: var(--admin-text, #0f172a);
+}
+
+.modal .custom-select-trigger :is(.parent-name, .placeholder, .arrow),
+.modal .custom-optgroup-label,
+.modal .custom-option .option-details {
+    color: var(--admin-muted, #64748b);
+}
+
+.modal .custom-optgroup-label {
+    border-bottom-color: var(--admin-border-soft, #e2e8f0);
+    background: var(--admin-surface-muted, #f8fafc);
+}
+
+.modal .custom-option,
+.modal .custom-select-trigger .child-name {
+    color: var(--admin-text, #0f172a);
+}
+
+.modal .custom-option.never-hover-class-placeholder {
+    background: var(--admin-hover, #f1f5f9);
+}
+
+.modal .custom-option.selected {
+    background: var(--admin-primary-soft, #ecfdf5);
+}
+
+.modal .custom-option .check-mark {
+    color: var(--admin-primary, #059669);
 }
 
 /* Layout Editor CSS */

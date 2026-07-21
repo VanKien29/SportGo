@@ -12,84 +12,48 @@
 
     <!-- ── Main content ── -->
     <template v-else-if="cluster">
-      <!-- Header -->
-      <div class="avcd-header card">
-        <div class="avcd-title-row">
-          <div>
-            <h2 class="avcd-title">{{ cluster.name }}</h2>
-            <p class="avcd-sub">Quản lý và theo dõi thông tin chi tiết cụm sân của đối tác.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="workflow-bridge card">
-        <div class="workflow-block">
-          <div class="workflow-heading">
-            <span class="workflow-kicker">Vận hành cụm sân</span>
-            <strong>{{ cluster.court_count || 0 }} sân con</strong>
-          </div>
-          <p>Khóa/mở khóa, booking, phí nền tảng và các yêu cầu đổi quy mô/vị trí được xử lý tại màn này.</p>
-          <div class="workflow-metrics">
-            <button type="button" class="workflow-chip" @click="activeTab = 'approvals'">
-              {{ pendingApprovalCount }} yêu cầu quy mô chờ xử lý
-            </button>
-            <button type="button" class="workflow-chip" @click="activeTab = 'location_changes'">
-              {{ pendingLocationChangeCount }} yêu cầu vị trí chờ xử lý
-            </button>
-          </div>
-        </div>
-        <div class="workflow-block contract-block">
-          <div class="workflow-heading">
-            <span class="workflow-kicker">Hồ sơ & hợp đồng đối tác</span>
-            <strong>{{ cluster.active_contract?.contract_code || 'Chưa có hợp đồng' }}</strong>
-          </div>
-          <p>
-            {{ cluster.partner_application?.business_name || cluster.owner?.full_name || 'Đối tác' }}
-            <span v-if="cluster.active_contract"> · {{ contractStatusLabel(cluster.active_contract.status) }}</span>
-          </p>
-          <div class="workflow-actions">
+      <div class="avcd-layout">
+        <!-- Sidebar bên trái -->
+        <aside class="avcd-sidebar">
+          <div class="avcd-sidebar-menu">
             <button
-              v-if="cluster.partner_application?.id"
+              v-for="tab in tabs"
+              :key="tab.key"
+              class="sidebar-tab-btn"
+              :class="{ active: activeTab === tab.key }"
+              @click="activeTab = tab.key"
+            >
+              <span class="tab-icon">
+                <svg v-if="tab.key === 'info'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg v-else-if="tab.key === 'courts'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                <svg v-else-if="tab.key === 'bookings'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" /></svg>
+                <svg v-else-if="tab.key === 'fees'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg v-else-if="tab.key === 'lock_history'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <svg v-else-if="tab.key === 'info_changes'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                <svg v-else-if="tab.key === 'approvals'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg v-else-if="tab.key === 'location_changes'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <svg v-else-if="tab.key === 'unlock_appeals'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m-2 4a5 5 0 11-5-5h.01M19 12a7 7 0 01-7 7m7-7a7 7 0 00-7-7" /></svg>
+              </span>
+              <span class="tab-label">{{ tab.label }}</span>
+              <span v-if="tabBadgeCount(tab.key) > 0" class="tab-badge-admin-dot">
+                {{ tabBadgeCount(tab.key) }}
+              </span>
+            </button>
+          </div>
+          <div class="avcd-sidebar-footer" v-if="cluster.partner_application?.id">
+            <button
               type="button"
-              class="btn btn-outline btn-sm"
+              class="btn btn-outline sidebar-action-btn"
               @click="goPartnerApplication"
             >
               Mở hồ sơ đối tác
             </button>
-            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'approvals'">
-              Xử lý phụ lục quy mô
-            </button>
-            <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'location_changes'">
-              Xử lý phụ lục vị trí
-            </button>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      <!-- Tabs -->
-      <div class="avcd-tabs card">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
-          <span v-if="tab.key === 'info_changes' && pendingInfoChangeCount > 0" class="tab-badge-admin">
-            {{ pendingInfoChangeCount }}
-          </span>
-          <span v-if="tab.key === 'approvals' && pendingApprovalCount > 0" class="tab-badge-admin">
-            {{ pendingApprovalCount }}
-          </span>
-          <span v-if="tab.key === 'location_changes' && pendingLocationChangeCount > 0" class="tab-badge-admin">
-            {{ pendingLocationChangeCount }}
-          </span>
-          <span v-if="tab.key === 'unlock_appeals' && pendingUnlockAppealCount > 0" class="tab-badge-admin">
-            {{ pendingUnlockAppealCount }}
-          </span>
-        </button>
-      </div>
+        <!-- Vùng nội dung bên phải -->
+        <main class="avcd-main-content">
+
 
       <!-- ┌ Tab: Thông tin ──────────────────────────────────────────── -->
       <div v-if="activeTab === 'info'" class="info-tab-content">
@@ -202,18 +166,18 @@
                 <div class="side-info-item">
                   <span class="side-label">Trạng thái cụm sân</span>
                   <div class="status-action-row">
-                    <span class="custom-status-badge" :class="`custom-status-${cluster.status}`">
-                      {{ statusLabel(cluster.status) }}
+                    <span class="custom-status-badge" :class="`custom-status-${displayClusterStatus}`">
+                      {{ statusLabel(cluster) }}
                     </span>
                     <button
-                      v-if="cluster.status !== 'locked'"
+                      v-if="canModerateClusterStatus && cluster.status !== 'locked'"
                       id="btn-lock-cluster"
                       class="btn btn-danger btn-sm"
                       style="padding: 4px 10px;"
                       @click="openLockModal"
                     >Khóa</button>
                     <button
-                      v-else
+                      v-else-if="canModerateClusterStatus && cluster.status === 'locked'"
                       id="btn-unlock-cluster"
                       class="btn btn-success btn-sm"
                       style="padding: 4px 10px;"
@@ -271,7 +235,7 @@
           </div>
           
           <!-- Lock Alert Banner -->
-          <div v-if="cluster.status === 'locked'" class="lock-alert-banner">
+          <div v-if="canModerateClusterStatus && cluster.status === 'locked'" class="lock-alert-banner">
             <div class="lock-alert-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -630,13 +594,7 @@
       <div v-if="activeTab === 'approvals'" class="avcd-card card">
         <h3 class="section-title">Yêu cầu mở rộng / thu hẹp quy mô</h3>
 
-        <div class="approval-tabs">
-          <button class="tab-sm" :class="{ active: approvalFilter === '' }" @click="approvalFilter = ''">Tất cả</button>
-          <button class="tab-sm" :class="{ active: approvalFilter === 'pending' }" @click="approvalFilter = 'pending'">Chờ duyệt</button>
-          <button class="tab-sm" :class="{ active: approvalFilter === 'need_supplement' }" @click="approvalFilter = 'need_supplement'">Cần bổ sung</button>
-          <button class="tab-sm" :class="{ active: approvalFilter === 'approved' }" @click="approvalFilter = 'approved'">Đã duyệt</button>
-          <button class="tab-sm" :class="{ active: approvalFilter === 'rejected' }" @click="approvalFilter = 'rejected'">Từ chối</button>
-        </div>
+        <label class="history-filter"><span>Lọc trạng thái</span><select v-model="approvalFilter"><option value="">Tất cả</option><option value="pending">Chờ duyệt</option><option value="need_supplement">Cần bổ sung</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option></select></label>
 
         <div v-if="filteredApprovals.length === 0" class="empty-section">Không có yêu cầu nào.</div>
 
@@ -715,17 +673,19 @@
                     :class="req.appendix_document.status === 'pending_sportgo_signature' ? 'btn-success' : 'ghost'"
                     @click="openRequestDocument(req.appendix_document)"
                   >
-                    {{ req.appendix_document.status === 'pending_sportgo_signature' ? 'Ky phu luc' : 'Xem' }}
+                    {{ req.appendix_document.status === 'pending_sportgo_signature' ? 'Xem và ký phụ lục' : 'Xem' }}
                   </button>
                   <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.appendix_document)">Tải</button>
                 </div>
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
-                <div v-if="req.status === 'pending'" class="approval-btns">
+                <div v-if="!isPartnerArchived && req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingId === req.id" @click="handleApprove(req)">{{ processingId === req.id ? '...' : 'Duyệt' }}</button>
-                  <button class="btn btn-warning btn-sm" :disabled="processingId === req.id" @click="openSupplementModal(req)">Bổ sung</button>
-                  <button class="btn btn-danger btn-sm" :disabled="processingId === req.id" @click="openRejectModal(req)">Từ chối</button>
+                  <details class="request-more-actions">
+                    <summary>Thao tác khác</summary>
+                    <div><button type="button" :disabled="processingId === req.id" @click="openSupplementModal(req)">Yêu cầu bổ sung</button><button type="button" class="danger" :disabled="processingId === req.id" @click="openRejectModal(req)">Từ chối</button></div>
+                  </details>
                 </div>
               </div>
             </div>
@@ -736,12 +696,7 @@
       <!-- ┌ Tab: Yêu cầu thay đổi thông tin sân ────────────────────────── -->
       <div v-if="activeTab === 'info_changes'" class="avcd-card card">
         <h3 class="section-title">Yêu cầu thay đổi thông tin cụm sân</h3>
-        <div class="approval-tabs">
-          <button class="tab-sm" :class="{ active: infoChangeFilter === '' }" @click="infoChangeFilter = ''">Tất cả</button>
-          <button class="tab-sm" :class="{ active: infoChangeFilter === 'pending' }" @click="infoChangeFilter = 'pending'">Chờ duyệt</button>
-          <button class="tab-sm" :class="{ active: infoChangeFilter === 'approved' }" @click="infoChangeFilter = 'approved'">Đã duyệt</button>
-          <button class="tab-sm" :class="{ active: infoChangeFilter === 'rejected' }" @click="infoChangeFilter = 'rejected'">Từ chối</button>
-        </div>
+        <label class="history-filter"><span>Lọc trạng thái</span><select v-model="infoChangeFilter"><option value="">Tất cả</option><option value="pending">Chờ duyệt</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option></select></label>
         <div v-if="filteredInfoChanges.length === 0" class="empty-section">Không có yêu cầu nào.</div>
         <div v-else class="approval-list">
           <div v-for="req in filteredInfoChanges" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
@@ -768,7 +723,7 @@
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
-                <div v-if="req.status === 'pending'" class="approval-btns">
+                <div v-if="!isPartnerArchived && req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingInfoId === req.id" @click="handleApproveInfo(req)">
                     {{ processingInfoId === req.id ? '...' : 'Duyệt' }}
                   </button>
@@ -783,13 +738,7 @@
       <!-- ┌ Tab: Yêu cầu thay đổi vị trí ──────────────────────────────── -->
       <div v-if="activeTab === 'location_changes'" class="avcd-card card">
         <h3 class="section-title">Yêu cầu thay đổi vị trí cụm sân</h3>
-        <div class="approval-tabs">
-          <button class="tab-sm" :class="{ active: locationChangeFilter === '' }" @click="locationChangeFilter = ''">Tất cả</button>
-          <button class="tab-sm" :class="{ active: locationChangeFilter === 'pending' }" @click="locationChangeFilter = 'pending'">Chờ duyệt</button>
-          <button class="tab-sm" :class="{ active: locationChangeFilter === 'need_supplement' }" @click="locationChangeFilter = 'need_supplement'">Cần bổ sung</button>
-          <button class="tab-sm" :class="{ active: locationChangeFilter === 'approved' }" @click="locationChangeFilter = 'approved'">Đã duyệt</button>
-          <button class="tab-sm" :class="{ active: locationChangeFilter === 'rejected' }" @click="locationChangeFilter = 'rejected'">Từ chối</button>
-        </div>
+        <label class="history-filter"><span>Lọc trạng thái</span><select v-model="locationChangeFilter"><option value="">Tất cả</option><option value="pending">Chờ duyệt</option><option value="need_supplement">Cần bổ sung</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option></select></label>
         <div v-if="filteredLocationChanges.length === 0" class="empty-section">Không có yêu cầu nào.</div>
         <div v-else class="approval-list">
           <div v-for="req in filteredLocationChanges" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
@@ -842,7 +791,7 @@
                     :class="req.appendix_document.status === 'pending_sportgo_signature' ? 'btn-success' : 'ghost'"
                     @click="openRequestDocument(req.appendix_document)"
                   >
-                    {{ req.appendix_document.status === 'pending_sportgo_signature' ? 'Ky phu luc' : 'Xem' }}
+                    {{ req.appendix_document.status === 'pending_sportgo_signature' ? 'Xem và ký phụ lục' : 'Xem' }}
                   </button>
                   <button type="button" class="btn ghost small" @click="downloadRequestDocument(req.appendix_document)">Tải</button>
                 </div>
@@ -852,12 +801,14 @@
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
-                <div v-if="req.status === 'pending'" class="approval-btns">
+                <div v-if="!isPartnerArchived && req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingLocationId === req.id" @click="handleApproveLocation(req)">
                     {{ processingLocationId === req.id ? '...' : 'Duyệt' }}
                   </button>
-                  <button class="btn btn-warning btn-sm" :disabled="processingLocationId === req.id" @click="openLocationSupplementModal(req)">Bổ sung</button>
-                  <button class="btn btn-danger btn-sm" :disabled="processingLocationId === req.id" @click="openRejectLocationModal(req)">Từ chối</button>
+                  <details class="request-more-actions">
+                    <summary>Thao tác khác</summary>
+                    <div><button type="button" :disabled="processingLocationId === req.id" @click="openLocationSupplementModal(req)">Yêu cầu bổ sung</button><button type="button" class="danger" :disabled="processingLocationId === req.id" @click="openRejectLocationModal(req)">Từ chối</button></div>
+                  </details>
                 </div>
               </div>
             </div>
@@ -868,12 +819,7 @@
       <!-- ┌ Tab: Yêu cầu mở khóa ──────────────────────────────── -->
       <div v-if="activeTab === 'unlock_appeals'" class="avcd-card card">
         <h3 class="section-title">Yêu cầu mở khóa cụm sân</h3>
-        <div class="approval-tabs">
-          <button class="tab-sm" :class="{ active: unlockAppealFilter === '' }" @click="unlockAppealFilter = ''">Tất cả</button>
-          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'pending' }" @click="unlockAppealFilter = 'pending'">Chờ duyệt</button>
-          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'approved' }" @click="unlockAppealFilter = 'approved'">Đã duyệt</button>
-          <button class="tab-sm" :class="{ active: unlockAppealFilter === 'rejected' }" @click="unlockAppealFilter = 'rejected'">Từ chối</button>
-        </div>
+        <label class="history-filter"><span>Lọc trạng thái</span><select v-model="unlockAppealFilter"><option value="">Tất cả</option><option value="pending">Chờ duyệt</option><option value="approved">Đã duyệt</option><option value="rejected">Từ chối</option></select></label>
         <div v-if="filteredUnlockAppeals.length === 0" class="empty-section">Không có yêu cầu nào.</div>
         <div v-else class="approval-list">
           <div v-for="req in filteredUnlockAppeals" :key="req.id" class="approval-card" :class="`approval-${req.status}`">
@@ -894,7 +840,7 @@
               </div>
               <div class="approval-right">
                 <span class="status-badge" :class="`status-${req.status}`">{{ approvalStatusLabel(req.status) }}</span>
-                <div v-if="req.status === 'pending'" class="approval-btns">
+                <div v-if="!isPartnerArchived && req.status === 'pending'" class="approval-btns">
                   <button class="btn btn-success btn-sm" :disabled="processingUnlockId === req.id" @click="handleApproveUnlock(req)">
                     {{ processingUnlockId === req.id ? '...' : 'Duyệt mở khóa' }}
                   </button>
@@ -902,9 +848,11 @@
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
+    </div>
+  </main>
+</div>
 
 
     <!-- ── Modal: Khóa cụm sân ── -->
@@ -1189,6 +1137,7 @@ import { adminVenueClusterService } from '../../services/adminVenueClusterServic
 import PartnerFilePreviewDialog from '../../components/partner/PartnerFilePreviewDialog.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
 import { apiDownload } from '../../services/api.js';
+import { venueDisplayStatus, venuePartnerState } from '../../utils/venuePartnerState.js';
 
 export default {
   name: 'AdminVenueClusterDetail',
@@ -1291,6 +1240,21 @@ export default {
     };
   },
   computed: {
+    partnerRestrictionMode() {
+      return venuePartnerState(this.cluster);
+    },
+    displayClusterStatus() {
+      return venueDisplayStatus(this.cluster);
+    },
+    isPartnerArchived() {
+      return this.partnerRestrictionMode !== 'normal';
+    },
+    isFullyArchived() {
+      return this.partnerRestrictionMode === 'archived';
+    },
+    canModerateClusterStatus() {
+      return Boolean(this.cluster) && !this.isPartnerArchived;
+    },
     filteredApprovals() {
       if (!this.approvalFilter) return this.approvalRequests;
       return this.approvalRequests.filter((r) => r.status === this.approvalFilter);
@@ -1324,6 +1288,13 @@ export default {
     this.loadDetail();
   },
   methods: {
+    tabBadgeCount(key) {
+      if (key === 'info_changes') return this.pendingInfoChangeCount;
+      if (key === 'approvals') return this.pendingApprovalCount;
+      if (key === 'location_changes') return this.pendingLocationChangeCount;
+      if (key === 'unlock_appeals') return this.pendingUnlockAppealCount;
+      return 0;
+    },
     goPartnerApplication() {
       if (!this.cluster?.partner_application?.id) return;
       this.$router.push({
@@ -1451,6 +1422,7 @@ export default {
 
     // ── Lock / Unlock ──
     openLockModal() {
+      if (!this.canModerateClusterStatus) return;
       this.lockForm = { status_reason: '', locked_until: '' };
       this.lockError = '';
       this.showLockModal = true;
@@ -1459,6 +1431,7 @@ export default {
       this.showLockModal = false;
     },
     async handleLock() {
+      if (!this.canModerateClusterStatus) return;
       this.locking = true;
       this.lockError = '';
       try {
@@ -1476,6 +1449,7 @@ export default {
       }
     },
     handleUnlock() {
+      if (!this.canModerateClusterStatus) return;
       this.openConfirmModal('Mở khóa', 'Mở khóa cụm sân này?', 'executeUnlock');
     },
     async executeUnlock() {
@@ -1494,9 +1468,11 @@ export default {
 
     // ── Approve / Reject ──
     handleApprove(req) {
+      if (this.isPartnerArchived) return;
       this.openConfirmModal('Xác nhận duyệt', `Duyệt yêu cầu "${req.name}"?`, 'executeApprove', req);
     },
     async executeApprove(req) {
+      if (this.isPartnerArchived) return;
       this.processingId = req.id;
       try {
         const res = await adminVenueClusterService.approveRequest(this.cluster.id, req.id);
@@ -1516,6 +1492,7 @@ export default {
       }
     },
     openSupplementModal(req) {
+      if (this.isPartnerArchived) return;
       this.supplementTarget = req;
       this.supplementReason = req.status_reason || '';
       this.supplementError = '';
@@ -1549,6 +1526,7 @@ export default {
       }
     },
     openRejectModal(req) {
+      if (this.isPartnerArchived) return;
       this.rejectTarget = req;
       this.rejectReason = '';
       this.rejectError = '';
@@ -1578,9 +1556,11 @@ export default {
 
     // ── Approve / Reject Information Change ──
     handleApproveInfo(req) {
+      if (this.isPartnerArchived) return;
       this.openConfirmModal('Xác nhận duyệt', 'Duyệt yêu cầu thay đổi thông tin này? Tên, SĐT, mô tả và album ảnh cụm sân sẽ được cập nhật ngay.', 'executeApproveInfo', req);
     },
     async executeApproveInfo(req) {
+      if (this.isPartnerArchived) return;
       this.processingInfoId = req.id;
       try {
         const res = await adminVenueClusterService.approveInformationChange(this.cluster.id, req.id);
@@ -1595,6 +1575,7 @@ export default {
       }
     },
     openRejectInfoModal(req) {
+      if (this.isPartnerArchived) return;
       this.rejectInfoTarget = req;
       this.rejectInfoReason = '';
       this.rejectInfoError = '';
@@ -1624,9 +1605,11 @@ export default {
 
     // ── Approve / Reject Location Change ──
     handleApproveLocation(req) {
+      if (this.isPartnerArchived) return;
       this.openConfirmModal('Xác nhận duyệt', 'Duyệt yêu cầu thay đổi vị trí này? Vị trí cụm sân sẽ được cập nhật ngay.', 'executeApproveLocation', req);
     },
     async executeApproveLocation(req) {
+      if (this.isPartnerArchived) return;
       this.processingLocationId = req.id;
       try {
         const res = await adminVenueClusterService.approveLocationChange(this.cluster.id, req.id);
@@ -1645,6 +1628,7 @@ export default {
       }
     },
     openLocationSupplementModal(req) {
+      if (this.isPartnerArchived) return;
       this.supplementLocationTarget = req;
       this.supplementLocationReason = req.status_reason || '';
       this.supplementLocationError = '';
@@ -1678,6 +1662,7 @@ export default {
       }
     },
     openRejectLocationModal(req) {
+      if (this.isPartnerArchived) return;
       this.rejectLocationTarget = req;
       this.rejectLocationReason = '';
       this.rejectLocationError = '';
@@ -1707,9 +1692,11 @@ export default {
 
     // ── Approve / Reject Unlock Requests ──
     handleApproveUnlock(req) {
+      if (this.isPartnerArchived) return;
       this.openConfirmModal('Xác nhận duyệt', 'Duyệt yêu cầu mở khóa này? Cụm sân sẽ được kích hoạt lại ngay lập tức.', 'executeApproveUnlock', req);
     },
     async executeApproveUnlock(req) {
+      if (this.isPartnerArchived) return;
       this.processingUnlockId = req.id;
       try {
         const res = await adminVenueClusterService.approveUnlockRequest(this.cluster.id, req.id);
@@ -1724,6 +1711,7 @@ export default {
       }
     },
     openRejectUnlockModal(req) {
+      if (this.isPartnerArchived) return;
       this.rejectUnlockTarget = req;
       this.rejectUnlockReason = '';
       this.rejectUnlockError = '';
@@ -1764,13 +1752,21 @@ export default {
           return { label: action, type: 'default' };
       }
     },
-    statusLabel(status) {
-      return { pending: 'Chờ duyệt', active: 'Hoạt động', locked: 'Đã khóa' }[status] || status;
+    statusLabel(cluster) {
+      const status = venueDisplayStatus(cluster);
+      return {
+        pending: 'Chờ duyệt',
+        active: 'Hoạt động',
+        locked: 'Đã khóa',
+        termination_locked: 'Đang chấm dứt',
+        termination_processing: 'Đang chấm dứt',
+        partner_terminated: 'Đã chấm dứt',
+      }[status] || status;
     },
     approvalStatusLabel(status) {
-      if (status === 'approved_pending_appendix') return 'Da duyet, cho SportGo ky phu luc';
-      if (status === 'pending_owner_signature') return 'Cho chu san ky phu luc';
-      if (status === 'completed') return 'Hoan tat thay doi';
+      if (status === 'approved_pending_appendix') return 'Đã duyệt, chờ SportGo ký phụ lục';
+      if (status === 'pending_owner_signature') return 'Chờ chủ sân ký phụ lục';
+      if (status === 'completed') return 'Hoàn tất thay đổi';
 
       return { pending: 'Chờ duyệt', need_supplement: 'Cần bổ sung', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Hủy' }[status] || status;
     },
@@ -1833,64 +1829,118 @@ export default {
   padding: 20px 24px;
 }
 
-/* Header */
-.avcd-header { display: flex; flex-direction: column; gap: 12px; }
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #15803d;
-  font-weight: 850;
-  text-decoration: none;
-  font-size: 14px;
-  margin-bottom: 12px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  transition: opacity 0.15s;
-}
-.back-link.never-hover-class-placeholder {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-.avcd-title-row {
+.avcd-layout {
   display: flex;
-  justify-content: space-between;
+  gap: 24px;
   align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
+  margin-top: 16px;
 }
-.avcd-title { font-size: 22px; font-weight: 800; margin: 0; }
-.avcd-sub { margin: 4px 0 0; font-size: 14px; color: rgba(15, 23, 42, 0.5); }
-.avcd-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-/* Tabs */
-.avcd-tabs {
+.avcd-sidebar {
+  width: 280px;
+  flex-shrink: 0;
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 14px 20px;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, rgba(0, 0, 0, 0.06));
+  border-radius: var(--admin-radius-lg, 12px);
+  padding: 16px;
+  box-shadow: var(--admin-shadow-sm);
+  position: sticky;
+  top: 20px;
 }
-.tab-btn {
-  padding: 8px 16px;
+
+.avcd-sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border, var(--sg-border));
-  background: var(--admin-surface-muted, var(--sg-surface, #f8fafc));
-  color: var(--admin-muted, rgba(15, 23, 42, 0.6));
-  font-size: 13px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--admin-muted, #64748b);
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+  width: 100%;
 }
-.tab-btn.active {
-  background: var(--admin-primary, #0f172a) !important;
-  border-color: var(--admin-primary, #0f172a) !important;
-  color: var(--admin-primary-text, #fff) !important;
+
+.sidebar-tab-btn:hover {
+  background: var(--admin-hover, rgba(0, 0, 0, 0.02));
+  color: var(--admin-text, #0f172a);
 }
-.tab-btn:not(.active).never-hover-class-placeholder {
-  background: var(--admin-hover, #f1f5f9);
-  color: var(--admin-text);
+
+.sidebar-tab-btn.active {
+  background: var(--admin-primary-soft, #f0fdf4) !important;
+  color: var(--admin-primary-dark, #15803d) !important;
+  border-color: var(--admin-primary-soft, rgba(21, 128, 61, 0.15)) !important;
+  font-weight: 700;
+}
+
+.tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.tab-label {
+  flex: 1;
+}
+
+.tab-badge-admin-dot {
+  background: var(--admin-danger, #dc2626);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 20px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.avcd-sidebar-footer {
+  padding-top: 14px;
+  border-top: 1px dashed var(--admin-border-soft, rgba(0, 0, 0, 0.06));
+}
+
+.sidebar-action-btn {
+  width: 100%;
+  justify-content: center;
+  height: 38px;
+  font-weight: 700;
+}
+
+.avcd-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 990px) {
+  .avcd-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .avcd-sidebar {
+    width: 100%;
+    position: static;
+  }
 }
 
 /* Card */
@@ -2240,6 +2290,9 @@ export default {
 .custom-status-pending { background: var(--admin-warning-soft, #fffbeb) !important; color: var(--admin-warning, #b45309) !important; border: 1px solid var(--admin-border-soft, #fde68a) !important; }
 .custom-status-active  { background: var(--admin-primary-soft, #f0fdf4) !important; color: var(--admin-primary-dark, #15803d) !important; border: 1px solid var(--admin-border-soft, #bbf7d0) !important; }
 .custom-status-locked  { background: var(--admin-danger-soft, #fef2f2) !important; color: var(--admin-danger, #b91c1c) !important; border: 1px solid var(--admin-border-soft, #fecaca) !important; }
+.custom-status-termination_locked,
+.custom-status-termination_processing { background: #fff7ed !important; color: #9a3412 !important; border-color: #fed7aa !important; }
+.custom-status-partner_terminated { background: #f1f5f9 !important; color: #475569 !important; border-color: #cbd5e1 !important; }
 .custom-status-approved { background: var(--admin-primary-soft, #f0fdf4) !important; color: var(--admin-primary-dark, #15803d) !important; border: 1px solid var(--admin-border-soft, #bbf7d0) !important; }
 .custom-status-need_supplement { background: var(--admin-warning-soft, #fffbeb) !important; color: var(--admin-warning, #92400e) !important; border: 1px solid var(--admin-border-soft, #fde68a) !important; }
 .custom-status-rejected { background: var(--admin-danger-soft, #fef2f2) !important; color: var(--admin-danger, #b91c1c) !important; border: 1px solid var(--admin-border-soft, #fecaca) !important; }
@@ -3011,6 +3064,8 @@ export default {
   margin-top: 12px;
 }
 .workflow-chip {
+  display: inline-flex;
+  align-items: center;
   min-height: 32px;
   padding: 0 12px;
   border-radius: 999px;
@@ -3019,14 +3074,49 @@ export default {
   color: #0f172a;
   font-size: 12px;
   font-weight: 800;
-  cursor: pointer;
+  cursor: default;
 }
 .workflow-chip.never-hover-class-placeholder {
   border-color: #16a34a;
   color: #166534;
 }
 
+.partner-archive-banner {
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #64748b;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 14px 16px;
+}
+
+.partner-archive-banner p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* Approvals */
+.history-filter {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 240px);
+  align-items: center;
+  justify-content: end;
+  gap: 10px;
+  margin: -2px 0 16px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+.history-filter select {
+  min-height: 38px;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  padding: 0 10px;
+}
 .approval-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
 .tab-sm {
   padding: 6px 12px;
@@ -3040,6 +3130,47 @@ export default {
 }
 .tab-sm.active { background: #0f172a; border-color: #0f172a; color: #fff; }
 .approval-list { display: flex; flex-direction: column; gap: 12px; }
+.request-more-actions { position: relative; }
+.request-more-actions > summary {
+  min-height: 32px;
+  list-style: none;
+  border: 1px solid var(--sg-border);
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.request-more-actions > summary::-webkit-details-marker { display: none; }
+.request-more-actions > div {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  min-width: 170px;
+  gap: 3px;
+  border: 1px solid var(--sg-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--admin-shadow-sm);
+  padding: 6px;
+}
+.request-more-actions button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  padding: 8px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+.request-more-actions button:hover { background: #f8fafc; }
+.request-more-actions button.danger { color: #b91c1c; }
 .approval-card {
   padding: 16px;
   border-radius: 10px;

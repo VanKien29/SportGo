@@ -35,12 +35,6 @@
                     <span>Yêu cầu rút tiền</span>
                 </button>
             </div>
-            <ActionIconButton
-                icon="refresh"
-                label="Tải lại"
-                :disabled="loading"
-                @click="refreshCurrentTab"
-            />
         </div>
 
         <div v-if="error" class="alert error">{{ error }}</div>

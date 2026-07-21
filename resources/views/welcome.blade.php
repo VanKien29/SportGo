@@ -22,7 +22,7 @@
     @endif
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Leaflet Map Library -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -30,16 +30,15 @@
     <script>
         (function() {
             try {
-                const theme = localStorage.getItem('theme');
-                if (theme === 'dark') {
-                    document.documentElement.classList.add('dark');
-                    document.documentElement.classList.remove('light');
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else if (theme === 'light') {
-                    document.documentElement.classList.add('light');
-                    document.documentElement.classList.remove('dark');
-                    document.documentElement.removeAttribute('data-theme');
-                }
+                const isPortal = /^\/(owner|admin|staff)(\/|$)/.test(window.location.pathname);
+                const savedTheme = localStorage.getItem(isPortal ? 'admin-theme' : 'theme') || 'system';
+                const resolvedTheme = savedTheme === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : savedTheme;
+
+                document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+                document.documentElement.classList.toggle('light', resolvedTheme === 'light');
+                document.documentElement.setAttribute('data-theme', resolvedTheme);
             } catch (e) {}
         })();
     </script>

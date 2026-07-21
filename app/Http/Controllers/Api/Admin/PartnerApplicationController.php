@@ -7,6 +7,7 @@ use App\Models\CourtType;
 use App\Models\DocumentSigningRequest;
 use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
+use App\Models\PartnerApplicationDocument;
 use App\Models\PartnerContract;
 use App\Models\PartnerTerminationRequest;
 use App\Services\Partner\PartnerApplicationService;
@@ -22,6 +23,12 @@ use Illuminate\Validation\ValidationException;
 
 class PartnerApplicationController extends Controller
 {
+    private const ADMIN_SIGNABLE_DOCUMENT_TYPES = [
+        'partner_contract',
+        'venue_scale_appendix',
+        'venue_location_appendix',
+    ];
+
     private const TERMINATING_STATUSES = [
         'draft',
         'submitted',
@@ -270,6 +277,138 @@ class PartnerApplicationController extends Controller
         ]);
     }
 
+    public function requestSignDocumentOtp(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'contract_id' => ['nullable', 'integer', 'required_without:document_id', 'exists:partner_contracts,id'],
+            'document_id' => ['nullable', 'integer', 'required_without:contract_id', 'exists:generated_documents,id'],
+            'signature_image' => ['required', 'string', 'max:3000000'],
+            'confirmed' => ['accepted'],
+            'confirmation_text' => ['required', 'string', 'max:1000'],
+        ], [
+            'contract_id.required_without' => 'Vui lòng chọn hợp đồng cần ký.',
+            'document_id.required_without' => 'Vui lòng chọn văn bản cần ký.',
+            'signature_image.required' => 'Vui lòng ký tên trước khi yêu cầu OTP.',
+            'confirmed.accepted' => 'Bạn cần xác nhận đã đọc và chịu trách nhiệm về nội dung văn bản.',
+            'confirmation_text.required' => 'Thiếu nội dung xác nhận ký văn bản.',
+        ]);
+
+        $application = PartnerApplication::query()->findOrFail($id);
+        [$document] = $this->resolveAdminSigningTarget(
+            $application,
+            isset($data['document_id']) ? (int) $data['document_id'] : null,
+            isset($data['contract_id']) ? (int) $data['contract_id'] : null,
+        );
+
+        $signingRequest = $this->signing->requestOtp(
+            $document,
+            $request->user(),
+            'sportgo',
+            $this->adminSigningAction($document),
+            $data['confirmation_text'],
+            $data['signature_image'],
+            $request,
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Mã OTP ký văn bản đã được gửi đến email tài khoản admin.',
+            'data' => [
+                'signing_request_id' => $signingRequest->id,
+                'expires_at' => $signingRequest->expires_at,
+                'hash_short' => substr($signingRequest->file_hash, 0, 12),
+            ],
+        ]);
+    }
+
+    public function verifySignDocumentOtp(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
+            'otp' => ['required', 'digits:6'],
+        ], [
+            'signing_request_id.required' => 'Không tìm thấy giao dịch ký. Vui lòng gửi lại OTP.',
+            'otp.required' => 'Vui lòng nhập mã OTP.',
+            'otp.digits' => 'Mã OTP phải gồm đúng 6 chữ số.',
+        ]);
+
+        $application = PartnerApplication::query()->findOrFail($id);
+        $signingRequest = DocumentSigningRequest::query()
+            ->with('document')
+            ->whereKey($data['signing_request_id'])
+            ->where('signer_side', 'sportgo')
+            ->firstOrFail();
+        $requestDocument = $signingRequest->document;
+
+        if (! $requestDocument) {
+            throw ValidationException::withMessages([
+                'document' => 'Không tìm thấy văn bản liên kết với giao dịch ký.',
+            ]);
+        }
+
+        [$document, $contract] = $this->resolveAdminSigningTarget(
+            $application,
+            (int) $requestDocument->id,
+            null,
+        );
+        $expectedAction = $this->adminSigningAction($document);
+
+        if ($signingRequest->action !== $expectedAction) {
+            throw ValidationException::withMessages([
+                'signing_request_id' => 'Giao dịch OTP không thuộc thao tác ký văn bản này.',
+            ]);
+        }
+
+        $verifiedRequest = $this->signing->verifyOtp($signingRequest, $request->user(), $data['otp']);
+
+        if ($document->document_type === 'partner_contract') {
+            $contract = $this->partners->signAdminContract(
+                $contract,
+                $request->user(),
+                $request,
+                $verifiedRequest->signature_image,
+            );
+            $signature = $contract->generatedDocument
+                ?->signatures()
+                ->where('signer_side', 'sportgo')
+                ->where('signer_user_id', $request->user()->id)
+                ->where('status', 'signed')
+                ->latest()
+                ->first();
+        } else {
+            $signature = $this->documents->signDocument(
+                $document,
+                $request->user(),
+                'sportgo',
+                $verifiedRequest->signature_image,
+                $request,
+                [
+                    'signature_method' => 'otp_confirm',
+                    'signer_full_name' => $request->user()->full_name ?: $request->user()->username,
+                    'signer_title' => 'Đại diện SportGo',
+                    'signer_organization' => 'SportGo',
+                ],
+            );
+        }
+
+        if (! $signature) {
+            throw ValidationException::withMessages([
+                'signature' => 'Không lưu được chữ ký vào văn bản. Vui lòng thử lại.',
+            ]);
+        }
+
+        $signature->forceFill(['signature_method' => 'otp_confirm'])->save();
+        $this->signing->markSigned($verifiedRequest, $signature);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $document->document_type === 'partner_contract'
+                ? 'SportGo đã ký hợp đồng bằng OTP. Hợp đồng đang chờ chủ sân ký xác nhận.'
+                : 'SportGo đã ký phụ lục bằng OTP. Văn bản đang chờ chủ sân ký xác nhận.',
+            'data' => $this->payload($application->fresh($this->partners->detailRelations()), true),
+        ]);
+    }
+
     public function signDocument(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
@@ -383,6 +522,95 @@ class PartnerApplicationController extends Controller
             'message' => 'Đã xác nhận yêu cầu chấm dứt. Hãy xử lý booking và nghĩa vụ tài chính trước khi ký biên bản cuối.',
             'data' => $termination,
         ]);
+    }
+
+    /**
+     * @return array{0: GeneratedDocument, 1: PartnerContract|null}
+     */
+    private function resolveAdminSigningTarget(
+        PartnerApplication $application,
+        ?int $documentId,
+        ?int $contractId,
+    ): array {
+        $contract = null;
+        $document = null;
+
+        if ($documentId !== null) {
+            $document = GeneratedDocument::query()
+                ->with('signatures')
+                ->whereKey($documentId)
+                ->firstOrFail();
+        } elseif ($contractId !== null) {
+            $contract = PartnerContract::query()
+                ->with(['generatedDocument.signatures'])
+                ->whereKey($contractId)
+                ->where('partner_application_id', $application->id)
+                ->firstOrFail();
+            $document = $contract->generatedDocument;
+        }
+
+        if (! $document || ! in_array($document->document_type, self::ADMIN_SIGNABLE_DOCUMENT_TYPES, true)) {
+            throw ValidationException::withMessages([
+                'document_id' => 'Văn bản này không hỗ trợ thao tác ký của SportGo.',
+            ]);
+        }
+
+        if ((string) $document->partner_application_id !== (string) $application->id) {
+            abort(404);
+        }
+
+        if ($document->status !== 'pending_sportgo_signature') {
+            throw ValidationException::withMessages([
+                'document_id' => 'Văn bản không ở trạng thái chờ SportGo ký.',
+            ]);
+        }
+
+        if ($document->signatures->contains(
+            fn ($signature): bool => $signature->signer_side === 'sportgo' && $signature->status === 'signed'
+        )) {
+            throw ValidationException::withMessages([
+                'document_id' => 'SportGo đã ký văn bản này.',
+            ]);
+        }
+
+        if ($document->document_type === 'partner_contract') {
+            $contract = PartnerContract::query()
+                ->with(['application.user', 'generatedDocument.signatures'])
+                ->where('partner_application_id', $application->id)
+                ->where('generated_document_id', $document->id)
+                ->when($contractId !== null, fn ($query) => $query->whereKey($contractId))
+                ->firstOrFail();
+
+            if ($contract->status !== 'pending_sportgo_signature') {
+                throw ValidationException::withMessages([
+                    'contract_id' => 'Hợp đồng không ở trạng thái chờ SportGo ký.',
+                ]);
+            }
+        } elseif ($contractId !== null) {
+            $contractBelongsToApplication = PartnerContract::query()
+                ->whereKey($contractId)
+                ->where('partner_application_id', $application->id)
+                ->exists();
+
+            if (! $contractBelongsToApplication
+                || ($document->partner_contract_id && (int) $document->partner_contract_id !== $contractId)) {
+                abort(404);
+            }
+        }
+
+        return [$document, $contract];
+    }
+
+    private function adminSigningAction(GeneratedDocument $document): string
+    {
+        return match ($document->document_type) {
+            'partner_contract' => 'admin_sign_partner_contract',
+            'venue_scale_appendix' => 'admin_sign_venue_scale_appendix',
+            'venue_location_appendix' => 'admin_sign_venue_location_appendix',
+            default => throw ValidationException::withMessages([
+                'document_id' => 'Văn bản này không hỗ trợ thao tác ký của SportGo.',
+            ]),
+        };
     }
 
     private function payload(PartnerApplication $application, bool $detail = false): array
@@ -508,22 +736,7 @@ class PartnerApplicationController extends Controller
             });
         $payload['uploaded_documents'] = $application->documents
             ->values()
-            ->map(fn ($document) => [
-                'id' => $document->id,
-                'partner_application_id' => $document->partner_application_id,
-                'document_type' => $document->document_type,
-                'document_group' => $document->document_group,
-                'title' => $document->title,
-                'description' => $document->description,
-                'status' => $document->status,
-                'reject_reason' => $document->reject_reason,
-                'reviewed_at' => $document->reviewed_at,
-                'file_name' => $document->media?->file_name,
-                'mime_type' => $document->media?->mime_type,
-                'file_size' => $document->media?->file_size,
-                'uploaded_at' => $document->created_at,
-                'download_url' => '/api/admin/partner-profiles/documents/' . $document->id . '/download',
-            ]);
+            ->map(fn (PartnerApplicationDocument $document): array => $this->uploadedDocumentPayload($document));
         $payload['contracts'] = $application->contracts;
         $payload['status_histories'] = $application->statusHistories;
         $payload['termination_requests'] = $application->terminationRequests->map(function (PartnerTerminationRequest $termination): PartnerTerminationRequest {
@@ -568,6 +781,39 @@ class PartnerApplicationController extends Controller
             ->values();
 
         return $payload;
+    }
+
+    private function uploadedDocumentPayload(PartnerApplicationDocument $document): array
+    {
+        $path = collect([
+            $document->getRawOriginal('file_path'),
+            $document->media?->getRawOriginal('file_path'),
+        ])->first(fn ($candidate): bool => is_string($candidate)
+            && $candidate !== ''
+            && Storage::disk('public')->exists($candidate));
+        $fileAvailable = is_string($path) && $path !== '';
+
+        return [
+            'id' => $document->id,
+            'partner_application_id' => $document->partner_application_id,
+            'document_type' => $document->document_type,
+            'document_group' => $document->document_group,
+            'title' => $document->title,
+            'description' => $document->description,
+            'status' => $document->status,
+            'reject_reason' => $document->reject_reason,
+            'reviewed_at' => $document->reviewed_at,
+            'file_name' => $document->media?->file_name ?: ($fileAvailable ? basename($path) : null),
+            'mime_type' => $fileAvailable
+                ? (Storage::disk('public')->mimeType($path) ?: $document->media?->mime_type)
+                : $document->media?->mime_type,
+            'file_size' => $fileAvailable ? Storage::disk('public')->size($path) : 0,
+            'file_available' => $fileAvailable,
+            'uploaded_at' => $document->created_at,
+            'download_url' => $fileAvailable
+                ? '/api/admin/partner-profiles/documents/' . $document->id . '/download'
+                : null,
+        ];
     }
 
     private function signingRequestPayload(DocumentSigningRequest $request, GeneratedDocument $document): array

@@ -57,14 +57,6 @@
               <span>Tin nhắn đã lưu</span>
             </button>
 
-            <!-- Cài đặt (Chat settings placeholder) -->
-            <button @click="openChatSettings" class="tg-drawer-item text-left w-full">
-              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>Cài đặt hội thoại</span>
-            </button>
           </div>
 
           <!-- Divider -->
@@ -275,45 +267,12 @@
                 v-if="showChatMenu"
                 class="tg-dropdown-menu absolute right-0 top-11 w-56 z-50 py-1"
               >
-                <!-- Mute notifications -->
-                <button @click="muteNotifications" class="tg-dropdown-item">
-                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                  </svg>
-                  <span>Tắt thông báo</span>
-                </button>
-
                 <!-- View profile -->
                 <button @click="viewProfile" class="tg-dropdown-item">
                   <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <span>Xem thông tin hội thoại</span>
-                </button>
-
-                <!-- Set Wallpaper -->
-                <button @click="notImplemented('Đặt hình nền')" class="tg-dropdown-item">
-                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.344l3.657-3.657a1 1 0 011.414 0l3.657 3.657a1 1 0 010 1.414l-3.657 3.657a1 1 0 01-1.414 0L11 7.344z" />
-                  </svg>
-                  <span>Đặt hình nền</span>
-                </button>
-
-                <!-- Disable Sharing -->
-                <button @click="notImplemented('Tắt chia sẻ')" class="tg-dropdown-item">
-                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                  <span>Tắt chia sẻ liên kết</span>
-                </button>
-
-                <!-- Export chat history -->
-                <button @click="notImplemented('Xuất lịch sử chat')" class="tg-dropdown-item">
-                  <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>Xuất lịch sử chat</span>
                 </button>
 
                 <div class="tg-dropdown-divider"></div>
@@ -899,18 +858,6 @@
                   </svg>
                   <span>Nhắn tin</span>
                 </button>
-                <button @click="muteNotifications" class="tg-profile-action-btn">
-                  <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  <span>Tắt âm</span>
-                </button>
-                <button @click="notImplemented('Chia sẻ')" class="tg-profile-action-btn">
-                  <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 00-6 6v3" />
-                  </svg>
-                  <span>Chia sẻ</span>
-                </button>
               </div>
 
               <!-- Info Details (Padded left to align with sections below) -->
@@ -1024,13 +971,6 @@
 
               <!-- Actions Section -->
               <div class="tg-profile-section pt-5 pb-8">
-                <button @click="notImplemented('Chia sẻ liên hệ')" class="tg-profile-action-row">
-                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 00-6 6v3" />
-                  </svg>
-                  <span>Chia sẻ liên hệ này</span>
-                </button>
-
                 <button @click="deleteActiveConversation" class="tg-profile-action-row">
                   <svg class="tg-profile-item-icon text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1038,12 +978,6 @@
                   <span>Xóa cuộc trò chuyện</span>
                 </button>
 
-                <button @click="notImplemented('Chặn người dùng')" class="tg-profile-action-row tg-profile-action-row-danger">
-                  <svg class="tg-profile-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                  <span>Chặn người dùng</span>
-                </button>
               </div>
             </div>
 
@@ -1129,12 +1063,6 @@
           </svg>
         </button>
         <div class="tg-lightbox-actions" @click.stop>
-          <button type="button" class="tg-lightbox-action-btn" title="Chỉnh sửa" aria-label="Chỉnh sửa" @click="notImplemented('Chỉnh sửa ảnh')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14 7l3 3" />
-            </svg>
-          </button>
           <button type="button" class="tg-lightbox-action-btn" title="Tải xuống" aria-label="Tải xuống" @click="downloadLightboxImage">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12" />
@@ -1166,14 +1094,6 @@
               <button type="button" @click="copyLightboxImage">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="10" height="12" rx="1"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 16H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
                 <span>Sao chép</span>
-              </button>
-              <button type="button" @click="lightboxMenuAction('Chuyển tiếp ảnh')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 6l6 6-6 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12H8a5 5 0 0 0-5 5v1"/></svg>
-                <span>Chuyển tiếp</span>
-              </button>
-              <button type="button" @click="lightboxMenuAction('Xóa ảnh')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6M14 11v6"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 7l1 14h10l1-14"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 7V4h6v3"/></svg>
-                <span>Xóa</span>
               </button>
               <button type="button" @click="downloadLightboxImage">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 10l5 5 5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 21h14"/></svg>
@@ -1227,10 +1147,23 @@
       </div>
 
     </div>
+
+    <ConfirmActionModal
+      :is-open="Boolean(pendingChatAction)"
+      :title="pendingChatAction?.title || 'Xác nhận thao tác'"
+      :description="pendingChatAction?.description || ''"
+      :confirm-text="pendingChatAction?.confirmText || 'Xác nhận'"
+      :loading="confirmChatLoading"
+      :error="confirmChatError"
+      @close="closeChatConfirmation"
+      @confirm="confirmChatAction"
+    />
   </div>
 </template>
 
 <script>
+import { useToast } from 'vue-toastification';
+import ConfirmActionModal from '../components/ConfirmActionModal.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
 import BaseInput from '../components/ui/BaseInput.vue';
 import echo from '../echo.js';
@@ -1240,8 +1173,12 @@ import { chatService } from '../services/chat.service.js';
 export default {
   name: 'Chat',
   components: {
+    ConfirmActionModal,
     PublicNavbar,
     BaseInput
+  },
+  setup() {
+    return { toast: useToast() };
   },
   data() {
     return {
@@ -1260,6 +1197,10 @@ export default {
       mobileShowChat: false,
       echoConversationChannel: null,
       echoUserChannel: null,
+      fallbackPoll: null,
+      pendingChatAction: null,
+      confirmChatLoading: false,
+      confirmChatError: '',
 
       showTelegramMenu: false,
       isNightMode: false,
@@ -1448,8 +1389,12 @@ export default {
 
     // Subscribe to user's personal channel for conversation list updates
     this.subscribeUserChannel();
-
-
+    if (!echo) {
+      this.fallbackPoll = window.setInterval(() => {
+        this.fetchConversations(false);
+        if (this.activeConversation) this.fetchMessages(false);
+      }, 10000);
+    }
   },
   mounted() {
     // Apply chat-local theme only when the standalone chat theme is enabled.
@@ -1474,6 +1419,7 @@ export default {
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleDocumentClick);
+    if (this.fallbackPoll) window.clearInterval(this.fallbackPoll);
 
     // Leave WebSocket channels
     this.unsubscribeConversationChannel();
@@ -1506,6 +1452,7 @@ export default {
   methods: {
     // ---- WebSocket Channel Subscriptions ----
     subscribeConversationChannel(conversationId) {
+      if (!echo) return;
       this.echoConversationChannel = echo
         .private(`conversation.${conversationId}`)
         .listen('.message.sent', (event) => {
@@ -1545,13 +1492,13 @@ export default {
         this.echoConversationChannel.stopListening('.message.sent');
         this.echoConversationChannel.stopListening('.message.reacted');
         this.echoConversationChannel.stopListening('.message.pinned');
-        echo.leave(this.echoConversationChannel.name ?? '');
+        echo?.leave(this.echoConversationChannel.name ?? '');
         this.echoConversationChannel = null;
       }
     },
 
     subscribeUserChannel() {
-      if (!this.currentUser) return;
+      if (!this.currentUser || !echo) return;
       this.echoUserChannel = echo
         .private(`user.${this.currentUser.id}`)
         .listen('.conversation.updated', (event) => {
@@ -1572,7 +1519,7 @@ export default {
     unsubscribeUserChannel() {
       if (this.echoUserChannel) {
         this.echoUserChannel.stopListening('.conversation.updated');
-        echo.leave(this.echoUserChannel.name ?? '');
+        echo?.leave(this.echoUserChannel.name ?? '');
         this.echoUserChannel = null;
       }
     },
@@ -1587,10 +1534,6 @@ export default {
     openSavedMessages() {
       this.closeTelegramMenu();
       this.startChat({ type: 'saved' });
-    },
-    openChatSettings() {
-      this.closeTelegramMenu();
-      alert('Chức năng cài đặt hội thoại sẽ được phát triển trong phiên bản sau.');
     },
     toggleNightMode() {
       if (this.usesAdminChatTheme) return;
@@ -1720,7 +1663,7 @@ export default {
 
         this.scrollToBottom();
       } catch (err) {
-        alert(err.message || 'Không thể gửi tin nhắn.');
+        this.toast.error(err.message || 'Không thể gửi tin nhắn.');
       }
     },
 
@@ -1773,7 +1716,7 @@ export default {
           this.mobileShowChat = true;
         }
       } catch (err) {
-        alert(err.message || 'Không thể tạo phòng trò chuyện.');
+        this.toast.error(err.message || 'Không thể tạo phòng trò chuyện.');
       }
     },
 
@@ -1849,7 +1792,7 @@ export default {
         this.updateConversationLastMessage(response);
         this.scrollToBottom();
       } catch (error) {
-        alert(error.message || 'Không thể cập nhật yêu cầu hỗ trợ.');
+        this.toast.error(error.message || 'Không thể cập nhật yêu cầu hỗ trợ.');
       } finally {
         this.updatingSupportRequestId = '';
       }
@@ -1976,7 +1919,7 @@ export default {
 
       for (const file of files) {
         if (file.size > 10 * 1024 * 1024) {
-          alert(`Dung lượng ảnh ${file.name} vượt quá 10MB.`);
+          this.toast.error(`Dung lượng ảnh ${file.name} vượt quá 10MB.`);
           continue;
         }
         try {
@@ -1999,7 +1942,7 @@ export default {
           const file = item.getAsFile();
           if (file) {
             if (file.size > 10 * 1024 * 1024) {
-              alert('Dung lượng ảnh tối đa là 10MB.');
+              this.toast.error('Dung lượng ảnh tối đa là 10MB.');
               return;
             }
 
@@ -2041,63 +1984,69 @@ export default {
       }
     },
 
-    async deleteActiveConversation() {
+    deleteActiveConversation() {
       if (!this.activeConversation) return;
-      if (!confirm('Bạn có chắc chắn muốn xóa cuộc trò chuyện này? Tất cả tin nhắn sẽ bị xóa vĩnh viễn.')) return;
-
-      const targetId = this.activeConversation.id;
       this.showChatMenu = false;
-
-      try {
-        await chatService.deleteConversation(targetId);
-
-        // Remove from local list
-        this.conversations = this.conversations.filter(c => c.id !== targetId);
-
-        // Deselect conversation
-        this.activeConversation = null;
-        this.messages = [];
-      } catch (err) {
-        alert(err.message || 'Không thể xóa cuộc trò chuyện.');
-      }
+      this.pendingChatAction = {
+        type: 'delete-conversation',
+        targetId: this.activeConversation.id,
+        title: 'Xóa cuộc trò chuyện?',
+        description: 'Toàn bộ tin nhắn trong cuộc trò chuyện sẽ bị xóa vĩnh viễn.',
+        confirmText: 'Xóa cuộc trò chuyện',
+      };
+      this.confirmChatError = '';
     },
 
-    async clearChatHistory() {
+    clearChatHistory() {
       if (!this.activeConversation) return;
-      if (!confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử tin nhắn của cuộc trò chuyện này?')) return;
-
-      const targetId = this.activeConversation.id;
       this.showChatMenu = false;
+      this.pendingChatAction = {
+        type: 'clear-history',
+        targetId: this.activeConversation.id,
+        title: 'Xóa lịch sử tin nhắn?',
+        description: 'Các tin nhắn hiện có sẽ bị xóa nhưng cuộc trò chuyện vẫn được giữ lại.',
+        confirmText: 'Xóa lịch sử',
+      };
+      this.confirmChatError = '';
+    },
 
+    closeChatConfirmation() {
+      if (this.confirmChatLoading) return;
+      this.pendingChatAction = null;
+      this.confirmChatError = '';
+    },
+
+    async confirmChatAction() {
+      if (!this.pendingChatAction || this.confirmChatLoading) return;
+      const action = { ...this.pendingChatAction };
+      this.confirmChatLoading = true;
+      this.confirmChatError = '';
       try {
-        await chatService.clearConversation(targetId);
-        this.messages = [];
-
-        // Clear last message in sidebar locally
-        const conv = this.conversations.find(c => c.id === targetId);
-        if (conv) {
-          conv.last_message = null;
+        if (action.type === 'delete-conversation') {
+          await chatService.deleteConversation(action.targetId);
+          this.conversations = this.conversations.filter(c => c.id !== action.targetId);
+          this.activeConversation = null;
+          this.messages = [];
+          this.toast.success('Đã xóa cuộc trò chuyện.');
+        } else if (action.type === 'clear-history') {
+          await chatService.clearConversation(action.targetId);
+          this.messages = [];
+          const conversation = this.conversations.find(c => c.id === action.targetId);
+          if (conversation) conversation.last_message = null;
+          this.toast.success('Đã xóa lịch sử tin nhắn.');
         }
-      } catch (err) {
-        alert(err.message || 'Không thể xóa lịch sử tin nhắn.');
+        this.pendingChatAction = null;
+      } catch (error) {
+        this.confirmChatError = error.message || 'Không thể thực hiện thao tác.';
+      } finally {
+        this.confirmChatLoading = false;
       }
-    },
-
-    muteNotifications() {
-      this.showChatMenu = false;
-      alert('Đã tắt thông báo cho cuộc trò chuyện này.');
     },
 
     viewProfile() {
       this.showChatMenu = false;
       this.profileSidebarView = 'profile';
       this.showProfileSidebar = true;
-    },
-
-    notImplemented(featureName) {
-      this.showChatMenu = false;
-      this.showLightboxMenu = false;
-      alert(`Tính năng "${featureName}" đang được phát triển.`);
     },
 
     resolveMessageSenderName(message) {
@@ -2195,10 +2144,6 @@ export default {
       this.showLightboxMenu = false;
     },
 
-    lightboxMenuAction(featureName) {
-      this.showLightboxMenu = false;
-      this.notImplemented(featureName);
-    },
 
     downloadLightboxImage() {
       if (!this.lightboxImage) return;
@@ -2508,7 +2453,7 @@ export default {
         const response = await chatService.togglePinMessage(message.id);
         message.is_pinned = response.is_pinned;
       } catch (error) {
-        alert(error.message || 'Không thể thực hiện ghim tin nhắn.');
+        this.toast.error(error.message || 'Không thể thực hiện ghim tin nhắn.');
       }
     },
 
@@ -4447,170 +4392,4 @@ export default {
 </style>
 
 <!-- Global style override using [data-admin-chat] for scoping layout values -->
-<style>
-/* Light Theme Defaults (Client-side and light Admin) */
-.chat-page {
-  --tg-chat-bg: #e7ebf0;
-  --tg-sent-bg: #e2f7cb;
-  --tg-sent-text: #1a2510;
-  --tg-received-bg: #ffffff;
-  --tg-received-text: #1f1f1f;
-  --tg-meta: #8c9094;
-  --tg-meta-sent: #508531;
-  --tg-input-bg: #ffffff;
-  --tg-input-text: #1f1f1f;
-  --tg-sidebar-bg: #ffffff;
-  --tg-active-row: #f1f5f9;
-  --tg-header-bg: #ffffff;
-  --tg-border: #e2e8f0;
-  --tg-ticks: #4fae4e;
-  --tg-accent: #3390ec;
-}
-
-/* Dark Theme - if class bg-zinc-950 (client dark) or data-theme="dark" (admin dark) */
-.chat-page.bg-zinc-950,
-[data-theme="dark"] .chat-page,
-.chat-page.chat-dark {
-  --tg-chat-bg: #0e1621;
-  --tg-sent-bg: #2b5278;
-  --tg-sent-text: #f5f5f5;
-  --tg-received-bg: #182533;
-  --tg-received-text: #f5f5f5;
-  --tg-meta: #7a8e9e;
-  --tg-meta-sent: #a8c4db;
-  --tg-input-bg: #17212b;
-  --tg-input-text: #f5f5f5;
-  --tg-sidebar-bg: #17212b;
-  --tg-active-row: #202b36;
-  --tg-header-bg: #17212b;
-  --tg-border: #101921;
-  --tg-ticks: #2481cc;
-  --tg-accent: #2481cc;
-}
-
-/* Explicit light override when user toggles chat to light on dark admin */
-.chat-page.chat-light {
-  --tg-chat-bg: #e7ebf0;
-  --tg-sent-bg: #e2f7cb;
-  --tg-sent-text: #1a2510;
-  --tg-received-bg: #ffffff;
-  --tg-received-text: #1f1f1f;
-  --tg-meta: #8c9094;
-  --tg-meta-sent: #508531;
-  --tg-input-bg: #ffffff;
-  --tg-input-text: #1f1f1f;
-  --tg-sidebar-bg: #ffffff;
-  --tg-active-row: #f1f5f9;
-  --tg-header-bg: #ffffff;
-  --tg-border: #e2e8f0;
-  --tg-ticks: #4fae4e;
-  --tg-accent: #3390ec;
-}
-
-/* Dynamic admin custom theme adaptation when no local override is set */
-[data-admin-chat].chat-page:not(.chat-dark):not(.chat-light) {
-  --tg-chat-bg: var(--admin-bg, #eef6f0) !important;
-  --tg-sent-bg: var(--admin-primary-soft, #e2f6e8) !important;
-  --tg-sent-text: var(--admin-text, #101c15) !important;
-  --tg-sidebar-bg: var(--admin-surface-muted, #f3f8f1) !important;
-  --tg-header-bg: var(--admin-surface, #ffffff) !important;
-  --tg-received-bg: var(--admin-surface, #ffffff) !important;
-  --tg-input-bg: var(--admin-surface, #ffffff) !important;
-  --tg-border: var(--admin-border, #cfded1) !important;
-  --tg-active-row: var(--admin-hover, #edf7ed) !important;
-  --tg-received-text: var(--admin-text, #101c15) !important;
-  --tg-input-text: var(--admin-text, #101c15) !important;
-  --tg-meta: var(--admin-faint, #45564a) !important;
-  --tg-meta-sent: var(--admin-primary-dark, #15733a) !important;
-  --tg-accent: var(--admin-primary, #22a653) !important;
-  --tg-ticks: var(--admin-success-text, #15733a) !important;
-}
-
-[data-admin-chat] {
-  /* Override backgrounds dynamically */
-  background-color: var(--tg-sidebar-bg) !important;
-}
-
-/* Set Left Sidebar styling */
-[data-admin-chat] .w-full.md\:w-\[360px\] {
-  background-color: var(--tg-sidebar-bg) !important;
-  border-right: 1px solid var(--tg-border) !important;
-}
-
-/* Left Sidebar buttons styling */
-[data-admin-chat] .w-full.p-4.flex.items-center {
-  background-color: transparent;
-  color: var(--tg-received-text) !important;
-}
-[data-admin-chat] .w-full.p-4.flex.items-center.never-hover-class-placeholder {
-  background-color: var(--tg-active-row) !important;
-}
-[data-admin-chat] .w-full.p-4.flex.items-center.bg-zinc-800\/40 {
-  background-color: var(--tg-active-row) !important;
-  border-left-color: var(--tg-accent) !important;
-}
-
-/* General items coloring */
-[data-admin-chat] .text-zinc-100,
-[data-admin-chat] .text-zinc-200,
-[data-admin-chat] .text-zinc-300 {
-  color: var(--tg-received-text) !important;
-}
-[data-admin-chat] .text-zinc-400,
-[data-admin-chat] .text-zinc-500 {
-  color: var(--tg-meta) !important;
-}
-
-/* Chat background colors override */
-[data-admin-chat] .bg-zinc-950 {
-  background-color: var(--tg-chat-bg) !important;
-}
-
-/* Active Conversation Header styling */
-[data-admin-chat] .h-\[64px\] {
-  background-color: var(--tg-header-bg) !important;
-  border-bottom: 1px solid var(--tg-border) !important;
-  color: var(--tg-received-text) !important;
-}
-
-/* Divide list elements */
-[data-admin-chat] .divide-zinc-800\/30 > * + *,
-[data-admin-chat] .divide-zinc-800\/40 > * + * {
-  border-color: var(--tg-border) !important;
-}
-
-/* Correct default avatars color to contrast */
-[data-admin-chat] .bg-gradient-to-tr.from-zinc-800 {
-  background: var(--tg-active-row) !important;
-  color: var(--tg-received-text) !important;
-}
-
-/* User status online check color */
-[data-admin-chat] .bg-green-500 {
-  background-color: var(--tg-ticks) !important;
-}
-
-/* Force search input theme adaptation overriding general admin styles */
-[data-admin-chat] .tg-search-input {
-  background-color: var(--tg-input-bg) !important;
-  color: var(--tg-input-text) !important;
-  border: 1px solid var(--tg-border) !important;
-  height: 32px !important;
-  min-height: 32px !important;
-  padding: 6px 12px !important;
-  font-size: 13px !important;
-}
-[data-admin-chat] .tg-search-input::placeholder {
-  color: var(--tg-meta) !important;
-}
-.sg-shell-admin .content-area input.tg-search-input:not([type='checkbox']):not([type='radio']):focus,
-.sg-shell-admin .content-area .tg-search-input:focus,
-.sg-shell-admin .content-area input.tg-search-input:focus,
-[data-admin-chat] .tg-search-input:focus,
-.chat-page .tg-search-input:focus {
-  border-color: var(--tg-border) !important;
-  box-shadow: none !important;
-  box-shadow: 0 0 0 0 transparent !important;
-  outline: none !important;
-}
-</style>
+<style src="/resources/css/views/client-chat-themes.css"></style>

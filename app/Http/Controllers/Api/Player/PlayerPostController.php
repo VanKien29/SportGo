@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Notification;
 use App\Models\PlayerPost;
+use App\Services\CommunityAuthorBadgeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PlayerPostController extends Controller
 {
+    public function __construct(private CommunityAuthorBadgeService $authorBadges) {}
+
     /**
      * Get public matchmaking posts
      */
@@ -20,13 +23,14 @@ class PlayerPostController extends Controller
         $posts = PlayerPost::with(['author', 'booking.venueCluster'])
             ->where('status', 'open')
             ->whereHas('booking', function ($q) {
-                $q->where(function ($query) {
-                    $query->where('booking_date', '>', now()->toDateString())
-                          ->orWhere(function ($sub) {
-                              $sub->where('booking_date', '=', now()->toDateString())
-                                  ->where('end_time', '>', now()->toTimeString());
-                          });
-                });
+                $q->where('status', 'confirmed')
+                    ->where(function ($query) {
+                        $query->where('booking_date', '>', now()->toDateString())
+                            ->orWhere(function ($sub) {
+                                $sub->where('booking_date', '=', now()->toDateString())
+                                    ->where('end_time', '>', now()->toTimeString());
+                            });
+                    });
             })
             ->when($request->author_id, fn ($query) => $query->where('author_id', $request->author_id))
             ->orderBy('created_at', 'desc')
@@ -44,7 +48,8 @@ class PlayerPostController extends Controller
                 ->toArray();
         }
 
-        $data = $posts->map(function ($post) use ($participations) {
+        $authorBadges = $this->authorBadges->lookup($posts->pluck('author_id'));
+        $data = $posts->map(function ($post) use ($participations, $authorBadges) {
             return [
                 'id' => $post->id,
                 'title' => $post->title,
@@ -57,6 +62,7 @@ class PlayerPostController extends Controller
                     'id' => $post->author->id,
                     'name' => $post->author->full_name ?? $post->author->username ?? 'Người dùng',
                     'avatar' => $post->author->avatar_url ?? null,
+                    'author_badges' => $authorBadges[(string) $post->author_id] ?? [],
                 ],
                 'booking' => [
                     'date' => $post->booking->booking_date->format('Y-m-d'),
@@ -85,8 +91,15 @@ class PlayerPostController extends Controller
         // Fetch bookings that are in the future and confirmed/paid
         $bookings = Booking::with(['venueCluster'])
             ->where('customer_id', $userId)
-            ->whereIn('status', ['confirmed', 'paid'])
-            ->where('booking_date', '>=', now()->toDateString())
+            ->where('status', 'confirmed')
+            ->where(function ($query) {
+                $query->whereDate('booking_date', '>', now()->toDateString())
+                    ->orWhere(function ($todayQuery) {
+                        $todayQuery->whereDate('booking_date', now()->toDateString())
+                            ->where('end_time', '>', now()->toTimeString());
+                    });
+            })
+            ->whereNotIn('id', PlayerPost::query()->select('booking_id'))
             ->orderBy('booking_date')
             ->orderBy('start_time')
             ->get();
@@ -115,44 +128,49 @@ class PlayerPostController extends Controller
     {
         $userId = $request->user()->id;
 
-        // Strip HTML tags to prevent XSS
-        if ($request->has('content')) {
-            $request->merge([
-                'content' => trim(strip_tags($request->content))
-            ]);
-        }
-
         $data = $request->validate([
-            'booking_id' => ['required', 'string', 'exists:bookings,id'],
+            'booking_id' => ['required', 'integer', 'exists:bookings,id'],
             'content' => ['nullable', 'string', 'min:10', 'max:2000'],
-            'required_players' => ['required', 'integer', 'min:1'],
+            'required_players' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
-
-        // Validate booking belongs to user
-        $booking = Booking::with('venueCluster')->findOrFail($data['booking_id']);
-        if ($booking->customer_id !== $userId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Bạn không có quyền tạo bài giao lưu cho lịch đặt này.',
-            ], 403);
-        }
-
-        // Check if post already exists for this booking
-        $existing = PlayerPost::where('booking_id', $booking->id)->first();
-        if ($existing) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Lịch đặt sân này đã có bài giao lưu.',
-            ], 422);
-        }
 
         DB::beginTransaction();
         try {
+            // Lock the booking so two concurrent requests cannot create duplicate posts.
+            $booking = Booking::with('venueCluster')
+                ->whereKey($data['booking_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ((string) $booking->customer_id !== (string) $userId) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bạn không có quyền tạo bài giao lưu cho lịch đặt này.',
+                ], 403);
+            }
+
+            if (! $this->isEligibleBooking($booking)) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Chỉ có thể tạo bài giao lưu cho booking sắp tới đã được xác nhận.',
+                ], 409);
+            }
+
+            if (PlayerPost::where('booking_id', $booking->id)->exists()) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Lịch đặt sân này đã có bài giao lưu.',
+                ], 409);
+            }
+
             $post = PlayerPost::create([
                 'booking_id' => $booking->id,
                 'author_id' => $userId,
                 'title' => 'Tìm người giao lưu',
-                'description' => $data['content'] ?? '',
+                'description' => isset($data['content']) ? trim(strip_tags($data['content'])) : '',
                 'needed_players' => $data['required_players'],
                 'cost_per_player' => 0,
                 'status' => 'open', // Trạng thái mở để tuyển người
@@ -180,7 +198,7 @@ class PlayerPostController extends Controller
             \Illuminate\Support\Facades\Log::error('PlayerPost Create Error: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Lỗi: ' . $e->getMessage(),
+                'message' => 'Không thể tạo bài giao lưu. Vui lòng thử lại.',
             ], 500);
         }
     }
@@ -195,18 +213,25 @@ class PlayerPostController extends Controller
 
         $post = PlayerPost::with('booking.venueCluster')->findOrFail($id);
 
-        if ($post->status !== 'open') {
+        if ($post->status !== 'open' || $post->needed_players <= 0) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bài giao lưu này không còn nhận thêm người.',
-            ], 400);
+            ], 409);
         }
 
-        if ($post->author_id === $userId) {
+        if (! $post->booking || ! $this->isEligibleBooking($post->booking)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Buổi giao lưu này đã diễn ra hoặc không còn hợp lệ.',
+            ], 409);
+        }
+
+        if ((string) $post->author_id === (string) $userId) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bạn không thể tự tham gia bài giao lưu của chính mình.',
-            ], 400);
+            ], 409);
         }
 
         $exists = DB::table('player_post_participants')
@@ -218,18 +243,39 @@ class PlayerPostController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bạn đã gửi yêu cầu tham gia bài này rồi.',
-            ], 400);
+            ], 409);
         }
 
         DB::beginTransaction();
         try {
-            DB::table('player_post_participants')->insert([
+            $post = PlayerPost::with('booking.venueCluster')
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($post->status !== 'open' || $post->needed_players <= 0 || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bài giao lưu này không còn nhận thêm người.',
+                ], 409);
+            }
+
+            $inserted = DB::table('player_post_participants')->insertOrIgnore([
                 'post_id' => $post->id,
                 'user_id' => $userId,
                 'status' => 'pending',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            if ($inserted === 0) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bạn đã gửi yêu cầu tham gia bài này rồi.',
+                ], 409);
+            }
 
             // Notify the author
             $venueName = $post->booking->venueCluster->name ?? 'sân';
@@ -265,7 +311,7 @@ class PlayerPostController extends Controller
     {
         $post = PlayerPost::with('booking.venueCluster')->findOrFail($id);
 
-        if ($post->author_id !== $request->user()->id) {
+        if ((string) $post->author_id !== (string) $request->user()->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -312,12 +358,14 @@ class PlayerPostController extends Controller
     {
         $post = PlayerPost::findOrFail($id);
 
-        if ($post->author_id !== $request->user()->id) {
+        if ((string) $post->author_id !== (string) $request->user()->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         DB::beginTransaction();
         try {
+            $post = PlayerPost::with('booking')->whereKey($id)->lockForUpdate()->firstOrFail();
+
             // Check current status
             $participant = DB::table('player_post_participants')
                 ->where('post_id', $post->id)
@@ -326,7 +374,12 @@ class PlayerPostController extends Controller
 
             if (!$participant || $participant->status === 'approved') {
                 DB::rollBack();
-                return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã được duyệt.'], 400);
+                return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã được duyệt.'], 409);
+            }
+
+            if ($post->status !== 'open' || $post->needed_players <= 0 || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
+                DB::rollBack();
+                return response()->json(['message' => 'Bài giao lưu đã đủ người hoặc không còn hiệu lực.'], 409);
             }
 
             DB::table('player_post_participants')
@@ -357,7 +410,7 @@ class PlayerPostController extends Controller
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Lỗi: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Không thể duyệt người tham gia. Vui lòng thử lại.'], 500);
         }
     }
 
@@ -368,12 +421,14 @@ class PlayerPostController extends Controller
     {
         $post = PlayerPost::findOrFail($id);
 
-        if ($post->author_id !== $request->user()->id) {
+        if ((string) $post->author_id !== (string) $request->user()->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         DB::beginTransaction();
         try {
+            $post = PlayerPost::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+
             $participant = DB::table('player_post_participants')
                 ->where('post_id', $post->id)
                 ->where('user_id', $userId)
@@ -381,7 +436,7 @@ class PlayerPostController extends Controller
 
             if (!$participant || $participant->status === 'rejected') {
                 DB::rollBack();
-                return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã bị từ chối.'], 400);
+                return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã bị từ chối.'], 409);
             }
 
             $wasApproved = $participant->status === 'approved';
@@ -414,8 +469,23 @@ class PlayerPostController extends Controller
             return response()->json(['status' => 'success']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Lỗi: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Không thể từ chối yêu cầu. Vui lòng thử lại.'], 500);
         }
     }
-}
 
+    private function isEligibleBooking(Booking $booking): bool
+    {
+        return $booking->status === 'confirmed' && $this->isFutureBooking($booking);
+    }
+
+    private function isFutureBooking(Booking $booking): bool
+    {
+        $date = $booking->booking_date?->format('Y-m-d') ?? (string) $booking->booking_date;
+        if ($date > now()->toDateString()) {
+            return true;
+        }
+
+        return $date === now()->toDateString()
+            && substr((string) $booking->end_time, 0, 8) > now()->toTimeString();
+    }
+}

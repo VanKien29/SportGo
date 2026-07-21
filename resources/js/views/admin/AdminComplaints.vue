@@ -26,14 +26,14 @@
                 @keyup.enter="loadComplaints"
               />
             </label>
-            <CustomSelect 
-              v-model="filters.status" 
-              :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]" 
-              @change="loadComplaints" 
+            <CustomSelect
+              v-model="filters.status"
+              :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]"
+              @change="loadComplaints"
             />
 
-            <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadComplaints" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" />
-            <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadComplaints" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" />
+            <AdminDatePicker v-model="filters.date_from" placeholder="Từ ngày" @update:modelValue="loadComplaints" />
+            <AdminDatePicker v-model="filters.date_to" placeholder="Đến ngày" @update:modelValue="loadComplaints" />
             <ActionIconButton icon="filter" label="Lọc" variant="primary" @click="loadComplaints" />
             <ActionIconButton icon="settings" label="Cấu hình tự động" variant="secondary" @click="openAutoResolveModal" />
           </div>
@@ -100,8 +100,8 @@
                     <span class="date-cell">{{ formatDateTime(complaint.created_at) }}</span>
                   </td>
                   <td class="center" style="padding: 12px 16px; text-align: center;">
-                    <button @click="openDetail(complaint)" class="btn ghost btn-sm" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
-                      Xem chi tiết
+                    <button @click="openDetail(complaint)" class="btn ghost icon-only" title="Xem chi tiết" style="padding: 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
+                      <AppIcon name="eye" size="18" />
                     </button>
                   </td>
                 </tr>
@@ -217,6 +217,40 @@
                 </div>
               </div>
 
+              <!-- Additional notification form -->
+              <div v-if="['resolved', 'rejected', 'closed'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 16px;">
+                <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Gửi thông báo bổ sung</h3>
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                  <div style="display: flex; gap: 24px; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <label style="font-size: 14px; font-weight: 600; color: #334155; margin: 0;">Gửi cho:</label>
+                    <div style="display: flex; gap: 20px;">
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
+                        <input type="radio" v-model="form.notify_recipient" value="reporter" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
+                        <span style="font-weight: 500;">Khách hàng (Người khiếu nại)</span>
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
+                        <input type="radio" v-model="form.notify_recipient" value="reported" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
+                        <span style="font-weight: 500;">Cụm sân (Bị khiếu nại)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo muốn gửi..." style="width: 100%; min-height: 120px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box; outline: none; transition: border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"></textarea>
+                  </div>
+                  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
+                      <AppIcon name="send" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi thông báo
+                    </button>
+                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
+                      Sử dụng văn mẫu
+                    </button>
+                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
+                      <AppIcon name="zap" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi nhanh cho cả 2 (Văn mẫu)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <!-- Timeline of Replies -->
               <div v-if="auditLogs && auditLogs.length > 0" class="timeline-section" style="margin-top: 16px;">
                 <h3 style="font-size: 16px; margin-bottom: 20px; color: #334155;">Lịch sử xử lý & Phản hồi</h3>
@@ -258,7 +292,7 @@
         <button @click="closeAutoResolveModal" class="btn">Đóng</button>
       </div>
     </div>
-    
+
     <!-- Image Preview -->
     <div v-if="previewImage" style="position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: flex; align-items: center; justify-content: center;" @click="closeImagePreview">
       <img :src="previewImage" style="max-width: 90vw; max-height: 90vh; object-fit: contain;" @click.stop />
@@ -271,11 +305,12 @@
 import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import CustomSelect from "../../components/CustomSelect.vue";
+import AdminDatePicker from "../../components/AdminDatePicker.vue";
 import { adminComplaintService } from "../../services/adminModeration.js";
 
 export default {
     name: "AdminComplaints",
-    components: { AppIcon, ActionIconButton, CustomSelect },
+    components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker },
     data() {
         return {
             complaints: [],
@@ -332,6 +367,9 @@ export default {
             }
             return this.autoResolveConfigData.configs[this.activeAutoTab];
         },
+        hasSentNotification() {
+            return this.auditLogs && this.auditLogs.some(log => ['complaint.notified', 'complaint.resolved', 'complaint.rejected', 'complaint.closed'].includes(String(log.action).trim().toLowerCase()));
+        },
     },
     mounted() {
         this.loadComplaints();
@@ -341,6 +379,10 @@ export default {
         window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
+        shortId(id) {
+            if (!id) return "";
+            return String(id).split("-")[0].toUpperCase();
+        },
         truncate(text, length = 50) {
             if (!text) return '';
             return text.length > length ? text.substring(0, length) + '...' : text;
@@ -446,6 +488,8 @@ export default {
                     ? this.selected.status
                     : "processing",
                 resolve_note: this.selected.resolve_note || defaultNote,
+                notify_recipient: 'reporter',
+                notify_message: '',
             };
         },
         async resolveComplaintWithStatus(status) {
@@ -458,15 +502,47 @@ export default {
             try {
                 const response = await adminComplaintService.notify(
                     this.selected.id,
-                    { message: this.form.notify_message }
+                    { message: this.form.notify_message, recipient: this.form.notify_recipient || 'reporter' }
                 );
-                this.success = response.message;
+                this.success = response.message || 'Đã gửi thông báo thành công!';
                 this.form.notify_message = '';
                 await this.refreshDetail();
             } catch (error) {
                 this.error = error.message;
             } finally {
                 this.saving = false;
+            }
+        },
+        async sendToBothAuto() {
+            if (!this.selected) return;
+            this.saving = true;
+            try {
+                const reporterMsg = "Xin chào! Cảm ơn bạn đã gửi khiếu nại. Chúng tôi đã tiếp nhận và giải quyết vấn đề của bạn. Nếu bạn có thêm thông tin, vui lòng liên hệ qua trung tâm hỗ trợ. Chúc bạn một ngày tốt lành!";
+                await adminComplaintService.notify(this.selected.id, {
+                    recipient: 'reporter',
+                    message: reporterMsg
+                });
+                
+                const reportedMsg = "Xin chào! Chúng tôi nhận được khiếu nại liên quan đến dịch vụ của bạn. Xin vui lòng kiểm tra và đảm bảo tuân thủ đúng quy định của SportGo để mang lại trải nghiệm tốt nhất cho khách hàng.";
+                await adminComplaintService.notify(this.selected.id, {
+                    recipient: 'reported',
+                    message: reportedMsg
+                });
+
+                this.success = 'Đã gửi thông báo cho cả 2 bên thành công!';
+                this.form.notify_message = '';
+                await this.refreshDetail();
+            } catch (error) {
+                this.error = error.message;
+            } finally {
+                this.saving = false;
+            }
+        },
+        fillTemplateNotifyMessage() {
+            if (this.form.notify_recipient === 'reporter') {
+                this.form.notify_message = "Xin chào! Cảm ơn bạn đã gửi khiếu nại. Chúng tôi đã tiếp nhận và giải quyết vấn đề của bạn. Nếu bạn có thêm thông tin, vui lòng liên hệ qua trung tâm hỗ trợ. Chúc bạn một ngày tốt lành!";
+            } else {
+                this.form.notify_message = "Xin chào! Chúng tôi nhận được khiếu nại liên quan đến dịch vụ của bạn. Xin vui lòng kiểm tra và đảm bảo tuân thủ đúng quy định của SportGo để mang lại trải nghiệm tốt nhất cho khách hàng.";
             }
         },
         async assignComplaint() {

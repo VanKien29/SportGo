@@ -24,25 +24,48 @@ export const OWNER_THEME_DEFAULTS = {
   sidebar_style: 'one-level',
   radius: '8px',
   font_size: '14px',
-  font_family: "'Outfit', sans-serif",
-  sidebar_width: '272px',
-  sidebar_collapsed_width: '78px',
-  transition_fast: '180ms',
-  transition_normal: '250ms',
   presets: [
     {
       id: 'owner-sportgo',
       name: 'SportGo',
       color: '#16a34a',
-      light: { primary: '#16a34a', secondary: '#0f766e', accent: '#ecfdf5', muted: '#64748b', destructive: '#ef4444', border: '#bbf7d0', card: '#ffffff', background: '#f6fbf7' },
-      dark: { primary: '#22c55e', secondary: '#2dd4bf', accent: '#052e16', muted: '#94a3b8', destructive: '#f87171', border: '#164e2f', card: '#0f1f17', background: '#07130d' },
+      light: { primary: '#16a34a', secondary: '#0f766e', accent: '#ecfdf5', text: '#26372d', muted: '#64748b', destructive: '#ef4444', border: '#bbf7d0', card: '#ffffff', background: '#f6fbf7' },
+      dark: { primary: '#22c55e', secondary: '#2dd4bf', accent: '#052e16', text: '#f4f4f5', muted: '#94a3b8', destructive: '#f87171', border: '#164e2f', card: '#0f1f17', background: '#07130d' },
     },
     {
       id: 'owner-zinc',
       name: 'Zinc',
       color: '#18181b',
-      light: { primary: '#18181b', secondary: '#27272a', accent: '#f4f4f5', muted: '#71717a', destructive: '#ef4444', border: '#e4e4e7', card: '#ffffff', background: '#fafafa' },
-      dark: { primary: '#fafafa', secondary: '#27272a', accent: '#27272a', muted: '#a1a1aa', destructive: '#ef4444', border: '#27272a', card: '#09090b', background: '#09090b' },
+      light: { primary: '#18181b', secondary: '#27272a', accent: '#f4f4f5', muted: '#71717a', destructive: '#ef4444', border: '#e4e4e7', card: '#ffffff', background: '#fafafa', text: '#1e293b' },
+      dark: { primary: '#fafafa', secondary: '#27272a', accent: '#27272a', muted: '#a1a1aa', destructive: '#ef4444', border: '#27272a', card: '#09090b', background: '#09090b', text: '#f4f4f5' },
+    },
+    {
+      id: 'owner-slate',
+      name: 'Slate',
+      color: '#0f172a',
+      light: { primary: '#0f172a', secondary: '#1e293b', accent: '#e2e8f0', muted: '#64748b', destructive: '#ef4444', border: '#e2e8f0', card: '#ffffff', background: '#f8fafc', text: '#1e293b' },
+      dark: { primary: '#f8fafc', secondary: '#1e293b', accent: '#1e293b', muted: '#94a3b8', destructive: '#ef4444', border: '#1e293b', card: '#0f172a', background: '#020817', text: '#f4f4f5' },
+    },
+    {
+      id: 'owner-sapphire',
+      name: 'Sapphire',
+      color: '#2563eb',
+      light: { primary: '#2563eb', secondary: '#0284c7', accent: '#f0f9ff', muted: '#475569', destructive: '#e11d48', border: '#bfdbfe', card: '#ffffff', background: '#f0f6ff', text: '#1e293b' },
+      dark: { primary: '#3b82f6', secondary: '#38bdf8', accent: '#1e293b', muted: '#94a3b8', destructive: '#f43f5e', border: '#1e3a8a', card: '#0f172a', background: '#090d16', text: '#f4f4f5' },
+    },
+    {
+      id: 'owner-amethyst',
+      name: 'Amethyst',
+      color: '#7c3aed',
+      light: { primary: '#7c3aed', secondary: '#db2777', accent: '#f5f3ff', muted: '#4b5563', destructive: '#dc2626', border: '#ddd6fe', card: '#ffffff', background: '#faf7ff', text: '#1e293b' },
+      dark: { primary: '#8b5cf6', secondary: '#ec4899', accent: '#2e1065', muted: '#9ca3af', destructive: '#ef4444', border: '#4c1d95', card: '#111827', background: '#030712', text: '#f4f4f5' },
+    },
+    {
+      id: 'owner-amber',
+      name: 'Amber',
+      color: '#d97706',
+      light: { primary: '#d97706', secondary: '#ea580c', accent: '#fffbeb', muted: '#4b5563', destructive: '#dc2626', border: '#fde68a', card: '#ffffff', background: '#fdfbf7', text: '#1e293b' },
+      dark: { primary: '#f59e0b', secondary: '#f97316', accent: '#451a03', muted: '#9ca3af', destructive: '#ef4444', border: '#78350f', card: '#1e1b4b', background: '#0c0a09', text: '#f4f4f5' },
     },
     {
       id: 'owner-slate',
@@ -91,11 +114,6 @@ export function mergeOwnerThemeSettings(settings = {}) {
     radius: settings.radius || OWNER_THEME_DEFAULTS.radius,
     sidebar_style: settings.sidebar_style || OWNER_THEME_DEFAULTS.sidebar_style,
     font_size: settings.font_size || OWNER_THEME_DEFAULTS.font_size,
-    font_family: settings.font_family || OWNER_THEME_DEFAULTS.font_family,
-    sidebar_width: settings.sidebar_width || OWNER_THEME_DEFAULTS.sidebar_width,
-    sidebar_collapsed_width: settings.sidebar_collapsed_width || OWNER_THEME_DEFAULTS.sidebar_collapsed_width,
-    transition_fast: settings.transition_fast || OWNER_THEME_DEFAULTS.transition_fast,
-    transition_normal: settings.transition_normal || OWNER_THEME_DEFAULTS.transition_normal,
   };
 }
 
@@ -114,7 +132,6 @@ function cssVarsForMode(mode) {
   const border = normalizeHex(mode.border, '#e4e4e7');
   const surface = normalizeHex(mode.card, '#ffffff');
   const background = normalizeHex(mode.background, '#fafafa');
-  const text = mode.text ? normalizeHex(mode.text, contrastColor(background)) : contrastColor(background);
   const primaryText = contrastColor(primary);
   const isDarkBackground = contrastColor(background) === '#ffffff';
   const floatingBg = isDarkBackground
@@ -135,19 +152,12 @@ function cssVarsForMode(mode) {
     '--admin-primary: ' + primary + ' !important;',
     '--admin-primary-text: ' + primaryText + ' !important;',
     '--admin-blue: ' + secondary + ' !important;',
-    '--admin-blue-text: ' + contrastColor(secondary) + ' !important;',
-    '--admin-blue-soft: color-mix(in srgb, ' + secondary + ' 14%, transparent) !important;',
-    '--admin-info: ' + secondary + ' !important;',
-    '--admin-info-soft: color-mix(in srgb, ' + secondary + ' 14%, transparent) !important;',
-    '--admin-warning: color-mix(in srgb, ' + primary + ' 62%, ' + secondary + ') !important;',
-    '--admin-warning-soft: color-mix(in srgb, ' + primary + ' 14%, transparent) !important;',
     '--admin-hover: ' + accent + ' !important;',
-    '--admin-text: ' + text + ' !important;',
+    '--admin-text: ' + contrastColor(background) + ' !important;',
     '--sg-text: var(--admin-text) !important;',
     '--admin-muted: ' + muted + ' !important;',
     '--admin-faint: color-mix(in srgb, ' + muted + ' 78%, transparent) !important;',
     '--admin-danger: ' + danger + ' !important;',
-    '--admin-danger-soft: color-mix(in srgb, ' + danger + ' 14%, transparent) !important;',
     '--admin-danger-text: ' + danger + ' !important;',
     '--admin-border: ' + border + ' !important;',
     '--admin-border-soft: color-mix(in srgb, ' + border + ' 58%, transparent) !important;',
@@ -183,11 +193,6 @@ export function buildOwnerThemeCss(settings = {}) {
   const merged = mergeOwnerThemeSettings(settings);
   const preset = getOwnerThemePreset(merged);
   const radius = merged.radius || '8px';
-  const fontFamily = merged.font_family || "'Outfit', sans-serif";
-  const sidebarWidth = merged.sidebar_width || '272px';
-  const sidebarCollapsedWidth = merged.sidebar_collapsed_width || '78px';
-  const transitionFast = merged.transition_fast || '180ms';
-  const transitionNormal = merged.transition_normal || '250ms';
   const fontSize = merged.font_size || '14px';
 
   let fontScale = '1';
@@ -205,7 +210,7 @@ export function buildOwnerThemeCss(settings = {}) {
   const ownerDarkScope = '[data-theme="dark"] .sg-shell-owner,\n'
     + '[data-theme="dark"] body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
     + 'body.' + OWNER_THEME_SCOPE_CLASS + '[data-theme="dark"]';
-  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-sm: max(0px, calc(' + radius + ' - 2px)) !important;\n  --admin-radius-md: calc(' + radius + ' + 2px) !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n  --admin-font-size: ' + fontSize + ' !important;\n  --admin-font-size-scale: ' + fontScale + ' !important;\n  --admin-font-family: ' + fontFamily + ' !important;\n  --admin-sidebar-width: ' + sidebarWidth + ' !important;\n  --admin-sidebar-collapsed-width: ' + sidebarCollapsedWidth + ' !important;\n  --admin-transition-fast: ' + transitionFast + ' !important;\n  --admin-transition-normal: ' + transitionNormal + ' !important;\n  zoom: var(--admin-font-size-scale, 1) !important;\n}\n'
+  return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n  --admin-font-size: ' + fontSize + ' !important;\n  --admin-font-size-scale: ' + fontScale + ' !important;\n  zoom: var(--admin-font-size-scale, 1) !important;\n}\n'
     + ownerLightScope + ' {\n  ' + light + '\n}\n'
     + ownerDarkScope + ' {\n  ' + dark + '\n}\n';
 }

@@ -17,14 +17,24 @@ class StoreVenuePostRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'venue_cluster_id' => [
+        $venueClusterIdRule = ['nullable', 'integer', \Illuminate\Validation\Rule::exists('venue_clusters', 'id')];
+        if ($this->user() && $this->user()->role_group === 'owner') {
+            $venueClusterIdRule = [
                 'required', 
                 'integer', 
                 \Illuminate\Validation\Rule::exists('venue_clusters', 'id')->where(function ($query) {
                     $query->where('owner_id', $this->user()->id);
                 })
-            ],
+            ];
+        }
+
+        $thumbnailRule = ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'];
+        if ($this->user() && $this->user()->role_group === 'owner') {
+            $thumbnailRule[0] = 'required';
+        }
+
+        return [
+            'venue_cluster_id' => $venueClusterIdRule,
             'title' => [
                 'required',
                 'string',
@@ -56,7 +66,7 @@ class StoreVenuePostRequest extends FormRequest
             'meta_description' => ['nullable', 'string', 'max:500', 'regex:/^[^\<\>]+$/u'],
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
-            'thumbnail' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'thumbnail' => $thumbnailRule,
             'gallery' => ['nullable', 'array', 'max:10'],
             'gallery.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'post_type' => ['required', 'string', 'in:promotion,tournament,news,notice,recruitment'],

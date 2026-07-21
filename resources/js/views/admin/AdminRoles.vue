@@ -4,7 +4,46 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
+    <nav class="view-tabs">
+      <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
+      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền</button>
+    </nav>
+
     <template v-if="currentView === 'list'">
+      <section class="filter-panel">
+        <div class="filter-head">
+          <strong>Bộ lọc</strong>
+          <span>Lọc theo tên, loại nhóm và trạng thái chỉnh sửa.</span>
+        </div>
+        <div class="filter-bar">
+          <label class="search-box">
+            <AppIcon name="search" size="18" />
+            <input
+              v-model.trim="filters.keyword"
+              placeholder="Tìm theo tên nhóm, mô tả hoặc mã nội bộ"
+              @keyup.enter="loadRoles"
+            />
+          </label>
+          <select v-model="filters.is_system" @change="loadRoles">
+            <option value="">Tất cả nhóm</option>
+            <option value="1">Nhóm hệ thống</option>
+            <option value="0">Nhóm tùy chỉnh</option>
+          </select>
+          <select v-model="configFilter">
+            <option value="">Tất cả mức quyền</option>
+            <option value="configurable">Có thể chỉnh sửa</option>
+            <option value="locked">Đang khóa chỉnh sửa</option>
+          </select>
+          <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadRoles" />
+          <ActionIconButton icon="refresh" label="Xóa lọc" variant="secondary" :disabled="loading" @click="resetFilters" />
+        </div>
+      </section>
+
+      <section class="fixed-note">
+        <AppIcon name="shield" size="18" />
+        <span>Vai trò người dùng, chủ sân và nhân viên sân là vai trò nghiệp vụ cố định, không cấu hình tại màn này.</span>
+      </section>
+
     <div class="table-card">
       <div v-if="loading" class="table-state">Đang tải nhóm quyền...</div>
       <div v-else-if="filteredRoles.length === 0" class="table-state">Chưa có nhóm quyền quản trị nào phù hợp.</div>
@@ -392,6 +431,13 @@ small {
 .page-head p:not(.eyebrow) {
   margin-top: 6px;
   line-height: 1.55;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 2px;
 }
 
 .view-tabs button {

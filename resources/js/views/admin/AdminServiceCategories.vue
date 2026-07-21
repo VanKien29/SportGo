@@ -1,5 +1,5 @@
 <template>
-  <section class="page admin-categories-page animate-fade-in" style="padding: 24px;">
+  <section class="categories-container animate-fade-in">
     <!-- Alert Thông báo -->
     <div v-if="error" class="alert error animate-slide-in" style="margin-bottom: 20px;">
       {{ error }}
@@ -10,53 +10,47 @@
       <button class="alert-close" @click="success = ''">&times;</button>
     </div>
 
+    <!-- SaaS Filter Bar -->
     <SaaSFilterBar
       v-model="statusFilter"
       :tabs="statusTabs"
-    >
-      <template #actions>
-        <button class="btn btn-primary" type="button" @click="openFormModal()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;">
-          <AppIcon name="plus" size="16" />
-          <span>Thêm danh mục</span>
-        </button>
-      </template>
-    </SaaSFilterBar>
+      v-model:search="searchQuery"
+      searchPlaceholder="Tìm kiếm tên danh mục..."
+    />
 
     <!-- Table content -->
-    <div class="table-container" style="margin-top: 16px;">
+    <div class="table-container">
       <div v-if="loading" class="state card" style="padding: 48px; text-align: center; color: #64748b; background: var(--admin-surface, #fff); border-radius: 12px; border: 1px solid var(--admin-border, #e2e8f0);">
         <div class="spinner" style="margin: 0 auto 12px; border: 3px solid rgba(0,0,0,0.1); border-top-color: var(--primary-color, #10b981); width: 28px; height: 28px; border-radius: 50%; animation: spin 1s linear infinite;"></div>
         Đang tải danh sách danh mục...
       </div>
       
-      <SaaSTable v-else :columns="columns" :data="filteredCategories">
+      <SaaSTable v-else :columns="columns" :data="filteredCategories" clickable @row-click="row => openFormModal(row)">
         <template #name="{ row }">
-          <span style="font-weight: 600; color: var(--admin-text, #1e293b);">{{ row.name }}</span>
+          <div class="name-col-cell" style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-weight: 600; color: var(--admin-text, #1e293b);">{{ row.name }}</span>
+            <span v-if="row.description" style="font-size: 12px; color: var(--admin-muted, #64748b); line-height: 1.4;">{{ row.description }}</span>
+          </div>
         </template>
         
         <template #status="{ row }">
-          <span class="badge" :class="row.status">
+          <span class="status-badge" :class="'status-is-' + row.status">
             {{ row.status === 'active' ? 'Đang hoạt động' : 'Tạm ngưng' }}
           </span>
         </template>
         
-        <template #description="{ row }">
-          <span class="desc-text" :title="row.description" style="max-width: 350px; display: inline-block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; color: var(--admin-muted, #64748b);">
-            {{ row.description || '-' }}
-          </span>
-        </template>
-        
         <template #actions="{ row }">
-          <TableActionGroup>
-            <ActionIconButton icon="pencil" label="Chỉnh sửa" @click="openFormModal(row)" />
+          <div class="table-actions" @click.stop style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
+            <ActionIconButton icon="pencil" label="Chỉnh sửa" size="sm" @click="openFormModal(row)" />
             <ActionIconButton
               :icon="row.status === 'active' ? 'power' : 'check'"
               :label="row.status === 'active' ? 'Tắt danh mục' : 'Kích hoạt'"
               :variant="row.status === 'active' ? 'danger' : 'success'"
+              size="sm"
               @click="toggleCategoryStatus(row)"
             />
-            <ActionIconButton icon="trash" label="Xóa danh mục" variant="danger" @click="deleteCategory(row)" />
-          </TableActionGroup>
+            <ActionIconButton icon="trash" label="Xóa danh mục" variant="danger" size="sm" @click="deleteCategory(row)" />
+          </div>
         </template>
 
         <template #empty>
@@ -77,7 +71,7 @@
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
           
           <div class="form-group">
-            <label class="form-label">Tên danh mục <span class="text-danger">*</span></label>
+            <label class="form-label">Tên danh mục</label>
             <input
               v-model.trim="form.name"
               type="text"
@@ -89,11 +83,33 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Trạng thái hoạt động <span class="text-danger">*</span></label>
-            <select v-model="form.status" class="form-control">
-              <option value="active">Kích hoạt</option>
-              <option value="inactive">Tạm ngưng</option>
-            </select>
+            <label class="form-label">Trạng thái hoạt động</label>
+            <div class="custom-select-container">
+              <div 
+                class="custom-select-trigger" 
+                :class="{ open: isStatusSelectOpen }"
+                @click="toggleStatusSelect"
+              >
+                <span class="option-text">{{ formStatusText }}</span>
+                <AppIcon name="chevronDown" size="14" class="select-arrow-icon" :class="{ rotated: isStatusSelectOpen }" />
+              </div>
+              <div v-if="isStatusSelectOpen" class="custom-select-options-wrapper">
+                <div 
+                  class="custom-select-option" 
+                  :class="{ active: form.status === 'active' }"
+                  @click="selectFormStatus('active')"
+                >
+                  <span class="option-text">Kích hoạt</span>
+                </div>
+                <div 
+                  class="custom-select-option" 
+                  :class="{ active: form.status === 'inactive' }"
+                  @click="selectFormStatus('inactive')"
+                >
+                  <span class="option-text">Tạm ngưng</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">
@@ -114,6 +130,13 @@
           </button>
         </div>
       </form>
+    </div>
+    <!-- Floating Add Button -->
+    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+      <button class="btn-float-add" @click="openFormModal()">
+        <AppIcon name="plus" size="20" />
+        <span class="btn-float-text">Thêm danh mục</span>
+      </button>
     </div>
   </section>
 </template>
@@ -142,6 +165,8 @@ export default {
       form: this.emptyForm(),
       validationErrors: {},
       mousedownWasOnBackdrop: false,
+      isStatusSelectOpen: false,
+      showScrollTop: false,
       statusTabs: [
         { value: 'all', label: 'Tất cả' },
         { value: 'active', label: 'Đang hoạt động' },
@@ -150,8 +175,7 @@ export default {
       columns: [
         { key: 'name', label: 'Tên danh mục' },
         { key: 'status', label: 'Trạng thái' },
-        { key: 'description', label: 'Mô tả' },
-        { key: 'actions', label: 'Thao tác', align: 'center', style: { width: '120px' } }
+        { key: 'actions', label: '', align: 'right' }
       ]
     };
   },
@@ -162,6 +186,13 @@ export default {
         const matchesStatus = this.statusFilter === 'all' || item.status === this.statusFilter;
         return matchesSearch && matchesStatus;
       });
+    },
+    formStatusText() {
+      switch (this.form.status) {
+        case 'active': return 'Kích hoạt';
+        case 'inactive': return 'Tạm ngưng';
+        default: return '';
+      }
     }
   },
   mounted() {
@@ -199,6 +230,7 @@ export default {
     },
     openFormModal(item = null) {
       this.validationErrors = {};
+      this.isStatusSelectOpen = false;
       if (item) {
         this.form = {
           id: item.id,
@@ -214,6 +246,14 @@ export default {
     closeFormModal() {
       this.showFormModal = false;
       this.form = this.emptyForm();
+      this.isStatusSelectOpen = false;
+    },
+    toggleStatusSelect() {
+      this.isStatusSelectOpen = !this.isStatusSelectOpen;
+    },
+    selectFormStatus(status) {
+      this.form.status = status;
+      this.isStatusSelectOpen = false;
     },
     clearError(field) {
       if (this.validationErrors[field]) {
@@ -290,6 +330,16 @@ export default {
 </script>
 
 <style scoped>
+.categories-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 1000px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
 .table-container {
   width: 100%;
   min-width: 0;
@@ -338,5 +388,188 @@ export default {
 }
 :deep(.dark) .badge.inactive {
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* Custom Select Dropdown */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+    user-select: none;
+}
+
+.custom-select-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--sg-border, #e2e8f0);
+    background: var(--sg-surface, #ffffff);
+    font-size: 14px;
+    color: var(--sg-text, #101c15);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 42px;
+    box-sizing: border-box;
+}
+
+.custom-select-trigger:focus-within,
+.custom-select-trigger.open {
+    border-color: #0f172a;
+}
+
+.select-arrow-icon {
+    width: 16px;
+    height: 16px;
+    color: rgba(15, 23, 42, 0.4);
+    transition: transform 0.2s ease;
+}
+
+.select-arrow-icon.rotated {
+    transform: rotate(180deg);
+}
+
+.custom-select-options-wrapper {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--sg-surface, #ffffff);
+    border: 1px solid var(--sg-border, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 1010;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px;
+    animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--sg-text, #101c15) !important;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.custom-select-option:hover {
+    background: rgba(0, 0, 0, 0.03) !important;
+}
+
+.custom-select-option.active {
+    background: rgba(15, 23, 42, 0.05) !important;
+    color: #0f172a !important;
+    font-weight: 700;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+}
+
+.status-is-active {
+    color: var(--admin-primary-dark, #15803d) !important;
+}
+
+[data-theme="dark"] .status-is-active {
+    color: #34d399 !important;
+}
+
+.status-is-inactive {
+    color: var(--admin-danger, #dc2626) !important;
+}
+
+/* Floating Add Button */
+.floating-add-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9998;
+    transition: right 0.25s ease;
+}
+.floating-add-container.has-scroll {
+    right: 86px;
+}
+.btn-float-add {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #10b981;
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0 12px;
+}
+.btn-float-add .btn-float-text {
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    font-weight: 700;
+    font-size: 13px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+}
+.btn-float-add:hover {
+    width: 145px;
+    justify-content: flex-start;
+    padding-left: 14px;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    background-color: #059669;
+}
+.btn-float-add:hover .btn-float-text {
+    max-width: 100px;
+    opacity: 1;
+    margin-left: 6px;
+}
+@media (max-width: 768px) {
+    .floating-add-container {
+        bottom: 20px;
+        right: 20px;
+    }
+    .floating-add-container.has-scroll {
+        right: 72px;
+    }
+    .btn-float-add {
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+        padding: 0 10px;
+    }
+    .btn-float-add:hover {
+        width: 130px;
+        padding-left: 12px;
+    }
+    .btn-float-add:hover .btn-float-text {
+        max-width: 80px;
+    }
 }
 </style>

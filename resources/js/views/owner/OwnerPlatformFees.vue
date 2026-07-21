@@ -91,7 +91,6 @@
             <p>Dữ liệu được tính theo kỳ phí và hạn đóng trên hệ thống.</p>
           </div>
           <div class="table-actions">
-            <button class="refresh-btn" type="button" :disabled="loading" @click="loadFees">Làm mới</button>
             <select v-model="statusFilter">
               <option value="">Tất cả trạng thái</option>
               <option value="pending">Chờ thanh toán</option>

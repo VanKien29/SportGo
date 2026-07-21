@@ -45,8 +45,8 @@
               :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]" 
               @change="loadReports" 
             />
-            <input v-model="filters.date_from" type="date" aria-label="Từ ngày" @change="loadReports" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" />
-            <input v-model="filters.date_to" type="date" aria-label="Đến ngày" :min="filters.date_from || undefined" @change="loadReports" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;" />
+            <AdminDatePicker v-model="filters.date_from" placeholder="Từ ngày" @update:modelValue="loadReports" />
+            <AdminDatePicker v-model="filters.date_to" placeholder="Đến ngày" @update:modelValue="loadReports" />
             <ActionIconButton icon="filter" label="Lọc" variant="primary" @click="loadReports" />
           </div>
         </div>
@@ -117,8 +117,8 @@
                     <span class="date-cell">{{ formatDateTime(report.created_at) }}</span>
                   </td>
                   <td class="center" style="padding: 12px 16px; text-align: center;">
-                    <button @click="openDetail(report)" class="btn ghost btn-sm" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
-                      Xem chi tiết
+                    <button @click="openDetail(report)" class="btn ghost icon-only" title="Xem chi tiết" style="padding: 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
+                      <AppIcon name="eye" size="18" />
                     </button>
                   </td>
                 </tr>
@@ -227,22 +227,32 @@
               <div v-if="['resolved', 'dismissed'].includes(selected.status)" class="card reply-form" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 16px;">
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Gửi thông báo bổ sung</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
-                  <div style="display: flex; gap: 16px; align-items: center;">
-                    <label style="font-size: 14px; font-weight: 600;">Gửi cho:</label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
-                      <input type="radio" v-model="form.notify_recipient" value="reporter"> Người gửi báo cáo
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
-                      <input type="radio" v-model="form.notify_recipient" value="reported"> Người bị báo cáo
-                    </label>
+                  <div style="display: flex; gap: 24px; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <label style="font-size: 14px; font-weight: 600; color: #334155; margin: 0;">Gửi cho:</label>
+                    <div style="display: flex; gap: 20px;">
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
+                        <input type="radio" v-model="form.notify_recipient" value="reporter" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
+                        <span style="font-weight: 500;">Người gửi báo cáo</span>
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
+                        <input type="radio" v-model="form.notify_recipient" value="reported" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
+                        <span style="font-weight: 500;">Người bị báo cáo</span>
+                      </label>
+                    </div>
                   </div>
                   <div>
-                    <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+                    <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo muốn gửi..." style="width: 100%; min-height: 120px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box; outline: none; transition: border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"></textarea>
                   </div>
-                  <div style="display: flex; gap: 12px; align-items: center;">
-                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving || !form.notify_message">Gửi thông báo</button>
-                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Sử dụng văn mẫu</button>
-                    <button @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Gửi nhanh cho cả 2 (Văn mẫu)</button>
+                  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
+                      <AppIcon name="send" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi thông báo
+                    </button>
+                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
+                      Sử dụng văn mẫu
+                    </button>
+                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
+                      <AppIcon name="zap" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi nhanh cho cả 2 (Văn mẫu)
+                    </button>
                   </div>
                 </div>
               </div>
@@ -279,12 +289,13 @@
 import AppIcon from '../../components/AppIcon.vue';
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import CustomSelect from '../../components/CustomSelect.vue';
+import AdminDatePicker from '../../components/AdminDatePicker.vue';
 import { adminReportService } from '../../services/adminModeration.js';
 import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminReports',
-  components: { AppIcon, ActionIconButton, CustomSelect },
+  components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker },
   data() {
     return {
       reports: [],
@@ -346,6 +357,9 @@ export default {
     };
   },
   computed: {
+    hasSentNotification() {
+      return this.auditLogs && this.auditLogs.some(log => ['report.notified', 'report.resolved', 'report.dismissed'].includes(String(log.action).trim().toLowerCase()));
+    },
     filteredTargetTypes() {
       if (this.filters.target_group === 'content') {
         return this.targetTypes.filter(t => ['post', 'comment', 'venue_post', 'player_post'].includes(t.value));
@@ -373,6 +387,10 @@ export default {
     window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
+    shortId(id) {
+        if (!id) return "";
+        return String(id).split("-")[0].toUpperCase();
+    },
     truncate(text, length = 50) {
       if (!text) return '';
       return text.length > length ? text.substring(0, length) + '...' : text;
@@ -438,7 +456,7 @@ export default {
           notify_recipient: 'reporter',
           notify_message: '',
         };
-        
+
         if (this.selected.reported_user) {
           try {
             const vrResponse = await adminReportService.getViolationRecord('user', this.selected.reported_user.id);
@@ -487,10 +505,10 @@ export default {
           message: this.form.notify_message,
           recipient: this.form.notify_recipient || 'reporter',
         };
-        await adminReportService.sendNotification(this.selected.id, payload);
+        await adminReportService.notify(this.selected.id, payload);
         this.success = 'Đã gửi thông báo thành công!';
         this.form.notify_message = '';
-        this.loadDetail(this.selected.id); // Reload to get new audit logs
+        await this.refreshDetail();
       } catch (error) {
         this.error = error.message;
       } finally {
@@ -502,20 +520,20 @@ export default {
       this.saving = true;
       try {
         const reporterMsg = "Xin chào! Cảm ơn bạn đã gửi báo cáo. Chúng tôi đã tiếp nhận và xử lý vi phạm liên quan đến nội dung này. Nếu bạn có thêm thông tin, vui lòng liên hệ qua trung tâm hỗ trợ. Chúc bạn một ngày tốt lành!";
-        await adminReportService.sendNotification(this.selected.id, {
+        await adminReportService.notify(this.selected.id, {
           recipient: 'reporter',
           message: reporterMsg
         });
-        
+
         const reportedMsg = "Xin chào! Chúng tôi gửi thông báo này để nhắc nhở bạn về việc vi phạm chính sách của SportGo. Vui lòng rà soát lại các nội dung/hoạt động của bạn và tuân thủ đúng quy định. Nếu có thắc mắc, vui lòng liên hệ trung tâm hỗ trợ.";
-        await adminReportService.sendNotification(this.selected.id, {
+        await adminReportService.notify(this.selected.id, {
           recipient: 'reported',
           message: reportedMsg
         });
 
         this.success = 'Đã gửi thông báo cho cả 2 bên thành công!';
         this.form.notify_message = '';
-        this.loadDetail(this.selected.id);
+        await this.refreshDetail();
       } catch (error) {
         this.error = error.message;
       } finally {
@@ -680,7 +698,7 @@ export default {
         const zoomFactor = 0.15;
         const direction = e.deltaY < 0 ? 1 : -1;
         const newScale = Math.max(1, Math.min(this.zoomState.scale + direction * zoomFactor, 5));
-        
+
         if (newScale === 1) {
             this.resetZoom();
             return;
@@ -689,7 +707,7 @@ export default {
         const rect = e.target.getBoundingClientRect();
         const cursorX = e.clientX - rect.left;
         const cursorY = e.clientY - rect.top;
-        
+
         const ratio = newScale / this.zoomState.scale;
         const diffX = cursorX * ratio - cursorX;
         const diffY = cursorY * ratio - cursorY;

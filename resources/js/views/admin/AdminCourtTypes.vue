@@ -181,7 +181,6 @@
                         <div class="form-group">
                             <label for="name">
                                 {{ form.parent_id === null ? "Tên môn thể thao" : "Tên loại sân" }}
-                                <span class="required">*</span>
                             </label>
                             <input
                                 id="name"
@@ -237,8 +236,7 @@
 
                         <div v-if="form.parent_id !== null" class="form-group">
                             <label for="player_count"
-                                >Số người chơi tiêu chuẩn
-                                <span class="required">*</span></label
+                                >Số người chơi tiêu chuẩn</label
                             >
                             <input
                                 id="player_count"
@@ -290,8 +288,10 @@
                             ></textarea>
                         </div>
 
-                        <div class="form-group checkbox-group">
-                            <label class="checkbox-label">
+                    </div>
+                    <div class="modal-footer">
+                        <div class="footer-left-status">
+                            <label class="checkbox-label" style="margin: 0;">
                                 <input
                                     v-model="form.is_active"
                                     type="checkbox"
@@ -299,22 +299,22 @@
                                 <span>Kích hoạt hoạt động</span>
                             </label>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button
-                            type="button"
-                            class="btn btn-outline"
-                            @click="closeModal"
-                        >
-                            Hủy
-                        </button>
-                        <button
-                            type="submit"
-                            class="btn btn-primary"
-                            :disabled="submitting"
-                        >
-                            {{ submitting ? "Đang lưu..." : "Lưu lại" }}
-                        </button>
+                        <div class="footer-right-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline"
+                                @click="closeModal"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                :disabled="submitting"
+                            >
+                                {{ submitting ? "Đang lưu..." : "Lưu lại" }}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -570,6 +570,7 @@ export default {
     gap: 20px;
     max-width: 1000px;
     width: 100%;
+    min-width: 0;
     margin: 0 auto;
     box-sizing: border-box;
 }
@@ -589,12 +590,16 @@ export default {
 
 .views-content-wrapper {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .grouped-court-types-list {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .court-type-group {
@@ -602,6 +607,8 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .court-type-group:last-child {
@@ -651,6 +658,15 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.group-items :deep(.saas-table-container),
+.group-items :deep(.saas-table-scroll) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* SaaS Table custom layouts */
@@ -803,6 +819,9 @@ export default {
 .modal {
     width: 100%;
     max-width: 500px;
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
     box-shadow:
         0 20px 25px -5px rgba(0, 0, 0, 0.1),
         0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -810,12 +829,20 @@ export default {
     overflow: hidden;
 }
 
+.modal form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--sg-border);
+    flex-shrink: 0;
 }
 
 .modal-header h3 {
@@ -834,16 +861,18 @@ export default {
 }
 
 .modal-body {
-    padding: 24px;
+    padding: 16px 24px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .form-group label {
@@ -892,11 +921,18 @@ export default {
 
 .modal-footer {
     display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 20px 24px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
     border-top: 1px solid var(--sg-border);
     background: var(--sg-surface);
+    flex-shrink: 0;
+}
+
+.footer-right-actions {
+    display: flex;
+    gap: 12px;
 }
 
 .alert-danger {

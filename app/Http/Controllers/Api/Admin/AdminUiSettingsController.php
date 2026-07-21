@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AdminUiSettingsController extends Controller
 {
@@ -199,38 +200,7 @@ class AdminUiSettingsController extends Controller
             'sidebar_style' => 'one-level',
             'radius' => '8px',
             'font_size' => '14px',
-            'font_family' => "'Outfit', sans-serif",
-            'sidebar_width' => '272px',
-            'sidebar_collapsed_width' => '78px',
-            'transition_fast' => '180ms',
-            'transition_normal' => '250ms',
-            'presets' => [
-                [
-                    'id' => 'zinc',
-                    'name' => 'Zinc',
-                    'color' => '#18181b',
-                    'light' => [
-                        'primary' => '#18181b',
-                        'secondary' => '#27272a',
-                        'accent' => '#f4f4f5',
-                        'muted' => '#71717a',
-                        'destructive' => '#ef4444',
-                        'border' => '#e4e4e7',
-                        'card' => '#ffffff',
-                        'background' => '#fafafa',
-                    ],
-                    'dark' => [
-                        'primary' => '#fafafa',
-                        'secondary' => '#27272a',
-                        'accent' => '#27272a',
-                        'muted' => '#a1a1aa',
-                        'destructive' => '#ef4444',
-                        'border' => '#27272a',
-                        'card' => '#09090b',
-                        'background' => '#09090b',
-                    ]
-                ]
-            ],
+            'presets' => $this->themePresets(),
             'custom_themes' => []
         ];
     }
@@ -259,9 +229,13 @@ class AdminUiSettingsController extends Controller
 
     public function getSettings(): JsonResponse
     {
+        if (! Schema::hasTable('system_settings')) {
+            return response()->json($this->getDefaultSettings());
+        }
+
         $setting = SystemSetting::where('key', self::SETTING_KEY)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             $default = $this->getDefaultSettings();
             $setting = SystemSetting::create([
                 'key' => self::SETTING_KEY,
@@ -272,48 +246,19 @@ class AdminUiSettingsController extends Controller
         return response()->json($this->mergeSettings($setting->value ?? []));
     }
 
-    /**
-     * The auth screens are rendered before an admin token exists. Expose only
-     * the active visual theme so those screens can match the configured UI
-     * without exposing any admin-only settings or requiring authentication.
-     */
-    public function getPublicTheme(): JsonResponse
-    {
-        $setting = SystemSetting::where('key', self::SETTING_KEY)->first();
-        $settings = array_replace_recursive(
-            $this->getDefaultSettings(),
-            $setting?->value ?? [],
-        );
-
-        $presets = array_merge(
-            $settings['presets'] ?? [],
-            $settings['custom_themes'] ?? [],
-        );
-        $activePreset = collect($presets)->firstWhere('id', $settings['active_theme_id'])
-            ?? ($presets[0] ?? null);
-
-        return response()->json([
-            'active_theme_id' => $activePreset['id'] ?? 'zinc',
-            'radius' => $settings['radius'] ?? '8px',
-            'font_size' => $settings['font_size'] ?? '14px',
-            'font_family' => $settings['font_family'] ?? "'Outfit', sans-serif",
-            'light' => $activePreset['light'] ?? null,
-            'dark' => $activePreset['dark'] ?? null,
-        ]);
-    }
-
     public function updateSettings(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('system_settings')) {
+            return response()->json([
+                'message' => 'Chưa thể lưu giao diện vì dữ liệu cấu hình hệ thống chưa được khởi tạo.',
+            ], 409);
+        }
+
         $data = $request->validate([
             'active_theme_id' => ['required', 'string'],
             'sidebar_style' => ['required', 'string'],
             'radius' => ['required', 'string'],
             'font_size' => ['nullable', 'string'],
-            'font_family' => ['nullable', 'string', 'max:100'],
-            'sidebar_width' => ['nullable', 'string', 'max:20'],
-            'sidebar_collapsed_width' => ['nullable', 'string', 'max:20'],
-            'transition_fast' => ['nullable', 'string', 'max:20'],
-            'transition_normal' => ['nullable', 'string', 'max:20'],
             'presets' => ['nullable', 'array'],
             'custom_themes' => ['nullable', 'array'],
         ]);

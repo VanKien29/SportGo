@@ -69,29 +69,17 @@ class PartnerTerminationRequestController extends Controller
 
     public function finalDocumentSignSendOtp(Request $request, string $id): JsonResponse
     {
-        $data = $request->validate([
-            'signature_image' => ['required', 'string'],
-        ]);
-
-        $termination = PartnerTerminationRequest::query()->findOrFail($id);
-        $signingRequest = $this->terminations->sendFinalDocumentOtp($termination, $request->user(), 'sportgo', $data['signature_image'], $request);
-
         return response()->json([
-            'status' => 'success',
-            'message' => 'Ma OTP ky bien ban cuoi da duoc gui cho admin.',
-            'data' => [
-                'signing_request_id' => $signingRequest->id,
-                'expires_at' => $signingRequest->expires_at,
-                'hash_short' => substr($signingRequest->file_hash, 0, 12),
-            ],
-        ]);
+            'status' => 'conflict',
+            'message' => 'Admin ký biên bản bằng phiên đăng nhập hiện tại; hệ thống không gửi OTP email cho thao tác này.',
+        ], 409);
     }
 
     public function finalDocumentSign(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
-            'otp' => ['required', 'digits:6'],
+            'signature_image' => ['required', 'string', 'max:3000000'],
+            'confirmation' => ['required', 'accepted'],
         ]);
 
         $termination = PartnerTerminationRequest::query()->findOrFail($id);
@@ -99,9 +87,10 @@ class PartnerTerminationRequestController extends Controller
             $termination,
             $request->user(),
             'sportgo',
-            (int) $data['signing_request_id'],
-            $data['otp'],
-            $request
+            null,
+            null,
+            $request,
+            $data['signature_image']
         );
 
         return response()->json([
@@ -131,36 +120,26 @@ class PartnerTerminationRequestController extends Controller
 
     public function unilateralNoticeSignSendOtp(Request $request, string $id): JsonResponse
     {
-        $data = $request->validate([
-            'signature_image' => ['required', 'string'],
-        ]);
-        $termination = PartnerTerminationRequest::query()->findOrFail($id);
-        $signingRequest = $this->terminations->sendUnilateralNoticeOtp($termination, $request->user(), $data['signature_image'], $request);
-
         return response()->json([
-            'status' => 'success',
-            'message' => 'Mã OTP ký công văn đã được gửi cho admin.',
-            'data' => [
-                'signing_request_id' => $signingRequest->id,
-                'expires_at' => $signingRequest->expires_at,
-                'hash_short' => substr($signingRequest->file_hash, 0, 12),
-            ],
-        ]);
+            'status' => 'conflict',
+            'message' => 'Admin ký công văn bằng phiên đăng nhập hiện tại; hệ thống không gửi OTP email cho thao tác này.',
+        ], 409);
     }
 
     public function unilateralNoticeSign(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'signing_request_id' => ['required', 'integer', 'exists:document_signing_requests,id'],
-            'otp' => ['required', 'digits:6'],
+            'signature_image' => ['required', 'string', 'max:3000000'],
+            'confirmation' => ['required', 'accepted'],
         ]);
         $termination = PartnerTerminationRequest::query()->findOrFail($id);
         $termination = $this->terminations->signAndIssueUnilateralNotice(
             $termination,
             $request->user(),
-            (int) $data['signing_request_id'],
-            $data['otp'],
-            $request
+            null,
+            null,
+            $request,
+            $data['signature_image']
         );
 
         return response()->json([

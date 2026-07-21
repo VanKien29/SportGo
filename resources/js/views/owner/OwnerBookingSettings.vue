@@ -64,36 +64,6 @@
             </div>
           </label>
         </div>
-
-        <header class="card-head" style="margin-top: 20px;">
-          <h3>Cấu hình phân chia Ca hiển thị (Sáng / Chiều / Tối)</h3>
-        </header>
-        <div class="fixed-hours">
-          <label>
-            <span>Hết ca Sáng (Sáng → Chiều)</span>
-            <input
-              v-model.trim="form.morning_end_time"
-              type="text"
-              inputmode="numeric"
-              maxlength="5"
-              placeholder="12:00"
-              @input="normalizeTimeInput('morning_end_time')"
-            >
-          </label>
-          <span class="range-arrow">→</span>
-          <label>
-            <span>Hết ca Chiều (Chiều → Tối)</span>
-            <input
-              v-model.trim="form.afternoon_end_time"
-              type="text"
-              inputmode="numeric"
-              maxlength="5"
-              placeholder="18:00"
-              @input="normalizeTimeInput('afternoon_end_time')"
-            >
-          </label>
-          <div style="visibility: hidden;"></div>
-        </div>
       </article>
 
       <article class="setting-card">
@@ -328,25 +298,6 @@ export default {
         messages.push('Giờ mở cửa đến giờ đóng cửa phải từ 2 giờ đến 24 giờ.');
       }
 
-      if (!this.validOpenTime(this.form.morning_end_time) || !this.validOpenTime(this.form.afternoon_end_time)) {
-        messages.push('Giờ chuyển giao ca phải đúng định dạng HH:mm.');
-      } else {
-        const openMins = this.timeToMinutes(this.form.fixed_open_time);
-        const closeMins = this.timeToMinutes(this.form.fixed_close_time);
-        const morningEndMins = this.timeToMinutes(this.form.morning_end_time);
-        const afternoonEndMins = this.timeToMinutes(this.form.afternoon_end_time);
-
-        if (morningEndMins <= openMins) {
-          messages.push('Giờ kết thúc ca sáng phải sau giờ mở cửa sân.');
-        }
-        if (afternoonEndMins <= morningEndMins) {
-          messages.push('Giờ kết thúc ca chiều phải sau giờ kết thúc ca sáng.');
-        }
-        if (afternoonEndMins >= closeMins) {
-          messages.push('Giờ kết thúc ca chiều phải trước giờ đóng cửa sân.');
-        }
-      }
-
       const sortedSpecial = [...this.form.special_operating_hours].sort((a, b) => a.start_date.localeCompare(b.start_date));
       sortedSpecial.forEach((hours, index) => {
         const shouldValidate = this.validationAttempted || hours._touched;
@@ -544,8 +495,6 @@ export default {
         min_advance_booking_minutes: 30,
         fixed_open_time: '08:00',
         fixed_close_time: '22:00',
-        morning_end_time: '12:00',
-        afternoon_end_time: '18:00',
         special_operating_hours: [],
         slot_hold_minutes: 20,
         reminder_before_minutes: 30,
@@ -628,8 +577,6 @@ export default {
             config.fixed_close_time || config.weekly_operating_hours?.find((hours) => hours.is_open)?.close_time,
             '22:00',
           ),
-          morning_end_time: this.normalizeTime(config.morning_end_time, '12:00'),
-          afternoon_end_time: this.normalizeTime(config.afternoon_end_time, '18:00'),
           special_operating_hours: (config.special_operating_hours || []).map((hours) => ({
             _key: this.specialKey(),
             _touched: false,
@@ -728,5 +675,38 @@ export default {
 </script>
 
 <style scoped>
+.settings-page{width:100%;min-width:0}.settings-form,.setting-card,.membership-table{min-width:0;max-width:100%}
 .settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:center;gap:16px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.card-head h3{font-size:16px}.eyebrow{margin:0 0 5px;color:#059669;font-size:11px;font-weight:900;letter-spacing:.1em}.cluster-select{min-width:260px;display:grid;gap:6px;color:#475569;font-size:12px;font-weight:850}.cluster-select select,.fixed-hours input,.special-row input,.special-row select,.input-unit input,.deposit-field input,.membership-row input,.membership-row select{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card,.validation-summary{padding:12px 14px;border-radius:10px;font-weight:750}.alert.error,.validation-summary{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.validation-summary{box-shadow:0 8px 24px rgba(159,18,57,.1)}.validation-summary ul{margin:6px 0 0;padding-left:20px;font-size:13px;font-weight:650}.setting-card,.save-bar{padding:15px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}.card-head{padding-bottom:11px;border-bottom:1px solid #e2e8f0}.fixed-hours{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:14px;margin-top:14px}.fixed-hours label,.special-row label,.compact-fields label{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:800}.range-arrow{padding-bottom:10px;color:#94a3b8;font-size:20px}.secondary-btn,.remove-btn,.primary-btn{border:0;border-radius:9px;font:inherit;font-weight:850;cursor:pointer}.secondary-btn{padding:8px 11px;background:#ecfdf5;color:#047857}.empty-row{padding:18px 0 4px;text-align:center;color:#94a3b8;font-size:13px}.special-list{display:grid;gap:8px;margin-top:10px}.special-row{display:grid;grid-template-columns:1fr 1fr .8fr .8fr 36px;align-items:end;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.remove-btn{height:40px;background:#fee2e2;color:#be123c;font-size:21px}.two-column{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.compact-fields label:first-child:last-child{grid-column:auto}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:50px}.input-unit>span,.deposit-field>span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:11px;font-weight:800}.payment-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-height:52px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:17px;height:17px;accent-color:#059669}.payment-option strong{color:#0f172a;font-size:13px}.deposit-field{width:82px}.deposit-field input{padding-right:26px}.membership-reset-toggle{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer}.membership-reset-toggle.enabled{border-color:#6ee7b7;background:#ecfdf5}.membership-reset-toggle input{width:18px;height:18px;accent-color:#059669}.membership-reset-toggle span{display:grid;gap:3px}.membership-reset-toggle strong{color:#0f172a;font-size:13px}.membership-reset-toggle small{color:#64748b;font-size:12px;font-weight:700}.membership-table{display:grid;gap:8px;margin-top:12px;overflow:auto}.membership-row{display:grid;grid-template-columns:110px 150px 100px minmax(180px,1.2fr) repeat(6,minmax(110px,1fr));gap:8px;align-items:center;min-width:1280px}.membership-row strong{color:#0f172a}.membership-head{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.membership-inline-errors{display:grid;gap:6px;margin-top:10px;padding:10px 12px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight:800}.save-bar{position:sticky;bottom:10px;border-color:#a7f3d0}.primary-btn{padding:10px 18px;background:#059669;color:#fff}.primary-btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:820px){.fixed-hours{grid-template-columns:1fr auto 1fr}.fixed-hours>label:last-child{grid-column:1/4}.two-column,.payment-list{grid-template-columns:1fr}.special-row{grid-template-columns:1fr 1fr}.remove-btn{grid-column:2;justify-self:end;width:40px}.page-head{align-items:end}}@media(max-width:560px){.page-head,.save-bar{display:grid}.cluster-select{min-width:0}.fixed-hours,.special-row,.compact-fields{grid-template-columns:1fr}.fixed-hours>label:last-child{grid-column:auto}.range-arrow{display:none}.remove-btn{grid-column:1}.primary-btn{width:100%}}
+
+/* Keep owner form surfaces and text on the same theme source. */
+.settings-page :is(.page-head h2, .card-head h3, .payment-option strong, .membership-reset-toggle strong, .membership-row strong) {
+  color: var(--admin-text, #0f172a);
+}
+.settings-page :is(.cluster-select, .fixed-hours label, .special-row label, .compact-fields label, .input-unit > span, .deposit-field > span, .membership-reset-toggle small, .membership-head) {
+  color: var(--admin-muted, #64748b);
+}
+.settings-page :is(.setting-card, .save-bar, .state-card) {
+  border-color: var(--admin-border, #e2e8f0);
+  background: var(--admin-card-bg, #fff);
+}
+.settings-page .card-head {
+  border-bottom-color: var(--admin-border-soft, #e2e8f0);
+}
+.settings-page :is(.cluster-select select, .fixed-hours input, .special-row input, .special-row select, .input-unit input, .deposit-field input, .membership-row input, .membership-row select) {
+  border-color: var(--admin-border, #cbd5e1);
+  background: var(--admin-surface, #fff);
+  color: var(--admin-text, #0f172a);
+}
+.settings-page :is(.special-row, .membership-reset-toggle) {
+  border-color: var(--admin-border, #e2e8f0);
+  background: var(--admin-surface-muted, #f8fafc);
+}
+.settings-page .payment-option:not(.enabled) {
+  border-color: var(--admin-border, #e2e8f0);
+  background: var(--admin-surface, #fff);
+}
+.settings-page :is(.payment-option.enabled, .membership-reset-toggle.enabled) {
+  border-color: var(--admin-primary, #059669);
+  background: var(--admin-primary-soft, #ecfdf5);
+}
 </style>

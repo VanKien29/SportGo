@@ -2,46 +2,81 @@
     <section class="schedule-lock-page">
         <!-- Floating Lock Button (sticky bottom bar) -->
         <Teleport to="body">
-            <div
-                v-if="
-                    selectedSlots.length ||
-                    (form.lock_mode === 'whole_day' && selectedCourtIds.length)
-                "
-                class="sticky-bottom-bar"
-            >
+            <div v-if="unlockMode || hasLockSelection" class="sticky-bottom-bar">
                 <div class="sticky-bottom-inner">
-                    <div class="sticky-bottom-info">
-                        <strong v-if="form.lock_mode === 'slots'"
-                            >{{ selectedSlots.length }} ô đã chọn</strong
-                        >
-                        <strong v-else
-                            >{{ selectedCourtIds.length }} sân · cả ngày</strong
-                        >
-                        <span>{{ dateRangeLabel }}</span>
-                    </div>
-                    <div class="sticky-bottom-actions">
-                        <button
-                            type="button"
-                            class="sticky-btn-clear"
-                            @click="clearSelection"
-                        >
-                            Bỏ chọn
-                        </button>
-                        <button
-                            type="button"
-                            class="sticky-btn-submit"
-                            :disabled="saving || previewing || !canSubmit"
-                            @click="createLock"
-                        >
-                            {{
-                                saving
-                                    ? "Đang khóa..."
-                                    : previewing
-                                      ? "Đang kiểm tra..."
-                                      : lockButtonLabel
-                            }}
-                        </button>
-                    </div>
+                    <template v-if="unlockMode">
+                        <div class="sticky-bottom-info">
+                            <strong>
+                                {{ selectedUnlockSlots.length }} ô khóa đã chọn
+                            </strong>
+                            <span>
+                                Chỉ chọn được các ô đang khóa trong ngày
+                                {{ date(form.start_date) }}
+                            </span>
+                        </div>
+                        <div class="sticky-bottom-actions">
+                            <button
+                                type="button"
+                                class="sticky-btn-clear sticky-btn-box"
+                                @click="cancelUnlockMode"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                class="sticky-btn-all-unlock"
+                                :disabled="unlocking || !unlockableSlots.length"
+                                @click="selectAllUnlockableSlots"
+                            >
+                                Mở khóa toàn bộ
+                            </button>
+                            <button
+                                type="button"
+                                class="sticky-btn-unlock"
+                                :disabled="
+                                    unlocking || !selectedUnlockSlots.length
+                                "
+                                @click="unlockConfirmOpen = true"
+                            >
+                                Xác nhận mở khóa
+                            </button>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div class="sticky-bottom-info">
+                            <strong v-if="isFullDaySelection">
+                                {{ selectedCourtIds.length }} sân khóa cả ngày
+                            </strong>
+                            <strong v-else>{{ selectedSlots.length }} ô đã chọn</strong>
+                            <span v-if="isFullDaySelection">
+                                Toàn bộ giờ hoạt động · {{ dateRangeLabel }}
+                            </span>
+                            <span v-else>{{ dateRangeLabel }}</span>
+                        </div>
+                        <div class="sticky-bottom-actions">
+                            <button
+                                type="button"
+                                class="sticky-btn-clear"
+                                @click="clearSelection"
+                            >
+                                Bỏ chọn
+                            </button>
+                            <button
+                                type="button"
+                                class="sticky-btn-submit"
+                                :disabled="saving || previewing || !canSubmit"
+                                @click="createLock"
+                            >
+                                {{
+                                    saving
+                                        ? "Đang khóa..."
+                                        : previewing
+                                          ? "Đang kiểm tra..."
+                                          : lockButtonLabel
+                                }}
+                            </button>
+                        </div>
+                    </template>
                 </div>
             </div>
         </Teleport>
@@ -55,13 +90,22 @@
             class="modal-backdrop"
             @click.self="closeConflictPreview"
         >
-            <section class="conflict-modal">
+            <section
+                class="conflict-modal"
+                :class="{ 'emergency-flow': !conflictPreviewOnly }"
+            >
                 <header>
                     <div>
-                        <p class="eyebrow">KHÓA SÂN ĐỘT XUẤT</p>
+                        <p class="eyebrow">
+                            {{
+                                conflictPreviewOnly
+                                    ? "LỊCH TRÙNG TRONG PHẠM VI KHÓA"
+                                    : "XỬ LÝ KHÓA ĐỘT XUẤT"
+                            }}
+                        </p>
                         <h3>
-                            {{ lockConflictPreview.affected_count }} booking bị
-                            ảnh hưởng
+                            {{ lockConflictPreview.affected_count }} booking
+                            bị ảnh hưởng
                         </h3>
                     </div>
                     <button
@@ -87,9 +131,19 @@
                 </header>
 
                 <p class="conflict-help">
-                    Ưu tiên đổi sang sân cùng loại còn trống. Nếu không đổi
-                    được, chọn hoàn ví hoặc ghi nhận đã hoàn tiền mặt tại sân.
+                    {{
+                        conflictPreviewOnly
+                            ? "Các booking dưới đây nằm trong ngày, sân và khung giờ đang chọn."
+                            : "Chọn phương án xử lý cho từng booking trước khi xác nhận khóa đột xuất."
+                    }}
                 </p>
+
+                <div
+                    v-if="!lockConflictPreview.items?.length"
+                    class="conflict-empty"
+                >
+                    Không có booking nào trùng với phạm vi đã chọn.
+                </div>
 
                 <div class="conflict-list">
                     <article
@@ -106,14 +160,12 @@
                                 {{ item.customer?.phone || "-" }}</span
                             >
                             <small>
+                                {{ date(item.booking_date) }} ·
                                 {{ item.court?.name || "Sân" }} ·
                                 {{ time(item.start_time) }} -
                                 {{ time(item.end_time) }} ·
-                                {{
-                                    item.payment_status === "paid"
-                                        ? "Đã thanh toán"
-                                        : "Chưa thanh toán"
-                                }}
+                                {{ bookingStatusLabel(item.booking_status) }} ·
+                                {{ paymentStatusLabel(item.payment_status) }}
                             </small>
                             <small
                                 v-if="item.is_playing"
@@ -129,72 +181,178 @@
                                     )
                                 }}
                             </small>
+                            <div
+                                v-if="item.affected_range"
+                                class="conflict-impact"
+                            >
+                                <span>
+                                    Bị khóa:
+                                    {{ time(item.affected_range.start_time) }}
+                                    -
+                                    {{ time(item.affected_range.end_time) }}
+                                    ·
+                                    {{ currency(item.affected_range.subtotal) }}
+                                </span>
+                                <span>
+                                    Cả khung:
+                                    {{ time(item.full_item_range.start_time) }}
+                                    -
+                                    {{ time(item.full_item_range.end_time) }}
+                                    ·
+                                    {{ currency(item.full_item_range.subtotal) }}
+                                </span>
+                            </div>
                         </div>
 
-                        <div class="conflict-actions">
-                            <select
-                                v-if="item.alternatives?.length"
-                                v-model="
-                                    lockResolutions[item.booking_item_id]
-                                        .venue_court_id
-                                "
-                                :disabled="
-                                    lockResolutions[item.booking_item_id]
-                                        .action !== 'switch'
-                                "
-                                class="conflict-select"
+                        <div v-if="!conflictPreviewOnly" class="conflict-actions">
+                            <div class="resolution-group">
+                                <span class="resolution-label">Phạm vi xử lý</span>
+                                <div class="scope-switch">
+                                    <button
+                                        type="button"
+                                        :class="{
+                                            active:
+                                                lockResolutions[
+                                                    item.booking_item_id
+                                                ].scope === 'affected',
+                                        }"
+                                        :aria-pressed="
+                                            lockResolutions[
+                                                item.booking_item_id
+                                            ].scope === 'affected'
+                                        "
+                                        @click="setResolutionScope(item, 'affected')"
+                                    >
+                                        Chỉ phần bị khóa
+                                    </button>
+                                    <button
+                                        type="button"
+                                        :class="{
+                                            active:
+                                                lockResolutions[
+                                                    item.booking_item_id
+                                                ].scope === 'booking_item',
+                                        }"
+                                        :aria-pressed="
+                                            lockResolutions[
+                                                item.booking_item_id
+                                            ].scope === 'booking_item'
+                                        "
+                                        @click="setResolutionScope(item, 'booking_item')"
+                                    >
+                                        Cả khung booking
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="alternativesForResolution(item).length"
+                                class="resolution-group"
                             >
-                                <option
-                                    v-for="court in item.alternatives"
-                                    :key="court.id"
-                                    :value="court.id"
+                                <span class="resolution-label">Sân thay thế</span>
+                                <select
+                                    v-model="
+                                        lockResolutions[item.booking_item_id]
+                                            .venue_court_id
+                                    "
+                                    :disabled="
+                                        lockResolutions[item.booking_item_id]
+                                            .action !== 'switch'
+                                    "
+                                    class="conflict-select"
+                                    aria-label="Sân thay thế"
                                 >
-                                    {{ court.name }}
-                                </option>
-                            </select>
-                            <div class="conflict-radios">
-                                <label
-                                    v-if="item.alternatives?.length"
-                                    class="radio-line"
-                                >
-                                    <input
-                                        v-model="
+                                    <option
+                                        v-for="court in alternativesForResolution(item)"
+                                        :key="court.id"
+                                        :value="court.id"
+                                    >
+                                        {{ court.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div v-else class="no-alternative">
+                                <strong>Không có sân thay thế</strong>
+                                <span>
+                                    Các sân cùng loại đều đã có lịch hoặc cũng
+                                    nằm trong phạm vi sắp khóa.
+                                </span>
+                            </div>
+
+                            <div class="resolution-group">
+                                <span class="resolution-label">Cách xử lý</span>
+                                <div class="conflict-radios">
+                                    <button
+                                        v-if="alternativesForResolution(item).length"
+                                        type="button"
+                                        class="resolution-option"
+                                        :class="{
+                                            active:
+                                                lockResolutions[
+                                                    item.booking_item_id
+                                                ].action === 'switch',
+                                        }"
+                                        :aria-pressed="
                                             lockResolutions[
                                                 item.booking_item_id
-                                            ].action
+                                            ].action === 'switch'
                                         "
-                                        type="radio"
-                                        value="switch"
-                                    />
-                                    Đổi sân
-                                </label>
-                                <label class="radio-line danger">
-                                    <input
-                                        v-model="
+                                        @click="setResolutionAction(item, 'switch')"
+                                    >
+                                        Đổi sang sân cùng loại
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="resolution-option danger"
+                                        :class="{
+                                            active:
+                                                lockResolutions[
+                                                    item.booking_item_id
+                                                ].action === 'cancel',
+                                        }"
+                                        :aria-pressed="
                                             lockResolutions[
                                                 item.booking_item_id
-                                            ].action
+                                            ].action === 'cancel'
                                         "
-                                        type="radio"
-                                        value="cancel"
-                                    />
-                                    Hủy/hoàn ví
-                                </label>
-                                <label
-                                    v-if="item.payment_status === 'paid'"
-                                    class="radio-line cash"
-                                >
-                                    <input
-                                        v-model="
+                                        @click="setResolutionAction(item, 'cancel')"
+                                    >
+                                        {{
+                                            lockResolutions[item.booking_item_id]
+                                                .scope === "booking_item"
+                                                ? item.payment_status === "paid"
+                                                    ? "Hủy cả khung và hoàn vào ví"
+                                                    : "Hủy cả khung booking"
+                                                : item.payment_status === "paid"
+                                                ? "Hủy và hoàn vào ví"
+                                                : "Hủy phần bị khóa"
+                                        }}
+                                    </button>
+                                    <button
+                                        v-if="item.payment_status === 'paid'"
+                                        type="button"
+                                        class="resolution-option cash"
+                                        :class="{
+                                            active:
+                                                lockResolutions[
+                                                    item.booking_item_id
+                                                ].action === 'cash_refund',
+                                        }"
+                                        :aria-pressed="
                                             lockResolutions[
                                                 item.booking_item_id
-                                            ].action
+                                            ].action === 'cash_refund'
                                         "
-                                        type="radio"
-                                        value="cash_refund"
-                                    />
-                                    Đã hoàn tiền mặt
-                                </label>
+                                        @click="setResolutionAction(item, 'cash_refund')"
+                                    >
+                                        {{
+                                            lockResolutions[item.booking_item_id]
+                                                .scope === "booking_item"
+                                                ? "Hoàn tiền mặt cả khung"
+                                                : "Hoàn tiền mặt phần bị khóa"
+                                        }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </article>
@@ -209,16 +367,131 @@
                         Đóng
                     </button>
                     <button
+                        v-if="!conflictPreviewOnly"
                         type="button"
                         class="primary-btn"
-                        :disabled="saving"
+                        :disabled="saving || !canResolveEmergencyLock"
                         @click="createLockWithResolutions"
                     >
-                        {{ saving ? "Đang xử lý..." : "Khóa và xử lý booking" }}
+                        {{
+                            saving
+                                ? "Đang xử lý..."
+                                : "Xác nhận khóa đột xuất"
+                        }}
                     </button>
                 </footer>
             </section>
         </div>
+
+        <div
+            v-if="selectedLockDetail"
+            class="modal-backdrop"
+            @click.self="closeLockDetail"
+        >
+            <section
+                class="lock-detail-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="lock-detail-title"
+            >
+                <header>
+                    <div>
+                        <p class="eyebrow">THÔNG TIN KHÓA LỊCH</p>
+                        <h3 id="lock-detail-title">
+                            {{ selectedLockDetail.venue_court?.name || "Sân" }}
+                        </h3>
+                    </div>
+                    <button
+                        type="button"
+                        class="icon-close"
+                        aria-label="Đóng"
+                        @click="closeLockDetail"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </header>
+
+                <dl class="lock-detail-list">
+                    <div>
+                        <dt>Ngày áp dụng</dt>
+                        <dd>{{ date(lockDate(selectedLockDetail)) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Khung giờ</dt>
+                        <dd>
+                            {{ time(selectedLockDetail.start_time) }} -
+                            {{ time(selectedLockDetail.end_time) }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Loại khóa</dt>
+                        <dd>
+                            {{
+                                selectedLockDetail.lock_type_label ||
+                                (selectedLockDetail.lock_type === "emergency"
+                                    ? "Khóa đột xuất"
+                                    : "Khóa thủ công")
+                            }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Trạng thái</dt>
+                        <dd>
+                            <span
+                                class="lock-status"
+                                :class="selectedLockDetail.status || 'active'"
+                            >
+                                {{
+                                    selectedLockDetail.status_label ||
+                                    "Đang khóa"
+                                }}
+                            </span>
+                        </dd>
+                    </div>
+                </dl>
+
+                <div class="lock-detail-reason">
+                    <span>Lý do</span>
+                    <p>
+                        {{ selectedLockDetail.reason || "Không có lý do" }}
+                    </p>
+                </div>
+
+                <footer>
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        @click="closeLockDetail"
+                    >
+                        Đóng
+                    </button>
+                </footer>
+            </section>
+        </div>
+
+        <ConfirmModal
+            v-model="unlockConfirmOpen"
+            title="Xác nhận mở khóa"
+            :message="unlockConfirmMessage"
+            consequence="Chỉ các ô đã chọn được mở; phần còn lại của khoảng khóa vẫn được giữ nguyên."
+            confirm-text="Mở các ô đã chọn"
+            cancel-text="Quay lại chọn"
+            type="danger"
+            @confirm="confirmUnlockSelection"
+        />
 
         <!-- ===== TOP: Config panel ===== -->
         <div class="config-strip">
@@ -228,41 +501,11 @@
                     :start-date="form.start_date"
                     :end-date="form.end_date"
                     :min-date="today"
-                    @update:start-date="
-                        (val) => {
-                            form.start_date = val;
-                            handleStartDateChange();
-                        }
-                    "
-                    @update:end-date="
-                        (val) => {
-                            form.end_date = val;
-                            handleEndDateChange();
-                        }
-                    "
+                    @update:start-date="handleCalendarStartDateUpdate"
+                    @update:end-date="handleCalendarEndDateUpdate"
                 />
             </div>
             <div class="config-right">
-                <div class="config-section">
-                    <p class="config-label">Chế độ khóa</p>
-                    <div class="mode-switch">
-                        <button
-                            type="button"
-                            :class="{ active: form.lock_mode === 'slots' }"
-                            @click="setLockMode('slots')"
-                        >
-                            Theo khung giờ
-                        </button>
-                        <button
-                            type="button"
-                            :class="{ active: form.lock_mode === 'whole_day' }"
-                            @click="setLockMode('whole_day')"
-                        >
-                            Theo ngày
-                        </button>
-                    </div>
-                </div>
-
                 <div class="config-section">
                     <label class="reason-label">
                         <span>Lý do khóa</span>
@@ -271,26 +514,37 @@
                             rows="3"
                             maxlength="500"
                             placeholder="Ví dụ: Bảo trì mặt sân, nghỉ lễ, sự kiện nội bộ..."
+                            :disabled="unlockMode"
                             required
                         />
                     </label>
                 </div>
 
-                <!-- Whole-day: court picker inline -->
-                <div
-                    v-if="form.lock_mode === 'whole_day'"
-                    class="config-section"
-                >
+                <div class="config-section court-target-section">
                     <div class="court-picker">
                         <div class="picker-head">
-                            <strong>Chọn sân áp dụng</strong>
+                            <div>
+                                <strong>Khóa cả ngày theo sân</strong>
+                                <small>
+                                    Chọn sân để khóa toàn bộ giờ hoạt động trong
+                                    ngày hoặc khoảng ngày đã chọn.
+                                </small>
+                            </div>
                             <span>{{ selectedCourtIds.length }} sân</span>
-                            <button type="button" @click="toggleAllCourts">
+                            <button
+                                type="button"
+                                :disabled="
+                                    unlockMode ||
+                                    !selectableFullDayCourtIds.length
+                                "
+                                @click="toggleAllCourts"
+                            >
                                 {{
-                                    selectedCourtIds.length ===
-                                    scheduleCourts.length
-                                        ? "Bỏ chọn tất cả"
-                                        : "Chọn tất cả"
+                                    !selectableFullDayCourtIds.length
+                                        ? "Đã khóa hết"
+                                        : allSelectableFullDayCourtsSelected
+                                          ? "Bỏ chọn tất cả"
+                                          : "Chọn tất cả"
                                 }}
                             </button>
                         </div>
@@ -300,92 +554,92 @@
                                 :key="court.id"
                                 :class="{
                                     active: selectedCourtIds.includes(court.id),
+                                    locked: isFullDayCourtLocked(court.id),
                                 }"
                             >
                                 <input
                                     v-model="selectedCourtIds"
                                     type="checkbox"
                                     :value="court.id"
+                                    :disabled="
+                                        unlockMode ||
+                                        isFullDayCourtLocked(court.id)
+                                    "
+                                    @change="handleFullDayCourtSelection"
                                 />
                                 <span>
                                     <strong>{{ court.name }}</strong>
-                                    <small>{{
-                                        court.court_type?.name || "-"
-                                    }}</small>
+                                    <small>
+                                        {{
+                                            isFullDayCourtLocked(court.id)
+                                                ? "Đã khóa cả ngày"
+                                                : court.court_type?.name || "-"
+                                        }}
+                                    </small>
                                 </span>
                             </label>
                         </div>
                     </div>
                 </div>
 
-                <div class="lock-preview-panel">
-                    <details
-                        v-if="lockPreviewIssues.length"
-                        class="preview-details"
-                    >
-                        <summary>
-                            <strong>Cần chú ý</strong>
-                            <span
-                                >{{ lockPreviewIssues.length }} lịch bị ảnh
-                                hưởng</span
-                            >
-                        </summary>
-                        <div class="lock-preview-list">
-                            <article
-                                v-for="row in lockPreviewIssues.slice(0, 12)"
-                                :key="row.key"
-                                :class="{ busy: row.isBusy }"
-                            >
-                                <div>
-                                    <strong>{{ row.dateLabel }}</strong>
-                                    <small
-                                        >{{ row.courtName }} ·
-                                        {{ row.timeText }}</small
-                                    >
-                                </div>
-                                <span>{{ row.statusLabel }}</span>
-                            </article>
-                        </div>
-                        <small
-                            v-if="lockPreviewIssues.length > 12"
-                            class="preview-more"
-                        >
-                            Còn {{ lockPreviewIssues.length - 12 }} lịch cần chú
-                            ý khác.
-                        </small>
-                    </details>
-                    <div v-else class="lock-empty-preview">
-                        <strong>Chưa có lịch cần chú ý.</strong>
-                    </div>
-                </div>
             </div>
         </div>
 
         <!-- ===== MIDDLE: Schedule Grid (full width) ===== -->
-        <article class="schedule-card">
+        <article
+            class="schedule-card"
+            :class="{ 'unlock-mode': unlockMode }"
+        >
             <div class="schedule-headline">
                 <div class="schedule-headline-left">
-                    <p class="eyebrow">TRẠNG THÁI TRONG NGÀY</p>
-                    <h3>{{ date(form.start_date) }}</h3>
+                    <p class="eyebrow">
+                        {{
+                            isDateRange
+                                ? "TRẠNG THÁI THEO KHOẢNG NGÀY"
+                                : "TRẠNG THÁI TRONG NGÀY"
+                        }}
+                    </p>
+                    <h3>{{ dateRangeLabel }}</h3>
+                    <small v-if="isDateRange" class="schedule-date-note">
+                        Lưới giờ: {{ date(form.start_date) }}
+                    </small>
                 </div>
                 <div class="schedule-headline-right">
                     <div class="legend">
                         <span><i class="dot-available"></i>Trống</span>
                         <span><i class="dot-booking"></i>Đã đặt</span>
-                        <span><i class="dot-holding"></i>Đang giữ</span>
                         <span><i class="dot-manual"></i>Đã khóa</span>
-                        <span v-if="form.lock_mode === 'slots'"
-                            ><i class="dot-selected"></i>Đang chọn</span
-                        >
+                        <span>
+                            <i
+                                :class="
+                                    unlockMode
+                                        ? 'dot-unlock-selected'
+                                        : 'dot-selected'
+                                "
+                            ></i>
+                            {{ unlockMode ? "Chọn mở" : "Đang chọn" }}
+                        </span>
                     </div>
                     <button
-                        class="secondary-btn btn-compact"
+                        class="attention-btn"
                         type="button"
-                        :disabled="loading"
-                        @click="loadData"
+                        :disabled="
+                            unlockMode || previewing || !hasLockSelection
+                        "
+                        @click="openAttentionPreview"
                     >
-                        Làm mới
+                        {{ previewing ? "Đang kiểm tra..." : "Xem lịch trùng" }}
                     </button>
+                    <button
+                        class="unlock-mode-btn"
+                        :class="{ active: unlockMode }"
+                        type="button"
+                        :disabled="!hasManagedLocksOnSchedule || unlocking"
+                        @click="toggleUnlockMode"
+                    >
+                        {{ unlockMode ? "Thoát mở khóa" : "Mở khóa" }}
+                    </button>
+
                 </div>
             </div>
 
@@ -430,11 +684,17 @@
                             v-for="slot in activePeriodSlots"
                             :key="`${court.id}-${slot.start_time}`"
                             class="slot-cell"
-                            :class="slotClass(court.id, slot)"
+                            :class="[
+                                slotClass(court.id, slot),
+                            ]"
                             :title="slotTitle(court.id, slot)"
                             type="button"
-                            :disabled="!canSelectSlot(court.id, slot)"
-                            :aria-pressed="isSelected(court.id, slot)"
+                            :disabled="!canInteractSlot(court.id, slot)"
+                            :aria-pressed="
+                                unlockMode
+                                    ? isUnlockSelected(court.id, slot)
+                                    : isSelected(court.id, slot)
+                            "
                             @click="pickSlot(court, slot)"
                         />
                     </template>
@@ -449,67 +709,29 @@
                     <strong>Khoảng đã khóa</strong>
                     <span>{{ lockSummaryLabel }}</span>
                 </div>
-                <button
-                    v-if="locks.length"
-                    class="text-danger-btn"
-                    type="button"
-                    :disabled="Boolean(deletingId)"
-                    @click.stop="
-                        removeLocks(
-                            locks,
-                            'Mở tất cả khoảng đã khóa đang hiển thị?',
-                        )
-                    "
-                >
-                    Mở tất cả
-                </button>
             </summary>
-            <div class="lock-list">
-                <div
-                    v-for="row in lockRows"
-                    :key="row.key"
-                    class="lock-row"
-                >
-                    <div class="lock-row-head">
-                        <div>
-                            <strong>{{ row.courtName }}</strong>
-                            <span
-                                >{{ row.dateLabel }} ·
-                                {{ row.items.length }} khoảng</span
-                            >
-                        </div>
-                        <button
-                            type="button"
-                            :disabled="Boolean(deletingId)"
-                            @click="
-                                removeLocks(
-                                    row.items,
-                                    `Mở tất cả khoảng khóa của ${row.courtName} ngày ${row.dateLabel}?`,
-                                )
-                            "
-                        >
-                            Mở ngày này
-                        </button>
+            <div class="lock-table" role="table" aria-label="Khoảng lịch đã khóa">
+                <div class="lock-table-head" role="row">
+                    <span>Sân và ngày</span>
+                    <span>Khung giờ</span>
+                    <span>Lý do</span>
+                    <span>Trạng thái</span>
+                </div>
+                <div v-for="lock in locks" :key="lock.id" class="lock-table-row" role="row">
+                    <div>
+                        <strong>{{ lock.venue_court?.name || "Sân chưa rõ" }}</strong>
+                        <small>
+                            {{ date(lockDate(lock)) }} ·
+                            {{ lock.lock_type_label || "Khóa thủ công" }}
+                        </small>
                     </div>
-                    <div class="lock-chip-list">
-                        <button
-                            v-for="lock in row.items"
-                            :key="lock.id"
-                            type="button"
-                            :disabled="Boolean(deletingId)"
-                            :title="lock.reason || 'Mở khoảng khóa'"
-                            @click="removeLock(lock)"
-                        >
-                            <span class="lock-chip-time">
-                                {{ time(lock.start_time) }} -
-                                {{ time(lock.end_time) }}
-                            </span>
-                            <span class="lock-chip-reason">
-                                {{ lock.reason || "Không có lý do" }}
-                            </span>
-                            <span class="lock-chip-action">Mở</span>
-                        </button>
-                    </div>
+                    <strong class="lock-time">
+                        {{ time(lock.start_time) }} - {{ time(lock.end_time) }}
+                    </strong>
+                    <span class="lock-reason">{{ lock.reason || "Không có lý do" }}</span>
+                    <span class="lock-status" :class="lock.status || 'active'">
+                        {{ lock.status_label || "Đang khóa" }}
+                    </span>
                 </div>
             </div>
         </details>
@@ -519,11 +741,12 @@
 <script>
 import { bookingService } from "../../services/bookingService.js";
 import { ownerScheduleLockService } from "../../services/ownerScheduleLocks.js";
+import ConfirmModal from "../../components/ConfirmModal.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
 
 export default {
     name: "OwnerScheduleLocks",
-    components: { MiniCalendar },
+    components: { ConfirmModal, MiniCalendar },
     data() {
         const today = new Date().toISOString().split("T")[0];
 
@@ -534,15 +757,15 @@ export default {
             scheduleSlots: [],
             scheduleCourts: [],
             scheduleSlotStatuses: [],
+            scheduleBusyIntervals: [],
             loading: true,
             saving: false,
-            deletingId: "",
+            unlocking: false,
             error: "",
             notice: "",
             form: {
                 start_date: today,
                 end_date: today,
-                lock_mode: "slots",
                 reason: "",
             },
             selectedSlots: [],
@@ -552,20 +775,73 @@ export default {
             pendingLockPayload: null,
             lockConflictPreview: null,
             lockResolutions: {},
+            conflictPreviewOnly: false,
+            selectedLockDetail: null,
+            unlockMode: false,
+            selectedUnlockSlots: [],
+            unlockConfirmOpen: false,
+            scheduleRequestId: 0,
+            locksRequestId: 0,
+            fullDayLockedCourtIds: [],
         };
     },
     computed: {
+        isFullDaySelection() {
+            return this.selectedCourtIds.length > 0;
+        },
+        hasLockSelection() {
+            return this.isFullDaySelection || this.selectedSlots.length > 0;
+        },
         canSubmit() {
-            const hasTarget =
-                this.form.lock_mode === "whole_day"
-                    ? this.selectedCourtIds.length > 0
-                    : this.selectedSlots.length > 0;
-
             return (
-                hasTarget &&
+                !this.unlockMode &&
+                this.hasLockSelection &&
                 this.form.start_date &&
                 this.form.end_date &&
                 this.form.reason
+            );
+        },
+        unlockConfirmMessage() {
+            const courtCount = new Set(
+                this.selectedUnlockSlots.map((slot) => slot.venue_court_id),
+            ).size;
+
+            return `Bạn đang mở ${this.selectedUnlockSlots.length} ô khóa trên ${courtCount} sân trong ngày ${this.date(this.form.start_date)}.`;
+        },
+        unlockableSlots() {
+            if (!this.scheduleCourts.length || !this.activePeriodSlots.length) {
+                return [];
+            }
+
+            return this.scheduleCourts.flatMap((court) =>
+                this.activePeriodSlots
+                    .map((slot) => {
+                        const status = this.statusFor(court.id, slot);
+                        if (!this.isManagedLockStatus(status)) return null;
+
+                        const interval = this.busyIntervalFor(court.id, slot);
+                        const lockId =
+                            status?.schedule_lock_id ||
+                            interval?.schedule_lock_id;
+                        if (!lockId) return null;
+
+                        return {
+                            key: this.unlockSlotKey(court.id, slot.start_time),
+                            schedule_lock_id: lockId,
+                            venue_court_id: court.id,
+                            court_name: court.name,
+                            start_time: this.withSeconds(slot.start_time),
+                            end_time: this.withSeconds(slot.end_time),
+                        };
+                    })
+                    .filter(Boolean),
+            );
+        },
+        hasManagedLocksOnSchedule() {
+            return this.scheduleBusyIntervals.some(
+                (interval) =>
+                    interval.source === "slot_lock" &&
+                    ["manual", "emergency"].includes(interval.status),
             );
         },
         dateRangeLabel() {
@@ -574,6 +850,13 @@ export default {
             }
 
             return `${this.date(this.form.start_date)} - ${this.date(this.form.end_date)}`;
+        },
+        isDateRange() {
+            return Boolean(
+                this.form.start_date &&
+                    this.form.end_date &&
+                    this.form.start_date !== this.form.end_date,
+            );
         },
         dateCount() {
             const start = new Date(`${this.form.start_date}T00:00:00`);
@@ -585,23 +868,68 @@ export default {
             return Math.max(Math.floor((end - start) / 86400000) + 1, 0);
         },
         selectedCourtCount() {
+            if (this.isFullDaySelection) {
+                return this.selectedCourtIds.length;
+            }
+
             return new Set(
                 this.selectedSlots.map((slot) => slot.venue_court_id),
             ).size;
         },
         selectionSummary() {
-            if (!this.selectedSlots.length) {
+            if (this.isFullDaySelection) {
+                return `Cả ngày theo giờ hoạt động · ${this.selectedCourtCount} sân`;
+            }
+            if (!this.hasLockSelection) {
                 return "Chọn thời gian trên bảng bên phải";
             }
 
             return `Thời gian: ${this.selectedTimeText} · ${this.selectedCourtCount} sân`;
         },
         lockButtonLabel() {
-            if (this.form.lock_mode === "whole_day") {
-                return "Khóa cả ngày";
-            }
+            return this.isFullDaySelection
+                ? "Kiểm tra và khóa cả ngày"
+                : "Kiểm tra và khóa lịch";
+        },
+        fullDayLockedCourtIdSet() {
+            return new Set(
+                this.fullDayLockedCourtIds.map((courtId) => String(courtId)),
+            );
+        },
+        selectableFullDayCourtIds() {
+            return this.scheduleCourts
+                .filter((court) => !this.isFullDayCourtLocked(court.id))
+                .map((court) => court.id);
+        },
+        allSelectableFullDayCourtsSelected() {
+            return (
+                this.selectableFullDayCourtIds.length > 0 &&
+                this.selectedCourtIds.length ===
+                    this.selectableFullDayCourtIds.length
+            );
+        },
+        canResolveEmergencyLock() {
+            const items = this.lockConflictPreview?.items || [];
+            if (!items.length) return false;
 
-            return "Khóa thời gian đã chọn";
+            return items.every((item) => {
+                const resolution =
+                    this.lockResolutions[item.booking_item_id];
+                if (!resolution?.action) return false;
+                if (resolution.action === "switch") {
+                    return (
+                        Boolean(resolution.venue_court_id) &&
+                        this.alternativesForResolution(item).some(
+                            (court) =>
+                                String(court.id) ===
+                                String(resolution.venue_court_id),
+                        )
+                    );
+                }
+                return ["cancel", "cash_refund"].includes(
+                    resolution.action,
+                );
+            });
         },
         selectedTimeText() {
             const ranges = [
@@ -632,152 +960,6 @@ export default {
 
             const sortedDates = dates.sort();
             return `${this.locks.length} khoảng · ${dates.length} ngày (${this.date(sortedDates[0])} - ${this.date(sortedDates[sortedDates.length - 1])})`;
-        },
-        lockGroups() {
-            const grouped = this.locks.reduce((result, lock) => {
-                const courtId =
-                    lock.venue_court_id || lock.venue_court?.id || "unknown";
-                if (!result[courtId]) {
-                    result[courtId] = {
-                        courtId,
-                        courtName: lock.venue_court?.name || "Sân chưa rõ",
-                        items: [],
-                    };
-                }
-                result[courtId].items.push(lock);
-                return result;
-            }, {});
-
-            return Object.values(grouped)
-                .map((group) => {
-                    const days = group.items.reduce((result, lock) => {
-                        const date = this.lockDate(lock);
-                        if (!result[date]) {
-                            result[date] = {
-                                date,
-                                dateLabel: this.date(date),
-                                items: [],
-                            };
-                        }
-                        result[date].items.push(lock);
-                        return result;
-                    }, {});
-
-                    return {
-                        ...group,
-                        items: group.items.sort((a, b) =>
-                            `${this.lockDate(a)} ${a.start_time}`.localeCompare(
-                                `${this.lockDate(b)} ${b.start_time}`,
-                            ),
-                        ),
-                        days: Object.values(days)
-                            .map((day) => ({
-                                ...day,
-                                items: day.items.sort((a, b) =>
-                                    a.start_time.localeCompare(b.start_time),
-                                ),
-                            }))
-                            .sort((a, b) => a.date.localeCompare(b.date)),
-                    };
-                })
-                .sort((a, b) => a.courtName.localeCompare(b.courtName));
-        },
-        lockRows() {
-            return this.lockGroups.flatMap((group) =>
-                group.days.map((day) => ({
-                    key: `${group.courtId}-${day.date}`,
-                    courtId: group.courtId,
-                    courtName: group.courtName,
-                    date: day.date,
-                    dateLabel: day.dateLabel,
-                    items: day.items,
-                })),
-            );
-        },
-        dateRangeDates() {
-            const start = new Date(`${this.form.start_date}T00:00:00`);
-            const end = new Date(`${this.form.end_date}T00:00:00`);
-            if (
-                Number.isNaN(start.getTime()) ||
-                Number.isNaN(end.getTime()) ||
-                end < start
-            ) {
-                return [];
-            }
-
-            const dates = [];
-            for (
-                let date = new Date(start);
-                date <= end && dates.length <= 45;
-                date.setDate(date.getDate() + 1)
-            ) {
-                dates.push(this.isoDate(date));
-            }
-
-            return dates;
-        },
-        lockTargetRanges() {
-            return this.form.lock_mode === "whole_day"
-                ? this.buildWholeDayRanges().map((range) => ({
-                      ...range,
-                      court_name:
-                          this.scheduleCourts.find(
-                              (court) => court.id === range.venue_court_id,
-                          )?.name || "Sân",
-                  }))
-                : this.buildSelectedRanges().map((range) => ({
-                      ...range,
-                      court_name:
-                          this.selectedSlots.find(
-                              (slot) =>
-                                  slot.venue_court_id === range.venue_court_id,
-                          )?.court_name ||
-                          this.scheduleCourts.find(
-                              (court) => court.id === range.venue_court_id,
-                          )?.name ||
-                          "Sân",
-                  }));
-        },
-        lockPreviewRows() {
-            return this.dateRangeDates.flatMap((date) =>
-                this.lockTargetRanges.map((range) => {
-                    const isStartDate = date === this.form.start_date;
-                    const representativeSlot = {
-                        start_time: range.start_time,
-                        end_time: range.end_time,
-                    };
-                    const isBusy = isStartDate
-                        ? this.isRangeBusy(
-                              range.venue_court_id,
-                              representativeSlot,
-                          )
-                        : false;
-
-                    return {
-                        key: `${date}-${range.venue_court_id}-${range.start_time}-${range.end_time}`,
-                        date,
-                        dateLabel: this.date(date),
-                        courtName: range.court_name,
-                        timeText: `${this.time(range.start_time)} - ${this.time(range.end_time)}`,
-                        isBusy,
-                        statusLabel: isBusy
-                            ? "Đang có lịch"
-                            : isStartDate
-                              ? "Trống"
-                              : "Sẽ kiểm tra khi khóa",
-                    };
-                }),
-            );
-        },
-        lockPreviewIssues() {
-            return this.lockPreviewRows.filter((row) => row.isBusy);
-        },
-        lockPreviewStats() {
-            return {
-                total: this.lockPreviewRows.length,
-                knownBusy: this.lockPreviewRows.filter((row) => row.isBusy)
-                    .length,
-            };
         },
         dynamicQuickRanges() {
             const slotStarts = this.scheduleSlots.map((slot) =>
@@ -870,11 +1052,24 @@ export default {
         );
     },
     methods: {
+        async handleCalendarStartDateUpdate(value) {
+            if (!value || value === this.form.start_date) return;
+
+            this.form.start_date = value;
+            await this.handleStartDateChange();
+        },
+        async handleCalendarEndDateUpdate(value) {
+            if (!value || value === this.form.end_date) return;
+
+            this.form.end_date = value;
+            await this.handleEndDateChange();
+        },
         async handleClusterChanged(event) {
             this.selectedClusterId =
                 event.detail?.id ||
                 localStorage.getItem("selected_cluster") ||
                 "";
+            this.cancelUnlockMode();
             this.clearSelection();
             await this.loadData();
         },
@@ -886,6 +1081,7 @@ export default {
                 this.form.end_date = this.form.start_date;
             }
 
+            this.cancelUnlockMode();
             this.clearSelection();
             await Promise.all([this.loadSchedule(), this.loadLocks()]);
         },
@@ -896,6 +1092,9 @@ export default {
             ) {
                 this.form.end_date = this.form.start_date;
             }
+
+            this.cancelUnlockMode();
+            await this.loadLocks();
         },
         async loadData() {
             this.loading = true;
@@ -917,24 +1116,61 @@ export default {
         async loadSchedule() {
             if (!this.selectedClusterId || !this.form.start_date) return;
 
+            const requestId = ++this.scheduleRequestId;
+            const clusterId = String(this.selectedClusterId);
+            const bookingDate = this.form.start_date;
             const response = await bookingService.getSchedule({
-                venue_cluster_id: this.selectedClusterId,
-                booking_date: this.form.start_date,
+                venue_cluster_id: clusterId,
+                booking_date: bookingDate,
                 booking_type: "single",
             });
+
+            if (
+                requestId !== this.scheduleRequestId ||
+                clusterId !== String(this.selectedClusterId) ||
+                bookingDate !== this.form.start_date
+            ) {
+                return;
+            }
+
             this.scheduleSlots = response.time_slots || [];
             this.scheduleCourts = response.courts || [];
             this.scheduleSlotStatuses = response.slot_statuses || [];
+            this.scheduleBusyIntervals = response.busy_intervals || [];
+            this.selectedCourtIds = this.selectedCourtIds.filter((courtId) =>
+                this.scheduleCourts.some(
+                    (court) => String(court.id) === String(courtId),
+                ),
+            );
+            this.pruneLockedFullDayCourtSelections();
             this.ensureActiveTimePeriod();
         },
         async loadLocks() {
             if (!this.selectedClusterId || !this.form.start_date) return;
 
+            const requestId = ++this.locksRequestId;
+            const clusterId = String(this.selectedClusterId);
+            const startDate = this.form.start_date;
+            const endDate = this.form.end_date || startDate;
             const response = await ownerScheduleLockService.list({
-                venue_cluster_id: this.selectedClusterId,
-                booking_date: this.form.start_date,
+                venue_cluster_id: clusterId,
+                start_date: startDate,
+                end_date: endDate,
             });
+
+            if (
+                requestId !== this.locksRequestId ||
+                clusterId !== String(this.selectedClusterId) ||
+                startDate !== this.form.start_date ||
+                endDate !== (this.form.end_date || this.form.start_date)
+            ) {
+                return;
+            }
+
             this.locks = response.data || [];
+            this.fullDayLockedCourtIds =
+                response.meta?.full_day_locked_court_ids || [];
+            this.pruneLockedFullDayCourtSelections();
         },
         async createLock() {
             if (!this.canSubmit) return;
@@ -953,6 +1189,7 @@ export default {
                         lock_type: "emergency",
                     };
                     this.lockConflictPreview = data;
+                    this.conflictPreviewOnly = false;
                     this.lockResolutions = this.defaultLockResolutions(
                         data.items || [],
                     );
@@ -967,22 +1204,54 @@ export default {
             }
         },
         buildLockPayload() {
-            return {
+            const payload = {
                 start_date: this.form.start_date,
                 end_date: this.form.end_date,
                 lock_type: "manual",
                 reason: this.form.reason,
-                slots:
-                    this.form.lock_mode === "whole_day"
-                        ? this.buildWholeDayRanges()
-                        : this.buildSelectedRanges(),
             };
+
+            if (this.isFullDaySelection) {
+                return {
+                    ...payload,
+                    full_day: true,
+                    venue_court_ids: [...this.selectedCourtIds],
+                };
+            }
+
+            return {
+                ...payload,
+                slots: this.buildSelectedRanges(),
+            };
+        },
+        async openAttentionPreview() {
+            if (!this.hasLockSelection) return;
+
+            this.previewing = true;
+            this.error = "";
+            try {
+                const payload = this.buildLockPayload();
+                if (String(payload.reason || "").trim().length < 3) {
+                    delete payload.reason;
+                }
+                const response = await ownerScheduleLockService.preview(payload);
+                const data = response.data || { affected_count: 0, items: [] };
+                this.pendingLockPayload = null;
+                this.lockConflictPreview = data;
+                this.lockResolutions = {};
+                this.conflictPreviewOnly = true;
+            } catch (error) {
+                this.error = error.message || "Không thể kiểm tra lịch trùng.";
+            } finally {
+                this.previewing = false;
+            }
         },
         defaultLockResolutions(items = []) {
             return items.reduce((result, item) => {
                 const firstAlternative = item.alternatives?.[0]?.id || "";
                 result[item.booking_item_id] = {
                     booking_item_id: item.booking_item_id,
+                    scope: "affected",
                     action: firstAlternative ? "switch" : "cancel",
                     venue_court_id: firstAlternative,
                 };
@@ -995,6 +1264,7 @@ export default {
             const resolutions = Object.values(this.lockResolutions).map(
                 (item) => ({
                     booking_item_id: item.booking_item_id,
+                    scope: item.scope || "affected",
                     action: item.action,
                     venue_court_id:
                         item.action === "switch" ? item.venue_court_id : null,
@@ -1027,44 +1297,160 @@ export default {
             this.pendingLockPayload = null;
             this.lockConflictPreview = null;
             this.lockResolutions = {};
+            this.conflictPreviewOnly = false;
         },
-        async removeLock(lock) {
-            await this.removeLocks(
-                [lock],
-                `Mở lại ${this.time(lock.start_time)} - ${this.time(lock.end_time)} tại ${lock.venue_court?.name}?`,
-            );
+        alternativesForResolution(item) {
+            const resolution = this.lockResolutions[item.booking_item_id] || {};
+            return resolution.scope === "booking_item"
+                ? item.full_item_alternatives || []
+                : item.alternatives || [];
         },
-        async removeLocks(locks, confirmMessage) {
-            const targets = (locks || []).filter(Boolean);
-            if (!targets.length || !window.confirm(confirmMessage)) return;
+        setResolutionScope(item, scope) {
+            const resolution = this.lockResolutions[item.booking_item_id];
+            if (!resolution) return;
 
-            this.deletingId =
-                targets.length === 1 ? targets[0].id : `bulk-${Date.now()}`;
+            resolution.scope = scope;
+            this.normalizeResolution(item);
+        },
+        setResolutionAction(item, action) {
+            const resolution = this.lockResolutions[item.booking_item_id];
+            if (!resolution) return;
+
+            resolution.action = action;
+            this.normalizeResolution(item);
+        },
+        normalizeResolution(item) {
+            const resolution = this.lockResolutions[item.booking_item_id];
+            if (!resolution) return;
+
+            const alternatives = this.alternativesForResolution(item);
+            const selectedStillAvailable = alternatives.some(
+                (court) => String(court.id) === String(resolution.venue_court_id),
+            );
+
+            if (resolution.action === "switch" && !alternatives.length) {
+                resolution.action = "cancel";
+                resolution.venue_court_id = "";
+                return;
+            }
+
+            if (!selectedStillAvailable) {
+                resolution.venue_court_id = alternatives[0]?.id || "";
+            }
+        },
+        closeLockDetail() {
+            this.selectedLockDetail = null;
+        },
+        toggleUnlockMode() {
+            if (this.unlockMode) {
+                this.cancelUnlockMode();
+                return;
+            }
+
+            this.clearSelection();
+            this.closeLockDetail();
+            this.error = "";
+            this.notice = "";
+            this.unlockMode = true;
+            this.selectedUnlockSlots = [];
+        },
+        cancelUnlockMode() {
+            this.unlockMode = false;
+            this.selectedUnlockSlots = [];
+            this.unlockConfirmOpen = false;
+        },
+        selectAllUnlockableSlots() {
+            this.selectedUnlockSlots = this.unlockableSlots.map((slot) => ({
+                ...slot,
+            }));
+        },
+        async confirmUnlockSelection() {
+            if (!this.selectedUnlockSlots.length || this.unlocking) return;
+
+            this.unlocking = true;
             this.error = "";
             this.notice = "";
             try {
-                await Promise.all(
-                    targets.map((lock) =>
-                        ownerScheduleLockService.remove(lock.id),
-                    ),
-                );
-                this.notice =
-                    targets.length === 1
-                        ? "Đã mở lại khung giờ."
-                        : `Đã mở lại ${targets.length} khoảng khóa.`;
+                const response = await ownerScheduleLockService.unlock({
+                    ranges: this.buildUnlockRanges(),
+                });
+                this.notice = response.message || "Đã mở các ô được chọn.";
+                this.cancelUnlockMode();
                 await Promise.all([this.loadSchedule(), this.loadLocks()]);
             } catch (error) {
                 this.error = error.message || "Không thể mở lại khung giờ.";
             } finally {
-                this.deletingId = "";
+                this.unlocking = false;
             }
         },
+        buildUnlockRanges() {
+            const ranges = [...this.selectedUnlockSlots]
+                .sort((left, right) => {
+                    const lockCompare = String(left.schedule_lock_id).localeCompare(
+                        String(right.schedule_lock_id),
+                    );
+                    if (lockCompare !== 0) return lockCompare;
+
+                    return this.minutes(left.start_time) - this.minutes(right.start_time);
+                })
+                .map((slot) => ({
+                    schedule_lock_id: slot.schedule_lock_id,
+                    start_time: this.withSeconds(slot.start_time),
+                    end_time: this.withSeconds(slot.end_time),
+                }));
+            const merged = [];
+
+            ranges.forEach((range) => {
+                const previous = merged[merged.length - 1];
+                if (
+                    previous &&
+                    String(previous.schedule_lock_id) ===
+                        String(range.schedule_lock_id) &&
+                    previous.end_time === range.start_time
+                ) {
+                    previous.end_time = range.end_time;
+                    return;
+                }
+
+                merged.push({ ...range });
+            });
+
+            return merged;
+        },
         statusFor(courtId, slot) {
+            const status = this.scheduleSlotStatuses.find(
+                (item) =>
+                    String(item.venue_court_id) === String(courtId) &&
+                    this.withSeconds(item.start_time) ===
+                        this.withSeconds(slot.start_time),
+            );
+            const interval = this.busyIntervalFor(courtId, slot);
+
+            if (status && !interval) return status;
+            if (!interval) return status || null;
+
+            return {
+                ...(status || {}),
+                venue_court_id: courtId,
+                start_time: slot.start_time,
+                end_time: slot.end_time,
+                is_available: false,
+                busy_source: interval.source,
+                busy_status: interval.status,
+                schedule_lock_id: interval.schedule_lock_id,
+                lock_reason: interval.reason,
+            };
+        },
+        busyIntervalFor(courtId, slot) {
+            const start = this.minutes(slot.start_time);
+            const end = this.minutes(slot.end_time);
+
             return (
-                this.scheduleSlotStatuses.find(
-                    (status) =>
-                        status.venue_court_id === courtId &&
-                        status.start_time === slot.start_time,
+                this.scheduleBusyIntervals.find(
+                    (interval) =>
+                        String(interval.venue_court_id) === String(courtId) &&
+                        this.minutes(interval.start_time) < end &&
+                        this.minutes(interval.end_time) > start,
                 ) || null
             );
         },
@@ -1074,52 +1460,94 @@ export default {
         canSelectSlot(courtId, slot) {
             const status = this.statusFor(courtId, slot);
             if (!status || status.is_available) return true;
+            if (status.busy_source === "slot_lock") return false;
+            if (status.slot_status === "past") return false;
 
-            return status.busy_source === "booking";
+            return status.busy_source === "booking" || !status.busy_source;
         },
-        isRangeBusy(courtId, range) {
-            const start = this.minutes(range.start_time);
-            const end = this.minutes(range.end_time);
+        isManagedLockStatus(status) {
+            return (
+                status?.busy_source === "slot_lock" &&
+                ["manual", "emergency"].includes(status.busy_status)
+            );
+        },
+        isPastStatus(status) {
+            return status?.slot_status === "past";
+        },
+        isAdvanceNoticeStatus(status) {
+            return status?.slot_status === "too_early";
+        },
+        canInteractSlot(courtId, slot) {
+            const status = this.statusFor(courtId, slot);
+            if (this.unlockMode) {
+                return this.isManagedLockStatus(status);
+            }
 
-            return this.scheduleSlotStatuses.some((status) => {
-                if (status.venue_court_id !== courtId || status.is_available) {
-                    return false;
-                }
-
-                const statusStart = this.minutes(status.start_time);
-                const statusEnd = this.minutes(status.end_time);
-
-                return statusStart < end && statusEnd > start;
-            });
+            return (
+                this.isManagedLockStatus(status) ||
+                this.canSelectSlot(courtId, slot)
+            );
         },
         slotClass(courtId, slot) {
             const status = this.statusFor(courtId, slot);
+            if (this.isUnlockSelected(courtId, slot))
+                return "manual unlock-selected";
             if (this.isSelected(courtId, slot)) return "selected";
-            if (!status || status.is_available) return "available";
+            if (!status || status.is_available || this.isAdvanceNoticeStatus(status))
+                return "available";
+            if (this.isPastStatus(status)) return "unavailable";
             if (status.busy_source === "booking") return "booking";
             if (["manual", "emergency"].includes(status.busy_status))
                 return "manual";
-            return "holding";
+            return "unavailable";
         },
         slotTitle(courtId, slot) {
             const status = this.statusFor(courtId, slot);
+            if (this.unlockMode) {
+                if (this.isUnlockSelected(courtId, slot)) {
+                    return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Đã chọn để mở khóa`;
+                }
+                if (this.isManagedLockStatus(status)) {
+                    return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Bấm để chọn mở khóa`;
+                }
+
+                return "Chế độ mở khóa chỉ cho chọn các ô đang khóa";
+            }
             if (this.isSelected(courtId, slot))
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Đã chọn`;
-            if (!status || status.is_available)
+            if (!status || status.is_available || this.isAdvanceNoticeStatus(status))
                 return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} · Trống`;
+            if (this.isPastStatus(status)) {
+                return `${this.time(slot.start_time)} - ${this.time(slot.end_time)} không thể chọn`;
+            }
             if (status.busy_source === "booking") {
-                return "Đã có booking · có thể chọn để khóa và xử lý";
+                return "Đã có booking · chọn để khóa đột xuất và xử lý";
             }
             if (["manual", "emergency"].includes(status.busy_status))
-                return `Đã khóa: ${status.lock_reason || "Không có lý do"}`;
-            return "Đang được giữ chỗ";
+                return `Đã khóa: ${status.lock_reason || "Không có lý do"} · Bấm để xem thông tin`;
+            return "Không thể chọn khung giờ này";
         },
         pickSlot(court, slot) {
-            if (this.form.lock_mode !== "slots") return;
+            const status = this.statusFor(court.id, slot);
+            if (this.unlockMode) {
+                if (this.isManagedLockStatus(status)) {
+                    this.toggleUnlockSlot(court, slot, status);
+                }
+                return;
+            }
+
+            if (this.isManagedLockStatus(status)) {
+                this.openLockDetail(court, slot, status);
+                return;
+            }
+
+            if (!this.canSelectSlot(court.id, slot)) return;
+
+            this.selectedCourtIds = [];
 
             const key = this.slotKey(court.id, slot.start_time);
             const existingIndex = this.selectedSlots.findIndex(
-                (item) => item.key === key,
+                (selected) => selected.key === key,
             );
 
             if (existingIndex >= 0) {
@@ -1135,37 +1563,127 @@ export default {
                 end_time: this.withSeconds(slot.end_time),
             });
         },
+        toggleUnlockSlot(court, slot, status) {
+            const interval = this.busyIntervalFor(court.id, slot);
+            const lockId =
+                status?.schedule_lock_id || interval?.schedule_lock_id;
+            if (!lockId) {
+                this.error = "Không tìm thấy khoảng khóa tương ứng. Vui lòng tải lại lịch.";
+                return;
+            }
+
+            const key = this.unlockSlotKey(court.id, slot.start_time);
+            const existingIndex = this.selectedUnlockSlots.findIndex(
+                (selected) => selected.key === key,
+            );
+            if (existingIndex >= 0) {
+                this.selectedUnlockSlots.splice(existingIndex, 1);
+                return;
+            }
+
+            this.selectedUnlockSlots.push({
+                key,
+                schedule_lock_id: lockId,
+                venue_court_id: court.id,
+                court_name: court.name,
+                start_time: this.withSeconds(slot.start_time),
+                end_time: this.withSeconds(slot.end_time),
+            });
+        },
+        openLockDetail(court, slot, status) {
+            const interval = this.busyIntervalFor(court.id, slot);
+            const lockId =
+                status?.schedule_lock_id || interval?.schedule_lock_id;
+            const lock =
+                this.locks.find(
+                    (item) => String(item.id) === String(lockId),
+                ) ||
+                this.locks.find(
+                    (item) =>
+                        String(item.venue_court_id) === String(court.id) &&
+                        this.lockDate(item) === this.form.start_date &&
+                        this.minutes(item.start_time) <
+                            this.minutes(slot.end_time) &&
+                        this.minutes(item.end_time) >
+                            this.minutes(slot.start_time),
+                );
+
+            this.selectedLockDetail =
+                lock ||
+                {
+                    id: lockId,
+                    venue_cluster_id: this.selectedClusterId,
+                    venue_court_id: court.id,
+                    venue_court: court,
+                    booking_date: this.form.start_date,
+                    start_time: interval?.start_time || slot.start_time,
+                    end_time: interval?.end_time || slot.end_time,
+                    reason:
+                        interval?.reason ||
+                        status?.lock_reason ||
+                        "Không có lý do",
+                    lock_type:
+                        interval?.status || status?.busy_status || "manual",
+                    status: "active",
+                    status_label: "Đang khóa",
+                };
+        },
         slotKey(courtId, startTime) {
             return `${courtId}-${this.withSeconds(startTime)}`;
+        },
+        unlockSlotKey(courtId, startTime) {
+            return `unlock-${this.slotKey(courtId, startTime)}`;
         },
         isSelected(courtId, slot) {
             const key = this.slotKey(courtId, slot.start_time);
             return this.selectedSlots.some((item) => item.key === key);
         },
+        isUnlockSelected(courtId, slot) {
+            const key = this.unlockSlotKey(courtId, slot.start_time);
+            return this.selectedUnlockSlots.some((item) => item.key === key);
+        },
         clearSelection() {
             this.selectedSlots = [];
             this.selectedCourtIds = [];
         },
-        setLockMode(mode) {
-            this.form.lock_mode = mode;
-            this.clearSelection();
+        isFullDayCourtLocked(courtId) {
+            return this.fullDayLockedCourtIdSet.has(String(courtId));
+        },
+        pruneLockedFullDayCourtSelections() {
+            if (!this.selectedCourtIds.length) return;
+
+            this.selectedCourtIds = this.selectedCourtIds.filter(
+                (courtId) => !this.isFullDayCourtLocked(courtId),
+            );
+        },
+        handleFullDayCourtSelection() {
+            this.pruneLockedFullDayCourtSelections();
+            if (this.selectedCourtIds.length) {
+                this.selectedSlots = [];
+            }
         },
         toggleAllCourts() {
-            if (this.selectedCourtIds.length === this.scheduleCourts.length) {
+            if (this.allSelectableFullDayCourtsSelected) {
                 this.selectedCourtIds = [];
                 return;
             }
 
-            this.selectedCourtIds = this.scheduleCourts.map(
-                (court) => court.id,
+            this.selectedCourtIds = [...this.selectableFullDayCourtIds];
+            this.selectedSlots = [];
+        },
+        bookingStatusLabel(status) {
+            return (
+                {
+                    pending_approval: "Chờ duyệt",
+                    pending_payment: "Chờ thanh toán",
+                    confirmed: "Đã xác nhận",
+                    checked_in: "Đang chơi",
+                    completed: "Đã hoàn thành",
+                }[status] || "Đang hiệu lực"
             );
         },
-        buildWholeDayRanges() {
-            return this.selectedCourtIds.map((courtId) => ({
-                venue_court_id: courtId,
-                start_time: "00:00:00",
-                end_time: "24:00:00",
-            }));
+        paymentStatusLabel(status) {
+            return status === "paid" ? "Đã thanh toán" : "Chưa thanh toán";
         },
         buildSelectedRanges() {
             const grouped = [...this.selectedSlots]
@@ -1265,6 +1783,11 @@ export default {
     gap: 14px;
     max-width: 1400px;
     padding-bottom: 80px; /* space for sticky bar */
+    font-family: var(--admin-font-family, inherit);
+}
+
+.schedule-lock-page :where(button, input, textarea, select) {
+    font-family: inherit;
 }
 
 /* ===== Alerts ===== */
@@ -1309,7 +1832,7 @@ export default {
 
 .config-right {
     display: grid;
-    grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr);
+    grid-template-columns: minmax(260px, 340px) minmax(420px, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     gap: 12px;
     align-self: stretch;
@@ -1321,7 +1844,7 @@ export default {
     gap: 8px;
 }
 
-.config-section:nth-child(3) {
+.config-section:nth-child(2) {
     grid-column: 1 / -1;
     max-width: none;
 }
@@ -1338,34 +1861,6 @@ export default {
     font-weight: 900;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-}
-
-/* ===== Mode Switch ===== */
-.mode-switch {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
-    max-width: 280px;
-    padding: 4px;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    background: #f8fafc;
-}
-.mode-switch button {
-    min-height: 36px;
-    border: 0;
-    border-radius: 7px;
-    background: transparent;
-    color: #64748b;
-    font: inherit;
-    font-weight: 850;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-.mode-switch button.active {
-    background: var(--admin-primary, #16a34a);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .lock-flow-note {
@@ -1442,9 +1937,19 @@ export default {
     gap: 10px;
     color: #14532d;
 }
-.picker-head strong {
+.picker-head > div {
+    display: grid;
     flex: 1;
+    gap: 2px;
+}
+.picker-head strong {
     font-size: 14px;
+}
+.picker-head small {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
 }
 .picker-head span {
     padding: 4px 8px;
@@ -1505,6 +2010,23 @@ export default {
 .court-chip-grid label.active::after {
     border-color: var(--admin-primary);
     background: var(--admin-primary);
+}
+.court-chip-grid label.locked {
+    border-color: #d7e2d8;
+    background: #f8faf9;
+    cursor: not-allowed;
+    opacity: 0.72;
+}
+.court-chip-grid label.locked::after {
+    border-color: #cbd5e1;
+    background: #e2e8f0;
+    box-shadow: none;
+}
+.court-chip-grid label.locked strong {
+    color: #64748b;
+}
+.court-chip-grid label.locked small {
+    color: #b45309;
 }
 .court-chip-grid input {
     position: absolute;
@@ -1705,10 +2227,58 @@ export default {
     margin: 0;
     color: #0f172a;
 }
+.schedule-date-note {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+}
 .schedule-headline-right {
     display: flex;
     align-items: center;
     gap: 16px;
+}
+.attention-btn {
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid #f59e0b;
+    border-radius: 7px;
+    background: #fffbeb;
+    color: #92400e;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.attention-btn:disabled {
+    border-color: #dbe4de;
+    background: #f7f9f7;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+.unlock-mode-btn {
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid #d8b7b3;
+    border-radius: var(--admin-radius-sm, 7px);
+    background: #fff;
+    color: #8b4a44;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.unlock-mode-btn.active {
+    border-color: #b97870;
+    background: #f3e3e0;
+    color: #743c36;
+}
+.unlock-mode-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 .eyebrow {
     margin: 0 0 4px;
@@ -1745,15 +2315,17 @@ export default {
 .dot-booking {
     background: #cbd5e1;
 }
-.dot-holding {
-    background: #fde68a;
-}
 .dot-manual {
     background: #fca5a5;
 }
 .dot-selected {
     background: var(--admin-primary, #16a34a);
     border-color: var(--admin-primary, #16a34a);
+}
+.dot-unlock-selected {
+    background: #f3e3e0;
+    border-color: #b97870 !important;
+    box-shadow: inset 0 0 0 2px #fff;
 }
 
 /* ===== Quick Ranges ===== */
@@ -1888,8 +2460,9 @@ export default {
 .slot-cell.booking {
     background: #cbd5e1;
 }
-.slot-cell.holding {
-    background: #fde68a;
+.slot-cell.unavailable {
+    background: #f8fafc;
+    cursor: not-allowed;
 }
 .slot-cell.manual {
     background: repeating-linear-gradient(
@@ -1899,6 +2472,19 @@ export default {
         #fecaca 4px,
         #fecaca 8px
     );
+    cursor: pointer;
+}
+.slot-cell.manual.unlock-selected {
+    background: #fff;
+    box-shadow:
+        inset 0 0 0 3px #b97870,
+        inset 0 0 0 999px rgba(185, 120, 112, 0.13);
+}
+.schedule-card.unlock-mode .slot-cell:not(.manual) {
+    opacity: 0.42;
+}
+.schedule-card.unlock-mode .slot-cell.manual:not(.unlock-selected) {
+    box-shadow: inset 0 0 0 1px rgba(139, 74, 68, 0.28);
 }
 .slot-cell.selected {
     background: var(--admin-primary, #16a34a);
@@ -1909,6 +2495,9 @@ export default {
 }
 .slot-cell:disabled {
     cursor: not-allowed;
+}
+.slot-cell.court-not-targeted {
+    opacity: 0.48;
 }
 
 /* ===== Existing Locks Section ===== */
@@ -1940,6 +2529,72 @@ export default {
     color: #64748b;
     font-size: 12px;
     font-weight: 750;
+}
+.lock-table {
+    margin: 0 20px 18px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.lock-table-head,
+.lock-table-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.1fr) 130px minmax(180px, 1.5fr) 112px;
+    align-items: center;
+    gap: 12px;
+}
+.lock-table-head {
+    min-height: 34px;
+    padding: 7px 12px;
+    background: #f7faf8;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+}
+.lock-table-row {
+    min-height: 54px;
+    padding: 8px 12px;
+    border-top: 1px solid #edf1ee;
+    color: #26352c;
+    font-size: 12px;
+}
+.lock-table-row > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+.lock-table-row > div strong,
+.lock-time {
+    color: #1f2f25;
+    font-size: 12px;
+}
+.lock-table-row small {
+    color: #718096;
+    font-size: 11px;
+}
+.lock-reason {
+    min-width: 0;
+    overflow: hidden;
+    color: #5f6f65;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lock-status {
+    width: fit-content;
+    padding: 4px 7px;
+    border-radius: 5px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 11px;
+    font-weight: 800;
+}
+.lock-status.upcoming {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+.lock-status.ended {
+    background: #f1f5f9;
+    color: #64748b;
 }
 .lock-list {
     display: grid;
@@ -2061,6 +2716,7 @@ export default {
     display: flex;
     justify-content: center;
     padding: 0;
+    font-family: var(--admin-font-family, inherit);
     pointer-events: none;
 }
 .sticky-bottom-inner {
@@ -2105,6 +2761,25 @@ export default {
     font-weight: 900;
     cursor: pointer;
 }
+.sticky-btn-box {
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid #e6c5c0;
+    border-radius: 8px;
+    background: #fff7f6;
+    color: #a4443b;
+}
+.sticky-btn-all-unlock {
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1px solid #d1bd86;
+    border-radius: 8px;
+    background: #fff8e6;
+    color: #765f2d;
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+}
 .sticky-btn-submit {
     min-height: 42px;
     padding: 0 20px;
@@ -2123,6 +2798,26 @@ export default {
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
 }
 .sticky-btn-submit:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.sticky-btn-unlock {
+    min-height: 42px;
+    padding: 0 20px;
+    border: 1px solid #c88e87;
+    border-radius: var(--admin-radius-sm, 8px);
+    background: #a85f57;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.sticky-btn-unlock:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.sticky-btn-all-unlock:disabled,
+.sticky-btn-box:disabled {
     opacity: 0.55;
     cursor: not-allowed;
 }
@@ -2166,9 +2861,13 @@ export default {
     place-items: center;
     padding: 24px;
     background: rgba(15, 23, 42, 0.55);
+    font-family: var(--admin-font-family, inherit);
+}
+.modal-backdrop :where(button, input, textarea, select) {
+    font-family: inherit;
 }
 .conflict-modal {
-    width: min(900px, 100%);
+    width: min(980px, 100%);
     max-height: min(760px, calc(100vh - 48px));
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -2206,6 +2905,81 @@ export default {
     color: #334155;
     cursor: pointer;
 }
+.lock-detail-modal {
+    width: min(520px, 100%);
+    display: grid;
+    gap: 16px;
+    overflow: hidden;
+    border: 1px solid var(--admin-border, #d7ead7);
+    border-radius: var(--admin-radius-lg, 12px);
+    background: var(--admin-surface, #fff);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+.lock-detail-modal header,
+.lock-detail-modal footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 0;
+}
+.lock-detail-modal h3 {
+    margin: 0;
+    color: var(--admin-text, #163222);
+    font-size: 20px;
+}
+.lock-detail-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin: 0 20px;
+    border-top: 1px solid var(--admin-border, #e2e8f0);
+    border-bottom: 1px solid var(--admin-border, #e2e8f0);
+}
+.lock-detail-list > div {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 13px 0;
+}
+.lock-detail-list > div:nth-child(odd) {
+    padding-right: 16px;
+}
+.lock-detail-list > div:nth-child(even) {
+    padding-left: 16px;
+    border-left: 1px solid var(--admin-border, #e2e8f0);
+}
+.lock-detail-list dt {
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+}
+.lock-detail-list dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--admin-text, #1f2f25);
+    font-size: 13px;
+    font-weight: 700;
+}
+.lock-detail-reason {
+    display: grid;
+    gap: 5px;
+    margin: 0 20px;
+}
+.lock-detail-reason > span {
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+}
+.lock-detail-reason p {
+    margin: 0;
+    color: var(--admin-text, #334238);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.lock-detail-modal footer {
+    padding: 0 20px 18px;
+}
 .conflict-help {
     margin: 0 20px;
     padding: 12px 14px;
@@ -2224,7 +2998,9 @@ export default {
 }
 .conflict-card {
     display: grid;
-    gap: 12px;
+    grid-template-columns: minmax(260px, 0.92fr) minmax(340px, 1.08fr);
+    gap: 18px;
+    align-items: start;
     padding: 14px;
     border: 1px solid #e2eadf;
     border-radius: 10px;
@@ -2244,13 +3020,70 @@ export default {
     font-size: 12px;
     line-height: 1.35;
 }
+.conflict-impact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+.conflict-impact span {
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border: 1px solid #dbe8df;
+    border-radius: 7px;
+    background: #fff;
+    color: #43564a;
+    font-size: 12px;
+    font-weight: 800;
+}
 .conflict-actions {
     display: grid;
+    gap: 12px;
+}
+.resolution-group {
+    display: grid;
+    gap: 6px;
+}
+.resolution-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+.scope-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+}
+.scope-switch button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 12px;
+    border: 1px solid #d7e5da;
+    border-radius: 7px;
+    background: #fff;
+    color: #475569;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.35;
+    text-align: center;
+    cursor: pointer;
+}
+.scope-switch button.active {
+    border-color: #79aa86;
+    background: #edf7ef;
+    color: #1f5130;
+    box-shadow: inset 3px 0 0 #6a9d79;
 }
 .conflict-select {
     width: 100%;
-    height: 38px;
+    height: 42px;
     border: 1px solid #d8e8d8;
     border-radius: 8px;
     padding: 0 10px;
@@ -2259,30 +3092,99 @@ export default {
     font: inherit;
     font-weight: 750;
 }
-.conflict-radios {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+.no-alternative {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid #dfe8e1;
+    border-radius: 7px;
+    background: #f6f8f6;
 }
-.radio-line {
-    display: inline-flex;
+.no-alternative strong {
+    color: #46564b;
+    font-size: 12px;
+}
+.no-alternative span {
+    color: #718078;
+    font-size: 11px;
+    line-height: 1.4;
+}
+.conflict-radios {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.resolution-option {
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
+    min-height: 44px;
+    padding: 9px 12px;
+    border: 1px solid #cddfd1;
+    border-radius: 7px;
+    background: #fff;
     color: #2f5a3a;
+    font-family: inherit;
     font-size: 13px;
-    font-weight: 850;
-    white-space: nowrap;
+    font-weight: 750;
+    line-height: 1.35;
+    text-align: center;
     cursor: pointer;
 }
-.radio-line.danger {
-    color: #b91c1c;
+.resolution-option.active {
+    border-color: #74a584;
+    background: #eaf4ed;
+    box-shadow: inset 3px 0 0 #5f9872;
 }
-.radio-line.cash {
-    color: #b45309;
+.resolution-option.danger {
+    color: #80534e;
+}
+.resolution-option.danger.active {
+    border-color: #d3aaa4;
+    background: #f3e3e0;
+    box-shadow: inset 3px 0 0 #b97870;
+}
+.resolution-option.cash {
+    color: #765f2d;
+}
+.resolution-option.cash.active {
+    border-color: #d1bd86;
+    background: #f3eddc;
+    box-shadow: inset 3px 0 0 #b69a54;
+}
+.resolution-option:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+.conflict-empty {
+    padding: 28px 18px;
+    border: 1px dashed #cfe0d2;
+    border-radius: 8px;
+    background: #f8fcf9;
+    color: #607267;
+    text-align: center;
+    font-weight: 700;
 }
 
 /* ===== Responsive ===== */
 @media (max-width: 860px) {
+    .conflict-card {
+        grid-template-columns: 1fr;
+    }
+    .scope-switch,
+    .conflict-radios {
+        grid-template-columns: 1fr;
+    }
+    .lock-detail-list {
+        grid-template-columns: 1fr;
+    }
+    .lock-detail-list > div:nth-child(n) {
+        padding: 11px 0;
+        border-left: 0;
+    }
+    .lock-detail-list > div + div {
+        border-top: 1px solid var(--admin-border, #e2e8f0);
+    }
     .sticky-bottom-bar {
         left: 12px;
         right: 12px;
@@ -2295,7 +3197,7 @@ export default {
     .config-right {
         grid-template-columns: 1fr;
     }
-    .config-section:nth-child(3),
+    .config-section:nth-child(2),
     .config-section:nth-child(n + 4),
     .preview-details,
     .lock-empty-preview {
@@ -2328,6 +3230,25 @@ export default {
     }
     .legend {
         justify-content: flex-start;
+    }
+    .lock-table {
+        margin: 0 12px 14px;
+        border: 0;
+        overflow: visible;
+    }
+    .lock-table-head {
+        display: none;
+    }
+    .lock-table-row {
+        grid-template-columns: 1fr auto;
+        gap: 6px 12px;
+        margin-top: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+    }
+    .lock-reason {
+        grid-column: 1 / -1;
+        white-space: normal;
     }
     .quick-ranges {
         padding: 14px;

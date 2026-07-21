@@ -50,8 +50,9 @@ export const authService = {
     });
   },
 
-  me() {
-    return api('/api/auth/me');
+  me(include = '') {
+    const query = include ? `?include=${encodeURIComponent(include)}` : '';
+    return api(`/api/auth/me${query}`);
   },
 
   googleExchange(code) {

@@ -173,6 +173,24 @@ return new class extends Migration
             });
         }
 
+        $settingData = [
+            'value' => '14',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('system_settings', 'description')) {
+            $settingData['description'] = 'So ngay chu san con duoc xem ho so sau khi bien ban cham dut cuoi da ky.';
+        }
+
+        if (Schema::hasColumn('system_settings', 'value_type')) {
+            $settingData['value_type'] = 'integer';
+        }
+
+        if (Schema::hasColumn('system_settings', 'type')) {
+            $settingData['type'] = 'integer';
+        }
+
         DB::table('system_settings')->updateOrInsert(
             ['key' => 'partner_termination_view_grace_days'],
             $settingData

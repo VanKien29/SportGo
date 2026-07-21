@@ -15,30 +15,12 @@
         </div>
 
         <template v-else>
-            <section class="avc-header card animate-fade-in">
-                <div class="avc-title">
-                    <p class="eyebrow">Quản lý cụm sân</p>
-                    <h1>Toàn cảnh vận hành cụm sân</h1>
-                    <p>Theo dõi trạng thái, chủ sân, phí nền tăng và các cụm sân đang cần xử lý.</p>
-                </div>
-                <button class="btn btn-outline" type="button" @click="loadClusters">
-                    Làm mới
-                </button>
-            </section>
-
-            <section v-if="clusters.length > 0" class="avc-kpis animate-fade-in">
-                <article v-for="card in summaryCards" :key="card.key" class="kpi-card">
-                    <span>{{ card.label }}</span>
-                    <strong>{{ card.value }}</strong>
-                    <small>{{ card.hint }}</small>
-                </article>
-            </section>
-
+            <!-- ── Bộ lọc & Ô tìm kiếm (SaaS Command Bar) ── -->
             <SaaSFilterBar
                 v-if="clusters.length > 0"
                 v-model="filterStatus"
                 v-model:search="searchText"
-                :tabs="statusTabsUi"
+                :tabs="statusTabs"
                 search-id="search-venue-cluster"
                 search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
             />
@@ -58,7 +40,40 @@
 
             <!-- ── Elegant SaaS Table View ── -->
             <div v-else class="clusters-list-wrapper animate-fade-in">
-                <SaaSTable 
+                <div class="mobile-cluster-list">
+                    <button
+                        v-for="row in filteredClusters"
+                        :key="row.id"
+                        type="button"
+                        class="mobile-cluster-row"
+                        @click="goDetail(row.id)"
+                    >
+                        <span class="mobile-cluster-heading">
+                            <strong>{{ row.name }}</strong>
+                            <span class="status-badge" :class="'state-is-' + displayClusterStatus(row)">
+                                {{ statusLabel(row) }}
+                            </span>
+                        </span>
+                        <span class="mobile-cluster-address">{{ formatFullAddress(row) }}</span>
+                        <span class="mobile-cluster-facts">
+                            <span>
+                                <small>Chủ sân</small>
+                                <strong>{{ row.owner?.full_name || 'Chưa cập nhật' }}</strong>
+                            </span>
+                            <span>
+                                <small>Quy mô</small>
+                                <strong>{{ row.court_count }} sân</strong>
+                            </span>
+                            <span>
+                                <small>Phí</small>
+                                <strong>{{ feeStatusLabel(row.fee_status) }}</strong>
+                            </span>
+                            <AppIcon name="chevronRight" size="18" />
+                        </span>
+                    </button>
+                </div>
+                <SaaSTable
+                    class="desktop-cluster-table"
                     :columns="tableColumns" 
                     :data="filteredClusters" 
                     clickable 
@@ -100,8 +115,8 @@
 
                     <!-- Trạng thái hoạt động -->
                     <template #status="{ row }">
-                        <span class="status-badge" :class="'state-is-' + row.status">
-                            {{ statusLabel(row.status) }}
+                        <span class="status-badge" :class="'state-is-' + displayClusterStatus(row)">
+                            {{ statusLabel(row) }}
                         </span>
                     </template>
 
@@ -129,6 +144,7 @@ import AppIcon from "../../components/AppIcon.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
 import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
+import { venueDisplayStatus } from "../../utils/venuePartnerState.js";
 
 export default {
     name: "AdminVenueClusters",
@@ -140,12 +156,6 @@ export default {
             error: "",
             filterStatus: "",
             searchText: "",
-            statusTabs: [
-                { value: "", label: "Tất cả" },
-                { value: "pending", label: "Chờ duyệt" },
-                { value: "active", label: "Hoạt động" },
-                { value: "locked", label: "Đã khóa" },
-            ],
             tableColumns: [
                 { key: "name", label: "Tên cụm sân" },
                 { key: "owner", label: "Chủ sân" },
@@ -168,27 +178,15 @@ export default {
                 { value: "partner_terminated", label: "Đã chấm dứt" },
             ];
         },
-        summaryCards() {
-            const locked = this.statusTabCount("locked");
-            const terminating = this.statusTabCount("termination_processing");
-            const feeAttention = this.clusters.filter((cluster) => ["pending", "overdue"].includes(cluster.fee_status)).length;
-
-            return [
-                { key: "total", label: "Tong cum san", value: this.clusters.length, hint: "Tat ca ho so san dang quan ly" },
-                { key: "active", label: "Dang hoat dong", value: this.statusTabCount("active"), hint: "Co the nhan booking" },
-                { key: "attention", label: "Can chu y", value: locked + terminating + feeAttention, hint: "Khoa, cham dut hoac phi treo" },
-                { key: "terminated", label: "Da cham dut", value: this.statusTabCount("partner_terminated"), hint: "Da tat van hanh doi tac" },
-            ];
-        },
         filteredClusters() {
             let list = this.clusters;
             if (this.filterStatus) {
                 if (this.filterStatus === "has_pending_requests") {
                     list = list.filter((c) => c.has_pending_requests);
                 } else if (this.filterStatus === "termination_processing") {
-                    list = list.filter((c) => ["termination_locked", "termination_processing"].includes(c.status));
+                    list = list.filter((c) => this.displayClusterStatus(c) === "termination_processing");
                 } else {
-                    list = list.filter((c) => c.status === this.filterStatus);
+                    list = list.filter((c) => this.displayClusterStatus(c) === this.filterStatus);
                 }
             }
             if (this.searchText.trim()) {
@@ -220,10 +218,15 @@ export default {
             }
         },
 
-        statusLabel(status) {
+        displayClusterStatus(cluster) {
+            return venueDisplayStatus(cluster);
+        },
+
+        statusLabel(cluster) {
+            const status = this.displayClusterStatus(cluster);
             if (status === "termination_locked") return "Khoa cham dut";
-            if (status === "termination_processing") return "Dang cham dut";
-            if (status === "partner_terminated") return "Da cham dut";
+            if (status === "termination_processing") return "Đang chấm dứt";
+            if (status === "partner_terminated") return "Đã chấm dứt";
 
             const map = {
                 pending: "Chờ duyệt",
@@ -239,9 +242,9 @@ export default {
                 return this.clusters.filter((c) => c.has_pending_requests).length;
             }
             if (status === "termination_processing") {
-                return this.clusters.filter((cluster) => ["termination_locked", "termination_processing"].includes(cluster.status)).length;
+                return this.clusters.filter((cluster) => this.displayClusterStatus(cluster) === "termination_processing").length;
             }
-            return this.clusters.filter((cluster) => cluster.status === status).length;
+            return this.clusters.filter((cluster) => this.displayClusterStatus(cluster) === status).length;
         },
 
         feeStatusLabel(status) {
@@ -277,82 +280,19 @@ export default {
 .avc-page {
     display: flex;
     flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     max-width: 1180px;
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
-.avc-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 20px 0 12px;
-}
-
-.avc-title {
+.avc-page > * {
     min-width: 0;
+    max-width: 100%;
 }
-
-.eyebrow {
-    margin: 0 0 4px;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0;
-    text-transform: uppercase;
-}
-
-.avc-title h1 {
-    margin: 0;
-    color: var(--admin-text, #0f172a);
-    font-size: 24px;
-    line-height: 1.2;
-}
-
-.avc-title p:last-child {
-    margin: 6px 0 0;
-    color: var(--admin-muted, #64748b);
-    font-size: 14px;
-}
-
-.avc-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.kpi-card {
-    display: grid;
-    gap: 4px;
-    min-height: 106px;
-    border: 1px solid var(--admin-border, #e2e8f0);
-    border-radius: 8px;
-    background: var(--admin-surface, #fff);
-    padding: 16px;
-}
-
-.kpi-card span {
-    color: var(--admin-muted, #64748b);
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.kpi-card strong {
-    color: var(--admin-text, #0f172a);
-    font-size: 28px;
-    line-height: 1;
-}
-
-.kpi-card small {
-    color: var(--admin-muted, #64748b);
-    font-size: 12px;
-}
-
-
 
 /* State */
 .state-box {
@@ -393,6 +333,19 @@ export default {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.mobile-cluster-list {
+    display: none;
+}
+
+:deep(.saas-table-container) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 .clusters-list {
@@ -569,6 +522,15 @@ export default {
     color: var(--admin-danger, #ef4444) !important;
 }
 
+.state-is-termination_locked,
+.state-is-termination_processing {
+    color: #c2410c !important;
+}
+
+.state-is-partner_terminated {
+    color: #64748b !important;
+}
+
 /* Fee styles */
 .fee-is-paid {
     color: var(--admin-primary, #10b981) !important;
@@ -658,6 +620,97 @@ export default {
 }
 
 @media (max-width: 768px) {
+    .avc-title h1 {
+        max-width: calc(100% - 8px);
+        font-size: 22px;
+        overflow-wrap: anywhere;
+    }
+
+    .filter-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .filter-result {
+        padding-bottom: 0;
+    }
+
+    .desktop-cluster-table {
+        display: none !important;
+    }
+
+    .mobile-cluster-list {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .mobile-cluster-row {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        border: 1px solid var(--admin-border, #dbe4de);
+        border-radius: 8px;
+        background: var(--admin-surface, #fff);
+        padding: 13px;
+        color: var(--admin-text, #0f172a);
+        text-align: left;
+    }
+
+    .mobile-cluster-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .mobile-cluster-heading > strong {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .mobile-cluster-heading .status-badge {
+        flex: 0 0 auto;
+        font-size: 12px;
+    }
+
+    .mobile-cluster-address {
+        color: var(--admin-muted, #64748b);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .mobile-cluster-facts {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(62px, .6fr) minmax(72px, .8fr) 18px;
+        align-items: end;
+        gap: 8px;
+        border-top: 1px solid var(--admin-border-soft, #edf2ef);
+        padding-top: 9px;
+    }
+
+    .mobile-cluster-facts > span {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .mobile-cluster-facts small {
+        color: var(--admin-muted, #64748b);
+        font-size: 10px;
+    }
+
+    .mobile-cluster-facts strong {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--admin-text, #0f172a);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .cluster-row-item {
         flex-direction: column;
         align-items: stretch;

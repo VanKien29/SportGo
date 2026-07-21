@@ -118,6 +118,11 @@ class PartnerTerminationRequest extends Model
         return $this->hasMany(PartnerTerminationDocument::class, 'partner_termination_request_id');
     }
 
+    public function generatedDocuments()
+    {
+        return $this->hasMany(GeneratedDocument::class, 'partner_termination_request_id');
+    }
+
     public function bookingActions()
     {
         return $this->hasMany(PartnerTerminationBookingAction::class, 'partner_termination_request_id');

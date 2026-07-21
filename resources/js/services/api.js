@@ -29,10 +29,14 @@ function clearAuthStorage() {
   ].forEach((key) => localStorage.removeItem(key));
 }
 
+function isTechnicalErrorMessage(message) {
+  return /SQLSTATE|Base table or view not found|Connection:\s|Stack trace|PDOException|QueryException|vendor[\\/]|Class\s+["'].*["']\s+not found|Call to undefined/i.test(String(message || ''));
+}
+
 function extractError(data, fallback) {
   const first = data?.errors ? Object.values(data.errors)[0] : null;
-  if (Array.isArray(first) && first[0]) return first[0];
-  if (data?.message) return data.message;
+  const candidate = Array.isArray(first) && first[0] ? first[0] : data?.message;
+  if (candidate && !isTechnicalErrorMessage(candidate)) return candidate;
   return fallback;
 }
 
