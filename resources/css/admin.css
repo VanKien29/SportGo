@@ -2,7 +2,8 @@
 
 /* --- START OF tokens.css --- */
 :root {
-  --admin-font-family: 'Segoe UI', Arial, sans-serif;
+  --admin-font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --admin-font: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --admin-sidebar-width: 272px;
   --admin-sidebar-collapsed-width: 78px;
   --admin-transition-fast: 180ms;
@@ -139,6 +140,19 @@
   transition: grid-template-columns 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Reset headings inside portals — app.css sets h1-h6 to Outfit (display font)
+   which bleeds into admin/owner/staff views. Restore to the portal font stack. */
+.sg-shell-admin h1,
+.sg-shell-admin h2,
+.sg-shell-admin h3,
+.sg-shell-admin h4,
+.sg-shell-admin h5,
+.sg-shell-admin h6 {
+  font-family: var(--admin-font-family);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
 .sg-shell-admin.sidebar-collapsed {
   grid-template-columns: 78px minmax(0, 1fr);
 }
@@ -256,19 +270,25 @@
 
 .sg-shell-admin .nav-item:hover {
   background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-sidebar));
-  color: var(--admin-primary-dark);
+  color: var(--admin-text);
+}
+
+[data-theme="dark"] .sg-shell-admin .nav-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
 }
 
 .sg-shell-admin .nav-active {
   background: color-mix(in srgb, var(--admin-primary) 14%, var(--admin-sidebar)) !important;
-  color: var(--admin-primary-dark) !important;
+  color: var(--admin-text) !important;
   box-shadow: inset 3px 0 0 var(--admin-primary) !important;
   font-weight: 500 !important;
 }
 
 [data-theme="dark"] .sg-shell-admin .nav-active {
-  background: color-mix(in srgb, var(--admin-primary) 22%, var(--admin-sidebar)) !important;
-  color: var(--admin-text) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  box-shadow: inset 3px 0 0 var(--admin-primary, #22c55e) !important;
 }
 
 .sg-shell-admin .sidebar-view-user {
@@ -1201,7 +1221,7 @@
 
 .sg-shell-admin .content-area :is(h1, h2, h3, h4, .page-title, .section-title, .card-title, .main-title, .avcd-title) {
   color: var(--admin-text) !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   letter-spacing: 0 !important;
   line-height: 1.25 !important;
 }
@@ -9576,7 +9596,7 @@ input.invalid {
     background-color: var(--bg-color);
     display: flex;
     flex-direction: column;
-    font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+    font-family: var(--admin-font-family);
   }
   
   .portal-main {
@@ -9860,7 +9880,7 @@ input.invalid {
     flex-direction: column;
     gap: 6px;
     position: relative;
-    padding-bottom: 24px;
+    padding-bottom: 0;
   }
   
   .form-group.full-width {
@@ -10094,7 +10114,7 @@ input.invalid {
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
   --shadow-md: 0 12px 28px rgb(15 23 42 / 0.08);
   color: var(--text-main);
-  font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--admin-font-family);
 }
 
 .partner-review-page,
@@ -11106,7 +11126,7 @@ input.invalid {
     background-color: var(--bg-color);
     display: flex;
     flex-direction: column;
-    font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+    font-family: var(--admin-font-family);
   }
 
   .portal-main {
@@ -11390,7 +11410,7 @@ input.invalid {
     flex-direction: column;
     gap: 6px;
     position: relative;
-    padding-bottom: 24px;
+    padding-bottom: 0;
   }
 
   .form-group.full-width {
@@ -11721,7 +11741,7 @@ input.invalid {
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
   --shadow-md: 0 12px 28px rgb(15 23 42 / 0.08);
   color: var(--text-main);
-  font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--admin-font-family);
 }
 
 .partner-review-page,
@@ -13621,3 +13641,50 @@ input.invalid {
     padding: var(--sg-client-space-4);
   }
 }
+
+/* ── Settings Page Header & Apply Button ── */
+.settings-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.settings-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.settings-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--admin-faint);
+}
+
+.btn-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: 8px;
+  background: var(--admin-primary, #16a34a);
+  color: #ffffff;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 140ms ease;
+}
+
+.btn-apply:hover {
+  opacity: 0.9;
+}
+
+.btn-apply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

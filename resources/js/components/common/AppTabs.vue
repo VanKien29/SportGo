@@ -54,7 +54,6 @@ export default {
 .sg-app-tabs-wrapper {
   display: flex;
   align-items: center;
-  margin-bottom: var(--sg-space-sm, 12px);
 }
 
 .sg-app-tabs {
@@ -83,7 +82,7 @@ export default {
   background: var(--admin-surface, #ffffff);
   color: var(--admin-text, #475569);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.18s ease;
@@ -110,7 +109,7 @@ export default {
   padding: 0 6px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   background: var(--admin-primary-soft, rgba(255, 255, 255, 0.2));
   color: inherit;
 }

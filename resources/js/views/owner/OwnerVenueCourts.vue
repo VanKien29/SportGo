@@ -2248,63 +2248,93 @@ export default {
     box-shadow: none !important;
 }
 
-/* Filters - bê nguyên từ AdminVenueClusters */
+/* Filters */
 .avc-filters {
-    padding: 12px 0;
+    padding: 10px 0 16px 0;
 }
 .filter-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 .filter-tabs {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 4px;
+    background: var(--admin-bg, #f8fafc);
+    padding: 4px;
+    border-radius: 9px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
 }
 .avc-filters .filter-tabs button.tab-btn {
-    height: 38px !important;
-    min-height: 38px !important;
+    height: 32px !important;
+    min-height: 32px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 0 16px !important;
-    border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
-    background: var(--admin-surface, #ffffff) !important;
-    color: #475569 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
+    padding: 0 14px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--admin-faint, #64748b) !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
     cursor: pointer !important;
-    transition: all 0.18s !important;
+    transition: all 0.14s ease !important;
     box-sizing: border-box !important;
 }
+.avc-filters .filter-tabs button.tab-btn:hover {
+    color: var(--admin-text, #0f172a) !important;
+}
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary, #18181b) !important;
-    border-color: var(--admin-primary, #18181b) !important;
-    color: var(--admin-primary-text, #fff) !important;
+    background: var(--admin-surface, #ffffff) !important;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    color: var(--admin-text, #0f172a) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
-.avc-filters .filter-tabs button.tab-btn:not(.active).never-hover-class-placeholder {
-    background: var(--admin-hover, #f1f5f9) !important;
-    color: var(--admin-primary-dark, #27272a) !important;
+[data-theme="dark"] .avc-filters .filter-tabs {
+    background: var(--admin-bg, #09090b);
+    border-color: var(--admin-border-soft, rgba(255, 255, 255, 0.08));
 }
-[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
-    border: 1px solid var(--admin-border) !important;
-    color: var(--admin-muted) !important;
+[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn.active {
+    background: var(--admin-surface, #18181b) !important;
+    border-color: var(--admin-border-soft, rgba(255, 255, 255, 0.12)) !important;
+    color: #ffffff !important;
 }
 .filter-search {
     flex: 1;
-    min-width: 250px;
+    min-width: 240px;
+    max-width: 320px;
 }
 .filter-search .search-box {
-    border-color: #cbd5e1 !important;
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    border-radius: 8px !important;
+    background: var(--admin-surface, #ffffff) !important;
+    padding: 0 12px !important;
+    height: 38px !important;
+}
+.filter-search .search-box input {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    font-size: 13px !important;
+    color: var(--admin-text, #0f172a) !important;
+    padding-left: 8px !important;
 }
 .filter-search .search-box input::placeholder {
-    color: #64748b !important;
+    color: var(--admin-faint, #94a3b8) !important;
 }
 .filter-search .search-box svg {
-    color: #64748b !important;
+    color: var(--admin-faint, #94a3b8) !important;
+    flex-shrink: 0;
 }
 
 .status-badge {

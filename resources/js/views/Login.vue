@@ -16,37 +16,7 @@
         </div>
       </transition>
 
-      <div class="flex flex-col gap-4">
-        <!-- Email Input Group -->
-        <div class="flex flex-col gap-2">
-          <label for="login" class="text-sm font-medium text-zinc-200 text-left">
-            Email / Số điện thoại / Username
-          </label>
-          <input
-            id="login"
-            v-model="loginValue"
-            type="text"
-            placeholder="m@example.com"
-            autocomplete="username"
-            class="flex h-10 w-full rounded-md border border-zinc-800 !bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
-          />
-        </div>
 
-        <!-- Password Input Group -->
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <label class="text-sm font-medium text-zinc-200 text-left">Mật khẩu</label>
-            <router-link to="/forgot-password" class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
-              Quên mật khẩu?
-            </router-link>
-          </div>
-          <PasswordInput
-            v-model="password"
-            placeholder="Mật khẩu"
-            autocomplete="current-password"
-          />
-        </div>
-      </div>
 
       <div class="sg-auth-field">
         <label for="login">Tài khoản</label>

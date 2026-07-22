@@ -1,6 +1,6 @@
 <template>
   <div class="settings-container animate-fade-in">
-    <!-- Success Feedback Alert -->
+    <!-- Success / Error Alerts -->
     <div v-if="successMessage" class="alert success" style="margin-bottom: 0px; border-radius: 12px; display: flex; align-items: center; gap: 8px;">
       <AppIcon name="check" size="18" />
       <span>{{ successMessage }}</span>
@@ -9,7 +9,9 @@
       <span>{{ errorMessage }}</span>
     </div>
 
-    <!-- Sidebar Style Selection -->
+
+
+    <!-- Sidebar Style Selection Card -->
     <div class="settings-card">
       <div class="settings-card-header">
         <h2>Kiểu hiển thị Sidebar</h2>
@@ -86,6 +88,14 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Bottom Action Footer -->
+    <div class="settings-card-footer">
+      <button type="button" class="btn btn-primary" :disabled="saving" @click="saveTheme">
+        <AppIcon name="check" size="16" />
+        <span>{{ saving ? 'Đang áp dụng...' : 'Áp dụng thay đổi' }}</span>
+      </button>
     </div>
   </div>
 </template>
@@ -277,6 +287,7 @@ export default {
   components: { AppIcon },
   data() {
     return {
+      saving: false,
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
       selectedPresetId: 'sportgo',
       selectedRadius: '8px',
@@ -645,22 +656,32 @@ export default {
       }
     },
     async saveTheme() {
+      this.saving = true;
       this.successMessage = '';
       this.errorMessage = '';
-      const payload = {
-        light: this.theme.light,
-        dark: this.theme.dark,
-        radius: this.selectedRadius,
-        font_size: this.selectedFontSize
-      };
-      localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
-      localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
-      localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
-      
-      // Dispatch style change event to let AdminShell re-render immediately
-      window.dispatchEvent(new Event('sidebar-style-changed'));
-
       try {
+        const payload = {
+          light: this.theme.light,
+          dark: this.theme.dark,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize
+        };
+        localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
+        localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
+        localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
+
+        // Construct payload for admin theme CSS generation:
+        const settingsPayload = {
+          active_theme_id: this.selectedPresetId,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize,
+          presets: this.defaultPresets,
+          custom_themes: this.userPresets
+        };
+        
+        window.dispatchEvent(new Event('admin-sidebar-style-changed'));
+        window.dispatchEvent(new CustomEvent('admin-theme-updated', { detail: settingsPayload }));
+
         const payloadDb = {
           active_theme_id: this.selectedPresetId,
           sidebar_style: this.sidebarStyle,
@@ -670,21 +691,22 @@ export default {
           custom_themes: this.userPresets,
         };
         await adminUiSettingsService.updateSettings(payloadDb);
+
+        this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        setTimeout(() => {
+          this.successMessage = '';
+        }, 5000);
       } catch (e) {
         this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           this.errorMessage = '';
         }, 5000);
-        return;
+      } finally {
+        this.saving = false;
       }
-      
-      this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      setTimeout(() => {
-        this.successMessage = '';
-      }, 5000);
     },
   },
 };

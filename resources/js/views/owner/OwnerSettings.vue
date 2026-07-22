@@ -1,6 +1,6 @@
 <template>
   <div class="settings-container animate-fade-in">
-    <!-- Success Feedback Alert -->
+    <!-- Success / Error Alerts -->
     <div v-if="successMessage" class="alert success" style="margin-bottom: 0px; border-radius: 12px; display: flex; align-items: center; gap: 8px;">
       <AppIcon name="check" size="18" />
       <span>{{ successMessage }}</span>
@@ -9,7 +9,9 @@
       <span>{{ errorMessage }}</span>
     </div>
 
-    <!-- Sidebar Style Selection -->
+
+
+    <!-- Sidebar Style Selection Card -->
     <div class="settings-card">
       <div class="settings-card-header">
         <h2>Kiểu hiển thị Sidebar</h2>
@@ -91,6 +93,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Bottom Action Footer -->
+    <div class="settings-card-footer">
+      <button type="button" class="btn btn-primary" :disabled="saving" @click="saveTheme">
+        <AppIcon name="check" size="16" />
+        <span>{{ saving ? 'Đang áp dụng...' : 'Áp dụng thay đổi' }}</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -148,6 +158,7 @@ export default {
   components: { AppIcon },
   data() {
     return {
+      saving: false,
       sidebarStyle: localStorage.getItem('owner-sidebar-style') || 'one-level',
       successMessage: '',
       selectedPresetId: 'owner-sportgo',
@@ -503,31 +514,32 @@ export default {
       }
     },
     async saveTheme() {
+      this.saving = true;
       this.successMessage = '';
       this.errorMessage = '';
-      const payload = {
-        light: this.theme.light,
-        dark: this.theme.dark,
-        radius: this.selectedRadius,
-        font_size: this.selectedFontSize
-      };
-      localStorage.setItem('owner-custom-theme', JSON.stringify(payload));
-      localStorage.setItem('owner-sidebar-style', this.sidebarStyle);
-      localStorage.setItem('owner-user-presets', JSON.stringify(this.userPresets));
-
-      // Construct payload for owner theme CSS generation:
-      const settingsPayload = {
-        active_theme_id: this.selectedPresetId,
-        radius: this.selectedRadius,
-        font_size: this.selectedFontSize,
-        presets: this.defaultPresets,
-        custom_themes: this.userPresets
-      };
-      
-      window.dispatchEvent(new Event('owner-sidebar-style-changed'));
-      window.dispatchEvent(new CustomEvent('owner-theme-updated', { detail: settingsPayload }));
-
       try {
+        const payload = {
+          light: this.theme.light,
+          dark: this.theme.dark,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize
+        };
+        localStorage.setItem('owner-custom-theme', JSON.stringify(payload));
+        localStorage.setItem('owner-sidebar-style', this.sidebarStyle);
+        localStorage.setItem('owner-user-presets', JSON.stringify(this.userPresets));
+
+        // Construct payload for owner theme CSS generation:
+        const settingsPayload = {
+          active_theme_id: this.selectedPresetId,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize,
+          presets: this.defaultPresets,
+          custom_themes: this.userPresets
+        };
+        
+        window.dispatchEvent(new Event('owner-sidebar-style-changed'));
+        window.dispatchEvent(new CustomEvent('owner-theme-updated', { detail: settingsPayload }));
+
         const payloadDb = {
           active_theme_id: this.selectedPresetId,
           sidebar_style: this.sidebarStyle,
@@ -537,21 +549,22 @@ export default {
           custom_themes: this.userPresets,
         };
         await ownerUiSettingsService.updateSettings(payloadDb);
+
+        this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        setTimeout(() => {
+          this.successMessage = '';
+        }, 5000);
       } catch (e) {
         this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           this.errorMessage = '';
         }, 5000);
-        return;
+      } finally {
+        this.saving = false;
       }
-      
-      this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      setTimeout(() => {
-        this.successMessage = '';
-      }, 5000);
     },
   },
 };
