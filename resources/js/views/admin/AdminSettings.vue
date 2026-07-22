@@ -77,10 +77,6 @@
               </div>
               <div class="preview-content">
                 <div class="preview-header"></div>
-                <div class="preview-body">
-                  <div class="preview-card-item"></div>
-                  <div class="preview-card-item"></div>
-                </div>
               </div>
             </div>
             <div class="sidebar-card-info">
@@ -91,235 +87,11 @@
         </div>
       </div>
     </div>
-
-    <!-- Theme Customization (Flat Layout) -->
-    <div class="settings-card">
-      <div class="settings-card-header">
-        <h2>Thiết lập Giao diện</h2>
-      </div>
-
-      <div class="settings-card-content theme-layout-grid">
-        <!-- Left Column: Controls -->
-        <div class="controls-column">
-          <!-- Presets Section -->
-          <div class="settings-section-title">Chủ đề màu sắc</div>
-          <div class="presets-grid">
-            <div
-              v-for="preset in allPresets"
-              :key="preset.id"
-              class="preset-card"
-              :class="{ active: selectedPresetId === preset.id }"
-              :title="preset.name"
-              @click="selectPreset(preset)"
-            >
-              <span class="preset-color-dot" :style="{ background: preset.color }"></span>
-              <span class="preset-name">{{ preset.name }}</span>
-              <button
-                v-if="preset.isUserPreset"
-                type="button"
-                class="delete-preset-btn"
-                title="Xóa"
-                @click.stop="deleteUserPreset(preset.id)"
-              >
-                &times;
-              </button>
-            </div>
-          </div>
-
-          <!-- Radius Section -->
-          <div class="settings-section-title">Độ bo góc</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="r in radiusOptions"
-              :key="r.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedRadius === r.value }"
-              @click="selectedRadius = r.value"
-            >
-              {{ r.label }}
-            </button>
-          </div>
-
-          <!-- Font Size Section -->
-          <div class="settings-section-title">Cỡ chữ</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="f in fontSizeOptions"
-              :key="f.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedFontSize === f.value }"
-              @click="selectedFontSize = f.value"
-            >
-              {{ f.label }}
-            </button>
-          </div>
-
-          <!-- Color Customizer Section -->
-          <div class="settings-section-title">Chỉnh sửa bảng màu</div>
-          
-          <!-- Mode Tabs (Segmented Toggle Control) -->
-          <div class="mode-toggle-group">
-            <button
-              type="button"
-              class="toggle-tab-btn"
-              :class="{ active: activeModeTab === 'light' }"
-              @click="activeModeTab = 'light'"
-            >
-              Giao diện Sáng
-            </button>
-            <button
-              type="button"
-              class="toggle-tab-btn"
-              :class="{ active: activeModeTab === 'dark' }"
-              @click="activeModeTab = 'dark'"
-            >
-              Giao diện Tối
-            </button>
-          </div>
-
-          <!-- Figma Style Colors List -->
-          <div class="figma-color-rows">
-            <div
-              v-for="color in colorDefinitions"
-              :key="color.key"
-              class="figma-color-row"
-              :title="color.desc"
-            >
-              <!-- Color Swatch & Custom Figma Popover Trigger -->
-              <div class="figma-color-swatch-wrapper" @click.stop="openCustomPicker(color.key)">
-                <div class="figma-color-indicator" :style="{ background: theme[activeModeTab][color.key] }"></div>
-                
-                <!-- Popover custom color picker -->
-                <div v-if="activePickerColorKey === color.key" class="figma-popover" @click.stop>
-                  <!-- SV Canvas -->
-                  <div 
-                    class="sv-canvas" 
-                    :style="{ backgroundColor: hueColorHex }" 
-                    @mousedown="handleSVMousedown"
-                  >
-                    <div class="sv-white-gradient"></div>
-                    <div class="sv-black-gradient"></div>
-                    <div class="sv-cursor" :style="{ left: pickerSat + '%', top: (100 - pickerVal) + '%' }"></div>
-                  </div>
-                  
-                  <!-- Sliders block -->
-                  <div class="picker-sliders">
-                    <!-- Hue Slider -->
-                    <div class="hue-slider-track" :style="{ '--hue-percent': (pickerHue / 360) * 100 + '%' }">
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="360" 
-                        v-model="pickerHue" 
-                        class="hue-range-input"
-                        @input="updateColorFromHSV"
-                      />
-                    </div>
-                  </div>
-                  
-                  <!-- Inputs row -->
-                  <div class="picker-inputs-row">
-                    <div class="picker-input-group">
-                      <span class="picker-input-label">HEX</span>
-                      <input 
-                        type="text" 
-                        :value="theme[activeModeTab][color.key]" 
-                        @input="onHexInputChange($event)"
-                        class="picker-hex-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Color Name -->
-              <div class="figma-color-name">{{ color.label }}</div>
-
-
-            </div>
-          </div>
-
-          <!-- Save Custom Preset Box -->
-          <div class="save-preset-inline">
-            <input
-              type="text"
-              v-model="newThemeName"
-              placeholder="Tên chủ đề tùy chỉnh của bạn..."
-              class="theme-name-input"
-            />
-            <div class="preset-action-buttons">
-              <button
-                v-if="isCustomPresetActive"
-                type="button"
-                class="btn-primary update-preset-btn"
-                @click="updateActivePreset"
-                :disabled="!newThemeName.trim()"
-              >
-                Cập nhật chủ đề
-              </button>
-              <button
-                type="button"
-                class="btn-secondary save-preset-btn"
-                @click="saveAsNewPreset"
-                :disabled="!newThemeName.trim()"
-              >
-                Lưu thành chủ đề mới
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right Column: Live Preview -->
-        <div class="preview-column">
-          <div class="settings-section-title">Xem trước thực tế</div>
-          <div class="preview-container">
-            <!-- Simulated Light Preview -->
-            <div :style="lightPreviewStyle" class="preview-item">
-              <span class="preview-mode-tag">Giao diện Sáng</span>
-              <div :style="previewCardStyle" class="preview-card-body">
-                <div class="preview-card-title">Tiêu đề Khối</div>
-                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
-                <div class="preview-btn-row">
-                  <button type="button" :style="lightBtnPrimaryStyle" class="preview-btn">Primary</button>
-                  <button type="button" :style="lightBtnDestructiveStyle" class="preview-btn">Danger</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Simulated Dark Preview -->
-            <div :style="darkPreviewStyle" class="preview-item">
-              <span class="preview-mode-tag dark">Giao diện Tối</span>
-              <div :style="previewCardStyle" class="preview-card-body">
-                <div class="preview-card-title">Tiêu đề Khối</div>
-                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
-                <div class="preview-btn-row">
-                  <button type="button" :style="darkBtnPrimaryStyle" class="preview-btn">Primary</button>
-                  <button type="button" :style="darkBtnDestructiveStyle" class="preview-btn">Danger</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Bar -->
-      <div class="settings-card-footer">
-        <button type="button" class="btn-secondary" @click="resetAll">
-          Mặc định ban đầu
-        </button>
-        <button type="button" class="btn-primary" @click="saveTheme">
-          <span>Áp dụng cấu hình</span>
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
-import { applyCustomThemeStyles } from '../../utils/theme.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 
 const PRESETS = [
@@ -884,7 +656,6 @@ export default {
       localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
       localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
       localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
-      applyCustomThemeStyles();
       
       // Dispatch style change event to let AdminShell re-render immediately
       window.dispatchEvent(new Event('sidebar-style-changed'));

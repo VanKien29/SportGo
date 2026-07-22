@@ -432,4 +432,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../css/components/client-profile-card.css"></style>
+

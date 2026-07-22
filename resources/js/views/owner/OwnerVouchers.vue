@@ -11,10 +11,8 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="table-card">
-      <div v-if="loading" class="state">Đang tải voucher...</div>
-      <div v-else-if="vouchers.length === 0" class="state">Chưa có voucher của sân.</div>
-      <table v-else>
+    <AppTableCard :loading="loading" :empty="vouchers.length === 0" empty-text="Chưa có voucher của sân.">
+      <table>
         <thead>
           <tr>
             <th>Mã</th>
@@ -51,7 +49,7 @@
           </tr>
         </tbody>
       </table>
-    </section>
+    </AppTableCard>
 
     <div v-if="showModal" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeForm)">
       <form class="modal" novalidate @submit.prevent="save" @mousedown.stop>
@@ -117,12 +115,13 @@
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTableCard from '../../components/common/AppTableCard.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { ownerVoucherService } from '../../services/ownerVoucherService.js';
 
 export default {
   name: 'OwnerVouchers',
-  components: { ActionIconButton, AppIcon, TableActionGroup },
+  components: { ActionIconButton, AppIcon, AppTableCard, TableActionGroup },
   data() {
     return {
       vouchers: [],

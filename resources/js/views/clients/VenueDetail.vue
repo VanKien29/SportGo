@@ -895,4 +895,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../../css/client-venue-detail.css"></style>
+

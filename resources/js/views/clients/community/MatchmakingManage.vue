@@ -391,4 +391,4 @@ watch(() => route.params.id, resetAndFetch);
 onMounted(fetchParticipants);
 </script>
 
-<style scoped src="../../../../css/client-matchmaking-manage.css"></style>
+

@@ -199,4 +199,4 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped src="../../css/client-document-preview.css"></style>
+

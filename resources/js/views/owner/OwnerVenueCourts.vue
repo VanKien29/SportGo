@@ -28,23 +28,7 @@
         </div>
 
         <div v-else class="view-content-wrapper">
-            <!-- Tabs Toggle Bar -->
-            <div class="layout-toggle-tabs">
-                <button
-                    class="tab-btn"
-                    :class="{ active: activeView === 'list' }"
-                    @click="activeView = 'list'"
-                >
-                    <span>Danh sách sân con</span>
-                </button>
-                <button
-                    class="tab-btn"
-                    :class="{ active: activeView === 'layout' }"
-                    @click="activeView = 'layout'"
-                >
-                    <span>Sắp xếp sơ đồ trực quan</span>
-                </button>
-            </div>
+            <AppTabs v-model="activeView" :tabs="courtViewTabs" />
 
             <!-- Grid List of Courts (SaaS Table View) -->
             <div v-if="activeView === 'list'" class="courts-list-wrapper">
@@ -930,6 +914,7 @@
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import AppTabs from "../../components/common/AppTabs.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
@@ -939,7 +924,7 @@ import { useToast } from "vue-toastification";
 
 export default {
     name: "OwnerVenueCourts",
-    components: { ActionIconButton, AppIcon, CourtVisual, DecorationVisual, SaaSTable },
+    components: { ActionIconButton, AppIcon, AppTabs, CourtVisual, DecorationVisual, SaaSTable },
     data() {
         return {
             clusterId:
@@ -1006,6 +991,12 @@ export default {
         };
     },
     computed: {
+        courtViewTabs() {
+            return [
+                { key: 'list', label: 'Danh sách sân con', icon: 'list' },
+                { key: 'layout', label: 'Sắp xếp sơ đồ trực quan', icon: 'grid' },
+            ];
+        },
         groupedCourts() {
             const filtered = this.courts.filter((c) => {
                 if (!this.searchQuery) return true;

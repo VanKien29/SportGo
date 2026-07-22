@@ -211,4 +211,4 @@ watch(() => props.isOpen, (isOpen) => {
 });
 </script>
 
-<style scoped src="../../css/components/client-meetup-post-modal.css"></style>
+

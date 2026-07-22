@@ -1025,4 +1025,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../../../css/client-booking-workspace.css"></style>
+

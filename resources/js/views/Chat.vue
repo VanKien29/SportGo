@@ -4392,4 +4392,4 @@ export default {
 </style>
 
 <!-- Global style override using [data-admin-chat] for scoping layout values -->
-<style src="/resources/css/views/client-chat-themes.css"></style>
+

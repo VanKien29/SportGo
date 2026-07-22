@@ -11,10 +11,8 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="table-card">
-      <div v-if="loading" class="state">Đang tải nhân viên...</div>
-      <div v-else-if="staff.length === 0" class="state">Chưa có nhân viên sân trong cụm này.</div>
-      <table v-else>
+    <AppTableCard :loading="loading" :empty="staff.length === 0" empty-text="Chưa có nhân viên sân trong cụm này.">
+      <table>
         <thead>
           <tr>
             <th>Họ tên</th>
@@ -41,7 +39,7 @@
           </tr>
         </tbody>
       </table>
-    </section>
+    </AppTableCard>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="saveStaff">
@@ -85,12 +83,13 @@
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTableCard from '../../components/common/AppTableCard.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { ownerStaffService } from '../../services/ownerStaffService.js';
 
 export default {
   name: 'OwnerStaff',
-  components: { ActionIconButton, AppIcon, TableActionGroup },
+  components: { ActionIconButton, AppIcon, AppTableCard, TableActionGroup },
   data() {
     return {
       staff: [],

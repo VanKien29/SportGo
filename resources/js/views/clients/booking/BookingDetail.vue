@@ -608,4 +608,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../../../css/client-booking-detail.css"></style>
+

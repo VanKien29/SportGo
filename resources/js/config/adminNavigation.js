@@ -204,7 +204,7 @@ export const adminRouteTitles = {
   'admin-venue-platform-fees': 'Phí duy trì cụm sân',
   'admin-platform-fee-settings': 'Cài đặt nhắc phí',
   'admin-system-profile': 'Thông tin hệ thống',
-  'admin-settings': 'Cấu hình giao diện',
+  'admin-settings': 'Cài đặt hệ thống',
 };
 
 export function findAdminNavigationSection(routeName) {

@@ -391,9 +391,9 @@
   </div>
 </template>
 
-<style src="../../../css/partner/partner.css"></style>
-<style src="../../../css/partner/client-partner-shared.css"></style>
-<style scoped src="../../../css/partner/client-partner-portal.css"></style>
+
+
+
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

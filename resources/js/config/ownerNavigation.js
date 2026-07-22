@@ -167,7 +167,7 @@ export const ownerRouteTitles = {
   'owner-booking-list': 'Danh sách booking',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
-  'owner-settings': 'Cấu hình giao diện',
+  'owner-settings': 'Cài đặt hệ thống',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',
   'owner-platform-fees': 'Phí nền tảng',
   'owner-finance': 'Tài chính & số dư',

@@ -22,8 +22,6 @@
 <script>
 import OwnerShell from '../../components/owner/OwnerShell.vue';
 import { staffNavigationSections, staffRouteSections, staffRouteTitles } from '../../config/staffNavigation.js';
-import { applyOwnerTheme, clearOwnerTheme, enableOwnerThemeScope } from '../../utils/ownerTheme.js';
-import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
@@ -51,30 +49,13 @@ export default {
     },
   },
   async mounted() {
-    enableOwnerThemeScope();
-    applyOwnerTheme();
     window.addEventListener('owner-cluster-changed', this.syncExternalCluster);
-    window.addEventListener('owner-theme-updated', this.syncOwnerTheme);
-    await this.loadOwnerTheme();
     await this.loadClusters();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.syncExternalCluster);
-    window.removeEventListener('owner-theme-updated', this.syncOwnerTheme);
-    clearOwnerTheme();
   },
   methods: {
-    async loadOwnerTheme() {
-      try {
-        const settings = await ownerUiSettingsService.getSettings();
-        applyOwnerTheme(settings);
-      } catch {
-        applyOwnerTheme();
-      }
-    },
-    syncOwnerTheme(event) {
-      applyOwnerTheme(event.detail || {});
-    },
     async loadClusters() {
       this.clusterLoading = true;
       try {

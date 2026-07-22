@@ -1,31 +1,6 @@
 <template>
   <section class="page">
-    <div class="avc-filters">
-      <div class="filter-row">
-        <div class="filter-tabs">
-          <button class="tab-btn" :class="{ active: currentTab === 'today' }" @click="currentTab = 'today'">
-            <AppIcon name="calendar" size="16" />
-            <span>{{ isStaff ? 'Ca trực của tôi' : 'Lịch trực hôm nay' }}</span>
-          </button>
-          <button v-if="!isStaff" class="tab-btn" :class="{ active: currentTab === 'schedules' }"
-            @click="currentTab = 'schedules'">
-            <AppIcon name="users" size="16" />
-            <span>Lập lịch trực</span>
-          </button>
-          <button v-if="!isStaff" class="tab-btn" :class="{ active: currentTab === 'templates' }"
-            @click="currentTab = 'templates'">
-            <AppIcon name="settings" size="16" />
-            <span>Cấu hình ca mẫu</span>
-          </button>
-          <button v-if="!isStaff" class="tab-btn" :class="{ active: currentTab === 'report' }"
-            @click="currentTab = 'report'">
-            <AppIcon name="fileText" size="16" />
-            <span>Thống kê & Báo cáo</span>
-          </button>
-        </div>
-
-      </div>
-    </div>
+    <AppTabs v-model="currentTab" :tabs="navigationTabs" />
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -741,6 +716,7 @@
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import { getAuth } from '../../stores/auth.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
@@ -748,7 +724,7 @@ import { ownerStaffService } from '../../services/ownerStaffService.js';
 
 export default {
   name: 'OwnerStaffShifts',
-  components: { ActionIconButton, AppIcon, TableActionGroup },
+  components: { ActionIconButton, AppIcon, AppTabs, TableActionGroup },
   data() {
     return {
       currentTab: 'today',
@@ -813,6 +789,19 @@ export default {
     };
   },
   computed: {
+    navigationTabs() {
+      if (this.isStaff) {
+        return [
+          { key: 'today', label: 'Ca trực của tôi', icon: 'calendar' }
+        ];
+      }
+      return [
+        { key: 'today', label: 'Lịch trực hôm nay', icon: 'calendar' },
+        { key: 'schedules', label: 'Lập lịch trực', icon: 'users' },
+        { key: 'templates', label: 'Cấu hình ca mẫu', icon: 'settings' },
+        { key: 'report', label: 'Thống kê & Báo cáo', icon: 'fileText' },
+      ];
+    },
     isStaff() {
       const auth = getAuth() || {};
       return auth.roles?.includes('venue_staff');
@@ -1614,7 +1603,7 @@ th {
 }
 
 .avc-filters {
-  padding: 12px 0;
+  padding: 0 0 12px 0 !important;
 }
 
 .filter-row {
@@ -1660,7 +1649,7 @@ th {
 }
 
 .tab-content {
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 /* My shifts cards - Staff attendance styling */
@@ -1803,7 +1792,7 @@ th {
 
 /* Today styles for Owner */
 .table-header {
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
 }
 

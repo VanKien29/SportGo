@@ -203,4 +203,4 @@ export default {
 };
 </script>
 
-<style scoped src="/resources/css/views/client-auth-base.css"></style>
+

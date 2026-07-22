@@ -495,4 +495,4 @@ watch(() => route.params.id, () => {
 onMounted(loadPage);
 </script>
 
-<style scoped src="../../../../css/client-user-profile.css"></style>
+

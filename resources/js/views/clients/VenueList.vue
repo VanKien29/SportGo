@@ -499,4 +499,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../../css/client-venue-list.css"></style>
+

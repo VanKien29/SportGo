@@ -25,7 +25,6 @@ import {
 
 import { autoApproveStore } from '../../stores/autoApprove.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
-import { applyCustomThemeStyles } from '../../utils/theme.js';
 
 export default {
   name: 'AdminLayout',
@@ -128,7 +127,6 @@ export default {
             localStorage.setItem('admin-user-presets', JSON.stringify(data.custom_themes));
           }
 
-          applyCustomThemeStyles();
           window.dispatchEvent(new Event('sidebar-style-changed'));
         }
       } catch (e) {

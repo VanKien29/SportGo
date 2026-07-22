@@ -165,7 +165,7 @@
                                 active: activeRouteName === 'owner-settings',
                             }"
                             to="/owner/settings"
-                            title="Cấu hình giao diện"
+                            title="Cài đặt hệ thống"
                         >
                             <AppIcon name="settings" size="18" />
                         </RouterLink>

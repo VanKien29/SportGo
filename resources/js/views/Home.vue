@@ -614,6 +614,6 @@ export default {
 };
 </script>
 
-<style src="../../css/client-home-theme.css"></style>
 
-<style scoped src="../../css/client-home.css"></style>
+
+
