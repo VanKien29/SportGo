@@ -122,6 +122,10 @@
                         <button type="button" class="btn btn-outline btn-sm" @click="autoArrange">
                             <span>Tự động sắp xếp</span>
                         </button>
+                        <button type="button" class="btn btn-outline btn-sm" @click="exportLayoutImage">
+                            <AppIcon name="download" size="14" />
+                            <span>Xuất ảnh sơ đồ (WEBP)</span>
+                        </button>
                         <button type="button" class="btn btn-outline btn-sm btn-danger-outline" @click="clearLayout">
                             <span>Xóa vị trí</span>
                         </button>
@@ -134,6 +138,7 @@
                 </div>
 
                 <div class="editor-body">
+                    <!-- Canvas area -->
                     <div
                         class="canvas-viewport"
                         :class="[`tool-${editorTool}`, { panning: isPanning }]"
@@ -145,6 +150,7 @@
                         @mouseleave="handleGlobalUp"
                         @click="onCanvasClick"
                     >
+                        <!-- Zoom controls -->
                         <div class="zoom-controls">
                             <button type="button" class="btn-zoom" @click.stop="setZoom(zoom - 0.1)" title="Thu nhỏ">-</button>
                             <span class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
@@ -153,17 +159,309 @@
                             <button type="button" class="btn-zoom reset" @click.stop="resetView" title="Đặt lại zoom">Đặt lại</button>
                         </div>
 
-                        <div class="canvas-grid" :style="canvasGridStyle">
+                        <div
+                            class="canvas-content"
+                            :style="{
+                                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                                transformOrigin: '0 0',
+                            }"
+                        >
+                            <!-- Grid Background inside canvas content -->
+                            <div class="canvas-grid-bg"></div>
+
+                            <!-- Alignment Guidelines -->
+                            <div
+                                v-for="(xCoord, index) in activeGuidelines.x"
+                                :key="'gl-x-' + index"
+                                class="canvas-guideline vertical"
+                                :style="{ left: xCoord + 'px' }"
+                            ></div>
+                            <div
+                                v-for="(yCoord, index) in activeGuidelines.y"
+                                :key="'gl-y-' + index"
+                                class="canvas-guideline horizontal"
+                                :style="{ top: yCoord + 'px' }"
+                            ></div>
+
+                            <!-- Placed Courts -->
                             <div
                                 v-for="court in placedCourts"
-                                :key="'court-' + court.id"
-                                class="canvas-court-item"
-                                :class="{ selected: selectedCourtId === court.id }"
+                                :key="court.id"
+                                class="canvas-court-element"
+                                :class="{
+                                    selected: selectedCourtId === court.id,
+                                    dragging: draggingCourtId === court.id,
+                                    resizing: resizingCourtId === court.id,
+                                    'has-collision': collisions[court.id],
+                                }"
                                 :style="getCourtStyle(court)"
-                                @mousedown.stop="startDragCourt($event, court)"
+                                @mousedown.stop="startDrag($event, court)"
                                 @click.stop="selectCourt(court)"
+                                data-type="court"
                             >
-                                <span class="court-label">{{ court.name }}</span>
+                                <CourtVisual
+                                    :name="court.name"
+                                    :court-type-name="court.court_type?.name"
+                                    :image-url="court.image_url || court.custom_image_url || court.image"
+                                    status="active"
+                                    :width="court.layout_w || getDefaultWidth(court)"
+                                    :height="court.layout_h || getDefaultHeight(court)"
+                                    :rotation="court.layout_rotation || 0"
+                                    :show-type="false"
+                                />
+
+                                <!-- Collision Warning Badge -->
+                                <div
+                                    v-if="collisions[court.id]"
+                                    class="collision-badge"
+                                    title="Sân đang bị chồng lấn!"
+                                >
+                                    Chồng lấp
+                                </div>
+
+                                <!-- Resize Handles -->
+                                <template v-if="selectedCourtId === court.id">
+                                    <div class="resize-handle tl" @mousedown.stop.prevent="startResize($event, court, 'tl')"></div>
+                                    <div class="resize-handle tr" @mousedown.stop.prevent="startResize($event, court, 'tr')"></div>
+                                    <div class="resize-handle bl" @mousedown.stop.prevent="startResize($event, court, 'bl')"></div>
+                                    <div class="resize-handle br" @mousedown.stop.prevent="startResize($event, court, 'br')"></div>
+                                </template>
+                            </div>
+
+                            <!-- Placed Decorations -->
+                            <div
+                                v-for="decor in decorations"
+                                :key="decor.id"
+                                class="canvas-decor-element"
+                                :class="{
+                                    selected: selectedDecorationId === decor.id,
+                                    dragging: draggingDecorationId === decor.id,
+                                    resizing: resizingDecorationId === decor.id,
+                                }"
+                                :style="getDecorStyle(decor)"
+                                @mousedown.stop="startDragDecor($event, decor)"
+                                @click.stop="selectDecor(decor)"
+                                data-type="decor"
+                            >
+                                <DecorationVisual
+                                    :type="decor.type"
+                                    :name="decor.name"
+                                    :width="decor.layout_w"
+                                    :height="decor.layout_h"
+                                    :rotation="decor.layout_rotation || 0"
+                                />
+
+                                <template v-if="selectedDecorationId === decor.id">
+                                    <div class="resize-handle tl" @mousedown.stop.prevent="startResizeDecor($event, decor, 'tl')"></div>
+                                    <div class="resize-handle tr" @mousedown.stop.prevent="startResizeDecor($event, decor, 'tr')"></div>
+                                    <div class="resize-handle bl" @mousedown.stop.prevent="startResizeDecor($event, decor, 'bl')"></div>
+                                    <div class="resize-handle br" @mousedown.stop.prevent="startResizeDecor($event, decor, 'br')"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar (Unplaced + Inspector) -->
+                    <div class="editor-sidebar">
+                        <!-- Inspector Panel: Court -->
+                        <div v-if="selectedCourt" class="sidebar-section inspector-panel">
+                            <h4 class="section-title">Thông tin: {{ selectedCourt.name }}</h4>
+
+                            <div v-if="collisions[selectedCourt.id]" class="inspector-warning-box">
+                                Sân đang chồng lấn lên sân khác! Vui lòng dịch chuyển hoặc thay đổi kích thước để tránh va chạm.
+                            </div>
+
+                            <div class="inspector-fields">
+                                <div class="field-row">
+                                    <span class="label">BỘ MÔN:</span>
+                                    <span class="value">{{ selectedCourt.court_type?.name }}</span>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Kích thước (m):</label>
+                                    <div class="input-row">
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_w)"
+                                            @input="updateW(selectedCourt, $event.target.value)"
+                                            placeholder="Ngang"
+                                        />
+                                        <span class="x">x</span>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_h)"
+                                            @input="updateH(selectedCourt, $event.target.value)"
+                                            placeholder="Dọc"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Vị trí cách lề Trái / Trên (m):</label>
+                                    <div class="input-row">
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_x)"
+                                            @input="updateX(selectedCourt, $event.target.value)"
+                                            placeholder="Trái (X)"
+                                        />
+                                        <span class="comma">,</span>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_y)"
+                                            @input="updateY(selectedCourt, $event.target.value)"
+                                            placeholder="Trên (Y)"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Góc xoay: {{ selectedCourt.layout_rotation || 0 }}°</label>
+                                    <div class="rotation-control">
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="359"
+                                            v-model.number="selectedCourt.layout_rotation"
+                                            class="rotation-slider"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline btn-xs btn-rotate"
+                                            @click="rotateSelected90"
+                                        >
+                                            <span>Xoay +90°</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Ảnh mặt sân (Tùy chọn tải lên):</label>
+                                     <div class="court-image-uploader">
+                                         <div v-if="selectedCourt.image_url || selectedCourt.custom_image_url || selectedCourt.image" class="court-image-preview">
+                                             <img :src="selectedCourt.image_url || selectedCourt.custom_image_url || selectedCourt.image" alt="Ảnh sân" />
+                                             <button type="button" class="btn-remove-img" title="Xóa ảnh" @click="removeCourtImage(selectedCourt)">&times;</button>
+                                         </div>
+                                         <div v-else class="court-image-actions">
+                                             <button type="button" class="btn btn-outline btn-xs btn-block" @click="$refs.courtImageFileInput.click()">
+                                                 <AppIcon name="upload" size="14" />
+                                                 <span>Tải ảnh sân lên...</span>
+                                             </button>
+                                             <input type="file" ref="courtImageFileInput" style="display: none" accept="image/*" @change="handleCourtImageUpload($event, selectedCourt)" />
+                                         </div>
+                                     </div>
+                                 </div>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-danger-outline btn-block"
+                                    @click="unplaceCourt(selectedCourt)"
+                                >
+                                    <span>Gỡ khỏi sơ đồ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Inspector Panel: Decoration -->
+                        <div v-else-if="selectedDecoration" class="sidebar-section inspector-panel">
+                            <h4 class="section-title">Vật phẩm: {{ selectedDecoration.name }}</h4>
+                            <div class="inspector-fields">
+                                <div class="field-row">
+                                    <span class="label">LOẠI:</span>
+                                    <span class="value font-bold uppercase">{{ selectedDecoration.type }}</span>
+                                </div>
+                                <div class="field-group">
+                                    <label>Tên nhãn hiển thị:</label>
+                                    <input
+                                        type="text"
+                                        v-model="selectedDecoration.name"
+                                        class="form-control"
+                                        placeholder="Nhãn hiển thị..."
+                                    />
+                                </div>
+                                <div class="field-group">
+                                    <label>Kích thước (px):</label>
+                                    <div class="input-row">
+                                        <input type="number" v-model.number="selectedDecoration.layout_w" placeholder="Rộng" style="width: 70px" />
+                                        <span class="x">x</span>
+                                        <input type="number" v-model.number="selectedDecoration.layout_h" placeholder="Dài" style="width: 70px" />
+                                    </div>
+                                </div>
+                                <div class="field-group">
+                                    <label>Vị trí X / Y (px):</label>
+                                    <div class="input-row">
+                                        <input type="number" v-model.number="selectedDecoration.layout_x" placeholder="X" style="width: 70px" />
+                                        <span class="comma">,</span>
+                                        <input type="number" v-model.number="selectedDecoration.layout_y" placeholder="Y" style="width: 70px" />
+                                    </div>
+                                </div>
+                                <div class="field-group">
+                                    <label>Góc xoay: {{ selectedDecoration.layout_rotation || 0 }}°</label>
+                                    <div class="rotation-control">
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="359"
+                                            v-model.number="selectedDecoration.layout_rotation"
+                                            class="rotation-slider"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline btn-xs btn-rotate"
+                                            @click="rotateSelectedDecor90"
+                                        >
+                                            <span>Xoay +90°</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-danger-outline btn-block"
+                                    @click="deleteDecoration(selectedDecoration)"
+                                >
+                                    <span>Xóa khỏi sơ đồ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Decoration Library Section -->
+                        <div class="sidebar-section decoration-library-section">
+                            <h4 class="section-title">Thêm vật phẩm bổ trợ</h4>
+                            <p class="section-desc">Click để thêm các vật phẩm định vị không gian:</p>
+                            <div class="decor-library-grid">
+                                <button type="button" class="btn-add-decor" @click="addDecoration('entrance', 'Cửa ra vào')">Cửa ra vào</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('reception', 'Lễ tân')">Quầy lễ tân</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('restroom', 'WC')">Nhà vệ sinh</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('seating', 'Ghế chờ')">Ghế ngồi chờ</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('parking', 'Bãi đỗ xe')">Bãi đỗ xe</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('custom', 'Khác')">Vật thể khác</button>
+                            </div>
+                        </div>
+
+                        <!-- Unplaced list -->
+                        <div class="sidebar-section unplaced-list-section">
+                            <h4 class="section-title">Sân chưa xếp ({{ unplacedCourts.length }})</h4>
+                            <p class="section-desc">Click vào sân để đưa vào bản đồ rồi kéo thả sắp xếp:</p>
+                            <div class="unplaced-items">
+                                <div
+                                    v-for="court in unplacedCourts"
+                                    :key="court.id"
+                                    class="unplaced-court-item"
+                                    @click="placeCourt(court)"
+                                >
+                                    <div class="item-header">
+                                        <div class="item-name">{{ court.name }}</div>
+                                        <span class="item-add-hint">Xếp sân</span>
+                                    </div>
+                                    <div class="item-type">{{ court.court_type?.name }}</div>
+                                </div>
+                                <div v-if="unplacedCourts.length === 0" class="empty-unplaced">
+                                    Đã xếp tất cả các sân vào sơ đồ.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2927,6 +3225,30 @@ export default {
                     ((court.layout_rotation || 0) + 90) % 360;
         },
 
+        handleCourtImageUpload(event, court) {
+            const file = event.target.files?.[0];
+            if (!file || !court) return;
+            if (!file.type.startsWith("image/")) {
+                alert("Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP).");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgData = e.target.result;
+                court.image_url = imgData;
+                court.custom_image_url = imgData;
+            };
+            reader.readAsDataURL(file);
+            event.target.value = "";
+        },
+
+        removeCourtImage(court) {
+            if (!court) return;
+            court.image_url = null;
+            court.custom_image_url = null;
+            court.image = null;
+        },
+
         selectCourt(court) {
             this.selectedCourtId = court.id;
         },
@@ -3356,6 +3678,135 @@ export default {
             } finally {
                 this.savingLayout = false;
             }
+        },
+
+        exportLayoutImage() {
+            const viewport = this.$refs.canvasViewport;
+            if (!viewport) return;
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const rect = viewport.getBoundingClientRect();
+
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            ctx.scale(2, 2);
+
+            // Dark Studio Background
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, rect.width, rect.height);
+
+            // Dot grid
+            ctx.fillStyle = "#334155";
+            for (let x = 0; x < rect.width; x += 32) {
+                for (let y = 0; y < rect.height; y += 32) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Placed Courts
+            this.placedCourts.forEach((court) => {
+                const w = court.layout_w || this.getDefaultWidth(court);
+                const h = court.layout_h || this.getDefaultHeight(court);
+                const screenX = (court.layout_x || 0) * this.zoom + this.panX;
+                const screenY = (court.layout_y || 0) * this.zoom + this.panY;
+                const screenW = w * this.zoom;
+                const screenH = h * this.zoom;
+
+                ctx.save();
+                ctx.translate(screenX + screenW / 2, screenY + screenH / 2);
+                if (court.layout_rotation) {
+                    ctx.rotate(((court.layout_rotation || 0) * Math.PI) / 180);
+                }
+
+                // Sport turf color
+                const colors = {
+                    football: "#166534",
+                    badminton: "#0f766e",
+                    pickleball: "#1d4ed8",
+                    tennis: "#1e40af",
+                    basketball: "#ea580c",
+                    volleyball: "#b45309",
+                    default: "#334155",
+                };
+                const sportName = (court.court_type?.name || court.name || "").toLowerCase();
+                let key = "default";
+                if (sportName.includes("cầu lông") || sportName.includes("badminton")) key = "badminton";
+                else if (sportName.includes("pickleball")) key = "pickleball";
+                else if (sportName.includes("bóng đá") || sportName.includes("football")) key = "football";
+                else if (sportName.includes("tennis")) key = "tennis";
+                else if (sportName.includes("bóng rổ") || sportName.includes("basketball")) key = "basketball";
+
+                const courtImgSrc = court.image_url || court.custom_image_url || court.image;
+                if (courtImgSrc) {
+                    try {
+                        const img = new Image();
+                        img.src = courtImgSrc;
+                        ctx.drawImage(img, -screenW / 2, -screenH / 2, screenW, screenH);
+                    } catch (e) {}
+                } else {
+                    ctx.fillStyle = colors[key];
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(-screenW / 2, -screenH / 2, screenW, screenH, 6);
+                    } else {
+                        ctx.rect(-screenW / 2, -screenH / 2, screenW, screenH);
+                    }
+                    ctx.fill();
+                }
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Court Label
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 13px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(court.name, 0, 0);
+
+                ctx.restore();
+            });
+
+            // Placed Decor
+            (this.decorations || []).forEach((decor) => {
+                const screenX = (decor.layout_x || 0) * this.zoom + this.panX;
+                const screenY = (decor.layout_y || 0) * this.zoom + this.panY;
+                const screenW = (decor.layout_w || 100) * this.zoom;
+                const screenH = (decor.layout_h || 100) * this.zoom;
+
+                ctx.save();
+                ctx.translate(screenX + screenW / 2, screenY + screenH / 2);
+                if (decor.layout_rotation) {
+                    ctx.rotate(((decor.layout_rotation || 0) * Math.PI) / 180);
+                }
+
+                ctx.fillStyle = "rgba(30, 41, 59, 0.9)";
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(-screenW / 2, -screenH / 2, screenW, screenH, 6);
+                } else {
+                    ctx.rect(-screenW / 2, -screenH / 2, screenW, screenH);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#cbd5e1";
+                ctx.font = "11px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(decor.name || decor.type, 0, 0);
+
+                ctx.restore();
+            });
+
+            const link = document.createElement("a");
+            link.download = `so-do-mat-bang-${this.selectedCluster?.name || "san"}.webp`;
+            link.href = canvas.toDataURL("image/webp", 0.90);
+            link.click();
         },
 
         addDecoration(type, defaultName) {
@@ -5578,15 +6029,16 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .layout-editor-workspace {
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 .editor-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px;
-    background: var(--admin-surface, #ffffff);
-    border-radius: 10px;
-    border: 1px solid var(--admin-border);
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -5602,14 +6054,14 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 .info-badge {
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-text-sub, #94a3b8);
     font-style: italic;
 }
 /* ─── Tool Switcher (Figma-style) ─── */
 .tool-switcher {
     display: flex;
-    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
-    border: 1.5px solid var(--admin-border, #cbd5e1);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -5624,40 +6076,42 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: #94a3b8;
     transition: all 0.15s;
 }
 .tool-btn.never-hover-class-placeholder {
-    background: var(--admin-border, #cbd5e1);
-    color: #1e293b;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
 }
 .tool-btn.active {
-    background: var(--admin-surface, #ffffff);
-    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
     box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: var(--admin-border, #cbd5e1);
+    background: rgba(255, 255, 255, 0.1);
     align-self: center;
     margin: 0 2px;
 }
 .editor-body {
     display: flex;
-    gap: 12px;
-    height: 600px;
-    margin-top: 12px;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+    margin-top: 14px;
 }
 .canvas-viewport {
     flex: 1;
-    background: #f0f2f5;
-    border-radius: 10px;
-    border: 1px solid var(--admin-border);
+    background: #0b0f17;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     overflow: hidden;
     position: relative;
     cursor: default;
     user-select: none;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 /* Mode: select → con trỏ chuẩn */
 .canvas-viewport.tool-select {
@@ -5686,13 +6140,14 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     pointer-events: none;
 }
 .guide-item {
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 11px;
-    color: rgba(15, 23, 42, 0.7);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    color: #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 .zoom-controls {
     position: absolute;
@@ -5702,26 +6157,27 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--admin-border);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     padding: 6px 8px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 .btn-zoom {
-    padding: 4px 10px;
-    border: 1px solid var(--admin-border, #cbd5e1);
+    padding: 5px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px;
-    background: var(--admin-surface, #ffffff);
+    background: rgba(30, 41, 59, 0.7);
+    color: #f8fafc;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s ease;
 }
 .btn-zoom.never-hover-class-placeholder {
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px solid var(--admin-border, #d8e4dc);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -5734,9 +6190,9 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 .zoom-level {
     font-size: 12px;
-    font-weight: 500;
-    color: #475569;
-    min-width: 42px;
+    font-weight: 600;
+    color: #cbd5e1;
+    min-width: 44px;
     text-align: center;
 }
 .canvas-content {
@@ -5747,13 +6203,13 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 .canvas-grid-bg {
     position: absolute;
-    top: -500px;
-    left: -500px;
-    width: 3000px;
-    height: 3000px;
-    background-image: radial-gradient(circle, #9ba3af 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.35;
+    top: -3000px;
+    left: -3000px;
+    width: 6000px;
+    height: 6000px;
+    background-image: radial-gradient(circle, #334155 1.5px, transparent 1.5px);
+    background-size: 32px 32px;
+    opacity: 0.6;
     pointer-events: none;
 }
 .canvas-guideline {
@@ -5799,7 +6255,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     width: 12px;
     height: 12px;
     background: #3b82f6;
-    border: 2px solid var(--admin-surface, #ffffff);
+    border: 2px solid #ffffff;
     border-radius: 2px;
     z-index: 10;
 }
@@ -5914,6 +6370,44 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+.court-image-uploader {
+    margin-top: 4px;
+}
+.court-image-preview {
+    position: relative;
+    width: 100%;
+    height: 70px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.court-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.btn-remove-img {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.85);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+    transition: background 0.15s ease;
+}
+.btn-remove-img:hover {
+    background: #ef4444;
 }
 .rotation-slider {
     width: 100%;
@@ -6541,26 +7035,27 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     gap: 8px;
 }
 .btn-add-decor {
-    padding: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1.5px solid var(--admin-border, #cbd5e1);
+    padding: 10px 8px;
+    background: var(--admin-surface-muted, #1e293b);
+    border: 1px solid var(--admin-border, #334155);
     border-radius: 8px;
-    font-size: 11px;
-    font-weight: 500;
-    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--admin-text, #f1f5f9);
     cursor: pointer;
     text-align: center;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
 }
-.btn-add-decor.never-hover-class-placeholder {
-    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
-    border-color: #cbd5e1;
-    color: #1e293b;
+.btn-add-decor:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    color: #60a5fa;
+    transform: translateY(-1px);
 }
 
 /* ─── Searchable Select Custom styles ─── */

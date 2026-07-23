@@ -59,17 +59,21 @@ export default {
   height: min(880px, 92vh);
   display: flex;
   flex-direction: column;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid var(--admin-border, #cbd5e1);
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--admin-surface, #121722);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
 }
 
 .spatial-modal-body {
   flex: 1;
   overflow: hidden;
   position: relative;
-  background: var(--admin-bg, #0f172a);
+  background: var(--admin-surface, #121722);
+  padding: 14px 20px 20px 20px;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -77,7 +81,8 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--admin-surface, #121722);
 }
 
 .modal-title-group {
@@ -92,6 +97,7 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   padding: 14px 24px;
-  border-top: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--admin-surface, #121722);
 }
 </style>
