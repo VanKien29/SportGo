@@ -7,7 +7,7 @@
 
 .home-page main {
   overflow: hidden;
-  padding-top: var(--sg-client-nav-height);
+  padding-top: 72px;
 }
 
 .home-page button,
@@ -1271,7 +1271,7 @@
 
 @media (max-width: 620px) {
   .home-page main {
-    padding-top: var(--sg-client-nav-height-mobile);
+    padding-top: 62px;
   }
 
   .section-block,

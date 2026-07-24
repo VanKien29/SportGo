@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <PublicNavbar />
+    <HomeHeader />
 
     <main>
       <section class="hero">
@@ -359,7 +359,7 @@ import {
 } from "lucide-vue-next";
 import { markRaw } from "vue";
 import BookingDateTimePicker from "../components/BookingDateTimePicker.vue";
-import PublicNavbar from "../components/PublicNavbar.vue";
+import HomeHeader from "../components/home/HomeHeader.vue";
 import { api } from "../services/api.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
 
@@ -419,9 +419,9 @@ export default {
     ChevronDown,
     ChevronRight,
     CircleCheck,
+    HomeHeader,
     LayoutGrid,
     MapPin,
-    PublicNavbar,
     Search,
     Star,
     Trophy,
