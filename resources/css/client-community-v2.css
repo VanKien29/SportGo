@@ -2,7 +2,7 @@
   min-height: 100vh;
   padding-top: var(--spg-header-height);
   color: var(--spg-ink);
-  background: var(--spg-canvas);
+  background: #f2f6f3;
 }
 
 .community-page,
@@ -12,18 +12,33 @@
 }
 
 .community-container {
-  width: min(calc(100% - 48px), 1180px);
+  width: min(calc(100% - 48px), 1240px);
   margin: 0 auto;
-  padding: 46px 0 72px;
+  padding: 28px 0 72px;
 }
 
 .community-heading {
+  position: relative;
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 32px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--spg-line);
+  overflow: hidden;
+  padding: 30px 32px;
+  border: 1px solid #0c6841;
+  border-radius: 8px;
+  background: #0b5737;
+  box-shadow: 0 14px 34px rgba(9, 66, 39, 0.14);
+}
+
+.community-heading::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  content: "";
+  background: #e4b850;
 }
 
 .community-heading > div {
@@ -41,17 +56,21 @@
 
 .community-heading h1 {
   margin: 0;
-  color: var(--spg-ink);
-  font-size: clamp(32px, 4vw, 48px);
+  color: #fff;
+  font-size: clamp(30px, 3.6vw, 44px);
   line-height: 1.08;
 }
 
 .community-heading p {
   max-width: 660px;
   margin: 13px 0 0;
-  color: var(--spg-muted);
+  color: #d5e9dd;
   font-size: 15px;
   line-height: 1.65;
+}
+
+.community-heading .eyebrow {
+  color: #f0cc75;
 }
 
 .heading-login {
@@ -61,8 +80,8 @@
   align-items: center;
   gap: 7px;
   padding: 0 16px;
-  color: var(--spg-green-800);
-  border: 1px solid #acdcbc;
+  color: #075c38;
+  border: 1px solid #fff;
   border-radius: 6px;
   background: #fff;
   font-size: 13px;
@@ -71,10 +90,10 @@
 
 .community-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   align-items: start;
-  gap: 26px;
-  margin-top: 28px;
+  gap: 22px;
+  margin-top: 22px;
 }
 
 .feed-column {
@@ -85,14 +104,15 @@
 .post-card,
 .feed-toolbar,
 .sidebar-card {
-  border: 1px solid var(--spg-line);
+  border: 1px solid #d7e4da;
   border-radius: 8px;
   background: #fff;
 }
 
 .composer-card {
-  margin-bottom: 16px;
-  padding: 18px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 22px rgba(17, 47, 29, 0.045);
 }
 
 .composer-start {
@@ -126,7 +146,7 @@
   flex: 1;
   padding: 0 16px;
   color: var(--spg-muted);
-  border: 1px solid var(--spg-line);
+  border: 1px solid #d4e2d7;
   border-radius: 6px;
   background: var(--spg-canvas);
   font-size: 14px;
@@ -177,8 +197,9 @@
 }
 
 .feed-toolbar {
-  margin-bottom: 16px;
-  padding: 17px 18px;
+  margin-bottom: 14px;
+  padding: 15px 18px;
+  border-left: 4px solid var(--spg-green-700);
 }
 
 .toolbar-title {
@@ -228,7 +249,7 @@
   gap: 9px;
   padding: 28px;
   color: var(--spg-muted);
-  border: 1px dashed #bfd3c5;
+  border: 1px dashed #a9cbb4;
   border-radius: 8px;
   background: #fff;
   text-align: center;
@@ -279,11 +300,19 @@
 
 .post-stream {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .post-card {
   overflow: hidden;
+  box-shadow: 0 8px 24px rgba(17, 47, 29, 0.045);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.post-card:hover {
+  border-color: #bdd8c5;
+  box-shadow: 0 14px 32px rgba(17, 47, 29, 0.075);
+  transform: translateY(-1px);
 }
 
 .post-header {
@@ -291,7 +320,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 17px 18px 12px;
+  padding: 18px 20px 12px;
 }
 
 .author-button,
@@ -384,7 +413,7 @@
 }
 
 .post-body {
-  padding: 2px 18px 15px;
+  padding: 3px 20px 17px;
 }
 
 .post-tags {
@@ -422,7 +451,7 @@
   overflow: hidden;
   color: var(--spg-text);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.68;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
 }
@@ -473,7 +502,7 @@
   display: flex;
   align-items: center;
   gap: 17px;
-  padding: 12px 18px;
+  padding: 11px 20px;
   color: var(--spg-muted);
   border-bottom: 1px solid #edf2ee;
   font-size: 11px;
@@ -499,7 +528,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 5px;
-  padding: 8px 12px;
+  padding: 8px 14px;
 }
 
 .post-actions button {
@@ -528,7 +557,7 @@
 }
 
 .comments-panel {
-  padding: 15px 18px 18px;
+  padding: 16px 20px 20px;
   border-top: 1px solid var(--spg-line);
   background: #fbfdfb;
 }
@@ -570,7 +599,8 @@
   max-width: 100%;
   padding: 9px 11px;
   border-radius: 6px;
-  background: #eef4f0;
+  border: 1px solid #dde9e0;
+  background: #f4f8f5;
 }
 
 .comment-bubble p {
@@ -617,8 +647,8 @@
   height: 38px;
   padding: 0 12px;
   color: var(--spg-ink);
-  border: 1px solid var(--spg-line);
-  border-radius: 5px;
+  border: 1px solid #cfded1;
+  border-radius: 7px;
   background: #fff;
   font-size: 12px;
 }
@@ -672,11 +702,12 @@
   position: sticky;
   top: calc(var(--spg-header-height) + 20px);
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .sidebar-card {
-  padding: 18px;
+  padding: 17px;
+  box-shadow: 0 8px 22px rgba(17, 47, 29, 0.04);
 }
 
 .sidebar-card > h2 {
@@ -692,7 +723,7 @@
   padding-left: 11px;
   overflow: hidden;
   color: var(--spg-muted);
-  border: 1px solid var(--spg-line);
+  border: 1px solid #cfded1;
   border-radius: 6px;
   background: #fff;
 }
@@ -738,7 +769,7 @@
   padding: 0 10px;
   color: var(--spg-text);
   border: 1px solid var(--spg-line);
-  border-radius: 5px;
+  border-radius: 999px;
   background: #fff;
   font-size: 11px;
   font-weight: 650;
@@ -749,6 +780,18 @@
   color: var(--spg-green-900);
   border-color: #8fd2a6;
   background: var(--spg-green-50);
+}
+
+.category-list .filter-clear {
+  color: #9b3439;
+  border-color: #edc8ca;
+  background: #fff7f7;
+}
+
+.category-list .filter-clear:hover {
+  color: #7f252a;
+  border-color: #dca8ab;
+  background: #fff0f0;
 }
 
 .sidebar-heading {
@@ -779,6 +822,10 @@
   margin: 0;
 }
 
+.meetup-empty-error {
+  color: #a83238;
+}
+
 .meetup-list {
   display: grid;
   gap: 11px;
@@ -788,7 +835,7 @@
   padding: 13px;
   border: 1px solid var(--spg-line);
   border-radius: 6px;
-  background: #fbfdfb;
+  background: #f8fbf9;
 }
 
 .meetup-card > header {
@@ -906,10 +953,11 @@
     align-items: start;
     flex-direction: column;
     gap: 18px;
+    padding: 24px 20px;
   }
 
   .community-heading h1 {
-    font-size: 32px;
+    font-size: 31px;
   }
 
   .heading-login {
@@ -937,12 +985,13 @@
   }
 
   .post-actions button {
-    font-size: 0;
+    min-height: 44px;
+    font-size: 12px;
   }
 
   .post-actions button svg {
-    width: 19px;
-    height: 19px;
+    width: 18px;
+    height: 18px;
   }
 
   .media-grid > span {
@@ -952,6 +1001,17 @@
   .post-stats,
   .comments-panel {
     padding-inline: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .post-actions button {
+    font-size: 0;
+  }
+
+  .post-actions button svg {
+    width: 20px;
+    height: 20px;
   }
 }
 

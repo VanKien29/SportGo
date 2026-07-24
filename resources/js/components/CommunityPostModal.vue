@@ -1,12 +1,20 @@
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="modal-overlay" role="presentation" @click.self="close">
-      <section class="composer-modal" role="dialog" aria-modal="true" aria-labelledby="community-composer-title">
+    <div v-if="isOpen" class="modal-overlay community-composer-overlay" role="presentation" @click.self="close">
+      <section
+        class="composer-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="community-composer-title"
+        aria-describedby="community-composer-description"
+      >
         <header class="modal-header">
-          <div class="header-spacer" aria-hidden="true"></div>
-          <h2 id="community-composer-title">Tạo bài chia sẻ</h2>
+          <div>
+            <span class="modal-kicker">Cộng đồng SportGo</span>
+            <h2 id="community-composer-title">Tạo bài chia sẻ</h2>
+          </div>
           <button type="button" class="icon-button" aria-label="Đóng cửa sổ tạo bài" @click="close">
-            <AppIcon name="close" />
+            <AppIcon name="x" />
           </button>
         </header>
 
@@ -19,8 +27,12 @@
             </div>
           </div>
 
+          <p id="community-composer-description" class="composer-description">
+            Chia sẻ kinh nghiệm, câu hỏi hoặc câu chuyện từ buổi chơi của bạn.
+          </p>
+
           <label class="content-field">
-            <span class="sr-only">Nội dung bài viết</span>
+            <span>Nội dung <small>Bắt buộc</small></span>
             <textarea
               v-model="form.content"
               rows="6"
@@ -35,36 +47,18 @@
             </small>
           </label>
 
-          <!-- Image Preview Area -->
-          <div v-if="imagePreviewUrl" class="image-preview-area">
-            <button type="button" class="remove-image-btn" @click="removeFile">&times;</button>
-            <img :src="imagePreviewUrl" alt="Preview" class="post-image-preview" />
-          </div>
-
-          <!-- Addons Area (Facebook style) -->
-          <div class="fb-addons-box">
-            <span class="fb-addons-text">Thêm vào bài viết của bạn</span>
-            <div class="fb-addons-actions">
-              <label class="fb-action-btn icon-image" title="Thêm ảnh/video">
-                <input type="file" class="hidden-input" accept=".jpg,.jpeg,.png,.webp" @change="handleFileChange" />
-                <AppIcon name="image" size="24" />
-              </label>
-            </div>
-          </div>
-
-          <div v-if="errorMsg" class="error-alert">
-            <i class="fas fa-exclamation-triangle"></i> {{ errorMsg }}
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn submit-btn" :disabled="isSubmitting || !isValid">
-              <span v-if="isSubmitting" class="spinner"></span>
-              <span v-else>Đăng</span>
+          <div v-if="imagePreviewUrl" class="image-preview">
+            <img :src="imagePreviewUrl" alt="Ảnh sẽ đính kèm bài viết" />
+            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeFile">
+              <AppIcon name="trash" />
             </button>
           </div>
 
           <fieldset class="topic-fieldset">
-            <legend>Chủ đề <small>Không bắt buộc, tối đa 3</small></legend>
+            <legend>
+              <span>Chủ đề</span>
+              <small>Không bắt buộc, tối đa 3</small>
+            </legend>
             <div class="topic-list">
               <button
                 v-for="category in availableCategories"
@@ -81,7 +75,7 @@
 
           <div class="attachment-row">
             <div>
-              <strong>Thêm vào bài viết</strong>
+              <strong>Ảnh minh họa</strong>
               <small>Một ảnh JPG, PNG hoặc WebP, tối đa 5 MB</small>
             </div>
             <label class="image-picker">
@@ -92,7 +86,7 @@
                 @change="handleFileChange"
               />
               <AppIcon name="image" />
-              Chọn ảnh
+              {{ selectedFile ? 'Đổi ảnh' : 'Chọn ảnh' }}
             </label>
           </div>
 

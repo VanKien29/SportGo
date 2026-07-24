@@ -93,33 +93,34 @@ export default {
 .custom-select {
   position: relative;
   min-width: 160px;
-  font-size: var(--admin-font-size-base);
+  font-size: var(--custom-select-font-size, var(--admin-font-size-base, 14px));
 }
 
 .select-trigger {
   display: flex;
   width: 100%;
-  min-height: 40px;
+  min-height: var(--custom-select-height, 40px);
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 8px 11px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
-  color: var(--admin-text);
+  border: 1px solid var(--custom-select-border, var(--admin-border, #cfded1));
+  border-radius: var(--custom-select-radius, var(--admin-radius, 8px));
+  background: var(--custom-select-surface, var(--admin-surface, #fff));
+  color: var(--custom-select-text, var(--admin-text, #101c15));
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .custom-select.open .select-trigger {
-  border-color: var(--admin-primary);
+  border-color: var(--custom-select-primary, var(--admin-primary, #22a653));
+  box-shadow: var(--custom-select-focus-ring, none);
 }
 
 .select-trigger:disabled {
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
+  background: var(--custom-select-muted-surface, var(--admin-surface-muted, #f3f8f1));
+  color: var(--custom-select-faint, var(--admin-faint, #718078));
   cursor: not-allowed;
   opacity: 0.72;
 }
@@ -141,9 +142,10 @@ export default {
   overflow-y: auto;
   margin: 0;
   padding: 5px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
+  border: 1px solid var(--custom-select-border, var(--admin-border, #cfded1));
+  border-radius: var(--custom-select-radius, var(--admin-radius, 8px));
+  background: var(--custom-select-surface, var(--admin-surface, #fff));
+  box-shadow: var(--custom-select-shadow, 0 14px 34px rgba(15, 35, 24, 0.12));
   list-style: none;
 }
 
@@ -153,8 +155,8 @@ export default {
   justify-content: space-between;
   gap: 8px;
   padding: 9px 10px;
-  border-radius: var(--admin-radius);
-  color: var(--admin-text);
+  border-radius: calc(var(--custom-select-radius, var(--admin-radius, 8px)) - 2px);
+  color: var(--custom-select-text, var(--admin-text, #101c15));
   cursor: pointer;
   outline: none;
 }
@@ -162,13 +164,14 @@ export default {
 .options-list li:hover,
 .options-list li:focus-visible,
 .options-list li.selected {
-  background: var(--admin-primary-soft);
-  color: var(--admin-primary-dark);
+  background: var(--custom-select-primary-soft, var(--admin-primary-soft, #e2f6e8));
+  color: var(--custom-select-primary-dark, var(--admin-primary-dark, #15733a));
 }
 
 .select-fade-enter-active,
 .select-fade-leave-active {
-  transition: opacity var(--admin-transition-fast) ease, transform var(--admin-transition-fast) ease;
+  transition: opacity var(--custom-select-transition, var(--admin-transition-fast, 160ms)) ease,
+    transform var(--custom-select-transition, var(--admin-transition-fast, 160ms)) ease;
 }
 
 .select-fade-enter-from,

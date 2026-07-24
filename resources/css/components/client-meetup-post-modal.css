@@ -9,6 +9,19 @@
 }
 
 .meetup-modal {
+  --custom-select-height: 44px;
+  --custom-select-font-size: 14px;
+  --custom-select-border: var(--sg-client-border-strong);
+  --custom-select-radius: var(--sg-client-radius-sm);
+  --custom-select-surface: var(--sg-client-surface);
+  --custom-select-text: var(--sg-client-text);
+  --custom-select-primary: var(--sg-client-primary);
+  --custom-select-primary-dark: var(--sg-client-primary-dark);
+  --custom-select-primary-soft: var(--sg-client-primary-soft);
+  --custom-select-muted-surface: var(--sg-client-surface-muted);
+  --custom-select-faint: var(--sg-client-faint);
+  --custom-select-focus-ring: var(--sg-client-focus-ring);
+  --custom-select-shadow: var(--sg-client-modal-shadow);
   width: min(100%, 620px);
   max-height: 90dvh;
   overflow: hidden;
@@ -128,6 +141,14 @@
   line-height: 1.5;
 }
 
+.modal-state--error {
+  color: var(--sg-client-danger);
+}
+
+.modal-state--error span {
+  color: var(--sg-client-muted);
+}
+
 .spinner {
   width: 24px;
   height: 24px;
@@ -197,6 +218,10 @@ textarea.field-control {
 
 .character-count {
   justify-self: end;
+}
+
+.character-count.invalid {
+  color: var(--sg-client-danger);
 }
 
 .form-error {

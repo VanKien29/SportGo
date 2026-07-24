@@ -64,6 +64,14 @@
                 >
                   {{ category }}
                 </button>
+                <button
+                  v-if="searchQuery || selectedCategory"
+                  type="button"
+                  class="filter-clear"
+                  @click="clearFilters"
+                >
+                  Xóa lọc
+                </button>
               </div>
             </div>
           </section>
@@ -284,6 +292,14 @@
               >
                 {{ category }}
               </button>
+              <button
+                v-if="searchQuery || selectedCategory"
+                type="button"
+                class="filter-clear"
+                @click="clearFilters"
+              >
+                Xóa lọc
+              </button>
             </div>
           </section>
 
@@ -301,6 +317,11 @@
             <div v-if="matchmakingLoading" class="meetup-loading">
               <span class="spinner spinner-small" aria-hidden="true"></span>
               Đang tải kèo...
+            </div>
+            <div v-else-if="matchmakingError" class="meetup-empty meetup-empty-error" role="alert">
+              <AppIcon name="alert" />
+              <p>{{ matchmakingError }}</p>
+              <button type="button" @click="fetchMatchmakingPosts">Tải lại</button>
             </div>
             <div v-else-if="matchmakingPosts.length" class="meetup-list">
               <article v-for="post in matchmakingPosts" :key="post.id" class="meetup-card">
@@ -391,8 +412,8 @@ const posts = ref([]);
 const loading = ref(true);
 const loadingMore = ref(false);
 const error = ref('');
-const searchQuery = ref('');
-const selectedCategory = ref('');
+const searchQuery = ref(String(route.query.q || ''));
+const selectedCategory = ref(String(route.query.category || ''));
 const showMobileFilters = ref(false);
 const showCommunityModal = ref(false);
 const showMeetupModal = ref(false);
@@ -410,6 +431,7 @@ const showAllComments = reactive({});
 const likingPostIds = reactive(new Set());
 const matchmakingPosts = ref([]);
 const matchmakingLoading = ref(true);
+const matchmakingError = ref('');
 const joiningPostId = ref(null);
 
 async function fetchPosts({ page = 1, append = false } = {}) {
@@ -429,8 +451,12 @@ async function fetchPosts({ page = 1, append = false } = {}) {
       last_page: Number(response.last_page || 1),
     };
   } catch (requestError) {
-    if (!append) posts.value = [];
-    error.value = requestError.message || 'Không thể tải bài viết cộng đồng.';
+    if (append) {
+      toast.error(requestError.message || 'Không thể tải thêm bài viết.');
+    } else {
+      posts.value = [];
+      error.value = requestError.message || 'Không thể tải bài viết cộng đồng.';
+    }
   } finally {
     loading.value = false;
     loadingMore.value = false;
@@ -439,11 +465,13 @@ async function fetchPosts({ page = 1, append = false } = {}) {
 
 async function fetchMatchmakingPosts() {
   matchmakingLoading.value = true;
+  matchmakingError.value = '';
   try {
     const response = await api('/api/matchmaking-posts');
     matchmakingPosts.value = Array.isArray(response.data) ? response.data.slice(0, 5) : [];
-  } catch {
+  } catch (requestError) {
     matchmakingPosts.value = [];
+    matchmakingError.value = requestError.message || 'Không thể tải các kèo sắp tới.';
   } finally {
     matchmakingLoading.value = false;
   }
@@ -451,11 +479,23 @@ async function fetchMatchmakingPosts() {
 
 function applyFilters() {
   showMobileFilters.value = false;
+  router.replace({
+    query: {
+      ...(searchQuery.value ? { q: searchQuery.value } : {}),
+      ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
+    },
+  });
   fetchPosts({ page: 1 });
 }
 
 function setCategory(category) {
   selectedCategory.value = category;
+  applyFilters();
+}
+
+function clearFilters() {
+  searchQuery.value = '';
+  selectedCategory.value = '';
   applyFilters();
 }
 

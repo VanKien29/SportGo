@@ -1,6 +1,7 @@
 <template>
-  <div v-if="isOpen" class="modal-overlay" role="presentation" @click.self="close">
-    <section class="meetup-modal" role="dialog" aria-modal="true" aria-labelledby="meetup-modal-title">
+  <Teleport to="body">
+    <div v-if="isOpen" class="modal-overlay" role="presentation" @click.self="close">
+      <section class="meetup-modal" role="dialog" aria-modal="true" aria-labelledby="meetup-modal-title">
       <header class="modal-header">
         <div>
           <span class="modal-kicker">Cộng đồng SportGo</span>
@@ -23,6 +24,13 @@
         <div v-if="bookingsLoading" class="modal-state">
           <span class="spinner" aria-hidden="true"></span>
           Đang tải lịch sân đủ điều kiện...
+        </div>
+
+        <div v-else-if="bookingsError" class="modal-state empty modal-state--error" role="alert">
+          <AppIcon name="alert" size="28" />
+          <strong>Không thể tải lịch đã đặt</strong>
+          <span>{{ bookingsError }}</span>
+          <SgButton type="secondary" @click="fetchEligibleBookings">Tải lại</SgButton>
         </div>
 
         <div v-else-if="!userBookings.length" class="modal-state empty">
@@ -74,7 +82,14 @@
               maxlength="2000"
               placeholder="Trình độ mong muốn, cách chia chi phí hoặc lưu ý cho người tham gia"
             ></textarea>
-            <small class="character-count">{{ form.content.length }}/2000</small>
+            <small
+              class="character-count"
+              :class="{ invalid: form.content.length > 0 && form.content.length < 10 }"
+            >
+              {{ form.content.length > 0 && form.content.length < 10
+                ? `Cần thêm ${10 - form.content.length} ký tự`
+                : `${form.content.length}/2000` }}
+            </small>
           </label>
 
           <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
@@ -87,12 +102,13 @@
           </footer>
         </form>
       </div>
-    </section>
-  </div>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import AppIcon from '@/components/AppIcon.vue';
 import CustomSelect from '@/components/CustomSelect.vue';
 import SgButton from '@/components/common/SgButton.vue';
@@ -106,6 +122,7 @@ const userInitial = computed(() => user?.fullName?.charAt(0)?.toUpperCase() || '
 const form = reactive({ venue_id: '', booking_id: '', required_players: 1, content: '' });
 const userBookings = ref([]);
 const bookingsLoading = ref(false);
+const bookingsError = ref('');
 const isSubmitting = ref(false);
 const errorMsg = ref('');
 
@@ -164,16 +181,20 @@ function close() {
 
 async function fetchEligibleBookings() {
   bookingsLoading.value = true;
-  errorMsg.value = '';
+  bookingsError.value = '';
   try {
     const response = await api('/api/matchmaking-posts/eligible-bookings');
     userBookings.value = Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     userBookings.value = [];
-    errorMsg.value = error.message || 'Không thể tải lịch sân đủ điều kiện.';
+    bookingsError.value = error.message || 'Không thể tải lịch sân đủ điều kiện.';
   } finally {
     bookingsLoading.value = false;
   }
+}
+
+function handleEscape(event) {
+  if (event.key === 'Escape' && props.isOpen) close();
 }
 
 async function submit() {
@@ -209,6 +230,9 @@ watch(() => props.isOpen, (isOpen) => {
   if (isOpen) fetchEligibleBookings();
   else if (!isSubmitting.value) reset();
 });
+
+onMounted(() => document.addEventListener('keydown', handleEscape));
+onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
 </script>
 
 <style scoped src="../../css/components/client-meetup-post-modal.css"></style>
