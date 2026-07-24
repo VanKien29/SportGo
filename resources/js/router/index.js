@@ -44,7 +44,7 @@ import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationD
 import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
-import CommunityPostDetail from "../views/clients/NewsDetail.vue";
+import CommunityPostDetail from "../views/clients/community/CommunityDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },

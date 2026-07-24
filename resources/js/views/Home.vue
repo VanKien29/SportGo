@@ -1,101 +1,6 @@
 <template>
-  <div class="sgx-home">
-    <header class="sgx-header">
-      <div class="sgx-shell sgx-header__inner">
-        <router-link to="/" class="sgx-brand" aria-label="SportGo - Trang chủ">
-          <span class="sgx-brand__mark">
-            <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
-            <Trophy v-else :size="24" aria-hidden="true" />
-          </span>
-          <span class="sgx-brand__name">
-            {{ brandMain }}<strong v-if="brandAccent">{{ brandAccent }}</strong>
-          </span>
-        </router-link>
-
-        <nav class="sgx-nav" aria-label="Điều hướng chính">
-          <router-link to="/" exact-active-class="is-active">Trang chủ</router-link>
-          <router-link :to="{ name: 'venues' }" active-class="is-active">Tìm sân</router-link>
-          <a href="#sgx-sports">Môn thể thao</a>
-          <router-link to="/community" active-class="is-active">Cộng đồng</router-link>
-          <router-link to="/news" active-class="is-active">Tin tức</router-link>
-        </nav>
-
-        <div class="sgx-header__actions">
-          <a class="sgx-hotline" href="tel:19006789">
-            <PhoneCall :size="18" aria-hidden="true" />
-            <span>
-              <small>Hỗ trợ đặt sân</small>
-              <strong>1900 6789</strong>
-            </span>
-          </a>
-
-          <router-link to="/become-partner" class="sgx-partner-link">
-            <Building2 :size="18" aria-hidden="true" />
-            Đăng sân
-          </router-link>
-
-          <template v-if="!user">
-            <router-link to="/login" class="sgx-login-link">Đăng nhập</router-link>
-          </template>
-
-          <div v-else class="sgx-account">
-            <button
-              type="button"
-              class="sgx-account__trigger"
-              :aria-expanded="accountOpen"
-              aria-label="Mở menu tài khoản"
-              @click.stop="toggleAccount"
-            >
-              {{ userInitial }}
-            </button>
-            <div v-if="accountOpen" class="sgx-account__menu">
-              <div class="sgx-account__summary">
-                <strong>{{ user.fullName }}</strong>
-                <span>{{ roleLabel }}</span>
-              </div>
-              <router-link :to="profileRoute" @click="closeMenus">
-                <UserRound :size="17" aria-hidden="true" />
-                Tài khoản
-              </router-link>
-              <router-link v-if="user.role === 'user'" to="/bookings" @click="closeMenus">
-                <CalendarDays :size="17" aria-hidden="true" />
-                Lịch đã đặt
-              </router-link>
-              <button v-if="user.role !== 'user'" type="button" @click="goToManage">
-                <LayoutDashboard :size="17" aria-hidden="true" />
-                Trang quản lý
-              </button>
-              <button type="button" class="is-danger" @click="handleLogout">
-                <LogOut :size="17" aria-hidden="true" />
-                Đăng xuất
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            class="sgx-menu-button"
-            :aria-expanded="mobileOpen"
-            :aria-label="mobileOpen ? 'Đóng menu' : 'Mở menu'"
-            aria-controls="sgx-mobile-nav"
-            @click.stop="toggleMobile"
-          >
-            <X v-if="mobileOpen" :size="23" aria-hidden="true" />
-            <Menu v-else :size="23" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      <nav v-if="mobileOpen" id="sgx-mobile-nav" class="sgx-mobile-nav" aria-label="Điều hướng di động">
-        <router-link to="/" exact-active-class="is-active" @click="closeMenus">Trang chủ</router-link>
-        <router-link :to="{ name: 'venues' }" active-class="is-active" @click="closeMenus">Tìm sân</router-link>
-        <a href="#sgx-sports" @click="closeMenus">Môn thể thao</a>
-        <router-link to="/community" active-class="is-active" @click="closeMenus">Cộng đồng</router-link>
-        <router-link to="/news" active-class="is-active" @click="closeMenus">Tin tức</router-link>
-        <router-link to="/become-partner" @click="closeMenus">Dành cho chủ sân</router-link>
-        <router-link v-if="!user" to="/login" @click="closeMenus">Đăng nhập</router-link>
-      </nav>
-    </header>
+  <div class="sgx-home home-page">
+    <PublicNavbar />
 
     <main>
       <section class="sgx-hero" aria-labelledby="sgx-hero-title">
@@ -427,7 +332,7 @@
         </div>
       </section>
 
-      <section id="sgx-community" class="sgx-section sgx-community">
+      <section id="community" class="sgx-section sgx-community">
         <div class="sgx-shell">
           <div class="sgx-section-heading-row">
             <header class="sgx-section-heading">
@@ -510,53 +415,6 @@
       </section>
     </main>
 
-    <footer class="sgx-footer">
-      <div class="sgx-shell sgx-footer__grid">
-        <div class="sgx-footer__brand">
-          <router-link to="/" class="sgx-brand sgx-brand--footer">
-            <span class="sgx-brand__mark">
-              <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
-              <Trophy v-else :size="24" aria-hidden="true" />
-            </span>
-            <span class="sgx-brand__name">
-              {{ brandMain }}<strong v-if="brandAccent">{{ brandAccent }}</strong>
-            </span>
-          </router-link>
-          <p>Tìm sân, đặt lịch và bắt đầu cuộc chơi theo cách đơn giản hơn.</p>
-          <div class="sgx-footer__contact">
-            <a href="tel:19006789"><PhoneCall :size="17" />1900 6789</a>
-            <a href="mailto:info@sportgo.vn"><Mail :size="17" />info@sportgo.vn</a>
-          </div>
-        </div>
-
-        <div class="sgx-footer__column">
-          <h3>Khám phá</h3>
-          <router-link :to="{ name: 'venues' }">Tìm sân</router-link>
-          <a href="#sgx-sports">Môn thể thao</a>
-          <router-link to="/community">Cộng đồng</router-link>
-          <router-link to="/news">Tin tức</router-link>
-        </div>
-
-        <div class="sgx-footer__column">
-          <h3>Dành cho đối tác</h3>
-          <router-link to="/become-partner">Đăng ký chủ sân</router-link>
-          <router-link to="/login">Đăng nhập quản lý</router-link>
-          <router-link to="/owner/dashboard">Trung tâm vận hành</router-link>
-        </div>
-
-        <div class="sgx-footer__column">
-          <h3>Hỗ trợ</h3>
-          <router-link to="/profile">Tài khoản</router-link>
-          <router-link to="/bookings">Lịch đã đặt</router-link>
-          <a href="mailto:support@sportgo.vn">Liên hệ hỗ trợ</a>
-          <router-link to="/become-partner">Hợp tác cùng SportGo</router-link>
-        </div>
-      </div>
-      <div class="sgx-shell sgx-footer__bottom">
-        <span>© {{ currentYear }} SportGo. Nền tảng đặt sân thể thao.</span>
-        <span>Việt Nam</span>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -587,6 +445,7 @@ import {
   X,
 } from "lucide-vue-next";
 import { markRaw } from "vue";
+import PublicNavbar from "../components/PublicNavbar.vue";
 import { api } from "../services/api.js";
 import { getAuth, logout } from "../stores/auth.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
@@ -660,6 +519,7 @@ export default {
     Trophy,
     UserRound,
     X,
+    PublicNavbar,
   },
   data() {
     const today = localDateString();
@@ -876,7 +736,7 @@ export default {
     },
     observeNewsSection() {
       this.$nextTick(() => {
-        const section = this.$el.querySelector("#sgx-community");
+        const section = this.$el.querySelector("#community");
         if (!section) return;
 
         if (!("IntersectionObserver" in window)) {

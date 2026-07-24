@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Amenity;
 use App\Models\CourtType;
+use App\Models\Media;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
-use App\Models\VenueCourt;
+use App\Models\VenuePlatformFeeLedger;
 use App\Models\VenuePost;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,9 +21,13 @@ class VenueManagementTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $owner1;
+
     private User $owner2;
+
     private CourtType $courtType;
+
     private VenueCluster $cluster1;
 
     protected function setUp(): void
@@ -98,11 +104,11 @@ class VenueManagementTest extends TestCase
         ]);
 
         // 5. Tạo Tiện ích mẫu để đồng bộ
-        \App\Models\Amenity::create(['name' => 'Wifi', 'status' => 'active']);
-        \App\Models\Amenity::create(['name' => 'Water', 'status' => 'active']);
-        \App\Models\Amenity::create(['name' => 'Parking', 'status' => 'active']);
-        \App\Models\Amenity::create(['name' => 'Gửi xe', 'status' => 'active']);
-        \App\Models\Amenity::create(['name' => 'Phòng tắm VIP', 'status' => 'active']);
+        Amenity::create(['name' => 'Wifi', 'status' => 'active']);
+        Amenity::create(['name' => 'Water', 'status' => 'active']);
+        Amenity::create(['name' => 'Parking', 'status' => 'active']);
+        Amenity::create(['name' => 'Gửi xe', 'status' => 'active']);
+        Amenity::create(['name' => 'Phòng tắm VIP', 'status' => 'active']);
     }
 
     // ==========================================
@@ -144,6 +150,21 @@ class VenueManagementTest extends TestCase
             ->deleteJson("/api/admin/court-types/{$courtTypeId}");
         $response->assertStatus(200);
         $this->assertSoftDeleted('court_types', ['id' => $courtTypeId]);
+    }
+
+    public function test_public_court_type_list_does_not_require_authentication_and_only_returns_active_items(): void
+    {
+        CourtType::create([
+            'name' => 'Inactive court type',
+            'player_count' => 2,
+            'is_active' => false,
+        ]);
+
+        $response = $this->getJson('/api/court-types');
+
+        $response->assertOk()
+            ->assertJsonFragment(['name' => 'Badminton'])
+            ->assertJsonMissing(['name' => 'Inactive court type']);
     }
 
     public function test_owner_cannot_access_court_type_endpoints(): void
@@ -343,7 +364,7 @@ class VenueManagementTest extends TestCase
     public function test_admin_can_view_venue_clusters_list_with_fee_status(): void
     {
         // Tạo hóa đơn phí mẫu cho cluster1
-        \App\Models\VenuePlatformFeeLedger::create([
+        VenuePlatformFeeLedger::create([
             'venue_cluster_id' => $this->cluster1->id,
             'court_count' => 5,
             'billing_cycle' => 'monthly',
@@ -354,8 +375,8 @@ class VenueManagementTest extends TestCase
         ]);
 
         // Tạo media mẫu
-        \App\Models\Media::create([
-            'mediable_type' => \App\Models\VenueCluster::class,
+        Media::create([
+            'mediable_type' => VenueCluster::class,
             'mediable_id' => $this->cluster1->id,
             'collection' => 'gallery',
             'file_name' => 'san-dep.jpg',
@@ -376,8 +397,8 @@ class VenueManagementTest extends TestCase
     public function test_admin_can_view_venue_cluster_detail_with_images(): void
     {
         // Tạo media mẫu
-        \App\Models\Media::create([
-            'mediable_type' => \App\Models\VenueCluster::class,
+        Media::create([
+            'mediable_type' => VenueCluster::class,
             'mediable_id' => $this->cluster1->id,
             'collection' => 'gallery',
             'file_name' => 'san-dep.jpg',
@@ -489,8 +510,8 @@ class VenueManagementTest extends TestCase
         $response->assertStatus(403);
 
         // Tạo media mẫu của owner1
-        $media = \App\Models\Media::create([
-            'mediable_type' => \App\Models\VenueCluster::class,
+        $media = Media::create([
+            'mediable_type' => VenueCluster::class,
             'mediable_id' => $this->cluster1->id,
             'collection' => 'gallery',
             'file_name' => 'owner1-court.jpg',

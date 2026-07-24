@@ -568,7 +568,6 @@ Route::middleware('auth:sanctum')
 
         Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
         Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
-        Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
         Route::get('/service-categories', [AdminServiceCategoryController::class, 'index']);
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);

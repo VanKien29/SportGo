@@ -411,8 +411,26 @@ export default {
       error: "",
       gallery: [],
       activeImage: "",
+      activeTab: "overview",
+      venueTabs: [
+        { id: "overview", label: "Tổng quan", icon: "dashboard" },
+        { id: "courts", label: "Sân & bảng giá", icon: "layers" },
+        { id: "posts", label: "Bài viết", icon: "newspaper" },
+        { id: "reviews", label: "Đánh giá", icon: "star" },
+        { id: "location", label: "Vị trí", icon: "mapPin" },
+      ],
       bookDate: this.todayStr(),
       bookCourtType: '',
+      previewSchedule: {
+        time_slots: [],
+        courts: [],
+        slot_statuses: [],
+      },
+      previewLoading: false,
+      previewError: "",
+      venueRequestId: 0,
+      scheduleRequestId: 0,
+      showComplaintModal: false,
       showReportModal: false,
       showActionMenu: false,
       reportForm: {
@@ -701,6 +719,18 @@ export default {
       return String(value || "").slice(0, 5) || "--:--";
     },
 
+    shortTime(value) {
+      return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    isPreviewSlotPast(slot) {
+      if (this.bookDate !== this.todayStr()) return false;
+      const endTime = String(slot?.end_time || slot?.start_time || "");
+      if (!endTime) return false;
+      const end = new Date(`${this.bookDate}T${endTime}`);
+      return !Number.isNaN(end.getTime()) && end.getTime() <= Date.now();
+    },
+
     durationLabel(minutes) {
       const total = Number(minutes);
       if (!Number.isFinite(total) || total <= 0) return "Không yêu cầu";
@@ -735,6 +765,42 @@ export default {
         this.error = err.message || 'Không thể tải thông tin sân.';
       } finally {
         if (requestId === this.venueRequestId) this.loading = false;
+      }
+    },
+
+    async loadMiniSchedule() {
+      if (!this.venue?.id || !this.bookDate) return;
+
+      const requestId = ++this.scheduleRequestId;
+      this.previewLoading = true;
+      this.previewError = "";
+
+      try {
+        const response = await venueService.schedule(this.venue.id, {
+          booking_date: this.bookDate,
+          court_type_id: this.bookCourtType || undefined,
+        });
+        if (requestId !== this.scheduleRequestId) return;
+
+        const payload = response.data || response;
+        this.previewSchedule = {
+          time_slots: payload.time_slots || [],
+          courts: payload.courts || [],
+          slot_statuses: payload.slot_statuses || [],
+        };
+      } catch (error) {
+        if (requestId !== this.scheduleRequestId) return;
+        this.previewSchedule = {
+          time_slots: [],
+          courts: [],
+          slot_statuses: [],
+        };
+        this.previewError =
+          error?.message || "Không thể kiểm tra lịch trống lúc này.";
+      } finally {
+        if (requestId === this.scheduleRequestId) {
+          this.previewLoading = false;
+        }
       }
     },
 
@@ -834,7 +900,7 @@ export default {
       }
     },
 
-    goToBooking() {
+    goToBooking(slot = null) {
       if (!this.bookDate) return;
       const query = {
         venue_cluster_id: this.venue.id,

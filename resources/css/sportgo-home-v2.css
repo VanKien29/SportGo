@@ -64,6 +64,10 @@
   margin-inline: auto;
 }
 
+.sgx-home > main {
+  padding-top: var(--spg-header-height);
+}
+
 .sgx-header {
   position: sticky;
   z-index: 100;
