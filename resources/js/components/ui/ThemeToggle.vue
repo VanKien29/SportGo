@@ -39,10 +39,16 @@
 </template>
 
 <script>
-import { applyCustomThemeStyles } from '../../utils/theme.js';
+import { applyDocumentThemeMode } from '../../utils/themeMode.js';
 
 export default {
   name: 'ThemeToggle',
+  props: {
+    storageKey: {
+      type: String,
+      required: true,
+    },
+  },
   directives: {
     'click-outside': {
       beforeMount(el, binding) {
@@ -75,9 +81,8 @@ export default {
     }
   },
   created() {
-    this.activeTheme = localStorage.getItem('admin-theme') || 'system';
+    this.activeTheme = localStorage.getItem(this.storageKey) || 'system';
     this.applyTheme(this.activeTheme);
-    applyCustomThemeStyles();
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     if (this.mediaQuery.addEventListener) {
@@ -104,20 +109,13 @@ export default {
     },
     selectTheme(theme) {
       this.activeTheme = theme;
-      localStorage.setItem('admin-theme', theme);
+      localStorage.setItem(this.storageKey, theme);
       this.applyTheme(theme);
       this.closeDropdown();
       this.$emit('theme-changed', theme);
     },
     applyTheme(theme) {
-      let resolvedTheme = theme;
-      if (theme === 'system') {
-        resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
-      document.documentElement.classList.toggle('light', resolvedTheme === 'light');
-      document.documentElement.setAttribute('data-theme', resolvedTheme);
-      applyCustomThemeStyles();
+      applyDocumentThemeMode(theme);
     },
     handleSystemThemeChange() {
       if (this.activeTheme === 'system') {

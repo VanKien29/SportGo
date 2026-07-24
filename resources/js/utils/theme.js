@@ -14,6 +14,11 @@ function getContrastColor(hex) {
 export function applyCustomThemeStyles() {
   const themeDataStr = localStorage.getItem('admin-custom-theme');
   let styleEl = document.getElementById('admin-custom-theme-style');
+  const adminScope = '.sg-shell-admin,\nbody.sg-admin-theme-scope';
+  const adminLightScope = ':root:not([data-theme="dark"]) .sg-shell-admin,\n'
+    + ':root:not([data-theme="dark"]) body.sg-admin-theme-scope';
+  const adminDarkScope = '[data-theme="dark"] .sg-shell-admin,\n'
+    + '[data-theme="dark"] body.sg-admin-theme-scope';
   
   if (!themeDataStr) {
     if (styleEl) styleEl.remove();
@@ -26,7 +31,7 @@ export function applyCustomThemeStyles() {
     
     if (themeData.radius) {
       cssContent += `
-:root {
+${adminScope} {
   --admin-radius: ${themeData.radius} !important;
   --admin-radius-lg: calc(${themeData.radius} + 4px) !important;
 }
@@ -53,16 +58,19 @@ body.sg-admin-theme-scope {
     if (themeData.light) {
       const l = themeData.light;
       const primaryText = getContrastColor(l.primary);
+      const pageText = getContrastColor(l.background);
       cssContent += `
-:root:not([data-theme="dark"]) {
+${adminLightScope} {
   ${l.primary ? `--admin-primary: ${l.primary} !important;` : ''}
   --admin-primary-text: ${primaryText} !important;
   ${l.secondary ? `--admin-blue: ${l.secondary} !important;` : ''}
   ${l.accent ? `--admin-hover: ${l.accent} !important;` : ''}
+  --admin-text: ${pageText} !important;
   ${l.muted ? `--admin-muted: ${l.muted} !important;` : ''}
   ${l.destructive ? `--admin-danger: ${l.destructive} !important;` : ''}
   ${l.border ? `--admin-border: ${l.border} !important;` : ''}
   ${l.card ? `--admin-surface: ${l.card} !important;` : ''}
+  ${l.card ? `--admin-card-bg: ${l.card} !important;` : ''}
   ${l.background ? `--admin-bg: ${l.background} !important;` : ''}
   
   /* Derived variables */
@@ -80,16 +88,19 @@ body.sg-admin-theme-scope {
     if (themeData.dark) {
       const d = themeData.dark;
       const primaryText = getContrastColor(d.primary);
+      const pageText = getContrastColor(d.background);
       cssContent += `
-[data-theme="dark"] {
+${adminDarkScope} {
   ${d.primary ? `--admin-primary: ${d.primary} !important;` : ''}
   --admin-primary-text: ${primaryText} !important;
   ${d.secondary ? `--admin-blue: ${d.secondary} !important;` : ''}
   ${d.accent ? `--admin-hover: ${d.accent} !important;` : ''}
+  --admin-text: ${pageText} !important;
   ${d.muted ? `--admin-muted: ${d.muted} !important;` : ''}
   ${d.destructive ? `--admin-danger: ${d.destructive} !important;` : ''}
   ${d.border ? `--admin-border: ${d.border} !important;` : ''}
   ${d.card ? `--admin-surface: ${d.card} !important;` : ''}
+  ${d.card ? `--admin-card-bg: ${d.card} !important;` : ''}
   ${d.background ? `--admin-bg: ${d.background} !important;` : ''}
   
   /* Derived variables */

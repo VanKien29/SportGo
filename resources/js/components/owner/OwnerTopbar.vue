@@ -68,7 +68,7 @@
 
     <div class="topbar-actions">
       <WorkCenter audience="owner" />
-      <ThemeToggle />
+      <ThemeToggle storage-key="owner-theme" />
 
       <UserProfileDropdown
         :user="user"

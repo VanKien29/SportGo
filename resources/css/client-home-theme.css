@@ -2,10 +2,6 @@
   color-scheme: light;
 }
 
-[data-theme="dark"] .home-page {
-  color-scheme: dark;
-}
-
 .home-page .search-panel .booking-datetime__trigger {
   height: calc(var(--sg-client-control-height) + var(--sg-client-space-1));
   grid-template-columns: 18px minmax(0, 1fr) 18px;

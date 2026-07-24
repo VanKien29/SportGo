@@ -89,6 +89,7 @@ export default {
   },
   async mounted() {
     document.body?.classList.add('sg-admin-theme-scope');
+    applyCustomThemeStyles();
     autoApproveStore.init();
     await this.syncUiSettings();
   },

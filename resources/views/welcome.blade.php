@@ -30,8 +30,11 @@
     <script>
         (function() {
             try {
-                const isPortal = /^\/(owner|admin|staff)(\/|$)/.test(window.location.pathname);
-                const savedTheme = localStorage.getItem(isPortal ? 'admin-theme' : 'theme') || 'system';
+                const path = window.location.pathname;
+                const storageKey = /^\/admin(\/|$)/.test(path)
+                    ? 'admin-theme'
+                    : (/^\/(owner|staff)(\/|$)/.test(path) ? 'owner-theme' : null);
+                const savedTheme = storageKey ? (localStorage.getItem(storageKey) || 'system') : 'light';
                 const resolvedTheme = savedTheme === 'system'
                     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                     : savedTheme;

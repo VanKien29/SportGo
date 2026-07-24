@@ -205,11 +205,9 @@ export function buildOwnerThemeCss(settings = {}) {
   const dark = cssVarsForMode(preset.dark || OWNER_THEME_DEFAULTS.presets[0].dark);
   const ownerScope = '.sg-shell-owner,\nbody.' + OWNER_THEME_SCOPE_CLASS;
   const ownerLightScope = ':root:not([data-theme="dark"]) .sg-shell-owner,\n'
-    + ':root:not([data-theme="dark"]) body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
-    + 'body.' + OWNER_THEME_SCOPE_CLASS + ':not([data-theme="dark"])';
+    + ':root:not([data-theme="dark"]) body.' + OWNER_THEME_SCOPE_CLASS;
   const ownerDarkScope = '[data-theme="dark"] .sg-shell-owner,\n'
-    + '[data-theme="dark"] body.' + OWNER_THEME_SCOPE_CLASS + ',\n'
-    + 'body.' + OWNER_THEME_SCOPE_CLASS + '[data-theme="dark"]';
+    + '[data-theme="dark"] body.' + OWNER_THEME_SCOPE_CLASS;
   return ownerScope + ' {\n  --admin-radius: ' + radius + ' !important;\n  --admin-radius-lg: calc(' + radius + ' + 4px) !important;\n  --admin-font-size: ' + fontSize + ' !important;\n  --admin-font-size-scale: ' + fontScale + ' !important;\n  zoom: var(--admin-font-size-scale, 1) !important;\n}\n'
     + ownerLightScope + ' {\n  ' + light + '\n}\n'
     + ownerDarkScope + ' {\n  ' + dark + '\n}\n';

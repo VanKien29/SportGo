@@ -6,6 +6,7 @@ import {
     restoreAdminAuth,
     restoreAuth,
 } from "../stores/auth.js";
+import { applyThemeModeForPath } from "../utils/themeMode.js";
 
 import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
@@ -536,6 +537,8 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from, next) => {
+    applyThemeModeForPath(to.path);
+
     if (to.name === "google-callback") {
         const query = { ...to.query };
         if (query.token || query.code) {
