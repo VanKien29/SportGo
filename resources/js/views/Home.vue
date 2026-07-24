@@ -6,46 +6,44 @@
       <section class="hero">
         <div class="hero-inner">
           <div class="hero-copy">
-            <h1>Đặt sân thể thao nhanh, rõ lịch, đúng giờ.</h1>
+            <span class="hero-eyebrow">
+              <Trophy :size="17" aria-hidden="true" />
+              Không gian thể thao dành cho bạn
+            </span>
+            <h1>Tìm đúng sân.<br />Chơi đúng giờ.</h1>
             <p>
-              Tìm sân theo khu vực, loại sân và khung giờ. SportGo ưu tiên lịch trống thật, giá rõ và thao tác đặt sân ít bước nhất.
+              Chọn môn, khu vực và thời gian. SportGo giúp bạn xem lịch trống thật,
+              so sánh giá và hoàn tất đặt sân trong vài phút.
             </p>
-
             <div class="hero-actions">
               <router-link :to="{ name: 'venues' }" class="hero-primary">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
-                Tìm sân ngay
+                Khám phá sân gần bạn
+                <ArrowRight :size="19" aria-hidden="true" />
               </router-link>
-              <a href="#sports" class="hero-secondary">
-                Chọn loại sân
-              </a>
-            </div>
-
-            <div class="hero-stats" aria-label="Tổng quan SportGo">
-              <div v-for="stat in heroStats" :key="stat.label">
-                <strong>{{ stat.value }}</strong>
-                <span>{{ stat.label }}</span>
-              </div>
+              <a href="#booking-steps" class="hero-secondary">Cách đặt sân</a>
             </div>
           </div>
 
+          <div class="hero-stats" aria-label="Tổng quan SportGo">
+            <div v-for="stat in heroStats" :key="stat.label">
+              <strong>{{ stat.value }}</strong>
+              <span>{{ stat.label }}</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      <form class="search-panel" @submit.prevent="submitSearch">
+      <form class="search-panel" aria-label="Tìm sân thể thao" @submit.prevent="submitSearch">
         <div class="search-grid">
           <label>
             <span>Khu vực</span>
             <div class="field-control">
-              <svg class="field-leading" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20 10c0 5.2-8 11-8 11S4 15.2 4 10a8 8 0 1 1 16 0Z"/>
-                <circle cx="12" cy="10" r="2.5"/>
-              </svg>
-              <input v-model.trim="search.area" type="text" placeholder="Chọn khu vực" />
+              <MapPin class="field-leading" :size="19" aria-hidden="true" />
+              <input v-model.trim="search.area" type="text" placeholder="Quận, huyện hoặc thành phố" />
             </div>
           </label>
           <label>
-            <span>Thời gian chơi</span>
+            <span>Ngày và giờ chơi</span>
             <BookingDateTimePicker
               v-model:date="search.booking_date"
               v-model:time="search.start_time"
@@ -56,110 +54,134 @@
           <label>
             <span>Môn thể thao</span>
             <div class="field-control">
-              <svg class="field-leading" viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="4" y="4" width="6" height="6" rx="1.5"/>
-                <rect x="14" y="4" width="6" height="6" rx="1.5"/>
-                <rect x="4" y="14" width="6" height="6" rx="1.5"/>
-                <rect x="14" y="14" width="6" height="6" rx="1.5"/>
-              </svg>
-              <select
-                v-model="search.court_type_id"
-              >
-                <option value="">Tất cả môn</option>
+              <LayoutGrid class="field-leading" :size="19" aria-hidden="true" />
+              <select v-model="search.court_type_id">
+                <option value="">Tất cả môn thể thao</option>
                 <option v-for="type in courtTypes" :key="type.id" :value="type.id">
                   {{ type.name }}
                 </option>
               </select>
-              <svg class="field-action" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m6 9 6 6 6-6"/>
-              </svg>
+              <ChevronDown class="field-action" :size="18" aria-hidden="true" />
             </div>
           </label>
         </div>
 
-        <div class="pitch-types" aria-label="Loại sân">
-          <button
-            v-for="type in pitchTypes"
-            :key="type"
-            type="button"
-            :class="{ active: selectedPitchType === type }"
-            @click="selectedPitchType = type"
-          >
-            {{ type }}
-          </button>
-        </div>
-
         <button class="search-submit" type="submit">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35"/><circle cx="11" cy="11" r="7"/></svg>
+          <Search :size="20" aria-hidden="true" />
           Tìm sân trống
         </button>
       </form>
 
-      <section id="sports" class="filter-strip" aria-label="Bộ lọc nhanh">
-        <button
-          v-for="filter in quickFilters"
-          :key="filter.label"
-          type="button"
-          :class="{ active: activeQuickFilter === filter.label }"
-          @click="selectSportFilter(filter.label)"
-        >
-          <img
-            class="sport-filter-icon"
-            :src="filter.image"
-            :alt="`${filter.label} icon`"
-            width="64"
-            height="64"
-            decoding="async"
-          />
-          {{ filter.label }}
-        </button>
+      <section class="trust-strip" aria-label="Lợi ích khi đặt sân">
+        <article v-for="item in trustItems" :key="item.title">
+          <span class="trust-icon" :class="item.tone">
+            <component :is="item.icon" :size="24" aria-hidden="true" />
+          </span>
+          <div>
+            <h2>{{ item.title }}</h2>
+            <p>{{ item.text }}</p>
+          </div>
+        </article>
       </section>
 
-      <section class="section-block">
+      <section id="sports" class="section-block sport-section">
+        <div class="section-title centered">
+          <span>Chọn môn bạn yêu thích</span>
+          <h2>Một điểm đến, nhiều cuộc chơi</h2>
+          <p>Tìm nhanh sân phù hợp cho buổi tập, trận đấu hoặc cuộc hẹn cuối tuần.</p>
+        </div>
+        <div class="sport-list" aria-label="Bộ lọc môn thể thao">
+          <button
+            v-for="filter in quickFilters"
+            :key="filter.label"
+            type="button"
+            :class="{ active: activeQuickFilter === filter.label }"
+            @click="selectSportFilter(filter.label)"
+          >
+            <img
+              :src="filter.image"
+              :alt="filter.label"
+              width="72"
+              height="72"
+              decoding="async"
+            />
+            <span>{{ filter.label }}</span>
+            <ChevronRight :size="17" aria-hidden="true" />
+          </button>
+        </div>
+      </section>
+
+      <section id="booking-steps" class="booking-steps">
+        <div class="section-title centered">
+          <span>Đặt sân cùng SportGo</span>
+          <h2>Ba bước để bắt đầu trận đấu</h2>
+          <p>Không cần gọi hỏi từng sân. Lịch trống, giá và xác nhận nằm trong một luồng.</p>
+        </div>
+        <div class="step-list">
+          <article v-for="(step, index) in bookingSteps" :key="step.title">
+            <div class="step-visual">
+              <span>{{ index + 1 }}</span>
+              <component :is="step.icon" :size="34" aria-hidden="true" />
+            </div>
+            <h3>{{ step.title }}</h3>
+            <p>{{ step.text }}</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block featured-section">
         <div class="section-heading">
-          <div>
-            <p>Sân thể thao nổi bật</p>
-            <h2>Cơ sở được đặt nhiều</h2>
+          <div class="section-title">
+            <span>Sân nổi bật</span>
+            <h2>Cơ sở được người chơi quan tâm</h2>
+            <p>Lựa chọn từ các cụm sân đang hoạt động và xem giá trước khi đặt.</p>
           </div>
-          <router-link :to="{ name: 'venues' }">
+          <router-link :to="{ name: 'venues' }" class="text-link">
             Xem tất cả
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            <ArrowRight :size="18" aria-hidden="true" />
           </router-link>
         </div>
 
-        <div v-if="loadingVenues" class="state">Đang tải cụm sân...</div>
+        <div v-if="loadingVenues" class="venue-grid" aria-label="Đang tải cụm sân">
+          <article v-for="item in 3" :key="item" class="venue-card venue-skeleton" aria-hidden="true">
+            <div class="skeleton-photo"></div>
+            <div class="skeleton-lines">
+              <i></i><i></i><i></i>
+            </div>
+          </article>
+        </div>
         <div v-else-if="venueError" class="state" role="alert">
           <span>{{ venueError }}</span>
           <button class="sg-client-button" type="button" @click="loadFeaturedVenues">Thử lại</button>
         </div>
         <div v-else-if="topVenues.length === 0" class="state">Chưa có cụm sân phù hợp.</div>
         <div v-else class="venue-grid">
-          <article
-            v-for="venue in topVenues"
-            :key="venue.id"
-            class="venue-card"
-          >
-            <div class="venue-photo" @click="goVenue(venue)">
+          <article v-for="venue in topVenues" :key="venue.id" class="venue-card">
+            <button class="venue-photo" type="button" :aria-label="`Xem ${venue.name}`" @click="goVenue(venue)">
               <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" decoding="async" />
-              <span class="status-badge">Đang hoạt động</span>
-              <strong class="rating-badge">{{ ratingLabel(venue) }}</strong>
-            </div>
+              <span class="status-badge">Đang mở cửa</span>
+              <strong class="rating-badge">
+                <Star :size="14" aria-hidden="true" />
+                {{ ratingLabel(venue) }}
+              </strong>
+            </button>
             <div class="venue-info">
               <div class="venue-title-row">
                 <h3>{{ venue.name }}</h3>
-                <span>{{ venue.court_count || 0 }} sân</span>
+                <span>{{ courtCount(venue) }} sân</span>
               </div>
               <p class="venue-address">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                <MapPin :size="17" aria-hidden="true" />
                 {{ venue.address || venue.province || "Đang cập nhật địa chỉ" }}
               </p>
               <div v-if="venue.court_types?.length" class="amenity-row">
-                <span v-for="type in venue.court_types.slice(0, 4)" :key="type.id">{{ type.name }}</span>
+                <span v-for="type in venue.court_types.slice(0, 3)" :key="type.id">{{ type.name }}</span>
               </div>
               <div class="venue-bottom">
                 <strong>{{ venue.min_price ? `Từ ${formatCurrency(venue.min_price)}/giờ` : "Liên hệ" }}</strong>
                 <router-link :to="{ name: 'venue-detail', params: { id: venue.slug || venue.id } }">
-                  Xem chi tiết
+                  Chọn lịch
+                  <ArrowRight :size="16" aria-hidden="true" />
                 </router-link>
               </div>
             </div>
@@ -167,14 +189,51 @@
         </div>
       </section>
 
-      <section class="section-block area-section">
-        <div class="section-heading compact">
-          <div>
-            <p>Khám phá nhanh</p>
-            <h2>Chọn sân theo khu vực</h2>
+      <section class="about-section">
+        <div class="about-image">
+          <img :src="aboutImage" alt="Sân cầu lông trong nhà trên SportGo" loading="lazy" />
+          <div class="about-image-note">
+            <strong>Lịch trống cập nhật rõ ràng</strong>
+            <span>Chọn giờ phù hợp trước khi đến sân</span>
           </div>
         </div>
-        <div class="area-grid">
+        <div class="about-copy">
+          <div class="section-title">
+            <span>Hiểu hơn về SportGo</span>
+            <h2>Ít thời gian tìm sân hơn, nhiều thời gian để chơi hơn</h2>
+          </div>
+          <p>
+            SportGo kết nối người chơi với các cụm sân trong một trải nghiệm thống nhất:
+            từ tìm kiếm, chọn khung giờ đến thanh toán và quản lý lịch đã đặt.
+          </p>
+          <ul>
+            <li v-for="item in aboutPoints" :key="item">
+              <CircleCheck :size="21" aria-hidden="true" />
+              {{ item }}
+            </li>
+          </ul>
+          <router-link :to="{ name: 'venues' }" class="solid-link">
+            Tìm sân phù hợp
+            <ArrowRight :size="18" aria-hidden="true" />
+          </router-link>
+        </div>
+      </section>
+
+      <section class="section-block area-section">
+        <div class="section-heading">
+          <div class="section-title">
+            <span>Khám phá gần bạn</span>
+            <h2>Chọn sân theo khu vực</h2>
+          </div>
+          <router-link :to="{ name: 'venues' }" class="text-link">
+            Tất cả khu vực
+            <ArrowRight :size="18" aria-hidden="true" />
+          </router-link>
+        </div>
+        <div v-if="loadingVenues" class="area-grid area-grid-loading" aria-hidden="true">
+          <div v-for="item in 4" :key="item"></div>
+        </div>
+        <div v-else-if="areaFilters.length" class="area-grid">
           <button
             v-for="area in areaFilters"
             :key="area.name"
@@ -186,78 +245,67 @@
               <strong>{{ area.name }}</strong>
               <small>{{ area.count }}</small>
             </span>
+            <ArrowRight :size="19" aria-hidden="true" />
           </button>
-          <router-link :to="{ name: 'venues' }" class="all-area">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
-            <span>
-              <strong>Xem tất cả</strong>
-              <small>Tất cả khu vực</small>
-            </span>
-          </router-link>
         </div>
+        <div v-else class="state compact-state">Khu vực sẽ hiển thị khi có cụm sân đang hoạt động.</div>
       </section>
 
-      <section id="community" class="section-block news-section">
-        <div class="section-heading">
-          <div>
-            <p>Cộng đồng</p>
-            <h2>Bài đăng mới nhất</h2>
+      <section id="community" class="community-section">
+        <div class="community-inner">
+          <div class="section-heading">
+            <div class="section-title">
+              <span>Cộng đồng SportGo</span>
+              <h2>Câu chuyện từ sân đấu</h2>
+              <p>Kinh nghiệm chơi, lịch giao lưu và những cập nhật mới từ cộng đồng.</p>
+            </div>
+            <router-link :to="{ name: 'ClientCommunityList' }" class="text-link">
+              Xem cộng đồng
+              <ArrowRight :size="18" aria-hidden="true" />
+            </router-link>
           </div>
-          <router-link :to="{ name: 'ClientCommunityList' }">
-            Xem tất cả
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-          </router-link>
-        </div>
 
-        <div v-if="!postsRequested || loadingPosts" class="state">Đang tải bài viết...</div>
-        <div v-else-if="postsError" class="state" role="alert">
-          <span>{{ postsError }}</span>
-          <button class="sg-client-button" type="button" @click="loadLatestPosts">Thử lại</button>
-        </div>
-        <div v-else-if="topPosts.length === 0" class="state">Chưa có bài viết mới.</div>
-        <div v-else class="post-grid">
-          <article v-for="(post, index) in topPosts" :key="post.id" class="post-card">
-            <div class="post-image">
-              <img :src="postImage(post, index)" :alt="post.title" loading="lazy" decoding="async" />
-              <span>{{ postCategory(post) }}</span>
-            </div>
-            <div class="post-body">
-              <h3>{{ post.title }}</h3>
-              <p>{{ post.short_description || plainText(post.content).slice(0, 120) }}</p>
-              <router-link
-                :to="{ name: 'community-post-detail', params: { slug: post.slug || post.id } }"
-              >
-                Đọc bài viết
-              </router-link>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section id="support" class="why-section">
-        <div class="why-inner">
-          <h2>Vì sao chọn SportGo?</h2>
-          <div class="why-grid">
-            <article v-for="item in benefits" :key="item.title">
-              <span v-html="item.icon"></span>
-              <div>
-                <h3>{{ item.title }}</h3>
-                <p>{{ item.text }}</p>
+          <div v-if="!postsRequested || loadingPosts" class="post-grid" aria-label="Đang tải bài viết">
+            <article v-for="item in 3" :key="item" class="post-card post-skeleton" aria-hidden="true">
+              <div></div><i></i><i></i>
+            </article>
+          </div>
+          <div v-else-if="postsError" class="state" role="alert">
+            <span>{{ postsError }}</span>
+            <button class="sg-client-button" type="button" @click="loadLatestPosts">Thử lại</button>
+          </div>
+          <div v-else-if="topPosts.length === 0" class="state">Chưa có bài viết mới.</div>
+          <div v-else class="post-grid">
+            <article v-for="(post, index) in topPosts" :key="post.id" class="post-card">
+              <div class="post-image">
+                <img :src="postImage(post, index)" :alt="post.title" loading="lazy" decoding="async" />
+                <span>{{ postCategory(post) }}</span>
+              </div>
+              <div class="post-body">
+                <h3>{{ post.title }}</h3>
+                <p>{{ post.short_description || plainText(post.content).slice(0, 120) }}</p>
+                <router-link
+                  :to="{ name: 'community-post-detail', params: { slug: post.slug || post.id } }"
+                >
+                  Đọc bài viết
+                  <ArrowRight :size="16" aria-hidden="true" />
+                </router-link>
               </div>
             </article>
           </div>
         </div>
       </section>
 
-      <section id="offers" class="newsletter">
+      <section id="support" class="partner-cta">
         <div>
-          <h2>Không bỏ lỡ ưu đãi hấp dẫn!</h2>
-          <p>Đăng ký nhận thông tin khuyến mãi và cập nhật mới nhất từ SportGo.</p>
+          <span>Dành cho chủ sân</span>
+          <h2>Đưa sân của bạn đến gần người chơi hơn</h2>
+          <p>Quản lý lịch, giá, thanh toán và khách hàng trên cùng một hệ thống.</p>
         </div>
-        <form @submit.prevent>
-          <input type="email" placeholder="Nhập email của bạn" />
-          <button type="submit">Đăng ký ngay</button>
-        </form>
+        <router-link to="/become-partner">
+          Trở thành đối tác
+          <ArrowRight :size="19" aria-hidden="true" />
+        </router-link>
       </section>
 
       <footer class="site-footer">
@@ -266,20 +314,19 @@
             <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
             <span v-else>{{ brandMain }}<span v-if="brandAccent">{{ brandAccent }}</span></span>
           </div>
-          <p>Nền tảng đặt sân thể thao trực tuyến hàng đầu tại Việt Nam.</p>
+          <p>Tìm sân, đặt lịch và bắt đầu cuộc chơi theo cách đơn giản hơn.</p>
         </div>
         <div>
           <h3>Khám phá</h3>
-          <router-link :to="{ name: 'venues' }">Cụm sân</router-link>
-          <router-link to="/news">Tin tức</router-link>
+          <router-link :to="{ name: 'venues' }">Tìm sân</router-link>
+          <a href="#sports">Môn thể thao</a>
           <router-link to="/community">Cộng đồng</router-link>
-          <a href="#offers">Ưu đãi</a>
         </div>
         <div>
-          <h3>Hỗ trợ</h3>
-          <a href="#support">Trung tâm trợ giúp</a>
-          <a href="#support">Quy định sử dụng</a>
-          <a href="#support">Chính sách bảo mật</a>
+          <h3>Dành cho đối tác</h3>
+          <router-link to="/become-partner">Đăng ký chủ sân</router-link>
+          <router-link to="/login">Đăng nhập quản lý</router-link>
+          <a href="#support">Giải pháp vận hành</a>
         </div>
         <div>
           <h3>Liên hệ</h3>
@@ -293,12 +340,31 @@
 </template>
 
 <script>
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  CalendarCheck2,
+  ChevronDown,
+  ChevronRight,
+  CircleCheck,
+  Clock3,
+  CreditCard,
+  LayoutGrid,
+  MapPin,
+  MousePointerClick,
+  Search,
+  ShieldCheck,
+  Star,
+  Trophy,
+} from "lucide-vue-next";
+import { markRaw } from "vue";
 import BookingDateTimePicker from "../components/BookingDateTimePicker.vue";
 import PublicNavbar from "../components/PublicNavbar.vue";
 import { api } from "../services/api.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
 
 const heroImage = "/images/home/anhbia2.webp";
+const aboutImage = "/images/home/badminton-cover.webp";
 const sportIconBase = "/images/home/sports-icons";
 
 function toQuery(params = {}) {
@@ -347,11 +413,24 @@ function localDateString(date = new Date()) {
 
 export default {
   name: "HomeView",
-  components: { BookingDateTimePicker, PublicNavbar },
+  components: {
+    ArrowRight,
+    BookingDateTimePicker,
+    ChevronDown,
+    ChevronRight,
+    CircleCheck,
+    LayoutGrid,
+    MapPin,
+    PublicNavbar,
+    Search,
+    Star,
+    Trophy,
+  },
   data() {
     const today = localDateString();
     return {
       today,
+      aboutImage,
       search: {
         q: "",
         area: "",
@@ -359,7 +438,6 @@ export default {
         booking_date: today,
         start_time: "18:00:00",
       },
-      selectedPitchType: "Cầu lông",
       activeQuickFilter: "Cầu lông",
       timeOptions: [
         "05:00", "06:00", "07:00", "08:00", "09:00", "10:00",
@@ -376,11 +454,20 @@ export default {
         { label: "Bóng bàn", image: `${sportIconBase}/bongban.webp` },
         { label: "Tất cả", image: `${sportIconBase}/viewall.webp` },
       ],
-      benefits: [
-        { title: "Đa dạng môn chơi", text: "Cầu lông, bóng đá, pickleball, tennis, bóng rổ và bóng bàn.", icon: "<svg viewBox='0 0 24 24'><path d='M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'/></svg>" },
-        { title: "Đặt sân nhanh chóng", text: "Chỉ vài bước để đặt sân và xác nhận.", icon: "<svg viewBox='0 0 24 24'><path d='M12 6v6l4 2'/><circle cx='12' cy='12' r='9'/></svg>" },
-        { title: "Thanh toán an toàn", text: "Nhiều phương thức thanh toán tiện lợi.", icon: "<svg viewBox='0 0 24 24'><rect x='3' y='8' width='18' height='12' rx='2'/><path d='M7 8V6a5 5 0 0 1 10 0v2'/></svg>" },
-        { title: "Hỗ trợ 24/7", text: "Đội ngũ SportGo luôn sẵn sàng hỗ trợ bạn.", icon: "<svg viewBox='0 0 24 24'><path d='M4 14v-2a8 8 0 0 1 16 0v2'/><path d='M6 14h3v5H6zM15 14h3v5h-3z'/></svg>" },
+      trustItems: [
+        { title: "Giá rõ trước khi đặt", text: "So sánh và chọn mức giá phù hợp.", icon: markRaw(BadgeDollarSign), tone: "green" },
+        { title: "Lịch trống cập nhật", text: "Chọn đúng khung giờ còn khả dụng.", icon: markRaw(Clock3), tone: "gold" },
+        { title: "Đặt sân an tâm", text: "Thanh toán và lịch đặt được quản lý tập trung.", icon: markRaw(ShieldCheck), tone: "coral" },
+      ],
+      bookingSteps: [
+        { title: "Tìm sân phù hợp", text: "Chọn khu vực, môn chơi và thời gian bạn muốn.", icon: markRaw(MousePointerClick) },
+        { title: "Chọn lịch trống", text: "Xem sân, giá và khung giờ còn trống theo thời gian thực.", icon: markRaw(CalendarCheck2) },
+        { title: "Xác nhận đặt sân", text: "Hoàn tất thanh toán và theo dõi lịch ngay trong tài khoản.", icon: markRaw(CreditCard) },
+      ],
+      aboutPoints: [
+        "Lịch sân và mức giá được trình bày rõ trước khi xác nhận.",
+        "Nhiều môn thể thao và cụm sân trong cùng một nơi.",
+        "Có thể xem lại lịch đặt, thanh toán và thông báo từ chủ sân.",
       ],
       courtTypes: [],
       featuredVenues: [],
@@ -423,7 +510,7 @@ export default {
       return this.featuredVenues.slice(0, 3);
     },
     topPosts() {
-      return this.latestPosts.slice(0, 4);
+      return this.latestPosts.slice(0, 3);
     },
     areaFilters() {
       const grouped = new Map();
@@ -463,7 +550,7 @@ export default {
         this.loadFeaturedVenues();
       };
 
-      this.homeDataHandle = window.setTimeout(load, 1800);
+      this.homeDataHandle = window.setTimeout(load, 120);
     },
     observeNewsSection() {
       this.$nextTick(() => {
@@ -489,7 +576,7 @@ export default {
       this.loadingVenues = true;
       this.venueError = "";
       try {
-        const query = toQuery({ min_rating: 0, limit: 6 });
+        const query = toQuery({ min_rating: 0, limit: 8 });
         const response = await api(`/api/venues${query ? `?${query}` : ""}`);
         this.featuredVenues = response.data || [];
         const types = new Map();
@@ -581,7 +668,7 @@ export default {
     },
     ratingLabel(venue) {
       const rating = Number(venue.rating_avg || venue.average_rating || venue.rating || 0);
-      return rating > 0 ? `★ ${rating.toFixed(1)}` : "Mới";
+      return rating > 0 ? rating.toFixed(1) : "Mới";
     },
     postCategory(post) {
       const hashtag = Array.isArray(post.hashtags) ? post.hashtags[0]?.name : "";
