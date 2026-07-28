@@ -27,7 +27,7 @@
 
     <div class="topbar-actions">
       <WorkCenter audience="admin" />
-      <ThemeToggle />
+      <ThemeToggle storage-key="admin-theme" />
 
       <UserProfileDropdown
         :user="user"

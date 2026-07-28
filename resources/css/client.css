@@ -4,25 +4,25 @@
  */
 
 :root {
-  --sg-client-page: var(--admin-bg, #eef6f0);
-  --sg-client-page-soft: var(--admin-bg-soft, #f7fbf5);
-  --sg-client-surface: var(--admin-surface, #ffffff);
-  --sg-client-surface-muted: var(--admin-surface-muted, #f3f8f1);
-  --sg-client-border: var(--admin-border-soft, #e3ece4);
-  --sg-client-border-strong: var(--admin-border, #cfded1);
-  --sg-client-text: var(--admin-text, #101c15);
-  --sg-client-muted: var(--admin-muted, #2f3d34);
-  --sg-client-faint: var(--admin-faint, #45564a);
-  --sg-client-primary: var(--admin-primary, #22a653);
-  --sg-client-primary-dark: var(--admin-primary-dark, #15733a);
-  --sg-client-primary-soft: var(--admin-primary-soft, #e2f6e8);
-  --sg-client-primary-text: var(--admin-primary-text, #ffffff);
-  --sg-client-danger: var(--admin-danger, #dc2626);
+  --sg-client-page: #f6fbf7;
+  --sg-client-page-soft: #fbfefc;
+  --sg-client-surface: #ffffff;
+  --sg-client-surface-muted: #f3f8f1;
+  --sg-client-border: #e3ece4;
+  --sg-client-border-strong: #cfded1;
+  --sg-client-text: #101c15;
+  --sg-client-muted: #526158;
+  --sg-client-faint: #718078;
+  --sg-client-primary: #22a653;
+  --sg-client-primary-dark: #15733a;
+  --sg-client-primary-soft: #e2f6e8;
+  --sg-client-primary-text: #ffffff;
+  --sg-client-danger: #dc2626;
   --sg-client-danger-soft: color-mix(in srgb, var(--sg-client-danger) 10%, var(--sg-client-surface));
   --sg-client-warning: #b45309;
   --sg-client-warning-soft: #fff7ed;
-  --sg-client-info: var(--admin-blue, #2563eb);
-  --sg-client-info-soft: var(--admin-blue-soft, #eff6ff);
+  --sg-client-info: #2563eb;
+  --sg-client-info-soft: #eff6ff;
 
   --sg-client-font-family: var(--sportgo-font-body, 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
   --sg-client-font-display-family: var(--sportgo-font-display, 'Outfit', 'Inter', ui-sans-serif, sans-serif);
@@ -50,8 +50,8 @@
   --sg-client-space-10: 56px;
   --sg-client-space-12: 72px;
   --sg-client-space-16: 96px;
-  --sg-client-radius-sm: var(--admin-radius, 8px);
-  --sg-client-radius-md: var(--admin-radius-lg, 12px);
+  --sg-client-radius-sm: 8px;
+  --sg-client-radius-md: 12px;
   --sg-client-radius-lg: 16px;
   --sg-client-radius-pill: 999px;
   --sg-client-control-height: 42px;
@@ -80,13 +80,8 @@
   --sg-client-hero-text-shadow: 0 4px 22px rgb(0 0 0 / 42%);
   --sg-client-filter-icon-shadow: drop-shadow(0 7px 12px rgb(15 23 42 / 16%));
   --sg-client-backdrop-blur: blur(16px);
-  --sg-client-transition: var(--admin-transition-fast, 180ms) ease;
+  --sg-client-transition: 180ms ease;
   --sg-client-modal-shadow: 0 12px 36px rgb(15 23 42 / 16%);
-}
-
-[data-theme="dark"] {
-  --sg-client-warning: #fdba74;
-  --sg-client-warning-soft: rgb(180 83 9 / 18%);
 }
 
 .sg-client-page {

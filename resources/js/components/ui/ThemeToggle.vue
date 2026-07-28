@@ -42,6 +42,12 @@
 
 export default {
   name: 'ThemeToggle',
+  props: {
+    storageKey: {
+      type: String,
+      required: true,
+    },
+  },
   directives: {
     'click-outside': {
       beforeMount(el, binding) {
@@ -74,7 +80,7 @@ export default {
     }
   },
   created() {
-    this.activeTheme = localStorage.getItem('admin-theme') || 'system';
+    this.activeTheme = localStorage.getItem(this.storageKey) || 'system';
     this.applyTheme(this.activeTheme);
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -102,7 +108,7 @@ export default {
     },
     selectTheme(theme) {
       this.activeTheme = theme;
-      localStorage.setItem('admin-theme', theme);
+      localStorage.setItem(this.storageKey, theme);
       this.applyTheme(theme);
       this.closeDropdown();
       this.$emit('theme-changed', theme);
