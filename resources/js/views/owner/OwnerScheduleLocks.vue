@@ -1,5 +1,5 @@
-﻿<template>
-    <section class="schedule-lock-page">
+<template>
+    <div class="schedule-lock-master-workspace">
         <!-- Floating Lock Button (sticky bottom bar) -->
         <Teleport to="body">
             <div v-if="unlockMode || hasLockSelection" class="sticky-bottom-bar">
@@ -81,8 +81,23 @@
             </div>
         </Teleport>
 
-        <div v-if="error" class="alert error">{{ error }}</div>
-        <div v-if="notice" class="alert success">{{ notice }}</div>
+        <!-- Main Master Content Surface (Exact match to ClusterGeneralInfoTab) -->
+        <div class="cluster-profile-surface standalone">
+            
+            <!-- SECTION 1: Cấu hình ngày & Chọn sân khóa cả ngày -->
+            <div class="profile-section-card">
+                <div class="tab-section-header">
+                    <div>
+                        <h2>Khóa lịch sân & Cấu hình khoảng ngày</h2>
+                        <p class="section-subtitle">
+                            Chọn ngày, lý do khóa và chọn nhanh các sân cần khóa toàn bộ giờ hoạt động.
+                        </p>
+                    </div>
+                    <span v-if="locks.length" class="count-pill">{{ locks.length }} khoảng đã khóa</span>
+                </div>
+
+                <div v-if="error" class="alert error">{{ error }}</div>
+                <div v-if="notice" class="alert success">{{ notice }}</div>
 
         <!-- Conflict Preview Modal (unchanged logic) -->
         <div
@@ -530,7 +545,6 @@
                                     ngày hoặc khoảng ngày đã chọn.
                                 </small>
                             </div>
-                            <span>{{ selectedCourtIds.length }} sân</span>
                             <button
                                 type="button"
                                 :disabled="
@@ -581,54 +595,38 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
+    </div>
 
-        <!-- ===== MIDDLE: Schedule Grid (full width) ===== -->
-        <article
-            class="schedule-card"
-            :class="{ 'unlock-mode': unlockMode }"
-        >
-            <div class="schedule-headline">
-                <div class="schedule-headline-left">
-                    <p class="eyebrow">
-                        {{
-                            isDateRange
-                                ? "TRẠNG THÁI THEO KHOẢNG NGÀY"
-                                : "TRẠNG THÁI TRONG NGÀY"
-                        }}
-                    </p>
-                    <h3>{{ dateRangeLabel }}</h3>
-                    <small v-if="isDateRange" class="schedule-date-note">
-                        Lưới giờ: {{ date(form.start_date) }}
-                    </small>
-                </div>
-                <div class="schedule-headline-right">
+    <!-- SECTION 2: Lưới xem & Chọn giờ khóa trực quan -->
+            <div class="profile-section-card">
+                <div class="tab-section-header">
+                    <div>
+                        <h2>Lưới thời gian & Chọn khung giờ khóa</h2>
+                        <p class="section-subtitle">
+                            {{ isDateRange ? 'Đang chọn khoảng ngày: ' + dateRangeLabel : 'Lưới giờ trong ngày: ' + dateRangeLabel }}
+                        </p>
+                    </div>
                     <div class="legend">
                         <span><i class="dot-available"></i>Trống</span>
                         <span><i class="dot-booking"></i>Đã đặt</span>
                         <span><i class="dot-manual"></i>Đã khóa</span>
                         <span>
-                            <i
-                                :class="
-                                    unlockMode
-                                        ? 'dot-unlock-selected'
-                                        : 'dot-selected'
-                                "
-                            ></i>
-                            {{ unlockMode ? "Chọn mở" : "Đang chọn" }}
+                            <i :class="unlockMode ? 'dot-unlock-selected' : 'dot-selected'"></i>
+                            {{ unlockMode ? 'Chọn mở' : 'Đang chọn' }}
                         </span>
                     </div>
+                </div>
+
+                <div class="schedule-actions-row">
                     <button
                         class="attention-btn"
                         type="button"
-                        :disabled="
-                            unlockMode || previewing || !hasLockSelection
-                        "
+                        :disabled="unlockMode || previewing || !hasLockSelection"
                         @click="openAttentionPreview"
                     >
-                        {{ previewing ? "Đang kiểm tra..." : "Xem lịch trùng" }}
+                        {{ previewing ? 'Đang kiểm tra...' : 'Xem lịch trùng' }}
                     </button>
                     <button
                         class="unlock-mode-btn"
@@ -637,13 +635,11 @@
                         :disabled="!hasManagedLocksOnSchedule || unlocking"
                         @click="toggleUnlockMode"
                     >
-                        {{ unlockMode ? "Thoát mở khóa" : "Mở khóa" }}
+                        {{ unlockMode ? 'Thoát mở khóa' : 'Mở khóa' }}
                     </button>
-
                 </div>
-            </div>
 
-            <div class="quick-ranges">
+                <div class="quick-ranges">
                 <button
                     v-for="range in dynamicQuickRanges"
                     :key="range.key"
@@ -700,42 +696,45 @@
                     </template>
                 </div>
             </div>
-        </article>
+            </div>
 
-        <!-- ===== BOTTOM: Existing locks (collapsible) ===== -->
-        <details v-if="locks.length" class="locks-section" open>
-            <summary class="locks-summary">
-                <div>
-                    <strong>Khoảng đã khóa</strong>
-                    <span>{{ lockSummaryLabel }}</span>
-                </div>
-            </summary>
-            <div class="lock-table" role="table" aria-label="Khoảng lịch đã khóa">
-                <div class="lock-table-head" role="row">
-                    <span>Sân và ngày</span>
-                    <span>Khung giờ</span>
-                    <span>Lý do</span>
-                    <span>Trạng thái</span>
-                </div>
-                <div v-for="lock in locks" :key="lock.id" class="lock-table-row" role="row">
+            <!-- SECTION 3: Khoảng lịch đã khóa -->
+            <div v-if="locks.length" class="profile-section-card">
+                <div class="tab-section-header">
                     <div>
-                        <strong>{{ lock.venue_court?.name || "Sân chưa rõ" }}</strong>
-                        <small>
-                            {{ date(lockDate(lock)) }} ·
-                            {{ lock.lock_type_label || "Khóa thủ công" }}
-                        </small>
+                        <h2>Danh sách khoảng lịch đã khóa</h2>
+                        <p class="section-subtitle">{{ lockSummaryLabel }}</p>
                     </div>
-                    <strong class="lock-time">
-                        {{ time(lock.start_time) }} - {{ time(lock.end_time) }}
-                    </strong>
-                    <span class="lock-reason">{{ lock.reason || "Không có lý do" }}</span>
-                    <span class="lock-status" :class="lock.status || 'active'">
-                        {{ lock.status_label || "Đang khóa" }}
-                    </span>
+                </div>
+
+                <div class="lock-table" role="table" aria-label="Khoảng lịch đã khóa">
+                    <div class="lock-table-head" role="row">
+                        <span>Sân và ngày</span>
+                        <span>Khung giờ</span>
+                        <span>Lý do</span>
+                        <span>Trạng thái</span>
+                    </div>
+                    <div v-for="lock in locks" :key="lock.id" class="lock-table-row" role="row">
+                        <div>
+                            <strong>{{ lock.venue_court?.name || "Sân chưa rõ" }}</strong>
+                            <small>
+                                {{ date(lockDate(lock)) }} ·
+                                {{ lock.lock_type_label || "Khóa thủ công" }}
+                            </small>
+                        </div>
+                        <strong class="lock-time">
+                            {{ time(lock.start_time) }} - {{ time(lock.end_time) }}
+                        </strong>
+                        <span class="lock-reason">{{ lock.reason || "Không có lý do" }}</span>
+                        <span class="lock-status" :class="lock.status || 'active'">
+                            {{ lock.status_label || "Đang khóa" }}
+                        </span>
+                    </div>
                 </div>
             </div>
-        </details>
-    </section>
+
+        </div>
+    </div>
 </template>
 
 <script>
@@ -1777,17 +1776,74 @@ export default {
 </script>
 
 <style scoped>
-/* ===== Page layout ===== */
-.schedule-lock-page {
-    display: grid;
-    gap: 14px;
-    max-width: 1400px;
+/* ===== Master Workspace Layout (Exact match to ClusterGeneralInfoTab) ===== */
+.schedule-lock-master-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
     padding-bottom: 80px; /* space for sticky bar */
     font-family: var(--admin-font-family, inherit);
 }
 
-.schedule-lock-page :where(button, input, textarea, select) {
+.schedule-lock-master-workspace :where(button, input, textarea, select) {
     font-family: inherit;
+}
+
+.cluster-profile-surface {
+    display: flex;
+    flex-direction: column;
+    background: var(--admin-surface, #ffffff);
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.profile-section-card {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.profile-section-card + .profile-section-card {
+    border-top: 1px solid var(--admin-border-soft, #f1f5f9);
+}
+
+.tab-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.tab-section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--admin-text, #0f172a);
+}
+
+.section-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--admin-muted, #64748b);
+}
+
+.count-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-muted, #64748b);
+}
+
+.schedule-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
 }
 
 /* ===== Alerts ===== */
@@ -1807,46 +1863,47 @@ export default {
 
 /* ===== Config Strip (calendar + settings) ===== */
 .config-strip {
-    display: grid;
-    grid-template-columns: 236px minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
     width: 100%;
-    padding: 14px;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    background: #fff;
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.035);
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
 }
 
 .config-left {
     flex: 0 0 auto;
-    width: 236px;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .config-left :deep(.mini-cal) {
-    border: 0;
-    padding: 0;
-    max-width: 236px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px;
+    background: #ffffff;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .config-right {
-    display: grid;
-    grid-template-columns: minmax(260px, 340px) minmax(420px, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 12px;
+    flex: 1 1 360px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     align-self: stretch;
-    align-items: start;
 }
 
 .config-section {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
-}
-
-.config-section:nth-child(2) {
-    grid-column: 1 / -1;
-    max-width: none;
+    width: 100%;
 }
 
 .lock-preview-panel {
@@ -1926,10 +1983,10 @@ export default {
 .court-picker {
     display: grid;
     gap: 12px;
-    padding: 14px;
-    border: 1px solid #d9e8d9;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #fbfefb, #f4fbf5);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 .picker-head {
     display: flex;
@@ -2209,11 +2266,11 @@ export default {
 
 /* ===== Schedule Card ===== */
 .schedule-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    background: #fff;
-    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
-    overflow: hidden;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 .schedule-headline {
     display: flex;
@@ -2333,9 +2390,10 @@ export default {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 14px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #fff;
+    padding: 0;
+    border-bottom: none;
+    background: transparent;
+    margin-top: 4px;
 }
 .quick-ranges button {
     display: inline-flex;
@@ -3194,15 +3252,11 @@ export default {
     .config-strip {
         grid-template-columns: 1fr;
     }
-    .config-right {
-        grid-template-columns: 1fr;
+    .config-left {
+        width: 100%;
     }
-    .config-section:nth-child(2),
-    .config-section:nth-child(n + 4),
-    .preview-details,
-    .lock-empty-preview {
-        grid-column: auto;
-        grid-row: auto;
+    .config-left :deep(.mini-cal) {
+        max-width: 100%;
     }
 
     .lock-empty-preview {

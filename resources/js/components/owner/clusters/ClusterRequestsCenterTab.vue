@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="cluster-requests-surface">
     <!-- Sub Category Switcher -->
     <div class="sub-category-bar">
@@ -10,7 +10,6 @@
       >
         <AppIcon name="layers" size="14" />
         <span>Quy mô sân con</span>
-        <span v-if="scaleRequests.length > 0" class="chip-badge">{{ scaleRequests.length }}</span>
       </button>
 
       <button
@@ -21,7 +20,6 @@
       >
         <AppIcon name="fileText" size="14" />
         <span>Thông tin chung</span>
-        <span v-if="infoRequests.length > 0" class="chip-badge">{{ infoRequests.length }}</span>
       </button>
 
       <button
@@ -32,7 +30,6 @@
       >
         <AppIcon name="mapPin" size="14" />
         <span>Vị trí bản đồ</span>
-        <span v-if="locationRequests.length > 0" class="chip-badge">{{ locationRequests.length }}</span>
       </button>
 
       <button
@@ -44,7 +41,6 @@
       >
         <AppIcon name="lock" size="14" />
         <span>Yêu cầu mở khóa</span>
-        <span v-if="unlockRequests.length > 0" class="chip-badge">{{ unlockRequests.length }}</span>
       </button>
     </div>
 
@@ -227,8 +223,8 @@ export default {
 <style scoped>
 .cluster-requests-surface {
   background: var(--admin-surface, #ffffff);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 0;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 20px;

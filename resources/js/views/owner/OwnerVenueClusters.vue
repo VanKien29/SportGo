@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <div class="venue-clusters-container">
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -5279,7 +5279,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 0;
 }
 
 .cluster-hero {

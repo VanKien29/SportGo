@@ -1,199 +1,30 @@
-﻿<template>
+<template>
     <div class="owner-counter-page">
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <div v-if="!isBookingListRoute" class="tabs-and-actions">
-            <div class="tabs">
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'counter' }"
-                    @click="setActiveTab('counter')"
-                >
-                    <AppIcon name="plus" size="16" />
-                    <span>Booking tại quầy</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurring' }"
-                    @click="setActiveTab('recurring')"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </button>
+        <!-- Single Unified Surface Container -->
+        <div class="cluster-profile-surface standalone">
+            <!-- Nav Tabs integrated directly at top of card -->
+            <div v-if="!isBookingListRoute" class="hero-integrated-tabs">
+                <AppTabs
+                    :tabs="counterTabs"
+                    :model-value="activeTab"
+                    @update:model-value="setActiveTab"
+                />
             </div>
-            <!-- <SgButton
-                type="secondary"
-                size="sm"
-                :icon="true"
-                @click="refreshActiveTab"
-            >
-                <template #icon><AppIcon name="refresh" size="16" /></template>
-                {{
-                    activeTab === "bookingList"
-                        ? "Tải lại danh sách"
-                        : "Tải lại lịch"
-                }}
-            </SgButton> -->
-        </div>
-
-        <section v-if="activeTab === 'counter'" class="counter-board">
-            <div
-                class="schedule-panel"
-                :class="{ 'is-loading': counterScheduleLoading }"
-            >
-                <div class="panel-head compact">
-                    <div>
-                        <h2>{{ counterScheduleTitle }}</h2>
-                        <p>{{ currentScheduleLabel }}</p>
-                    </div>
-                </div>
-
-                <div class="filters schedule-filters counter-toolbar">
-                    <label class="schedule-filter-field cluster-field">
-                        <span>Cụm sân</span>
-                        <div class="schedule-filter-readonly">
-                            {{ selectedCluster?.name || "-" }}
-                        </div>
-                    </label>
-                    <div class="schedule-filter-field date-field">
-                        <span>Ngày chơi</span>
-                        <div class="counter-date-range">
-                            <button
-                                type="button"
-                                class="date-nav-btn"
-                                aria-label="Ngày trước"
-                                @click="shiftCounterDate(-1)"
-                            >
-                                <AppIcon name="chevronLeft" size="15" />
-                            </button>
-                            <div class="date-picker-wrap">
-                                <button
-                                    type="button"
-                                    class="date-range-trigger"
-                                    :class="{ open: counterDatePickerOpen }"
-                                    @click="
-                                        counterDatePickerOpen =
-                                            !counterDatePickerOpen
-                                    "
-                                >
-                                    <AppIcon name="calendar" size="16" />
-                                    <span>{{ counterDateRangeLabel }}</span>
-                                </button>
-                                <div
-                                    v-if="counterDatePickerOpen"
-                                    class="counter-date-popover"
-                                >
-                                    <MiniCalendar
-                                        mode="range"
-                                        :start-date="form.booking_date"
-                                        :end-date="form.booking_end_date"
-                                        :min-date="today"
-                                        @update:start-date="
-                                            handleCounterStartDateUpdate
-                                        "
-                                        @update:end-date="
-                                            handleCounterEndDateUpdate
-                                        "
-                                        @range-change="handleCounterRangeChange"
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                class="date-nav-btn"
-                                aria-label="Ngày sau"
-                                @click="shiftCounterDate(1)"
-                            >
-                                <AppIcon name="chevronRight" size="15" />
-                            </button>
-                            <button
-                                type="button"
-                                class="today-btn"
-                                @click="setCounterDateToday"
-                            >
-                                Hôm nay
-                            </button>
-                        </div>
-                    </div>
-                    <label class="schedule-filter-field type-field">
-                        <span>Loại sân</span>
-                        <select
-                            v-model="selectedCourtTypeId"
-                            @change="loadSchedule"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="type in courtTypeOptions"
-                                :key="type.id"
-                                :value="type.id"
-                            >
-                                {{ type.name }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
-
+            <!-- SECTION: Lịch sân trong ngày & Đặt booking tại quầy -->
+            <div v-if="activeTab === 'counter'" class="profile-section-card">
                 <p v-if="selectionError" class="selection-error">
                     {{ selectionError }}
                 </p>
 
-                <div
-                    v-if="counterScheduleLoading"
-                    class="schedule-loading-box"
-                    role="status"
-                    aria-label="Đang tải lịch sân"
-                >
-                    <div class="schedule-skeleton-head">
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div class="schedule-skeleton-toolbar">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div class="schedule-skeleton-summary">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div class="schedule-skeleton-tabs">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div class="schedule-skeleton-grid">
-                        <span v-for="item in 28" :key="item"></span>
-                    </div>
-                </div>
-                <div v-else-if="scheduleError" class="state-card error-state">
+                <div v-if="scheduleError" class="state-card error-state">
                     {{ scheduleError }}
                 </div>
-                <div v-else-if="!scheduleCourts.length" class="state-card">
+                <div v-else-if="!counterScheduleLoading && !scheduleCourts.length" class="state-card">
                     Không có sân phù hợp với bộ lọc hiện tại.
                 </div>
-                <div v-else class="time-board">
-                    <div class="selected-court-strip">
-                        <div>
-                            <span>Sân đã chọn</span>
-                            <strong>{{ selectedCourtText }}</strong>
-                        </div>
-                        <div>
-                            <span>Khung giờ</span>
-                            <strong>{{
-                                hasCounterSelection
-                                    ? selectedTimeText
-                                    : "Chưa chọn"
-                            }}</strong>
-                        </div>
-                        <div>
-                            <span>Tổng tiền</span>
-                            <strong>{{
-                                formatCurrency(counterTotalAmount)
-                            }}</strong>
-                        </div>
-                    </div>
 
                     <div class="period-row">
 
@@ -258,9 +89,7 @@
                                 @click="toggleSlot(court, slot)"
                             ></button>
                         </template>
-                    </div>
                 </div>
-            </div>
 
             <div
                 v-if="hasCounterSelection || selectedOccupiedInterval"
@@ -652,9 +481,9 @@
                     </template>
                 </aside>
             </Teleport>
-        </section>
+        </div>
 
-        <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
+        <div v-else-if="activeTab === 'recurring'" class="recurring-panel profile-section-card">
             <div class="form-card">
 
 
@@ -718,12 +547,6 @@
                         </small>
                     </div>
                     <div class="recurring-form-fields">
-                        <div class="readonly-field">
-                            <span>Cụm sân</span>
-                            <strong>{{
-                                selectedCluster?.name || "Chưa chọn cụm sân"
-                            }}</strong>
-                        </div>
                         <label>
                             <span>Loại sân</span>
                             <select
@@ -824,80 +647,77 @@
                                 @blur="normalizeRecurringCount"
                             />
                         </label>
-                        <div
-                            v-if="form.recurrence_type !== 'daily'"
-                            class="recurring-date-planner recurring-date-planner--inline"
-                        >
-                            <div class="weekday-planner-head">
-                                <div>
-                                    <strong>Lịch theo từng ngày</strong>
-                                    <span
-                                        >Chọn ngày để chỉnh sân và giờ ở bảng
-                                        bên dưới.</span
-                                    >
-                                </div>
-                                <div class="weekday-planner-actions">
-                                    <button
-                                        type="button"
-                                        :disabled="
-                                            !activeRecurringDateKeys.length ||
-                                            recurringSelectedDates.length < 2
-                                        "
-                                        @click="
-                                            applyActiveDateScheduleToSelected
-                                        "
-                                    >
-                                        Áp dụng tất cả
-                                    </button>
-                                    <button
-                                        type="button"
-                                        :disabled="
-                                            !activeRecurringDateKeys.length
-                                        "
-                                        @click="clearActiveDateSchedule"
-                                    >
-                                        Xóa giờ
-                                    </button>
-                                </div>
-                            </div>
-                            <div
-                                class="recurring-date-list"
-                                :class="{
-                                    dragging: recurringDateDrag.active,
-                                }"
-                                @pointerdown="startRecurringDateDrag"
-                                @pointermove="moveRecurringDateDrag"
-                                @pointerup="finishRecurringDateDrag"
-                                @pointercancel="finishRecurringDateDrag"
-                                @click.capture="preventRecurringDateDragClick"
-                            >
-                                <button
-                                    v-for="date in recurringSelectedDates"
-                                    :key="date"
-                                    type="button"
-                                    class="recurring-date-card"
-                                    :class="{
-                                        active: recurringActiveDate === date,
-                                        complete: (
-                                            recurringDateRanges[date] || []
-                                        ).length,
-                                    }"
-                                    @click="selectRecurringDate(date)"
-                                >
-                                    <span class="recurring-date-value">{{
-                                        formatDate(date)
-                                    }}</span>
-                                    <strong>{{
-                                        recurringDateTimeText(date)
-                                    }}</strong>
-                                    <small>{{
-                                        recurringDateCourtText(date)
-                                    }}</small>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
+
+                <div
+                    v-if="form.recurrence_type !== 'daily'"
+                    class="recurring-date-planner"
+                >
+                    <div class="weekday-planner-head">
+                        <div>
+                            <strong>Lịch theo từng ngày</strong>
+                            <span
+                                >Chọn ngày để chỉnh sân và giờ ở bảng bên dưới.</span
+                            >
+                        </div>
+                        <div class="weekday-planner-actions">
+                            <button
+                                type="button"
+                                :disabled="
+                                    !activeRecurringDateKeys.length ||
+                                    recurringSelectedDates.length < 2
+                                "
+                                @click="applyActiveDateScheduleToSelected"
+                            >
+                                Áp dụng tất cả
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="!activeRecurringDateKeys.length"
+                                @click="clearActiveDateSchedule"
+                            >
+                                Xóa giờ
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        class="recurring-date-list"
+                        :class="{
+                            dragging: recurringDateDrag.active,
+                        }"
+                        @pointerdown="startRecurringDateDrag"
+                        @pointermove="moveRecurringDateDrag"
+                        @pointerup="finishRecurringDateDrag"
+                        @pointercancel="finishRecurringDateDrag"
+                        @click.capture="preventRecurringDateDragClick"
+                    >
+                        <button
+                            v-for="date in recurringSelectedDates"
+                            :key="date"
+                            type="button"
+                            class="recurring-date-card"
+                            :class="{
+                                active: recurringActiveDate === date,
+                                complete: (
+                                    recurringDateRanges[date] || []
+                                ).length,
+                            }"
+                            @click="selectRecurringDate(date)"
+                        >
+                            <span class="recurring-date-value">{{
+                                formatDate(date)
+                            }}</span>
+                            <strong>{{
+                                recurringDateTimeText(date)
+                            }}</strong>
+                            <small>{{
+                                recurringDateCourtText(date)
+                            }}</small>
+                        </button>
+                    </div>
+                </div>
+
                 <p class="recurring-helper">
                     {{ recurringHelperText }}
                 </p>
@@ -905,23 +725,6 @@
                 <section class="recurring-schedule-board">
                     <div class="section-title muted">
                         <h2>Chọn sân và khung giờ cố định</h2>
-                    </div>
-
-                    <div class="schedule-summary compact">
-                        <div>
-                            <span>Sân đã chọn</span>
-                            <strong>{{ selectedCourtText }}</strong>
-                        </div>
-                        <div>
-                            <span>Khung giờ</span>
-                            <strong>{{ recurringTimeText }}</strong>
-                        </div>
-                        <div>
-                            <span>Giá mỗi buổi</span>
-                            <strong>{{
-                                formatCurrency(recurringUnitTotal)
-                            }}</strong>
-                        </div>
                     </div>
 
                     <p v-if="selectionError" class="selection-error">
@@ -1208,118 +1011,38 @@
                     </small>
                 </div>
             </aside>
-        </section>
+        </div>
 
-        <section
-            v-else-if="activeTab === 'bookingList'"
-            class="recurring-list-panel"
-        >
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking</h2>
-                    <p>
-                        Theo dõi booking lẻ và booking cố định trong cùng một
-                        màn; lọc theo sân, ngày, trạng thái và thanh toán.
-                    </p>
-                </div>
-            </div>
-
-            <div
-                class="booking-list-mode-tabs"
-                role="tablist"
-                aria-label="Loại danh sách booking"
-            >
-                <button
-                    type="button"
-                    :class="{ active: bookingListMode === 'single' }"
-                    @click="setBookingListMode('single')"
-                >
-                    <AppIcon name="calendar" size="15" />
-                    <span>Booking lẻ</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: bookingListMode === 'recurring' }"
-                    @click="setBookingListMode('recurring')"
-                >
-                    <AppIcon name="fileText" size="15" />
-                    <span>Booking cố định</span>
-                </button>
-            </div>
-
-            <template v-if="bookingListMode === 'single'">
-                <div class="filters booking-list-filters">
-                    <label>
-                        <span>Sân con</span>
-                        <select
-                            v-model="bookingListFilters.venue_court_id"
-                            @change="loadBookingList"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="court in courts"
-                                :key="court.id"
-                                :value="court.id"
-                            >
-                                {{ court.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Ngày chơi</span>
-                        <input
-                            v-model="bookingListFilters.booking_date"
-                            type="date"
-                            @change="loadBookingList"
-                        />
-                    </label>
-                    <label>
-                        <span>Nguồn đặt</span>
-                        <select
-                            v-model="bookingListFilters.source"
-                            @change="loadBookingList"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="online">Online</option>
-                            <option value="counter">Tại quầy</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Trạng thái</span>
-                        <select
-                            v-model="bookingListFilters.status"
-                            @change="loadBookingList"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="pending_approval">Chờ duyệt</option>
-                            <option value="pending_payment">
-                                Chờ thanh toán
-                            </option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="checked_in">Đã check-in</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="cancelled">Đã hủy</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Tìm kiếm</span>
-                        <input
-                            v-model.trim="bookingListFilters.q"
-                            type="search"
-                            placeholder="Mã booking, khách, SĐT"
-                            @keyup.enter="loadBookingList"
-                        />
-                    </label>
-                    <button
-                        class="secondary-btn"
-                        type="button"
-                        @click="loadBookingList"
+        <template v-else-if="activeTab === 'bookingList'">
+            <!-- Part 1: Top Hero Surface for Nav Tabs (matching OwnerVenueClusters.vue) -->
+            <div class="cluster-hero-surface">
+                <div class="hero-integrated-tabs">
+                    <div
+                        class="booking-list-mode-tabs"
+                        role="tablist"
+                        aria-label="Loại danh sách booking"
                     >
-                        <AppIcon name="search" size="16" />
-                        <span>Lọc</span>
-                    </button>
+                        <button
+                            type="button"
+                            :class="{ active: bookingListMode === 'single' }"
+                            @click="setBookingListMode('single')"
+                        >
+                            <span>Booking lẻ</span>
+                        </button>
+                        <button
+                            type="button"
+                            :class="{ active: bookingListMode === 'recurring' }"
+                            @click="setBookingListMode('recurring')"
+                        >
+                            <span>Booking cố định</span>
+                        </button>
+                    </div>
                 </div>
+            </div>
 
+            <!-- Part 2: Separate Content Card below for Title & Table (matching OwnerVenueClusters.vue) -->
+            <div class="recurring-list-panel profile-section-card">
+            <template v-if="bookingListMode === 'single'">
                 <div v-if="bookingListLoading" class="table-skeleton">
                     <div v-for="row in 4" :key="row" class="table-skeleton-row">
                         <span></span>
@@ -1438,83 +1161,6 @@
             </template>
 
             <template v-else>
-                <div class="list-toolbar compact-list-toolbar">
-                    <div>
-                        <h2>Danh sách booking cố định</h2>
-                        <p>
-                            Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và
-                            số tiền còn phải thu.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="filters recurring-list-filters">
-                    <label>
-                        <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Sân con</span>
-                        <select
-                            v-model="recurringGroupFilters.venue_court_id"
-                            @change="loadRecurringGroups"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="court in courts"
-                                :key="court.id"
-                                :value="court.id"
-                            >
-                                {{ court.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Trạng thái</span>
-                        <select
-                            v-model="recurringGroupFilters.status"
-                            @change="loadRecurringGroups"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="pending_payment">
-                                Chờ thanh toán
-                            </option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="checked_in">Đã check-in</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="cancelled">Đã hủy</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Tìm kiếm</span>
-                        <input
-                            v-model.trim="recurringGroupFilters.q"
-                            type="search"
-                            placeholder="Mã nhóm, khách, SĐT"
-                            @keyup.enter="loadRecurringGroups"
-                        />
-                    </label>
-                    <button
-                        class="secondary-btn"
-                        type="button"
-                        @click="loadRecurringGroups"
-                    >
-                        <AppIcon name="search" size="16" />
-                        <span>Lọc</span>
-                    </button>
-                </div>
-
                 <div v-if="recurringGroupsLoading" class="state-card">
                     Đang tải booking cố định...
                 </div>
@@ -1654,9 +1300,11 @@
                     </table>
                 </div>
             </template>
-        </section>
+        </div>
+    </template>
+</div>
 
-        <Teleport to="body">
+    <Teleport to="body">
             <div v-if="recurringGroupDetail" class="modal-backdrop">
                 <section class="confirm-modal recurring-detail-modal">
                     <div class="modal-head">
@@ -2214,6 +1862,7 @@
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
+import AppTabs from "../../components/common/AppTabs.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
 
@@ -2259,7 +1908,7 @@ const SLOT_PERIODS = [
 
 export default {
     name: "OwnerCounterBooking",
-    components: { AppIcon, MiniCalendar },
+    components: { AppIcon, MiniCalendar, AppTabs },
     data() {
         const now = new Date();
         const today = toIsoDate(now);
@@ -2389,6 +2038,12 @@ export default {
         };
     },
     computed: {
+        counterTabs() {
+            return [
+                { key: "counter", label: "Booking tại quầy" },
+                { key: "recurring", label: "Đặt lịch cố định" },
+            ];
+        },
         isStaffRoute() {
             return this.$route.path.startsWith("/staff");
         },
@@ -6670,13 +6325,12 @@ export default {
     font-size: 12px;
 }
 
-.schedule-panel,
 .booking-side,
 .form-card,
 .preview-box,
 .alert {
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 10px;
     background: #fff;
 }
 
@@ -6699,15 +6353,17 @@ export default {
     background: transparent;
 }
 
+.schedule-panel,
 .recurring-panel .panel-head.compact,
 .recurring-form-grid,
 .recurring-day-grid,
 .recurring-helper,
 .recurring-schedule-board,
 .recurring-payment {
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
 }
 
 .recurring-panel .panel-head.compact {
@@ -6861,10 +6517,10 @@ export default {
         );
     align-items: end;
     justify-content: space-between;
-    padding: 12px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fbfdfb;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .counter-toolbar .schedule-filter-field {
@@ -7150,66 +6806,48 @@ input.invalid {
     gap: 6px;
 }
 
+/* ===== Harmonized Clean SaaS Status Colors ===== */
 .legend i {
     width: 12px;
     height: 12px;
-    border: 1px solid #b9cbbb;
+    border: 1px solid #cbd5e1;
     border-radius: 3px;
-    background: #fff;
+    background: #ffffff;
 }
 
 .legend i.selected {
-    border-color: var(--admin-primary, #000000);
-    background: var(--admin-primary, #000000);
-}
-
-.day-grid label {
-    border: 1px solid #d0d7de;
-    background: #fff;
-    color: #334155;
-    border-radius: 8px;
-    padding: 8px 12px;
-    cursor: pointer;
-}
-
-.day-grid label.selected {
-    border-color: var(--admin-primary, #000000);
-    background: var(--admin-primary, #000000);
-    color: #fff;
-}
-
-.day-grid label.selected span {
-    color: #fff;
+    border-color: #059669;
+    background: #10b981;
 }
 
 .legend i.booked-paid {
-    border-color: #a7cbb4;
-    background: #e2f0e7;
+    border-color: #94a3b8;
+    background: #e2e8f0;
 }
 
 .legend i.booked-online {
-    border-color: #a9bdcc;
-    background: #e5edf3;
+    border-color: #93c5fd;
+    background: #dbeafe;
 }
 
 .legend i.booked-counter {
-    border-color: #bbb4cb;
-    background: #ebe9f1;
+    border-color: #fcd34d;
+    background: #fef3c7;
 }
 
 .legend i.pay-later {
-    border-color: #d1bd86;
-    background: #f3eddc;
+    border-color: #c084fc;
+    background: #f3e8ff;
 }
 
 .legend i.overdue {
-    border-color: #d3aaa4;
-    background: #f3e3e0;
+    border-color: #fca5a5;
+    background: #fee2e2;
 }
 
 .legend i.locked {
-    border-color: #b9c2bc;
-    background: #e9ecea;
+    border-color: #cbd5e1;
+    background: #f1f5f9;
 }
 
 .selection-error {
@@ -7225,14 +6863,15 @@ input.invalid {
 }
 
 .selected-court-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    padding: 12px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #f7fbf5;
-    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    margin-top: 16px;
+    margin-bottom: 12px;
 }
 
 .selected-court-strip div {
@@ -7373,26 +7012,26 @@ input.invalid {
 .slot-matrix {
     display: grid;
     overflow-x: auto;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .matrix-head,
 .matrix-court,
 .time-slot {
     min-height: 36px;
-    border-right: 1px solid #e4eee4;
-    border-bottom: 1px solid #e4eee4;
+    border-right: 1px solid var(--admin-border-soft, #f1f5f9);
+    border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
 }
 
 .matrix-head {
     display: grid;
     place-items: center;
-    background: #f2f7ef;
-    color: #334238;
-    font-size: 11px;
-    font-weight: 400;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 600;
 }
 
 .matrix-court {
@@ -7401,16 +7040,17 @@ input.invalid {
     gap: 2px;
     padding: 6px 10px;
     background: #fff;
+    border-right: 2px solid #e2e8f0;
 }
 
 .matrix-court strong {
-    color: #16231a;
+    color: #0f172a;
     font-size: 12px;
-    font-weight: 400;
+    font-weight: 600;
 }
 
 .matrix-court span {
-    color: #607267;
+    color: #64748b;
     font-size: 11px;
     font-weight: 400;
 }
@@ -7428,24 +7068,20 @@ input.invalid {
 .time-slot {
     padding: 0;
     border-radius: 0;
-    background: #fff;
+    background: #ffffff;
     transition:
         background 0.16s ease,
         box-shadow 0.16s ease;
 }
 
-.time-slot.never-hover-class-placeholder:not(:disabled) {
-    background: var(--admin-hover, #f3f4f6);
-    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
-}
-
 .time-slot.selected {
-    background: var(--admin-primary, #000000);
-    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
+    background: #10b981;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px #059669;
 }
 
 .time-slot.busy {
-    background: #eef3ee;
+    background: #f1f5f9;
 }
 
 .time-slot.unavailable {
@@ -7453,27 +7089,33 @@ input.invalid {
 }
 
 .time-slot.booked-paid {
-    background: #e2f0e7;
+    background: #e2e8f0;
+    color: #334155;
 }
 
 .time-slot.booked-online {
-    background: #e5edf3;
+    background: #dbeafe;
+    color: #1e40af;
 }
 
 .time-slot.booked-counter {
-    background: #ebe9f1;
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .time-slot.pay-later {
-    background: #f3eddc;
+    background: #f3e8ff;
+    color: #6b21a8;
 }
 
 .time-slot.overdue {
-    background: #f3e3e0;
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 .time-slot.locked {
-    background: #e9ecea;
+    background: #f1f5f9;
+    color: #64748b;
 }
 
 .time-slot.viewing {
@@ -9652,5 +9294,680 @@ input.invalid {
     border: 1px solid #d9e8d9;
     border-radius: 8px;
     background: #fff;
+}
+
+.owner-counter-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ===== Single Unified Surface Card ===== */
+.cluster-profile-surface.standalone {
+    display: flex;
+    flex-direction: column;
+    background: var(--admin-surface, #ffffff);
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.hero-integrated-tabs {
+    padding: 16px 24px 0 24px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.profile-section-card {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.profile-section-card + .profile-section-card {
+    border-top: none;
+}
+
+.tab-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.header-inline-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.header-type-select {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: #ffffff;
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+    cursor: pointer;
+}
+
+.tab-section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--admin-text, #0f172a);
+}
+
+.section-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--admin-muted, #64748b);
+}
+
+.counter-toolbar-flat {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.counter-toolbar-flat .schedule-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.counter-toolbar-flat .schedule-filter-field > span {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
+}
+
+.counter-toolbar-flat .type-field select {
+    min-width: 160px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: #ffffff;
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+}
+
+.counter-date-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.counter-date-range .date-nav-btn {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-text, #334155);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.counter-date-range .date-nav-btn:hover {
+    background: var(--admin-hover, #f8fafc);
+    border-color: var(--admin-border, #94a3b8);
+}
+
+.counter-date-range .date-range-trigger {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-text, #0f172a);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.counter-date-range .date-range-trigger:hover {
+    background: var(--admin-hover, #f8fafc);
+    border-color: var(--admin-border, #94a3b8);
+}
+
+.counter-date-range .today-btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-text, #334155);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.counter-date-range .today-btn:hover {
+    background: var(--admin-hover, #f8fafc);
+    border-color: var(--admin-border, #94a3b8);
+}
+
+.selection-summary-inline {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--admin-hover, #f8fafc);
+    border: 1px solid var(--admin-border-soft, #f1f5f9);
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+}
+
+.summary-label {
+    color: var(--admin-muted, #64748b);
+}
+
+.summary-value {
+    color: var(--admin-text, #0f172a);
+    font-weight: 500;
+}
+
+/* ===== Modern Recurring Tab Styling ===== */
+.recurring-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.recurring-panel .form-card,
+.owner-counter-page .form-card {
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+.recurring-form-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 32px !important;
+    align-items: start !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
+.calendar-range-field,
+.recurring-form-grid .calendar-range-field {
+    flex: 0 0 auto !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.recurring-form-fields {
+    flex: 1 1 320px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.recurring-date-planner {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.calendar-range-field > span {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--admin-text, #0f172a);
+}
+
+.recurring-calendar-mode {
+    display: flex;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    gap: 8px;
+}
+
+.recurring-calendar-mode button {
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-muted, #475569);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.recurring-calendar-mode button.active {
+    background: var(--admin-accent, #10b981);
+    border-color: var(--admin-accent, #10b981);
+    color: #ffffff;
+}
+
+.recurring-helper,
+.recurring-schedule-board,
+.recurring-payment,
+.recurring-form-actions {
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* ===== Matrix Skeleton Shimmer Loading ===== */
+.schedule-loading-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px 0;
+    width: 100%;
+}
+
+.skeleton-matrix-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.skeleton-matrix-header {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.skeleton-matrix-header .skeleton-pill {
+    flex: 1;
+    height: 24px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-matrix-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.skeleton-court-name {
+    width: 120px;
+    height: 36px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    flex-shrink: 0;
+}
+
+.skeleton-cell {
+    flex: 1;
+    height: 36px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.recurring-form-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.recurring-form-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
+}
+
+.recurring-form-fields input[type="text"],
+.recurring-form-fields input[type="tel"],
+.recurring-form-fields input[type="number"],
+.recurring-form-fields select {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: #ffffff;
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+    transition: border-color 0.15s ease;
+}
+
+.recurring-form-fields input:focus,
+.recurring-form-fields select:focus {
+    outline: none;
+    border-color: var(--admin-accent, #10b981);
+}
+
+.recurring-date-planner {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.weekday-planner-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.weekday-planner-head strong {
+    font-size: 14px;
+    color: var(--admin-text, #0f172a);
+}
+
+.weekday-planner-head span {
+    font-size: 12.5px;
+    color: var(--admin-muted, #64748b);
+    display: block;
+}
+
+.recurring-date-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+}
+
+.recurring-date-card {
+    min-width: 140px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recurring-date-card.active {
+    border-color: var(--admin-accent, #10b981);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.recurring-date-card.complete {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+/* ===== Synchronized 1:1 with OwnerVenueClusters.vue ===== */
+.cluster-hero-surface {
+    background: transparent !important;
+    padding: 10px !important;
+    border: none !important;
+}
+
+.hero-integrated-tabs {
+    padding: 0 !important;
+}
+
+.booking-list-mode-tabs {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+.booking-list-mode-tabs button {
+    height: 38px !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 0 16px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--admin-border, #cbd5e1) !important;
+    background: var(--admin-surface, #ffffff) !important;
+    color: var(--admin-text, #334155) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.18s ease !important;
+}
+
+.booking-list-mode-tabs button:hover:not(.active) {
+    background: var(--admin-hover, #f1f5f9) !important;
+    color: var(--admin-text, #0f172a) !important;
+}
+
+.booking-list-mode-tabs button.active {
+    background: var(--admin-accent, #10b981) !important;
+    border-color: var(--admin-accent, #10b981) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2) !important;
+}
+
+.booking-list-filters,
+.recurring-list-filters {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 14px !important;
+    margin-bottom: 20px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+.booking-list-filters label,
+.recurring-list-filters label {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: var(--admin-muted, #475569) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+}
+
+.booking-list-filters input[type="text"],
+.booking-list-filters input[type="date"],
+.booking-list-filters input[type="search"],
+.booking-list-filters select,
+.recurring-list-filters select,
+.recurring-list-filters input {
+    height: 38px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    padding: 0 12px !important;
+    background: var(--admin-surface, #ffffff) !important;
+    font-size: 13.5px !important;
+    color: var(--admin-text, #0f172a) !important;
+    transition: all 0.15s ease !important;
+}
+
+.booking-list-filters input:focus,
+.booking-list-filters select:focus,
+.recurring-list-filters select:focus {
+    outline: none !important;
+    border-color: var(--admin-accent, #10b981) !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+}
+
+.recurring-table-card {
+    border-radius: 0;
+    border: none;
+    overflow: hidden;
+    background: transparent;
+}
+
+.recurring-list-panel .state-card {
+    border: none !important;
+    background: transparent !important;
+    color: var(--admin-muted, #64748b) !important;
+    text-align: center !important;
+    padding: 40px 16px !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+}
+
+.recurring-table-card table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.recurring-table-card th {
+    background: var(--admin-hover, #f8fafc);
+    color: var(--admin-muted, #475569);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    text-align: left;
+}
+
+.recurring-table-card td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
+    color: var(--admin-text, #0f172a);
+    vertical-align: middle;
+}
+
+.recurring-table-card tr:last-child td {
+    border-bottom: none;
+}
+
+.recurring-table-card tr:hover td {
+    background: var(--admin-hover, #f8fafc);
+}
+
+.source-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.source-pill.online {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.source-pill.counter {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.tone-emerald {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.tone-amber {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.tone-violet {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.status-badge.tone-rose {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.tone-slate {
+    background: #e2e8f0;
+    color: #334155;
+}
+/* ===== Responsive Multi-Device Optimization (Mobile & Tablet) ===== */
+@media (max-width: 768px) {
+    .cluster-hero-surface,
+    .hero-integrated-tabs {
+        padding: 12px 16px 0 16px !important;
+    }
+
+    .profile-section-card {
+        padding: 16px !important;
+    }
+
+    .recurring-table-card {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .recurring-table-card table {
+        min-width: 680px !important;
+    }
 }
 </style>

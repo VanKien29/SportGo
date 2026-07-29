@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="courts-tab-surface">
     <!-- Header -->
     <div class="tab-section-header">
@@ -15,229 +15,6 @@
           <AppIcon name="plus" size="14" />
           <span>Yêu cầu thêm sân</span>
         </button>
-      </div>
-    </div>
-
-    <!-- Toolbar: Search + Filter Tabs + View Mode -->
-    <div v-if="!loading && courts.length > 0" class="courts-toolbar">
-      <div class="toolbar-search">
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          placeholder="Tìm kiếm sân con..."
-        />
-        <button v-if="searchQuery" type="button" class="clear-search-btn" @click="searchQuery = ''">
-          <AppIcon name="x" size="14" />
-        </button>
-      </div>
-
-      <div class="filter-tabs">
-        <button
-          type="button"
-          class="filter-tab-btn"
-          :class="{ active: statusFilter === 'all' }"
-          @click="statusFilter = 'all'"
-        >
-          Tất cả ({{ courts.length }})
-        </button>
-        <button
-          type="button"
-          class="filter-tab-btn"
-          :class="{ active: statusFilter === 'active' }"
-          @click="statusFilter = 'active'"
-        >
-          Hoạt động ({{ activeCount }})
-        </button>
-        <button
-          type="button"
-          class="filter-tab-btn"
-          :class="{ active: statusFilter === 'inactive' }"
-          @click="statusFilter = 'inactive'"
-        >
-          Tạm ẩn ({{ inactiveCount }})
-        </button>
-      </div>
-
-      <div class="view-toggle">
-        <button
-          type="button"
-          class="vtgl-btn"
-          :class="{ active: currentView === 'list' }"
-          @click="currentView = 'list'"
-          title="Danh sách"
-        >
-          <AppIcon name="menu" size="15" />
-        </button>
-        <button
-          type="button"
-          class="vtgl-btn"
-          :class="{ active: currentView === 'grid' }"
-          @click="currentView = 'grid'"
-          title="Dạng lưới"
-        >
-          <AppIcon name="dashboard" size="15" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="skeleton-list">
-      <div v-for="i in 4" :key="i" class="skeleton-row">
-        <div class="sk-index"></div>
-        <div class="sk-body">
-          <div class="sk-line sk-line--wide"></div>
-          <div class="sk-line sk-line--narrow"></div>
-        </div>
-        <div class="sk-chip"></div>
-        <div class="sk-btns">
-          <div class="sk-btn"></div>
-          <div class="sk-btn"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Error -->
-    <div v-else-if="error" class="state-box state-box--error">
-      <div class="state-icon">
-        <AppIcon name="alert" size="20" />
-      </div>
-      <div>
-        <p class="state-title">Không thể tải danh sách sân</p>
-        <p class="state-desc">{{ error }}</p>
-      </div>
-    </div>
-
-    <!-- Empty -->
-    <div v-else-if="courts.length === 0" class="state-box state-box--empty">
-      <div class="state-icon">
-        <AppIcon name="layers" size="20" />
-      </div>
-      <div class="state-text">
-        <p class="state-title">Chưa có sân con nào</p>
-        <p class="state-desc">Gửi yêu cầu để thêm sân con và bắt đầu vận hành cụm sân.</p>
-      </div>
-      <button type="button" class="btn btn-primary btn-sm" @click="$emit('open-scale-request')">
-        <AppIcon name="plus" size="14" />
-        <span>Gửi yêu cầu thêm sân</span>
-      </button>
-    </div>
-
-    <!-- Empty Search Results -->
-    <div v-else-if="filteredCourts.length === 0" class="state-box state-box--empty">
-      <p class="state-title">Không tìm thấy sân con phù hợp</p>
-      <p class="state-desc">Thử tìm kiếm với từ khóa khác hoặc đặt lại bộ lọc.</p>
-      <button type="button" class="btn btn-outline btn-sm" @click="searchQuery = ''; statusFilter = 'all'">
-        Xóa bộ lọc
-      </button>
-    </div>
-
-    <!-- Content -->
-    <div v-else>
-
-      <!-- LIST VIEW -->
-      <div v-if="currentView === 'list'" class="courts-list">
-        <div
-          v-for="(court, index) in filteredCourts"
-          :key="court.id"
-          class="court-row"
-          :class="{ 'court-row--inactive': court.status !== 'active' }"
-        >
-          <!-- Index -->
-          <div class="court-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</div>
-
-          <!-- Name + Type -->
-          <div class="court-main">
-            <span class="court-name">{{ court.name }}</span>
-            <span class="court-type-pill">{{ court.court_type ? court.court_type.name : '—' }}</span>
-            <span v-if="court.slot_duration" class="court-duration-tag">{{ court.slot_duration }} phút</span>
-          </div>
-
-          <!-- Status -->
-          <span class="status-pill" :class="`status-pill--${court.status}`">
-            <AppIcon :name="courtStatusIcon(court.status)" size="11" />
-            <span>{{ courtStatusLabel(court.status) }}</span>
-          </span>
-
-          <!-- Actions -->
-          <div class="court-actions">
-            <button
-              type="button"
-              class="action-btn action-btn--edit"
-              :disabled="isClusterLocked"
-              @click="$emit('edit-court', court)"
-              title="Chỉnh sửa"
-            >
-              <AppIcon name="edit" size="14" />
-              <span class="action-label">Chỉnh sửa</span>
-            </button>
-            <button
-              type="button"
-              class="action-btn"
-              :class="court.status === 'active' ? 'action-btn--mute' : 'action-btn--activate'"
-              :disabled="isClusterLocked"
-              @click="$emit('toggle-court-status', court)"
-              :title="court.status === 'active' ? 'Tạm ẩn' : 'Mở lại'"
-            >
-              <AppIcon :name="court.status === 'active' ? 'eyeOff' : 'eye'" size="14" />
-              <span class="action-label">{{ court.status === 'active' ? 'Tạm ẩn' : 'Mở lại' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- GRID VIEW -->
-      <div v-else-if="currentView === 'grid'" class="courts-grid">
-        <div
-          v-for="(court, index) in filteredCourts"
-          :key="court.id"
-          class="court-card"
-          :class="{ 'court-card--inactive': court.status !== 'active' }"
-        >
-          <div class="court-card-head">
-            <span class="court-card-num">{{ String(index + 1).padStart(2, '0') }}</span>
-            <span class="status-pill" :class="`status-pill--${court.status}`">
-              <AppIcon :name="courtStatusIcon(court.status)" size="12" />
-              <span>{{ courtStatusLabel(court.status) }}</span>
-            </span>
-          </div>
-
-          <div class="court-card-body">
-            <h3 class="court-card-name">{{ court.name }}</h3>
-            <dl class="court-card-meta">
-              <div class="meta-row">
-                <dt>Loại sân</dt>
-                <dd>{{ court.court_type ? court.court_type.name : '—' }}</dd>
-              </div>
-              <div v-if="court.slot_duration" class="meta-row">
-                <dt>Khung giờ</dt>
-                <dd>{{ court.slot_duration }} phút</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div class="court-card-footer">
-            <button
-              type="button"
-              class="action-btn action-btn--edit"
-              :disabled="isClusterLocked"
-              @click="$emit('edit-court', court)"
-            >
-              <AppIcon name="edit" size="13" />
-              <span>Chỉnh sửa</span>
-            </button>
-            <button
-              type="button"
-              class="action-btn"
-              :class="court.status === 'active' ? 'action-btn--mute' : 'action-btn--activate'"
-              :disabled="isClusterLocked"
-              @click="$emit('toggle-court-status', court)"
-            >
-              <AppIcon :name="court.status === 'active' ? 'eyeOff' : 'eye'" size="13" />
-              <span>{{ court.status === 'active' ? 'Tạm ẩn' : 'Mở lại' }}</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -257,29 +34,7 @@ export default {
   },
   emits: ['edit-court', 'toggle-court-status', 'open-scale-request', 'open-spatial-editor'],
   data() {
-    return {
-      currentView: 'list',
-      searchQuery: '',
-      statusFilter: 'all',
-    };
-  },
-  computed: {
-    activeCount() {
-      return this.courts.filter(c => c.status === 'active').length;
-    },
-    inactiveCount() {
-      return this.courts.filter(c => c.status !== 'active').length;
-    },
-    filteredCourts() {
-      return this.courts.filter(c => {
-        const matchesStatus = this.statusFilter === 'all' || c.status === this.statusFilter;
-        const q = this.searchQuery.trim().toLowerCase();
-        const matchesSearch = !q ||
-          (c.name && c.name.toLowerCase().includes(q)) ||
-          (c.court_type && c.court_type.name && c.court_type.name.toLowerCase().includes(q));
-        return matchesStatus && matchesSearch;
-      });
-    },
+    return {};
   },
   methods: {
     courtStatusLabel(status) {
@@ -296,8 +51,8 @@ export default {
 /* ── Surface ── */
 .courts-tab-surface {
   background: var(--admin-surface);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 0;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -845,7 +600,7 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 40px 24px;
+  padding: 40px 10px;
   border: 1px dashed var(--admin-border);
   border-radius: 10px;
   text-align: center;

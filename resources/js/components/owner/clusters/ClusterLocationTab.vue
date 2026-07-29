@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="cluster-location-surface">
     <div class="tab-section-header">
       <div>
@@ -133,8 +133,8 @@ export default {
 <style scoped>
 .cluster-location-surface {
   background: var(--admin-surface, #ffffff);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 0;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -191,5 +191,11 @@ export default {
   align-items: center;
   gap: 12px;
   margin-top: 8px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+  transform: none;
 }
 </style>

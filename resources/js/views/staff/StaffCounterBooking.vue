@@ -1087,16 +1087,6 @@
         </section>
 
         <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking</h2>
-                    <p>
-                        Theo dõi booking online và booking tại quầy theo ngày,
-                        sân, trạng thái và thanh toán.
-                    </p>
-                </div>
-            </div>
-
             <div class="filters booking-list-filters">
                 <label>
                     <span>Sân con</span>
@@ -1272,16 +1262,6 @@
         </section>
 
         <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking cố định</h2>
-                    <p>
-                        Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và số
-                        tiền còn phải thu.
-                    </p>
-                </div>
-            </div>
-
             <div class="filters recurring-list-filters">
                 <label>
                     <span>Cụm sân</span>

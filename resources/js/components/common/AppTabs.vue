@@ -3,18 +3,18 @@
     <div class="sg-app-tabs" role="tablist">
       <button
         v-for="tab in tabs"
-        :key="tab.key"
+        :key="getTabKey(tab)"
         type="button"
         role="tab"
         class="sg-tab-btn"
-        :class="{ active: modelValue === tab.key }"
-        :aria-selected="modelValue === tab.key"
-        @click="selectTab(tab.key)"
+        :class="{ active: isTabActive(tab) }"
+        :aria-selected="isTabActive(tab)"
+        @click="selectTab(getTabKey(tab))"
       >
         <AppIcon v-if="tab.icon" :name="tab.icon" size="16" />
         <span>{{ tab.label }}</span>
-        <span v-if="tab.badge !== undefined && tab.badge !== null" class="sg-tab-badge">
-          {{ tab.badge }}
+        <span v-if="getTabBadge(tab) !== undefined && getTabBadge(tab) !== null && getTabBadge(tab) !== ''" class="sg-tab-badge">
+          {{ getTabBadge(tab) }}
         </span>
       </button>
     </div>
@@ -34,14 +34,26 @@ export default {
       default: () => [],
     },
     modelValue: {
-      type: String,
+      type: [String, Number],
       default: '',
     },
   },
   emits: ['update:modelValue', 'change'],
   methods: {
+    getTabKey(tab) {
+      if (!tab) return '';
+      return tab.key !== undefined ? tab.key : (tab.value !== undefined ? tab.value : tab.id);
+    },
+    getTabBadge(tab) {
+      if (!tab) return null;
+      return tab.badge !== undefined ? tab.badge : tab.count;
+    },
+    isTabActive(tab) {
+      const k = this.getTabKey(tab);
+      return String(this.modelValue ?? '') === String(k ?? '');
+    },
     selectTab(key) {
-      if (key !== this.modelValue) {
+      if (String(key ?? '') !== String(this.modelValue ?? '')) {
         this.$emit('update:modelValue', key);
         this.$emit('change', key);
       }
@@ -95,12 +107,13 @@ export default {
 }
 
 .sg-tab-btn.active {
-  background: var(--admin-primary, #18181b);
-  color: var(--admin-primary-text, #ffffff);
-  border-color: var(--admin-primary, #18181b);
+  background: var(--admin-accent, #10b981);
+  color: #ffffff;
+  border-color: var(--admin-accent, #10b981);
+  font-weight: 400;
 }
 
-.sg-tab-badge {
+.sg-tab-badge { 
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -109,7 +122,7 @@ export default {
   padding: 0 6px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
   background: var(--admin-primary-soft, rgba(255, 255, 255, 0.2));
   color: inherit;
 }

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="cluster-profile-surface">
     <!-- Section 1: Thông tin chung & Liên hệ -->
     <div class="profile-section-card">
@@ -298,16 +298,22 @@ export default {
 </script>
 
 <style scoped>
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+  transform: none;
+}
+
 .cluster-profile-surface {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  background: var(--admin-surface, #ffffff);
+  border-radius: 0;
+  overflow: hidden;
 }
 
 .profile-section-card {
-  background: var(--admin-surface, #ffffff);
-  border-radius: 12px;
-  padding: 24px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 20px;

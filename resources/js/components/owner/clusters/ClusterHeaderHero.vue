@@ -1,33 +1,7 @@
-﻿<template>
+<template>
   <div class="cluster-header-hero-wrapper">
     <!-- Combined Master Hero Header Card (Profile & Navigation in 1 Unit) -->
     <section v-if="cluster" class="cluster-hero-surface">
-      <div class="cluster-hero-main">
-        <div class="cluster-hero-copy">
-          <div class="cluster-hero-kicker">
-            <span class="status-chip" :class="statusClass">
-              {{ statusLabel }}
-            </span>
-            <span v-if="cluster.phone_contact" class="phone-tag">Hotline: {{ cluster.phone_contact }}</span>
-
-          </div>
-
-          <h1 class="cluster-title">{{ cluster.name }}</h1>
-          <p class="cluster-address">{{ fullAddress }}</p>
-        </div>
-
-        <div class="cluster-hero-right-col">
-          <div class="cluster-hero-media" :class="{ empty: !primaryImage }">
-            <img v-if="primaryImage" :src="primaryImage" :alt="'Ảnh cụm sân ' + cluster.name" />
-            <div v-else class="cluster-media-placeholder">
-              <AppIcon name="building" size="32" />
-              <span>Chưa có ảnh</span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
       <!-- Restriction Banner -->
       <div
         v-if="isTerminationRestricted || isClusterArchived"
@@ -87,11 +61,11 @@ export default {
 
 .cluster-hero-surface {
   background: var(--admin-surface, #ffffff);
-  border-radius: 12px;
-  padding: 24px 24px 16px;
+  border-radius: 0;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 0;
 }
 
 .cluster-hero-main {
@@ -198,7 +172,6 @@ export default {
 
 .hero-integrated-tabs {
   padding-top: 12px;
-  border-top: 1px solid var(--admin-border-soft, rgba(255, 255, 255, 0.08));
 }
 
 .cluster-restriction-banner {

@@ -1,176 +1,307 @@
-﻿<template>
-  <div class="owner-profile-page">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Đối tác SportGo</p>
-        <h1>Hồ sơ đối tác</h1>
-        <p class="muted">Theo dõi hồ sơ, văn bản cần ký và trạng thái hợp tác của từng cụm sân.</p>
-      </div>
-    </header>
+<template>
+  <div class="owner-partner-profile-container">
 
-    <div v-if="loading" class="state-box card">
+    <!-- Loading State -->
+    <div v-if="loading" class="state-box">
       <div class="spinner"></div>
-      <p>Đang tải hồ sơ...</p>
-    </div>
-    <div v-else-if="error" class="notice error">{{ error }}</div>
-    <div v-else-if="applications.length === 0" class="state-box card">
-      <p>Bạn chưa có hồ sơ đăng ký đối tác nào.</p>
+      <p>Đang tải dữ liệu hồ sơ đối tác...</p>
     </div>
 
-    <template v-else>
-      <label v-if="applications.length > 1" class="card selector">
-        <span>Hồ sơ đang xem</span>
-        <select v-model="activeApplicationId">
-          <option v-for="application in applications" :key="application.id" :value="application.id">
-            {{ application.venue_name }} - {{ statusLabel(application.status) }}
-          </option>
-        </select>
-      </label>
+    <!-- Error State -->
+    <div v-else-if="error" class="state-box error">
+      <AppIcon name="alert" size="24" class="error-icon" />
+      <div class="state-copy">
+        <h3>Không thể tải hồ sơ</h3>
+        <p>{{ error }}</p>
+      </div>
+      <button class="btn btn-outline btn-sm" type="button" @click="fetchData">Thử lại</button>
+    </div>
 
-      <section class="card profile-overview" :class="{ archived: isArchivedApplication }">
-        <div class="profile-main">
-          <div class="profile-title-row">
+    <!-- Empty State -->
+    <div v-else-if="applications.length === 0" class="state-box empty">
+      <AppIcon name="layers" size="32" class="empty-icon" />
+      <h3>Chưa có hồ sơ đối tác</h3>
+      <p>Bạn chưa thực hiện nộp hồ sơ đối tác nào trên hệ thống SportGo.</p>
+    </div>
+
+    <!-- MAIN PROFILE WORKSPACE (EXACTLY MATCHING CLUSTER GENERAL INFO PAGE) -->
+    <div v-else class="profile-master-workspace">
+      
+      <!-- Top Header Surface (Tabs + Optional Application Dropdown Selector) -->
+      <div class="profile-header-tabs-surface">
+
+        <!-- Integrated Tab Navigation Bar -->
+        <div class="hero-integrated-tabs">
+          <AppTabs :tabs="tabs" :model-value="activeTab" @update:model-value="activeTab = $event" />
+        </div>
+      </div>
+
+      <!-- Content Surface (Seamless White Block connected below Tabs) -->
+      <div class="profile-content-surface">
+        
+        <!-- Urgent Task Action Notice (if signature or termination is pending) -->
+        <div v-if="nextAction" class="urgent-action-notice">
+          <AppIcon name="alertCircle" size="20" class="notice-icon" />
+          <div class="notice-body">
+            <strong>{{ nextAction.title }}</strong>
+            <p>{{ nextAction.hint }}</p>
+          </div>
+          <button class="btn btn-accent btn-sm" type="button" @click="runNextAction">
+            <span>Xử lý ngay</span>
+            <AppIcon name="arrowRight" size="14" />
+          </button>
+        </div>
+
+        <!-- TAB 1: TỔNG QUAN HỒ SƠ & LỊCH SỬ -->
+        <div v-if="activeTab === 'application'" class="tab-pane-flow">
+          
+          <!-- Rejection Notice Banner -->
+          <div v-if="activeApplication.status === 'rejected'" class="rejection-banner">
+            <AppIcon name="alert" size="20" class="alert-icon" />
             <div>
-              <p class="eyebrow">Cụm sân</p>
-              <h2>{{ activeApplication.venue_name }}</h2>
-            </div>
-            <span class="status" :class="`status-${activeApplication.status}`">{{ statusLabel(activeApplication.status) }}</span>
-          </div>
-          <p class="profile-address">{{ activeApplication.venue_address || activeApplication.business_name || '-' }}</p>
-          <div class="profile-facts">
-            <span><strong>{{ activeDocuments.length }}</strong> văn bản</span>
-            <span><strong>{{ activeContract ? 'Có' : 'Chưa' }}</strong> hợp đồng hiệu lực</span>
-            <span><strong>{{ settledRequests.length }}</strong> quyết toán</span>
-          </div>
-        </div>
-        <div class="profile-actions">
-          <button v-if="nextAction" class="btn primary" type="button" @click="runNextAction">
-            <AppIcon :name="nextAction.icon" size="16" /> {{ nextAction.label }}
-          </button>
-          <button class="btn ghost" type="button" @click="activeTab = 'documents'">
-            <AppIcon name="fileText" size="16" /> Văn bản
-          </button>
-        </div>
-      </section>
-
-      <section v-if="nextAction" class="next-task" aria-live="polite">
-        <AppIcon name="checkCircle" size="20" />
-        <div>
-          <strong>{{ nextAction.title }}</strong>
-          <p>{{ nextAction.hint }}</p>
-        </div>
-        <button class="btn primary small" type="button" @click="runNextAction">Xử lý ngay</button>
-      </section>
-
-      <nav class="tabs" aria-label="Nội dung hồ sơ đối tác">
-        <button v-for="tab in tabs" :key="tab.value" class="tab-btn" :class="{ active: activeTab === tab.value }" type="button" @click="activeTab = tab.value">
-          {{ tab.label }}
-          <span v-if="tab.value === 'documents' && signableDocumentCount" class="tab-count">{{ signableDocumentCount }}</span>
-        </button>
-      </nav>
-
-      <section v-if="activeTab === 'application'" class="card section-card">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Thông tin hồ sơ</p>
-            <h3>{{ statusLabel(activeApplication.status) }}</h3>
-          </div>
-          <span class="submitted-at">Nộp {{ formatDate(activeApplication.submitted_at) }}</span>
-        </div>
-        <div class="info-grid compact">
-          <div class="info-item"><span class="label">Tên cụm sân</span><span>{{ activeApplication.venue_name }}</span></div>
-          <div class="info-item"><span class="label">Đơn vị vận hành</span><span>{{ activeApplication.business_name || '-' }}</span></div>
-          <div class="info-item full"><span class="label">Địa chỉ</span><span>{{ activeApplication.venue_address || '-' }}</span></div>
-          <div v-if="activeApplication.status === 'rejected'" class="rejection full">
-            <strong>Lý do từ chối:</strong> {{ activeApplication.status_reason || 'Chưa có lý do.' }}
-          </div>
-        </div>
-        <details v-if="(activeApplication.status_histories || []).length" class="history-details">
-          <summary>Xem lịch sử xử lý ({{ activeApplication.status_histories.length }})</summary>
-          <div class="timeline">
-            <div v-for="item in activeApplication.status_histories" :key="`${item.new_status}-${item.created_at}`" class="timeline-item">
-              <span class="dot"></span>
-              <div><strong>{{ statusLabel(item.new_status) }}</strong><p>{{ formatDate(item.created_at) }} · {{ item.reason || 'Không có ghi chú' }}</p></div>
+              <strong>Hồ sơ đã bị từ chối xét duyệt</strong>
+              <p>Lý do: {{ activeApplication.status_reason || 'Không có ghi chú thêm từ Admin.' }}</p>
             </div>
           </div>
-        </details>
-      </section>
 
-      <section v-if="activeTab === 'documents'" class="card section-card">
-        <div class="section-head">
-          <div><p class="eyebrow">Hồ sơ điện tử</p><h3>Hợp đồng & văn bản</h3></div>
-          <span class="submitted-at">{{ activeDocuments.length }} văn bản</span>
-        </div>
-        <div class="doc-list">
-          <article v-for="document in activeDocuments" :key="document.id" class="doc-row">
-            <div class="doc-copy">
-              <strong>{{ document.title || documentTypeLabel(document.document_type) }}</strong>
-              <p>{{ document.document_code || 'Chưa cấp mã' }} · {{ documentStatusLabel(document.status) }}</p>
-              <small>{{ signatureSummary(document.signatures) }}</small>
+          <!-- Section 1: Thông tin đăng ký đối tác (Standard Form Grid layout) -->
+          <section class="profile-section">
+            <div class="tab-section-header">
+              <div>
+                <h2>Thông tin đăng ký đối tác</h2>
+                <p class="section-subtitle">Các chi tiết đăng ký đã gửi hệ thống kiểm duyệt (Nộp lúc: {{ formatDate(activeApplication.submitted_at) }})</p>
+              </div>
             </div>
-            <div class="doc-actions">
-              <button class="btn small" :class="canSignDocument(document) ? 'primary' : 'ghost'" type="button" @click="viewDocument(document)">
-                <AppIcon :name="canSignDocument(document) ? 'pencil' : 'eye'" size="15" />
-                {{ canSignDocument(document) ? 'Xem và ký' : 'Xem văn bản' }}
+
+            <div class="meta-info-grid">
+              <div class="meta-info-item">
+                <span class="meta-info-label">Tên cụm sân đăng ký</span>
+                <span class="meta-info-value highlight">{{ activeApplication.venue_name }}</span>
+              </div>
+
+              <div class="meta-info-item">
+                <span class="meta-info-label">Số điện thoại liên hệ</span>
+                <span class="meta-info-value">{{ activeApplication.phone_contact || activeApplication.contact_phone || 'Chưa cung cấp' }}</span>
+              </div>
+
+              <div class="meta-info-item">
+                <span class="meta-info-label">Đơn vị / Cá nhân vận hành</span>
+                <span class="meta-info-value">{{ activeApplication.business_name || 'Chưa cung cấp' }}</span>
+              </div>
+
+              <div class="meta-info-item">
+                <span class="meta-info-label">Trạng thái hồ sơ</span>
+                <span class="meta-info-value">{{ statusLabel(activeApplication.status) }}</span>
+              </div>
+
+              <div class="meta-info-item full-width">
+                <span class="meta-info-label">Địa chỉ đăng ký</span>
+                <span class="meta-info-value">{{ activeApplication.venue_address || 'Chưa có thông tin địa chỉ' }}</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section 2: Lịch sử xử lý hồ sơ -->
+          <section v-if="(activeApplication.status_histories || []).length > 0" class="profile-section">
+            <div class="tab-section-header">
+              <div>
+                <h2>Lịch sử xử lý hồ sơ</h2>
+                <p class="section-subtitle">Các giai đoạn cập nhật trạng thái hồ sơ của đối tác ({{ activeApplication.status_histories.length }} sự kiện)</p>
+              </div>
+            </div>
+
+            <div class="audit-history-list">
+              <div
+                v-for="(item, idx) in activeApplication.status_histories"
+                :key="`${item.new_status}-${item.created_at}-${idx}`"
+                class="history-audit-item"
+              >
+                <div class="audit-axis-col">
+                  <div class="audit-status-dot" :class="`dot--${item.new_status}`"></div>
+                  <div v-if="idx < activeApplication.status_histories.length - 1" class="audit-status-line"></div>
+                </div>
+
+                <div class="audit-item-body">
+                  <div class="audit-item-header">
+                    <span class="audit-status-title">{{ statusLabel(item.new_status) }}</span>
+                    <time class="audit-timestamp">{{ formatDate(item.created_at) }}</time>
+                  </div>
+                  <p class="audit-note-text">{{ item.reason || 'Cập nhật trạng thái tự động' }}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 2: HỒ SƠ ĐIỆN TỬ & VĂN BẢN -->
+        <div v-if="activeTab === 'documents'" class="tab-pane-flow">
+          <section class="profile-section">
+            <div class="tab-section-header">
+              <div>
+                <h2>Danh sách hợp đồng & văn bản điện tử</h2>
+                <p class="section-subtitle">Tất cả văn bản, đơn từ và phụ lục pháp lý đính kèm hồ sơ ({{ activeDocuments.length }} văn bản)</p>
+              </div>
+            </div>
+
+            <div class="doc-list-rows" v-if="activeDocuments.length > 0">
+              <article
+                v-for="document in activeDocuments"
+                :key="document.id"
+                class="doc-row-item"
+                :class="{ 'needs-sign': canSignDocument(document) }"
+              >
+                <div class="doc-type-icon">
+                  <AppIcon :name="canSignDocument(document) ? 'pencil' : 'fileText'" size="18" />
+                </div>
+
+                <div class="doc-details">
+                  <div class="doc-head-line">
+                    <h4 class="doc-name">{{ document.title || documentTypeLabel(document.document_type) }}</h4>
+                    <span class="doc-badge" :class="`doc-status--${document.status}`">
+                      {{ documentStatusLabel(document.status) }}
+                    </span>
+                  </div>
+
+                  <div class="doc-sub-line">
+                    <span>{{ document.document_code || 'Mã: Tự động khởi tạo' }}</span>
+                    <span class="dot-sep">•</span>
+                    <span>{{ signatureSummary(document.signatures) }}</span>
+                  </div>
+                </div>
+
+                <div class="doc-actions">
+                  <button
+                    class="btn btn-sm"
+                    :class="canSignDocument(document) ? 'btn-primary' : 'btn-outline'"
+                    type="button"
+                    @click="viewDocument(document)"
+                  >
+                    <AppIcon :name="canSignDocument(document) ? 'pencil' : 'eye'" size="14" />
+                    <span>{{ canSignDocument(document) ? 'Xem & ký ngay' : 'Xem văn bản' }}</span>
+                  </button>
+
+                  <button
+                    class="btn-icon-square"
+                    type="button"
+                    title="Tải văn bản về máy"
+                    aria-label="Tải văn bản"
+                    @click="downloadDocument(document.id)"
+                  >
+                    <AppIcon name="download" size="14" />
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <div v-else class="empty-state-copy">
+              <AppIcon name="fileText" size="32" class="faint-icon" />
+              <p>Chưa có văn bản điện tử nào trong hồ sơ này.</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 3: CHẤM DỨT & QUYẾT TOÁN -->
+        <div v-if="activeTab === 'termination'" class="tab-pane-flow">
+          <section class="profile-section">
+            <div class="tab-section-header">
+              <div>
+                <h2>Thủ tục chấm dứt hợp tác & Quyết toán</h2>
+                <p class="section-subtitle">Quản lý hồ sơ chấm dứt hợp tác và thanh toán quyết toán còn lại</p>
+              </div>
+
+              <button
+                v-if="activeContract && !pendingTermination && !isArchivedApplication"
+                class="btn btn-danger-soft btn-sm"
+                type="button"
+                :disabled="!activeVenueClusterId"
+                @click="openTerminationFlow"
+              >
+                <AppIcon name="alertCircle" size="14" />
+                <span>Yêu cầu chấm dứt</span>
               </button>
-              <button class="icon-btn" type="button" title="Tải văn bản" aria-label="Tải văn bản" @click="downloadDocument(document.id)">
-                <AppIcon name="download" size="15" />
+            </div>
+
+            <!-- Pending Termination Banner -->
+            <div v-if="pendingTermination" class="termination-banner">
+              <AppIcon name="alertCircle" size="20" class="notice-icon" />
+              <div class="notice-copy">
+                <strong>Hồ sơ chấm dứt: {{ terminationStatusLabel(pendingTermination.status) }}</strong>
+                <p>{{ pendingTermination.reason || 'Hồ sơ đang trong quá trình xem xét và quyết toán.' }}</p>
+              </div>
+              <button class="btn btn-outline btn-sm" type="button" @click="openTerminationFlow">
+                Chi tiết hồ sơ
               </button>
             </div>
-          </article>
-          <p v-if="activeDocuments.length === 0" class="empty-copy">Chưa có văn bản nào trong hồ sơ này.</p>
-        </div>
-      </section>
 
-      <section v-if="activeTab === 'termination'" class="card section-card">
-        <div class="section-head">
-          <div><p class="eyebrow">Chấm dứt hợp tác</p><h3>Hồ sơ & quyết toán</h3></div>
-          <button v-if="activeContract && !pendingTermination && !isArchivedApplication" class="btn danger small" type="button" :disabled="!activeVenueClusterId" @click="openTerminationFlow">
-            Tạo yêu cầu chấm dứt
-          </button>
-        </div>
-        <div v-if="pendingTermination" class="notice warning">
-          <strong>{{ terminationStatusLabel(pendingTermination.status) }}</strong>
-          <span>{{ pendingTermination.reason || 'Hồ sơ đang được xử lý.' }}</span>
-          <button class="btn ghost small" type="button" @click="openTerminationFlow">Mở hồ sơ</button>
-        </div>
-        <div class="doc-list">
-          <article v-for="request in activeApplication.termination_requests || []" :key="request.id" class="doc-row">
-            <div class="doc-copy">
-              <strong>{{ request.termination_code || 'Hồ sơ chấm dứt' }}</strong>
-              <p>{{ terminationStatusLabel(request.status) }} · {{ request.reason || 'Không có ghi chú' }}</p>
-              <small>Thu hồi quyền: {{ formatDate(request.transition_end_at) }}</small>
-            </div>
-            <button v-if="pendingTermination?.id === request.id" class="btn ghost small" type="button" @click="openTerminationFlow">Chi tiết</button>
-          </article>
-          <p v-if="!(activeApplication.termination_requests || []).length" class="empty-copy">Chưa có yêu cầu chấm dứt.</p>
-        </div>
-        <details v-if="settledRequests.length" class="history-details settlement-details">
-          <summary>Xem quyết toán đã lưu ({{ settledRequests.length }})</summary>
-          <div v-for="request in settledRequests" :key="request.id" class="settlement-box">
-            <div class="info-grid compact">
-              <div class="info-item"><span class="label">Mã hồ sơ</span><span>{{ request.termination_code }}</span></div>
-              <div class="info-item"><span class="label">Thu hồi quyền</span><span>{{ formatDate(request.transition_end_at) }}</span></div>
-              <div class="info-item"><span class="label">Hoàn phí nền tảng</span><span>{{ money(request.settlement?.platform_fee_remaining_refund_amount) }}</span></div>
-              <div class="info-item"><span class="label">Trạng thái</span><span>{{ terminationStatusLabel(request.status) }}</span></div>
-            </div>
-          </div>
-        </details>
-      </section>
-    </template>
+            <!-- Termination Requests List -->
+            <div class="termination-list" v-if="(activeApplication.termination_requests || []).length > 0">
+              <article
+                v-for="request in activeApplication.termination_requests || []"
+                :key="request.id"
+                class="term-row"
+              >
+                <div class="term-main-info">
+                  <div class="term-title-line">
+                    <strong>{{ request.termination_code || 'Hồ sơ chấm dứt' }}</strong>
+                    <span class="term-badge">{{ terminationStatusLabel(request.status) }}</span>
+                  </div>
+                  <p class="term-reason">Lý do: {{ request.reason || 'Không có ghi chú' }}</p>
+                  <p class="term-date">Ngày thu hồi quyền: {{ formatDate(request.transition_end_at) }}</p>
+                </div>
 
-    <DocumentViewerModal :show="viewerModal.open" :document="viewerModal.document" @close="closeViewerModal" />
+                <button
+                  v-if="pendingTermination?.id === request.id"
+                  class="btn btn-outline btn-sm"
+                  type="button"
+                  @click="openTerminationFlow"
+                >
+                  Mở chi tiết
+                </button>
+              </article>
+            </div>
+
+            <div v-else class="empty-state-copy">
+              <AppIcon name="checkCircle" size="32" class="faint-icon" />
+              <p>Cụm sân đang vận hành bình thường, chưa có yêu cầu chấm dứt hợp tác nào.</p>
+            </div>
+
+            <!-- Settled Requests Financial Breakdown -->
+            <div v-if="settledRequests.length > 0" class="settlements-box">
+              <h3>Lịch sử quyết toán đã hoàn tất ({{ settledRequests.length }})</h3>
+              <div class="settlement-cards-grid">
+                <div v-for="request in settledRequests" :key="request.id" class="settlement-card">
+                  <div class="s-row"><span class="s-label">Mã hồ sơ:</span><span class="s-val">{{ request.termination_code }}</span></div>
+                  <div class="s-row"><span class="s-label">Ngày thu hồi:</span><span class="s-val">{{ formatDate(request.transition_end_at) }}</span></div>
+                  <div class="s-row"><span class="s-label">Hoàn phí nền tảng:</span><span class="s-val green">{{ money(request.settlement?.platform_fee_remaining_refund_amount) }}</span></div>
+                  <div class="s-row"><span class="s-label">Trạng thái:</span><span class="s-val">{{ terminationStatusLabel(request.status) }}</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Document Viewer Modal -->
+    <DocumentViewerModal
+      :show="viewerModal.open"
+      :document="viewerModal.document"
+      @close="closeViewerModal"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
 import DocumentViewerModal from '../../components/DocumentViewerModal.vue';
 import { api, apiDownload } from '../../services/api.js';
 
 export default {
   name: 'OwnerPartnerProfile',
-  components: { AppIcon, DocumentViewerModal },
+  components: { AppIcon, AppTabs, DocumentViewerModal },
   data() {
     return {
       applications: [],
@@ -180,9 +311,9 @@ export default {
       loading: true,
       error: '',
       tabs: [
-        { value: 'application', label: 'Tổng quan' },
-        { value: 'documents', label: 'Văn bản' },
-        { value: 'termination', label: 'Chấm dứt & quyết toán' },
+        { key: 'application', label: 'Thông tin hồ sơ' },
+        { key: 'documents', label: 'Hồ sơ điện tử & Văn bản' },
+        { key: 'termination', label: 'Chấm dứt & Quyết toán' },
       ],
       viewerModal: { open: false, document: null },
     };
@@ -204,9 +335,9 @@ export default {
           type: 'document',
           document,
           icon: 'pencil',
-          label: 'Xem và ký',
+          label: 'Xem & ký ngay',
           title: document.title || this.documentTypeLabel(document.document_type),
-          hint: 'Kiểm tra toàn bộ file trước khi ký. Chữ ký được thực hiện ngay bên cạnh bản xem trước.',
+          hint: 'Hợp đồng hoặc phụ lục mới đã sẵn sàng. Vui lòng kiểm tra và hoàn thành chữ ký điện tử.',
         };
       }
       if (this.pendingTermination) {
@@ -215,7 +346,7 @@ export default {
           icon: 'arrowRight',
           label: 'Tiếp tục xử lý',
           title: this.terminationStatusLabel(this.pendingTermination.status),
-          hint: 'Mở hồ sơ chấm dứt để xử lý booking, văn bản hoặc quyết toán đang chờ.',
+          hint: 'Mở hồ sơ chấm dứt để tiếp tục xử lý lịch đặt sân, văn bản hoặc quyết toán tài chính.',
         };
       }
       return null;
@@ -362,18 +493,6 @@ export default {
       }
       this.openTerminationFlow();
     },
-    openSignContract() {
-      const document = this.contractDocument(this.pendingOwnerContract);
-      if (!document) {
-        this.error = 'Không tìm thấy file hợp đồng cần ký.';
-        return;
-      }
-
-      this.openOwnerDocument(document);
-    },
-    closeSignContract() {
-      this.signModal.open = false;
-    },
     openTerminationFlow() {
       if (!this.activeVenueClusterId) {
         this.error = 'Không tìm thấy cụm sân đang hoạt động để tạo yêu cầu chấm dứt.';
@@ -385,21 +504,6 @@ export default {
         params: { id: this.activeVenueClusterId },
       });
     },
-    submitSignContract() {
-      this.closeSignContract();
-      this.openSignContract();
-    },
-    openTermination() {
-      this.terminationForm.reason = '';
-      this.terminationModal.open = true;
-    },
-    closeTermination() {
-      this.terminationModal.open = false;
-    },
-    submitTermination() {
-      this.closeTermination();
-      this.openTerminationFlow();
-    },
     async downloadDocument(id) {
       try {
         await apiDownload(`/api/files/documents/${id}/download`);
@@ -407,50 +511,9 @@ export default {
         this.error = err.message || 'Không tải được văn bản.';
       }
     },
-    prepareCanvas(canvas) {
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-    },
-    pointerPosition(event) {
-      const canvas = event.currentTarget;
-      const rect = canvas.getBoundingClientRect();
-      return {
-        canvas,
-        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
-        y: ((event.clientY - rect.top) / rect.height) * canvas.height,
-      };
-    },
-    startDraw(event) {
-      this.drawing = true;
-      const point = this.pointerPosition(event);
-      const ctx = point.canvas.getContext('2d');
-      ctx.beginPath();
-      ctx.moveTo(point.x, point.y);
-    },
-    draw(event) {
-      if (!this.drawing) return;
-      const point = this.pointerPosition(event);
-      const ctx = point.canvas.getContext('2d');
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-    },
-    stopDraw() {
-      this.drawing = false;
-    },
-    clearSignature() {
-      this.prepareCanvas(this.signModal.open ? this.$refs.signatureCanvas : this.$refs.terminationCanvas);
-    },
-    signatureData(canvas) {
-      return canvas?.toDataURL('image/png') || null;
-    },
     signatureSummary(signatures = []) {
-      if (!signatures.length) return 'Chưa có chữ ký';
-      return signatures.map((signature) => `${this.signerSideLabel(signature.signer_side)}: ${this.formatDate(signature.signed_at)}`).join(' · ');
+      if (!signatures.length) return 'Chưa có chữ ký điện tử';
+      return signatures.map((signature) => `${this.signerSideLabel(signature.signer_side)}: ${this.formatDate(signature.signed_at)}`).join(' • ');
     },
     signerSideLabel(side) {
       return {
@@ -488,16 +551,16 @@ export default {
     },
     documentStatusLabel(status) {
       return {
-        generated: 'Đã sinh',
+        generated: 'Bản thảo',
         pending_owner_signature: 'Chờ chủ sân ký',
         pending_sportgo_signature: 'Chờ SportGo ký',
-        completed: 'Hoàn thành',
+        completed: 'Hoàn tất chữ ký',
       }[status] || status;
     },
     terminationStatusLabel(status) {
       return {
         draft: 'Bản nháp',
-        draft_preview: 'Đã tạo bản xem trước',
+        draft_preview: 'Bản xem trước',
         submitted: 'Chờ xác nhận',
         reviewing: 'Đang xem xét',
         approved: 'Đã duyệt',
@@ -514,7 +577,7 @@ export default {
         rejected: 'Từ chối',
         cancelled: 'Đã hủy',
         terminated: 'Đã chấm dứt',
-        owner_cancelled_request: 'Chủ sân đã hủy yêu cầu',
+        owner_cancelled_request: 'Chủ sân đã hủy',
         admin_rejected: 'Admin từ chối',
       }[status] || status;
     },
@@ -532,250 +595,600 @@ export default {
 </script>
 
 <style scoped>
-.owner-profile-page {
+.owner-partner-profile-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding-bottom: 40px;
 }
 
-.card,
-.modal {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-}
-
-.summary,
-.profile-overview,
-.section-head,
-.page-header,
-.doc-row,
-.modal-header,
-.modal-footer,
-.tabs {
+.profile-master-workspace {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+}
+
+/* Header Tabs Surface (Exact match to ClusterHeaderHero surface) */
+.profile-header-tabs-surface {
+  background: var(--admin-surface, #ffffff);
+  border-radius: 12px 12px 0 0;
+  padding: 16px 24px 0;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.summary,
-.profile-overview,
-.selector,
-.section-card,
-.work-queue {
-  padding: 18px;
+.application-selector-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.summary h3,
-.profile-overview h3,
-.work-queue h3,
-.section-card h3,
-.page-header h1,
-.profile-overview h2 {
-  margin: 0;
+.selector-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-muted, #64748b);
+  white-space: nowrap;
 }
 
-.page-header h1 {
-  color: var(--admin-text);
-  font-size: 28px;
-  line-height: 1.2;
+.select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.profile-overview {
-  align-items: stretch;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.custom-select {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 6px;
+  padding: 4px 28px 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text, #0f172a);
+  cursor: pointer;
+  outline: none;
 }
 
-.profile-main {
-  min-width: 0;
+.select-arrow {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: var(--admin-muted, #64748b);
 }
 
-.profile-main h3 {
-  color: var(--admin-text);
-  font-size: 22px;
+.hero-integrated-tabs {
+  padding-bottom: 0;
 }
 
-.profile-title-row {
+/* Content Surface (Exact match to ClusterGeneralInfoTab surface) */
+.profile-content-surface {
+  display: flex;
+  flex-direction: column;
+  background: var(--admin-surface, #ffffff);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.tab-pane-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tab-section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
-.profile-title-row h2 {
-  color: var(--admin-text);
-  font-size: 24px;
-  line-height: 1.25;
-}
-
-.profile-address {
-  margin: 10px 0 14px;
-  color: var(--admin-muted);
-  line-height: 1.5;
-}
-
-.profile-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  color: var(--admin-muted);
-  font-size: 13px;
-}
-
-.profile-facts strong {
-  color: var(--admin-text);
-}
-
-.profile-overview.archived {
-  background: #f3f5f3;
-  filter: grayscale(0.35);
-}
-
-.eyebrow {
-  margin: 0 0 4px;
-  color: var(--admin-muted);
-  font-size: 12px;
+.tab-section-header h2 {
+  margin: 0;
+  font-size: 18px;
   font-weight: 400;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  color: var(--admin-text, #0f172a);
 }
 
-.profile-actions {
+.section-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--admin-muted, #64748b);
+}
+
+/* Clean Flat Meta Info Grid (Read-only view without text input boxes) */
+.meta-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+}
+
+.meta-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-info-item.full-width {
+  grid-column: span 2;
+}
+
+.meta-info-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--admin-muted, #64748b);
+}
+
+.meta-info-value {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--admin-text, #0f172a);
+}
+
+.meta-info-value.highlight {
+  font-weight: 500;
+  color: var(--admin-primary, #3b82f6);
+}
+
+/* Urgent Action Notice Banner */
+.urgent-action-notice {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.selector {
-  display: grid;
-  grid-template-columns: auto minmax(240px, 420px);
-  align-items: center;
-  justify-content: start;
   gap: 14px;
-  color: var(--admin-text);
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.selector select {
-  min-height: 40px;
-  width: 100%;
-  border: 1px solid var(--admin-border);
+  padding: 12px 16px;
+  margin-bottom: 24px;
   border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  padding: 0 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: var(--admin-text, #0f172a);
 }
 
-.next-task {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+.notice-icon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.notice-body {
+  flex: 1;
+}
+
+.notice-body strong {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--admin-text, #0f172a);
+}
+
+.notice-body p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--admin-muted, #64748b);
+}
+
+.rejection-banner {
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
-  border-left: 4px solid #16844a;
-  background: #edf8f0;
-  color: #14532d;
   padding: 14px 16px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.next-task p {
-  margin: 3px 0 0;
-  color: #3f6750;
+.alert-icon {
+  color: #dc2626;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rejection-banner strong {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.rejection-banner p {
+  margin: 2px 0 0;
   font-size: 13px;
+  color: var(--admin-text, #0f172a);
 }
 
-.profile-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+/* Scoped Audit History Timeline (Isolated from admin.css global classes) */
+.audit-history-list {
+  display: flex;
+  flex-direction: column;
+  padding-left: 4px;
+}
+
+.history-audit-item {
+  display: flex;
+  gap: 16px;
+  position: relative;
+  border-bottom: none !important;
+  background: transparent !important;
+}
+
+.audit-axis-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 16px;
+  flex-shrink: 0;
+  background: transparent !important;
+  border: none !important;
+}
+
+.audit-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--admin-muted, #94a3b8);
+  margin-top: 5px;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.audit-status-dot.dot--completed,
+.audit-status-dot.dot--signed_active { background: #16a34a; }
+.audit-status-dot.dot--pending,
+.audit-status-dot.dot--submitted,
+.audit-status-dot.dot--reviewing { background: #d97706; }
+.audit-status-dot.dot--rejected { background: #dc2626; }
+
+.audit-status-line {
+  flex: 1;
+  width: 2px;
+  background: var(--admin-border-soft, #e2e8f0);
+  margin-top: 4px;
+  margin-bottom: -4px;
+}
+
+.audit-item-body {
+  flex: 1;
+  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.audit-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
-.metric-card {
-  display: grid;
-  gap: 4px;
-  min-height: 104px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  padding: 14px;
+.audit-status-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--admin-text, #0f172a);
 }
 
-.metric-card span {
-  color: var(--admin-muted);
+.audit-timestamp {
   font-size: 12px;
-  font-weight: 400;
-  text-transform: uppercase;
+  color: var(--admin-muted, #94a3b8);
 }
 
-.metric-card strong {
-  color: var(--admin-text);
-  font-size: 26px;
-  line-height: 1;
-}
-
-.metric-card small,
-.work-item small {
-  color: var(--admin-muted);
-  font-size: 12px;
-}
-
-.work-queue {
-  display: grid;
-  gap: 10px;
-}
-
-.section-head {
-  padding: 0;
-}
-
-.work-item {
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  cursor: pointer;
-  padding: 12px;
-  text-align: left;
-}
-
-.work-item:hover {
-  border-color: #0f172a;
-}
-
-.work-item span {
-  font-weight: 400;
-}
-
-.muted {
-  color: var(--admin-muted);
+.audit-note-text {
+  margin: 0;
   font-size: 13px;
+  color: var(--admin-muted, #64748b);
 }
 
-.state-box {
-  min-height: 220px;
+/* Document Rows */
+.doc-list-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-row-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
+}
+
+.doc-row-item:last-child {
+  border-bottom: none;
+}
+
+.doc-type-icon {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--admin-hover, #f1f5f9);
+  color: var(--admin-primary, #3b82f6);
+  flex-shrink: 0;
+}
+
+.doc-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-head-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.doc-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-text, #0f172a);
+}
+
+.doc-badge {
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--admin-hover, #f1f5f9);
+  color: var(--admin-muted, #64748b);
+}
+
+.doc-status--pending_owner_signature {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.doc-status--completed {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.doc-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--admin-muted, #64748b);
+}
+
+.dot-sep {
+  color: var(--admin-muted, #cbd5e1);
+}
+
+.doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  background: var(--admin-surface, #ffffff);
+  color: var(--admin-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-square:hover {
+  background: var(--admin-hover, #f1f5f9);
+  color: var(--admin-text, #0f172a);
+}
+
+/* Termination & Settlements */
+.termination-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 8px;
+}
+
+.termination-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.term-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--admin-hover, #f8fafc);
+  border-radius: 8px;
+}
+
+.term-title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.term-badge {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--admin-surface, #ffffff);
+  color: var(--admin-text, #334155);
+}
+
+.term-reason, .term-date {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--admin-muted, #64748b);
+}
+
+.settlements-box {
+  display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.spinner {
-  width: 32px;
+.settlements-box h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--admin-text, #0f172a);
+}
+
+.settlement-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.settlement-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--admin-hover, #f8fafc);
+  border-radius: 8px;
+}
+
+.s-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+
+.s-label {
+  color: var(--admin-muted, #64748b);
+}
+
+.s-val {
+  font-weight: 500;
+  color: var(--admin-text, #0f172a);
+}
+
+.s-val.green {
+  color: #16a34a;
+}
+
+/* Empty State Copy */
+.empty-state-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--admin-muted, #64748b);
+  font-size: 13.5px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.btn-sm {
   height: 32px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #0f172a;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.btn-primary {
+  background: var(--admin-primary, #3b82f6);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--admin-primary, #3b82f6);
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--admin-border-soft, #cbd5e1);
+  color: var(--admin-text, #334155);
+}
+
+.btn-outline:hover {
+  background: var(--admin-hover, #f1f5f9);
+}
+
+.btn-accent {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.btn-accent:hover {
+  background: #b45309;
+}
+
+.btn-danger-soft {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger-soft:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Base State Boxes */
+.state-box {
+  background: var(--admin-surface, #ffffff);
+  border-radius: 12px;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--admin-muted, #64748b);
+}
+
+.faint-icon {
+  opacity: 0.5;
+  color: var(--admin-muted, #94a3b8);
+}
+
+.state-box.error {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.03);
+  color: var(--admin-text, #0f172a);
+}
+
+.error-icon {
+  color: #ef4444;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(59, 130, 246, 0.2);
+  border-top-color: var(--admin-primary, #3b82f6);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -784,391 +1197,17 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-.tabs {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
-.tab-btn {
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  color: var(--admin-muted);
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.tab-btn.active {
-  background: #16844a;
-  border-color: #16844a;
-  color: #fff;
-}
-
-.tab-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background: #dc2626;
-  color: #fff;
-  font-size: 11px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 400;
-}
-
-.field select,
-.field textarea {
-  width: 100%;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.info-grid.compact {
-  margin-top: 18px;
-  gap: 16px 24px;
-}
-
-.submitted-at {
-  color: var(--admin-muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-weight: 400;
-}
-
-.info-item.full,
-.rejection.full {
-  grid-column: 1 / -1;
-}
-
-.label {
-  color: var(--admin-muted);
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.rejection,
-.notice.error {
-  padding: 12px;
-  border-radius: 8px;
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.notice.warning {
-  margin: 12px 0;
-  padding: 12px;
-  border-radius: 8px;
-  background: #fef3c7;
-  color: #92400e;
-  font-weight: 400;
-}
-
-.timeline {
-  margin-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.history-details {
-  margin-top: 18px;
-  border-top: 1px solid var(--admin-border);
-  padding-top: 14px;
-}
-
-.history-details summary {
-  color: var(--admin-text);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.settlement-details .settlement-box {
-  margin-top: 12px;
-}
-
-.timeline-item {
-  display: grid;
-  grid-template-columns: 16px 1fr;
-  gap: 10px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  margin-top: 5px;
-  border-radius: 50%;
-  background: #0f172a;
-}
-
-.doc-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 12px 0;
-}
-
-.doc-row,
-.settlement-box {
-  padding: 12px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-}
-
-.doc-copy {
-  min-width: 0;
-}
-
-.doc-copy strong,
-.doc-copy p,
-.doc-copy small {
-  overflow-wrap: anywhere;
-}
-
-.doc-copy p {
-  margin: 4px 0;
-  color: var(--admin-muted);
-  font-size: 13px;
-}
-
-.doc-copy small {
-  color: var(--admin-muted);
-}
-
-.doc-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.empty-copy {
-  margin: 16px 0 4px;
-  color: var(--admin-muted);
-  text-align: center;
-}
-
-.status {
-  display: inline-flex;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 400;
-  background: var(--admin-border);
-  color: var(--admin-text);
-}
-
-.status-submitted,
-.status-reviewing,
-.status-contract_pending_owner_signature,
-.status-contract_pending_sportgo_signature {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-completed {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-rejected {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.btn,
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.btn {
-  min-height: 40px;
-  padding: 0 14px;
-}
-
-.btn.small {
-  min-height: 34px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.btn.primary {
-  background: #16844a;
-  color: #fff;
-}
-
-.btn.danger {
-  background: #dc2626;
-  color: #fff;
-}
-
-.btn.ghost,
-.icon-btn {
-  background: var(--admin-surface);
-  border-color: var(--sg-border);
-  color: var(--admin-text);
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(15, 23, 42, 0.5);
-}
-
-.modal {
-  width: min(760px, 100%);
-  max-height: 92vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal.small {
-  width: min(560px, 100%);
-}
-
-.modal-header,
-.modal-footer {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--admin-border);
-}
-
-.modal-footer {
-  justify-content: flex-end;
-  border-top: 1px solid var(--admin-border);
-  border-bottom: 0;
-}
-
-.modal-body {
-  padding: 18px;
-  overflow-y: auto;
-}
-
-.contract-preview {
-  max-height: 160px;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface-muted);
-  margin-bottom: 12px;
-  font-weight: 400;
-}
-
-.termination-note {
-  border: 1px solid #fde68a;
-  border-radius: 8px;
-  background: #fffbeb;
-  color: #92400e;
-  padding: 12px;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.5;
-}
-
-.signature-pad {
-  width: 100%;
-  max-width: 620px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  touch-action: none;
-  display: block;
-  margin-bottom: 10px;
-}
-
-.check-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  font-weight: 400;
-}
-
-@media (max-width: 800px) {
-  .summary,
-  .profile-overview,
-  .doc-row,
-  .page-header {
-    align-items: flex-start;
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .doc-row-item {
     flex-direction: column;
+    align-items: flex-start;
   }
-
-  .profile-overview,
-  .profile-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .info-item.full,
-  .rejection.full {
-    grid-column: auto;
-  }
-
-  .selector,
-  .next-task {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-title-row,
   .doc-actions {
     width: 100%;
-  }
-
-  .doc-actions .btn {
-    flex: 1;
-  }
-
-  .tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .tab-btn {
-    flex: 0 0 auto;
+    justify-content: flex-end;
   }
 }
 </style>
