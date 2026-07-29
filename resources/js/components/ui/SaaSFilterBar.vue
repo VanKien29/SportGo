@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="avc-filters animate-fade-in">
         <div class="filter-row">
             <div class="filter-tabs">
@@ -91,7 +91,7 @@ export default {
     background: var(--admin-surface) !important;
     color: var(--admin-muted) !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     cursor: pointer !important;
     transition: all 0.18s !important;
     box-sizing: border-box !important;

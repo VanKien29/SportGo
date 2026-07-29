@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="system-profile-page">
         <section class="profile-hero">
             <div>
@@ -287,7 +287,7 @@ onBeforeUnmount(() => {
     margin: 0 0 6px;
     color: #0f8f4d;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -321,7 +321,7 @@ onBeforeUnmount(() => {
     background: #f0fdf4;
     color: #15803d;
     font-size: 26px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .logo-preview img {
@@ -348,7 +348,7 @@ onBeforeUnmount(() => {
     display: grid;
     gap: 8px;
     color: #405448;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .field.wide {
@@ -371,7 +371,7 @@ onBeforeUnmount(() => {
     background: #fff;
     color: #14251b;
     font: inherit;
-    font-weight: 700;
+    font-weight: 400;
     outline: none;
     padding: 12px 13px;
     transition: border-color 0.16s ease, box-shadow 0.16s ease;
@@ -408,7 +408,7 @@ onBeforeUnmount(() => {
     border-radius: 10px;
     border: 1px solid #cfe1d3;
     cursor: pointer;
-    font-weight: 800;
+    font-weight: 400;
     padding: 0 18px;
 }
 
@@ -432,7 +432,7 @@ onBeforeUnmount(() => {
 
 .alert {
     border-radius: 12px;
-    font-weight: 800;
+    font-weight: 400;
     padding: 12px 14px;
 }
 

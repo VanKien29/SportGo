@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="schedule-lock-page">
         <!-- Floating Lock Button (sticky bottom bar) -->
         <Teleport to="body">
@@ -1794,7 +1794,7 @@ export default {
 .alert {
     padding: 13px 15px;
     border-radius: 10px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .alert.error {
     background: #fee2e2;
@@ -1858,7 +1858,7 @@ export default {
     margin: 0;
     color: #64748b;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
@@ -1885,19 +1885,19 @@ export default {
 .lock-flow-note strong {
     color: #14532d;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .lock-flow-note span {
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.45;
 }
 
 .incident-summary {
     color: #b45309 !important;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 /* ===== Reason ===== */
@@ -1908,7 +1908,7 @@ export default {
 .reason-label span {
     color: #334155;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
 }
 .reason-label textarea {
     width: 100%;
@@ -1948,7 +1948,7 @@ export default {
 .picker-head small {
     color: #64748b;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
 }
 .picker-head span {
@@ -1957,7 +1957,7 @@ export default {
     background: var(--admin-primary-soft, #dcfce7);
     color: var(--admin-primary-dark, #166534);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .picker-head button {
     border: 0;
@@ -1965,7 +1965,7 @@ export default {
     color: var(--admin-primary, #16a34a);
     font: inherit;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .court-chip-grid {
@@ -2046,7 +2046,7 @@ export default {
 .court-chip-grid small {
     color: #64748b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* ===== Preview (collapsible) ===== */
@@ -2085,7 +2085,7 @@ export default {
     margin-left: auto;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .preview-details[open] summary::after {
@@ -2099,13 +2099,13 @@ export default {
 .preview-details summary span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .preview-details summary em {
     color: #b45309;
     font-size: 12px;
     font-style: normal;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .lock-empty-preview {
@@ -2142,13 +2142,13 @@ export default {
     flex: 0 0 auto;
     color: #14532d;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .lock-empty-preview span {
     color: #607267;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.45;
     max-width: 760px;
 }
@@ -2194,7 +2194,7 @@ export default {
     background: #eef2ff;
     color: #475569;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .lock-preview-list article.busy > span {
     background: #ffedd5;
@@ -2232,7 +2232,7 @@ export default {
     margin-top: 4px;
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .schedule-headline-right {
     display: flex;
@@ -2248,7 +2248,7 @@ export default {
     color: #92400e;
     font: inherit;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -2267,7 +2267,7 @@ export default {
     color: #8b4a44;
     font: inherit;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -2284,7 +2284,7 @@ export default {
     margin: 0 0 4px;
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.1em;
 }
 
@@ -2296,7 +2296,7 @@ export default {
     gap: 10px;
     color: #64748b;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .legend span {
     display: flex;
@@ -2348,17 +2348,17 @@ export default {
     background: #fff;
     color: #344238;
     font: inherit;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 .quick-ranges button strong {
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 .quick-ranges button small {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     opacity: 0.78;
 }
 .quick-ranges button.never-hover-class-placeholder:not(:disabled):not(.active) {
@@ -2387,7 +2387,7 @@ export default {
     padding: 40px;
     text-align: center;
     color: #64748b;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* ===== Schedule Grid ===== */
@@ -2413,7 +2413,7 @@ export default {
     background: #f2f7ef;
     color: #334238;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .time-head {
     padding: 8px 4px;
@@ -2528,7 +2528,7 @@ export default {
 .locks-summary span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .lock-table {
     margin: 0 20px 18px;
@@ -2549,7 +2549,7 @@ export default {
     background: #f7faf8;
     color: #64748b;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .lock-table-row {
     min-height: 54px;
@@ -2586,7 +2586,7 @@ export default {
     background: #dcfce7;
     color: #166534;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .lock-status.upcoming {
     background: #eff6ff;
@@ -2633,7 +2633,7 @@ export default {
 .lock-row-head span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     white-space: nowrap;
 }
 .lock-row-head button,
@@ -2644,7 +2644,7 @@ export default {
     color: #dc2626;
     font: inherit;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .lock-chip-list {
@@ -2671,7 +2671,7 @@ export default {
 }
 .lock-chip-time {
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 .lock-chip-reason {
@@ -2679,14 +2679,14 @@ export default {
     overflow: hidden;
     color: #64748b;
     font-size: 11px;
-    font-weight: 750;
+    font-weight: 400;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .lock-chip-action {
     color: #dc2626;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .lock-chip-list button.never-hover-class-placeholder:not(:disabled) {
     border-color: #fca5a5;
@@ -2745,7 +2745,7 @@ export default {
 .sticky-bottom-info span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .sticky-bottom-actions {
     display: flex;
@@ -2758,7 +2758,7 @@ export default {
     color: #dc2626;
     font: inherit;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .sticky-btn-box {
@@ -2777,7 +2777,7 @@ export default {
     background: #fff8e6;
     color: #765f2d;
     font: inherit;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 .sticky-btn-submit {
@@ -2788,7 +2788,7 @@ export default {
     background: var(--admin-primary, #16a34a);
     color: #fff;
     font: inherit;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transition: all 0.15s ease;
@@ -2809,7 +2809,7 @@ export default {
     background: #a85f57;
     color: #fff;
     font: inherit;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
 }
 .sticky-btn-unlock:disabled {
@@ -2829,7 +2829,7 @@ export default {
     border-radius: 9px;
     padding: 10px 16px;
     font: inherit;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 .primary-btn {
@@ -2952,14 +2952,14 @@ export default {
 .lock-detail-list dt {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .lock-detail-list dd {
     min-width: 0;
     margin: 0;
     color: var(--admin-text, #1f2f25);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .lock-detail-reason {
     display: grid;
@@ -2969,7 +2969,7 @@ export default {
 .lock-detail-reason > span {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .lock-detail-reason p {
     margin: 0;
@@ -3036,7 +3036,7 @@ export default {
     background: #fff;
     color: #43564a;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .conflict-actions {
     display: grid;
@@ -3049,7 +3049,7 @@ export default {
 .resolution-label {
     color: #64748b;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: uppercase;
 }
@@ -3070,7 +3070,7 @@ export default {
     color: #475569;
     font-family: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
     text-align: center;
     cursor: pointer;
@@ -3090,7 +3090,7 @@ export default {
     background: #fff;
     color: #1f2937;
     font: inherit;
-    font-weight: 750;
+    font-weight: 400;
 }
 .no-alternative {
     display: grid;
@@ -3127,7 +3127,7 @@ export default {
     color: #2f5a3a;
     font-family: inherit;
     font-size: 13px;
-    font-weight: 750;
+    font-weight: 400;
     line-height: 1.35;
     text-align: center;
     cursor: pointer;
@@ -3163,7 +3163,7 @@ export default {
     background: #f8fcf9;
     color: #607267;
     text-align: center;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* ===== Responsive ===== */

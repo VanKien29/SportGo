@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 
 <head>
@@ -15,30 +15,30 @@
         <table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f8fafc;border:1px solid #e5e7eb;">
             <tr>
                 <td style="padding:10px;color:#64748b;">Tên văn bản</td>
-                <td style="padding:10px;font-weight:700;">{{ $signingRequest->document?->title ??
+                <td style="padding:10px;font-weight: 400;">{{ $signingRequest->document?->title ??
                     $signingRequest->document_type }}</td>
             </tr>
             <tr>
                 <td style="padding:10px;color:#64748b;">Mã văn bản</td>
-                <td style="padding:10px;font-weight:700;">{{ $signingRequest->document_code }}</td>
+                <td style="padding:10px;font-weight: 400;">{{ $signingRequest->document_code }}</td>
             </tr>
             <tr>
                 <td style="padding:10px;color:#64748b;">Phiên bản</td>
-                <td style="padding:10px;font-weight:700;">v{{ $signingRequest->document_version }}</td>
+                <td style="padding:10px;font-weight: 400;">v{{ $signingRequest->document_version }}</td>
             </tr>
             <tr>
                 <td style="padding:10px;color:#64748b;">Hành động</td>
-                <td style="padding:10px;font-weight:700;">{{ $signingRequest->action }}</td>
+                <td style="padding:10px;font-weight: 400;">{{ $signingRequest->action }}</td>
             </tr>
             <tr>
                 <td style="padding:10px;color:#64748b;">Hash file</td>
-                <td style="padding:10px;font-weight:700;">{{ substr($signingRequest->file_hash, 0, 16) }}...</td>
+                <td style="padding:10px;font-weight: 400;">{{ substr($signingRequest->file_hash, 0, 16) }}...</td>
             </tr>
         </table>
 
         <p>Mã OTP để ký/xác nhận văn bản là:</p>
         <div
-            style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;padding:18px 24px;margin:24px 0;background:#ecfdf5;color:#15803d;border-radius:10px;">
+            style="font-size:32px;font-weight: 400;letter-spacing:8px;text-align:center;padding:18px 24px;margin:24px 0;background:#ecfdf5;color:#15803d;border-radius:10px;">
             {{ $otp }}
         </div>
 

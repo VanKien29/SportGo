@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="court-types-container">
 
         <!-- Loading State -->
@@ -758,7 +758,7 @@ export default {
     gap: 12px;
     color: var(--admin-faint, #64748b);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     text-align: center;
 }
 
@@ -777,7 +777,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -847,7 +847,7 @@ export default {
 
 .modal-header h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: var(--sg-text);
 }
@@ -877,7 +877,7 @@ export default {
 
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -908,7 +908,7 @@ export default {
     align-items: center;
     gap: 10px;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     color: var(--sg-text);
 }
@@ -941,7 +941,7 @@ export default {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     border: 1px solid #e5e7eb;
 }
 
@@ -1027,13 +1027,13 @@ export default {
 .custom-select-option.active {
     background: var(--admin-primary-soft) !important;
     color: var(--admin-primary-dark) !important;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .option-badge-root,
 .option-badge-parent {
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 400;
     padding: 2px 6px;
     border-radius: 4px;
     text-transform: uppercase;
@@ -1104,7 +1104,7 @@ export default {
     max-width: 0;
     opacity: 0;
     margin-left: 0;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;

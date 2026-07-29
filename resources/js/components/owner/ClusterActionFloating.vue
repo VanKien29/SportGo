@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cluster-action-floating" :class="{ 'has-scroll-top': hasScrollTop }" v-if="!isLocked">
     <button 
       class="btn-floating" 
@@ -159,7 +159,7 @@ export default {
   background: transparent;
   text-align: left;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-floating-fg, #ffffff);
   cursor: pointer;
   transition: background-color 120ms ease-out;

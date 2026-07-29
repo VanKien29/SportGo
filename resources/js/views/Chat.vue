@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     :class="[
       'chat-page flex flex-col font-sans',
@@ -34,13 +34,13 @@
       >
         <!-- Drawer Profile Header -->
         <div class="tg-drawer-header">
-          <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-semibold text-sm text-white select-none">
+          <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-normal text-sm text-white select-none">
             {{ (currentUser?.full_name || currentUser?.username || 'U').charAt(0).toUpperCase() }}
           </div>
 
           <div class="flex items-center justify-between mt-1.5">
             <div class="min-w-0">
-              <div class="font-semibold text-[13px] tg-drawer-header-name truncate">{{ currentUser?.full_name }}</div>
+              <div class="font-normal text-[13px] tg-drawer-header-name truncate">{{ currentUser?.full_name }}</div>
               <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser?.email || currentUser?.phone || '' }}</div>
             </div>
           </div>
@@ -179,7 +179,7 @@
                   {{ conv.last_message?.content || 'Chưa có tin nhắn' }}
                 </div>
                 <!-- Badge count -->
-                <div v-if="conv.unread_count > 0" class="h-5 min-w-5 px-1.5 bg-green-500 text-zinc-950 font-bold text-[10px] rounded-full flex items-center justify-center shrink-0">
+                <div v-if="conv.unread_count > 0" class="h-5 min-w-5 px-1.5 bg-green-500 text-zinc-950 font-normal text-[10px] rounded-full flex items-center justify-center shrink-0">
                   {{ conv.unread_count }}
                 </div>
               </div>
@@ -226,7 +226,7 @@
               <div class="min-w-0">
                 <div class="font-medium text-sm text-zinc-100 flex items-center gap-2 min-w-0">
                   <span class="truncate">{{ profileDisplayName }}</span>
-                  <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-400 text-[9px] font-bold rounded border border-green-500/20 uppercase tracking-wider shrink-0">
+                  <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-400 text-[9px] font-normal rounded border border-green-500/20 uppercase tracking-wider shrink-0">
                     Sân đấu
                   </span>
                 </div>
@@ -844,7 +844,7 @@
                 <div class="tg-profile-avatar">
                   {{ profileInitial }}
                 </div>
-                <h3 class="tg-profile-value text-base font-semibold text-center truncate w-full mb-1">{{ profileDisplayName }}</h3>
+                <h3 class="tg-profile-value text-base font-normal text-center truncate w-full mb-1">{{ profileDisplayName }}</h3>
                 <p class="text-[11px] text-zinc-500 font-medium">
                   {{ profileStatusText }}
                 </p>
@@ -2797,7 +2797,7 @@ export default {
 }
 .chat-empty-sidebar__title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tg-meta);
 }
 .chat-empty-sidebar__sub {
@@ -2820,7 +2820,7 @@ export default {
 }
 .chat-empty-main__title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tg-received-text);
 }
 .chat-empty-main__sub {
@@ -2856,7 +2856,7 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   flex-shrink: 0;
   border: 1px solid var(--tg-border);
 }
@@ -2874,7 +2874,7 @@ export default {
   background-color: transparent !important;
   color: var(--tg-meta, #8c9094) !important;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: none;
@@ -3192,7 +3192,7 @@ export default {
   color: var(--tg-accent);
   cursor: pointer;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 0 10px;
 }
 
@@ -3248,7 +3248,7 @@ export default {
 .support-request-card__eyebrow {
   color: var(--tg-meta);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -3256,7 +3256,7 @@ export default {
 .support-request-card__status,
 .support-request-card__code {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .support-request-card__code {
@@ -3267,7 +3267,7 @@ export default {
 
 .support-request-card__title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .support-request-card__meta,
@@ -3312,7 +3312,7 @@ export default {
 .support-request-field label {
   color: var(--tg-received-text);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .support-request-field p {
@@ -3365,7 +3365,7 @@ export default {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 0 14px;
 }
 
@@ -3423,7 +3423,7 @@ export default {
 .booking-picker-header h3 {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tg-received-text);
 }
 
@@ -3700,20 +3700,20 @@ export default {
   color: var(--tg-accent) !important;
   font-family: monospace !important;
   font-size: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 
 .tg-related-booking-status {
   flex: 0 0 auto !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
 }
 
 .tg-related-booking-venue,
 .tg-related-booking-price {
   color: var(--tg-received-text) !important;
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
 }
 
 .tg-related-booking-meta {
@@ -3735,7 +3735,7 @@ export default {
   color: var(--tg-accent) !important;
   cursor: pointer !important;
   font-size: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   padding: 0 10px !important;
   transition: background-color 150ms ease, color 150ms ease !important;
 }
@@ -3837,13 +3837,13 @@ export default {
 .tg-profile-title {
   color: var(--tg-received-text) !important;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .tg-profile-section-title {
   color: var(--tg-meta) !important;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px !important;
@@ -3922,7 +3922,7 @@ export default {
   background-color: var(--tg-accent) !important;
   color: var(--admin-primary-text, #ffffff) !important;
   font-size: 24px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -4009,7 +4009,7 @@ export default {
   padding: 0 14px !important;
   color: var(--tg-received-text) !important;
   font-size: 15px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 
 .tg-media-back {
@@ -4043,7 +4043,7 @@ export default {
   padding: 10px 10px 8px !important;
   color: var(--tg-received-text) !important;
   font-size: 13px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   text-transform: capitalize !important;
 }
 
@@ -4117,7 +4117,7 @@ export default {
 
 .tg-lightbox-count {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .tg-lightbox-close {
@@ -4165,7 +4165,7 @@ export default {
 
 .tg-lightbox-info-title {
   color: var(--tg-lightbox-control-text);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .tg-lightbox-info-meta {

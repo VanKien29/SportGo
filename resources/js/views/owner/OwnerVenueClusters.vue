@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="venue-clusters-container">
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
@@ -372,7 +372,7 @@
                             <div class="inspector-fields">
                                 <div class="field-row">
                                     <span class="label">LOẠI:</span>
-                                    <span class="value font-bold uppercase">{{ selectedDecoration.type }}</span>
+                                    <span class="value font-normal uppercase">{{ selectedDecoration.type }}</span>
                                 </div>
                                 <div class="field-group">
                                     <label>Tên nhãn hiển thị:</label>
@@ -1416,7 +1416,7 @@
                                         :disabled="uploadingTempImage"
                                     />
                                     <AppIcon name="plus" size="24" style="color: #64748b; margin-bottom: 8px;" />
-                                    <span style="font-size: 13px; font-weight: 600; color: #475569;">
+                                    <span style="font-size: 13px; font-weight: 400; color: #475569;">
                                         {{ uploadingTempImage ? "Đang tải ảnh..." : "Chọn ảnh hoặc kéo thả vào đây" }}
                                     </span>
                                     <span style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Hỗ trợ JPG, PNG, WEBP tối đa 5MB</span>
@@ -5024,7 +5024,7 @@ export default {
 </script>
 
 <style scoped>
-h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
+h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     font-weight: 500 !important;
 }
 
@@ -5060,7 +5060,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     margin: 0 0 4px;
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: uppercase;
 }
@@ -5084,7 +5084,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: block;
     color: var(--admin-faint, #64748b);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: uppercase;
 }
@@ -5116,7 +5116,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .owner-stat-card span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
@@ -5165,7 +5165,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: var(--admin-surface-muted, #f4f8f5);
     color: var(--admin-text, #0f172a);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .clusters-list {
@@ -5218,7 +5218,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border-radius: 8px;
     background: #16351f;
     color: #ffffff;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .cluster-info {
@@ -5231,7 +5231,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .cluster-name {
     color: var(--admin-text, #0f172a);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.3;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5305,7 +5305,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     gap: 8px;
     color: var(--admin-faint, #64748b);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .status-pill {
@@ -5318,7 +5318,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: #166534;
     border: 1px solid #bbf7d0;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .status-pill.status-locked,
@@ -5393,7 +5393,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     place-items: center;
     color: var(--admin-faint, #64748b);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .cluster-quick-grid {
@@ -5425,7 +5425,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .quick-stat-label {
     color: var(--admin-faint, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
@@ -5459,7 +5459,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: #16a34a;
     color: #ffffff;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* Tabs */
@@ -5484,7 +5484,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: transparent;
     color: var(--admin-muted, #475569);
     font-size: 13.5px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
     transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
@@ -5510,7 +5510,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     padding: 0 5px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     background: #dc2626;
     color: #ffffff;
 }
@@ -6172,7 +6172,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: #f8fafc;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     transition: all 0.15s ease;
 }
 .btn-zoom.never-hover-class-placeholder {
@@ -6190,7 +6190,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 .zoom-level {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     color: #cbd5e1;
     min-width: 44px;
     text-align: center;
@@ -6402,7 +6402,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    font-weight: bold;
+    font-weight: 400;
     line-height: 1;
     transition: background 0.15s ease;
 }
@@ -7040,7 +7040,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border: 1px solid var(--admin-border, #334155);
     border-radius: 8px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #f1f5f9);
     cursor: pointer;
     text-align: center;
@@ -8101,7 +8101,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 18px;
     line-height: 1.25;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
 }
 
 .info-summary-grid {
@@ -8145,7 +8145,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 15px;
     line-height: 1.35;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
     overflow-wrap: anywhere;
 }
 
@@ -8170,7 +8170,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 16px;
     line-height: 1.3;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
 }
 
 .location-content-grid {
@@ -8206,7 +8206,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     min-width: 0;
     color: var(--admin-faint, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .location-overview-card .location-value {
@@ -8214,7 +8214,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 13.5px;
     line-height: 1.45;
-    font-weight: 600;
+    font-weight: 400;
     overflow-wrap: anywhere;
 }
 
@@ -8543,7 +8543,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 
 .cluster-restriction-banner strong {
     display: block;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .cluster-restriction-banner p {

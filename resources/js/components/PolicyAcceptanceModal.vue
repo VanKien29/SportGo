@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="policy-backdrop">
     <section class="policy-modal" role="dialog" aria-modal="true" aria-labelledby="policy-title">
       <header class="policy-header">
@@ -143,7 +143,7 @@ export default {
 .eyebrow {
   color: #15803d;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -151,7 +151,7 @@ export default {
   margin: 0;
   color: #0f172a;
   font-size: 24px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .policy-header p,
@@ -165,7 +165,7 @@ export default {
 
 .policy-summary {
   color: #334155;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .policy-list {
@@ -195,7 +195,7 @@ export default {
   margin: 0;
   color: #111827;
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .policy-item-head span {
@@ -205,7 +205,7 @@ export default {
   background: #dcfce7;
   color: #166534;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .policy-content {
@@ -225,7 +225,7 @@ export default {
   background: #fefce8;
   color: #92400e;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -235,7 +235,7 @@ export default {
   gap: 10px;
   color: #0f172a;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .agree-row.disabled {
@@ -258,7 +258,7 @@ export default {
   background: #fef2f2;
   color: #b91c1c;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .accept-btn {
@@ -266,7 +266,7 @@ export default {
   border-radius: 8px;
   background: #16a34a;
   color: #fff;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .accept-btn:disabled {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="matrix-wrapper">
     <div v-if="loading" class="empty-state">Đang tải cấu hình phân quyền...</div>
     <div v-else-if="error" class="alert error">{{ error }}</div>
@@ -241,7 +241,7 @@ th.sticky-col {
 
 .perm-info span:first-child {
   color: #334155;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 14px;
 }
 
@@ -337,7 +337,7 @@ input:checked + .slider:before {
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 

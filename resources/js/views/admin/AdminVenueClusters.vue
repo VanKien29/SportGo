@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="avc-page">
         <!-- ── Loading ── -->
         <div v-if="loading" class="state-box card animate-fade-in">
@@ -312,7 +312,7 @@ export default {
 }
 .empty-msg {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .spinner {
     width: 32px;
@@ -409,7 +409,7 @@ export default {
 
 .cluster-name {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #0f172a);
     transition: opacity 0.2s ease;
 }
@@ -428,7 +428,7 @@ export default {
 }
 
 .cluster-slug {
-    font-weight: 600;
+    font-weight: 400;
     flex-shrink: 0;
 }
 
@@ -448,7 +448,7 @@ export default {
     gap: 4px;
     color: var(--admin-muted, rgba(15, 23, 42, 0.6));
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -474,7 +474,7 @@ export default {
 
 .owner-name {
     font-size: 12.5px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #0f172a);
     white-space: nowrap;
     overflow: hidden;
@@ -503,7 +503,7 @@ export default {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     background: transparent !important;
     padding: 0 !important;
@@ -571,7 +571,7 @@ export default {
 .btn {
     padding: 8px 16px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     cursor: pointer;
     border: 1px solid transparent;

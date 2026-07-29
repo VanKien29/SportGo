@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="admin-page">
     <PlatformFeeSubnav v-if="isPlatformFeeScope" />
 
@@ -514,7 +514,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -539,7 +539,7 @@ tbody tr.never-hover-class-placeholder {
 
 .yes-text {
   color: var(--admin-success-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .rule-count {
@@ -550,7 +550,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: 999px;
   background: var(--admin-surface-muted);
   color: var(--admin-muted);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .actions-col {
@@ -602,7 +602,7 @@ tbody tr.never-hover-class-placeholder {
 
 .alert {
   border-radius: var(--admin-radius);
-  font-weight: 700;
+  font-weight: 400;
   padding: 11px 13px;
 }
 
@@ -627,7 +627,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: var(--admin-radius);
   cursor: pointer;
   font: inherit;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .btn {
@@ -767,7 +767,7 @@ label {
   flex-direction: column;
   gap: 6px;
   color: var(--admin-muted);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .check-row {

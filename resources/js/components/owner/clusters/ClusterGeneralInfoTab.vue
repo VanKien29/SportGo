@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cluster-profile-surface">
     <!-- Section 1: Thông tin chung & Liên hệ -->
     <div class="profile-section-card">
@@ -323,7 +323,7 @@ export default {
 .tab-section-header h2 {
   margin: 0;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
 }
 

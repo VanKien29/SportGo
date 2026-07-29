@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="admin-users">
     <div class="action-bar-layout">
       <nav class="tabs" aria-label="Lọc nhanh tài khoản">
@@ -478,7 +478,7 @@ export default {
   color: var(--admin-text);
   border-radius: var(--admin-radius);
   padding: 10px 14px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -501,7 +501,7 @@ export default {
 label {
   display: grid;
   gap: 6px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -563,7 +563,7 @@ td {
 th {
   background: var(--admin-surface);
   color: var(--admin-muted);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 td:first-child {
@@ -589,7 +589,7 @@ td:first-child {
 .icon-btn {
   border-radius: var(--admin-radius);
   border: 1px solid transparent;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   text-decoration: none;
 }
@@ -663,7 +663,7 @@ td:first-child {
 .alert {
   padding: 12px;
   border-radius: var(--admin-radius);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .error {
@@ -738,7 +738,7 @@ td:first-child {
   margin-bottom: 10px;
   color: var(--admin-text);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -766,7 +766,7 @@ td:first-child {
 
 .policy-toggle-label {
   color: var(--admin-text);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .policy-value.tone-warning {
@@ -891,7 +891,7 @@ td:first-child {
   padding: 3px 8px;
   background: var(--admin-danger-soft);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .badge-report-icon {

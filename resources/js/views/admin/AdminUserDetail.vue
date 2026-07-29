@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="user-detail">
     <div class="back-action-bar">
       <BackButton to="/admin/users" />
@@ -871,12 +871,12 @@ export default {
 .page-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
 .page-head h2 { margin: 6px 0; }
 .page-head p, .muted, small { margin: 0; color: #64748b; }
-.back-link { color: #15803d; font-weight: 800; text-decoration: none; }
+.back-link { color: #15803d; font-weight: 400; text-decoration: none; }
 
 .detail-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
 
 .sidebar-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; position: sticky; top: 16px; }
-.avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #16a34a; color: #fff; font-weight: 900; font-size: 22px; }
+.avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #16a34a; color: #fff; font-weight: 400; font-size: 22px; }
 .sidebar-name { font-size: 16px; }
 .sidebar-meta { font-size: 13px; color: #64748b; }
 .sidebar-stats { width: 100%; display: grid; gap: 10px; }
@@ -892,7 +892,7 @@ export default {
 .panel h3, .panel h4 { margin: 0; }
 
 .tabs, .metric-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.tabs button { border: 1px solid #dbe3ef; background: #fff; border-radius: 8px; padding: 10px 14px; font-weight: 800; cursor: pointer; }
+.tabs button { border: 1px solid #dbe3ef; background: #fff; border-radius: 8px; padding: 10px 14px; font-weight: 400; cursor: pointer; }
 .tabs button.active { background: #dcfce7; border-color: #22c55e; color: #166534; }
 
 .info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -900,7 +900,7 @@ export default {
 :deep(.info-item span), .metric span { color: #64748b; font-size: 13px; }
 .metric strong { font-size: 20px; }
 
-.notice { margin: 0; padding: 12px; border-radius: 10px; background: #f0fdf4; color: #166534; font-weight: 700; }
+.notice { margin: 0; padding: 12px; border-radius: 10px; background: #f0fdf4; color: #166534; font-weight: 400; }
 .list-box { display: grid; gap: 10px; }
 .list-box article { display: grid; gap: 6px; padding: 12px; background: #f8fafc; border-radius: 10px; }
 
@@ -913,7 +913,7 @@ export default {
 .content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .media-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
-.media-more { width: 80px; height: 60px; display: grid; place-items: center; background: #e2e8f0; border-radius: 6px; font-weight: 800; color: #475569; font-size: 14px; }
+.media-more { width: 80px; height: 60px; display: grid; place-items: center; background: #e2e8f0; border-radius: 6px; font-weight: 400; color: #475569; font-size: 14px; }
 .content-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; flex-wrap: wrap; align-items: center; }
 .content-card-actions { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
 
@@ -924,13 +924,13 @@ export default {
 .timeline-icon { color: #64748b; margin-top: 2px; }
 .timeline-body { display: grid; gap: 4px; }
 .timeline-meta { font-size: 12px; color: #64748b; }
-.badge-auto { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #dbeafe; color: #1e40af; width: fit-content; }
-.badge-report { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; background: #fee2e2; color: #b91c1c; }
+.badge-auto { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 400; background: #dbeafe; color: #1e40af; width: fit-content; }
+.badge-report { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 400; background: #fee2e2; color: #b91c1c; }
 
-.btn { border: 0; border-radius: 8px; font-weight: 800; cursor: pointer; padding: 10px 14px; background: #dcfce7; color: #166534; display: inline-flex; align-items: center; justify-content: center; }
+.btn { border: 0; border-radius: 8px; font-weight: 400; cursor: pointer; padding: 10px 14px; background: #dcfce7; color: #166534; display: inline-flex; align-items: center; justify-content: center; }
 .btn.secondary { background: #f1f5f9; color: #0f172a; }
 .btn.danger { background: #fee2e2; color: #b91c1c; }
-.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; color: #334155; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 400; cursor: pointer; text-decoration: none; color: #334155; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .btn-sm.danger { border-color: #fecaca; background: #fee2e2; color: #b91c1c; }
 .btn-sm.danger.never-hover-class-placeholder { background: #fef2f2; }
 .btn-sm.icon-btn { padding: 8px; border-radius: 8px; color: #64748b; background: transparent; border-color: transparent; }
@@ -938,13 +938,13 @@ export default {
 .btn-sm.icon-btn.danger { background: transparent; border-color: transparent; color: #ef4444; }
 .btn-sm.icon-btn.danger.never-hover-class-placeholder { background: #fef2f2; color: #b91c1c; }
 
-.status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
+.status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 400; background: #e2e8f0; }
 .status.active, .status.visible, .status.published { background: #dcfce7; color: #166534; }
 .status.locked, .status.hidden { background: #fee2e2; color: #b91c1c; }
 .status.pending_verify, .status.pending, .status.draft { background: #fef3c7; color: #92400e; }
 .lock-until { display: block; color: #b91c1c; font-size: 11px; }
 
-.alert { padding: 12px; border-radius: 10px; font-weight: 700; }
+.alert { padding: 12px; border-radius: 10px; font-weight: 400; }
 .error { background: #fee2e2; color: #b91c1c; }
 .success { background: #dcfce7; color: #166534; }
 .pagination { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: #64748b; font-size: 13px; }
@@ -955,7 +955,7 @@ export default {
 .modal { width: min(640px, calc(100vw - 32px)); padding: 22px; background: #fff; border-radius: 12px; display: grid; gap: 16px; }
 .modal h3 { margin: 0; }
 .modal footer { display: flex; justify-content: flex-end; gap: 10px; }
-label { display: grid; gap: 6px; font-weight: 800; }
+label { display: grid; gap: 6px; font-weight: 400; }
 input, select, textarea { border: 1px solid #dbe3ef; border-radius: 8px; padding: 10px; font: inherit; }
 textarea { resize: vertical; }
 
@@ -988,7 +988,7 @@ textarea { resize: vertical; }
   flex-shrink: 0;
 }
 .fb-header-spacer { width: 36px; }
-.fb-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; text-align: center; flex: 1; }
+.fb-header h3 { margin: 0; font-size: 18px; font-weight: 400; color: #1e293b; text-align: center; flex: 1; }
 .fb-header-right { width: 36px; display: flex; justify-content: flex-end; }
 .fb-close-btn { 
   width: 36px; height: 36px; 
@@ -1023,10 +1023,10 @@ textarea { resize: vertical; }
 .fb-post.is-hidden .fb-media-container img { filter: grayscale(0.8) opacity(0.7); }
 
 .fb-post-header { display: flex; gap: 10px; align-items: center; }
-.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #475569; overflow: hidden; }
+.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: grid; place-items: center; font-weight: 400; font-size: 14px; color: #475569; overflow: hidden; }
 .fb-post-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .fb-post-meta { display: flex; flex-direction: column; line-height: 1.4; }
-.fb-post-meta strong { font-size: 15px; color: #1e293b; font-weight: 700; }
+.fb-post-meta strong { font-size: 15px; color: #1e293b; font-weight: 400; }
 .fb-post-meta span { font-size: 13px; color: #64748b; }
 .fb-post-text { margin: 0; font-size: 16px; line-height: 1.5; color: #1e293b; white-space: pre-wrap; }
 
@@ -1060,7 +1060,7 @@ textarea { resize: vertical; }
 
 .fb-comment-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #e2e8f0; flex-shrink: 0; }
 .fb-comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #475569; }
+.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 400; font-size: 13px; color: #475569; }
 
 .fb-comment-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .fb-bubble { background: #f1f5f9; padding: 10px 14px; border-radius: 18px; display: inline-block; position: relative; max-width: 100%; transition: all 0.2s; }
@@ -1075,7 +1075,7 @@ textarea { resize: vertical; }
 .fb-bubble-status { margin-top: 6px; font-size: 11px; padding: 2px 8px; background: #e2e8f0; border-radius: 999px; width: fit-content; }
 .fb-bubble-status.hidden { color: #b91c1c; background: #fee2e2; }
 
-.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 600; cursor: default; }
+.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 400; cursor: default; }
 .fb-comment-footer span.never-hover-class-placeholder { text-decoration: underline; cursor: pointer; }
 .fb-comment-tools { display: flex; gap: 14px; margin-left: 8px; }
 .fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; }

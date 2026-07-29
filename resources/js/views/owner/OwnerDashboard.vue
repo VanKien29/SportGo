@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="dashboard">
     <div v-if="error" class="alert error">{{ error }}</div>
 
@@ -247,7 +247,7 @@
               <tbody>
                 <tr v-for="(court, idx) in stats.court_revenues" :key="idx">
                   <td>{{ court.court_name }}</td>
-                  <td align="right" style="text-align: right; font-weight: 700; color: #111827">
+                  <td align="right" style="text-align: right; font-weight: 400; color: #111827">
                     {{ formatCurrency(court.revenue) }}
                   </td>
                 </tr>
@@ -287,8 +287,8 @@
                       {{ idx + 1 }}
                     </span>
                   </td>
-                  <td style="font-weight: 600;">{{ slot.time_slot }}</td>
-                  <td align="right" style="text-align: right; font-weight: 700;">
+                  <td style="font-weight: 400;">{{ slot.time_slot }}</td>
+                  <td align="right" style="text-align: right; font-weight: 400;">
                     {{ slot.count }} lượt
                   </td>
                 </tr>

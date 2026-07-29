@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="finance-operations">
         <header class="page-header">
             <div>
@@ -1880,7 +1880,7 @@ export default {
     background: transparent;
     padding: 10px 18px;
     color: var(--admin-muted);
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .tabs button.active {
@@ -1903,7 +1903,7 @@ export default {
     border-radius: 6px;
     background: transparent;
     color: var(--admin-muted);
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .scope-tabs button.active {
@@ -1920,14 +1920,14 @@ export default {
     margin-top: 4px;
     color: var(--admin-success-text);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .inline-warning {
     display: block;
     margin-top: 4px;
     color: var(--admin-warning);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .walk-in-note {
     display: inline-flex;
@@ -1938,7 +1938,7 @@ export default {
     background: var(--admin-success-soft);
     color: var(--admin-success-text);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .toolbar {
     flex-wrap: wrap;
@@ -1998,7 +1998,7 @@ export default {
     justify-content: center;
     gap: 7px;
     border-radius: 7px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
 }
 .primary-btn {
@@ -2082,7 +2082,7 @@ td {
 th {
     background: var(--admin-surface-muted);
     color: var(--admin-text);
-    font-weight: 800;
+    font-weight: 400;
 }
 .empty {
     padding: 28px;
@@ -2096,7 +2096,7 @@ th {
     background: var(--admin-border);
     color: var(--admin-text);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
 }
 .status-pill.pending,
@@ -2140,7 +2140,7 @@ th {
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
 }
 .policy-badge.compliant {
@@ -2202,7 +2202,7 @@ th {
 }
 .policy-detail-grid strong {
     color: var(--admin-text);
-    font-weight: 700;
+    font-weight: 400;
 }
 .policy-violation {
     display: flex;
@@ -2213,7 +2213,7 @@ th {
     border-radius: 5px;
     background: var(--admin-danger-soft);
     color: var(--admin-danger-text);
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
 }
 
@@ -2222,7 +2222,7 @@ th {
     padding: 0;
     background: transparent;
     color: var(--admin-success-text);
-    font-weight: 800;
+    font-weight: 400;
     text-decoration: underline;
     cursor: pointer;
 }
@@ -2239,7 +2239,7 @@ th {
     background: var(--admin-surface-muted);
     color: var(--admin-muted);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .pagination {
     justify-content: flex-end;
@@ -2292,7 +2292,7 @@ th {
     gap: 6px;
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .action-modal footer {
     justify-content: flex-end;
@@ -2301,7 +2301,7 @@ th {
 .eyebrow {
     color: var(--admin-muted);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
 }
 .receipt-facts {
@@ -2398,13 +2398,13 @@ th {
 .collect-summary dt {
     color: var(--admin-muted);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .collect-summary dd {
     margin: 0;
     color: var(--admin-text);
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .collect-summary .highlight dd {
     color: var(--admin-success-text);
@@ -2426,7 +2426,7 @@ th {
     background: var(--admin-surface);
     color: var(--admin-muted);
     font: inherit;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .method-row button.active {
@@ -2483,7 +2483,7 @@ th {
     gap: 6px;
     color: var(--admin-text);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .bank-transfer-review input,
 .payout-note-field textarea {
@@ -2528,7 +2528,7 @@ th {
     background: var(--admin-blue-soft);
     color: var(--admin-blue);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .spinner {
     width: 16px;
@@ -2549,7 +2549,7 @@ th {
 .inline-error {
     margin: 0;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .inline-success {
     color: var(--admin-success-text);

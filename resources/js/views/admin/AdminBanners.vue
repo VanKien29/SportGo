@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-banners-page">
     <div class="toolbar card">
       <div class="filters">
@@ -453,7 +453,7 @@ export default {
   gap: 6px;
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .field.full {
@@ -482,7 +482,7 @@ export default {
   border: 1px solid transparent;
   border-radius: var(--admin-radius);
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 400;
   transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
@@ -535,7 +535,7 @@ export default {
 .notice {
   border-radius: var(--admin-radius);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 12px 14px;
 }
 
@@ -601,7 +601,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -637,7 +637,7 @@ tbody tr.never-hover-class-placeholder {
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .banner-thumb img,
@@ -657,7 +657,7 @@ tbody tr.never-hover-class-placeholder {
 
 .banner-title {
   color: var(--admin-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .banner-main a,
@@ -700,7 +700,7 @@ tbody tr.never-hover-class-placeholder {
   gap: 12px;
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   padding: 12px 16px;
 }
 
@@ -771,7 +771,7 @@ tbody tr.never-hover-class-placeholder {
   align-items: center;
   gap: 10px;
   color: var(--admin-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 @media (max-width: 860px) {

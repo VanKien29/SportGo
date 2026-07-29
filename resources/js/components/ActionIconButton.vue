@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <button
     class="action-icon-button"
     :class="[`variant-${variant}`, `size-${size}`]"
@@ -46,7 +46,7 @@ export default {
   border: 1px solid transparent;
   border-radius: 8px;
   font: inherit;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(23, 34, 27, 0.05);
   transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="upload-box" :class="{ 'upload-box--error': visibleError }">
     <div class="upload-box__head">
       <div>
@@ -182,7 +182,7 @@ const savedFileSize = (file) => {
   margin: 0;
   color: #0f172a;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .upload-box__label span {
@@ -204,7 +204,7 @@ const savedFileSize = (file) => {
 
 .upload-box__error {
   color: #dc2626;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .upload-box__input {
@@ -223,7 +223,7 @@ const savedFileSize = (file) => {
   padding: 0 12px;
   color: #0f172a;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -255,7 +255,7 @@ const savedFileSize = (file) => {
 .upload-box__saved p,
 .upload-box__selected p {
   margin: 0 0 6px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .upload-box__saved ul,
@@ -305,7 +305,7 @@ const savedFileSize = (file) => {
   background: transparent;
   padding: 0;
   color: #0369a1;
-  font-weight: 800;
+  font-weight: 400;
   text-decoration: none;
   cursor: pointer;
 }
@@ -320,7 +320,7 @@ const savedFileSize = (file) => {
   background: transparent;
   color: #dc2626;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div v-if="show" class="modal-backdrop" @click.self="close">
     <div class="likes-modal">
       <header class="likes-header">
@@ -141,7 +141,7 @@ export default {
 .likes-header h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1e293b;
 }
 .close-btn {
@@ -182,7 +182,7 @@ export default {
   background: #e2e8f0;
   display: grid;
   place-items: center;
-  font-weight: 700;
+  font-weight: 400;
   color: #475569;
   font-size: 14px;
   overflow: hidden;

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div
         class="mini-cal"
         :class="{
@@ -443,7 +443,7 @@ export default {
 .mini-cal__year {
     color: var(--admin-muted, #64748b);
     font-size: 13px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .mini-cal__weekdays {

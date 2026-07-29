@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="refund-page">
     <header class="page-head">
       <div>
@@ -391,7 +391,7 @@ export default {
   color: #15803d;
   font: inherit;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -457,7 +457,7 @@ td small {
   padding: 4px 9px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -565,12 +565,12 @@ td small {
 .detail-grid dt {
   margin-bottom: 4px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .detail-grid dd {
   margin: 0;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .policy-band,
@@ -648,7 +648,7 @@ td small {
   min-height: 38px;
   padding: 0 15px;
   border-radius: 7px;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -745,7 +745,7 @@ td small {
     content: attr(data-label);
     color: #536257;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
   }
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="ledger-page">
         <div class="pf-header-bar">
             <PlatformFeeSubnav />
@@ -919,7 +919,7 @@ p {
 .date-filter span {
     color: #475569;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 input,
 select,
@@ -950,7 +950,7 @@ textarea {
 .check-row {
     flex-direction: row;
     align-items: center;
-    font-weight: 800;
+    font-weight: 400;
     color: #334155;
 }
 .check-row input {
@@ -1083,14 +1083,14 @@ th:nth-child(8) { width: 62px; }
 }
 .overdue {
     color: #b91c1c;
-    font-weight: 900;
+    font-weight: 400;
 }
 .period-note {
     display: block;
     margin-top: 4px;
     color: #64748b;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .period-note.expiring_soon { color: #92400e; }
 .period-note.overdue { color: #b91c1c; }
@@ -1176,7 +1176,7 @@ th:nth-child(8) { width: 62px; }
     background: transparent;
     color: #334155;
     font: inherit;
-    font-weight: 750;
+    font-weight: 400;
     text-align: left;
     cursor: pointer;
 }
@@ -1197,7 +1197,7 @@ th:nth-child(8) { width: 62px; }
     border: 0;
     border-radius: 8px;
     padding: 10px 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
 }
 .btn.primary {
@@ -1220,7 +1220,7 @@ th:nth-child(8) { width: 62px; }
 .toast {
     border-radius: 8px;
     padding: 11px 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .toast.success {
     background: #ecfdf5;
@@ -1235,7 +1235,7 @@ th:nth-child(8) { width: 62px; }
     border-radius: 8px;
     padding: 10px 12px;
     margin: 10px 18px 0;
-    font-weight: 800;
+    font-weight: 400;
 }
 .alert.warning {
     background: #fef3c7;
@@ -1274,7 +1274,7 @@ th:nth-child(8) { width: 62px; }
 .modal-head button {
     border: 0;
     background: transparent;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .form-grid {
@@ -1290,7 +1290,7 @@ label {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-weight: 800;
+    font-weight: 400;
     color: #334155;
 }
 .preview-grid {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="partner-document-page">
     <header class="page-head">
       <button class="btn ghost" type="button" @click="goBack">
@@ -484,10 +484,10 @@ function formatDate(value) {
 <style scoped>
 .partner-document-page { display: grid; gap: 16px; max-width: 1440px; margin: 0 auto; }
 .page-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
-.title-block p { margin: 0 0 4px; color: #047857; font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.title-block p { margin: 0 0 4px; color: #047857; font-size: 11px; font-weight: 400; letter-spacing: .1em; text-transform: uppercase; }
 .title-block h2 { margin: 0; color: var(--admin-text, #0f172a); font-size: 23px; }
 .notice, .state-card, .panel { border: 1px solid var(--admin-border, #e5e7eb); border-radius: 8px; background: var(--admin-surface, #fff); }
-.notice, .state-card { padding: 14px 16px; font-weight: 750; }
+.notice, .state-card { padding: 14px 16px; font-weight: 400; }
 .notice.success { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
 .notice.error, .state-card.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
 .document-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
@@ -497,35 +497,35 @@ function formatDate(value) {
 .panel p { margin: 0 0 12px; color: #64748b; font-size: 13px; line-height: 1.55; }
 dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 10px; margin: 0; font-size: 13px; }
 dt { color: #64748b; }
-dd { margin: 0; color: #0f172a; font-weight: 800; overflow-wrap: anywhere; }
+dd { margin: 0; color: #0f172a; font-weight: 400; overflow-wrap: anywhere; }
 .signature-list { display: grid; gap: 8px; }
 .signature-item { border: 1px solid #facc15; background: #fefce8; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; gap: 10px; color: #854d0e; font-size: 13px; }
 .signature-item.signed { border-color: #86efac; background: #f0fdf4; color: #166534; }
 .otp-log-list { display: grid; gap: 10px; }
 .otp-log-item { border: 1px solid #dbe7df; background: #f8fbf8; border-radius: 8px; padding: 12px; }
 .otp-log-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px; color: #0f172a; font-size: 13px; }
-.otp-log-head span { border-radius: 999px; background: #e8f5eb; color: #166534; padding: 3px 8px; font-size: 11px; font-weight: 800; }
+.otp-log-head span { border-radius: 999px; background: #e8f5eb; color: #166534; padding: 3px 8px; font-size: 11px; font-weight: 400; }
 .otp-log-grid { grid-template-columns: 96px minmax(0, 1fr); font-size: 12px; }
-.otp-log-grid dd { font-weight: 750; }
-.confirm-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 0; color: #334155; font-size: 13px; font-weight: 750; line-height: 1.45; }
+.otp-log-grid dd { font-weight: 400; }
+.confirm-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 0; color: #334155; font-size: 13px; font-weight: 400; line-height: 1.45; }
 .confirm-line input { margin-top: 2px; width: 16px; height: 16px; accent-color: #0f172a; }
 .sign-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-.sign-steps span { border: 1px solid #dbe7df; border-radius: 999px; background: #f8fafc; color: #64748b; padding: 5px 9px; font-size: 12px; font-weight: 800; }
+.sign-steps span { border: 1px solid #dbe7df; border-radius: 999px; background: #f8fafc; color: #64748b; padding: 5px 9px; font-size: 12px; font-weight: 400; }
 .sign-steps span.done { border-color: #86efac; background: #f0fdf4; color: #166534; }
 .canvas-wrap { position: relative; border: 1px dashed #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; }
 .canvas-wrap.locked { background: #f8fafc; opacity: .78; }
 .canvas-wrap.locked canvas { cursor: not-allowed; }
 canvas { display: block; width: 100%; height: 190px; touch-action: none; cursor: crosshair; }
-.canvas-wrap span { position: absolute; inset: 0; display: grid; place-items: center; color: #cbd5e1; font-weight: 800; pointer-events: none; }
+.canvas-wrap span { position: absolute; inset: 0; display: grid; place-items: center; color: #cbd5e1; font-weight: 400; pointer-events: none; }
 .otp-box { display: grid; gap: 8px; margin-top: 12px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; padding: 12px; }
-.otp-box label { color: #14532d; font-size: 13px; font-weight: 850; }
-.otp-box input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid #86efac; border-radius: 8px; background: #fff; color: #0f172a; padding: 0 12px; font: inherit; font-size: 18px; font-weight: 800; letter-spacing: .24em; }
+.otp-box label { color: #14532d; font-size: 13px; font-weight: 400; }
+.otp-box input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid #86efac; border-radius: 8px; background: #fff; color: #0f172a; padding: 0 12px; font: inherit; font-size: 18px; font-weight: 400; letter-spacing: .24em; }
 .otp-box input:focus { border-color: #16a34a; outline: 3px solid rgba(34, 197, 94, .16); }
 .otp-box input[aria-invalid="true"] { border-color: #ef4444; }
 .otp-box small { color: #475569; font-size: 12px; line-height: 1.45; }
-.field-error { margin: 10px 0 0 !important; color: #b91c1c !important; font-weight: 750; }
+.field-error { margin: 10px 0 0 !important; color: #b91c1c !important; font-weight: 400; }
 .sign-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 0 13px; font-weight: 800; border: 1px solid transparent; cursor: pointer; text-decoration: none; }
+.btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; padding: 0 13px; font-weight: 400; border: 1px solid transparent; cursor: pointer; text-decoration: none; }
 .btn.primary { background: #0f172a; color: #fff; }
 .btn.ghost { background: #fff; border-color: #e5e7eb; color: #334155; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }

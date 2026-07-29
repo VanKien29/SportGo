@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="finance-page">
         <!-- Floating Add Button -->
         <div v-if="activeTab === 'withdrawals' && withdrawableWallets.length && bankAccounts.length" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
@@ -841,7 +841,7 @@ td small {
 }
 
 .money {
-    font-weight: 800;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -859,7 +859,7 @@ td small {
 }
 
 .code {
-    font-weight: 800;
+    font-weight: 400;
     color: #216b34;
 }
 
@@ -884,7 +884,7 @@ td small {
     padding: 4px 9px;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -1007,7 +1007,7 @@ td small {
     min-height: 38px;
     padding: 0 15px;
     border-radius: 7px;
-    font-weight: 750;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -1116,7 +1116,7 @@ button:disabled {
         content: attr(data-label);
         color: #536257;
         font-size: 11px;
-        font-weight: 800;
+        font-weight: 400;
         text-transform: uppercase;
     }
 

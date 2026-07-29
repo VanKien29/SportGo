@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="fee-page">
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -665,7 +665,7 @@ export default {
 
 .advance-copy small b {
   color: var(--admin-text);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .payment-attention.due-soon {
@@ -681,7 +681,7 @@ export default {
   flex: 0 0 27px;
   border: 2px solid currentColor;
   border-radius: 50%;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .overdue-payment-btn,
@@ -774,7 +774,7 @@ export default {
   margin: 0 0 6px;
   color: var(--admin-primary);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: .11em;
 }
 
@@ -925,7 +925,7 @@ export default {
 .bank-card dd {
   margin: 0;
   color: var(--admin-text);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .table-card {

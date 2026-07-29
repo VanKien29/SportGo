@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="owner-counter-page">
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
@@ -5965,7 +5965,7 @@ export default {
     margin-top: 0px;
     color: var(--admin-text, #16231a);
     font-size: 18px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .list-toolbar p {
@@ -6000,7 +6000,7 @@ export default {
     background: transparent;
     color: #5d6d63;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -6184,7 +6184,7 @@ export default {
     background: #f2f7ef;
     color: #526458;
     font-size: 11px;
-    font-weight: 850;
+    font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -6207,7 +6207,7 @@ export default {
     margin-top: 5px;
     color: #203428;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -6237,7 +6237,7 @@ export default {
     color: #15803d;
     font-size: 11px;
     font-style: normal;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -6277,13 +6277,13 @@ export default {
 .occurrence-head strong {
     color: #16231a;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .occurrence-head span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .occurrence-list {
@@ -6325,7 +6325,7 @@ export default {
 .occurrence-list strong {
     color: #1f3326;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .occurrence-list small {
@@ -6415,7 +6415,7 @@ export default {
     background: #ecfdf5;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -6493,14 +6493,14 @@ export default {
 .recurring-group-card span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .recurring-group-card strong {
     overflow-wrap: anywhere;
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .recurring-group-card strong.paid {
@@ -6519,7 +6519,7 @@ export default {
     border-radius: 999px;
     background: #e8f7ec;
     color: #0f7a31 !important;
-    font-weight: 850 !important;
+    font-weight: 400 !important;
 }
 
 .group-actions {
@@ -6656,13 +6656,13 @@ export default {
 .detail-hero span:not(.status-badge) {
     color: #607267;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .detail-hero strong {
     color: #16231a;
     font-size: 15px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .detail-hero small {
@@ -6740,14 +6740,14 @@ export default {
 .schedule-summary span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .schedule-summary strong {
     overflow-wrap: anywhere;
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .recurring-slot-matrix {
@@ -6763,7 +6763,7 @@ export default {
     margin: 0;
     color: #16231a;
     font-size: 17px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .panel-head p {
@@ -6884,7 +6884,7 @@ export default {
 .date-range-separator {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -6900,7 +6900,7 @@ export default {
     color: #31443a;
     font: inherit;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -6921,7 +6921,7 @@ export default {
     border-radius: 8px;
     background: #fff;
     color: #16231a;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .counter-date-range {
@@ -7025,13 +7025,13 @@ export default {
 .readonly-field span {
     color: #607267;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .readonly-field strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .booking-picker {
@@ -7072,32 +7072,32 @@ export default {
 .selection-help span {
     color: #607267;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .selection-help strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .selection-help small {
     color: #607267;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 400;
     line-height: 1.35;
 }
 
 .duration-pill span {
     color: #607267;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .duration-pill strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .duration-pill.active {
@@ -7114,7 +7114,7 @@ label span,
 .summary-list dt {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 input,
@@ -7130,7 +7130,7 @@ input.invalid {
 .field-error {
     color: #b91c1c;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -7141,7 +7141,7 @@ input.invalid {
     margin: 14px 0;
     color: #475b4d;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .legend span {
@@ -7216,7 +7216,7 @@ input.invalid {
     margin: 0 0 12px;
     color: #991b1b;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .time-board {
@@ -7243,13 +7243,13 @@ input.invalid {
 .selected-court-strip span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .selected-court-strip strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .tabs-and-actions {
@@ -7295,7 +7295,7 @@ input.invalid {
     background: #fff;
     color: #24362a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     text-decoration: none;
 }
 
@@ -7335,7 +7335,7 @@ input.invalid {
     background: transparent;
     color: #475b4d;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -7355,7 +7355,7 @@ input.invalid {
     border-radius: 8px;
     background: #fff;
     color: #344238;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .period-tabs button.active {
@@ -7366,7 +7366,7 @@ input.invalid {
 
 .period-tabs span {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     opacity: 0.8;
 }
 
@@ -7392,7 +7392,7 @@ input.invalid {
     background: #f2f7ef;
     color: #334238;
     font-size: 11px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .matrix-court {
@@ -7406,13 +7406,13 @@ input.invalid {
 .matrix-court strong {
     color: #16231a;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .matrix-court span {
     color: #607267;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .sticky-col {
@@ -7542,7 +7542,7 @@ input.invalid {
     border: 0;
     background: transparent;
     color: #0f7a31;
-    font-weight: 850;
+    font-weight: 400;
     text-align: right;
     cursor: pointer;
 }
@@ -7572,14 +7572,14 @@ input.invalid {
 .modal-head span {
     color: #0f7a31;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .modal-head h2 {
     margin: 4px 0 0;
     color: #16231a;
     font-size: 20px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .conflict-help {
@@ -7614,7 +7614,7 @@ input.invalid {
 .conflict-list strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .conflict-list span,
@@ -7655,7 +7655,7 @@ input.invalid {
     padding: 9px 16px;
     border-radius: 8px;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.25;
     cursor: pointer;
 }
@@ -7684,7 +7684,7 @@ input.invalid {
 .confirm-reason-field span {
     color: #334155;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .confirm-reason-field textarea {
@@ -7834,7 +7834,7 @@ input.invalid {
     padding: 9px 14px;
     font: inherit;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -7899,13 +7899,13 @@ input.invalid {
 .counter-bottom-bar strong {
     color: #14532d;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .counter-bottom-bar span {
     color: #475569;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .calendar-range-field {
@@ -7917,7 +7917,7 @@ input.invalid {
 .calendar-range-field > span {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 .schedule-filters .mini-cal,
@@ -7942,7 +7942,7 @@ input.invalid {
 .side-section > label > span {
     color: #526458;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .side-section > label > input {
@@ -7975,7 +7975,7 @@ input.invalid {
     padding: 9px 10px;
     border-radius: 8px;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.25;
     white-space: normal;
 }
@@ -8038,7 +8038,7 @@ input.invalid {
 .summary-list dt {
     color: #607267;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .summary-list dd {
@@ -8046,7 +8046,7 @@ input.invalid {
     max-width: none;
     margin: 0;
     color: #16231a;
-    font-weight: 800;
+    font-weight: 400;
     text-align: right;
     overflow-wrap: anywhere;
 }
@@ -8081,7 +8081,7 @@ input.invalid {
 .occupied-detail .summary-list dt {
     color: #6b7d70;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8102,7 +8102,7 @@ input.invalid {
     border: 1px solid transparent;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.15;
     white-space: nowrap;
 }
@@ -8217,7 +8217,7 @@ input.invalid {
     margin-top: 4px;
     color: #607267;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8228,7 +8228,7 @@ input.invalid {
     background: #f7fbf5;
     color: #475b4d;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .recurring-payment {
@@ -8273,7 +8273,7 @@ input.invalid {
     padding: 10px 12px;
     background: var(--admin-surface, #fff);
     color: var(--admin-text, #101c15);
-    font-weight: 720;
+    font-weight: 400;
 }
 
 .voucher-list {
@@ -8305,21 +8305,21 @@ input.invalid {
     display: block;
     color: var(--admin-primary-dark, #15733a);
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .voucher-list small,
 .voucher-empty {
     color: var(--admin-faint, #45564a);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .voucher-list em {
     min-width: 0;
     color: var(--admin-primary-dark, #15733a);
     font-style: normal;
-    font-weight: 900;
+    font-weight: 400;
     overflow-wrap: anywhere;
 }
 
@@ -8340,7 +8340,7 @@ input.invalid {
     background: #fff;
     color: #15803d;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8367,7 +8367,7 @@ input.invalid {
 .segmented-field > span {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 .segmented-field > div {
@@ -8387,7 +8387,7 @@ input.invalid {
     border-radius: 8px;
     background: #fff;
     color: #344238;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .segmented-field button.active {
@@ -8590,7 +8590,7 @@ input.invalid {
     display: block;
     color: #16231a;
     font-size: 15px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .weekday-planner-head span {
@@ -8598,7 +8598,7 @@ input.invalid {
     margin-top: 2px;
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .weekday-planner-actions {
@@ -8617,7 +8617,7 @@ input.invalid {
     color: #216b34;
     font: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8671,20 +8671,20 @@ input.invalid {
     background: #e8f7ec;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .weekday-plan-card strong {
     color: #132017;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
 }
 
 .weekday-plan-card small {
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8702,13 +8702,13 @@ input.invalid {
 .active-weekday-note strong {
     color: #166534;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .active-weekday-note span {
     color: #557063;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .day-grid label {
@@ -8723,7 +8723,7 @@ input.invalid {
     border-radius: 999px;
     background: #fff;
     color: #425246;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
     transition:
         border-color 0.16s ease,
@@ -8782,7 +8782,7 @@ input.invalid {
     display: block;
     color: #16231a;
     font-size: 15px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .month-day-head span {
@@ -8790,7 +8790,7 @@ input.invalid {
     margin-top: 2px;
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .month-day-actions {
@@ -8809,7 +8809,7 @@ input.invalid {
     color: #216b34;
     font: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8952,13 +8952,13 @@ input.invalid {
 .preview-head > span {
     color: #0f7a31;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .preview-box strong {
     color: #16231a;
     font-size: 18px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .preview-box span,
@@ -9013,14 +9013,14 @@ input.invalid {
 .preview-panel-head strong {
     color: #1f3326;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
 .preview-panel-head span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .preview-stat-grid {
@@ -9042,13 +9042,13 @@ input.invalid {
 .preview-stat-grid span {
     color: #607267;
     font-size: 11px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .preview-stat-grid strong {
     color: #16231a;
     font-size: 18px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .preview-stat-grid .ok strong {
@@ -9072,7 +9072,7 @@ input.invalid {
     background: #fff7ed;
     color: #9a3412;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     line-height: 1.45;
 }
 
@@ -9104,7 +9104,7 @@ input.invalid {
 .recurring-preview-list strong {
     color: #1f3326;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-preview-list small {
@@ -9120,7 +9120,7 @@ input.invalid {
     background: #eef2f7;
     color: #475569;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-preview-list .status-available {
@@ -9155,7 +9155,7 @@ input.invalid {
     background: #e8f7ec;
     color: #216b34;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .primary-btn.full {
@@ -9174,7 +9174,7 @@ input.invalid {
 
 .alert {
     padding: 13px 14px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .alert.error {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="avcd-page">
     <!-- ── Loading / Error ── -->
     <div v-if="loading" class="state-box card">
@@ -126,7 +126,7 @@
             <!-- Bản đồ vị trí cụm sân -->
             <div class="map-section" style="margin-top: 24px; border-top: 1px solid rgba(15, 23, 42, 0.06); padding-top: 20px;">
               <div class="map-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; width: 100%;">
-                <span class="info-detail-label" style="margin-bottom: 0; display: flex; align-items: center; gap: 6px; font-weight: 700; color: rgba(15, 23, 42, 0.55);">
+                <span class="info-detail-label" style="margin-bottom: 0; display: flex; align-items: center; gap: 6px; font-weight: 400; color: rgba(15, 23, 42, 0.55);">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7" />
                   </svg>
@@ -708,7 +708,7 @@
                 <div class="muted">Mô tả mới: {{ req.new_description || '—' }}</div>
                 
                 <div v-if="req.new_images && req.new_images.length > 0" style="margin-top: 10px;">
-                  <div class="muted" style="margin-bottom: 6px; font-weight: 600;">Album ảnh mới đề xuất:</div>
+                  <div class="muted" style="margin-bottom: 6px; font-weight: 400;">Album ảnh mới đề xuất:</div>
                   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <div v-for="(path, idx) in req.new_images" :key="idx" style="width: 80px; height: 60px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08);">
                       <img :src="`/storage/${path}`" style="width:100%; height:100%; object-fit:cover;" />
@@ -1867,7 +1867,7 @@ export default {
   background: transparent;
   color: var(--admin-muted, #64748b);
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
@@ -1884,7 +1884,7 @@ export default {
   background: var(--admin-primary-soft, #f0fdf4) !important;
   color: var(--admin-primary-dark, #15803d) !important;
   border-color: var(--admin-primary-soft, rgba(21, 128, 61, 0.15)) !important;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .tab-icon {
@@ -1905,7 +1905,7 @@ export default {
   background: var(--admin-danger, #dc2626);
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
   padding: 2px 7px;
   border-radius: 20px;
   min-width: 18px;
@@ -1921,7 +1921,7 @@ export default {
   width: 100%;
   justify-content: center;
   height: 38px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .avcd-main-content {
@@ -1947,7 +1947,7 @@ export default {
 .avcd-card {}
 .section-title {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
   margin: 0 0 18px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--admin-border, var(--sg-border));
@@ -1985,7 +1985,7 @@ export default {
 
 .section-title-inline {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
   margin: 0;
   color: var(--admin-text, #0f172a) !important;
 }
@@ -2039,7 +2039,7 @@ export default {
 
 .info-detail-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, rgba(15, 23, 42, 0.4));
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -2070,13 +2070,13 @@ export default {
 }
 .rating-num {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
   color: #eab308;
 }
 .rating-max {
   font-size: 12px;
   color: var(--admin-faint, rgba(15, 23, 42, 0.45));
-  font-weight: 600;
+  font-weight: 400;
 }
 .rating-count {
   font-size: 13px;
@@ -2099,7 +2099,7 @@ export default {
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-primary, #2563eb) !important;
   text-decoration: none;
   background: var(--admin-primary-soft, #eff6ff);
@@ -2115,7 +2115,7 @@ export default {
 /* Sidebar & Cards */
 .side-card-title {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--admin-text, rgba(15, 23, 42, 0.55)) !important;
@@ -2138,7 +2138,7 @@ export default {
 
 .side-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, rgba(15, 23, 42, 0.4));
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -2146,7 +2146,7 @@ export default {
 
 .side-value {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #1e293b) !important;
 }
 
@@ -2176,7 +2176,7 @@ export default {
 
 .btn-edit-link {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-primary, #2563eb);
   background: none;
   border: none;
@@ -2206,7 +2206,7 @@ export default {
   background: var(--admin-surface-muted, #f1f5f9);
   border-radius: 20px;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #334155);
   border: 1px solid var(--admin-border, rgba(15, 23, 42, 0.05));
 }
@@ -2220,7 +2220,7 @@ export default {
   border: none;
   background: none;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 400;
   cursor: pointer;
   color: var(--admin-muted, #64748b);
   padding: 0 2px;
@@ -2238,17 +2238,17 @@ export default {
 }
 .info-item { display: flex; flex-direction: column; gap: 4px; }
 .full-width { grid-column: 1 / -1; }
-.info-label { font-size: 12px; font-weight: 700; color: var(--admin-faint, rgba(15, 23, 42, 0.4)); text-transform: uppercase; letter-spacing: 0.5px; }
+.info-label { font-size: 12px; font-weight: 400; color: var(--admin-faint, rgba(15, 23, 42, 0.4)); text-transform: uppercase; letter-spacing: 0.5px; }
 .info-value { font-size: 14px; color: var(--admin-text, var(--sg-text)); }
 .muted { color: var(--admin-faint, rgba(15, 23, 42, 0.45)); font-size: 13px; }
-.lock-reason { color: var(--admin-danger, #dc2626); font-weight: 600; }
+.lock-reason { color: var(--admin-danger, #dc2626); font-weight: 400; }
 .amenity-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .amenity-chip {
   padding: 4px 10px;
   background: var(--admin-surface-muted, #f1f5f9);
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #334155);
 }
 .map-link { margin-top: 18px; }
@@ -2261,7 +2261,7 @@ export default {
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.4;
   border: 1px solid transparent;
 }
@@ -2282,7 +2282,7 @@ export default {
   padding: 9px 13px !important;
   border-radius: 6px !important;
   font-size: 14px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   line-height: 1 !important;
   box-sizing: border-box !important;
   border: 1px solid transparent !important;
@@ -2329,7 +2329,7 @@ export default {
 .lock-alert-title {
   margin: 0 0 6px !important;
   font-size: 15px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   color: #991b1b !important;
 }
 .lock-alert-reason {
@@ -2357,7 +2357,7 @@ export default {
   opacity: 0.8;
 }
 .lock-meta-val {
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 
 /* ── Fee Tab Redesign ── */
@@ -2462,7 +2462,7 @@ export default {
 }
 .fees-stat-label {
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--admin-faint, rgba(15, 23, 42, 0.45));
@@ -2470,7 +2470,7 @@ export default {
 }
 .fees-stat-value {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
   white-space: nowrap;
   overflow: hidden;
@@ -2520,7 +2520,7 @@ export default {
 .fees-card-title {
   margin: 0;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
   line-height: 1.2;
 }
@@ -2532,7 +2532,7 @@ export default {
 }
 .fees-count-badge {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   background: var(--admin-surface-muted, #0f172a);
   color: var(--admin-text, #fff);
   padding: 5px 14px;
@@ -2549,7 +2549,7 @@ export default {
   background: var(--admin-surface-muted, #f8fafc);
   border-bottom: 1px solid var(--admin-border, var(--sg-border));
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.7px;
   color: var(--admin-faint, rgba(15,23,42,0.4));
@@ -2588,7 +2588,7 @@ export default {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1e293b;
 }
 .fee-pkg-dot {
@@ -2607,7 +2607,7 @@ export default {
   gap: 4px;
   font-size: 11.5px;
   color: rgba(15, 23, 42, 0.45);
-  font-weight: 600;
+  font-weight: 400;
   padding-left: 16px;
 }
 
@@ -2620,7 +2620,7 @@ export default {
 .fee-period-text {
   font-size: 12px;
   color: #475569;
-  font-weight: 600;
+  font-weight: 400;
 }
 .fee-period-sep {
   font-size: 10px;
@@ -2636,7 +2636,7 @@ export default {
 }
 .fee-due-date {
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 400;
   color: #334155;
 }
 .fee-due-date.text-red-600 { color: #dc2626; }
@@ -2645,7 +2645,7 @@ export default {
   background: #fee2e2;
   color: #dc2626;
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 2px 6px;
   border-radius: 4px;
   text-transform: uppercase;
@@ -2656,14 +2656,14 @@ export default {
 /* Column: Amount */
 .fee-col-amount .fee-amount-num {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
 }
 
 /* Column: Paid */
 .fee-col-paid .fee-paid-num {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: #64748b;
 }
 .fee-col-paid .fee-paid-num.text-green { color: #16a34a; }
@@ -2693,7 +2693,7 @@ export default {
 .fee-progress-pct {
   font-size: 10.5px;
   color: rgba(15, 23, 42, 0.4);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 /* Column: Status */
@@ -2706,7 +2706,7 @@ export default {
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 5px 11px;
   border-radius: 8px;
   white-space: nowrap;
@@ -2731,7 +2731,7 @@ export default {
   padding: 9px 18px;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.18s;
@@ -2760,14 +2760,14 @@ export default {
 }
 .simple-table th {
   background: var(--sg-surface, #f8fafc);
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
 }
-.fw-bold { font-weight: 700; }
+.fw-bold { font-weight: 400; }
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 .mono { font-family: monospace; }
-.overdue { color: #dc2626; font-weight: 700; }
+.overdue { color: #dc2626; font-weight: 400; }
 
 /* Booking status */
 .booking-status {
@@ -2775,7 +2775,7 @@ export default {
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   background: #f1f5f9;
   color: #334155;
 }
@@ -2912,7 +2912,7 @@ export default {
 }
 
 .timeline-action-label {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
 }
 
@@ -2949,7 +2949,7 @@ export default {
 
 .reason-title {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: rgba(15, 23, 42, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2988,7 +2988,7 @@ export default {
 
 .amenities-title {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: rgba(15, 23, 42, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3002,7 +3002,7 @@ export default {
 
 .timeline-amenity-chip {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   background: #f1f5f9;
   color: #334155;
   padding: 4px 10px;
@@ -3047,7 +3047,7 @@ export default {
   display: block;
   color: #64748b;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 .workflow-block p {
@@ -3073,7 +3073,7 @@ export default {
   background: #fff;
   color: #0f172a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: default;
 }
 .workflow-chip.never-hover-class-placeholder {
@@ -3107,7 +3107,7 @@ export default {
   margin: -2px 0 16px;
   color: #64748b;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 .history-filter select {
   min-height: 38px;
@@ -3124,7 +3124,7 @@ export default {
   border: 1px solid var(--sg-border);
   background: #f8fafc;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -3141,7 +3141,7 @@ export default {
   cursor: pointer;
   padding: 6px 9px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 .request-more-actions > summary::-webkit-details-marker { display: none; }
 .request-more-actions > div {
@@ -3166,7 +3166,7 @@ export default {
   cursor: pointer;
   padding: 8px 9px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   text-align: left;
 }
 .request-more-actions button:hover { background: #f8fafc; }
@@ -3208,7 +3208,7 @@ export default {
   color: #166534;
   border: 1px solid #bbf7d0;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 .request-summary-grid,
@@ -3234,7 +3234,7 @@ export default {
   display: block;
   color: #64748b;
   font-size: 11.5px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 .request-summary-grid strong,
@@ -3265,7 +3265,7 @@ export default {
   min-height: 30px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 .delta-label { padding: 0 10px; }
 .delta-add { background: #dcfce7; color: #166534; }
@@ -3280,14 +3280,14 @@ export default {
 .delta-item small {
   color: #64748b;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
 }
 .map-action-row {
   margin: 8px 0;
 }
 .map-action-row a {
   color: #166534;
-  font-weight: 800;
+  font-weight: 400;
   text-decoration: none;
 }
 .approval-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
@@ -3319,7 +3319,7 @@ export default {
   padding: 18px 24px;
   border-bottom: 1px solid var(--sg-border);
 }
-.modal-header h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.modal-header h3 { margin: 0; font-size: 18px; font-weight: 400; }
 .btn-close {
   background: none;
   border: none;
@@ -3352,7 +3352,7 @@ export default {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 .form-control {
@@ -3388,7 +3388,7 @@ export default {
   border-radius: 999px;
   background: #eef2ff;
   color: #3730a3;
-  font-weight: 700;
+  font-weight: 400;
   text-decoration: none;
   cursor: pointer;
   appearance: none;
@@ -3408,7 +3408,7 @@ export default {
   background: #fff;
   color: #0f172a;
   border-radius: 8px;
-  font-weight: 800;
+  font-weight: 400;
 }
 .required { color: #ef4444; }
 .alert-error {
@@ -3418,7 +3418,7 @@ export default {
   border: 1px solid var(--admin-border-soft, #fecaca);
   border-radius: 8px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 /* Global alert */
@@ -3429,7 +3429,7 @@ export default {
   padding: 14px 20px;
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   z-index: 999;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
 }
@@ -3518,7 +3518,7 @@ export default {
   background: #f59e0b;
   color: #fff;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   margin-left: 5px;
 }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cluster-location-surface">
     <div class="tab-section-header">
       <div>
@@ -143,7 +143,7 @@ export default {
 .tab-section-header h2 {
   margin: 0;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
 }
 

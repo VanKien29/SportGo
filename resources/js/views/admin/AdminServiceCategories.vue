@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="categories-container animate-fade-in">
     <!-- Alert Thông báo -->
     <div v-if="error" class="alert error animate-slide-in" style="margin-bottom: 20px;">
@@ -28,7 +28,7 @@
       <SaaSTable v-else :columns="columns" :data="filteredCategories" clickable @row-click="row => openFormModal(row)">
         <template #name="{ row }">
           <div class="name-col-cell" style="display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-weight: 600; color: var(--admin-text, #1e293b);">{{ row.name }}</span>
+            <span style="font-weight: 400; color: var(--admin-text, #1e293b);">{{ row.name }}</span>
             <span v-if="row.description" style="font-size: 12px; color: var(--admin-muted, #64748b); line-height: 1.4;">{{ row.description }}</span>
           </div>
         </template>
@@ -347,7 +347,7 @@ export default {
 
 .badge {
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 4px 10px;
   border-radius: 4px;
   display: inline-block;
@@ -475,7 +475,7 @@ export default {
 .custom-select-option.active {
     background: rgba(15, 23, 42, 0.05) !important;
     color: #0f172a !important;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* Status Badge */
@@ -533,7 +533,7 @@ export default {
     max-width: 0;
     opacity: 0;
     margin-left: 0;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;

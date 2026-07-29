@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="complaints-page">
     <div v-if="success" class="notice success">{{ success }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -92,7 +92,7 @@
                     </div>
                   </td>
                   <td style="padding: 12px 16px;">
-                    <span class="status-badge" :class="'status-' + (complaint.status === 'resolved' ? 'success' : (complaint.status === 'processing' ? 'info' : 'warning'))" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;" :style="complaint.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (complaint.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
+                    <span class="status-badge" :class="'status-' + (complaint.status === 'resolved' ? 'success' : (complaint.status === 'processing' ? 'info' : 'warning'))" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="complaint.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (complaint.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
                       {{ statusLabel(complaint.status) }}
                     </span>
                   </td>
@@ -126,7 +126,7 @@
                 <AppIcon name="arrowLeft" size="24" />
               </button>
               <div>
-                <h1 class="page-title" style="margin: 0; font-size: 20px; font-weight: 700;">Chi tiết khiếu nại</h1>
+                <h1 class="page-title" style="margin: 0; font-size: 20px; font-weight: 400;">Chi tiết khiếu nại</h1>
                 <p class="subtitle" style="margin: 0; color: #64748b; font-size: 14px;">
                   Mã khiếu nại: <strong>{{ shortId(selected.id) }}</strong> ·
                   Tạo lúc: {{ formatDateTime(selected.created_at) }}
@@ -161,7 +161,7 @@
                 <h3 style="margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Thông tin Booking liên quan</h3>
                 <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
                   <span class="label" style="color: #64748b;">Mã Booking:</span>
-                  <span class="value" style="font-weight: 600;">{{ selected.booking_detail.booking_code }}</span>
+                  <span class="value" style="font-weight: 400;">{{ selected.booking_detail.booking_code }}</span>
                 </div>
                 <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
                   <span class="label" style="color: #64748b;">Thời gian:</span>
@@ -184,11 +184,11 @@
               <!-- Original Complaint Content -->
               <div class="card complaint-box" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
                 <div class="complaint-head" style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
-                  <div class="avatar" style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  <div class="avatar" style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 400;">
                     {{ selected.customer?.full_name?.charAt(0) || 'U' }}
                   </div>
                   <div>
-                    <div style="font-weight: 600; font-size: 15px;">{{ selected.customer?.full_name || 'Khách hàng' }} <span style="color: #64748b; font-weight: normal;">đã gửi khiếu nại ({{ typeLabel(selected.complaint_type) }})</span></div>
+                    <div style="font-weight: 400; font-size: 15px;">{{ selected.customer?.full_name || 'Khách hàng' }} <span style="color: #64748b; font-weight: normal;">đã gửi khiếu nại ({{ typeLabel(selected.complaint_type) }})</span></div>
                     <div style="font-size: 13px; color: #94a3b8;">{{ formatDateTime(selected.created_at) }}</div>
                   </div>
                 </div>
@@ -206,13 +206,13 @@
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Giải quyết khiếu nại</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div>
-                    <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">Ghi chú giải quyết (gửi cho khách / chủ sân)</label>
+                    <label style="display: block; font-size: 14px; font-weight: 400; margin-bottom: 8px;">Ghi chú giải quyết (gửi cho khách / chủ sân)</label>
                     <textarea v-model="form.resolve_note" placeholder="Nhập ghi chú giải quyết..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
                   </div>
                   <div style="display: flex; gap: 12px;">
-                    <button @click="resolveComplaintWithStatus('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Giải quyết (Đồng ý)</button>
-                    <button @click="resolveComplaintWithStatus('rejected')" class="btn" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Từ chối khiếu nại</button>
-                    <button @click="resolveComplaintWithStatus('closed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Đóng khiếu nại</button>
+                    <button @click="resolveComplaintWithStatus('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Giải quyết (Đồng ý)</button>
+                    <button @click="resolveComplaintWithStatus('rejected')" class="btn" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Từ chối khiếu nại</button>
+                    <button @click="resolveComplaintWithStatus('closed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Đóng khiếu nại</button>
                   </div>
                 </div>
               </div>
@@ -222,7 +222,7 @@
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Gửi thông báo bổ sung</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div style="display: flex; gap: 24px; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <label style="font-size: 14px; font-weight: 600; color: #334155; margin: 0;">Gửi cho:</label>
+                    <label style="font-size: 14px; font-weight: 400; color: #334155; margin: 0;">Gửi cho:</label>
                     <div style="display: flex; gap: 20px;">
                       <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
                         <input type="radio" v-model="form.notify_recipient" value="reporter" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
@@ -238,13 +238,13 @@
                     <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo muốn gửi..." style="width: 100%; min-height: 120px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box; outline: none; transition: border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"></textarea>
                   </div>
                   <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
+                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
                       <AppIcon name="send" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi thông báo
                     </button>
-                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
+                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
                       Sử dụng văn mẫu
                     </button>
-                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
+                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
                       <AppIcon name="zap" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi nhanh cho cả 2 (Văn mẫu)
                     </button>
                   </div>
@@ -734,7 +734,7 @@ export default {
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -813,7 +813,7 @@ th {
   background: var(--admin-surface-muted);
   padding: 12px 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-faint);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -873,7 +873,7 @@ th.center, td.center {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   background: var(--admin-surface-hover);
   color: var(--admin-text);
 }
@@ -891,7 +891,7 @@ th.center, td.center {
 
 .booking-code {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-primary);
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
@@ -903,7 +903,7 @@ th.center, td.center {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .status-warning {
   background: rgba(245, 158, 11, 0.1);
@@ -976,7 +976,7 @@ th.center, td.center {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-muted);
   transition: all 0.2s;
   flex-shrink: 0;

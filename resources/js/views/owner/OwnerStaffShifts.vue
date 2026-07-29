@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="page">
     <AppTabs v-model="currentTab" :tabs="navigationTabs" />
 
@@ -1590,7 +1590,7 @@ td {
 }
 
 th {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   color: var(--admin-faint, #64748b);
   background: rgba(0, 0, 0, 0.02);
@@ -1632,7 +1632,7 @@ th {
   background: var(--admin-surface, #ffffff) !important;
   color: var(--admin-text, #475569) !important;
   font-size: 13px !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
   cursor: pointer !important;
   transition: all 0.18s !important;
 }
@@ -1703,13 +1703,13 @@ th {
 .cluster-name {
   font-size: 12px;
   color: var(--admin-faint, #64748b);
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
 .shift-name {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text, #1e293b);
   margin-bottom: 8px;
 }
@@ -1719,7 +1719,7 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text, #1e293b);
   margin-bottom: 12px;
 }
@@ -1753,13 +1753,13 @@ th {
 .timer-label {
   font-size: 12px;
   color: #166534;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .timer-value {
   font-size: 16px;
   font-family: monospace;
-  font-weight: 800;
+  font-weight: 400;
   color: #15803d;
 }
 
@@ -1784,7 +1784,7 @@ th {
   justify-content: center;
   gap: 6px;
   color: var(--admin-faint, #64748b);
-  font-weight: 600;
+  font-weight: 400;
   font-size: 14px;
   width: 100%;
   text-align: center;
@@ -1799,7 +1799,7 @@ th {
 .table-header h4 {
   margin: 0;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .text-sub {
@@ -1837,7 +1837,7 @@ th {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -1848,7 +1848,7 @@ th {
 
 .week-label {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #1e293b);
   min-width: 120px;
   text-align: center;
@@ -1918,7 +1918,7 @@ th {
   margin: 0;
   color: var(--admin-text, #f4f4f5);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .day-schedule-controls {
@@ -1964,7 +1964,7 @@ th {
 .day-summary-item strong {
   color: var(--admin-text, #f4f4f5);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .day-empty-state {
@@ -1976,7 +1976,7 @@ th {
 
 .day-empty-state strong {
   color: var(--admin-text, #f4f4f5);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .day-shift-group {
@@ -2001,7 +2001,7 @@ th {
 .day-shift-group-head strong {
   color: var(--admin-text, #f4f4f5);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .day-shift-group-head span,
@@ -2050,7 +2050,7 @@ th {
   background: var(--admin-surface-muted, #27272a);
   color: var(--admin-text, #f4f4f5);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .day-staff-main {
@@ -2139,7 +2139,7 @@ th {
   background: var(--admin-surface, #fff);
   color: var(--admin-faint, #64748b);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   opacity: 0.82;
   transition: border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
@@ -2278,7 +2278,7 @@ th {
 
 .text-danger {
   color: #ef4444;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 /* Modals styles matching existing owner design */
@@ -2309,7 +2309,7 @@ th {
   margin-top: 0;
   margin-bottom: 20px;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .schedule-modal {
@@ -2328,7 +2328,7 @@ th {
 .schedule-modal-head h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .schedule-modal .sch-grid {
@@ -2468,7 +2468,7 @@ label {
   flex-direction: column;
   gap: 6px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, #64748b);
 }
 
@@ -2559,7 +2559,7 @@ input[type='time'] {
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2569,7 +2569,7 @@ input[type='time'] {
   background: none;
   border: none;
   color: var(--admin-primary, #18181b);
-  font-weight: bold;
+  font-weight: 400;
   cursor: pointer;
   padding: 0;
   font-size: 14px;
@@ -2608,7 +2608,7 @@ footer {
   color: var(--admin-faint, #64748b) !important;
   padding: 0 12px !important;
   font-size: 13px !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
   border-radius: 6px !important;
   cursor: pointer;
   display: inline-flex;
@@ -2644,7 +2644,7 @@ footer {
 
 .shift-timeline-layout .axis-staff {
   width: 180px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, #64748b);
   font-size: 13px;
 }
@@ -2659,7 +2659,7 @@ footer {
   position: absolute;
   transform: translateX(-50%);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, #94a3b8);
 }
 
@@ -2723,7 +2723,7 @@ footer {
 
 .shift-timeline-layout .timeline-block strong {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -2788,7 +2788,7 @@ footer {
 
 .field-label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, #64748b);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2826,7 +2826,7 @@ footer {
 .staff-chip.active {
   border-color: var(--admin-focus-border, #18181b);
   color: var(--admin-primary-dark, #27272a);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .chip-avatar {
@@ -2836,7 +2836,7 @@ footer {
   background: var(--admin-border, #cbd5e1);
   color: var(--admin-muted, #475569);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2858,7 +2858,7 @@ footer {
 .chip-check {
   font-size: 11px;
   color: var(--admin-primary-dark, #27272a);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 /* Date picker row */
@@ -3046,7 +3046,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .cal-month-label {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text, #1e293b);
 }
 
@@ -3058,7 +3058,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   background: var(--admin-surface-muted, #f8fafc);
   color: var(--admin-text, #1e293b);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -3081,7 +3081,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 .cal-weekdays span {
   text-align: center;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint, #64748b);
   padding: 2px 0;
   text-transform: uppercase;
@@ -3119,14 +3119,14 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .cal-day.is-today {
   border: 1.5px solid var(--admin-primary, #18181b);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-primary-dark, #27272a);
 }
 
 .cal-day.is-selected {
   background: var(--admin-primary, #18181b) !important;
   color: #fff !important;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .cal-day.is-past,
@@ -3231,7 +3231,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
 .shift-time-badge {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-faint, #64748b);
   background: var(--admin-bg-soft, #f7f9fc);
   border: 1px solid var(--admin-border-soft, #e2e8f0);
@@ -3544,7 +3544,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   .mobile-shift-card__body span {
     color: var(--admin-faint, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     text-transform: uppercase;
   }
 
@@ -3569,7 +3569,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     border-radius: 8px;
     background: var(--admin-surface, #fff);
     color: var(--admin-text, #1e293b);
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
   }
 
@@ -3637,7 +3637,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
 
   .mobile-schedule-pill span {
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     white-space: nowrap;
   }
 
@@ -3653,7 +3653,7 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
     color: var(--admin-faint, #64748b);
     font-size: 11px;
     font-style: normal;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
   }
 

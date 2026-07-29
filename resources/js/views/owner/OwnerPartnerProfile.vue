@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="owner-profile-page">
     <header class="page-header">
       <div>
@@ -641,7 +641,7 @@ export default {
   margin: 0 0 4px;
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -662,7 +662,7 @@ export default {
   gap: 14px;
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .selector select {
@@ -711,7 +711,7 @@ export default {
 .metric-card span {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -754,7 +754,7 @@ export default {
 }
 
 .work-item span {
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .muted {
@@ -796,7 +796,7 @@ export default {
   border-radius: 8px;
   background: var(--admin-surface);
   color: var(--admin-muted);
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -823,7 +823,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .field select,
@@ -848,14 +848,14 @@ export default {
 .submitted-at {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .info-item.full,
@@ -883,7 +883,7 @@ export default {
   border-radius: 8px;
   background: #fef3c7;
   color: #92400e;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .timeline {
@@ -903,7 +903,7 @@ export default {
   color: var(--admin-text);
   cursor: pointer;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .settlement-details .settlement-box {
@@ -976,7 +976,7 @@ export default {
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   background: var(--admin-border);
   color: var(--admin-text);
 }
@@ -1007,7 +1007,7 @@ export default {
   gap: 8px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 900;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -1092,7 +1092,7 @@ export default {
   border-radius: 8px;
   background: var(--admin-surface-muted);
   margin-bottom: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .termination-note {
@@ -1102,7 +1102,7 @@ export default {
   color: #92400e;
   padding: 12px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.5;
 }
 
@@ -1121,7 +1121,7 @@ export default {
   align-items: center;
   gap: 8px;
   margin-top: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 @media (max-width: 800px) {

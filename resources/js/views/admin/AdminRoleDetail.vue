@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="admin-page">
     <BackButton to="/admin/roles" />
 
@@ -532,7 +532,7 @@ export default {
   border: 0;
   background: transparent;
   color: #16a34a;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -553,7 +553,7 @@ export default {
   margin: 0 0 5px;
   color: #16a34a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -609,7 +609,7 @@ code {
   background: transparent;
   padding: 11px 14px;
   color: #64748b;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -652,7 +652,7 @@ label {
   flex-direction: column;
   gap: 6px;
   color: #334155;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 input,
@@ -737,7 +737,7 @@ small {
   background: #f8fafc;
   color: #334155;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -787,7 +787,7 @@ small {
   padding: 8px 10px;
   font: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -815,7 +815,7 @@ small {
   border-radius: 999px;
   padding: 5px 9px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -848,7 +848,7 @@ small {
   color: #64748b;
   font: inherit;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -875,7 +875,7 @@ small {
 .muted-text {
   color: #94a3b8;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .permission-group {
@@ -939,7 +939,7 @@ small {
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .risk-sensitive,
@@ -1041,7 +1041,7 @@ details {
 
 summary {
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 pre {
@@ -1077,7 +1077,7 @@ pre {
 .alert {
   border-radius: 8px;
   padding: 11px 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .alert.error {
@@ -1107,7 +1107,7 @@ pre {
   border-radius: 8px;
   padding: 9px 13px;
   font: inherit;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 

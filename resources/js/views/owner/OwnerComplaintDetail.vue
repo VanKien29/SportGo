@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="complaint-detail-page">
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
@@ -548,7 +548,7 @@ const endPan = () => {
   font-size: 11px;
   text-transform: uppercase;
   color: var(--admin-faint);
-  font-weight: 700;
+  font-weight: 400;
   margin-bottom: 4px;
 }
 .info-row .value {
@@ -557,7 +557,7 @@ const endPan = () => {
   word-break: break-word;
 }
 .booking-code {
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-primary);
 }
 
@@ -636,7 +636,7 @@ const endPan = () => {
 }
 .evidence-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   margin: 0 0 8px 0;
 }
 .media-grid {
@@ -688,7 +688,7 @@ const endPan = () => {
 .form-group label {
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   margin-bottom: 8px;
 }
 .form-group textarea {

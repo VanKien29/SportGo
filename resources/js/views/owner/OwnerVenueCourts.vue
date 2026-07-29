@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="venue-courts-container">
         <!-- Floating Add Button -->
         <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
@@ -81,7 +81,7 @@
                         <template #name="{ row }">
                             <div class="name-col-cell" style="display: flex; align-items: center; gap: 8px;">
                                 <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: var(--admin-faint);">#{{ row.sort_order }}</span>
-                                <span class="court-name-text" style="font-weight: 600; color: var(--sg-text);">{{ row.name }}</span>
+                                <span class="court-name-text" style="font-weight: 400; color: var(--sg-text);">{{ row.name }}</span>
                             </div>
                         </template>
 
@@ -94,7 +94,7 @@
 
                         <!-- Sơ đồ trực quan (Trạng thái đã xếp vị trí) -->
                         <template #spatial_status="{ row }">
-                            <span v-if="row.layout_x !== null && row.layout_y !== null" class="spatial-status placed" style="color: #16a34a; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                            <span v-if="row.layout_x !== null && row.layout_y !== null" class="spatial-status placed" style="color: #16a34a; font-size: 12.5px; font-weight: 400; display: inline-flex; align-items: center; gap: 4px;">
                                 <AppIcon name="circleCheck" size="13" />
                                 <span>Đã xếp ({{ formatToM(row.layout_x) }}m, {{ formatToM(row.layout_y) }}m)</span>
                             </span>
@@ -103,7 +103,7 @@
                                 type="button"
                                 class="btn-place-quick"
                                 @click.stop="selectAndSwitchToLayout(row)"
-                                style="background: none; border: none; padding: 0; color: #d97706; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                                style="background: none; border: none; padding: 0; color: #d97706; font-size: 12.5px; font-weight: 400; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
                             >
                                 <span>Chưa xếp &bull; Định vị</span>
                                 <AppIcon name="chevronRight" size="12" />
@@ -547,9 +547,9 @@
                                 <div class="field-row">
                                     <span class="label">LOẠI:</span>
                                     <span
-                                        class="value font-bold uppercase"
+                                        class="value font-normal uppercase"
                                         style="
-                                            font-weight: 700;
+                                            font-weight: 400;
                                             text-transform: uppercase;
                                         "
                                         >{{ selectedDecoration.type }}</span
@@ -2152,7 +2152,7 @@ export default {
 .btn-back {
     color: rgba(0, 0, 0, 0.6);
     text-decoration: none;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     margin-bottom: 8px;
     transition: color 0.2s ease;
@@ -2164,7 +2164,7 @@ export default {
 
 .header-left h2 {
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--sg-text);
     margin: 0;
 }
@@ -2181,7 +2181,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -2292,7 +2292,7 @@ export default {
     background: var(--admin-surface, #ffffff) !important;
     border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
     color: var(--admin-text, #0f172a) !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 [data-theme="dark"] .avc-filters .filter-tabs {
@@ -2341,7 +2341,7 @@ export default {
     display: inline-flex;
     align-items: center;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     background: transparent !important;
     padding: 0 !important;
@@ -2429,7 +2429,7 @@ export default {
 
 .modal-header h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: var(--sg-text);
 }
@@ -2457,7 +2457,7 @@ export default {
 
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -2494,7 +2494,7 @@ export default {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     border: 1px solid #e5e7eb;
 }
 
@@ -2568,7 +2568,7 @@ export default {
 }
 
 .custom-select-trigger .child-name {
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -2615,7 +2615,7 @@ export default {
 .custom-optgroup-label {
     padding: 10px 14px 6px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: rgba(15, 23, 42, 0.4);
@@ -2642,11 +2642,11 @@ export default {
 
 .custom-option.selected {
     background: rgba(0, 0, 0, 0.05);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .custom-option .option-text {
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .custom-option .option-details {
@@ -2658,7 +2658,7 @@ export default {
 .custom-option .check-mark {
     margin-left: auto;
     color: #000000;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 /* The edit form follows the owner theme instead of mixing legacy light tokens. */
@@ -2726,7 +2726,7 @@ export default {
     border: none;
     padding: 10px 16px;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     color: rgba(15, 23, 42, 0.4);
     cursor: pointer;
     border-bottom: 3px solid transparent;
@@ -2785,7 +2785,7 @@ export default {
 
 .info-badge {
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 400;
     color: rgba(15, 23, 42, 0.5);
 }
 /* ── Tool Switcher ── */
@@ -2890,7 +2890,7 @@ export default {
     background: none;
     border: none;
     padding: 8px 12px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 16px;
     cursor: pointer;
     color: var(--sg-text);
@@ -2908,7 +2908,7 @@ export default {
 
 .zoom-level {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     padding: 0 10px;
     color: var(--sg-text);
     min-width: 48px;
@@ -2996,7 +2996,7 @@ export default {
     padding: 3px 10px;
     border-radius: 999px;
     font-size: 10.5px;
-    font-weight: 800;
+    font-weight: 400;
     z-index: 30;
     box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
     pointer-events: none;
@@ -3059,7 +3059,7 @@ export default {
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     margin-bottom: 14px;
     line-height: 1.4;
 }
@@ -3113,7 +3113,7 @@ export default {
 
 .section-title {
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 400;
     margin-top: 0;
     margin-bottom: 12px;
     color: var(--sg-text);
@@ -3144,12 +3144,12 @@ export default {
 }
 
 .field-row .label {
-    font-weight: 700;
+    font-weight: 400;
     color: rgba(15, 23, 42, 0.5);
 }
 
 .field-row .value {
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -3161,7 +3161,7 @@ export default {
 
 .field-group label {
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -3178,7 +3178,7 @@ export default {
     border: 1px solid var(--sg-border);
     font-size: 13px;
     outline: none;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .input-row input:focus {
@@ -3188,7 +3188,7 @@ export default {
 .input-row .x,
 .input-row .comma {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     color: rgba(15, 23, 42, 0.3);
 }
 
@@ -3246,14 +3246,14 @@ export default {
 }
 
 .item-name {
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13.5px;
     color: var(--sg-text);
 }
 
 .item-add-hint {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     color: #000000;
     opacity: 0;
     transition: opacity 0.15s ease;
@@ -3326,7 +3326,7 @@ export default {
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     color: #475569;
     cursor: pointer;
     text-align: center;

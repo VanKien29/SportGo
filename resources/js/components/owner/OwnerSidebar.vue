@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <aside
         class="sidebar"
         :class="sidebarStyle"
@@ -345,7 +345,7 @@ export default {
 .owner-cluster-card span {
     color: var(--admin-faint);
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 400;
     letter-spacing: 0.12em;
     text-transform: uppercase;
 }
@@ -353,13 +353,13 @@ export default {
 .owner-cluster-card strong {
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .cluster-state-label {
   color: var(--admin-muted);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .nav-disabled {
@@ -388,7 +388,7 @@ export default {
     background: var(--admin-surface);
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     padding: 8px 12px;
     display: flex;
     align-items: center;
@@ -437,7 +437,7 @@ export default {
 .custom-option {
     padding: 8px 12px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text);
     cursor: pointer;
     transition:
@@ -453,14 +453,14 @@ export default {
 .custom-option.selected {
     background: var(--admin-primary-soft);
     color: var(--admin-primary);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .owner-cluster-card p {
     margin: 0;
     color: var(--admin-danger);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.45;
 }
 </style>

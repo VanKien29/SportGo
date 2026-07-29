@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="termination-page">
     <header class="page-head">
       <div>
@@ -1395,7 +1395,7 @@ function documentMeta(document) {
   margin: 0 0 4px;
   color: #64748b;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -1515,7 +1515,7 @@ function documentMeta(document) {
   background: #fff;
   color: #64748b;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .workflow-step:not(:last-child)::after {
@@ -1651,7 +1651,7 @@ function documentMeta(document) {
   display: block;
   color: #166534;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .signing-context.warning span {
@@ -1684,7 +1684,7 @@ function documentMeta(document) {
   background: transparent;
   color: #15803d;
   font: inherit;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -1722,7 +1722,7 @@ function documentMeta(document) {
 label {
   display: grid;
   gap: 6px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 input,
@@ -1781,7 +1781,7 @@ textarea {
 .booking-bulk-bar > div > span {
   color: #64748b;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .form-grid label small {
@@ -1807,7 +1807,7 @@ textarea {
 
 .withdrawal-help a {
   color: #166534;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .document-list {
@@ -1842,7 +1842,7 @@ textarea {
   border-radius: 999px;
   color: #166534;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 5px 9px;
   white-space: nowrap;
 }
@@ -1934,7 +1934,7 @@ textarea {
 
 .cancel-panel summary {
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 400;
   padding: 16px 18px;
 }
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cluster-requests-surface">
     <!-- Sub Category Switcher -->
     <div class="sub-category-bar">
@@ -286,7 +286,7 @@ export default {
 .header-left h3 {
   margin: 0 0 8px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
 }
 
@@ -353,7 +353,7 @@ export default {
 .request-title {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
 }
 

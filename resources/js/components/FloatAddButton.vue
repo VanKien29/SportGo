@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- Render as router-link if `to` prop is provided, otherwise as button -->
   <component
     :is="to ? 'router-link' : 'button'"
@@ -85,7 +85,7 @@ export default {
   max-width: 0;
   opacity: 0;
   margin-left: 0;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;

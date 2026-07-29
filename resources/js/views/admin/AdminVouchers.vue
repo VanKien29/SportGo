@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="page">
         <section class="filters">
             <input
@@ -979,7 +979,7 @@ export default {
     color: var(--admin-blue);
     border-radius: 10px;
     padding: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .table-card,
 .modal {
@@ -1009,7 +1009,7 @@ td {
 .mini-btn {
     border: 0;
     border-radius: 8px;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .btn {
@@ -1036,7 +1036,7 @@ td {
     border-radius: 999px;
     padding: 5px 9px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     background: var(--admin-border);
 }
 .badge.active {
@@ -1055,7 +1055,7 @@ td {
 .alert {
     padding: 12px;
     border-radius: 10px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .error {
     background: var(--admin-danger-soft);
@@ -1096,7 +1096,7 @@ td {
 }
 .confirm-modal p {
     color: var(--admin-muted);
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.5;
 }
 .confirm-modal footer {
@@ -1112,7 +1112,7 @@ td {
 label {
     display: grid;
     gap: 6px;
-    font-weight: 800;
+    font-weight: 400;
 }
 input,
 select,
@@ -1143,7 +1143,7 @@ textarea {
 .suffix-field span {
     padding: 0 12px;
     color: var(--admin-muted);
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 .modal .field-error {
@@ -1154,7 +1154,7 @@ textarea {
     background: var(--admin-danger-soft);
     color: var(--admin-danger-text) !important;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
     padding: 6px 8px;
 }
@@ -1172,7 +1172,7 @@ textarea {
     margin: 0;
     color: var(--admin-muted);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 footer {
     display: flex;
@@ -1219,7 +1219,7 @@ footer {
 .eyebrow {
     color: var(--admin-success-text);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.03em;
     text-transform: uppercase;
 }
@@ -1244,7 +1244,7 @@ footer {
 .budget-toggle {
     color: var(--admin-muted);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .budget-metric strong {
@@ -1322,7 +1322,7 @@ footer {
     border-radius: 8px;
     background: var(--admin-surface-muted);
     padding: 10px 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .budget-note.danger {
@@ -1376,7 +1376,7 @@ footer {
     display: block;
     margin-top: 4px;
     color: var(--admin-muted);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 @media (max-width: 980px) {

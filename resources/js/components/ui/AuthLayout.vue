@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="auth-layout w-full min-h-screen md:grid md:grid-cols-2 bg-zinc-950 text-zinc-100 flex flex-col font-sans select-none">
     <!-- Mobile Back Link -->
     <div class="md:hidden flex items-center p-4">
@@ -21,7 +21,7 @@
       <div class="w-full max-w-[350px]">
         <!-- Brand / Header -->
         <div class="flex flex-col items-center text-center !mb-8">
-          <h1 class="text-2xl font-bold tracking-tight text-white">{{ title }}</h1>
+          <h1 class="text-2xl font-normal tracking-tight text-white">{{ title }}</h1>
           <p class="text-sm text-zinc-400 !mt-2">{{ subtitle }}</p>
         </div>
 

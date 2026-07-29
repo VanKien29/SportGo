@@ -1,4 +1,4 @@
-/* UNIFIED PORTALS STYLESHEET (ADMIN, OWNER, STAFF) */
+﻿/* UNIFIED PORTALS STYLESHEET (ADMIN, OWNER, STAFF) */
 
 /* --- START OF tokens.css --- */
 :root {
@@ -149,7 +149,7 @@
 .sg-shell-admin h5,
 .sg-shell-admin h6 {
   font-family: var(--admin-font-family);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.3;
 }
 
@@ -204,7 +204,7 @@
   background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
   color: #fff;
   font-size: var(--admin-font-size-base, 14px);
-  font-weight: 800;
+  font-weight: 400;
   box-shadow: 0 12px 26px rgba(47, 158, 68, 0.22);
 }
 
@@ -222,7 +222,7 @@
 .admin-brand-copy small {
   color: var(--admin-faint);
   font-size: var(--admin-font-size-xs, 11px);
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -241,7 +241,7 @@
   margin: 8px 10px 6px;
   color: color-mix(in srgb, var(--admin-text) 72%, transparent);
   font-size: calc(var(--admin-font-size) - 4px);
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -339,7 +339,7 @@
   background: linear-gradient(135deg, var(--admin-primary), var(--admin-blue));
   color: #fff;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .sg-shell-admin .user-info,
@@ -364,7 +364,7 @@
   margin-top: 2px;
   color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-shell-admin .main-content {
@@ -414,7 +414,7 @@
   gap: 8px;
   color: var(--admin-muted);
   font-size: var(--admin-font-size-md, 13px);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .admin-crumbs strong {
@@ -448,7 +448,7 @@
   gap: 9px;
   padding: 8px 10px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .topbar-command span {
@@ -462,7 +462,7 @@
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .topbar-icon,
@@ -531,7 +531,7 @@
   color: var(--admin-text);
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   text-align: left;
   text-decoration: none;
 }
@@ -598,7 +598,7 @@
   padding: 20px clamp(22px, 2.4vw, 42px) 28px;
   color: var(--admin-faint);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .admin-shell-backdrop {
@@ -712,7 +712,7 @@
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .nav-chevron {
@@ -888,7 +888,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
   box-shadow: var(--admin-shadow-sm);
   flex-shrink: 0;
@@ -909,7 +909,7 @@
 
 .ws-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -958,7 +958,7 @@
 .ws-dropdown-item.active {
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .ws-dropdown-divider {
@@ -1062,7 +1062,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 400;
   font-size: 14px;
   margin-bottom: 24px;
 }
@@ -1250,7 +1250,7 @@
   margin: 0 0 5px !important;
   color: var(--admin-text) !important;
   font-size: var(--admin-font-size-xl, 18px) !important;
-  font-weight: 800 !important;
+  font-weight: 400 !important;
   line-height: 1.25 !important;
 }
 
@@ -1837,7 +1837,7 @@
   max-width: 0;
   opacity: 0;
   margin-left: 0;
-  font-weight: 700;
+  font-weight: 400;
   font-size: var(--admin-font-size-md, 13px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
@@ -1947,12 +1947,12 @@
 .sg-shell-admin .content-area .schedule-modal .cal-day.is-today {
   border: 2px solid var(--admin-primary) !important;
   color: var(--admin-primary-dark) !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 .sg-shell-admin .content-area .schedule-modal .cal-day.is-selected {
   background: var(--admin-primary) !important;
   color: #ffffff !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   border: none !important;
 }
 .sg-shell-admin .content-area .schedule-modal .cal-day:not(:disabled):not(.is-past):hover {
@@ -1972,7 +1972,7 @@
   background: var(--admin-surface-muted) !important;
   color: var(--admin-text) !important;
   font-size: var(--admin-font-size-lg, 16px) !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
 }
 .sg-shell-admin .content-area .schedule-modal .cal-nav-btn:hover {
   background: var(--admin-hover) !important;
@@ -2005,7 +2005,7 @@
 /* time-val, time-colon, time-ampm — non-button elements, no override needed but ensure */
 .sg-shell-admin .content-area .schedule-modal .time-val {
   font-size: calc(var(--admin-font-size-base, 14px) * 2.28) !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   color: var(--admin-text) !important;
   background: var(--admin-bg-soft) !important;
   border: none !important;
@@ -2103,7 +2103,7 @@
   color: var(--admin-primary-dark) !important;
 }
 .sg-shell-admin .content-area .schedule-modal .staff-chip.active {
-  font-weight: 600 !important;
+  font-weight: 400 !important;
 }
 
 /* --- END OF system.css --- */
@@ -2134,7 +2134,7 @@
 .settings-card-header h2 {
   margin: 0;
   font-size: var(--admin-font-size-lg, 16px);
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .settings-card-content {
@@ -2166,7 +2166,7 @@
 
 .theme-mode-title {
   font-size: var(--admin-font-size-base, 14px);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   display: flex;
   align-items: center;
@@ -2175,7 +2175,7 @@
 
 .theme-mode-reset-btn {
   font-size: var(--admin-font-size-xs, 11px);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-primary-dark);
   background: transparent;
   border: 0;
@@ -2210,7 +2210,7 @@
 
 .color-name {
   font-size: var(--admin-font-size-md, 13px);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -2228,7 +2228,7 @@
 .color-hex {
   font-family: monospace;
   font-size: var(--admin-font-size-sm, 12px);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-muted);
   width: 70px;
   text-align: right;
@@ -2312,7 +2312,7 @@
   background: var(--admin-primary);
   color: var(--admin-primary-text, #ffffff);
   font-size: var(--admin-font-size-md, 13px);
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--admin-primary) 30%, transparent);
   transition: background-color 150ms ease, transform 150ms ease;
@@ -2333,7 +2333,7 @@
   background: var(--admin-surface);
   color: var(--admin-text);
   font-size: var(--admin-font-size-md, 13px);
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition: background-color 150ms ease, transform 150ms ease;
 }
@@ -2555,7 +2555,7 @@
 
 .sidebar-card-info h3 {
   font-size: var(--admin-font-size-base, 14px);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   margin: 0 0 4px 0;
 }
@@ -2602,7 +2602,7 @@
 .dashboard-hero h1 {
   color: var(--admin-text);
   font-size: 28px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
@@ -2619,7 +2619,7 @@
   margin-bottom: 7px;
   color: var(--admin-primary-dark);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -2640,7 +2640,7 @@
   padding: 0 12px;
   font: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .ghost-button {
@@ -2671,20 +2671,20 @@
 .kpi-card span {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .kpi-card strong {
   color: var(--admin-text);
   font-size: clamp(21px, 2vw, 28px);
-  font-weight: 950;
+  font-weight: 400;
   line-height: 1.05;
 }
 
 .kpi-card small {
   color: var(--admin-faint);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.4;
 }
 
@@ -2725,14 +2725,14 @@
 .panel-head h2 {
   color: var(--admin-text);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .panel-head a,
 .period-label {
   color: var(--admin-primary-dark);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -2794,20 +2794,20 @@
 .work-row strong {
   color: var(--admin-text);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .work-row small {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.35;
 }
 
 .work-row b {
   color: var(--admin-primary-dark);
   font-size: 18px;
-  font-weight: 950;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -2825,7 +2825,7 @@
   min-height: 48px;
   padding: 10px;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .accounting-summary {
@@ -2850,13 +2850,13 @@
 .summary-row span {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .summary-row strong {
   color: var(--admin-text);
   font-size: 18px;
-  font-weight: 950;
+  font-weight: 400;
 }
 
 .accounting-ledger {
@@ -2880,7 +2880,7 @@
 .ledger-head h2 {
   color: var(--admin-text);
   font-size: 18px;
-  font-weight: 950;
+  font-weight: 400;
 }
 
 .ledger-head p {
@@ -2907,7 +2907,7 @@
   padding: 0 12px;
   font: inherit;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -2940,20 +2940,20 @@
   background: var(--admin-primary-soft);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 950;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
 .accounting-table td {
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
 }
 
 .accounting-table td.amount {
   color: var(--admin-primary-dark);
-  font-weight: 950;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -3205,7 +3205,7 @@ textarea:focus {
   background: var(--admin-surface-muted);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -3248,7 +3248,7 @@ textarea:focus {
   margin-bottom: 3px;
   color: var(--admin-faint);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: .03em;
   text-transform: uppercase;
 }
@@ -3272,7 +3272,7 @@ textarea:focus {
   padding: 9px 14px;
   font: inherit;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -3286,7 +3286,7 @@ textarea:focus {
   border-radius: 8px;
   padding: 10px 13px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .alert.error { background: var(--admin-danger-soft); color: var(--admin-danger-text); }
@@ -3326,7 +3326,7 @@ textarea:focus {
 
 .detail-head h3 {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -3365,7 +3365,7 @@ textarea:focus {
   margin: 0 0 16px;
   color: var(--admin-text);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .detail-grid {
@@ -3387,7 +3387,7 @@ textarea:focus {
   margin-bottom: 6px;
   color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -3397,7 +3397,7 @@ textarea:focus {
   overflow: hidden;
   color: var(--admin-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3458,7 +3458,7 @@ textarea:focus {
   margin: 0 0 16px;
   color: var(--admin-text);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .form-stack {
@@ -3471,7 +3471,7 @@ textarea:focus {
   gap: 8px;
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .form-stack textarea {
@@ -3563,7 +3563,7 @@ textarea:focus {
   flex-shrink: 0;
 }
 .fb-header-spacer { width: 36px; }
-.fb-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; text-align: center; flex: 1; }
+.fb-header h3 { margin: 0; font-size: 18px; font-weight: 400; color: #1e293b; text-align: center; flex: 1; }
 .fb-header-right { width: 36px; display: flex; justify-content: flex-end; }
 .fb-close-btn { 
   width: 36px; height: 36px; 
@@ -3598,10 +3598,10 @@ textarea:focus {
 .fb-post.is-hidden .fb-media-container img { filter: grayscale(0.8) opacity(0.7); }
 
 .fb-post-header { display: flex; gap: 10px; align-items: center; }
-.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #475569; overflow: hidden; }
+.fb-post-avatar { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; display: grid; place-items: center; font-weight: 400; font-size: 14px; color: #475569; overflow: hidden; }
 .fb-post-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .fb-post-meta { display: flex; flex-direction: column; line-height: 1.4; }
-.fb-post-meta strong { font-size: 15px; color: #1e293b; font-weight: 700; }
+.fb-post-meta strong { font-size: 15px; color: #1e293b; font-weight: 400; }
 .fb-post-meta span { font-size: 13px; color: #64748b; }
 .fb-post-text { margin: 0; font-size: 16px; line-height: 1.5; color: #1e293b; white-space: pre-wrap; }
 
@@ -3635,7 +3635,7 @@ textarea:focus {
 
 .fb-comment-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: #e2e8f0; flex-shrink: 0; }
 .fb-comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #475569; }
+.fb-avatar-text { width: 100%; height: 100%; display: grid; place-items: center; font-weight: 400; font-size: 13px; color: #475569; }
 
 .fb-comment-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .fb-bubble { background: #f1f5f9; padding: 10px 14px; border-radius: 18px; display: inline-block; position: relative; max-width: 100%; transition: all 0.2s; }
@@ -3650,7 +3650,7 @@ textarea:focus {
 .fb-bubble-status { margin-top: 6px; font-size: 11px; padding: 2px 8px; background: #e2e8f0; border-radius: 999px; width: fit-content; }
 .fb-bubble-status.hidden { color: #b91c1c; background: #fee2e2; }
 
-.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 600; cursor: default; }
+.fb-comment-footer { display: flex; gap: 16px; align-items: center; padding: 0 12px; font-size: 13px; color: #64748b; font-weight: 400; cursor: default; }
 .fb-comment-footer span.never-hover-class-placeholder { text-decoration: underline; cursor: pointer; }
 .fb-comment-tools { display: flex; gap: 14px; margin-left: 8px; }
 .fb-comment-tools button { border: 0; background: transparent; padding: 0; cursor: pointer; color: #64748b; display: flex; align-items: center; transition: color 0.2s; }
@@ -3681,7 +3681,7 @@ textarea:focus {
 }
 .page-head h2 {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text);
   letter-spacing: -0.5px;
 }
@@ -3715,7 +3715,7 @@ textarea:focus {
 }
 .cluster-badge span {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -3759,7 +3759,7 @@ textarea:focus {
 }
 .section-title {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--admin-text);
@@ -3771,7 +3771,7 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-muted);
   padding: 4px 10px;
   border-radius: 6px;
@@ -3840,7 +3840,7 @@ textarea:focus {
 }
 .wallet-premium-card .card-value {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: -0.5px;
   color: var(--admin-text);
 }
@@ -3853,7 +3853,7 @@ textarea:focus {
 }
 .wallet-premium-card .card-holder-name {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--admin-faint);
@@ -3890,7 +3890,7 @@ textarea:focus {
 }
 .wallet-subcard-value {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   margin-top: 2px;
 }
@@ -3923,7 +3923,7 @@ textarea:focus {
 }
 .stat-number {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text);
   line-height: 1.2;
 }
@@ -3962,7 +3962,7 @@ textarea:focus {
   gap: 8px;
   color: #6b7280;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .post-type-pill {
@@ -3979,7 +3979,7 @@ textarea:focus {
   margin: 8px 0 4px;
   color: #111827;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -4002,7 +4002,7 @@ textarea:focus {
   border: 1px solid #d1d5db;
   color: #111827;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   background: #f9fafb;
 }
 
@@ -4034,7 +4034,7 @@ textarea:focus {
   padding: 10px 12px;
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
-  font-weight: 600;
+  font-weight: 400;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -4061,7 +4061,7 @@ textarea:focus {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 10px;
   border: 1px solid var(--admin-border);
 }
@@ -4171,7 +4171,7 @@ textarea:focus {
   margin: 0 0 6px !important;
   color: var(--admin-faint) !important;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -4183,7 +4183,7 @@ textarea:focus {
   gap: 5px;
   color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -4219,7 +4219,7 @@ textarea:focus {
 .alert {
   padding: 12px 16px;
   border-radius: 10px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
 }
 
@@ -4252,7 +4252,7 @@ textarea:focus {
 
 .section-head.compact h3 {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: 0.02em;
   color: var(--admin-text);
 }
@@ -4265,7 +4265,7 @@ textarea:focus {
   padding: 0 16px;
   font: inherit;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   transition: opacity 0.2s, background 0.2s;
 }
@@ -4337,7 +4337,7 @@ textarea:focus {
 .money-input input {
   height: 36px;
   padding-right: 58px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .money-input input.invalid {
@@ -4352,14 +4352,14 @@ textarea:focus {
   transform: translateY(-50%);
   color: var(--admin-faint);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
   pointer-events: none;
 }
 
 .money-input small {
   color: var(--admin-danger);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 /* ---- Filter: cluster select (inside base-price-card) ---- */
@@ -4393,7 +4393,7 @@ textarea:focus {
   color: var(--admin-faint);
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -4420,13 +4420,13 @@ textarea:focus {
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 400;
   transition: background 0.2s, color 0.2s;
 }
 
 .price-tabs button.active {
   color: var(--admin-text);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .price-tabs button.active::after {
@@ -4445,7 +4445,7 @@ textarea:focus {
 
 .table-toolbar h3 {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -4470,7 +4470,7 @@ textarea:focus {
   gap: 5px;
   color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -4502,7 +4502,7 @@ th {
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -4539,14 +4539,14 @@ td small {
   background: var(--admin-primary-soft);
   color: var(--admin-text);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: 0.02em;
 }
 
 /* ---- Price cell ---- */
 .price {
   color: var(--admin-text);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 /* ---- Toggle switch ---- */
@@ -4673,7 +4673,7 @@ td small {
   border-radius: 8px;
   color: var(--admin-faint);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   transition: background 0.18s, border-color 0.18s, color 0.18s;
 }
@@ -4693,7 +4693,7 @@ td small {
   border-color: var(--admin-primary);
   background: var(--admin-primary-soft);
   color: var(--admin-text);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 /* ---- Active row (checkbox row) ---- */
@@ -4854,7 +4854,7 @@ td small {
 .schedule-head h2 {
   margin: 0;
   color: #0f172a;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .schedule-head p {
@@ -4871,7 +4871,7 @@ td small {
   gap: 10px;
   color: var(--admin-muted, #64748b);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .legend span {
@@ -4925,7 +4925,7 @@ td small {
   color: inherit;
   opacity: .78;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .metric-row {
@@ -4952,7 +4952,7 @@ td small {
 .metric-card span {
   color: var(--admin-muted, #64748b);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .metric-card strong {
@@ -5008,7 +5008,7 @@ td small {
   place-items: center;
   color: var(--admin-text, #1e293b);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .axis-track,
@@ -5022,7 +5022,7 @@ td small {
   transform: translate(-50%, -50%);
   color: #475569;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -5052,7 +5052,7 @@ td small {
 .court-meta span {
   color: var(--admin-muted, #64748b);
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 400;
   line-height: 1.35;
 }
 
@@ -5075,7 +5075,7 @@ td small {
   transform: translateY(-50%);
   color: #94a3b8;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .timeline-block {
@@ -5116,13 +5116,13 @@ td small {
 
 .timeline-block strong {
   font-size: 13px;
-  font-weight: 950;
+  font-weight: 400;
 }
 
 .timeline-block small,
 .block-time {
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .timeline-block.compact small {
@@ -5205,7 +5205,7 @@ td small {
   margin: 0 0 4px;
   color: #16a34a;
   font-size: 11px;
-  font-weight: 950;
+  font-weight: 400;
   letter-spacing: .08em;
 }
 
@@ -5213,7 +5213,7 @@ td small {
   margin: 0;
   color: #0f172a;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .drawer-subtitle {
@@ -5265,7 +5265,7 @@ td small {
 .drawer-list dt {
   color: var(--admin-muted, #64748b);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .drawer-list dd {
@@ -5273,7 +5273,7 @@ td small {
   margin: 0;
   color: #0f172a;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
@@ -5295,7 +5295,7 @@ td small {
   color: var(--admin-text, #1e293b);
   font: inherit;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.12s ease;
 }
@@ -5317,7 +5317,7 @@ td small {
   background: #f1f5f9;
   color: var(--admin-text, #1e293b);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -5330,7 +5330,7 @@ td small {
   background: #f1f5f9;
   color: var(--admin-text, #1e293b);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -5347,7 +5347,7 @@ td small {
   border: 1px solid var(--admin-border-soft, #e2e8f0);
   border-radius: 8px;
   background: var(--admin-surface, #ffffff);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .state-card { text-align: center; color: var(--admin-muted, #64748b); }
@@ -5363,7 +5363,7 @@ label {
 label span {
   color: var(--admin-text, #1e293b);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 input, select, textarea {
@@ -5384,7 +5384,7 @@ input, select, textarea {
   gap: 8px;
   padding: 0 14px;
   border-radius: 8px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .primary-link {
@@ -5409,7 +5409,7 @@ input, select, textarea {
   background: #dc2626;
   color: #fff;
   font: inherit;
-  font-weight: 900;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -5451,7 +5451,7 @@ input, select, textarea {
   background: #fef2f2;
   color: #7f1d1d;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 400;
   line-height: 1.5;
 }
 
@@ -5459,7 +5459,7 @@ input, select, textarea {
   margin: 4px 0 0;
   color: var(--admin-muted, #64748b);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .collect-panel {
@@ -5483,13 +5483,13 @@ input, select, textarea {
 .collect-summary dt {
   color: #647265;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .collect-summary dd {
   margin: 6px 0 0;
   color: var(--admin-text, #1e293b);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .collect-summary .highlight {
@@ -5513,7 +5513,7 @@ input, select, textarea {
   border-radius: 8px;
   background: var(--admin-surface, #ffffff);
   color: var(--admin-text, #1e293b);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .method-row button.active {
@@ -5552,12 +5552,12 @@ input, select, textarea {
   border: 0;
   background: transparent;
   color: #216b34;
-  font-weight: 900;
+  font-weight: 400;
   text-decoration: underline;
 }
 
 .collect-qr strong { color: var(--admin-text, #1e293b); }
-.collect-qr small { color: #647265; font-weight: 700; }
+.collect-qr small { color: #647265; font-weight: 400; }
 
 .modal-panel header,
 .modal-panel footer {
@@ -5605,7 +5605,7 @@ input, select, textarea {
   color: #2f3d33;
   font: inherit;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
 }
@@ -5752,7 +5752,7 @@ input, select, textarea {
     margin: 0;
     color: var(--admin-text, #1e293b);
     font-size: 18px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .list-toolbar p {
@@ -5935,7 +5935,7 @@ input, select, textarea {
     background: var(--admin-bg-soft, #f8fafc);
     color: #526458;
     font-size: 11px;
-    font-weight: 850;
+    font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -5958,7 +5958,7 @@ input, select, textarea {
     margin-top: 5px;
     color: #203428;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -5988,7 +5988,7 @@ input, select, textarea {
     color: #15803d;
     font-size: 11px;
     font-style: normal;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -6028,13 +6028,13 @@ input, select, textarea {
 .occurrence-head strong {
     color: var(--admin-text, #1e293b);
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .occurrence-head span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .occurrence-list {
@@ -6076,7 +6076,7 @@ input, select, textarea {
 .occurrence-list strong {
     color: var(--admin-text, #1e293b);
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .occurrence-list small {
@@ -6158,7 +6158,7 @@ input, select, textarea {
 
 .source-pill {
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -6234,14 +6234,14 @@ input, select, textarea {
 .recurring-group-card span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .recurring-group-card strong {
     overflow-wrap: anywhere;
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .recurring-group-card strong.paid {
@@ -6256,7 +6256,7 @@ input, select, textarea {
 
 .group-code {
     color: #0f7a31 !important;
-    font-weight: 850 !important;
+    font-weight: 400 !important;
 }
 
 .group-actions {
@@ -6393,13 +6393,13 @@ input, select, textarea {
 .detail-hero span:not(.status-badge) {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .detail-hero strong {
     color: var(--admin-text, #1e293b);
     font-size: 15px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .detail-hero small {
@@ -6477,14 +6477,14 @@ input, select, textarea {
 .schedule-summary span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .schedule-summary strong {
     overflow-wrap: anywhere;
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .recurring-slot-matrix {
@@ -6500,7 +6500,7 @@ input, select, textarea {
     margin: 0;
     color: var(--admin-text, #1e293b);
     font-size: 17px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .panel-head p {
@@ -6614,7 +6614,7 @@ input, select, textarea {
 .date-range-separator {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -6630,7 +6630,7 @@ input, select, textarea {
     color: #31443a;
     font: inherit;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -6651,7 +6651,7 @@ input, select, textarea {
     border-radius: 8px;
     background: var(--admin-surface, #ffffff);
     color: var(--admin-text, #1e293b);
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .counter-date-range {
@@ -6681,7 +6681,7 @@ input, select, textarea {
     color: #31443a;
     font: inherit;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -6742,13 +6742,13 @@ input, select, textarea {
 .readonly-field span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .readonly-field strong {
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .booking-picker {
@@ -6789,32 +6789,32 @@ input, select, textarea {
 .selection-help span {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .selection-help strong {
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .selection-help small {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 400;
     line-height: 1.35;
 }
 
 .duration-pill span {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .duration-pill strong {
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .duration-pill.active {
@@ -6831,7 +6831,7 @@ label span,
 .summary-list dt {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 input,
@@ -6847,7 +6847,7 @@ input.invalid {
 .field-error {
     color: #b91c1c;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -6858,7 +6858,7 @@ input.invalid {
     margin: 14px 0;
     color: var(--admin-text, #1e293b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .legend span {
@@ -6933,7 +6933,7 @@ input.invalid {
     margin: 0 0 12px;
     color: #991b1b;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .time-board {
@@ -6960,13 +6960,13 @@ input.invalid {
 .selected-court-strip span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .selected-court-strip strong {
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .tabs-and-actions {
@@ -7030,7 +7030,7 @@ input.invalid {
     background: transparent;
     color: var(--admin-text, #1e293b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -7050,7 +7050,7 @@ input.invalid {
     border-radius: 8px;
     background: var(--admin-surface, #ffffff);
     color: var(--admin-text, #1e293b);
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .period-tabs button.active {
@@ -7061,7 +7061,7 @@ input.invalid {
 
 .period-tabs span {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     opacity: 0.8;
 }
 
@@ -7087,7 +7087,7 @@ input.invalid {
     background: var(--admin-bg-soft, #f8fafc);
     color: var(--admin-text, #1e293b);
     font-size: 11px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .matrix-court {
@@ -7101,13 +7101,13 @@ input.invalid {
 .matrix-court strong {
     color: var(--admin-text, #1e293b);
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .matrix-court span {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .sticky-col {
@@ -7237,7 +7237,7 @@ input.invalid {
     border: 0;
     background: transparent;
     color: #0f7a31;
-    font-weight: 850;
+    font-weight: 400;
     text-align: right;
     cursor: pointer;
 }
@@ -7267,14 +7267,14 @@ input.invalid {
 .modal-head span {
     color: #0f7a31;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .modal-head h2 {
     margin: 4px 0 0;
     color: var(--admin-text, #1e293b);
     font-size: 20px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .conflict-help {
@@ -7309,7 +7309,7 @@ input.invalid {
 .conflict-list strong {
     color: var(--admin-text, #1e293b);
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .conflict-list span,
@@ -7350,7 +7350,7 @@ input.invalid {
     padding: 9px 16px;
     border-radius: 8px;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.25;
     cursor: pointer;
 }
@@ -7379,7 +7379,7 @@ input.invalid {
 .confirm-reason-field span {
     color: var(--admin-text, #1e293b);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .confirm-reason-field textarea {
@@ -7495,13 +7495,13 @@ input.invalid {
 .counter-bottom-bar strong {
     color: #14532d;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .counter-bottom-bar span {
     color: #475569;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .calendar-range-field {
@@ -7513,7 +7513,7 @@ input.invalid {
 .calendar-range-field > span {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 .schedule-filters .mini-cal,
@@ -7552,7 +7552,7 @@ input.invalid {
     padding: 9px 10px;
     border-radius: 8px;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.25;
     white-space: normal;
 }
@@ -7613,7 +7613,7 @@ input.invalid {
 .summary-list dd {
     margin: 0;
     color: var(--admin-text, #1e293b);
-    font-weight: 800;
+    font-weight: 400;
     text-align: right;
 }
 
@@ -7647,7 +7647,7 @@ input.invalid {
 .occupied-detail .summary-list dt {
     color: #6b7d70;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -7668,7 +7668,7 @@ input.invalid {
     border: 1px solid transparent;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.15;
     white-space: nowrap;
 }
@@ -7837,7 +7837,7 @@ input.invalid {
     margin-top: 4px;
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -7848,7 +7848,7 @@ input.invalid {
     background: var(--admin-bg-soft, #f8fafc);
     color: var(--admin-text, #1e293b);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .recurring-payment {
@@ -7890,7 +7890,7 @@ input.invalid {
     border-radius: 8px;
     padding: 10px 12px;
     color: #1f2f25;
-    font-weight: 720;
+    font-weight: 400;
 }
 
 .voucher-list {
@@ -7921,20 +7921,20 @@ input.invalid {
     display: block;
     color: #14532d;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .voucher-list small,
 .voucher-empty {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .voucher-list em {
     color: #15803d;
     font-style: normal;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-collect-actions {
@@ -7954,7 +7954,7 @@ input.invalid {
     background: var(--admin-surface, #ffffff);
     color: #15803d;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -7981,7 +7981,7 @@ input.invalid {
 .segmented-field > span {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 .segmented-field > div {
@@ -8001,7 +8001,7 @@ input.invalid {
     border-radius: 8px;
     background: var(--admin-surface, #ffffff);
     color: var(--admin-text, #1e293b);
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .segmented-field button.active {
@@ -8039,7 +8039,7 @@ input.invalid {
     border: 0;
     background: transparent;
     color: #216b34;
-    font-weight: 850;
+    font-weight: 400;
     text-decoration: underline;
 }
 
@@ -8147,7 +8147,7 @@ input.invalid {
     background: #e8f7ec;
     color: #15803d;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .recurring-date-card strong {
@@ -8204,7 +8204,7 @@ input.invalid {
     display: block;
     color: var(--admin-text, #1e293b);
     font-size: 15px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .weekday-planner-head span {
@@ -8212,7 +8212,7 @@ input.invalid {
     margin-top: 2px;
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .weekday-planner-actions {
@@ -8231,7 +8231,7 @@ input.invalid {
     color: #216b34;
     font: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8285,20 +8285,20 @@ input.invalid {
     background: #e8f7ec;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .weekday-plan-card strong {
     color: #132017;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
 }
 
 .weekday-plan-card small {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8316,13 +8316,13 @@ input.invalid {
 .active-weekday-note strong {
     color: #166534;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .active-weekday-note span {
     color: #557063;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .day-grid label {
@@ -8337,7 +8337,7 @@ input.invalid {
     border-radius: 999px;
     background: var(--admin-surface, #ffffff);
     color: #425246;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
     transition:
         border-color 0.16s ease,
@@ -8396,7 +8396,7 @@ input.invalid {
     display: block;
     color: var(--admin-text, #1e293b);
     font-size: 15px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .month-day-head span {
@@ -8404,7 +8404,7 @@ input.invalid {
     margin-top: 2px;
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .month-day-actions {
@@ -8423,7 +8423,7 @@ input.invalid {
     color: #216b34;
     font: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8440,7 +8440,7 @@ input.invalid {
 .month-day-summary {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .month-day-add {
@@ -8458,7 +8458,7 @@ input.invalid {
 .month-day-add label > span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .month-day-add select,
@@ -8470,7 +8470,7 @@ input.invalid {
     color: var(--admin-text, #1e293b);
     font: inherit;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .month-day-add select {
@@ -8506,7 +8506,7 @@ input.invalid {
     color: #166534;
     font: inherit;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8565,13 +8565,13 @@ input.invalid {
 .preview-head > span {
     color: #0f7a31;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .preview-box strong {
     color: var(--admin-text, #1e293b);
     font-size: 18px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .preview-box span,
@@ -8626,14 +8626,14 @@ input.invalid {
 .preview-panel-head strong {
     color: var(--admin-text, #1e293b);
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
 .preview-panel-head span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .preview-stat-grid {
@@ -8655,13 +8655,13 @@ input.invalid {
 .preview-stat-grid span {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .preview-stat-grid strong {
     color: var(--admin-text, #1e293b);
     font-size: 18px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .preview-stat-grid .ok strong {
@@ -8685,7 +8685,7 @@ input.invalid {
     background: #fff7ed;
     color: #9a3412;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     line-height: 1.45;
 }
 
@@ -8717,7 +8717,7 @@ input.invalid {
 .recurring-preview-list strong {
     color: var(--admin-text, #1e293b);
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-preview-list small {
@@ -8733,7 +8733,7 @@ input.invalid {
     background: #eef2f7;
     color: #475569;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-preview-list .status-available {
@@ -8768,7 +8768,7 @@ input.invalid {
     background: #e8f7ec;
     color: #216b34;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .primary-btn.full {
@@ -8787,7 +8787,7 @@ input.invalid {
 
 .alert {
     padding: 13px 14px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .alert.error {
@@ -9610,7 +9610,7 @@ input.invalid {
   /* Typography */
   .portal-title {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin-bottom: 8px;
     letter-spacing: -0.02em;
@@ -9624,7 +9624,7 @@ input.invalid {
   
   .portal-label {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--primary-color);
@@ -9677,7 +9677,7 @@ input.invalid {
   
   .stat-value {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin: 8px 0 4px;
   }
@@ -9697,7 +9697,7 @@ input.invalid {
     padding: 10px 20px;
     border-radius: 10px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
@@ -9811,7 +9811,7 @@ input.invalid {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 14px;
     color: var(--text-muted);
     z-index: 2;
@@ -9834,7 +9834,7 @@ input.invalid {
   .step-title {
     margin-top: 8px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-muted);
     transition: color 0.3s;
   }
@@ -9862,7 +9862,7 @@ input.invalid {
   
   .form-section-title {
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin-bottom: 24px;
     padding-bottom: 12px;
@@ -9889,7 +9889,7 @@ input.invalid {
   
   .form-label {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-main);
   }
   
@@ -9958,7 +9958,7 @@ input.invalid {
   }
   
   .draft-banner .title {
-    font-weight: 700;
+    font-weight: 400;
     color: #92400e;
     font-size: 15px;
   }
@@ -10025,7 +10025,7 @@ input.invalid {
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
   }
   
   .badge-amber { background: #fef3c7; color: #b45309; }
@@ -10092,7 +10092,7 @@ input.invalid {
   .combo-item.active {
     background: #ecfdf5;
     color: var(--primary-color);
-    font-weight: 600;
+    font-weight: 400;
   }
 
 /* ==========================================================================
@@ -10142,7 +10142,7 @@ input.invalid {
   margin: 0 0 4px;
   color: var(--primary-color);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -10171,7 +10171,7 @@ input.invalid {
   background: #fef3c7;
   color: #92400e;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -10268,7 +10268,7 @@ input.invalid {
   margin: 0;
   color: var(--text-main);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
@@ -10313,7 +10313,7 @@ input.invalid {
 .partner-doc-row .partner-doc-warning {
   margin-top: 4px;
   color: #b45309;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .partner-doc-actions,
@@ -10359,7 +10359,7 @@ input.invalid {
   gap: 7px;
   color: #334155;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .partner-field textarea,
@@ -10384,7 +10384,7 @@ input.invalid {
   margin: 0;
   color: var(--danger-color);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .partner-file-chips {
@@ -10404,7 +10404,7 @@ input.invalid {
   padding: 0 10px;
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .partner-sign-layout {
@@ -10481,7 +10481,7 @@ input.invalid {
   padding: 12px;
   color: var(--text-main);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -10517,7 +10517,7 @@ input.invalid {
   pointer-events: none;
   color: #94a3b8;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .partner-otp-box {
@@ -10532,7 +10532,7 @@ input.invalid {
   border-radius: 8px;
   padding: 0 12px;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: .08em;
 }
 
@@ -10598,7 +10598,7 @@ input.invalid {
   margin-bottom: 3px;
   color: var(--primary-color);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -11140,7 +11140,7 @@ input.invalid {
   /* Typography */
   .portal-title {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin-bottom: 8px;
     letter-spacing: -0.02em;
@@ -11154,7 +11154,7 @@ input.invalid {
 
   .portal-label {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--primary-color);
@@ -11207,7 +11207,7 @@ input.invalid {
 
   .stat-value {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin: 8px 0 4px;
   }
@@ -11227,7 +11227,7 @@ input.invalid {
     padding: 10px 20px;
     border-radius: 10px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
@@ -11341,7 +11341,7 @@ input.invalid {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
+    font-weight: 400;
     font-size: 14px;
     color: var(--text-muted);
     z-index: 2;
@@ -11364,7 +11364,7 @@ input.invalid {
   .step-title {
     margin-top: 8px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-muted);
     transition: color 0.3s;
   }
@@ -11392,7 +11392,7 @@ input.invalid {
 
   .form-section-title {
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--text-main);
     margin-bottom: 24px;
     padding-bottom: 12px;
@@ -11419,7 +11419,7 @@ input.invalid {
 
   .form-label {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-main);
   }
 
@@ -11488,7 +11488,7 @@ input.invalid {
   }
 
   .draft-banner .title {
-    font-weight: 700;
+    font-weight: 400;
     color: #92400e;
     font-size: 15px;
   }
@@ -11598,7 +11598,7 @@ input.invalid {
     color: #b91c1c;
     cursor: pointer;
     padding: 9px 10px;
-    font-weight: 700;
+    font-weight: 400;
     text-align: left;
   }
 
@@ -11651,7 +11651,7 @@ input.invalid {
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
   }
 
   .badge-amber { background: #fef3c7; color: #b45309; }
@@ -11719,7 +11719,7 @@ input.invalid {
   .combo-item.active {
     background: #ecfdf5;
     color: var(--primary-color);
-    font-weight: 600;
+    font-weight: 400;
   }
 
 /* ==========================================================================
@@ -11769,7 +11769,7 @@ input.invalid {
   margin: 0 0 4px;
   color: var(--primary-color);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -11798,7 +11798,7 @@ input.invalid {
   background: #fef3c7;
   color: #92400e;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -11895,7 +11895,7 @@ input.invalid {
   margin: 0;
   color: var(--text-main);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
@@ -11940,7 +11940,7 @@ input.invalid {
 .partner-doc-row .partner-doc-warning {
   margin-top: 4px;
   color: #b45309;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .partner-doc-actions,
@@ -11986,7 +11986,7 @@ input.invalid {
   gap: 7px;
   color: #334155;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .partner-field textarea,
@@ -12011,7 +12011,7 @@ input.invalid {
   margin: 0;
   color: var(--danger-color);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .partner-file-chips {
@@ -12031,7 +12031,7 @@ input.invalid {
   padding: 0 10px;
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .partner-sign-layout {
@@ -12108,7 +12108,7 @@ input.invalid {
   padding: 12px;
   color: var(--text-main);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -12144,7 +12144,7 @@ input.invalid {
   pointer-events: none;
   color: #94a3b8;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .partner-otp-box {
@@ -12159,7 +12159,7 @@ input.invalid {
   border-radius: 8px;
   padding: 0 12px;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: .08em;
 }
 
@@ -12225,7 +12225,7 @@ input.invalid {
   margin-bottom: 3px;
   color: var(--primary-color);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -12447,7 +12447,7 @@ input.invalid {
 }
 
 .partner-workflow-eyebrow {
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -12495,7 +12495,7 @@ input.invalid {
   background: var(--sg-client-surface);
   color: inherit;
   font-size: var(--sg-client-font-sm);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .partner-workflow-steps li strong {
@@ -12761,7 +12761,7 @@ input.invalid {
   margin: var(--sg-client-space-1) 0 0;
   color: var(--sg-client-text);
   font-size: var(--sg-client-font-base);
-  font-weight: 700;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
@@ -12779,7 +12779,7 @@ input.invalid {
   color: var(--sg-client-muted);
   padding: var(--sg-client-space-2);
   font-size: var(--sg-client-font-xs);
-  font-weight: 750;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -12903,7 +12903,7 @@ input.invalid {
   background: var(--sg-client-primary-soft);
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-sm);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .portal-flow strong,
@@ -13156,7 +13156,7 @@ input.invalid {
   background: var(--sg-client-surface);
   color: var(--sg-client-text);
   font-size: var(--sg-client-font-sm);
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -13293,7 +13293,7 @@ input.invalid {
   display: grid;
   gap: var(--sg-client-space-2);
   font-size: var(--sg-client-font-sm);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--sg-client-text);
 }
 
@@ -13654,7 +13654,7 @@ input.invalid {
 .settings-title {
   margin: 0 0 4px;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -13674,7 +13674,7 @@ input.invalid {
   color: #ffffff;
   border: none;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: opacity 140ms ease;
 }

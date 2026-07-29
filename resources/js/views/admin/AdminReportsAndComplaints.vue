@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="moderation-page">
     <div style="display: flex; gap: 12px; margin-bottom: 24px; margin-top: 10px;">
       <button class="tab-btn" :class="{ active: activeModuleTab === 'reports' }" @click="selectModuleTab('reports')">
@@ -80,7 +80,7 @@ export default {
   background: white;
   color: #64748b;
   border: 1px solid #e2e8f0;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;

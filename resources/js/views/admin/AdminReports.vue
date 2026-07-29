@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="complaints-page">
     <div v-if="success" class="notice success">{{ success }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -109,7 +109,7 @@
                     </div>
                   </td>
                   <td style="padding: 12px 16px;">
-                    <span class="status-badge" :class="report.status" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;" :style="report.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (report.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
+                    <span class="status-badge" :class="report.status" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="report.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (report.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
                       {{ statusLabel(report.status) }}
                     </span>
                   </td>
@@ -143,7 +143,7 @@
                 <AppIcon name="arrowLeft" size="24" />
               </button>
               <div>
-                <h1 class="page-title" style="margin: 0; font-size: 20px; font-weight: 700;">Chi tiết báo cáo</h1>
+                <h1 class="page-title" style="margin: 0; font-size: 20px; font-weight: 400;">Chi tiết báo cáo</h1>
                 <p class="subtitle" style="margin: 0; color: #64748b; font-size: 14px;">
                   Mã báo cáo: <strong>{{ shortId(selected.id) }}</strong> ·
                   Tạo lúc: {{ formatDateTime(selected.created_at) }}
@@ -182,11 +182,11 @@
               <!-- Original Report Content -->
               <div class="card complaint-box" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
                 <div class="complaint-head" style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
-                  <div class="avatar" style="width: 40px; height: 40px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  <div class="avatar" style="width: 40px; height: 40px; background: #fee2e2; color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 400;">
                     <AppIcon name="flag" size="20" />
                   </div>
                   <div>
-                    <div style="font-weight: 600; font-size: 15px;">{{ reasonLabel(selected.reason) }} <span style="color: #64748b; font-weight: normal;">(Báo cáo {{ targetLabel(selected.target_type) }})</span></div>
+                    <div style="font-weight: 400; font-size: 15px;">{{ reasonLabel(selected.reason) }} <span style="color: #64748b; font-weight: normal;">(Báo cáo {{ targetLabel(selected.target_type) }})</span></div>
                     <div style="font-size: 13px; color: #94a3b8;">{{ formatDateTime(selected.created_at) }}</div>
                   </div>
                 </div>
@@ -207,8 +207,8 @@
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <label style="display: block; font-size: 14px; font-weight: 600;">Ghi chú xử lý</label>
-                      <button @click="fillTemplateActionNote" class="btn ghost" style="padding: 4px 8px; font-size: 12px; background: #f1f5f9; color: #475569; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;">Sử dụng văn mẫu</button>
+                      <label style="display: block; font-size: 14px; font-weight: 400;">Ghi chú xử lý</label>
+                      <button @click="fillTemplateActionNote" class="btn ghost" style="padding: 4px 8px; font-size: 12px; background: #f1f5f9; color: #475569; border: none; border-radius: 4px; font-weight: 400; cursor: pointer;">Sử dụng văn mẫu</button>
                     </div>
                     <textarea v-model="form.action_note" placeholder="Nhập ghi chú giải quyết (nội dung này sẽ được gửi kèm thông báo cho người báo cáo)..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
                   </div>
@@ -217,8 +217,8 @@
                         v-model="form.action_taken" 
                         :options="[{value: '', label: 'Chọn hình thức xử lý...'}, {value: 'warning', label: 'Cảnh cáo người dùng'}, {value: 'content_hidden', label: 'Ẩn nội dung'}, {value: 'content_deleted', label: 'Gỡ bỏ nội dung'}, {value: 'account_locked', label: 'Khóa tài khoản'}, {value: 'venue_locked', label: 'Khóa cụm sân'}]" 
                     />
-                    <button @click="submitDecision('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving || !form.action_taken">Xác nhận xử lý</button>
-                    <button @click="submitDecision('dismissed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Bỏ qua (Báo cáo sai)</button>
+                    <button @click="submitDecision('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving || !form.action_taken">Xác nhận xử lý</button>
+                    <button @click="submitDecision('dismissed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Bỏ qua (Báo cáo sai)</button>
                   </div>
                 </div>
               </div>
@@ -228,7 +228,7 @@
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Gửi thông báo bổ sung</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div style="display: flex; gap: 24px; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <label style="font-size: 14px; font-weight: 600; color: #334155; margin: 0;">Gửi cho:</label>
+                    <label style="font-size: 14px; font-weight: 400; color: #334155; margin: 0;">Gửi cho:</label>
                     <div style="display: flex; gap: 20px;">
                       <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
                         <input type="radio" v-model="form.notify_recipient" value="reporter" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
@@ -244,13 +244,13 @@
                     <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo muốn gửi..." style="width: 100%; min-height: 120px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box; outline: none; transition: border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"></textarea>
                   </div>
                   <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
+                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
                       <AppIcon name="send" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi thông báo
                     </button>
-                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
+                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
                       Sử dụng văn mẫu
                     </button>
-                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
+                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
                       <AppIcon name="zap" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi nhanh cho cả 2 (Văn mẫu)
                     </button>
                   </div>
@@ -783,7 +783,7 @@ export default {
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -862,7 +862,7 @@ th {
   background: var(--admin-surface-muted);
   padding: 12px 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-faint);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -922,7 +922,7 @@ th.center, td.center {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   background: var(--admin-surface-hover);
   color: var(--admin-text);
 }
@@ -940,7 +940,7 @@ th.center, td.center {
 
 .booking-code {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-primary);
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
@@ -952,7 +952,7 @@ th.center, td.center {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .status-warning {
   background: rgba(245, 158, 11, 0.1);

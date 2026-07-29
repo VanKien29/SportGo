@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div 
     class="court-visual-wrapper" 
     :style="wrapperStyle"
@@ -343,7 +343,7 @@ export default {
 
 .overlay-badge .label {
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: rgba(0, 0, 0, 0.6);
@@ -377,7 +377,7 @@ export default {
 
 .court-name-text {
   font-size: 1.05em;
-  font-weight: 800;
+  font-weight: 400;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
@@ -385,7 +385,7 @@ export default {
 
 .court-type-text {
   font-size: 0.73em;
-  font-weight: 700;
+  font-weight: 400;
   opacity: 0.8;
   margin-top: 0.1em;
 }

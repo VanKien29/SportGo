@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="partner-page">
     <header class="partner-list-header">
       <div>
@@ -315,7 +315,7 @@ export default {
 .partner-kpi-card span {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -351,7 +351,7 @@ export default {
   align-items: center;
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -360,7 +360,7 @@ export default {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .field.full {
@@ -392,7 +392,7 @@ export default {
 .notice {
   padding: 12px 14px;
   border-radius: 8px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .notice.success {
@@ -469,7 +469,7 @@ th {
 
 .center { text-align: center; }
 .right { text-align: right; }
-.strong { font-weight: 900; color: var(--admin-text); }
+.strong { font-weight: 400; color: var(--admin-text); }
 .muted { color: var(--admin-muted); font-size: 13px; }
 
 .status {
@@ -477,7 +477,7 @@ th {
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   background: var(--admin-border);
   color: var(--admin-text);
 }
@@ -527,7 +527,7 @@ th {
   gap: 8px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 900;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -557,7 +557,7 @@ th {
   color: #176534;
   cursor: pointer;
   padding: 0 11px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 

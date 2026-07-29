@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="cluster-header-hero-wrapper">
     <!-- Combined Master Hero Header Card (Profile & Navigation in 1 Unit) -->
     <section v-if="cluster" class="cluster-hero-surface">
@@ -139,7 +139,7 @@ export default {
 .cluster-title {
   margin: 0;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text, #0f172a);
 }
 

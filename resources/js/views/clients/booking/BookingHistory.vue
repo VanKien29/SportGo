@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="booking-history-page sg-client-page">
     <PublicNavbar />
 
@@ -341,7 +341,7 @@ export default {
 .eyebrow {
   margin: 0 0 8px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   color: #059669;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -350,7 +350,7 @@ export default {
 .history-header h1 {
   margin: 0;
   font-size: 32px;
-  font-weight: 900;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -365,7 +365,7 @@ export default {
 .filters button,
 .pagination button {
   border-radius: 8px;
-  font-weight: 800;
+  font-weight: 400;
   transition: .16s ease;
 }
 
@@ -455,13 +455,13 @@ export default {
 .code {
   color: #64748b;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .booking-card h2 {
   margin: 4px 0 0;
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -471,7 +471,7 @@ export default {
   background: #f1f5f9;
   color: #475569;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -510,7 +510,7 @@ export default {
   margin-bottom: 4px;
   color: #64748b;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .booking-meta strong {
@@ -542,7 +542,7 @@ export default {
   margin-top: 18px;
   justify-content: center;
   color: #64748b;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 @keyframes spin {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="admin-staff-detail">
     <div class="header-section">
       <div class="breadcrumb-nav">
@@ -575,7 +575,7 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: 400;
   margin-bottom: 16px;
 }
 
@@ -610,7 +610,7 @@ export default {
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 .status-badge.active { background: #dcfce7; color: #166534; }
 .status-badge.locked { background: #fee2e2; color: #991b1b; }
@@ -638,7 +638,7 @@ export default {
   padding: 12px;
   background: #f9fafb;
   color: #374151;
-  font-weight: 600;
+  font-weight: 400;
   border-bottom: 1px solid #e5e7eb;
 }
 .logs-table td {
@@ -665,7 +665,7 @@ export default {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 400;
   background: #f3f4f6;
   color: #374151;
 }
@@ -684,13 +684,13 @@ export default {
   align-items: center;
   gap: 6px;
 }
-.diff-line .field-name { font-weight: 600; }
+.diff-line .field-name { font-weight: 400; }
 .diff-line .old-val { text-decoration: line-through; color: #9ca3af; }
 .diff-line .arrow { color: #6b7280; }
 .diff-line .new-val { color: #059669; font-weight: 500; }
 
 .highlight-val {
-  font-weight: 600;
+  font-weight: 400;
   color: #4f46e5;
 }
 
@@ -701,14 +701,14 @@ hr {
 }
 
 /* Modal Lock Form styles inherited from global */
-.field-label { display: block; font-weight: 600; margin-bottom: 8px; }
+.field-label { display: block; font-weight: 400; margin-bottom: 8px; }
 .segmented { display: flex; border-radius: 6px; overflow: hidden; border: 1px solid #d1d5db; margin-bottom: 16px; }
 .segmented button { flex: 1; padding: 8px 0; background: #f9fafb; border: none; cursor: pointer; border-right: 1px solid #d1d5db; }
 .segmented button:last-child { border-right: none; }
-.segmented button.active { background: #4f46e5; color: white; font-weight: 600; }
+.segmented button.active { background: #4f46e5; color: white; font-weight: 400; }
 .duration-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
 .duration-grid button { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
-.duration-grid button.active { border-color: #4f46e5; background: #eef2ff; color: #4f46e5; font-weight: 600; }
+.duration-grid button.active { border-color: #4f46e5; background: #eef2ff; color: #4f46e5; font-weight: 400; }
 .custom-duration { display: flex; gap: 12px; margin-bottom: 12px; }
 .custom-duration label { flex: 1; }
 .hint { font-size: 0.875rem; color: #6b7280; }

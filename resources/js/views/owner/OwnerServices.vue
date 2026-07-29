@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="page owner-services-page animate-fade-in">
     <!-- Nút thêm mới nổi -->
     <div class="floating-add-container">
@@ -448,7 +448,7 @@ export default {
 
 .badge {
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 4px 10px;
   border-radius: 4px;
   display: inline-block;
@@ -472,7 +472,7 @@ export default {
   background: var(--admin-surface, #fff);
   color: var(--admin-text, #1e293b);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 0 12px;
   cursor: pointer;
   box-sizing: border-box;

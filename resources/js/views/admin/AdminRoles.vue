@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="admin-page">
 
     <div v-if="error" class="alert error">{{ error }}</div>
@@ -397,7 +397,7 @@ export default {
   margin: 0 0 4px;
   color: var(--admin-success-text);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -446,7 +446,7 @@ small {
   border-bottom: 3px solid transparent;
   background: transparent;
   color: var(--admin-muted);
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
@@ -572,7 +572,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -606,7 +606,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: 999px;
   background: var(--admin-surface-muted);
   color: var(--admin-text);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .type-badge,
@@ -668,7 +668,7 @@ tbody tr.never-hover-class-placeholder {
 .alert {
   border-radius: var(--admin-radius);
   padding: 11px 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .alert.error {
@@ -690,7 +690,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: var(--admin-radius);
   padding: 10px 14px;
   font: inherit;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -754,7 +754,7 @@ label {
   flex-direction: column;
   gap: 6px;
   color: var(--admin-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 small {

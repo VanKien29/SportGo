@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="admin-payments">
         <header class="page-header">
             <div>
@@ -773,7 +773,7 @@ export default {
     justify-content: center;
     gap: 7px;
     border-radius: 7px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
 }
 .icon-command {
@@ -828,7 +828,7 @@ td {
 th {
     background: var(--admin-surface-muted);
     color: var(--admin-text);
-    font-weight: 800;
+    font-weight: 400;
 }
 .empty {
     padding: 28px;
@@ -839,7 +839,7 @@ th {
     padding: 0;
     background: transparent;
     color: var(--admin-success-text);
-    font-weight: 800;
+    font-weight: 400;
     text-decoration: underline;
     border: 0;
     cursor: pointer;
@@ -852,7 +852,7 @@ th {
     background: var(--admin-border);
     color: var(--admin-text);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
 }
 .status-pill.pending {
@@ -907,13 +907,13 @@ th {
 .drawer-header h3 {
     margin: 3px 0 0;
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--admin-text);
 }
 .eyebrow {
     color: var(--admin-muted);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -961,7 +961,7 @@ th {
     display: block;
     color: var(--admin-faint);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
@@ -995,7 +995,7 @@ th {
     margin-bottom: 12px;
     color: var(--admin-success-text);
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .wallet-credit-body {
     background: var(--admin-surface);
@@ -1018,13 +1018,13 @@ th {
     display: block;
     font-size: 11px;
     color: var(--admin-muted);
-    font-weight: 600;
+    font-weight: 400;
     text-transform: uppercase;
     margin-bottom: 2px;
 }
 .formula-part strong {
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--admin-text);
 }
 .formula-part.credited strong {
@@ -1036,7 +1036,7 @@ th {
 }
 .formula-op {
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--admin-faint);
     line-height: 1;
     margin-top: 14px;
@@ -1061,7 +1061,7 @@ th {
 .logs-section h4 {
     margin: 0 0 9px;
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--admin-text);
 }
 .log-row {
@@ -1096,7 +1096,7 @@ summary {
     cursor: pointer;
     color: var(--admin-muted);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 pre {
     max-height: 250px;

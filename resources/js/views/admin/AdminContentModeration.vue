@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="moderation-page">
 
       <!-- Lọc theo Trạng thái -->
@@ -202,7 +202,7 @@
               </div>
             </div>
 
-            <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 800; color: #0f172a;">
+            <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 400; color: #0f172a;">
               {{ activeItem.title }}
             </h5>
             <p class="fb-post-text">{{ activeItem.content }}</p>
@@ -228,7 +228,7 @@
             <!-- Nút thao tác bài viết -->
             <div class="fb-moderation-actions" style="margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
               <div v-if="activeItem.status !== 'hidden' && activeItem.status !== 'rejected'" style="margin-bottom: 12px;">
-                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 800; color: #475569;">
+                <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 400; color: #475569;">
                   <span>Lý do ẩn/từ chối/gỡ (Bắt buộc nếu ẩn/từ chối/gỡ):</span>
                   <textarea
                     v-model.trim="actionForm.reason"
@@ -961,7 +961,7 @@ export default {
   background: #f8fafc;
   color: #475569;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1032,7 +1032,7 @@ input:checked + .custom-slider:before {
 
 .custom-switch-label {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: #334155;
 }
 
@@ -1052,7 +1052,7 @@ input:checked + .custom-slider:before {
   background: transparent;
   color: #64748b;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s;
@@ -1081,7 +1081,7 @@ input:checked + .custom-slider:before {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--sg-text);
   min-width: 200px;
 }
@@ -1117,7 +1117,7 @@ input:checked + .custom-slider:before {
   gap: 8px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -1193,7 +1193,7 @@ input:checked + .custom-slider:before {
   padding: 12px 14px;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .notice.success {
@@ -1257,7 +1257,7 @@ td {
 th {
   background: #f8fafc;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1265,7 +1265,7 @@ th {
 
 .main-title {
   color: var(--sg-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .muted {
@@ -1302,7 +1302,7 @@ th {
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -1328,7 +1328,7 @@ th {
   background: #f1f5f9;
   color: #475569;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   border-radius: 4px;
 }
 
@@ -1367,7 +1367,7 @@ th {
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .status {
@@ -1375,7 +1375,7 @@ th {
   padding: 4px 8px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .status-rejected {
@@ -1435,7 +1435,7 @@ th {
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -1475,7 +1475,7 @@ th {
 .section-title {
   margin: 0;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 400;
   color: #0f172a;
   border-left: 3px solid #10b981;
   padding-left: 8px;
@@ -1490,7 +1490,7 @@ th {
 
 .context-label {
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   color: #9d174d;
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -1506,7 +1506,7 @@ th {
 .parent-post-quote cite {
   display: block;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 400;
   font-size: 11px;
   margin-top: 4px;
   color: #64748b;
@@ -1571,7 +1571,7 @@ th {
   background: #f1f5f9;
   color: #0f172a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   padding: 3px 8px;
   border-radius: 4px;
 }
@@ -1586,7 +1586,7 @@ th {
 }
 
 .report-meta dt {
-  font-weight: 800;
+  font-weight: 400;
   color: #64748b;
 }
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="moderation-page">
     <AdminContentModeration 
       ref="moderationTab"
@@ -112,7 +112,7 @@ input:checked + .slider:before {
 
 .switch-label {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: #334155;
 }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="matchmaking-page">
 
     <div class="page-header sg-page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
@@ -266,7 +266,7 @@
       <div class="modal fb-post-modal" @mousedown.stop style="max-width: 500px; width: 100%; border-radius: 8px; padding: 0; background: #ffffff; color: #050505; font-family: inherit; box-shadow: 0 12px 28px 0 rgba(0,0,0,0.2), 0 2px 4px 0 rgba(0,0,0,0.1); border: none;">
         <!-- Header -->
         <div class="fb-modal-header" style="border-bottom: 1px solid #ced0d4; padding: 16px; position: relative; text-align: center;">
-          <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #050505;">Tạo bài viết</h3>
+          <h3 style="margin: 0; font-size: 20px; font-weight: 400; color: #050505;">Tạo bài viết</h3>
           <button class="icon-btn" type="button" title="Đóng" @click="closeCreateModal" style="position: absolute; right: 16px; top: 16px; background: #e4e6eb; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #606770; border: none; cursor: pointer; transition: background 0.2s;">
             <AppIcon name="x" size="20" />
           </button>
@@ -280,12 +280,12 @@
                 <AppIcon name="user" size="24" color="#606770" />
               </div>
               <div class="fb-user-name">
-                <div style="font-weight: 600; font-size: 15px; color: #050505;">Chủ sân (Quản trị viên)</div>
+                <div style="font-weight: 400; font-size: 15px; color: #050505;">Chủ sân (Quản trị viên)</div>
                 <div class="fb-tags" style="display: flex; gap: 6px; margin-top: 4px;">
                   <!-- Custom Select Cluster -->
                   <div style="position: relative;">
                     <div v-if="clusterDropdownOpen" @click="clusterDropdownOpen = false" style="position: fixed; inset: 0; z-index: 99;"></div>
-                    <div @click="clusterDropdownOpen = !clusterDropdownOpen" style="background: #e4e6eb; border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; color: #050505; cursor: pointer; user-select: none; position: relative; z-index: 100;">
+                    <div @click="clusterDropdownOpen = !clusterDropdownOpen" style="background: #e4e6eb; border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 400; display: inline-flex; align-items: center; gap: 4px; color: #050505; cursor: pointer; user-select: none; position: relative; z-index: 100;">
                       <AppIcon name="building" size="12" />
                       <span>{{ selectedClusterName || 'Chọn cụm sân' }}</span>
                       <AppIcon name="chevronDown" size="12" />
@@ -324,7 +324,7 @@
             <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
               <!-- Select Booking Area -->
               <div class="fb-booking-select" style="background: #f0f2f5; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #ced0d4;">
-                <div style="font-weight: 600; font-size: 13px; color: #050505; display: flex; align-items: center; gap: 6px;">
+                <div style="font-weight: 400; font-size: 13px; color: #050505; display: flex; align-items: center; gap: 6px;">
                   <AppIcon name="calendar" size="16" color="#f5533d" /> Lịch đặt sân <span class="required" style="color: #f02849;">*</span>
                 </div>
                 
@@ -353,13 +353,13 @@
               <!-- Players & Cost -->
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <label style="background: #f0f2f5; border-radius: 8px; padding: 8px 12px; border: 1px solid #ced0d4; cursor: text; display: block;">
-                  <div style="font-size: 12px; font-weight: 600; color: #65676b; display: flex; align-items: center; gap: 6px;">
+                  <div style="font-size: 12px; font-weight: 400; color: #65676b; display: flex; align-items: center; gap: 6px;">
                     <AppIcon name="users" size="14" color="#1877f2" /> Số người cần <span style="color: #f02849;">*</span>
                   </div>
                   <input v-model.number="createForm.needed_players" type="number" min="1" required style="width: 100%; border: none; outline: none; font-size: 14px; margin-top: 4px; padding: 4px 0; font-family: inherit; background: transparent; color: #050505;" />
                 </label>
                 <label style="background: #f0f2f5; border-radius: 8px; padding: 8px 12px; border: 1px solid #ced0d4; cursor: text; display: block;">
-                  <div style="font-size: 12px; font-weight: 600; color: #65676b; display: flex; align-items: center; gap: 6px;">
+                  <div style="font-size: 12px; font-weight: 400; color: #65676b; display: flex; align-items: center; gap: 6px;">
                     <AppIcon name="banknote" size="14" color="#f7b928" /> Chi phí (VND)
                   </div>
                   <input v-model.number="createForm.cost_per_player" type="number" min="0" placeholder="0 = Miễn phí" style="width: 100%; border: none; outline: none; font-size: 14px; margin-top: 4px; padding: 4px 0; font-family: inherit; background: transparent; color: #050505;" />
@@ -369,7 +369,7 @@
 
             <!-- Add to Post -->
             <div class="fb-add-to-post" style="border: 1px solid #ced0d4; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-              <span style="font-weight: 600; font-size: 15px; color: #050505;">Thêm vào bài viết của bạn</span>
+              <span style="font-weight: 400; font-size: 15px; color: #050505;">Thêm vào bài viết của bạn</span>
               <div style="display: flex; gap: 16px; align-items: center;">
                 <label style="cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s;" title="Thêm ảnh">
                   <AppIcon name="image" size="24" color="#45bd62" />
@@ -392,7 +392,7 @@
           </div>
 
           <div class="fb-modal-footer" style="padding: 0 16px 16px;">
-            <button class="btn primary fb-submit-btn" type="submit" :disabled="saving || !createForm.booking_id" style="width: 100%; font-size: 15px; font-weight: 600; padding: 10px; border-radius: 6px; background: var(--admin-primary, #1b74e4); border: none; color: #fff; cursor: pointer; transition: background 0.2s;">
+            <button class="btn primary fb-submit-btn" type="submit" :disabled="saving || !createForm.booking_id" style="width: 100%; font-size: 15px; font-weight: 400; padding: 10px; border-radius: 6px; background: var(--admin-primary, #1b74e4); border: none; color: #fff; cursor: pointer; transition: background 0.2s;">
               <span>{{ saving ? 'Đang tạo...' : 'Đăng' }}</span>
             </button>
           </div>
@@ -775,7 +775,7 @@ export default {
   padding: 12px 16px;
   border-radius: 10px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
  
 .notice.success {
@@ -791,7 +791,7 @@ export default {
 }
 .page-header h2 {
   font-size: 24px;
-  font-weight: 850;
+  font-weight: 400;
   color: #0f172a;
   margin: 0;
 }
@@ -845,7 +845,7 @@ export default {
   flex-direction: column;
   gap: 5px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -959,7 +959,7 @@ th, td {
 th {
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
-  font-weight: 900;
+  font-weight: 400;
   font-size: 10px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -982,7 +982,7 @@ tbody tr:last-child td {
  
 .author-cell strong {
   color: var(--admin-text);
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
 }
  
@@ -1004,7 +1004,7 @@ tbody tr:last-child td {
 }
  
 .post-title {
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text);
   font-size: 14px;
   line-height: 1.3;
@@ -1043,7 +1043,7 @@ tbody tr:last-child td {
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   width: fit-content;
 }
  
@@ -1054,7 +1054,7 @@ tbody tr:last-child td {
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   width: fit-content;
   border: 1px solid var(--admin-border);
 }
@@ -1063,7 +1063,7 @@ tbody tr:last-child td {
 .status-badge {
   display: inline-block;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   padding: 3px 10px;
   border-radius: 999px;
   text-transform: uppercase;
@@ -1109,7 +1109,7 @@ tbody tr:last-child td {
 }
  
 .booking-code {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 12px;
   color: var(--admin-text);
   font-family: monospace;
@@ -1122,7 +1122,7 @@ tbody tr:last-child td {
  
 .btn-link {
   color: var(--admin-blue);
-  font-weight: 700;
+  font-weight: 400;
   font-size: 12px;
   text-decoration: none;
   display: inline-flex;
@@ -1154,7 +1154,7 @@ tbody tr:last-child td {
   height: 34px;
   padding: 0 14px;
   border-radius: 8px;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -1245,7 +1245,7 @@ tbody tr:last-child td {
  
 .page-info {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: #475569;
 }
  
@@ -1288,7 +1288,7 @@ tbody tr:last-child td {
  
 .modal-header h3 {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--admin-text);
   margin: 0;
 }
@@ -1313,7 +1313,7 @@ tbody tr:last-child td {
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.5;
 }
  
@@ -1379,6 +1379,6 @@ tbody tr:last-child td {
 .custom-dropdown-item.active {
   background: var(--admin-primary-soft, #e6f2ff);
   color: var(--admin-primary, #1877f2);
-  font-weight: 600;
+  font-weight: 400;
 }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="amenities-container">
 
         <!-- Loading State -->
@@ -135,7 +135,7 @@
                     <div class="detail-grid">
                         <div class="detail-item">
                             <span class="detail-label">Tên tiện ích</span>
-                            <span class="detail-value font-bold text-lg">{{ viewItem.name }}</span>
+                            <span class="detail-value font-normal text-lg">{{ viewItem.name }}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Trạng thái</span>
@@ -527,7 +527,7 @@ export default {
 
 .page-title {
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: var(--sg-text, #0f172a);
 }
@@ -570,7 +570,7 @@ export default {
     background: var(--admin-surface) !important;
     color: #475569 !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     cursor: pointer !important;
     transition: all 0.18s !important;
     box-sizing: border-box !important;
@@ -645,7 +645,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     cursor: pointer;
     border: 1px solid transparent;
@@ -795,7 +795,7 @@ export default {
 .modal-header h3 {
     margin: 0;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .btn-close {
@@ -821,7 +821,7 @@ export default {
 
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .form-control {
@@ -848,7 +848,7 @@ export default {
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .checkbox-label input {
@@ -873,7 +873,7 @@ export default {
     border: 1px solid #fecaca;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .required {
@@ -902,7 +902,7 @@ export default {
 }
 .detail-label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1041,7 +1041,7 @@ export default {
     max-width: 0;
     opacity: 0;
     margin-left: 0;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
@@ -1166,7 +1166,7 @@ export default {
 .custom-select-option.active {
     background: rgba(15, 23, 42, 0.05) !important;
     color: #0f172a !important;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .custom-select-option.disabled {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <nav class="navbar">
     <div class="navbar-inner">
       <div class="navbar-left">
@@ -625,7 +625,7 @@ export default {
 .brand-text {
   color: #102015;
   font-size: 24px;
-  font-weight: 950;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
@@ -642,7 +642,7 @@ export default {
   padding: 22px 4px 20px;
   color: #1f2937;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 400;
   text-decoration: none;
   transition: color .18s ease;
   white-space: nowrap;
@@ -698,13 +698,13 @@ export default {
 .hotline strong {
   color: #111827;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 400;
 }
 
 .hotline small {
   color: #718078;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .login-btn,
@@ -713,7 +713,7 @@ export default {
   min-height: 40px;
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -753,7 +753,7 @@ export default {
   border-radius: 50%;
   background: linear-gradient(135deg, #16a765, #04733f);
   color: #fff;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .user-avatar {
@@ -791,14 +791,14 @@ export default {
 .dd-name {
   color: #111827;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .dd-role {
   margin-top: 3px;
   color: #66756d;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .notification-menu {
@@ -833,7 +833,7 @@ export default {
   background: #ef4444;
   color: white;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 400;
   height: 16px;
   min-width: 16px;
   padding: 0 4px;
@@ -857,7 +857,7 @@ export default {
 .mark-read-btn {
   font-size: 12px;
   color: #0ea5e9;
-  font-weight: 600;
+  font-weight: 400;
   background: transparent;
 }
 
@@ -902,7 +902,7 @@ export default {
 }
 
 .notif-title {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   color: #0f172a;
   margin-bottom: 4px;
@@ -943,7 +943,7 @@ export default {
   padding: 12px 16px;
   color: #26332b;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
   text-align: left;
   text-decoration: none;
   transition: background .18s ease, color .18s ease;

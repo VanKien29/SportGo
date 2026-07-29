@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <div v-if="show" class="fixed inset-0 z-[700] flex items-center justify-center p-4 sm:p-0">
     <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" @click="$emit('close')"></div>
 
     <div class="relative w-full max-w-lg transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all sm:my-8">
       <div class="border-b border-gray-100 px-6 py-4 flex justify-between items-center bg-gray-50/50">
-        <h3 class="text-lg font-semibold text-gray-900">Ký điện tử</h3>
+        <h3 class="text-lg font-normal text-gray-900">Ký điện tử</h3>
         <button @click="$emit('close')" class="text-gray-400 hover:text-gray-500">
           <span class="sr-only">Đóng</span>
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

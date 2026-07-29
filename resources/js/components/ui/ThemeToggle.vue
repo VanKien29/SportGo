@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="theme-toggle-container" v-click-outside="closeDropdown">
     <!-- Trigger Button -->
     <button
@@ -190,7 +190,7 @@ export default {
   color: var(--admin-muted);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;

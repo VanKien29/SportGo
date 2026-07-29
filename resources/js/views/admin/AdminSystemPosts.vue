@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-system-posts-page">
     <div class="page-header">
       <h2>Quản lý Tin tức hệ thống</h2>
@@ -411,7 +411,7 @@ export default {
   margin: 0 0 4px;
   color: var(--admin-text);
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .subtitle,
@@ -449,13 +449,13 @@ export default {
 .field span {
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .field-label-compact {
   color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -526,7 +526,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -578,7 +578,7 @@ tbody tr.never-hover-class-placeholder {
   overflow: hidden;
   color: var(--admin-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -710,7 +710,7 @@ tbody tr.never-hover-class-placeholder {
   margin: 0;
   color: var(--admin-text);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .modal-title-icon,
@@ -823,7 +823,7 @@ tbody tr.never-hover-class-placeholder {
 
 .upload-label {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .sr-only-input {
@@ -847,7 +847,7 @@ tbody tr.never-hover-class-placeholder {
   padding: 10px 20px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .btn.ghost {
@@ -907,7 +907,7 @@ tbody tr.never-hover-class-placeholder {
   box-shadow: 0 4px 12px var(--admin-primary-ring);
   cursor: pointer;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 14px 20px;
   transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }

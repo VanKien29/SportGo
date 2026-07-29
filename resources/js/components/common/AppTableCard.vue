@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="sg-table-card">
     <div v-if="title || $slots['header-actions']" class="sg-table-card-head">
       <h4 v-if="title" class="sg-table-card-title">{{ title }}</h4>
@@ -69,7 +69,7 @@ export default {
 .sg-table-card-title {
   margin: 0;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text, #1e293b);
 }
 

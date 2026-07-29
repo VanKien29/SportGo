@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div ref="root" class="work-center">
     <button
       class="work-center-trigger"
@@ -296,7 +296,7 @@ export default {
   background: #d13c32;
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1;
 }
 
@@ -339,7 +339,7 @@ export default {
   margin-bottom: 3px;
   color: #617068;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -372,7 +372,7 @@ export default {
   border-bottom: 2px solid transparent;
   background: transparent;
   color: #5f6e66;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -465,7 +465,7 @@ export default {
 }
 
 .work-center-item-meta span {
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .work-center-item-copy strong,
@@ -495,7 +495,7 @@ export default {
   margin-top: 2px;
   color: #147a43;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .work-center-state {
@@ -557,7 +557,7 @@ export default {
 
 .work-center-toast small {
   color: #6b7971;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .work-center-toast strong {
@@ -572,7 +572,7 @@ export default {
   border: 0;
   background: transparent;
   color: #147a43;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
 }
 

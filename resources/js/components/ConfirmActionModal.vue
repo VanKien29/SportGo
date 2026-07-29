@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div v-if="isOpen" class="confirm-overlay" role="presentation" @click.self="close">
     <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <header>
@@ -132,7 +132,7 @@ watch(() => props.isOpen, (isOpen) => {
 
 .reason-field > span {
   font-size: var(--admin-font-size-base);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .reason-field textarea {

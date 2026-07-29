@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="pf-page">
 
         <!-- Floating Add Button -->
@@ -1088,7 +1088,7 @@ export default {
     margin: 0 0 4px;
     color: #16a34a;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 h2,
@@ -1111,7 +1111,7 @@ p {
     padding: 14px 16px;
     background: #fff7ed;
     color: #9a3412;
-    font-weight: 800;
+    font-weight: 400;
 }
 .info-grid {
     display: grid;
@@ -1121,7 +1121,7 @@ p {
 .info-card {
     padding: 12px;
     color: #334155;
-    font-weight: 800;
+    font-weight: 400;
 }
 .filter-panel {
     align-items: center;
@@ -1243,7 +1243,7 @@ td small {
     border: 0;
     border-radius: 8px;
     padding: 10px 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
 }
 .btn.primary {
@@ -1279,7 +1279,7 @@ label {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-weight: 800;
+    font-weight: 400;
     color: #334155;
 }
 .preview-result,
@@ -1301,7 +1301,7 @@ label {
     display: block;
     color: var(--admin-muted, #64748b) !important;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 6px;
@@ -1311,13 +1311,13 @@ label {
     display: block;
     color: var(--admin-text, #0f172a) !important;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .alert {
     border-radius: 8px;
     padding: 10px 12px;
     margin-top: 10px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .alert.error,
 .toast.error {
@@ -1335,7 +1335,7 @@ label {
 .toast {
     border-radius: 8px;
     padding: 11px 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .empty {
     padding: 36px;
@@ -1417,7 +1417,7 @@ label {
 .modal-head button {
     border: 0;
     background: transparent;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .form-grid {
@@ -1439,7 +1439,7 @@ label {
 .field-error,
 small.field-error {
     color: #dc2626 !important;
-    font-weight: 800;
+    font-weight: 400;
 }
 .validation-message {
     display: flex;
@@ -1452,7 +1452,7 @@ small.field-error {
     background: #fef2f2;
     color: #dc2626 !important;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
 }
 .validation-message svg {

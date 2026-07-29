@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page venue-posts-page">
     <header class="page-header sg-page-header">
       <div class="sg-page-heading">
@@ -98,7 +98,7 @@
           </thead>
           <tbody>
             <tr v-for="(post, index) in posts" :key="post.id">
-              <td class="center font-bold muted">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
+              <td class="center font-normal muted">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
               <td>
                 <div class="thumbnail">
                   <img
@@ -126,7 +126,7 @@
                   {{ statusLabel(post.status) }}
                 </span>
               </td>
-              <td class="center font-bold">{{ post.view_count || 0 }}</td>
+              <td class="center font-normal">{{ post.view_count || 0 }}</td>
               <td class="right muted">{{ formatDate(post.created_at) }}</td>
               <td class="right">
                 <div class="actions">
@@ -227,7 +227,7 @@
 
             <h4>Quyết định kiểm duyệt</h4>
             <div class="field" style="margin-bottom: 12px;">
-              <label style="font-size: 13px; font-weight: 800; color: rgba(15,23,42,0.5); display:block; margin-bottom: 8px;">Lý do / Phản hồi (Bắt buộc nếu từ chối/ẩn)</label>
+              <label style="font-size: 13px; font-weight: 400; color: rgba(15,23,42,0.5); display:block; margin-bottom: 8px;">Lý do / Phản hồi (Bắt buộc nếu từ chối/ẩn)</label>
               <textarea
                 v-model="reviewReason"
                 placeholder="Nhập nội dung phản hồi cho chủ sân..."
@@ -560,7 +560,7 @@ export default {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--sg-text);
 }
 .field input,
@@ -607,7 +607,7 @@ th, td {
 th {
   background: #f8fafc;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   color: #475569;
   text-transform: uppercase;
 }
@@ -618,7 +618,7 @@ th {
   gap: 12px;
   padding: 12px 16px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 /* Custom Status extensions */
@@ -688,7 +688,7 @@ th {
 .detail-section h4 {
   margin: 0 0 12px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
   color: var(--sg-text);
 }
 dl {
@@ -700,13 +700,13 @@ dl {
 dt {
   color: rgba(15, 23, 42, 0.5);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 dd {
   margin: 0;
   color: var(--sg-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 /* Specific post preview styling */
@@ -717,7 +717,7 @@ dd {
 }
 .post-title {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 400;
   color: var(--sg-text);
   margin: 0 0 8px;
 }
@@ -743,7 +743,7 @@ dd {
   gap: 8px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   transition: background 0.18s, border-color 0.18s, color 0.18s;
 }
@@ -807,7 +807,7 @@ dd {
   padding: 12px 14px;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .notice.success {
@@ -865,7 +865,7 @@ dd {
 
 .main-title {
   color: var(--sg-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .muted {
@@ -878,7 +878,7 @@ dd {
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .status-pending,

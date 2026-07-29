@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="courts-tab-surface">
     <!-- Header -->
     <div class="tab-section-header">
@@ -384,7 +384,7 @@ export default {
 .filter-tab-btn.active {
   background: var(--admin-surface);
   color: var(--admin-text);
-  font-weight: 600;
+  font-weight: 400;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
@@ -418,7 +418,7 @@ export default {
 .tab-section-header h2 {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
   display: flex;
   align-items: center;
@@ -436,7 +436,7 @@ export default {
   background: rgba(34, 166, 83, 0.14);
   color: #22a653;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -552,7 +552,7 @@ export default {
 .state-title {
   margin: 0 0 3px;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -699,7 +699,7 @@ export default {
   background: rgba(34, 166, 83, 0.12);
   color: #1a8244;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 400;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -724,7 +724,7 @@ export default {
 
 .court-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
   white-space: nowrap;
   overflow: hidden;
@@ -797,7 +797,7 @@ export default {
 
 .court-card-num {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   font-variant-numeric: tabular-nums;
   background: var(--admin-bg);
@@ -810,7 +810,7 @@ export default {
 .court-card-name {
   margin: 0;
   font-size: 14.5px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -870,7 +870,7 @@ export default {
 .spatial-notice h3 {
   margin: 0 0 6px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 

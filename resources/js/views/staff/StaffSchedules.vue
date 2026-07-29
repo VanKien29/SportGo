@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="staff-schedules-page">
     <header class="staff-schedules-head">
       <div class="staff-schedules-header-left">
@@ -380,7 +380,7 @@ export default {
   border: none;
   color: var(--admin-muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 6px 12px;
   cursor: pointer;
 }
@@ -495,7 +495,7 @@ export default {
 
 .staff-day header strong {
   font-size: var(--admin-font-size-base, 14px);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -519,13 +519,13 @@ export default {
 
 .staff-day-time {
   font-size: var(--admin-font-size-sm, 12px);
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
 .staff-day-shift strong {
   font-size: var(--admin-font-size-md, 13px);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -536,7 +536,7 @@ export default {
 
 .staff-day-status {
   font-size: var(--admin-font-size-sm, 12px);
-  font-weight: 600;
+  font-weight: 400;
   margin-top: 2px;
 }
 
@@ -566,7 +566,7 @@ export default {
 
 .staff-schedules-list h2 {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   margin-bottom: 12px;
 }
 
@@ -599,7 +599,7 @@ export default {
 
 .staff-schedule-item strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -629,7 +629,7 @@ export default {
 
 .staff-day-title {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   margin: 0;
 }
@@ -675,7 +675,7 @@ export default {
 
 .axis-staff {
   width: 180px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   font-size: 13px;
 }
@@ -690,7 +690,7 @@ export default {
   position: absolute;
   transform: translateX(-50%);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
 }
 
@@ -753,7 +753,7 @@ export default {
 
 .timeline-block strong {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -812,7 +812,7 @@ export default {
 
 .staff-detail-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   margin-bottom: 12px;
   color: var(--admin-text);
 }
@@ -844,7 +844,7 @@ export default {
 
 .staff-day-shift-name {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
@@ -855,7 +855,7 @@ export default {
 
 .staff-day-shift-time {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
