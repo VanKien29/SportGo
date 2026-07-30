@@ -171,7 +171,9 @@ export default {
 }
 
 .hero-integrated-tabs {
-  padding-top: 12px;
+  padding: 0;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .cluster-restriction-banner {

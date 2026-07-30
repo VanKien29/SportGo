@@ -1,7 +1,7 @@
-﻿<template>
-    <div class="page">
+<template>
+    <div class="cluster-profile-surface standalone">
         <!-- Khi chưa chọn cụm sân -->
-        <div v-if="!selectedCluster" class="empty-state card">
+        <div v-if="!selectedCluster" class="profile-section-card affiliate-main-content empty-state card">
             <div class="empty-icon-wrapper">
                 <AppIcon name="building" size="32" />
             </div>
@@ -12,7 +12,7 @@
         </div>
 
         <!-- Khi đã chọn cụm sân -->
-        <div v-else>
+        <div v-else class="profile-section-card affiliate-main-content">
             <!-- Alert message if any -->
             <div v-if="productsError" class="alert alert-danger" style="margin-bottom: 16px;">
                 {{ productsError }}
@@ -730,6 +730,37 @@ export default {
 </script>
 
 <style scoped>
+.cluster-profile-surface.standalone {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-radius: 0;
+}
+
+.profile-section-card.affiliate-main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 10px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.profile-section-card.affiliate-main-content .empty-state,
+.profile-section-card.affiliate-main-content .affiliate-list-card,
+.profile-section-card.affiliate-main-content .card,
+.profile-section-card.affiliate-main-content .loading-state {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
 .page {
     display: grid;
     gap: 18px;

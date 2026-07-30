@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     :class="[
       'chat-page flex flex-col font-sans',
@@ -18,76 +18,6 @@
         usesAdminChatTheme ? 'admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
       ]"
     >
-      <!-- Telegram Menu Drawer Overlay -->
-      <div
-        v-if="showTelegramMenu"
-        class="fixed inset-0 bg-transparent z-[9998]"
-        @click="closeTelegramMenu"
-      ></div>
-
-      <!-- Telegram Menu Drawer Panel -->
-      <div
-        :class="[
-          'fixed inset-y-0 left-0 w-[280px] z-[9999] flex flex-col transition-transform duration-300 tg-drawer-panel',
-          showTelegramMenu ? 'translate-x-0' : '-translate-x-full'
-        ]"
-      >
-        <!-- Drawer Profile Header -->
-        <div class="tg-drawer-header">
-          <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-normal text-sm text-white select-none">
-            {{ (currentUser?.full_name || currentUser?.username || 'U').charAt(0).toUpperCase() }}
-          </div>
-
-          <div class="flex items-center justify-between mt-1.5">
-            <div class="min-w-0">
-              <div class="font-normal text-[13px] tg-drawer-header-name truncate">{{ currentUser?.full_name }}</div>
-              <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser?.email || currentUser?.phone || '' }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Drawer Navigation Items -->
-        <div class="flex-1 overflow-y-auto tg-drawer-nav">
-          <div class="py-2 px-2">
-            <!-- Tin nhắn đã lưu (Saved Messages - self chat) -->
-            <button @click="openSavedMessages" class="tg-drawer-item text-left w-full">
-              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-              <span>Tin nhắn đã lưu</span>
-            </button>
-
-          </div>
-
-          <!-- Divider -->
-          <div class="tg-drawer-divider"></div>
-
-          <!-- Theme Toggling Option -->
-          <div v-if="!usesAdminChatTheme" class="tg-drawer-toggle-row">
-            <div class="flex items-center gap-4 select-none">
-              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-              <span class="text-sm">Chế độ tối</span>
-            </div>
-
-            <!-- Custom Toggle Switch -->
-            <button
-              type="button"
-              @click="toggleNightMode"
-              class="tg-toggle-switch"
-              :class="isNightMode ? 'tg-toggle-on' : 'tg-toggle-off'"
-              aria-label="Chế độ tối"
-            >
-              <span
-                class="tg-toggle-knob"
-                :class="isNightMode ? 'tg-knob-on' : 'tg-knob-off'"
-              ></span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- Left Sidebar: Chat List -->
       <div
         :class="[
@@ -95,6 +25,86 @@
           mobileShowChat ? 'hidden' : 'flex'
         ]"
       >
+        <!-- Telegram Menu Drawer Overlay -->
+        <div
+          v-if="showTelegramMenu"
+          class="absolute inset-0 bg-black/20 z-[28] cursor-pointer"
+          @click="showTelegramMenu = false"
+        ></div>
+
+        <!-- Telegram Menu Drawer Panel -->
+        <div
+          :class="[
+            'absolute inset-y-0 left-0 w-full z-[30] flex flex-col transition-transform duration-300 tg-drawer-panel',
+            showTelegramMenu ? 'translate-x-0' : '-translate-x-full'
+          ]"
+        >
+          <!-- Drawer Profile Header -->
+          <div class="tg-drawer-header flex items-center justify-between">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+              <div class="h-11 w-11 rounded-full bg-[var(--admin-primary,#22a653)] flex items-center justify-center font-medium text-sm text-white select-none shrink-0">
+                {{ (currentUser?.full_name || currentUser?.username || 'U').charAt(0).toUpperCase() }}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-medium text-sm text-[var(--admin-text,#101c15)] truncate">{{ currentUser?.full_name }}</div>
+                <div class="text-xs text-[var(--admin-muted,#64748b)] truncate mt-0.5">{{ currentUser?.email || currentUser?.phone || '' }}</div>
+              </div>
+            </div>
+
+            <!-- Close Button (X) -->
+            <button
+              type="button"
+              @click="showTelegramMenu = false"
+              class="p-1.5 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors shrink-0 bg-transparent border-0 cursor-pointer ml-2"
+              title="Đóng menu"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Drawer Navigation Items -->
+          <div class="flex-1 overflow-y-auto tg-drawer-nav">
+            <div class="py-2 px-2">
+              <!-- Tin nhắn đã lưu (Saved Messages - self chat) -->
+              <button @click="openSavedMessages(); showTelegramMenu = false" class="tg-drawer-item text-left w-full">
+                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span>Tin nhắn đã lưu</span>
+              </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="tg-drawer-divider"></div>
+
+            <!-- Theme Toggling Option -->
+            <div v-if="!usesAdminChatTheme" class="tg-drawer-toggle-row">
+              <div class="flex items-center gap-4 select-none">
+                <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <span class="text-sm">Chế độ tối</span>
+              </div>
+
+              <!-- Custom Toggle Switch -->
+              <button
+                type="button"
+                @click="toggleNightMode"
+                class="tg-toggle-switch"
+                :class="isNightMode ? 'tg-toggle-on' : 'tg-toggle-off'"
+                aria-label="Chế độ tối"
+              >
+                <span
+                  class="tg-toggle-knob"
+                  :class="isNightMode ? 'tg-knob-on' : 'tg-knob-off'"
+                ></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Sidebar Header / Search -->
         <div class="p-3 flex items-center gap-2 tg-sidebar-header shrink-0">
           <button
@@ -379,10 +389,8 @@
                   <!-- Quick Hover Action Toolbar (Positioned relative to .bubble) -->
                   <div
                     v-if="activeHoverMessageId === msg.id && !msg.is_system"
-                    :class="[
-                      'absolute bottom-2 flex items-center gap-1.5 z-10 transition-opacity duration-150',
-                      msg.sender_id === currentUser.id ? 'right-full mr-3.5' : 'left-full ml-3.5'
-                    ]"
+                    class="tg-hover-toolbar"
+                    :class="msg.sender_id === currentUser.id ? 'is-sent' : 'is-received'"
                   >
                     <!-- Reply Button -->
                     <button
@@ -466,7 +474,7 @@
                   </div>
 
                   <!-- Booking Card Attachment -->
-                  <div v-if="msg.reference_type === 'booking' && msg.booking" class="booking-message-card rounded-lg mb-1.5 overflow-hidden">
+                  <div v-if="msg.reference_type === 'booking' && msg.booking" class="booking-message-card rounded-none mb-1.5 overflow-hidden">
                     <div class="booking-message-card__top">
                       <span class="booking-message-card__eyebrow">Booking đặt sân</span>
                       <span class="booking-message-card__code">#{{ msg.booking.booking_code }}</span>
@@ -489,7 +497,7 @@
                   </div>
 
                   <!-- Support Request Card Attachment -->
-                  <div v-if="msg.reference_type === 'booking_support_request' && msg.support_request" class="support-request-card rounded-lg mb-1.5 overflow-hidden">
+                  <div v-if="msg.reference_type === 'booking_support_request' && msg.support_request" class="support-request-card rounded-none mb-1.5 overflow-hidden">
                     <div class="support-request-card__top">
                       <span class="support-request-card__eyebrow">Y&#234;u c&#7847;u booking</span>
                       <span :class="['support-request-card__status', supportRequestStatusClass(msg.support_request.status)]">
@@ -882,18 +890,6 @@
                     <div class="tg-profile-section-title">Booking c&#7911;a kh&#225;ch</div>
                     <p class="tg-related-bookings-sub">C&#225;c l&#7883;ch &#273;&#7863;t t&#7841;i c&#7909;m s&#226;n trong h&#7897;i tho&#7841;i n&#224;y.</p>
                   </div>
-                  <button
-                    type="button"
-                    class="tg-related-bookings-refresh"
-                    :disabled="loadingRelatedBookings"
-                    aria-label="T&#7843;i l&#7841;i booking li&#234;n quan"
-                    title="T&#7843;i l&#7841;i"
-                    @click="loadRelatedBookings"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-15.64 6.13M3 12a9 9 0 0115.64-6.13M21 3v6h-6M3 21v-6h6" />
-                    </svg>
-                  </button>
                 </div>
 
                 <div v-if="loadingRelatedBookings" class="tg-related-bookings-state" role="status">
@@ -925,14 +921,6 @@
                       </div>
                       <div class="tg-related-booking-price">{{ bookingCurrency(booking.total_price) }}</div>
                     </div>
-                    <button
-                      type="button"
-                      class="tg-related-booking-send"
-                      :disabled="sendingBookingId === booking.id"
-                      @click="sendBookingMessage(booking)"
-                    >
-                      {{ sendingBookingId === booking.id ? '\u0110ang g\u1eedi' : 'G\u1eedi' }}
-                    </button>
                   </article>
                 </div>
               </div>
@@ -2534,9 +2522,9 @@ export default {
 
 .client-chat-page.admin-chat-page {
   --client-chat-nav-height: 64px;
-  --admin-bg: #eef6f0;
+  --admin-bg: #ffffff;
   --admin-surface: #ffffff;
-  --admin-surface-muted: #f3f8f1;
+  --admin-surface-muted: #ffffff;
   --admin-hover: #edf7ed;
   --admin-border: #cfded1;
   --admin-text: #101c15;
@@ -2557,11 +2545,11 @@ export default {
   height: 100vh;
   padding-top: var(--client-chat-nav-height);
   border: 0;
-  background: var(--admin-bg);
+  background: #ffffff;
   box-shadow: none;
 }
 .admin-chat-page {
-  --tg-chat-bg: var(--admin-bg);
+  --tg-chat-bg: #ffffff;
   --tg-sent-bg: var(--admin-primary-soft);
   --tg-sent-text: var(--admin-text);
   --tg-received-bg: var(--admin-surface);
@@ -2570,7 +2558,7 @@ export default {
   --tg-meta-sent: var(--admin-primary-dark);
   --tg-input-bg: var(--admin-surface);
   --tg-input-text: var(--admin-text);
-  --tg-sidebar-bg: var(--admin-surface-muted);
+  --tg-sidebar-bg: #ffffff;
   --tg-active-row: var(--admin-hover);
   --tg-header-bg: var(--admin-surface);
   --tg-border: var(--admin-border);
@@ -2585,20 +2573,166 @@ export default {
   height: auto;
   border: 1px solid var(--admin-border);
   border-radius: 0;
-  background: var(--admin-card-bg);
+  background: #ffffff;
   box-shadow: var(--admin-shadow-card);
 }
 
 .admin-chat-workspace {
   flex: 1;
   min-height: 0;
-  background: var(--tg-chat-bg) !important;
+  background: #ffffff !important;
 }
 
-.client-chat-page .admin-chat-workspace {
-  height: calc(100vh - var(--client-chat-nav-height));
-  border-top: 1px solid var(--admin-border);
-  box-shadow: var(--admin-shadow-card);
+.admin-chat-page,
+.admin-chat-page .admin-chat-workspace,
+.admin-chat-page .tg-message-container,
+.admin-chat-page .tg-chat-header,
+.admin-chat-page .tg-sidebar-header,
+.admin-chat-page .tg-drawer-panel,
+.admin-chat-page .tg-drawer-header,
+.admin-chat-page .tg-drawer-nav,
+.admin-chat-page .tg-profile-sidebar,
+.admin-chat-page .tg-profile-body,
+.admin-chat-page .tg-profile-action-btn,
+.admin-chat-page .chat-empty-main,
+.admin-chat-page .zalo-chat-box,
+.admin-chat-page .zalo-chat-footer,
+.admin-chat-page [class*="booking-picker"],
+.admin-chat-page [class*="booking-card"],
+.admin-chat-page [class*="booking-item"],
+.admin-chat-page [class*="bg-zinc-"],
+.admin-chat-page [class*="bg-slate-"],
+.admin-chat-page [class*="bg-green-"],
+.admin-chat-page [class*="bg-emerald-"] {
+  background-color: #ffffff !important;
+}
+
+.admin-chat-page [class*="border-zinc-"],
+.admin-chat-page [class*="border-slate-"],
+.admin-chat-page [class*="border-green-"],
+.admin-chat-page [class*="border-emerald-"] {
+  border-color: #e2e8f0 !important;
+}
+
+.admin-chat-page .tg-profile-action-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #101c15 !important;
+}
+
+.admin-chat-page .bubble-sent,
+.admin-chat-page [class*="bubble-sent"] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #101c15 !important;
+}
+
+.booking-message-card,
+.support-request-card,
+.booking-message-card__action,
+.support-request-card__action {
+  border-radius: 0 !important;
+}
+
+/* Hover Action Toolbar */
+.tg-hover-toolbar {
+  position: absolute !important;
+  bottom: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  z-index: 30 !important;
+}
+
+.tg-hover-toolbar.is-sent {
+  right: 100% !important;
+  margin-right: 14px !important;
+}
+
+.tg-hover-toolbar.is-received {
+  left: 100% !important;
+  margin-left: 14px !important;
+}
+
+.tg-hover-toolbar button {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+  color: var(--admin-faint, #64748b) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.tg-hover-toolbar button:hover {
+  color: var(--admin-text, #101c15) !important;
+  border-color: var(--admin-primary, #22a653) !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12) !important;
+}
+
+.booking-message-card {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  min-width: min(280px, 100%) !important;
+  border: 1px solid var(--admin-border-soft, #e2e8f0) !important;
+  background: var(--admin-bg-soft, #f7fbf5) !important;
+  color: var(--admin-text, #101c15) !important;
+  padding: 10px 12px !important;
+}
+
+.bubble-sent .booking-message-card {
+  background: var(--admin-bg-soft, #f7fbf5) !important;
+  color: var(--admin-text, #101c15) !important;
+}
+
+.booking-message-card__eyebrow {
+  color: var(--admin-muted, #64748b) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+}
+
+.booking-message-card__code {
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  color: var(--admin-primary, #22a653) !important;
+  font-family: inherit !important;
+}
+
+.booking-message-card__venue {
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  color: var(--admin-text, #101c15) !important;
+  margin-top: 2px !important;
+}
+
+.booking-message-card__meta {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  color: var(--admin-muted, #64748b) !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  font-weight: 400 !important;
+}
+
+.booking-message-card__amount {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: var(--admin-primary, #22a653) !important;
+}
+
+.booking-message-card__status {
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
 }
 
 /* Group container classes */
@@ -2891,57 +3025,54 @@ export default {
 .tg-drawer-panel {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: none !important;
-  background-color: var(--tg-sidebar-bg) !important;
-  border-right: 1px solid var(--tg-border) !important;
+  background-color: #ffffff !important;
+  border-right: 1px solid var(--admin-border-soft, #e2e8f0) !important;
 }
 
 .tg-drawer-header {
-  background-color: var(--tg-header-bg) !important;
-  border-bottom: 1px solid var(--tg-border) !important;
-  padding: 14px 16px 12px !important;
-}
-
-.tg-drawer-header-name {
-  color: var(--tg-received-text) !important;
-}
-
-.tg-drawer-header-sub {
-  color: var(--tg-meta) !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0) !important;
+  padding: 16px 18px !important;
 }
 
 .tg-drawer-nav {
-  background-color: var(--tg-sidebar-bg) !important;
+  background-color: #ffffff !important;
 }
 
 .tg-drawer-item {
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 16px !important;
-  padding: 9px 16px !important;
-  color: var(--tg-received-text) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  transition: background-color 150ms ease !important;
+  gap: 12px !important;
+  padding: 10px 14px !important;
+  color: var(--admin-text, #101c15) !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  transition: all 150ms ease !important;
   width: 100% !important;
   min-height: auto !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   white-space: nowrap !important;
   cursor: pointer !important;
   text-decoration: none !important;
 }
 
-.tg-drawer-item.never-hover-class-placeholder {
-  background-color: var(--tg-active-row) !important;
-  color: var(--tg-received-text) !important;
+.tg-drawer-item:hover {
+  background-color: var(--admin-hover, #edf7ed) !important;
+  color: var(--admin-primary, #22a653) !important;
+}
+
+.tg-drawer-item:hover .tg-drawer-icon {
+  color: var(--admin-primary, #22a653) !important;
+  opacity: 1 !important;
 }
 
 .tg-drawer-icon {
-  color: var(--tg-meta) !important;
-  opacity: 0.75 !important;
+  color: var(--admin-muted, #64748b) !important;
+  opacity: 0.85 !important;
   flex-shrink: 0 !important;
   width: 18px !important;
   height: 18px !important;
@@ -3674,8 +3805,8 @@ export default {
   gap: 10px !important;
   width: 100% !important;
   border: 1px solid var(--tg-border) !important;
-  border-radius: 8px !important;
-  background: var(--tg-active-row) !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
   color: var(--tg-received-text) !important;
   padding: 10px !important;
   box-sizing: border-box !important;
@@ -3730,7 +3861,7 @@ export default {
   min-width: 48px !important;
   min-height: 34px !important;
   border: 1px solid var(--tg-accent) !important;
-  border-radius: 8px !important;
+  border-radius: 0 !important;
   background: color-mix(in srgb, var(--tg-accent) 14%, transparent) !important;
   color: var(--tg-accent) !important;
   cursor: pointer !important;
@@ -3850,7 +3981,7 @@ export default {
 }
 
 .tg-profile-section {
-  padding: 0 24px !important;
+  padding: 0 16px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 16px !important;
@@ -3957,8 +4088,7 @@ export default {
 
 /* Indented details block */
 .tg-profile-info-block {
-  padding-left: 56px !important;
-  padding-right: 24px !important;
+  padding: 0 16px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;

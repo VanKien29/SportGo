@@ -1,5 +1,5 @@
-﻿<template>
-  <div class="posts-page">
+<template>
+  <div class="cluster-profile-surface standalone">
     <!-- Floating Add Button -->
     <div class="floating-add-container">
       <button class="btn-float-add" type="button" @click="openForm()" title="Tạo bài viết mới">
@@ -8,71 +8,29 @@
       </button>
     </div>
 
-    <!-- Filters & Search -->
-    <div class="filter-toolbar card premium-card flex gap-4 sg-filter-panel" style="display: flex; gap: 16px; flex-wrap: wrap;">
-      <div class="filters" style="display: flex; gap: 16px; flex: 1; flex-wrap: wrap; align-items: flex-end;">
-        <label class="field compact" style="flex: 1; min-width: 200px;">
-          <span style="white-space: nowrap;">Tìm kiếm</span>
-          <input 
-            v-model="filters.keyword" 
-            @keyup.enter="fetchPosts(1)"
-            type="text" 
-            class="modern-input"
-            placeholder="Nhập tiêu đề tìm kiếm..." 
+    <div class="profile-section-card posts-main-content">
+      <!-- Top Integrated Tabs Row -->
+      <div class="posts-header-hero">
+        <div class="hero-integrated-tabs">
+          <AppTabs
+            :tabs="postTabsForAppTabs"
+            :model-value="filters.status"
+            @update:model-value="selectPostStatusTab"
           />
-        </label>
-        <label class="field compact" style="flex: 1; min-width: 200px;">
-          <span style="white-space: nowrap;">Danh mục</span>
-          <select v-model="filters.post_type" class="modern-select" @change="fetchPosts(1)" style="width: 100%; min-width: 150px;">
-            <option value="">Tất cả danh mục</option>
-            <option value="promotion">Khuyến mãi</option>
-            <option value="tournament">Giải đấu</option>
-            <option value="news">Tin tức</option>
-            <option value="notice">Thông báo</option>
-            <option value="recruitment">Tuyển dụng</option>
-          </select>
-        </label>
-        <div style="display: flex; gap: 8px; align-items: center; min-width: max-content;">
-          <button @click="resetFilters" class="btn ghost compact" type="button" style="height: 42px;">Xóa lọc</button>
-          <button @click="fetchPosts(1)" class="btn primary compact" type="button" style="height: 42px; background: #0f172a; color: white;">Tìm kiếm</button>
         </div>
       </div>
-    </div>
 
-    <!-- Toolbar: Tabs and Sort -->
-    <div class="toolbar-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <div class="tabs-header modern-tabs">
-        <button @click="setStatusFilter('')" :class="['tab-btn pill', { active: filters.status === '' }]">Tất cả</button>
-        <button @click="setStatusFilter('published')" :class="['tab-btn pill', { active: filters.status === 'published' }]">Đã duyệt</button>
-        <button @click="setStatusFilter('pending_review')" :class="['tab-btn pill', { active: filters.status === 'pending_review' }]">Chờ duyệt</button>
-        <button @click="setStatusFilter('draft')" :class="['tab-btn pill', { active: filters.status === 'draft' }]">Bản nháp</button>
-        <button @click="setStatusFilter('rejected')" :class="['tab-btn pill', { active: filters.status === 'rejected' }]">Từ chối</button>
-        <button @click="setStatusFilter('hidden')" :class="['tab-btn pill', { active: filters.status === 'hidden' }]">Đã ẩn</button>
-        <button @click="setStatusFilter('deleted')" :class="['tab-btn pill', { active: filters.status === 'deleted' }]">Đã xóa</button>
+      <!-- Loading Screen -->
+      <div v-if="loading" class="table-state-card">
+        <div class="spinner-sm"></div>
+        <span>Đang tải danh sách bài viết...</span>
       </div>
 
-      <div class="sort-options modern-tabs" style="border-radius: 12px; padding: 4px; background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);">
-        <button @click="toggleSort('created_at')" :class="['tab-btn pill', { active: sorting.by === 'created_at' }]" style="font-size: 13px;">
-          Mới nhất <i v-if="sorting.by === 'created_at'" :class="sorting.order === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'"></i>
-        </button>
-        <button @click="toggleSort('view_count')" :class="['tab-btn pill', { active: sorting.by === 'view_count' }]" style="font-size: 13px;">
-          Lượt xem <i v-if="sorting.by === 'view_count'" :class="sorting.order === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'"></i>
-        </button>
+      <!-- Empty Screen -->
+      <div v-else-if="posts.length === 0" class="table-state-card">
+        <span>Chưa có bài viết nào phù hợp.</span>
+        <button @click="openForm()" class="btn primary compact" style="margin-top: 12px;" type="button">Tạo bài viết mới</button>
       </div>
-    </div>
-
-    <!-- Loading Screen -->
-    <div v-if="loading" class="state-box card premium-card sg-state-box">
-      <div class="spinner"></div>
-      <p>Đang tải danh sách bài viết...</p>
-    </div>
-
-    <!-- Empty Screen -->
-    <div v-else-if="posts.length === 0" class="state-box card premium-card empty-state sg-state-box">
-      <div class="empty-icon" style="font-size: 48px; display:flex; justify-content:center; align-items:center;">📰</div>
-      <p>Chưa có bài viết nào khớp với bộ lọc hoặc bạn chưa tạo bài viết.</p>
-      <button @click="openForm()" class="btn btn-create primary" style="margin-top: 16px;">Tạo bài viết đầu tiên</button>
-    </div>
 
     <!-- Posts Grid -->
     <transition-group v-else name="list" tag="div" class="posts-list grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
@@ -165,6 +123,7 @@
       <button class="btn ghost btn-sm" type="button" :disabled="pagination.current_page <= 1" @click="changePage(pagination.current_page - 1)">Trước</button>
       <span class="page-info">Trang {{ pagination.current_page }} / {{ pagination.last_page }}</span>
       <button class="btn ghost btn-sm" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="changePage(pagination.current_page + 1)">Sau</button>
+    </div>
     </div>
 
     <!-- MODAL TẠO / SỬA BÀI ĐĂNG (NATIVE DIALOG STYLE) -->
@@ -368,8 +327,23 @@ import { api, apiFormData } from '../../services/api';
 import { useToast } from 'vue-toastification';
 import RichTextEditor from '../../components/RichTextEditor.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
 import { normalizeMediaUrl } from '../../utils/mediaUrl.js';
 import CustomSelect from '../../components/CustomSelect.vue';
+
+const postTabsForAppTabs = [
+  { key: '', value: '', label: 'Tất cả' },
+  { key: 'published', value: 'published', label: 'Đã duyệt' },
+  { key: 'pending_review', value: 'pending_review', label: 'Chờ duyệt' },
+  { key: 'draft', value: 'draft', label: 'Bản nháp' },
+  { key: 'rejected', value: 'rejected', label: 'Từ chối' },
+  { key: 'hidden', value: 'hidden', label: 'Đã ẩn' },
+  { key: 'deleted', value: 'deleted', label: 'Đã xóa' },
+];
+
+const selectPostStatusTab = (statusVal) => {
+  setStatusFilter(String(statusVal || ''));
+};
 
 const toast = useToast();
 
@@ -935,6 +909,37 @@ const formatDate = (dateString) => {
 };
 </script>
 <style scoped>
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: 0;
+}
+
+.profile-section-card.posts-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-section-card.posts-main-content .premium-card,
+.profile-section-card.posts-main-content .filter-toolbar,
+.profile-section-card.posts-main-content .post-card,
+.profile-section-card.posts-main-content .card,
+.profile-section-card.posts-main-content .state-box,
+.profile-section-card.posts-main-content .sort-options {
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .posts-page {
   display: flex;
   flex-direction: column;
@@ -996,7 +1001,7 @@ const formatDate = (dateString) => {
 }
 
 .btn-create {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #10b981;
   color: white;
   border: none;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
@@ -1723,4 +1728,63 @@ const formatDate = (dateString) => {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
 }
 
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.posts-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.posts-header-hero {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.hero-integrated-tabs {
+  flex: 1;
+}
+
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>

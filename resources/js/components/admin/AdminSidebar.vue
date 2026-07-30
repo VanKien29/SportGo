@@ -2,17 +2,6 @@
   <aside class="sidebar" :class="sidebarStyle" aria-label="Admin navigation">
     <!-- One-Level Sidebar -->
     <template v-if="sidebarStyle === 'one-level'">
-      <RouterLink class="admin-brand" to="/admin/dashboard" @click="$emit('navigate')">
-        <span class="admin-brand-mark">
-          <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
-          <span v-else>{{ brandInitials }}</span>
-        </span>
-        <span v-if="!collapsed" class="admin-brand-copy">
-          <strong>{{ brandName }}</strong>
-          <small>Admin Console</small>
-        </span>
-      </RouterLink>
-
       <!-- Navigation -->
       <nav class="sidebar-nav">
         <section v-for="section in sections" :key="section.label" class="admin-nav-section">
@@ -70,7 +59,7 @@
       <div class="sidebar-two-level-container">
         <!-- Left Rail -->
         <div class="icon-nav-rail">
-          <RouterLink class="rail-logo" to="/admin/dashboard" title="Bảng điều hành">
+          <RouterLink class="rail-logo" to="/admin/venue-clusters" title="Cụm sân">
             <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
             <span v-else>{{ brandInitials }}</span>
           </RouterLink>
@@ -85,7 +74,6 @@
               @click="setSection(idx)"
             >
               <AppIcon :name="getSectionIcon(sec.label)" size="18" />
-              <span v-if="sectionTotalBadge(sec)" class="rail-badge-dot"></span>
             </button>
           </div>
 

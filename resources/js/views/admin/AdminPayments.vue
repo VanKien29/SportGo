@@ -1,178 +1,149 @@
-﻿<template>
-    <section class="admin-payments">
-        <header class="page-header">
-            <div>
-                <h2>Theo dõi thanh toán booking</h2>
-                <p>
-                    Đối soát payment attempt, gateway logs và tiền hệ thống thu
-                    hộ chủ sân.
-                </p>
-            </div>
-        </header>
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card payments-main-content">
+            <section class="admin-payments">
+                <header class="page-header">
+                    <div>
+                        <h2>Theo dõi thanh toán booking</h2>
+                        <p>
+                            Đối soát payment attempt, gateway logs và tiền hệ thống thu
+                            hộ chủ sân.
+                        </p>
+                    </div>
+                </header>
 
-        <form class="filters" @submit.prevent="applyFilters">
-            <label class="search-field">
-                <AppIcon name="search" size="17" />
-                <input
-                    v-model.trim="filters.keyword"
-                    type="search"
-                    placeholder="Mã payment, booking, khách, cụm sân..."
-                />
-            </label>
-            <select v-model="filters.status">
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending">Chờ thanh toán</option>
-                <option value="paid">Đã thanh toán</option>
-                <option value="failed">Thất bại</option>
-                <option value="refunded">Đã hoàn tiền</option>
-            </select>
-            <select v-model="filters.payment_kind">
-                <option value="">Tất cả loại</option>
-                <option value="full">Thanh toán toàn bộ</option>
-                <option value="deposit">Đặt cọc</option>
-                <option value="partial">Thanh toán một phần</option>
-            </select>
-            <select v-model="filters.method">
-                <option value="">Tất cả phương thức</option>
-                <option value="sepay">SePay</option>
-                <option value="bank_transfer">Chuyển khoản</option>
-                <option value="wallet">Ví</option>
-                <option value="mixed">Kết hợp</option>
-                <option value="cash">Tiền mặt</option>
-            </select>
-            <select v-model="filters.paid_range">
-                <option value="">Ngày thanh toán</option>
-                <option value="today">Hôm nay</option>
-                <option value="yesterday">Hôm qua</option>
-                <option value="last_3_days">3 ngày gần đây</option>
-                <option value="last_7_days">7 ngày gần đây</option>
-                <option value="last_30_days">30 ngày gần đây</option>
-                <option value="this_month">Tháng này</option>
-                <option value="last_month">Tháng trước</option>
-                <option value="custom">Tùy chỉnh</option>
-            </select>
-            <div
-                v-if="filters.paid_range === 'custom'"
-                class="date-range-fields"
-                aria-label="Khoảng ngày thanh toán tùy chỉnh"
-            >
-                <input
-                    v-model="filters.paid_from"
-                    type="date"
-                    title="Thanh toán từ ngày"
-                />
-                <span>đến</span>
-                <input
-                    v-model="filters.paid_to"
-                    type="date"
-                    title="Thanh toán đến ngày"
-                    :min="filters.paid_from"
-                />
-            </div>
-            <ActionIconButton
-                icon="filter"
-                label="Lọc danh sách"
-                variant="primary"
-                type="submit"
-            />
-            <ActionIconButton
-                icon="refresh"
-                label="Xóa lọc"
-                @click="resetFilters"
-            />
-        </form>
+                <SaaSFilterBar
+                    v-model="filters.status"
+                    v-model:search="filters.keyword"
+                    :tabs="statusTabsUi"
+                    search-id="search-admin-payments"
+                    search-placeholder="Mã payment, booking, khách, cụm sân..."
+                    @update:search="applyFilters"
+                    @update:modelValue="applyFilters"
+                >
+                    <template #actions>
+                        <select v-model="filters.payment_kind" @change="applyFilters" class="filter-select">
+                            <option value="">Tất cả loại</option>
+                            <option value="full">Thanh toán toàn bộ</option>
+                            <option value="deposit">Đặt cọc</option>
+                            <option value="partial">Thanh toán một phần</option>
+                        </select>
+                        <select v-model="filters.method" @change="applyFilters" class="filter-select">
+                            <option value="">Tất cả phương thức</option>
+                            <option value="sepay">SePay</option>
+                            <option value="bank_transfer">Chuyển khoản</option>
+                            <option value="wallet">Ví</option>
+                            <option value="mixed">Kết hợp</option>
+                            <option value="cash">Tiền mặt</option>
+                        </select>
+                        <select v-model="filters.paid_range" @change="applyFilters" class="filter-select">
+                            <option value="">Ngày thanh toán</option>
+                            <option value="today">Hôm nay</option>
+                            <option value="yesterday">Hôm qua</option>
+                            <option value="last_3_days">3 ngày gần đây</option>
+                            <option value="last_7_days">7 ngày gần đây</option>
+                            <option value="last_30_days">30 ngày gần đây</option>
+                            <option value="this_month">Tháng này</option>
+                            <option value="last_month">Tháng trước</option>
+                            <option value="custom">Tùy chỉnh</option>
+                        </select>
+                        <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
+                    </template>
+                </SaaSFilterBar>
 
-        <div v-if="error" class="alert error">{{ error }}</div>
-        <div v-if="success" class="alert success">{{ success }}</div>
+                <div v-if="filters.paid_range === 'custom'" class="date-range-fields" aria-label="Khoảng ngày thanh toán tùy chỉnh">
+                    <input v-model="filters.paid_from" type="date" aria-label="Từ ngày thanh toán" />
+                    <span>đến</span>
+                    <input v-model="filters.paid_to" type="date" aria-label="Đến ngày thanh toán" />
+                    <button class="btn primary" type="button" @click="applyFilters">Lọc</button>
+                </div>
 
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Payment / Booking</th>
-                        <th>Khách hàng</th>
-                        <th>Cụm sân</th>
-                        <th>Số tiền</th>
-                        <th>Loại / Phương thức</th>
-                        <th>Trạng thái</th>
-                        <th>Paid at</th>
-                        <th>Logs</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-if="loading">
-                        <td class="empty" colspan="9">Đang tải giao dịch...</td>
-                    </tr>
-                    <tr v-else-if="payments.length === 0">
-                        <td class="empty" colspan="9">
-                            Không có giao dịch phù hợp.
-                        </td>
-                    </tr>
-                    <tr v-for="payment in payments" :key="payment.id">
-                        <td>
+                <div v-if="error" class="alert error">{{ error }}</div>
+                <div v-if="success" class="alert success">{{ success }}</div>
+
+                <div class="table-wrap">
+                    <div v-if="loading" class="empty">Đang tải giao dịch...</div>
+                    <div v-else-if="payments.length === 0" class="empty">Không có giao dịch phù hợp.</div>
+                    <SaaSTable
+                        v-else
+                        :columns="tableColumns"
+                        :data="payments"
+                    >
+                        <template #payment_code="{ row }">
                             <button
                                 class="code-link"
                                 type="button"
-                                @click="openDetail(payment.id)"
+                                @click="openDetail(row.id)"
                             >
-                                {{ payment.payment_code }}
+                                {{ row.payment_code }}
                             </button>
                             <span class="sub-line">{{
-                                payment.booking?.booking_code || "-"
+                                row.booking?.booking_code || "-"
                             }}</span>
-                        </td>
-                        <td>
+                        </template>
+
+                        <template #customer="{ row }">
                             <strong>{{
-                                payment.customer?.full_name ||
-                                payment.customer?.username ||
+                                row.customer?.full_name ||
+                                row.customer?.username ||
                                 "-"
                             }}</strong>
                             <span class="sub-line">{{
-                                payment.customer?.email ||
-                                payment.customer?.phone ||
+                                row.customer?.email ||
+                                row.customer?.phone ||
                                 "-"
                             }}</span>
-                        </td>
-                        <td>{{ payment.venue_cluster?.name || "-" }}</td>
-                        <td>
+                        </template>
+
+                        <template #venue_cluster="{ row }">
+                            {{ row.venue_cluster?.name || "-" }}
+                        </template>
+
+                        <template #amount="{ row }">
                             <strong>{{
-                                formatCurrency(payment.amount)
+                                formatCurrency(row.amount)
                             }}</strong>
-                            <span v-if="['sepay', 'bank_transfer', 'mixed'].includes(payment.method)" class="sub-line"
+                            <span v-if="['sepay', 'bank_transfer', 'mixed'].includes(row.method)" class="sub-line"
                                 >Gateway:
                                 {{
-                                    formatCurrency(payment.gateway_amount)
+                                    formatCurrency(row.gateway_amount)
                                 }}</span
                             >
-                        </td>
-                        <td>
-                            <span>{{ kindLabel(payment.payment_kind) }}</span>
+                        </template>
+
+                        <template #kind_method="{ row }">
+                            <span>{{ kindLabel(row.payment_kind) }}</span>
                             <span class="sub-line">{{
-                                methodLabel(payment.method)
+                                methodLabel(row.method)
                             }}</span>
-                        </td>
-                        <td>
-                            <span class="status-pill" :class="payment.status">{{
-                                statusLabel(payment.status)
+                        </template>
+
+                        <template #status="{ row }">
+                            <span class="status-pill" :class="row.status">{{
+                                statusLabel(row.status)
                             }}</span>
-                        </td>
-                        <td>{{ formatDate(payment.paid_at) }}</td>
-                        <td>{{ payment.logs_count }}</td>
-                        <td>
+                        </template>
+
+                        <template #paid_at="{ row }">
+                            {{ formatDate(row.paid_at) }}
+                        </template>
+
+                        <template #logs_count="{ row }">
+                            {{ row.logs_count }}
+                        </template>
+
+                        <template #actions="{ row }">
                             <button
                                 class="icon-only"
                                 type="button"
                                 title="Xem chi tiết"
-                                @click="openDetail(payment.id)"
+                                @click="openDetail(row.id)"
                             >
                                 <AppIcon name="eye" size="17" />
                             </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                        </template>
+                    </SaaSTable>
+                </div>
 
         <div class="pagination">
             <ActionIconButton
@@ -426,17 +397,21 @@
                 </template>
             </aside>
         </div>
-    </section>
+        </section>
+    </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { adminPaymentService } from "../../services/adminPayments.js";
 
 export default {
     name: "AdminPayments",
-    components: { ActionIconButton, AppIcon },
+    components: { ActionIconButton, AppIcon, SaaSFilterBar, SaaSTable },
     data() {
         return {
             payments: [],
@@ -467,6 +442,28 @@ export default {
         };
     },
     computed: {
+        statusTabsUi() {
+            return [
+                { value: '', label: 'Tất cả trạng thái', count: this.summary.total },
+                { value: 'pending', label: 'Chờ thanh toán', count: this.summary.pending },
+                { value: 'paid', label: 'Đã thanh toán', count: this.summary.paid },
+                { value: 'failed', label: 'Thất bại', count: this.summary.failed },
+                { value: 'refunded', label: 'Đã hoàn tiền', count: this.summary.refunded },
+            ];
+        },
+        tableColumns() {
+            return [
+                { key: 'payment_code', label: 'PAYMENT / BOOKING' },
+                { key: 'customer', label: 'KHÁCH HÀNG' },
+                { key: 'venue_cluster', label: 'CỤM SÂN' },
+                { key: 'amount', label: 'SỐ TIỀN' },
+                { key: 'kind_method', label: 'LOẠI / PHƯƠNG THỨC' },
+                { key: 'status', label: 'TRẠNG THÁI' },
+                { key: 'paid_at', label: 'PAID AT' },
+                { key: 'logs_count', label: 'LOGS' },
+                { key: 'actions', label: 'THAO TÁC', align: 'right' },
+            ];
+        },
         creditLedger() {
             if (!this.detail?.owner_wallet_ledgers) return null;
             return (
@@ -1130,5 +1127,21 @@ pre {
     .search-field {
         min-width: 100%;
     }
+}
+
+.profile-section-card.payments-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.table-wrap {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 </style>

@@ -1,16 +1,5 @@
 export const adminNavigationSections = [
   {
-    label: 'Tổng quan',
-    items: [
-      {
-        label: 'Bảng điều hành',
-        icon: 'dashboard',
-        to: '/admin/dashboard',
-        activeNames: ['admin-dashboard'],
-      },
-    ],
-  },
-  {
     label: 'Vận hành sân',
     items: [
       {

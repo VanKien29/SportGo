@@ -1,5 +1,7 @@
-﻿<template>
-  <div class="partner-page">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card applications-main-content">
+      <div class="partner-page">
     <header class="partner-list-header">
       <div>
         <h1>Hồ sơ đối tác</h1>
@@ -126,6 +128,8 @@
       </div>
     </div>
 
+      </div>
+    </div>
   </div>
 </template>
 
@@ -675,5 +679,22 @@ th {
   .partner-mobile-row .open-record-btn {
     width: 100%;
   }
+}
+
+.profile-section-card.applications-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.table-card,
+.toolbar.card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>

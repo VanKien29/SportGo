@@ -66,6 +66,8 @@ export default {
 .sg-app-tabs-wrapper {
   display: flex;
   align-items: center;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .sg-app-tabs {
@@ -75,6 +77,8 @@ export default {
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .sg-app-tabs::-webkit-scrollbar {
@@ -114,16 +118,6 @@ export default {
 }
 
 .sg-tab-badge { 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 400;
-  background: var(--admin-primary-soft, rgba(255, 255, 255, 0.2));
-  color: inherit;
+  display: none !important;
 }
 </style>

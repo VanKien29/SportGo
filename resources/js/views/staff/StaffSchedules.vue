@@ -1,5 +1,7 @@
-﻿<template>
-  <section class="staff-schedules-page">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card staff-schedules-main-content">
+      <section class="staff-schedules-page">
     <header class="staff-schedules-head">
       <div class="staff-schedules-header-left">
         <div class="staff-view-switcher">
@@ -151,7 +153,9 @@
         <p v-else class="staff-empty-text">Không có ca trực nào trong ngày này.</p>
       </div>
     </template>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -963,5 +967,15 @@ export default {
   .staff-day-shift-status {
     text-align: left;
   }
+}
+
+.profile-section-card.staff-schedules-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

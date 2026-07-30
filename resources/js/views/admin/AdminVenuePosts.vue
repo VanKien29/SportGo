@@ -1,18 +1,17 @@
-﻿<template>
-  <div class="page venue-posts-page">
-    <header class="page-header sg-page-header">
-      <div class="sg-page-heading">
-        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
-          <router-link to="/admin/dashboard">Dashboard</router-link>
-          <span>/</span>
-          <span>Kiểm duyệt bài viết</span>
-        </nav>
-        <h2>Kiểm duyệt bài viết</h2>
-        <p>Kiểm tra, phê duyệt, từ chối hoặc quản lý các bài viết đăng tải từ chủ sân.</p>
-      </div>
-
-
-    </header>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card posts-main-content">
+      <header class="page-header sg-page-header">
+        <div class="sg-page-heading">
+          <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
+            <router-link to="/admin/venue-clusters">Cụm sân</router-link>
+            <span>/</span>
+            <span>Kiểm duyệt bài viết</span>
+          </nav>
+          <h2>Kiểm duyệt bài viết</h2>
+          <p>Kiểm tra, phê duyệt, từ chối hoặc quản lý các bài viết đăng tải từ chủ sân.</p>
+        </div>
+      </header>
 
     <div class="toolbar card sg-filter-panel">
       <div class="filters">
@@ -275,6 +274,7 @@
           </section>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
@@ -910,5 +910,15 @@ dd {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.posts-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

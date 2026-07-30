@@ -1,6 +1,7 @@
-﻿<template>
-  <div class="avcd-page">
-    <!-- ── Loading / Error ── -->
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card cluster-detail-main-content">
+      <!-- ── Loading / Error ── -->
     <div v-if="loading" class="state-box card">
       <div class="spinner"></div>
       <p>Đang tải dữ liệu cụm sân...</p>
@@ -1129,6 +1130,7 @@
       type="warning"
       @confirm="handleConfirmAction"
     />
+    </div>
   </div>
 </template>
 
@@ -3520,5 +3522,15 @@ export default {
   font-size: 11px;
   font-weight: 400;
   margin-left: 5px;
+}
+
+.profile-section-card.cluster-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

@@ -1,5 +1,7 @@
-﻿<template>
-  <section class="page">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card voucher-detail-main-content">
+      <section class="page">
     <div class="back-action-bar">
       <button class="back-link" type="button" @click="$router.push({ name: 'admin-vouchers' })">
         <AppIcon name="arrow-left" size="16" />
@@ -128,7 +130,9 @@
         </div>
       </section>
     </template>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -229,5 +233,20 @@ pre { white-space: pre-wrap; word-break: break-word; background: #0f172a; color:
 @media (max-width: 900px) {
   .summary-grid, .panel-grid { grid-template-columns: 1fr; }
   dl div { grid-template-columns: 1fr; }
+}
+
+.profile-section-card.voucher-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric, .panel, .state {
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>

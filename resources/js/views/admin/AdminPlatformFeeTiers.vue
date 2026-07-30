@@ -1,5 +1,7 @@
-﻿<template>
-    <section class="pf-page">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card tiers-main-content">
+      <section class="pf-page">
 
         <!-- Floating Add Button -->
         <div
@@ -534,7 +536,9 @@
                 </footer>
             </div>
         </div>
-    </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -1096,7 +1100,6 @@ h3,
 p {
     margin: 0;
 }
-.panel,
 .notice-card,
 .info-card,
 .modal {
@@ -1105,7 +1108,10 @@ p {
     border-radius: 8px;
 }
 .panel {
-    padding: 16px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
 }
 .notice-card {
     padding: 14px 16px;
@@ -1476,5 +1482,15 @@ small.field-error {
     .discount-form {
         grid-template-columns: 1fr;
     }
+}
+
+.profile-section-card.tiers-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 </style>

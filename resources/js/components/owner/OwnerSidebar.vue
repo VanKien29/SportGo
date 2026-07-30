@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <aside
         class="sidebar"
         :class="sidebarStyle"
@@ -58,20 +58,6 @@
                         <AppIcon name="messageSquare" size="17" />
                         <span v-if="!collapsed" class="nav-item-label"
                             >Tin nhắn</span
-                        >
-                    </span>
-                </RouterLink>
-
-                <RouterLink
-                    v-if="showUtilityNavigation"
-                    class="nav-item"
-                    to="/"
-                    @click="$emit('navigate')"
-                >
-                    <span class="nav-item-left">
-                        <AppIcon name="eye" size="17" />
-                        <span v-if="!collapsed" class="nav-item-label"
-                            >Xem trang khách</span
                         >
                     </span>
                 </RouterLink>
@@ -153,14 +139,6 @@
                         <RouterLink
                             v-if="showUtilityNavigation"
                             class="rail-icon-btn"
-                            to="/"
-                            title="Xem trang khách"
-                        >
-                            <AppIcon name="eye" size="18" />
-                        </RouterLink>
-                        <RouterLink
-                            v-if="showUtilityNavigation"
-                            class="rail-icon-btn"
                             :class="{
                                 active: activeRouteName === 'owner-settings',
                             }"
@@ -224,7 +202,7 @@ export default {
         collapsed: { type: Boolean, default: false },
         userRoleLabel: { type: String, default: "" },
         workspaceLabel: { type: String, default: "Owner Console" },
-        homeUrl: { type: String, default: "/owner/dashboard" },
+        homeUrl: { type: String, default: "/owner/venue-clusters" },
         showUtilityNavigation: { type: Boolean, default: true },
     },
     emits: ["cluster-change", "navigate"],

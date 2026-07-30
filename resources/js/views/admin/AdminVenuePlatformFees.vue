@@ -1,80 +1,85 @@
-﻿<template>
-  <section class="venue-fees">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-venue-clusters' })">Quay láº¡i cá»¥m sÃ¢n</button>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card venue-fees-main-content">
+      <section class="venue-fees">
+        <button class="link-btn" type="button" @click="$router.push({ name: 'admin-venue-clusters' })">Quay lại cụm sân</button>
 
-    <div v-if="!venue" class="panel empty">KhÃ´ng tÃ¬m tháº¥y cá»¥m sÃ¢n.</div>
-    <template v-else>
-      <div class="venue-info-bar">
-        <h2>{{ venue.name }}</h2>
-        <span class="status-dot" :class="venue.status" :title="venue.status === 'locked' ? 'ÄÃ£ khÃ³a' : 'Hoáº¡t Ä‘á»™ng'" :aria-label="venue.status === 'locked' ? 'ÄÃ£ khÃ³a' : 'Hoáº¡t Ä‘á»™ng'"></span>
-      </div>
-
-      <div v-if="snapshotChanged" class="notice">
-        Sá»‘ sÃ¢n cá»§a cá»¥m Ä‘Ã£ thay Ä‘á»•i. CÃ¡c ká»³ phÃ­ Ä‘Ã£ táº¡o giá»¯ nguyÃªn snapshot cÅ©. Ká»³ phÃ­ tiáº¿p theo sáº½ dÃ¹ng sá»‘ sÃ¢n má»›i.
-      </div>
-
-      <section class="panel">
-        <h3>Xem trÆ°á»›c phÃ­ theo ká»³</h3>
-        <div class="preview-grid">
-          <div v-for="month in periods" :key="month" class="preview-card">
-            <span>{{ month }} thÃ¡ng</span>
-            <strong>{{ previewFor(month).error || money(previewFor(month).fee.amount_due) }}</strong>
-            <small>{{ previewFor(month).tier?.name || '' }}</small>
-            <button class="btn primary icon-text" type="button" :disabled="Boolean(previewFor(month).error)" @click="createFor(month)">
-              <AppIcon name="plus" size="18" />
-              <span>Táº¡o ká»³ phÃ­</span>
-            </button>
+        <div v-if="!venue" class="panel empty">Không tìm thấy cụm sân.</div>
+        <template v-else>
+          <div class="venue-info-bar">
+            <h2>{{ venue.name }}</h2>
+            <span class="status-dot" :class="venue.status" :title="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'" :aria-label="venue.status === 'locked' ? 'Đã khóa' : 'Hoạt động'"></span>
           </div>
-        </div>
-      </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h3>Ledger cá»§a cá»¥m sÃ¢n</h3>
-          <div class="venue-ledger-actions">
-            <button class="btn danger icon-text" type="button" :disabled="!canLock" @click="lockVenue">
-              <AppIcon name="lock" size="18" />
-              <span>KhÃ³a cá»¥m</span>
-            </button>
-            <button class="btn secondary icon-text" type="button" :disabled="!canUnlock" @click="unlockVenue">
-              <AppIcon name="unlock" size="18" />
-              <span>Má»Ÿ khÃ³a</span>
-            </button>
+          <div v-if="snapshotChanged" class="notice">
+            Số sân của cụm đã thay đổi. Các kỳ phí đã tạo giữ nguyên snapshot cũ. Kỳ phí tiếp theo sẽ dùng số sân mới.
           </div>
-        </div>
-        <div v-if="ledgers.length === 0" class="empty compact">ChÆ°a cÃ³ ká»³ phÃ­. HÃ£y táº¡o ká»³ phÃ­ má»›i.</div>
-        <div v-else class="table-scroll" tabindex="0" aria-label="Báº£ng ká»³ phÃ­ cá»§a cá»¥m sÃ¢n">
-          <table>
-            <thead>
-              <tr>
-                <th>MÃ£</th>
-                <th>Ká»³</th>
-                <th>Sá»‘ sÃ¢n snapshot</th>
-                <th>Báº­c phÃ­</th>
-                <th>Háº¡n thanh toÃ¡n</th>
-                <th>CÃ²n thiáº¿u</th>
-                <th>Tráº¡ng thÃ¡i</th>
-                <th>Email gáº§n nháº¥t</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="ledger in ledgers" :key="ledger.id">
-                <td><router-link :to="{ name: 'admin-platform-fee-ledger-detail', params: { id: ledger.id } }">{{ ledger.code }}</router-link></td>
-                <td>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</td>
-                <td>{{ ledger.court_count }}</td>
-                <td>{{ ledger.tier_name }}</td>
-                <td>{{ date(ledger.due_date) }}</td>
-                <td>{{ money(ledger.remaining_amount) }}</td>
-                <td><span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span></td>
-                <td>{{ latestEmail(ledger) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+
+          <section class="panel">
+            <h3>Xem trước phí theo kỳ</h3>
+            <div class="preview-grid">
+              <div v-for="month in periods" :key="month" class="preview-card">
+                <span>{{ month }} tháng</span>
+                <strong>{{ previewFor(month).error || money(previewFor(month).fee.amount_due) }}</strong>
+                <small>{{ previewFor(month).tier?.name || '' }}</small>
+                <button class="btn primary icon-text" type="button" :disabled="Boolean(previewFor(month).error)" @click="createFor(month)">
+                  <AppIcon name="plus" size="18" />
+                  <span>Tạo kỳ phí</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>Ledger của cụm sân</h3>
+              <div class="venue-ledger-actions">
+                <button class="btn danger icon-text" type="button" :disabled="!canLock" @click="lockVenue">
+                  <AppIcon name="lock" size="18" />
+                  <span>Khóa cụm</span>
+                </button>
+                <button class="btn secondary icon-text" type="button" :disabled="!canUnlock" @click="unlockVenue">
+                  <AppIcon name="unlock" size="18" />
+                  <span>Mở khóa cụm</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="ledgers.length === 0" class="empty compact">Chưa có kỳ phí nào cho cụm sân này.</div>
+            <div v-else class="table-scroll">
+              <table class="simple-table">
+                <thead>
+                  <tr>
+                    <th>Mã kỳ phí</th>
+                    <th>Trạng thái</th>
+                    <th>Kỳ hiệu lực</th>
+                    <th>Cần đóng</th>
+                    <th>Đã đóng</th>
+                    <th>Còn thiếu</th>
+                    <th>Hạn đóng</th>
+                    <th>Email gần nhất</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="ledger in ledgers" :key="ledger.id">
+                    <td><router-link :to="{ name: 'admin-platform-fee-ledger-detail', params: { id: ledger.id } }">{{ ledger.code }}</router-link></td>
+                    <td><span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)"></span> {{ statusLabel(ledger.status) }}</td>
+                    <td>{{ date(ledger.period_start) }} - {{ date(ledger.period_end) }}</td>
+                    <td>{{ money(ledger.amount_due) }}</td>
+                    <td>{{ money(ledger.amount_paid) }}</td>
+                    <td>{{ money(ledger.remaining_amount) }}</td>
+                    <td>{{ date(ledger.due_date) }}</td>
+                    <td>{{ latestEmail(ledger) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+        <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
       </section>
-    </template>
-    <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
-  </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -216,7 +221,8 @@ export default {
 
 <style scoped>
 .venue-fees { display: flex; flex-direction: column; gap: 16px; }
-.panel, .preview-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.panel { background: transparent; border: none; border-radius: 0; padding: 0; }
+.preview-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
 .venue-info-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .panel-head, .venue-ledger-actions, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 .eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; font-weight: 400; text-transform: uppercase; }
@@ -271,5 +277,15 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
   .panel-head { flex-direction: column; align-items: stretch; }
   .venue-ledger-actions { width: 100%; flex-wrap: wrap; }
   .venue-ledger-actions .btn { flex: 1 1 0; min-width: 0; }
+}
+
+.profile-section-card.venue-fees-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

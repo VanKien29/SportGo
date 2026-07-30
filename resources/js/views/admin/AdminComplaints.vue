@@ -1,7 +1,8 @@
-﻿<template>
-  <div class="complaints-page">
-    <div v-if="success" class="notice success">{{ success }}</div>
-    <div v-if="error" class="notice error">{{ error }}</div>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card complaints-main-content">
+      <div v-if="success" class="notice success">{{ success }}</div>
+      <div v-if="error" class="notice error">{{ error }}</div>
 
     <div v-if="!detailOpen">
         <div class="filter-toolbar card" style="margin-bottom: 24px;">
@@ -297,6 +298,7 @@
     <div v-if="previewImage" style="position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: flex; align-items: center; justify-content: center;" @click="closeImagePreview">
       <img :src="previewImage" style="max-width: 90vw; max-height: 90vh; object-fit: contain;" @click.stop />
       <button @click="closeImagePreview" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; cursor: pointer;">&times;</button>
+    </div>
     </div>
   </div>
 </template>
@@ -991,5 +993,15 @@ th.center, td.center {
 }
 .tab-btn.active .muted-icon {
   color: white;
+}
+
+.profile-section-card.complaints-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

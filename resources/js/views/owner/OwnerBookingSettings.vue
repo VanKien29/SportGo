@@ -1,26 +1,13 @@
-﻿<template>
-  <section class="settings-page">
-    <header class="page-head">
-      <div>
-        <p class="eyebrow">QUY ĐỊNH BOOKING</p>
-        <h2>Cấu hình đặt sân</h2>
-      </div>
-      <label class="cluster-select">
-        <span>Cụm sân</span>
-        <select v-model="selectedClusterId" :disabled="loading || !clusters.length">
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-            {{ cluster.name }}
-          </option>
-        </select>
-      </label>
-    </header>
-
+<template>
+  <div class="cluster-profile-surface standalone">
+    <!-- Global Alert Notifications -->
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>
     <div v-if="loading" class="state-card">Đang tải cấu hình đặt sân...</div>
     <div v-else-if="!selectedClusterId" class="state-card">Chưa có cụm sân để cấu hình.</div>
 
-    <form v-else class="settings-form" novalidate @submit.prevent="save">
+    <!-- Main Unified Content Surface Card -->
+    <form v-else class="profile-section-card settings-main-content" novalidate @submit.prevent="save">
       <div v-if="validationMessages.length" class="validation-summary" role="alert">
         <strong>Vui lòng kiểm tra lại</strong>
         <ul>
@@ -28,8 +15,9 @@
         </ul>
       </div>
 
-      <article class="setting-card">
-        <header class="card-head">
+      <!-- Section 1: Giờ hoạt động cố định -->
+      <section class="setting-section">
+        <header class="section-head">
           <h3>Giờ hoạt động cố định</h3>
         </header>
         <div class="fixed-hours">
@@ -64,10 +52,11 @@
             </div>
           </label>
         </div>
-      </article>
+      </section>
 
-      <article class="setting-card">
-        <header class="card-head split">
+      <!-- Section 2: Giờ hoạt động theo ngày -->
+      <section class="setting-section">
+        <header class="section-head split">
           <h3>Giờ hoạt động theo ngày</h3>
           <button class="secondary-btn" type="button" @click="addSpecialHours">+ Thêm khoảng ngày</button>
         </header>
@@ -103,52 +92,56 @@
             </button>
           </div>
         </div>
-      </article>
+      </section>
 
-      <div class="two-column">
-        <article class="setting-card">
-          <header class="card-head"><h3>Đặt trước & giới hạn booking</h3></header>
-          <div class="compact-fields">
-            <label>
-              <span>Đặt trước tối thiểu</span>
-              <div class="input-unit">
-                <input v-model.trim="form.min_advance_booking_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('min_advance_booking_minutes')">
-                <span>phút</span>
-              </div>
-            </label>
-            <label>
-              <span>Thời lượng tối đa</span>
-              <div class="input-unit">
-                <input v-model.trim="form.max_duration_minutes" type="text" inputmode="numeric" placeholder="Không giới hạn" @input="normalizeIntegerInput('max_duration_minutes', true)">
-                <span>phút</span>
-              </div>
-            </label>
+      <!-- Section 3: Quy định thời gian & Giữ chỗ -->
+      <section class="setting-section">
+        <div class="two-column">
+          <div class="compact-card-group">
+            <header class="section-head"><h3>Đặt trước & giới hạn booking</h3></header>
+            <div class="compact-fields">
+              <label>
+                <span>Đặt trước tối thiểu</span>
+                <div class="input-unit">
+                  <input v-model.trim="form.min_advance_booking_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('min_advance_booking_minutes')">
+                  <span>phút</span>
+                </div>
+              </label>
+              <label>
+                <span>Thời lượng tối đa</span>
+                <div class="input-unit">
+                  <input v-model.trim="form.max_duration_minutes" type="text" inputmode="numeric" placeholder="Không giới hạn" @input="normalizeIntegerInput('max_duration_minutes', true)">
+                  <span>phút</span>
+                </div>
+              </label>
+            </div>
           </div>
-        </article>
 
-        <article class="setting-card">
-          <header class="card-head"><h3>Giữ chỗ & nhắc lịch</h3></header>
-          <div class="compact-fields">
-            <label>
-              <span>Thời gian giữ chỗ</span>
-              <div class="input-unit">
-                <input v-model.trim="form.slot_hold_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('slot_hold_minutes')">
-                <span>phút</span>
-              </div>
-            </label>
-            <label>
-              <span>Nhắc trước giờ chơi</span>
-              <div class="input-unit">
-                <input v-model.trim="form.reminder_before_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('reminder_before_minutes')">
-                <span>phút</span>
-              </div>
-            </label>
+          <div class="compact-card-group">
+            <header class="section-head"><h3>Giữ chỗ & nhắc lịch</h3></header>
+            <div class="compact-fields">
+              <label>
+                <span>Thời gian giữ chỗ</span>
+                <div class="input-unit">
+                  <input v-model.trim="form.slot_hold_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('slot_hold_minutes')">
+                  <span>phút</span>
+                </div>
+              </label>
+              <label>
+                <span>Nhắc trước giờ chơi</span>
+                <div class="input-unit">
+                  <input v-model.trim="form.reminder_before_minutes" type="text" inputmode="numeric" @input="normalizeIntegerInput('reminder_before_minutes')">
+                  <span>phút</span>
+                </div>
+              </label>
+            </div>
           </div>
-        </article>
-      </div>
+        </div>
+      </section>
 
-      <article class="setting-card">
-        <header class="card-head"><h3>Hình thức thanh toán</h3></header>
+      <!-- Section 4: Hình thức thanh toán -->
+      <section class="setting-section">
+        <header class="section-head"><h3>Hình thức thanh toán</h3></header>
         <div class="payment-list">
           <label class="payment-option" :class="{ enabled: form.allow_full_payment }">
             <input v-model="form.allow_full_payment" type="checkbox">
@@ -156,7 +149,7 @@
           </label>
           <label class="payment-option" :class="{ enabled: form.allow_deposit }">
             <input v-model="form.allow_deposit" type="checkbox">
-               <strong>Đặt cọc</strong>
+            <strong>Đặt cọc</strong>
             <div v-if="form.allow_deposit" class="deposit-field" @click.stop>
               <input v-model.trim="form.deposit_percent" type="text" inputmode="numeric" @input="normalizeIntegerInput('deposit_percent')">
               <span>%</span>
@@ -167,10 +160,11 @@
             <strong>Trả sau tại sân</strong>
           </label>
         </div>
-      </article>
+      </section>
 
-      <article class="setting-card">
-        <header class="card-head"><h3>Hạng thành viên</h3></header>
+      <!-- Section 5: Hạng thành viên -->
+      <section class="setting-section">
+        <header class="section-head"><h3>Hạng thành viên</h3></header>
         <label class="membership-reset-toggle" :class="{ enabled: form.reset_membership_progress_on_upgrade }">
           <input v-model="form.reset_membership_progress_on_upgrade" type="checkbox">
           <span>
@@ -217,16 +211,20 @@
         <div v-if="membershipValidationMessages.length" class="membership-inline-errors" role="alert">
           <span v-for="message in membershipValidationMessages" :key="message">{{ message }}</span>
         </div>
-      </article>
+      </section>
 
-      <footer class="save-bar">
-        <strong>{{ selectedCluster?.name }}</strong>
+      <!-- Bottom Save Action Bar integrated inside container surface -->
+      <footer class="save-bar-footer">
+        <div class="save-bar-info">
+          <span>Đang cấu hình cho cụm sân:</span>
+          <strong>{{ selectedCluster?.name }}</strong>
+        </div>
         <button class="primary-btn" type="submit" :disabled="saving">
           {{ saving ? 'Đang lưu...' : 'Lưu cấu hình' }}
         </button>
       </footer>
     </form>
-  </section>
+  </div>
 </template>
 
 <script>
@@ -675,38 +673,480 @@ export default {
 </script>
 
 <style scoped>
-.settings-page{width:100%;min-width:0}.settings-form,.setting-card,.membership-table{min-width:0;max-width:100%}
-.settings-page{display:grid;gap:14px;max-width:1120px}.page-head,.card-head,.save-bar{display:flex;justify-content:space-between;align-items:center;gap:16px}.page-head h2,.card-head h3{margin:0;color:#0f172a}.card-head h3{font-size:16px}.eyebrow{margin:0 0 5px;color:#059669;font-size:11px;font-weight: 400;letter-spacing:.1em}.cluster-select{min-width:260px;display:grid;gap:6px;color:#475569;font-size:12px;font-weight: 400}.cluster-select select,.fixed-hours input,.special-row input,.special-row select,.input-unit input,.deposit-field input,.membership-row input,.membership-row select{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 10px;background:#fff;color:#0f172a;font:inherit}.alert,.state-card,.validation-summary{padding:12px 14px;border-radius:10px;font-weight: 400}.alert.error,.validation-summary{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}.alert.success{background:#dcfce7;color:#166534}.state-card{text-align:center;background:#fff;border:1px solid #e2e8f0;color:#64748b}.settings-form{display:grid;gap:12px}.validation-summary{box-shadow:0 8px 24px rgba(159,18,57,.1)}.validation-summary ul{margin:6px 0 0;padding-left:20px;font-size:13px;font-weight: 400}.setting-card,.save-bar{padding:15px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 5px 18px rgba(15,23,42,.035)}.card-head{padding-bottom:11px;border-bottom:1px solid #e2e8f0}.fixed-hours{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr) minmax(180px,1fr);align-items:end;gap:14px;margin-top:14px}.fixed-hours label,.special-row label,.compact-fields label{display:grid;gap:5px;color:#475569;font-size:12px;font-weight: 400}.range-arrow{padding-bottom:10px;color:#94a3b8;font-size:20px}.secondary-btn,.remove-btn,.primary-btn{border:0;border-radius:9px;font:inherit;font-weight: 400;cursor:pointer}.secondary-btn{padding:8px 11px;background:#ecfdf5;color:#047857}.empty-row{padding:18px 0 4px;text-align:center;color:#94a3b8;font-size:13px}.special-list{display:grid;gap:8px;margin-top:10px}.special-row{display:grid;grid-template-columns:1fr 1fr .8fr .8fr 36px;align-items:end;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}.remove-btn{height:40px;background:#fee2e2;color:#be123c;font-size:21px}.two-column{display:grid;grid-template-columns:1fr 1fr;gap:12px}.compact-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.compact-fields label:first-child:last-child{grid-column:auto}.input-unit,.deposit-field{position:relative}.input-unit input{padding-right:50px}.input-unit>span,.deposit-field>span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:11px;font-weight: 400}.payment-list{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.payment-option{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;min-height:52px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer}.payment-option.enabled{border-color:#6ee7b7;background:#ecfdf5}.payment-option>input{width:17px;height:17px;accent-color:#059669}.payment-option strong{color:#0f172a;font-size:13px}.deposit-field{width:82px}.deposit-field input{padding-right:26px}.membership-reset-toggle{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:12px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;cursor:pointer}.membership-reset-toggle.enabled{border-color:#6ee7b7;background:#ecfdf5}.membership-reset-toggle input{width:18px;height:18px;accent-color:#059669}.membership-reset-toggle span{display:grid;gap:3px}.membership-reset-toggle strong{color:#0f172a;font-size:13px}.membership-reset-toggle small{color:#64748b;font-size:12px;font-weight: 400}.membership-table{display:grid;gap:8px;margin-top:12px;overflow:auto}.membership-row{display:grid;grid-template-columns:110px 150px 100px minmax(180px,1.2fr) repeat(6,minmax(110px,1fr));gap:8px;align-items:center;min-width:1280px}.membership-row strong{color:#0f172a}.membership-head{color:#64748b;font-size:11px;font-weight: 400;text-transform:uppercase}.membership-inline-errors{display:grid;gap:6px;margin-top:10px;padding:10px 12px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight: 400}.save-bar{position:sticky;bottom:10px;border-color:#a7f3d0}.primary-btn{padding:10px 18px;background:#059669;color:#fff}.primary-btn:disabled{opacity:.5;cursor:not-allowed}@media(max-width:820px){.fixed-hours{grid-template-columns:1fr auto 1fr}.fixed-hours>label:last-child{grid-column:1/4}.two-column,.payment-list{grid-template-columns:1fr}.special-row{grid-template-columns:1fr 1fr}.remove-btn{grid-column:2;justify-self:end;width:40px}.page-head{align-items:end}}@media(max-width:560px){.page-head,.save-bar{display:grid}.cluster-select{min-width:0}.fixed-hours,.special-row,.compact-fields{grid-template-columns:1fr}.fixed-hours>label:last-child{grid-column:auto}.range-arrow{display:none}.remove-btn{grid-column:1}.primary-btn{width:100%}}
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: var(--admin-surface, #ffffff);
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-/* Keep owner form surfaces and text on the same theme source. */
-.settings-page :is(.page-head h2, .card-head h3, .payment-option strong, .membership-reset-toggle strong, .membership-row strong) {
+.settings-header-surface {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--admin-surface, #ffffff);
+}
+
+.header-title-group h2,
+.section-head h3 {
+  margin: 0;
   color: var(--admin-text, #0f172a);
 }
-.settings-page :is(.cluster-select, .fixed-hours label, .special-row label, .compact-fields label, .input-unit > span, .deposit-field > span, .membership-reset-toggle small, .membership-head) {
-  color: var(--admin-muted, #64748b);
+
+.header-title-group h2 {
+  font-size: 20px;
+  font-weight: 500;
 }
-.settings-page :is(.setting-card, .save-bar, .state-card) {
-  border-color: var(--admin-border, #e2e8f0);
-  background: var(--admin-card-bg, #fff);
+
+.section-head h3 {
+  font-size: 16px;
+  font-weight: 500;
 }
-.settings-page .card-head {
-  border-bottom-color: var(--admin-border-soft, #e2e8f0);
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #059669;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
 }
-.settings-page :is(.cluster-select select, .fixed-hours input, .special-row input, .special-row select, .input-unit input, .deposit-field input, .membership-row input, .membership-row select) {
-  border-color: var(--admin-border, #cbd5e1);
+
+.cluster-select {
+  min-width: 260px;
+  display: grid;
+  gap: 6px;
+  color: var(--admin-muted, #475569);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.cluster-select select,
+.fixed-hours input,
+.special-row input,
+.special-row select,
+.input-unit input,
+.deposit-field input,
+.membership-row input,
+.membership-row select {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 9px;
+  padding: 0 10px;
   background: var(--admin-surface, #fff);
   color: var(--admin-text, #0f172a);
+  font: inherit;
 }
-.settings-page :is(.special-row, .membership-reset-toggle) {
-  border-color: var(--admin-border, #e2e8f0);
+
+.alert,
+.state-card,
+.validation-summary {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
+.alert.error,
+.validation-summary {
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+  margin: 16px 24px 0;
+}
+
+.alert.success {
+  background: #dcfce7;
+  color: #166534;
+  margin: 16px 24px 0;
+}
+
+.state-card {
+  text-align: center;
+  background: var(--admin-surface, #fff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  color: var(--admin-muted, #64748b);
+  margin: 24px;
+}
+
+.profile-section-card.settings-main-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--admin-surface, #ffffff);
+}
+
+.validation-summary {
+  box-shadow: 0 8px 24px rgba(159, 18, 57, 0.1);
+  margin: 0;
+}
+
+.validation-summary ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.setting-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 0 !important;
+  border-bottom: none !important;
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--admin-border-soft, #e2e8f0);
+}
+
+.fixed-hours {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr) minmax(180px, 1fr);
+  align-items: end;
+  gap: 14px;
+}
+
+.fixed-hours label,
+.special-row label,
+.compact-fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--admin-muted, #475569);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.range-arrow {
+  padding-bottom: 10px;
+  color: var(--admin-muted, #94a3b8);
+  font-size: 20px;
+}
+
+.secondary-btn,
+.remove-btn,
+.primary-btn {
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.secondary-btn {
+  padding: 8px 14px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.empty-row {
+  padding: 18px 0 4px;
+  text-align: center;
+  color: var(--admin-muted, #94a3b8);
+  font-size: 13px;
+}
+
+.special-list {
+  display: grid;
+  gap: 10px;
+}
+
+.special-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 0.8fr 0.8fr 36px;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
   background: var(--admin-surface-muted, #f8fafc);
 }
-.settings-page .payment-option:not(.enabled) {
-  border-color: var(--admin-border, #e2e8f0);
-  background: var(--admin-surface, #fff);
+
+.remove-btn {
+  height: 40px;
+  background: #fee2e2;
+  color: #be123c;
+  font-size: 21px;
 }
-.settings-page :is(.payment-option.enabled, .membership-reset-toggle.enabled) {
-  border-color: var(--admin-primary, #059669);
-  background: var(--admin-primary-soft, #ecfdf5);
+
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.compact-card-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compact-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.compact-fields label:first-child:last-child {
+  grid-column: auto;
+}
+
+.input-unit,
+.deposit-field {
+  position: relative;
+}
+
+.input-unit input {
+  padding-right: 50px;
+}
+
+.input-unit > span,
+.deposit-field > span {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--admin-muted, #64748b);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.payment-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.payment-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--admin-surface, #fff);
+  transition: all 0.15s ease;
+}
+
+.payment-option.enabled {
+  border-color: #6ee7b7;
+  background: #ecfdf5;
+}
+
+.payment-option > input {
+  width: 17px;
+  height: 17px;
+  accent-color: #059669;
+}
+
+.payment-option strong {
+  color: var(--admin-text, #0f172a);
+  font-size: 13px;
+}
+
+.deposit-field {
+  width: 82px;
+}
+
+.deposit-field input {
+  padding-right: 26px;
+}
+
+.membership-reset-toggle {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
+  background: var(--admin-surface-muted, #f8fafc);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.membership-reset-toggle.enabled {
+  border-color: #6ee7b7;
+  background: #ecfdf5;
+}
+
+.membership-reset-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #059669;
+}
+
+.membership-reset-toggle span {
+  display: grid;
+  gap: 3px;
+}
+
+.membership-reset-toggle strong {
+  color: var(--admin-text, #0f172a);
+  font-size: 13px;
+}
+
+.membership-reset-toggle small {
+  color: var(--admin-muted, #64748b);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.membership-table {
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+}
+
+.membership-row {
+  display: grid;
+  grid-template-columns: 110px 150px 100px minmax(180px, 1.2fr) repeat(6, minmax(110px, 1fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 1280px;
+}
+
+.membership-row strong {
+  color: var(--admin-text, #0f172a);
+}
+
+.membership-head {
+  color: var(--admin-muted, #64748b);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.membership-inline-errors {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 9px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.save-bar-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  position: sticky;
+  bottom: 12px;
+  z-index: 10;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.08);
+}
+
+.save-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--admin-text, #0f172a);
+}
+
+.save-bar-info span {
+  color: var(--admin-muted, #64748b);
+}
+
+.primary-btn {
+  padding: 10px 22px;
+  background: #059669;
+  color: #fff;
+  font-weight: 500;
+  font-size: 14px;
+
+  transition: background 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 820px) {
+  .fixed-hours {
+    grid-template-columns: 1fr auto 1fr;
+  }
+  .fixed-hours > label:last-child {
+    grid-column: 1 / 4;
+  }
+  .two-column,
+  .payment-list {
+    grid-template-columns: 1fr;
+  }
+  .special-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .remove-btn {
+    grid-column: 2;
+    justify-self: end;
+    width: 40px;
+  }
+  .settings-header-surface {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .settings-header-surface,
+  .save-bar-footer {
+    display: grid;
+  }
+  .cluster-select {
+    min-width: 0;
+  }
+  .fixed-hours,
+  .special-row,
+  .compact-fields {
+    grid-template-columns: 1fr;
+  }
+  .fixed-hours > label:last-child {
+    grid-column: auto;
+  }
+  .range-arrow {
+    display: none;
+  }
+  .remove-btn {
+    grid-column: 1;
+  }
+  .primary-btn {
+    width: 100%;
+  }
 }
 </style>

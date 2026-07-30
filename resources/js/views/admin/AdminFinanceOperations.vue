@@ -1,5 +1,7 @@
-﻿<template>
-    <section class="finance-operations">
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card finance-main-content">
+            <section class="finance-operations">
         <header class="page-header">
             <div>
                 <h2>Xử lý hoàn tiền và rút tiền</h2>
@@ -161,7 +163,7 @@
                         <th>Owner xác nhận</th>
                         <th>Số tiền</th>
                         <th>Trạng thái</th>
-                        <th></th>
+                        <th style="text-align: right;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -458,16 +460,14 @@
                                     >{{ refundStatusLabel(refund) }}</span
                                 >
                             </td>
-                            <td class="row-actions">
-                                <button
-                                    class="icon-only"
-                                    type="button"
-                                    title="Xem chi tiết"
-                                    aria-label="Xem chi tiết"
-                                    @click="openRefundDetail(refund)"
-                                >
-                                    <AppIcon name="eye" size="16" />
-                                </button>
+                            <td style="text-align: right;">
+                                <TableActionGroup>
+                                    <ActionIconButton
+                                        icon="eye"
+                                        label="Xem chi tiết"
+                                        @click="openRefundDetail(refund)"
+                                    />
+                                </TableActionGroup>
                             </td>
                         </tr>
                     </template>
@@ -509,7 +509,7 @@
                         <th>Tài khoản nhận tiền</th>
                         <th>Số tiền yêu cầu</th>
                         <th>Trạng thái</th>
-                        <th></th>
+                        <th style="text-align: right;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -593,8 +593,8 @@
                                     formatDate(withdrawal.requested_at)
                                 }}</span>
                             </td>
-                            <td>
-                                <div class="row-actions">
+                            <td style="text-align: right;">
+                                <TableActionGroup>
                                     <button
                                         v-if="canOpenPayout(withdrawal)"
                                         class="pay-command"
@@ -606,23 +606,16 @@
                                         "
                                         @click="openPayout(withdrawal)"
                                     >
-                                        <AppIcon
-                                            name="banknote"
-                                            size="16"
-                                        />Thanh toán
+                                        <AppIcon name="banknote" size="16" />Thanh
+                                        toán
                                     </button>
-                                    <button
-                                        v-if="
-                                            withdrawal.allowed_statuses.length
-                                        "
-                                        class="icon-only"
-                                        type="button"
-                                        title="Từ chối yêu cầu"
+                                    <ActionIconButton
+                                        v-if="withdrawal.allowed_statuses.length"
+                                        icon="settings"
+                                        label="Từ chối / Xử lý yêu cầu"
                                         @click="openAction(withdrawal)"
-                                    >
-                                        <AppIcon name="settings" size="17" />
-                                    </button>
-                                </div>
+                                    />
+                                </TableActionGroup>
                             </td>
                         </tr>
                     </template>
@@ -1023,16 +1016,20 @@
                 </template>
             </section>
         </div>
-    </section>
+            </section>
+        </div>
+    </div>
 </template>
 
 <script>
+import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
 import { adminFinanceOperationsService } from "../../services/adminFinanceOperations.js";
 
 export default {
     name: "AdminFinanceOperations",
-    components: { AppIcon },
+    components: { ActionIconButton, AppIcon, TableActionGroup },
     data() {
         return {
             tab: "refunds",
@@ -2073,16 +2070,18 @@ table {
 }
 th,
 td {
-    padding: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
     font-size: 13px;
 }
 th {
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
-    font-weight: 400;
+    background: var(--admin-surface-muted, #f8fafc);
+    color: var(--admin-muted, #64748b);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
 }
 .empty {
     padding: 28px;
@@ -2595,5 +2594,21 @@ pre {
     .export-btn {
         margin-left: 0;
     }
+}
+
+.profile-section-card.finance-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.table-wrap {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 </style>

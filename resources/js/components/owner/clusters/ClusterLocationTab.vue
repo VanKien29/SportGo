@@ -191,6 +191,8 @@ export default {
   align-items: center;
   gap: 12px;
   margin-top: 8px;
+  border-top: none !important;
+  padding-top: 0 !important;
 }
 
 .btn-primary:hover:not(:disabled) {

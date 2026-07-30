@@ -1,6 +1,7 @@
-﻿<template>
-    <section class="settings-page">
-        <header class="page-head">
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card settings-main-content">
+            <header class="page-head">
             <div>
                 <p class="eyebrow">Phí nền tảng</p>
                 <h2>Cài đặt nhắc phí</h2>
@@ -73,7 +74,8 @@
                 </footer>
             </div>
         </div>
-    </section>
+    </div>
+</div>
 </template>
 
 <script>
@@ -212,14 +214,15 @@ export default {
 .page-head { display:flex; align-items:center; justify-content:space-between; }
 .page-head h2, .modal-head h3, p { margin:0; }
 .eyebrow { margin:0 0 4px; color:#16a34a; font-size:12px; font-weight: 400; text-transform:uppercase; }
-.panel, .modal { border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
-.form { display:grid; gap:16px; padding:20px; }
+.panel { border:none; border-radius:0; background:transparent; padding:0; }
+.modal { border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
+.form { display:grid; gap:16px; padding:0; }
 label { display:flex; flex-direction:column; gap:6px; color:#334155; font-weight: 400; }
 input, textarea { box-sizing:border-box; width:100%; min-width:0; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font:inherit; }
 .field-meta { justify-self:end; color:#64748b; font-size:12px; font-weight: 400; }
 .field-error { color:#dc2626; font-size:12px; font-weight: 400; }
 .settings-actions, .modal-head, .modal-actions, .icon-text { display:flex; align-items:center; gap:10px; }
-.settings-actions { flex-wrap:wrap; }
+.settings-actions { flex-wrap:wrap; margin-top:0 !important; padding-top:0 !important; border-top:none !important; }
 .btn { border:0; border-radius:8px; padding:10px 14px; font-weight: 400; cursor:pointer; }
 .btn.primary { background:#16a34a; color:#fff; }
 .btn.secondary { background:#e2e8f0; color:#334155; }
@@ -239,5 +242,15 @@ input, textarea { box-sizing:border-box; width:100%; min-width:0; border:1px sol
   .settings-page, .panel, .form { width:100%; min-width:0; max-width:100%; }
   .settings-actions { display:grid; grid-template-columns:1fr; }
   .settings-actions .btn { width:100%; min-width:0; white-space:normal; }
+}
+
+.profile-section-card.settings-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

@@ -1,101 +1,105 @@
 <template>
-  <div class="settings-container animate-fade-in">
-    <!-- Success / Error Alerts -->
-    <div v-if="successMessage" class="alert success" style="margin-bottom: 0px; border-radius: 12px; display: flex; align-items: center; gap: 8px;">
-      <AppIcon name="check" size="18" />
-      <span>{{ successMessage }}</span>
-    </div>
-    <div v-if="errorMessage" class="alert error" role="alert" style="margin-bottom: 0px; border-radius: 12px;">
-      <span>{{ errorMessage }}</span>
-    </div>
-
-
-
-    <!-- Sidebar Style Selection Card -->
-    <div class="settings-card">
-      <div class="settings-card-header">
-        <h2>Kiểu hiển thị Sidebar</h2>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card settings-main-content">
+      <!-- Success / Error Alerts -->
+      <div v-if="successMessage" class="table-state-card alert-success-custom">
+        <AppIcon name="check" size="18" />
+        <span>{{ successMessage }}</span>
       </div>
-      <div class="settings-card-content">
-        <div class="sidebar-type-grid">
-          <div
-            class="sidebar-type-card"
-            :class="{ active: sidebarStyle === 'one-level' }"
-            @click="sidebarStyle = 'one-level'"
-          >
-            <div class="sidebar-card-preview one-level-preview">
-              <div class="preview-sidebar">
-                <div class="preview-logo"></div>
-                <div class="preview-menu-items">
-                  <div class="preview-menu-item active">
-                    <div class="preview-icon"></div>
-                    <div class="preview-text"></div>
-                  </div>
-                  <div class="preview-menu-item">
-                    <div class="preview-icon"></div>
-                    <div class="preview-text"></div>
-                  </div>
-                  <div class="preview-menu-item">
-                    <div class="preview-icon"></div>
-                    <div class="preview-text"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="preview-content">
-                <div class="preview-header"></div>
-                <div class="preview-body">
-                  <div class="preview-card-item"></div>
-                  <div class="preview-card-item"></div>
-                </div>
-              </div>
-            </div>
-            <div class="sidebar-card-info">
-              <h3>Sidebar đơn cấp</h3>
-              <p>Hiển thị danh mục trực tiếp trên một thanh điều hướng duy nhất</p>
-            </div>
-          </div>
+      <div v-if="errorMessage" class="table-state-card alert-error-custom" role="alert">
+        <span>{{ errorMessage }}</span>
+      </div>
 
-          <div
-            class="sidebar-type-card"
-            :class="{ active: sidebarStyle === 'two-level' }"
-            @click="sidebarStyle = 'two-level'"
-          >
-            <div class="sidebar-card-preview two-level-preview">
-              <div class="preview-rail">
-                <div class="preview-rail-logo"></div>
-                <div class="preview-rail-items">
-                  <div class="preview-rail-item active"></div>
-                  <div class="preview-rail-item"></div>
-                  <div class="preview-rail-item"></div>
+      <!-- Sidebar Style Selection Card -->
+      <div class="settings-section-block">
+        <div class="settings-card-header">
+          <h2>Kiểu hiển thị Sidebar</h2>
+        </div>
+        <div class="settings-card-content">
+          <div class="sidebar-type-grid">
+            <div
+              class="sidebar-type-card"
+              :class="{ active: sidebarStyle === 'one-level' }"
+              @click="sidebarStyle = 'one-level'"
+            >
+              <div class="sidebar-card-preview one-level-preview">
+                <div class="preview-sidebar">
+                  <div class="preview-logo"></div>
+                  <div class="preview-menu-items">
+                    <div class="preview-menu-item active">
+                      <div class="preview-icon"></div>
+                      <div class="preview-text"></div>
+                    </div>
+                    <div class="preview-menu-item">
+                      <div class="preview-icon"></div>
+                      <div class="preview-text"></div>
+                    </div>
+                    <div class="preview-menu-item">
+                      <div class="preview-icon"></div>
+                      <div class="preview-text"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="preview-content">
+                  <div class="preview-header"></div>
+                  <div class="preview-body">
+                    <div class="preview-card-item"></div>
+                    <div class="preview-card-item"></div>
+                  </div>
                 </div>
               </div>
-              <div class="preview-sub-sidebar">
-                <div class="preview-sub-title"></div>
-                <div class="preview-sub-items">
-                  <div class="preview-sub-item active"></div>
-                  <div class="preview-sub-item"></div>
-                  <div class="preview-sub-item"></div>
-                </div>
-              </div>
-              <div class="preview-content">
-                <div class="preview-header"></div>
+              <div class="sidebar-card-info">
+                <h3>Sidebar đơn cấp</h3>
+                <p>Hiển thị danh mục trực tiếp trên một thanh điều hướng duy nhất</p>
               </div>
             </div>
-            <div class="sidebar-card-info">
-              <h3>Sidebar hai cấp</h3>
-              <p>Chia làm thanh chính (Rail) chứa icon và thanh phụ hiển thị menu chi tiết</p>
+
+            <div
+              class="sidebar-type-card"
+              :class="{ active: sidebarStyle === 'two-level' }"
+              @click="sidebarStyle = 'two-level'"
+            >
+              <div class="sidebar-card-preview two-level-preview">
+                <div class="preview-rail">
+                  <div class="preview-rail-logo"></div>
+                  <div class="preview-rail-items">
+                    <div class="preview-rail-item active"></div>
+                    <div class="preview-rail-item"></div>
+                    <div class="preview-rail-item"></div>
+                  </div>
+                </div>
+                <div class="preview-sub-sidebar">
+                  <div class="preview-sub-title"></div>
+                  <div class="preview-sub-items">
+                    <div class="preview-sub-item active"></div>
+                    <div class="preview-sub-item"></div>
+                    <div class="preview-sub-item"></div>
+                  </div>
+                </div>
+                <div class="preview-content">
+                  <div class="preview-header"></div>
+                  <div class="preview-body">
+                    <div class="preview-card-item"></div>
+                    <div class="preview-card-item"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="sidebar-card-info">
+                <h3>Sidebar hai cấp</h3>
+                <p>Thanh chính (Rail) chứa icon và thanh phụ hiển thị menu chi tiết</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Bottom Action Footer -->
-    <div class="settings-card-footer">
-      <button type="button" class="btn btn-primary" :disabled="saving" @click="saveTheme">
-        <AppIcon name="check" size="16" />
-        <span>{{ saving ? 'Đang áp dụng...' : 'Áp dụng thay đổi' }}</span>
-      </button>
+      <!-- Bottom Action Footer -->
+      <div class="settings-card-footer">
+        <button type="button" class="btn btn-primary" :disabled="saving" @click="saveTheme">
+          <AppIcon name="check" size="16" />
+          <span>{{ saving ? 'Đang áp dụng...' : 'Áp dụng thay đổi' }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -1344,5 +1348,57 @@ export default {
 .settings-card h3,
 .sidebar-card-info h3 {
   font-weight: 500 !important;
+}
+
+.profile-section-card.settings-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-type-card {
+  border: 1px solid var(--admin-border-soft, #cbd5e1);
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.sidebar-type-card.active {
+  border-color: var(--admin-primary, #22a653) !important;
+  background: var(--admin-hover, #edf7ed) !important;
+  box-shadow: none !important;
+}
+
+.sidebar-card-preview {
+  border-radius: 0 !important;
+  border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+}
+
+.table-state-card.alert-success-custom {
+  background: var(--admin-hover, #edf7ed);
+  color: var(--admin-primary, #22a653);
+  border: 1px dashed var(--admin-primary, #22a653);
+  border-radius: 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-state-card.alert-error-custom {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px dashed #dc2626;
+  border-radius: 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

@@ -1549,7 +1549,7 @@ function maskAccountNumber(number) {
   background: var(--admin-surface, #ffffff);
   border-radius: 0 0 12px 12px;
   overflow: hidden;
-  padding: 24px;
+  padding: 10px;
   gap: 28px;
 }
 

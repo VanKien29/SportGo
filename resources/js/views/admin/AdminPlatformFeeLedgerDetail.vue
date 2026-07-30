@@ -1,6 +1,8 @@
-﻿<template>
-  <section class="detail-page">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-platform-fee-ledgers' })">Quay láº¡i danh sÃ¡ch</button>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card ledger-detail-main-content">
+      <section class="detail-page">
+        <button class="link-btn" type="button" @click="$router.push({ name: 'admin-platform-fee-ledgers' })">Quay lại danh sách</button>
 
     <div v-if="!ledger" class="panel empty">KhÃ´ng tÃ¬m tháº¥y ká»³ phÃ­.</div>
     <template v-else>
@@ -171,7 +173,9 @@
     </div>
 
     <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -340,7 +344,7 @@ export default {
 
 <style scoped>
 .detail-page { display: flex; flex-direction: column; gap: 16px; }
-.panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.panel { background: transparent; border: none; border-radius: 0; padding: 0; }
 .panel-head, .ledger-actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 h2, h3, p { margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -408,5 +412,15 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
   .ledger-actions { flex-direction: column; align-items: stretch; }
   .ledger-actions .btn, .panel-head .btn { width: 100%; min-width: 0; white-space: normal; }
   .cancel-actions { display: grid; grid-template-columns: 1fr; }
+}
+
+.profile-section-card.ledger-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

@@ -1,30 +1,28 @@
-﻿<template>
-    <section class="page">
-        <section class="filters">
-            <input
-                v-model.trim="filters.keyword"
-                type="search"
-                placeholder="Tìm mã hoặc tên voucher"
-                @keyup.enter="load"
-            />
-            <select v-model="filters.status" @change="load">
-                <option value="">Tất cả trạng thái</option>
-                <option value="draft">Bản nháp</option>
-                <option value="active">Đang áp dụng</option>
-                <option value="inactive">Đã tắt</option>
-                <option value="expired">Hết hạn</option>
-            </select>
-            <select v-model="filters.discount_type" @change="load">
-                <option value="">Tất cả loại giảm</option>
-                <option value="percent">Phần trăm</option>
-                <option value="fixed">Số tiền</option>
-            </select>
-            <ActionIconButton
-                icon="filter"
-                label="Lọc danh sách"
-                @click="load"
-            />
-        </section>
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card vouchers-main-content">
+            <SaaSFilterBar
+            v-model="filters.status"
+            v-model:search="filters.keyword"
+            :tabs="statusTabsUi"
+            search-id="search-admin-vouchers"
+            search-placeholder="Tìm mã hoặc tên voucher..."
+            @update:search="load"
+            @update:modelValue="load"
+        >
+            <template #actions>
+                <select v-model="filters.discount_type" @change="load" class="filter-select">
+                    <option value="">Tất cả loại giảm</option>
+                    <option value="percent">Phần trăm</option>
+                    <option value="fixed">Số tiền</option>
+                </select>
+                <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
+                <button class="btn primary" type="button" @click="openForm()">
+                    <AppIcon name="plus" size="16" />
+                    <span>Tạo voucher</span>
+                </button>
+            </template>
+        </SaaSFilterBar>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
@@ -177,61 +175,57 @@
             <div v-else-if="vouchers.length === 0" class="state">
                 Chưa có voucher hệ thống.
             </div>
-            <table v-else>
-                <thead>
-                    <tr>
-                        <th>Mã</th>
-                        <th>Tên</th>
-                        <th>Loại giảm</th>
-                        <th>Giá trị</th>
-                        <th>Đơn tối thiểu</th>
-                        <th>Số lượng</th>
-                        <th>Đã dùng</th>
-                        <th>Hiệu lực</th>
-                        <th>Trạng thái</th>
-                        <th class="actions-col">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="voucher in vouchers" :key="voucher.id">
-                        <td>
-                            <strong>{{ voucher.code }}</strong>
-                        </td>
-                        <td>{{ voucher.name }}</td>
-                        <td>{{ voucher.type_label }}</td>
-                        <td>{{ discountText(voucher) }}</td>
-                        <td>{{ money(voucher.min_order_amount) }}</td>
-                        <td>
-                            {{ voucher.total_quantity || "Không giới hạn" }}
-                        </td>
-                        <td>{{ voucher.used_quantity }}</td>
-                        <td>
-                            {{ date(voucher.valid_from) }} -
-                            {{ date(voucher.valid_to) }}
-                        </td>
-                        <td>
-                            <span class="badge" :class="voucher.status">{{
-                                voucher.status_label
-                            }}</span>
-                        </td>
-                        <td class="actions-col">
-                            <TableActionGroup>
-                                <ActionIconButton
-                                    icon="pencil"
-                                    label="Sửa voucher"
-                                    @click="openForm(voucher)"
-                                />
-                                <ActionIconButton
-                                    icon="power"
-                                    label="Tắt voucher"
-                                    variant="danger"
-                                    @click="turnOff(voucher)"
-                                />
-                            </TableActionGroup>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <SaaSTable
+                v-else
+                :columns="tableColumns"
+                :data="vouchers"
+            >
+                <template #code="{ row }">
+                    <strong>{{ row.code }}</strong>
+                </template>
+                <template #name="{ row }">
+                    {{ row.name }}
+                </template>
+                <template #type_label="{ row }">
+                    {{ row.type_label }}
+                </template>
+                <template #discount="{ row }">
+                    {{ discountText(row) }}
+                </template>
+                <template #min_order_amount="{ row }">
+                    {{ money(row.min_order_amount) }}
+                </template>
+                <template #total_quantity="{ row }">
+                    {{ row.total_quantity || "Không giới hạn" }}
+                </template>
+                <template #used_quantity="{ row }">
+                    {{ row.used_quantity }}
+                </template>
+                <template #valid_range="{ row }">
+                    {{ date(row.valid_from) }} - {{ date(row.valid_to) }}
+                </template>
+                <template #status="{ row }">
+                    <span class="badge" :class="row.status">{{
+                        row.status_label
+                    }}</span>
+                </template>
+                <template #actions="{ row }">
+                    <TableActionGroup>
+                        <ActionIconButton
+                            icon="pencil"
+                            label="Sửa voucher"
+                            @click="openForm(row)"
+                        />
+                        <ActionIconButton
+                            v-if="row.status === 'active'"
+                            icon="power"
+                            label="Tắt voucher"
+                            variant="danger"
+                            @click="turnOff(row)"
+                        />
+                    </TableActionGroup>
+                </template>
+            </SaaSTable>
         </section>
 
         <div v-if="showModal" class="modal-backdrop" @click.self="closeForm">
@@ -448,19 +442,22 @@
                 <span class="btn-float-text">Tạo voucher</span>
             </button>
         </div>
-    </section>
+    </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { adminVoucherService } from "../../services/adminVoucherService.js";
 import { adminSystemWalletService } from "../../services/adminSystemWallet.js";
 
 export default {
     name: "AdminVouchers",
-    components: { ActionIconButton, AppIcon, TableActionGroup },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
     data() {
         return {
             filters: { keyword: "", status: "", discount_type: "", per_page: 50 },
@@ -498,6 +495,29 @@ export default {
         window.removeEventListener("scroll", this.handleScroll);
     },
     computed: {
+        statusTabsUi() {
+            return [
+                { value: "", label: "Tất cả trạng thái" },
+                { value: "active", label: "Đang áp dụng" },
+                { value: "draft", label: "Bản nháp" },
+                { value: "inactive", label: "Đã tắt" },
+                { value: "expired", label: "Hết hạn" },
+            ];
+        },
+        tableColumns() {
+            return [
+                { key: "code", label: "MÃ VOUCHER" },
+                { key: "name", label: "TÊN VOUCHER" },
+                { key: "type_label", label: "LOẠI GIẢM" },
+                { key: "discount", label: "GIÁ TRỊ" },
+                { key: "min_order_amount", label: "ĐƠN TỐI THIỂU" },
+                { key: "total_quantity", label: "SỐ LƯỢNG" },
+                { key: "used_quantity", label: "ĐÃ DÙNG" },
+                { key: "valid_range", label: "HIỆU LỰC" },
+                { key: "status", label: "TRẠNG THÁI" },
+                { key: "actions", label: "THAO TÁC", align: "right" },
+            ];
+        },
         discountValueLabel() {
             return this.form.discount_type === "percent" ? "Giảm bao nhiêu %" : "Giảm bao nhiêu tiền";
         },
@@ -544,6 +564,10 @@ export default {
         },
     },
     methods: {
+        resetFilters() {
+            this.filters = { keyword: "", status: "", discount_type: "", per_page: 50 };
+            this.load();
+        },
         emptyForm() {
             return {
                 id: null,
@@ -1196,7 +1220,7 @@ footer {
     border: 1px solid var(--admin-border);
     border-radius: 12px;
     background: var(--admin-surface);
-    padding: 18px;
+    padding: 0;
     box-shadow: 0 12px 28px var(--admin-shadow-card);
 }
 
@@ -1388,5 +1412,25 @@ footer {
     .budget-metrics {
         grid-template-columns: 1fr;
     }
+}
+
+.profile-section-card.vouchers-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.table-card,
+.budget-card,
+.budget-metric,
+.history-panel {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
 }
 </style>

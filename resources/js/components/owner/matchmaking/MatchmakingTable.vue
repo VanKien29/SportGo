@@ -1,29 +1,5 @@
 <template>
   <div class="matchmaking-table-section">
-    <!-- Filter & Search Toolbar -->
-    <div class="matchmaking-toolbar">
-      <div class="search-input-wrapper">
-        <input
-          :value="searchQuery"
-          type="search"
-          placeholder="Tìm theo tiêu đề, người đăng..."
-          @input="$emit('update:search-query', $event.target.value)"
-        />
-      </div>
-
-      <div class="cluster-select-wrapper">
-        <select
-          :value="filterClusterId"
-          @change="$emit('update:filter-cluster-id', $event.target.value)"
-        >
-          <option value="">Tất cả cụm sân</option>
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-            {{ cluster.name }}
-          </option>
-        </select>
-      </div>
-    </div>
-
     <!-- Data States -->
     <div v-if="isLoading" class="table-state-card">
       <div class="spinner-sm"></div>

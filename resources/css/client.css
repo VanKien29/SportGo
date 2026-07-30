@@ -1,4 +1,4 @@
-﻿/* SportGo Client Design System
+/* SportGo Client Design System
  * Keep client-facing layout, color, type and spacing decisions here.
  * Components should consume these tokens instead of declaring visual values locally.
  */
@@ -5878,7 +5878,9 @@ svg {
   object-fit: cover;
 }
 
-.status-badge,
+.venue-photo .status-badge,
+.post-image .status-badge,
+.area-grid .status-badge,
 .rating-badge,
 .post-image span {
   position: absolute;
@@ -5889,7 +5891,9 @@ svg {
   font-weight: 400;
 }
 
-.status-badge {
+.venue-photo .status-badge,
+.post-image .status-badge,
+.area-grid .status-badge {
   left: var(--sg-client-space-4);
   padding: var(--sg-client-space-2) var(--sg-client-space-3);
   background: var(--sg-client-primary);

@@ -377,6 +377,8 @@ export default {
   align-items: center;
   gap: 12px;
   margin-top: 6px;
+  border-top: none !important;
+  padding-top: 0 !important;
 }
 
 .amenities-selector-grid {

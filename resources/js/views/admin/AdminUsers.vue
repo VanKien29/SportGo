@@ -1,125 +1,109 @@
-﻿<template>
-  <section class="admin-users">
-    <div class="action-bar-layout">
-      <nav class="tabs" aria-label="Lọc nhanh tài khoản">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          :class="{ active: filters.status === tab.value }"
-          type="button"
-          @click="setStatus(tab.value)"
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card users-main-content">
+      <section class="admin-users">
+        <SaaSFilterBar
+          v-model="filters.status"
+          v-model:search="filters.keyword"
+          :tabs="statusTabsUi"
+          search-id="search-admin-users"
+          search-placeholder="Tìm theo họ tên, username, email, số điện thoại..."
+          @update:search="scheduleSearch"
+          @update:modelValue="reloadFromFirstPage"
         >
-          {{ tab.label }}
-        </button>
-      </nav>
-      <div class="head-actions">
-        <button type="button" class="btn secondary" @click="openPolicyModal">
-          <AppIcon name="settings" size="16" />
-          Cấu hình khóa tự động
-        </button>
-      </div>
-    </div>
+          <template #actions>
+            <select v-model="filters.role" @change="reloadFromFirstPage" class="filter-select">
+              <option value="">Tất cả vai trò</option>
+              <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
+            </select>
+            <select v-if="filters.status === 'warning'" v-model="filters.warning_level" @change="reloadFromFirstPage" class="filter-select">
+              <option value="">Tất cả cảnh báo</option>
+              <option value="near_lock">Cần theo dõi</option>
+              <option value="lock_suggested">Cần xử lý</option>
+            </select>
+            <button type="button" class="btn secondary" @click="openPolicyModal">
+              <AppIcon name="settings" size="16" />
+              <span>Khóa tự động</span>
+            </button>
+          </template>
+        </SaaSFilterBar>
 
-    <section class="filters">
-      <label>
-        <span>Tìm kiếm</span>
-        <input
-          v-model.trim="filters.keyword"
-          type="search"
-          placeholder="Tên, username, email hoặc số điện thoại"
-          @input="scheduleSearch"
-          @keyup.enter="loadUsers"
-        />
-      </label>
-      <label>
-        <span>Vai trò</span>
-        <select v-model="filters.role" @change="reloadFromFirstPage">
-          <option value="">Tất cả vai trò</option>
-          <option v-for="role in roleOptions" :key="role.value" :value="role.value">{{ role.label }}</option>
-        </select>
-      </label>
-      <label v-if="filters.status === 'warning'">
-        <span>Mức cảnh báo</span>
-        <select v-model="filters.warning_level" @change="reloadFromFirstPage">
-          <option value="">Tất cả cảnh báo</option>
-          <option value="near_lock">Cần theo dõi</option>
-          <option value="lock_suggested">Cần xử lý</option>
-        </select>
-      </label>
-      <ActionIconButton icon="refresh" label="Xóa lọc" @click="resetFilters" />
-    </section>
+        <div v-if="error" class="alert error">{{ error }}</div>
+        <div v-if="success" class="alert success">{{ success }}</div>
 
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
-
-    <section class="table-card">
-      <div v-if="loading" class="state">Đang tải danh sách tài khoản...</div>
-      <table v-else>
-        <thead>
-          <tr>
-            <th>Họ tên</th>
-            <th>Username</th>
-            <th>Email/SĐT</th>
-            <th>Vai trò chính</th>
-            <th>Trạng thái</th>
-            <th>Cảnh báo</th>
-            <th>Report/khiếu nại</th>
-            <th>Số dư ví</th>
-            <th>Ngày tạo</th>
-            <th class="actions-col">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="users.length === 0">
-            <td colspan="10" class="state">Không có tài khoản phù hợp với bộ lọc hiện tại.</td>
-          </tr>
-          <tr v-for="user in users" :key="user.id">
-            <td>
-              <strong>{{ user.full_name || '-' }}</strong>
-              <small>{{ user.warning_summary?.message }}</small>
-              <span v-if="(user.reports_count_recent || 0) >= 3" class="badge-report">
-                <AppIcon name="alert" size="12" class="badge-report-icon" /> {{ user.reports_count_recent }} báo cáo
+        <div class="table-card">
+          <div v-if="loading" class="state">Đang tải danh sách tài khoản...</div>
+          <div v-else-if="users.length === 0" class="state">Không có tài khoản phù hợp với bộ lọc hiện tại.</div>
+          <SaaSTable
+            v-else
+            :columns="tableColumns"
+            :data="users"
+          >
+            <template #full_name="{ row }">
+              <strong>{{ row.full_name || '-' }}</strong>
+              <small v-if="row.warning_summary?.message">{{ row.warning_summary?.message }}</small>
+              <span v-if="(row.reports_count_recent || 0) >= 3" class="badge-report">
+                <AppIcon name="alert" size="12" class="badge-report-icon" /> {{ row.reports_count_recent }} báo cáo
               </span>
-              <span v-if="user.status === 'locked'" class="badge-locked">Đang khóa</span>
-            </td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.email || user.phone || '-' }}</td>
-            <td>{{ user.primary_role_label || (user.roles && user.roles[0]) || '-' }}</td>
-            <td>
-              <span class="status" :class="user.status">{{ user.status_label || getAccountStatusLabel(user.status) }}</span>
-            </td>
-            <td>
-              <span class="warning" :class="user.warning_summary?.level || 'normal'">
-                {{ user.warning_summary?.label || 'Bình thường' }}
+              <span v-if="row.status === 'locked'" class="badge-locked">Đang khóa</span>
+            </template>
+
+            <template #username="{ row }">
+              <code>{{ row.username }}</code>
+            </template>
+
+            <template #contact="{ row }">
+              {{ row.email || row.phone || '-' }}
+            </template>
+
+            <template #role="{ row }">
+              {{ row.primary_role_label || (row.roles && row.roles[0]) || '-' }}
+            </template>
+
+            <template #status="{ row }">
+              <span class="status" :class="row.status">{{ row.status_label || getAccountStatusLabel(row.status) }}</span>
+            </template>
+
+            <template #warning="{ row }">
+              <span class="warning" :class="row.warning_summary?.level || 'normal'">
+                {{ row.warning_summary?.label || 'Bình thường' }}
               </span>
-            </td>
-            <td>{{ user.reports_count_recent || 0 }} / {{ user.complaints_count_recent || 0 }}</td>
-            <td>{{ money(user.wallet_balance) }}</td>
-            <td>{{ date(user.created_at) }}</td>
-            <td class="actions-col">
+            </template>
+
+            <template #reports="{ row }">
+              {{ row.reports_count_recent || 0 }} / {{ row.complaints_count_recent || 0 }}
+            </template>
+
+            <template #wallet="{ row }">
+              {{ money(row.wallet_balance) }}
+            </template>
+
+            <template #created_at="{ row }">
+              {{ date(row.created_at) }}
+            </template>
+
+            <template #actions="{ row }">
               <TableActionGroup>
-                <RouterLink class="icon-btn" :to="{ name: 'admin-user-detail', params: { id: user.id } }" title="Xem chi tiết" aria-label="Xem chi tiết">
+                <RouterLink class="icon-btn" :to="{ name: 'admin-user-detail', params: { id: row.id } }" title="Xem chi tiết" aria-label="Xem chi tiết">
                   <AppIcon name="eye" size="17" />
                 </RouterLink>
                 <ActionIconButton
-                  v-if="user.status === 'locked'"
+                  v-if="row.status === 'locked'"
                   icon="unlock"
                   label="Mở khóa tài khoản"
-                  @click="openUnlockModal(user)"
+                  @click="openUnlockModal(row)"
                 />
                 <ActionIconButton
                   v-else
                   icon="lock"
                   label="Khóa tài khoản"
                   variant="danger"
-                  @click="openLockModal(user)"
+                  @click="openLockModal(row)"
                 />
               </TableActionGroup>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+            </template>
+          </SaaSTable>
+        </div>
 
     <footer class="pagination" v-if="meta.total > 0">
       <span>Hiển thị {{ users.length }} / {{ meta.total }} tài khoản</span>
@@ -239,19 +223,42 @@
         </footer>
       </div>
     </div>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { getAccountStatusLabel } from '../../utils/labelMaps.js';
 
 export default {
   name: 'AdminUsers',
-  components: { ActionIconButton, AppIcon, TableActionGroup },
+  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
+  computed: {
+    statusTabsUi() {
+      return this.tabs.map((t) => ({ value: t.value, label: t.label }));
+    },
+    tableColumns() {
+      return [
+        { key: 'full_name', label: 'HỌ TÊN' },
+        { key: 'username', label: 'USERNAME' },
+        { key: 'contact', label: 'EMAIL / SĐT' },
+        { key: 'role', label: 'VAI TRÒ CHÍNH' },
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'warning', label: 'CẢNH BÁO' },
+        { key: 'reports', label: 'REPORT / KHIẾU NẠI' },
+        { key: 'wallet', label: 'SỐ DƯ VÍ' },
+        { key: 'created_at', label: 'NGÀY TẠO' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' },
+      ];
+    },
+  },
   data() {
     return {
       users: [],
@@ -917,5 +924,21 @@ td:first-child {
     min-width: 0;
     width: 100%;
   }
+}
+
+.profile-section-card.users-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.table-card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>

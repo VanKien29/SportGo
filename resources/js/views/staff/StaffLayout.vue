@@ -10,7 +10,7 @@
     :cluster-loading="clusterLoading"
     workspace-label="Nhân viên sân"
     role-label="Nhân viên sân"
-    home-url="/staff/dashboard"
+    home-url="/staff/bookings"
     profile-url="/staff/profile"
     :show-utility-navigation="false"
     @cluster-change="changeCluster"

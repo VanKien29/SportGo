@@ -1,6 +1,7 @@
-﻿<template>
-  <section class="admin-page">
-    <PlatformFeeSubnav v-if="isPlatformFeeScope" />
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card policies-main-content">
+      <PlatformFeeSubnav v-if="isPlatformFeeScope" />
 
     <!-- Floating Add Button -->
     <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
@@ -48,9 +49,6 @@
 
       <button class="icon-btn" type="button" title="Lọc danh sách" @click="loadPolicies">
         <AppIcon name="filter" size="17" />
-      </button>
-      <button class="icon-btn" type="button" title="Xóa lọc" :disabled="loading" @click="resetFilters">
-        <AppIcon name="refresh" size="17" />
       </button>
     </section>
 
@@ -221,7 +219,8 @@
       type="danger"
       @confirm="archivePolicy"
     />
-  </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -807,5 +806,15 @@ label {
   .filter-panel {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.policies-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

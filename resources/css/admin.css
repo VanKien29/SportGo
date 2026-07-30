@@ -188,12 +188,7 @@
 }
 
 .admin-brand {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 20px 20px 18px;
-  border-bottom: 1px solid var(--admin-border-soft);
-  color: var(--admin-text);
+  display: none !important;
 }
 
 .admin-brand-mark {
@@ -706,18 +701,9 @@
   margin-left: auto;
 }
 
-.nav-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 99px;
-  background: var(--admin-primary-soft);
-  color: var(--admin-primary-dark);
-  font-size: 10px;
-  font-weight: 400;
+.nav-badge,
+.rail-badge-dot {
+  display: none !important;
 }
 
 .nav-chevron {
@@ -1328,30 +1314,111 @@
   box-shadow: var(--admin-shadow-card) !important;
 }
 
+/* Clean Flat Surface - Eliminate nested rounded boxes (khối bo góc trong khối bo góc) */
+.sg-shell-admin .content-area .cluster-profile-surface.standalone {
+  width: 100% !important;
+  min-width: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+.sg-shell-admin .content-area .profile-section-card {
+  background: var(--admin-surface, #ffffff) !important;
+  border: 1px solid var(--admin-border-soft, #e2e8f0) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+/* 1. Phần bảng bỏ border bo góc bao quanh */
+.sg-shell-admin .content-area :is(
+  .table-card,
+  .table-wrap,
+  .table-scroll,
+  .table-responsive,
+  .avc-table-wrap,
+  .banner-table,
+  .applications-table,
+  .services-table-wrapper,
+  .services-table-section,
+  .table-container,
+  .saas-table-wrapper,
+  .saas-table-container
+) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* 2. Phần tìm kiếm bỏ khối bao quanh (background, border, shadow, padding) */
+.sg-shell-admin .content-area :is(
+  .filter-panel,
+  form.filters,
+  form.toolbar,
+  .filter-bar,
+  .toolbar,
+  .toolbar.card,
+  .filters,
+  .avc-filters,
+  .sg-filter-panel,
+  .filter-toolbar,
+  .saas-filter-bar
+) {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 12px !important;
+}
+
+.sg-shell-admin .content-area .profile-section-card :is(
+  .card,
+  .table-card,
+  .table-wrap,
+  .table-scroll,
+  .table-responsive,
+  .avc-table-wrap,
+  .banner-table,
+  .applications-table,
+  .filter-panel,
+  .avc-filters,
+  .toolbar,
+  .toolbar.card,
+  .settings-card,
+  .settings-section-block,
+  .sidebar-type-card,
+  .sidebar-card-preview,
+  .table-state-card,
+  .state-box,
+  .loading-state,
+  .empty-state,
+  .error-state,
+  .panel,
+  .form,
+  .budget-card,
+  .info-tab-content,
+  .approval-card,
+  .post-card,
+  .hero-integrated-tabs,
+  .services-table-section,
+  .services-table-wrapper
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 .sg-shell-admin .content-area :is(.tabs) {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.sg-shell-admin .content-area :is(.filter-panel, form.filters, form.toolbar, .filter-bar, .toolbar.card, .filters) {
-  padding: var(--sg-space-md, 16px);
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-surface-muted);
-  box-shadow: none;
-}
-
-.sg-shell-admin .content-area .avc-filters {
-  padding: 0 0 var(--sg-space-sm, 12px) 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.sg-shell-admin .content-area :is(.toolbar.card, .filter-panel, .card, .table-card, .banner-table, .applications-table, .panel) > :is(.filters, .filter-bar, .table-scroll, .table-responsive) {
-  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1392,7 +1459,11 @@
   color: var(--admin-muted) !important;
 }
 
-.sg-shell-admin .content-area :is(.table-card, .table-wrap, .banner-table, .applications-table, .table-responsive, .table-scroll, .avc-table-wrap) {
+.sg-shell-admin .content-area :is(.table-card, .table-wrap, .banner-table, .applications-table, .table-responsive, .table-scroll, .avc-table-wrap, .services-table-wrapper, .services-table-section, .saas-table-container, .saas-table-wrapper, .panel, .table-container) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
   overflow-x: auto !important;
   overflow-y: hidden;
 }
@@ -1692,6 +1763,11 @@
 }
 
 .sg-shell-admin .content-area :is(.status, .status-badge, .status-chip, .badge, .type-badge, .risk-badge, .child-count-badge, .parent-sidebar-badge, .fees-count-badge, .player-count-badge, .status-dot-wrapper, .booking-status, .fee-status-badge, .status-pill, .ct-chip, .email-chip) {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -2302,9 +2378,9 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--admin-border-soft);
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .btn-primary {

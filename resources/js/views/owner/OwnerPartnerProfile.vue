@@ -605,16 +605,21 @@ export default {
 .profile-master-workspace {
   display: flex;
   flex-direction: column;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  gap: 12px;
 }
 
-/* Header Tabs Surface (Exact match to ClusterHeaderHero surface) */
+/* Header Tabs Surface */
 .profile-header-tabs-surface {
-  background: var(--admin-surface, #ffffff);
-  border-radius: 12px 12px 0 0;
-  padding: 16px 24px 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .application-selector-bar {
@@ -663,14 +668,14 @@ export default {
   padding-bottom: 0;
 }
 
-/* Content Surface (Exact match to ClusterGeneralInfoTab surface) */
+/* Content Surface */
 .profile-content-surface {
   display: flex;
   flex-direction: column;
-  background: var(--admin-surface, #ffffff);
-  border-radius: 0 0 12px 12px;
-  overflow: hidden;
-  padding: 24px;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  padding: 0;
 }
 
 .tab-pane-flow {

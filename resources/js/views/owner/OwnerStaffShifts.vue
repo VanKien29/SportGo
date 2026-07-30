@@ -1,9 +1,12 @@
-﻿<template>
-  <section class="page">
-    <AppTabs v-model="currentTab" :tabs="navigationTabs" />
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card shifts-main-content">
+      <div class="shifts-header-hero">
+        <AppTabs v-model="currentTab" :tabs="navigationTabs" />
+      </div>
 
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
+      <div v-if="error" class="alert error">{{ error }}</div>
+      <div v-if="success" class="alert success">{{ success }}</div>
 
     <!-- ========================================== -->
     <!-- TAB 1: TODAY / CA TRỰC HÔM NAY -->
@@ -61,29 +64,31 @@
 
       <!-- 1.2 Dành cho Chủ sân (Owner View) -->
       <div v-else class="owner-today-container">
-        <section class="table-card">
-          <div class="table-header flex-header">
-            <h4>Lịch trực hôm nay ({{ todayDateString }})</h4>
-            <div class="view-mode-toggle">
-              <button type="button" class="toggle-btn" :class="{ active: todayViewMode === 'table' }"
-                @click="todayViewMode = 'table'">
-                <AppIcon name="fileText" size="14" />
-                <span>Dạng bảng</span>
-              </button>
-              <button type="button" class="toggle-btn" :class="{ active: todayViewMode === 'timeline' }"
-                @click="todayViewMode = 'timeline'">
-                <AppIcon name="clock" size="14" />
-                <span>Timeline 24h</span>
-              </button>
-            </div>
+        <div class="table-header flex-header" style="margin-bottom: 12px;">
+          <h4 style="margin: 0; font-size: 15px; font-weight: 500; color: var(--admin-text, #101c15);">Lịch trực hôm nay ({{ todayDateString }})</h4>
+          <div class="view-mode-toggle">
+            <button type="button" class="toggle-btn" :class="{ active: todayViewMode === 'table' }"
+              @click="todayViewMode = 'table'">
+              <span>Dạng bảng</span>
+            </button>
+            <button type="button" class="toggle-btn" :class="{ active: todayViewMode === 'timeline' }"
+              @click="todayViewMode = 'timeline'">
+              <span>Timeline 24h</span>
+            </button>
           </div>
-          <div v-if="loading" class="state">Đang tải lịch trực hôm nay...</div>
-          <div v-else-if="todaySchedules.length === 0" class="state">
-            Hôm nay chưa có lịch trực nào được phân công.
-          </div>
-          <template v-else>
-            <!-- 1.2.1 Dạng Bảng -->
-            <table v-if="todayViewMode === 'table'">
+        </div>
+
+        <div v-if="loading" class="table-state-card">
+          <div class="spinner-sm"></div>
+          <span>Đang tải lịch trực hôm nay...</span>
+        </div>
+        <div v-else-if="todaySchedules.length === 0" class="table-state-card">
+          <span>Hôm nay chưa có lịch trực nào được phân công.</span>
+        </div>
+        <template v-else>
+          <!-- 1.2.1 Dạng Bảng -->
+          <div v-if="todayViewMode === 'table'" class="services-table-wrapper">
+            <table class="services-data-table">
               <thead>
                 <tr>
                   <th>Nhân viên</th>
@@ -92,7 +97,7 @@
                   <th>Check-in thực tế</th>
                   <th>Check-out thực tế</th>
                   <th>Trạng thái</th>
-                  <th>Thao tác</th>
+                  <th class="action-col">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -106,9 +111,9 @@
                   <td>{{ sch.check_in_at ? formatDateTime(sch.check_in_at) : '-' }}</td>
                   <td>{{ sch.check_out_at ? formatDateTime(sch.check_out_at) : '-' }}</td>
                   <td>
-                    <span class="badge" :class="sch.status">{{ statusLabel(sch.status) }}</span>
+                    <span class="status-pill" :class="sch.status">{{ statusLabel(sch.status) }}</span>
                   </td>
-                  <td>
+                  <td class="action-col">
                     <TableActionGroup>
                       <ActionIconButton icon="pencil" label="Sửa trạng thái" @click="openEditSchedule(sch)" />
                       <ActionIconButton icon="trash" label="Hủy lịch trực" variant="danger"
@@ -118,6 +123,7 @@
                 </tr>
               </tbody>
             </table>
+          </div>
             <div v-if="todayViewMode === 'table'" class="mobile-today-list">
               <article
                 v-for="sch in todaySchedules"
@@ -195,7 +201,6 @@
               </div>
             </div>
           </template>
-        </section>
       </div>
     </div>
 
@@ -404,12 +409,15 @@
     <!-- TAB 3: SHIFT TEMPLATES / CA MẪU -->
     <!-- ========================================== -->
     <div v-if="currentTab === 'templates'" class="tab-content">
-      <section class="table-card">
-        <div v-if="loading" class="state">Đang tải danh sách ca mẫu...</div>
-        <div v-else-if="shifts.length === 0" class="state">
-          Chưa có ca trực mẫu nào. Hãy tạo ca trực mẫu để thuận tiện lập lịch trực.
-        </div>
-        <table v-else>
+      <div v-if="loading" class="table-state-card">
+        <div class="spinner-sm"></div>
+        <span>Đang tải danh sách ca mẫu...</span>
+      </div>
+      <div v-else-if="shifts.length === 0" class="table-state-card">
+        <span>Chưa có ca trực mẫu nào. Hãy tạo ca trực mẫu để thuận tiện lập lịch trực.</span>
+      </div>
+      <div v-else class="services-table-wrapper">
+        <table class="services-data-table">
           <thead>
             <tr>
               <th>Tên ca trực</th>
@@ -417,7 +425,7 @@
               <th>Giờ kết thúc</th>
               <th>Mô tả</th>
               <th>Trạng thái hoạt động</th>
-              <th>Thao tác</th>
+              <th class="action-col">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -427,11 +435,11 @@
               <td>{{ formatTime(shift.end_time) }}</td>
               <td>{{ shift.description || '-' }}</td>
               <td>
-                <span class="badge" :class="shift.is_active ? 'active' : 'inactive'">
+                <span class="status-pill" :class="shift.is_active ? 'active' : 'inactive'">
                   {{ shift.is_active ? 'Đang hoạt động' : 'Tạm ngưng' }}
                 </span>
               </td>
-              <td>
+              <td class="action-col">
                 <TableActionGroup>
                   <ActionIconButton icon="pencil" label="Sửa ca mẫu" @click="openEditShift(shift)" />
                   <ActionIconButton icon="trash" label="Xóa ca mẫu" variant="danger" @click="deleteShift(shift.id)" />
@@ -440,7 +448,7 @@
             </tr>
           </tbody>
         </table>
-      </section>
+      </div>
     </div>
 
     <!-- ========================================== -->
@@ -455,11 +463,15 @@
         </div>
       </div>
 
-      <section class="table-card">
-        <div v-if="loading" class="state">Đang tải báo cáo thống kê...</div>
-        <div v-else-if="reportData.length === 0" class="state">Không có dữ liệu ca trực trong khoảng thời gian này.
-        </div>
-        <table v-else>
+      <div v-if="loading" class="table-state-card">
+        <div class="spinner-sm"></div>
+        <span>Đang tải báo cáo thống kê...</span>
+      </div>
+      <div v-else-if="reportData.length === 0" class="table-state-card">
+        <span>Không có dữ liệu ca trực trong khoảng thời gian này.</span>
+      </div>
+      <div v-else class="services-table-wrapper">
+        <table class="services-data-table">
           <thead>
             <tr>
               <th>Nhân viên</th>
@@ -490,7 +502,7 @@
             </tr>
           </tbody>
         </table>
-      </section>
+      </div>
     </div>
 
     <!-- ========================================== -->
@@ -537,12 +549,12 @@
                 :key="staffMember.id"
                 type="button"
                 class="staff-chip"
-                :class="{ active: scheduleForm.user_ids.includes(staffMember.id) }"
+                :class="{ active: scheduleForm.user_ids.map(String).includes(String(staffMember.id)) }"
                 @click="toggleStaff(staffMember.id)"
               >
                 <span class="chip-avatar">{{ staffMember.full_name.charAt(0) }}</span>
                 <span class="chip-name">{{ staffMember.full_name }}</span>
-                <span v-if="scheduleForm.user_ids.includes(staffMember.id)" class="chip-check">✓</span>
+                <span v-if="scheduleForm.user_ids.map(String).includes(String(staffMember.id))" class="chip-check">✓</span>
               </button>
             </div>
 
@@ -710,7 +722,8 @@
         <span class="btn-float-text">Phân ca trực</span>
       </button>
     </div>
-  </section>
+  </div>
+</div>
 </template>
 
 <script>
@@ -792,14 +805,14 @@ export default {
     navigationTabs() {
       if (this.isStaff) {
         return [
-          { key: 'today', label: 'Ca trực của tôi', icon: 'calendar' }
+          { key: 'today', label: 'Ca trực của tôi' }
         ];
       }
       return [
-        { key: 'today', label: 'Lịch trực hôm nay', icon: 'calendar' },
-        { key: 'schedules', label: 'Lập lịch trực', icon: 'users' },
-        { key: 'templates', label: 'Cấu hình ca mẫu', icon: 'settings' },
-        { key: 'report', label: 'Thống kê & Báo cáo', icon: 'fileText' },
+        { key: 'today', label: 'Lịch trực hôm nay' },
+        { key: 'schedules', label: 'Lập lịch trực' },
+        { key: 'templates', label: 'Cấu hình ca mẫu' },
+        { key: 'report', label: 'Thống kê & Báo cáo' },
       ];
     },
     isStaff() {
@@ -1220,9 +1233,10 @@ export default {
       this.showScheduleModal = true;
     },
     toggleStaff(staffId) {
-      const idx = this.scheduleForm.user_ids.indexOf(staffId);
+      const strId = String(staffId);
+      const idx = this.scheduleForm.user_ids.map(String).indexOf(strId);
       if (idx === -1) {
-        this.scheduleForm.user_ids.push(staffId);
+        this.scheduleForm.user_ids.push(strId);
       } else {
         this.scheduleForm.user_ids.splice(idx, 1);
       }
@@ -1282,7 +1296,7 @@ export default {
         return;
       }
       this.scheduleForm = {
-        user_ids: [staffId],
+        user_ids: [String(staffId)],
         dates: [dateString],
         venue_staff_shift_id: null,
         start_time: '06:00',
@@ -1293,7 +1307,7 @@ export default {
     },
     openScheduleForStaff(staffId) {
       this.scheduleForm = {
-        user_ids: [staffId],
+        user_ids: [String(staffId)],
         dates: [],
         venue_staff_shift_id: null,
         start_time: '06:00',
@@ -1304,7 +1318,7 @@ export default {
     },
     openScheduleForStaffDay(staffId, dateString) {
       this.scheduleForm = {
-        user_ids: [staffId],
+        user_ids: [String(staffId)],
         dates: [dateString],
         venue_staff_shift_id: null,
         start_time: '06:00',
@@ -1350,7 +1364,11 @@ export default {
       this.error = '';
       this.success = '';
       try {
-        await ownerStaffShiftService.createSchedules(this.scheduleForm);
+        const payload = {
+          ...this.scheduleForm,
+          user_ids: this.scheduleForm.user_ids.map(id => String(id)),
+        };
+        await ownerStaffShiftService.createSchedules(payload);
         this.success = 'Đã phân ca trực thành công.';
         this.showScheduleModal = false;
         await this.loadSchedulesForWeek();
@@ -1792,8 +1810,8 @@ th {
 
 /* Today styles for Owner */
 .table-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+  padding: 8px 0 12px 0;
+  border-bottom: none;
 }
 
 .table-header h4 {
@@ -1818,12 +1836,12 @@ th {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  background: var(--admin-surface, #fff);
-  border: 1px solid var(--admin-border-soft, #e2e8f0);
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  margin-bottom: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .filter-group {
@@ -2593,34 +2611,38 @@ footer {
 
 .view-mode-toggle {
   display: inline-flex;
-  background: var(--admin-bg-soft, #f7f9fc);
-  border: 1px solid var(--admin-border-soft, #cbd5e1);
-  padding: 3px;
-  border-radius: 8px;
-  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  gap: 16px;
+  align-items: center;
 }
 
 .view-mode-toggle .toggle-btn {
-  height: 32px !important;
-  min-height: 32px !important;
+  height: auto !important;
+  min-height: 0 !important;
   border: none !important;
   background: transparent !important;
-  color: var(--admin-faint, #64748b) !important;
-  padding: 0 12px !important;
-  font-size: 13px !important;
+  color: var(--admin-muted, #64748b) !important;
+  padding: 0 !important;
+  font-size: 13.5px !important;
   font-weight: 400 !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s ease;
+  box-shadow: none !important;
+  transition: color 0.16s ease;
 }
 
 .view-mode-toggle .toggle-btn.active {
-  background: var(--admin-surface, #ffffff) !important;
-  color: var(--admin-text, #1e293b) !important;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  background: transparent !important;
+  color: var(--admin-text, #101c15) !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
 }
 
 /* Shift Timeline View Styles */
@@ -3760,5 +3782,42 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   .mobile-schedule-pill em {
     white-space: normal;
   }
+}
+
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.shifts-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.shifts-header-hero {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.table-card,
+.schedule-filters,
+.services-table-wrapper,
+.table-state-card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 </style>

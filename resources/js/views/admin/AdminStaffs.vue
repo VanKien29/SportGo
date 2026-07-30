@@ -1,116 +1,108 @@
-﻿<template>
-  <section class="admin-users">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card staffs-main-content">
+      <section class="admin-users">
 
-    <SaaSFilterBar
-      v-model="filters.status"
-      v-model:search="filters.keyword"
-      :tabs="statusTabs"
-      search-id="search-staff"
-      search-placeholder="Tìm theo họ tên, username, email, số điện thoại..."
-      @update:search="debounceSearch"
-      @update:modelValue="loadUsers"
-    >
-      <template #actions>
-        <select v-model="filters.role" @change="loadUsers" class="filter-select">
-          <option value="">Tất cả vai trò</option>
-          <option v-for="role in allRoles" :key="role.id" :value="role.name">
-            {{ role.display_name }}
-          </option>
-        </select>
-        <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
-        <button class="btn btn-create primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); border-color: var(--admin-primary); color: #fff;">
-          <AppIcon name="plus" size="16" />
-          <span>Thêm nhân sự</span>
-        </button>
-      </template>
-    </SaaSFilterBar>
+        <SaaSFilterBar
+          v-model="filters.status"
+          v-model:search="filters.keyword"
+          :tabs="statusTabs"
+          search-id="search-staff"
+          search-placeholder="Tìm theo họ tên, username, email, số điện thoại..."
+          @update:search="debounceSearch"
+          @update:modelValue="loadUsers"
+        >
+          <template #actions>
+            <select v-model="filters.role" @change="loadUsers" class="filter-select">
+              <option value="">Tất cả vai trò</option>
+              <option v-for="role in allRoles" :key="role.id" :value="role.name">
+                {{ role.display_name }}
+              </option>
+            </select>
+            <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
+            <button class="btn btn-create primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); border-color: var(--admin-primary); color: #fff;">
+              <AppIcon name="plus" size="16" />
+              <span>Thêm nhân sự</span>
+            </button>
+          </template>
+        </SaaSFilterBar>
 
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
+        <div v-if="error" class="alert error">{{ error }}</div>
+        <div v-if="success" class="alert success">{{ success }}</div>
 
-    <!-- Danh sách tài khoản nhân sự -->
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Họ tên</th>
-            <th>Username</th>
-            <th>Email / SĐT</th>
-            <th>Vai trò</th>
-            <th>Trạng thái</th>
-            <th>Hành động</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td colspan="6" class="empty">Đang tải danh sách...</td>
-          </tr>
-          <tr v-else-if="filteredUsers.length === 0">
-            <td colspan="6" class="empty">Không tìm thấy tài khoản nhân sự phù hợp.</td>
-          </tr>
-          <tr v-for="user in filteredUsers" :key="user.id">
-            <td>
+        <!-- Danh sách tài khoản nhân sự -->
+        <div class="table-wrap">
+          <SaaSTable
+            :columns="tableColumns"
+            :data="filteredUsers"
+          >
+            <template #full_name="{ row }">
               <div class="user-info-cell">
-                <span class="user-name">{{ user.full_name }}</span>
-                <span v-if="user.id === currentUserId" class="badge self">Bạn</span>
+                <span class="user-name">{{ row.full_name }}</span>
+                <span v-if="row.id === currentUserId" class="badge self">Bạn</span>
               </div>
-            </td>
-            <td><code>{{ user.username }}</code></td>
-            <td>
-              <div>{{ user.email || '-' }}</div>
-              <div class="muted phone-muted">{{ user.phone || '-' }}</div>
-            </td>
-            <td>
+            </template>
+
+            <template #username="{ row }">
+              <code>{{ row.username }}</code>
+            </template>
+
+            <template #contact="{ row }">
+              <div>{{ row.email || '-' }}</div>
+              <div class="muted phone-muted">{{ row.phone || '-' }}</div>
+            </template>
+
+            <template #role="{ row }">
               <div class="roles-tags">
-                <span v-for="role in user.roles" :key="role" class="role-tag" :class="role">
+                <span v-for="role in row.roles" :key="role" class="role-tag" :class="role">
                   {{ getRoleDisplayName(role) }}
                 </span>
               </div>
-            </td>
-            <td>
+            </template>
+
+            <template #status="{ row }">
               <div class="status-cell">
-                <span class="status" :class="user.status">
-                  {{ user.status === 'locked' ? 'Bị khóa' : 'Hoạt động' }}
+                <span class="status" :class="row.status">
+                  {{ row.status === 'locked' ? 'Bị khóa' : 'Hoạt động' }}
                 </span>
-                <span v-if="user.locked_until" class="lock-until-text">
-                  (Đến: {{ formatDate(user.locked_until) }})
+                <span v-if="row.locked_until" class="lock-until-text">
+                  (Đến: {{ formatDate(row.locked_until) }})
                 </span>
               </div>
-            </td>
-            <td>
+            </template>
+
+            <template #actions="{ row }">
               <TableActionGroup>
                 <ActionIconButton
                   icon="eye"
                   label="Xem chi tiết"
-                  @click="$router.push({ name: 'admin-staff-detail', params: { id: user.id } })"
+                  @click="$router.push({ name: 'admin-staff-detail', params: { id: row.id } })"
                 />
                 <ActionIconButton
                   icon="edit"
                   label="Chỉnh sửa"
-                  :disabled="!canManageUser(user)"
-                  @click="openEditModal(user)"
+                  :disabled="!canManageUser(row)"
+                  @click="openEditModal(row)"
                 />
                 <ActionIconButton
-                  v-if="user.status === 'locked'"
+                  v-if="row.status === 'locked'"
                   icon="unlock"
                   label="Mở khóa tài khoản"
-                  :disabled="!canManageUser(user) || user.id === currentUserId"
-                  @click="openUnlockModal(user)"
+                  :disabled="!canManageUser(row) || row.id === currentUserId"
+                  @click="openUnlockModal(row)"
                 />
                 <ActionIconButton
                   v-else
                   icon="lock"
                   label="Khóa tài khoản"
                   variant="danger"
-                  :disabled="!canManageUser(user) || user.id === currentUserId"
-                  @click="openLockModal(user)"
+                  :disabled="!canManageUser(row) || row.id === currentUserId"
+                  @click="openLockModal(row)"
                 />
               </TableActionGroup>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            </template>
+          </SaaSTable>
+        </div>
 
     <!-- MODAL THÊM MỚI / CHỈNH SỬA TÀI KHOẢN -->
     <div v-if="showFormModal" class="modal-backdrop" @click.self="closeFormModal">
@@ -335,20 +327,23 @@
         </div>
       </form>
     </div>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
 
 export default {
   name: 'AdminStaffs',
-  components: { ActionIconButton, TableActionGroup, SaaSFilterBar },
+  components: { ActionIconButton, TableActionGroup, SaaSFilterBar, SaaSTable },
   data() {
     return {
       users: [],
@@ -421,6 +416,16 @@ export default {
     };
   },
   computed: {
+    tableColumns() {
+      return [
+        { key: 'full_name', label: 'HỌ TÊN' },
+        { key: 'username', label: 'USERNAME' },
+        { key: 'contact', label: 'EMAIL / SĐT' },
+        { key: 'role', label: 'VAI TRÒ' },
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'actions', label: 'HÀNH ĐỘNG', align: 'right' },
+      ];
+    },
     filteredUsers() {
       // Vì API đã được lọc sơ bộ, ta lọc thêm động ở FE để mượt mà hơn
       let list = this.users;
@@ -1589,5 +1594,21 @@ tr:last-child td {
 .btn-fab:active {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.profile-section-card.staffs-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.table-wrap {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>

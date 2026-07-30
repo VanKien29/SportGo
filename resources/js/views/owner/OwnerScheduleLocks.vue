@@ -1800,14 +1800,14 @@ export default {
 }
 
 .profile-section-card {
-    padding: 24px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
 .profile-section-card + .profile-section-card {
-    border-top: 1px solid var(--admin-border-soft, #f1f5f9);
+    border-top: none;
 }
 
 .tab-section-header {

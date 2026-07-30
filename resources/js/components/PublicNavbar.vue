@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <nav class="navbar">
     <div class="navbar-inner">
       <div class="navbar-left">
@@ -424,9 +424,9 @@ export default {
       this.showDropdown = false;
       const role = this.user?.role;
       if (role === "admin") {
-        this.$router.push("/admin/dashboard");
+        this.$router.push("/admin/venue-clusters");
       } else if (role === "owner") {
-        this.$router.push("/owner/dashboard");
+        this.$router.push("/owner/venue-clusters");
       }
     },
     openComplaintModal() {

@@ -67,10 +67,10 @@ export default {
 <style scoped>
 .saas-table-container {
   width: 100%;
-  background: var(--admin-surface, #ffffff);
-  border-radius: 12px;
-  border: 1px solid var(--admin-border, #e2e8f0);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
   overflow: hidden;
   box-sizing: border-box;
 }

@@ -1,5 +1,7 @@
-﻿<template>
-    <section class="ledger-page">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card ledgers-main-content">
+      <section class="ledger-page">
         <div class="pf-header-bar">
             <PlatformFeeSubnav />
 
@@ -457,7 +459,9 @@
                 </footer>
             </form>
         </div>
-    </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -1330,5 +1334,15 @@ label {
     .form-grid {
         grid-template-columns: 1fr;
     }
+}
+
+.profile-section-card.ledgers-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 </style>

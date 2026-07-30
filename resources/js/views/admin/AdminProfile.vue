@@ -1,6 +1,6 @@
 <template>
   <div class="admin-profile-page">
-    <ProfileCard :user="user" @go-back="$router.push('/admin/dashboard')" />
+    <ProfileCard :user="user" @go-back="$router.push('/admin/venue-clusters')" />
   </div>
 </template>
 

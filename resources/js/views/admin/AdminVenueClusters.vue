@@ -1,6 +1,7 @@
-﻿<template>
-    <div class="avc-page">
-        <!-- ── Loading ── -->
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card clusters-main-content">
+            <!-- ── Loading ── -->
         <div v-if="loading" class="state-box card animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách cụm sân...</p>
@@ -20,7 +21,7 @@
                 v-if="clusters.length > 0"
                 v-model="filterStatus"
                 v-model:search="searchText"
-                :tabs="statusTabs"
+                :tabs="statusTabsUi"
                 search-id="search-venue-cluster"
                 search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
             />
@@ -40,38 +41,6 @@
 
             <!-- ── Elegant SaaS Table View ── -->
             <div v-else class="clusters-list-wrapper animate-fade-in">
-                <div class="mobile-cluster-list">
-                    <button
-                        v-for="row in filteredClusters"
-                        :key="row.id"
-                        type="button"
-                        class="mobile-cluster-row"
-                        @click="goDetail(row.id)"
-                    >
-                        <span class="mobile-cluster-heading">
-                            <strong>{{ row.name }}</strong>
-                            <span class="status-badge" :class="'state-is-' + displayClusterStatus(row)">
-                                {{ statusLabel(row) }}
-                            </span>
-                        </span>
-                        <span class="mobile-cluster-address">{{ formatFullAddress(row) }}</span>
-                        <span class="mobile-cluster-facts">
-                            <span>
-                                <small>Chủ sân</small>
-                                <strong>{{ row.owner?.full_name || 'Chưa cập nhật' }}</strong>
-                            </span>
-                            <span>
-                                <small>Quy mô</small>
-                                <strong>{{ row.court_count }} sân</strong>
-                            </span>
-                            <span>
-                                <small>Phí</small>
-                                <strong>{{ feeStatusLabel(row.fee_status) }}</strong>
-                            </span>
-                            <AppIcon name="chevronRight" size="18" />
-                        </span>
-                    </button>
-                </div>
                 <SaaSTable
                     class="desktop-cluster-table"
                     :columns="tableColumns" 
@@ -134,6 +103,7 @@
                 </SaaSTable>
             </div>
         </template>
+        </div>
     </div>
 </template>
 
@@ -826,5 +796,15 @@ export default {
 [data-theme="dark"] .fee-is-cancelled,
 [data-theme="dark"] .fee-is-no_fee {
     color: #9ca3af !important;
+}
+
+.profile-section-card.clusters-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 </style>

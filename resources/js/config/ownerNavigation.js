@@ -3,12 +3,6 @@ export const ownerNavigationSections = [
     label: 'Tổng quan',
     items: [
       {
-        label: 'Bảng điều hành',
-        icon: 'dashboard',
-        to: '/owner/dashboard',
-        activeNames: ['owner-dashboard'],
-      },
-      {
         label: 'Hồ sơ đối tác',
         icon: 'fileText',
         to: '/owner/partner-profile',

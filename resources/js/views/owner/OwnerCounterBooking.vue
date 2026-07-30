@@ -6085,12 +6085,12 @@ export default {
 }
 
 .money-col {
-    text-align: right !important;
+    text-align: right;
 }
 
 .action-col {
     width: 120px;
-    text-align: right !important;
+    text-align: right;
     white-space: nowrap;
 }
 
@@ -6123,7 +6123,7 @@ export default {
 }
 
 .group-info-grid {
-    display: grid !important;
+    display: grid;
     grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.25fr) minmax(
             150px,
             0.7fr
@@ -6132,7 +6132,7 @@ export default {
 }
 
 .group-money-grid {
-    display: grid !important;
+    display: grid;
     grid-template-columns: repeat(3, minmax(95px, 1fr));
     gap: 8px;
     min-width: 330px;
@@ -6173,13 +6173,13 @@ export default {
     padding: 3px 8px;
     border-radius: 999px;
     background: #e8f7ec;
-    color: #0f7a31 !important;
-    font-weight: 400 !important;
+    color: #0f7a31;
+    font-weight: 400;
 }
 
 .group-actions {
     grid-column: 2;
-    display: flex !important;
+    display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
@@ -6779,8 +6779,8 @@ select {
 }
 
 input.invalid {
-    border-color: #dc2626 !important;
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08) !important;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
 }
 
 .field-error {
@@ -7375,7 +7375,7 @@ input.invalid {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    background: var(--admin-surface, #fff) !important;
+    background: var(--admin-surface, #fff);
     color: var(--admin-text, #101c15);
     border-left: 1px solid var(--admin-border, #cfded1);
     box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
@@ -9144,7 +9144,7 @@ input.invalid {
 }
 
 .booking-side {
-    background: #fff !important;
+    background: #fff;
     color: #101c15;
     border-left: 1px solid #cfded1;
 }
@@ -9165,12 +9165,12 @@ input.invalid {
 .owner-counter-page
     .voucher-code-row
     input:not([type="checkbox"]):not([type="radio"]) {
-    background: #fff !important;
-    background-color: #fff !important;
-    background-image: none !important;
-    color: #101c15 !important;
-    -webkit-text-fill-color: #101c15 !important;
-    caret-color: #101c15 !important;
+    background: #fff;
+    background-color: #fff;
+    background-image: none;
+    color: #101c15;
+    -webkit-text-fill-color: #101c15;
+    caret-color: #101c15;
     color-scheme: light;
 }
 
@@ -9184,9 +9184,9 @@ input.invalid {
     input:not([type="checkbox"]):not([type="radio"]):disabled,
 .owner-counter-page .form-card select:disabled,
 .owner-counter-page .form-card textarea:disabled {
-    background: #f4f7f4 !important;
-    color: #66766b !important;
-    -webkit-text-fill-color: #66766b !important;
+    background: #f4f7f4;
+    color: #66766b;
+    -webkit-text-fill-color: #66766b;
 }
 
 .owner-counter-page .booking-side input::placeholder,
@@ -9194,9 +9194,9 @@ input.invalid {
 .owner-counter-page .form-card input::placeholder,
 .owner-counter-page .form-card textarea::placeholder,
 .owner-counter-page .voucher-code-row input::placeholder {
-    color: #7b8a80 !important;
-    -webkit-text-fill-color: #7b8a80 !important;
-    opacity: 1 !important;
+    color: #7b8a80;
+    -webkit-text-fill-color: #7b8a80;
+    opacity: 1;
 }
 
 .owner-counter-page
@@ -9223,13 +9223,13 @@ input.invalid {
 .owner-counter-page
     .form-card
     input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active {
-    background: #fff !important;
-    background-color: #fff !important;
-    background-image: none !important;
-    -webkit-text-fill-color: #101c15 !important;
-    caret-color: #101c15 !important;
-    box-shadow: 0 0 0 1000px #fff inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    background: #fff;
+    background-color: #fff;
+    background-image: none;
+    -webkit-text-fill-color: #101c15;
+    caret-color: #101c15;
+    box-shadow: 0 0 0 1000px #fff inset;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
     color-scheme: light;
     transition:
         background-color 9999s ease-out 0s,
@@ -9242,26 +9242,26 @@ input.invalid {
 .owner-counter-page
     .form-card
     input:not([type="checkbox"]):not([type="radio"]):autofill {
-    background: #fff !important;
-    background-color: #fff !important;
-    background-image: none !important;
-    color: #101c15 !important;
-    -webkit-text-fill-color: #101c15 !important;
-    box-shadow: 0 0 0 1000px #fff inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    background: #fff;
+    background-color: #fff;
+    background-image: none;
+    color: #101c15;
+    -webkit-text-fill-color: #101c15;
+    box-shadow: 0 0 0 1000px #fff inset;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
     color-scheme: light;
 }
 
 .payment-card {
     min-height: 54px;
     border-color: #cfded1;
-    background: #fff !important;
+    background: #fff;
     cursor: pointer;
 }
 
 .payment-card.active {
     border-color: #22a653;
-    background: #e8f7ee !important;
+    background: #e8f7ee;
     box-shadow: inset 3px 0 0 #22a653;
 }
 
@@ -9286,7 +9286,7 @@ input.invalid {
 
 .qr-modal-backdrop,
 .booking-action-modal-backdrop {
-    z-index: 10020 !important;
+    z-index: 10020;
     background: rgba(15, 23, 42, 0.58);
 }
 
@@ -9318,7 +9318,7 @@ input.invalid {
 }
 
 .profile-section-card {
-    padding: 24px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -9501,37 +9501,37 @@ input.invalid {
 
 .recurring-panel .form-card,
 .owner-counter-page .form-card {
-    border: none !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    padding: 0 !important;
-    box-shadow: none !important;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
 }
 
 .recurring-form-grid {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 32px !important;
-    align-items: start !important;
-    padding: 0 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    background: transparent !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    align-items: start;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .calendar-range-field,
 .recurring-form-grid .calendar-range-field {
-    flex: 0 0 auto !important;
-    width: fit-content !important;
-    max-width: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-    background: transparent !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
 }
 
 .recurring-form-fields {
@@ -9547,11 +9547,11 @@ input.invalid {
     flex-direction: column;
     gap: 12px;
     margin-top: 24px;
-    background: transparent !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
 }
 
 .calendar-range-field > span {
@@ -9591,11 +9591,11 @@ input.invalid {
 .recurring-schedule-board,
 .recurring-payment,
 .recurring-form-actions {
-    padding: 0 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 /* ===== Matrix Skeleton Shimmer Loading ===== */
@@ -9755,81 +9755,83 @@ input.invalid {
 
 /* ===== Synchronized 1:1 with OwnerVenueClusters.vue ===== */
 .cluster-hero-surface {
-    background: transparent !important;
-    padding: 10px !important;
-    border: none !important;
+    background: transparent;
+    padding: 10px;
+    border: none;
 }
 
 .hero-integrated-tabs {
-    padding: 0 !important;
+    padding: 0;
+    border-top: none !important;
+    border-bottom: none !important;
 }
 
 .booking-list-mode-tabs {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    margin-bottom: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    box-shadow: none !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
 }
 
 .booking-list-mode-tabs button {
-    height: 38px !important;
-    min-height: 38px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 8px !important;
-    padding: 0 16px !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--admin-border, #cbd5e1) !important;
-    background: var(--admin-surface, #ffffff) !important;
-    color: var(--admin-text, #334155) !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    transition: all 0.18s ease !important;
+    height: 38px;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #334155);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
 }
 
 .booking-list-mode-tabs button:hover:not(.active) {
-    background: var(--admin-hover, #f1f5f9) !important;
-    color: var(--admin-text, #0f172a) !important;
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-text, #0f172a);
 }
 
 .booking-list-mode-tabs button.active {
-    background: var(--admin-accent, #10b981) !important;
-    border-color: var(--admin-accent, #10b981) !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2) !important;
+    background: var(--admin-accent, #10b981);
+    border-color: var(--admin-accent, #10b981);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
 }
 
 .booking-list-filters,
 .recurring-list-filters {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    align-items: flex-end !important;
-    gap: 14px !important;
-    margin-bottom: 20px !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px;
+    margin-bottom: 20px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 .booking-list-filters label,
 .recurring-list-filters label {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 6px !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: var(--admin-muted, #475569) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.03em !important;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--admin-muted, #475569);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .booking-list-filters input[type="text"],
@@ -9838,22 +9840,22 @@ input.invalid {
 .booking-list-filters select,
 .recurring-list-filters select,
 .recurring-list-filters input {
-    height: 38px !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
-    padding: 0 12px !important;
-    background: var(--admin-surface, #ffffff) !important;
-    font-size: 13.5px !important;
-    color: var(--admin-text, #0f172a) !important;
-    transition: all 0.15s ease !important;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: var(--admin-surface, #ffffff);
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+    transition: all 0.15s ease;
 }
 
 .booking-list-filters input:focus,
 .booking-list-filters select:focus,
 .recurring-list-filters select:focus {
-    outline: none !important;
-    border-color: var(--admin-accent, #10b981) !important;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+    outline: none;
+    border-color: var(--admin-accent, #10b981);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .recurring-table-card {
@@ -9864,13 +9866,13 @@ input.invalid {
 }
 
 .recurring-list-panel .state-card {
-    border: none !important;
-    background: transparent !important;
-    color: var(--admin-muted, #64748b) !important;
-    text-align: center !important;
-    padding: 40px 16px !important;
-    box-shadow: none !important;
-    font-size: 14px !important;
+    border: none;
+    background: transparent;
+    color: var(--admin-muted, #64748b);
+    text-align: center;
+    padding: 40px 16px;
+    box-shadow: none;
+    font-size: 14px;
 }
 
 .recurring-table-card table {
@@ -9953,21 +9955,21 @@ input.invalid {
 @media (max-width: 768px) {
     .cluster-hero-surface,
     .hero-integrated-tabs {
-        padding: 12px 16px 0 16px !important;
+        padding: 12px 16px 0 16px;
     }
 
     .profile-section-card {
-        padding: 16px !important;
+        padding: 16px;
     }
 
     .recurring-table-card {
-        width: 100% !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .recurring-table-card table {
-        min-width: 680px !important;
+        min-width: 680px;
     }
 }
 </style>

@@ -1,5 +1,5 @@
-﻿<template>
-  <section class="page">
+<template>
+  <div class="cluster-profile-surface standalone">
     <!-- Floating Add Button -->
     <div v-if="tab === 'notices'" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
       <button class="btn-float-add" type="button" @click="openNotice()" title="Thêm quy định">
@@ -8,122 +8,130 @@
       </button>
     </div>
 
-    <div class="cluster-selection-bar" v-if="clusters.length > 1 || currentCluster">
-      <label class="cluster-picker" v-if="clusters.length > 1">
-        <span>Cụm sân đang quản lý</span>
-        <select v-model="selectedClusterId" @change="changeCluster">
-          <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-        </select>
-      </label>
-      <div v-else-if="currentCluster" class="cluster-badge">
-        <span>Cụm sân đang quản lý</span>
-        <strong>{{ currentCluster.name }}</strong>
-      </div>
-    </div>
-
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
     <div v-if="currentCluster && currentCluster.status !== 'active'" class="alert warning">
       Cụm sân đang ở trạng thái {{ currentCluster.status }}. Một số thay đổi có thể cần admin kiểm tra.
     </div>
 
-    <nav class="tabs">
-      <button :class="{ active: tab === 'rules' }" type="button" @click="tab = 'rules'">Quy tắc áp dụng hệ thống</button>
-      <button :class="{ active: tab === 'notices' }" type="button" @click="tab = 'notices'">Quy định hiển thị cho khách</button>
-    </nav>
+    <div class="profile-section-card policies-main-content">
 
-    <section v-if="tab === 'rules'" class="policy-section">
-      <div class="inheritance-flow">
-        <article>
-          <span>1</span>
-          <strong>Khung hệ thống</strong>
-          <p>Admin cấu hình bảng mốc hủy & hoàn làm chuẩn tối thiểu.</p>
-        </article>
-        <article>
-          <span>2</span>
-          <strong>Cụm sân đang chọn</strong>
-          <p>{{ currentCluster?.name || 'Chọn cụm sân để cấu hình chính sách riêng.' }}</p>
-        </article>
-        <article>
-          <span>3</span>
-          <strong>Chính sách sân</strong>
-          <p>Chủ sân có thể tạo cấu hình riêng nhưng không được bất lợi hơn khung hệ thống.</p>
-        </article>
+      <!-- Integrated AppTabs -->
+      <div class="policies-header-hero">
+        <div class="hero-integrated-tabs">
+          <AppTabs
+            :tabs="policyTabsForAppTabs"
+            :model-value="tab"
+            @update:model-value="selectPolicyTab"
+          />
+        </div>
       </div>
 
-      <div v-if="loading" class="state">Đang tải chính sách sân...</div>
-
-      <article v-for="policy in cancelRefundPolicies" :key="policy.id" class="policy-card refund-card">
-        <div class="card-head">
-          <div>
-            <h3>{{ policy.title }}</h3>
-            <span class="type">{{ policy.policy_type_label }}</span>
-          </div>
-          <span class="badge" :class="policyStatus(policy).className">{{ policyStatus(policy).label }}</span>
+      <section v-if="tab === 'rules'" class="policy-section">
+        <div class="inheritance-flow">
+          <article>
+            <span>1</span>
+            <div class="flow-content">
+              <strong>Khung hệ thống</strong>
+              <p>Admin cấu hình bảng mốc hủy & hoàn làm chuẩn tối thiểu.</p>
+            </div>
+          </article>
+          <article>
+            <span>2</span>
+            <div class="flow-content">
+              <strong>Cụm sân đang chọn</strong>
+              <p>{{ currentCluster?.name || 'Chọn cụm sân để cấu hình chính sách riêng.' }}</p>
+            </div>
+          </article>
+          <article>
+            <span>3</span>
+            <div class="flow-content">
+              <strong>Chính sách sân</strong>
+              <p>Chủ sân có thể tạo cấu hình riêng nhưng không được bất lợi hơn khung hệ thống.</p>
+            </div>
+          </article>
         </div>
 
-        <div class="policy-summary-grid">
-          <div class="summary-block">
-            <span>Khung hệ thống</span>
-            <p>{{ policySystemSummary(policy) }}</p>
-          </div>
-          <div class="summary-block venue">
-            <span>Chính sách đang áp dụng cho cụm sân</span>
-            <p>{{ policyVenueSummary(policy) }}</p>
-          </div>
+        <div v-if="loading" class="table-state-card">
+          <div class="spinner-sm"></div>
+          <span>Đang tải chính sách sân...</span>
         </div>
 
-        <div class="tier-preview" v-if="policy.cancel_refund_configuration?.system_tiers?.length">
-          <div class="tier-preview-head">
-            <strong>Bảng mốc hủy & hoàn</strong>
-            <small>{{ policy.cancel_refund_configuration.effective_source_label }}</small>
+        <article v-for="policy in cancelRefundPolicies" :key="policy.id" class="policy-card refund-card">
+          <div class="card-head">
+            <div>
+              <h3>{{ policy.title }}</h3>
+              <span class="type">{{ policy.policy_type_label }}</span>
+            </div>
+            <span class="status-pill" :class="policyStatus(policy).className">{{ policyStatus(policy).label }}</span>
           </div>
-          <div class="tier-preview-grid">
-            <div
-              v-for="tier in policy.cancel_refund_configuration.system_tiers"
-              :key="tier.key"
-              class="tier-preview-card"
-            >
-              <span>{{ rangeText(tier) }}</span>
-              <strong>Hệ thống: {{ tier.allow_cancel ? `hoàn tối thiểu ${tier.refund_percent}%` : 'không cho hủy' }}</strong>
-              <p>{{ venueTierLine(policy, tier) }}</p>
+
+          <div class="policy-summary-grid">
+            <div class="summary-block">
+              <span>Khung hệ thống</span>
+              <p>{{ policySystemSummary(policy) }}</p>
+            </div>
+            <div class="summary-block venue">
+              <span>Chính sách đang áp dụng cho cụm sân</span>
+              <p>{{ policyVenueSummary(policy) }}</p>
             </div>
           </div>
+
+          <div class="tier-preview" v-if="policy.cancel_refund_configuration?.system_tiers?.length">
+            <div class="tier-preview-head">
+              <strong>Bảng mốc hủy & hoàn</strong>
+              <small class="cell-sub">{{ policy.cancel_refund_configuration.effective_source_label }}</small>
+            </div>
+            <div class="tier-preview-grid">
+              <div
+                v-for="tier in policy.cancel_refund_configuration.system_tiers"
+                :key="tier.key"
+                class="tier-preview-card"
+              >
+                <span>{{ rangeText(tier) }}</span>
+                <strong>Hệ thống: {{ tier.allow_cancel ? `hoàn tối thiểu ${tier.refund_percent}%` : 'không cho hủy' }}</strong>
+                <p>{{ venueTierLine(policy, tier) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <footer>
+            <button v-if="canEditCancelRefund(policy)" class="btn primary" type="button" @click="openCancelRefund(policy)">
+              {{ policy.cancel_refund_configuration?.venue_rule_id ? 'Sửa chính sách sân' : 'Tạo chính sách sân' }}
+            </button>
+            <button v-if="policy.cancel_refund_configuration?.venue_rule_id" class="btn secondary" type="button" @click="resetPolicy(policy)">
+              Dùng lại khung hệ thống
+            </button>
+          </footer>
+        </article>
+
+        <div v-if="!loading && cancelRefundPolicies.length === 0" class="table-state-card">
+          <span>Chưa có chính sách hủy & hoàn nào đang active và cho phép sân cấu hình riêng.</span>
         </div>
+      </section>
 
-        <footer>
-          <button v-if="canEditCancelRefund(policy)" class="btn primary" type="button" @click="openCancelRefund(policy)">
-            {{ policy.cancel_refund_configuration?.venue_rule_id ? 'Sửa chính sách sân' : 'Tạo chính sách sân' }}
-          </button>
-          <button v-if="policy.cancel_refund_configuration?.venue_rule_id" class="btn secondary" type="button" @click="resetPolicy(policy)">
-            Dùng lại khung hệ thống
-          </button>
-        </footer>
-      </article>
-
-      <div v-if="!loading && cancelRefundPolicies.length === 0" class="state">
-        Chưa có chính sách hủy & hoàn nào đang active và cho phép sân cấu hình riêng.
-      </div>
-    </section>
-
-    <section v-if="tab === 'notices'" class="panel">
-      <div class="section-head">
-        <div>
-          <h3>Quy định hiển thị cho khách</h3>
-          <p>Nội dung này chỉ để khách đọc, không tác động tự động đến hủy, hoàn tiền hoặc booking.</p>
+      <section v-if="tab === 'notices'" class="panel">
+        <div class="section-head">
+          <div>
+            <h3>Quy định hiển thị cho khách</h3>
+            <p>Nội dung này chỉ để khách đọc, không tác động tự động đến hủy, hoàn tiền hoặc booking.</p>
+          </div>
         </div>
-      </div>
-      <div v-if="customerNotices.length === 0" class="state">Chưa có nội quy hiển thị cho khách.</div>
-      <article v-for="notice in customerNotices" :key="notice.id" class="notice-card">
-        <div>
-          <strong>{{ notice.title }}</strong>
-          <p>{{ notice.content }}</p>
+        <div v-if="customerNotices.length === 0" class="table-state-card">
+          <span>Chưa có nội quy hiển thị cho khách.</span>
         </div>
-        <span class="badge" :class="notice.status">{{ notice.status_label }}</span>
-        <ActionIconButton icon="pencil" label="Sửa quy định" @click="openNotice(notice)" />
-      </article>
-    </section>
+        <article v-for="notice in customerNotices" :key="notice.id" class="notice-card">
+          <div>
+            <strong>{{ notice.title }}</strong>
+            <p>{{ notice.content }}</p>
+          </div>
+          <span class="status-pill" :class="notice.status">{{ notice.status_label }}</span>
+          <ActionIconButton icon="pencil" label="Sửa quy định" @click="openNotice(notice)" />
+        </article>
+      </section>
+    </div>
 
+    <!-- Modal Cancel Refund -->
     <div v-if="cancelRefundModal" class="modal-backdrop" @click.self="closeCancelRefund">
       <form class="modal wide" @submit.prevent="saveCancelRefund">
         <header class="modal-head">
@@ -143,8 +151,8 @@
             <option value="draft">Lưu nháp, chưa áp dụng</option>
           </select>
         </label>
-        <div class="table-wrap">
-          <table class="tiers-table">
+        <div class="services-table-wrapper">
+          <table class="services-data-table tiers-table">
             <thead>
               <tr>
                 <th>Mốc thời gian</th>
@@ -158,11 +166,11 @@
               <tr v-for="(tier, index) in cancelRefundForm.tiers" :key="tier.key || index">
                 <td>
                   <strong>{{ tier.label }}</strong>
-                  <small>{{ rangeText(tier) }}</small>
+                  <small class="cell-sub">{{ rangeText(tier) }}</small>
                 </td>
                 <td>
                   <span>Hoàn tối thiểu {{ tier.system_refund_percent }}%</span>
-                  <small>{{ tier.system_allow_cancel ? 'Hệ thống cho hủy' : 'Hệ thống không cho hủy' }}</small>
+                  <small class="cell-sub">{{ tier.system_allow_cancel ? 'Hệ thống cho hủy' : 'Hệ thống không cho hủy' }}</small>
                 </td>
                 <td>
                   <label class="check">
@@ -195,6 +203,7 @@
       </form>
     </div>
 
+    <!-- Modal Notice -->
     <div v-if="noticeModal" class="modal-backdrop" @click.self="noticeModal = false">
       <form class="modal" @submit.prevent="saveNotice">
         <h3>{{ noticeForm.id ? 'Sửa quy định' : 'Thêm quy định hiển thị cho khách' }}</h3>
@@ -213,18 +222,19 @@
         </footer>
       </form>
     </div>
-  </section>
+  </div>
 </template>
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
 import { ownerPolicyService } from '../../services/ownerPolicyService.js';
 import { venueClusterService } from '../../services/venueClusters.js';
 
 export default {
   name: 'OwnerPolicies',
-  components: { ActionIconButton, AppIcon },
+  components: { ActionIconButton, AppIcon, AppTabs },
   data() {
     return {
       tab: 'rules',
@@ -248,6 +258,12 @@ export default {
     };
   },
   computed: {
+    policyTabsForAppTabs() {
+      return [
+        { key: 'rules', value: 'rules', label: 'Quy tắc áp dụng hệ thống' },
+        { key: 'notices', value: 'notices', label: 'Quy định hiển thị cho khách' },
+      ];
+    },
     cancelRefundPolicies() {
       return this.systemPolicies.filter((policy) => policy.cancel_refund_configuration?.base_rule_id);
     },
@@ -270,6 +286,9 @@ export default {
     window.removeEventListener('scroll', this.handleScroll);
   },
   methods: {
+    selectPolicyTab(tabVal) {
+      this.tab = String(tabVal || 'rules');
+    },
     emptyNotice() {
       return { id: null, title: '', content: '', status: 'active' };
     },
@@ -513,76 +532,538 @@ export default {
 </script>
 
 <style scoped>
-.page { display: grid; gap: 16px; }
-.cluster-selection-bar { margin-bottom: 8px; }
-.section-head, .card-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.section-head h3, .policy-card h3, .modal h3 { margin: 0 0 6px; }
-.section-head p, .summary-block p, .notice-card p, .modal-head p, small { margin: 0; color: var(--admin-muted); }
-.cluster-picker, .cluster-badge { display: grid; gap: 6px; min-width: 260px; font-weight: 400; }
-.cluster-badge { background: var(--admin-surface-muted); border: 1px solid var(--admin-border); border-radius: 10px; padding: 10px 12px; }
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.tabs button { border: 1px solid var(--admin-border); background: var(--admin-surface); border-radius: 8px; padding: 10px 14px; font-weight: 500; cursor: pointer; }
-.tabs .active { background: var(--admin-primary); border-color: var(--admin-primary); color: var(--admin-primary-text); }
-.policy-section { display: grid; gap: 14px; }
-.inheritance-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.inheritance-flow article { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: start; background: var(--admin-surface); border: 1px solid #dbeafe; border-radius: 12px; padding: 14px; }
-.inheritance-flow span { grid-row: span 2; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: #dcfce7; color: #166534; font-weight: 400; }
-.inheritance-flow strong { color: #0f172a; }
-.inheritance-flow p { margin: 0; color: var(--admin-muted); line-height: 1.45; }
-.policy-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.policy-card, .panel, .modal, .notice-card { background: var(--admin-surface); border: 1px solid #e2e8f0; border-radius: 12px; }
-.policy-card, .panel, .modal { padding: 18px; }
-.policy-card { display: grid; gap: 12px; }
-.refund-card { grid-template-columns: 1fr; }
-.type { color: var(--admin-muted); font-size: 13px; font-weight: 400; }
-.summary-block { display: grid; gap: 4px; padding: 12px; background: var(--admin-surface-muted); border-radius: 10px; }
-.summary-block.venue { background: #f0fdf4; border: 1px solid #bbf7d0; }
-.summary-block span { color: var(--admin-muted); font-weight: 400; font-size: 13px; }
-.tier-preview { display: grid; gap: 10px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
-.tier-preview-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-.tier-preview-head strong { color: #0f172a; }
-.tier-preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.tier-preview-card { display: grid; gap: 4px; padding: 10px; border-radius: 10px; background: var(--admin-surface-muted); }
-.tier-preview-card span { color: #0f172a; font-size: 13px; font-weight: 400; }
-.tier-preview-card strong { color: #166534; font-size: 13px; }
-.tier-preview-card p { margin: 0; color: var(--admin-muted); font-size: 13px; }
-.policy-card footer, .modal footer { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-.notice-card { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 12px; margin-top: 10px; }
-.btn { border: 0; border-radius: 8px; font-weight: 400; cursor: pointer; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
-.primary { background: #16a34a; color: #fff; }
-.secondary { background: var(--admin-surface-muted); color: #0f172a; }
-.state { padding: 18px; color: var(--admin-muted); background: var(--admin-surface-muted); border-radius: 10px; }
-.preview { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 12px; border-radius: 10px; margin: 0; }
-.form-error { background: #fee2e2; border: 1px solid #fecaca; color: #b91c1c; padding: 12px; border-radius: 10px; margin: 0; font-weight: 400; }
-.badge { border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 400; background: var(--admin-surface-muted); color: var(--admin-muted); white-space: nowrap; }
-.badge.active { background: #dcfce7; color: #166534; }
-.badge.neutral { background: var(--admin-border); color: var(--admin-text); }
-.badge.draft { background: #fef3c7; color: #92400e; }
-.badge.inactive { background: #fee2e2; color: #b91c1c; }
-.alert { padding: 12px; border-radius: 10px; font-weight: 400; }
-.error { background: #fee2e2; color: #b91c1c; }
-.success { background: #dcfce7; color: #166534; }
-.warning { background: #fef3c7; color: #92400e; }
-.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .56); display: grid; place-items: center; z-index: 500; padding: 20px; }
-.modal { width: min(680px, calc(100vw - 32px)); display: grid; gap: 14px; max-height: calc(100vh - 40px); overflow: auto; }
-.modal.wide { width: min(1180px, calc(100vw - 32px)); }
-.modal-guide { display: grid; gap: 4px; border: 1px solid #bbf7d0; border-radius: 10px; background: #f0fdf4; color: #166534; padding: 12px; }
-.modal-guide p { margin: 0; color: #166534; }
-.status-field { max-width: 360px; }
-.table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
-.tiers-table { width: 100%; min-width: 1040px; border-collapse: collapse; }
-.tiers-table th, .tiers-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
-.tiers-table th { background: var(--admin-surface-muted); font-size: 12px; color: var(--admin-muted); text-transform: uppercase; }
-.tiers-table td { background: var(--admin-surface); }
-.tiers-table strong, .tiers-table small, .tiers-table span { display: block; }
-.confirm-cell { min-width: 150px; }
-.check { display: flex; gap: 8px; align-items: center; font-weight: 400; }
-label { display: grid; gap: 6px; font-weight: 400; }
-input, select, textarea { border: 1px solid #dbe3ef; border-radius: 8px; padding: 10px; font: inherit; width: 100%; }
-textarea { resize: vertical; }
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Single unified main surface */
+.profile-section-card.policies-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.policies-header-hero {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.hero-integrated-tabs {
+  flex: 1;
+}
+
+.cluster-selection-bar {
+  margin-bottom: 4px;
+}
+
+.cluster-picker select {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 6px;
+  background: var(--admin-surface, #ffffff);
+  font: inherit;
+  font-size: 13px;
+  color: var(--admin-text, #101c15);
+}
+
+.cluster-badge {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  font-size: 13px;
+  color: var(--admin-text, #101c15);
+}
+
+.alert {
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.alert.error {
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.08));
+  color: var(--admin-danger, #ef4444);
+}
+
+.alert.success {
+  background: var(--admin-success-soft, rgba(16, 185, 129, 0.08));
+  color: var(--admin-primary, #22a653);
+}
+
+.alert.warning {
+  background: var(--admin-warning-soft, rgba(245, 158, 11, 0.08));
+  color: var(--admin-warning, #d97706);
+}
+
+.policy-section,
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inheritance-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.inheritance-flow article {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.inheritance-flow span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--admin-primary, #22a653);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.flow-content strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text, #101c15);
+}
+
+.flow-content p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+  line-height: 1.4;
+}
+
+.policy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.card-head,
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.card-head h3,
+.section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--admin-text, #101c15);
+}
+
+.type {
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+}
+
+.policy-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-block {
+  padding: 12px;
+  background: var(--admin-hover, #f8fafc);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 6px;
+}
+
+.summary-block.venue {
+  background: var(--admin-bg-soft, #f7fbf5);
+  border-color: var(--admin-border, #cfded1);
+}
+
+.summary-block span {
+  display: block;
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+}
+
+.summary-block p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--admin-text, #101c15);
+}
+
+.tier-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.tier-preview-head strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tier-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tier-preview-card {
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  font-size: 12px;
+}
+
+.tier-preview-card span {
+  display: block;
+  color: var(--admin-text, #101c15);
+}
+
+.tier-preview-card strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--admin-primary, #22a653);
+  font-weight: 500;
+}
+
+.tier-preview-card p {
+  margin: 2px 0 0;
+  color: var(--admin-muted, #64748b);
+}
+
+.notice-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 8px;
+}
+
+.notice-card strong {
+  font-size: 14px;
+  color: var(--admin-text, #101c15);
+}
+
+.notice-card p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--admin-muted, #64748b);
+}
+
+/* Status Pills */
+.status-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.status-pill.active {
+  background: var(--admin-success-soft, rgba(16, 185, 129, 0.08));
+  color: var(--admin-primary, #22a653);
+}
+
+.status-pill.draft {
+  background: var(--admin-warning-soft, rgba(245, 158, 11, 0.08));
+  color: var(--admin-warning, #d97706);
+}
+
+.status-pill.neutral,
+.status-pill.inactive {
+  background: var(--admin-surface-muted, #f1f5f9);
+  color: var(--admin-muted, #64748b);
+}
+
+/* State Cards */
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modal Services Data Table */
+.services-table-wrapper {
+  overflow-x: auto;
+  border: none;
+  border-radius: 10px;
+}
+
+.services-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.services-data-table th {
+  background: var(--admin-bg-soft, #f7fbf5);
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 12px 14px;
+  border-bottom: none;
+}
+
+.services-data-table td {
+  padding: 12px 14px;
+  border-bottom: none;
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  vertical-align: top;
+}
+
+.services-data-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.services-data-table tbody tr:hover {
+  background: var(--admin-hover, #edf7ed);
+}
+
+.cell-sub {
+  display: block;
+  margin-top: 3px;
+  color: var(--admin-muted, #64748b);
+  font-size: 12px;
+}
+
+.floating-add-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 400;
+}
+
+.btn-float-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--admin-primary, #22a653);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(34, 166, 83, 0.35);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-float-add:hover {
+  background: var(--admin-primary-dark, #15733a);
+  transform: translateY(-1px);
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+  display: grid;
+  place-items: center;
+  z-index: 500;
+  padding: 20px;
+}
+
+.modal {
+  width: min(680px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+}
+
+.modal.wide {
+  width: min(1180px, calc(100vw - 32px));
+}
+
+.modal-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.modal-guide {
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px solid var(--admin-border, #cfded1);
+  font-size: 12.5px;
+}
+
+.modal-guide p {
+  margin: 3px 0 0;
+  color: var(--admin-muted, #64748b);
+}
+
+.status-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 320px;
+  font-size: 13px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  background: #ffffff;
+  color: var(--admin-text, #101c15);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 0;
+  border-color: var(--admin-primary, #22a653);
+}
+
+footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn.primary {
+  background: var(--admin-primary, #22a653);
+  color: #ffffff;
+}
+
+.btn.secondary {
+  background: var(--admin-hover, #f8fafc);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  color: var(--admin-text, #101c15);
+}
+
+.preview {
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px solid var(--admin-border, #cfded1);
+  color: var(--admin-primary, #22a653);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.form-error {
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.08));
+  color: var(--admin-danger, #ef4444);
+  font-size: 12.5px;
+  margin: 0;
+}
+
 @media (max-width: 900px) {
-  .inheritance-flow, .policy-summary-grid, .tier-preview-grid { grid-template-columns: 1fr; }
-  .page-head, .section-head, .notice-card { grid-template-columns: 1fr; flex-direction: column; }
-  .cluster-picker, .cluster-badge { width: 100%; min-width: 0; }
+  .inheritance-flow,
+  .policy-summary-grid,
+  .tier-preview-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

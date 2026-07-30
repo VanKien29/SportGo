@@ -153,7 +153,7 @@ export default {
 .services-table-wrapper {
   overflow-x: auto;
   border: none;
-  border-radius: 10px;
+  border-radius: 0;
 }
 
 .services-data-table {

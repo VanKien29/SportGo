@@ -5775,8 +5775,8 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 .form-actions {
     display: flex;
     justify-content: flex-end;
-    border-top: 1px solid var(--admin-border);
-    padding-top: 20px;
+    border-top: none;
+    padding-top: 0;
     margin-top: 8px;
 }
 
