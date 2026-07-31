@@ -464,6 +464,14 @@ body:has(.sg-client-page) #app {
 .sg3-status-pill.status-rejected, .sg3-status-pill.status-cancelled { background: #fff0f0; color: var(--sg3-danger); }
 .sg3-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 16px; color: var(--sg3-muted); font-size: 12px; }
 .sg3-empty--inline { min-height: 190px; border: 0; border-radius: 0; }
+.sg3-booking-detail-page { min-height: 100vh; background: var(--sg3-soft); }
+.sg3-booking-detail-page .detail-main { width: min(1100px, calc(100% - 40px)); margin-inline: auto; padding-top: 28px; padding-bottom: 64px; }
+.sg3-booking-detail-page .detail-head { padding: 0 0 18px; }
+.sg3-booking-detail-page .detail-content > section, .sg3-booking-detail-page .detail-content > article { border-color: var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; }
+.sg3-recurring-detail-page .recurring-shell { width: min(1100px, calc(100% - 40px)); margin-inline: auto; padding-top: 28px; padding-bottom: 64px; }
+.sg3-recurring-detail-page .group-header { padding: 28px 0 20px; }
+.sg3-recurring-detail-page .summary-grid { gap: 10px; }
+.sg3-recurring-detail-page .summary-grid > div, .sg3-recurring-detail-page .occurrence-panel { border-color: var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; }
 
 @media (max-width: 1120px) {
   .sg3-header__inner { gap: 14px; }

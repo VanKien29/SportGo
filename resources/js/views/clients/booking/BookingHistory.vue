@@ -1,5 +1,5 @@
 <template>
-  <div class="booking-history-page sg-client-page">
+  <div class="booking-history-page sg-client-page sg3-history-page">
     <PublicNavbar />
 
     <main class="history-main sg-client-shell">
@@ -34,6 +34,47 @@
           {{ filter.label }}
         </button>
       </section>
+
+      <form class="history-filters" @submit.prevent="applyFilters">
+        <label>
+          <span>Tìm theo mã booking</span>
+          <input v-model.trim="searchInput" type="search" placeholder="Ví dụ: BK123456" />
+        </label>
+        <label>
+          <span>Từ ngày</span>
+          <input v-model="fromDate" type="date" />
+        </label>
+        <label>
+          <span>Đến ngày</span>
+          <input v-model="toDate" type="date" />
+        </label>
+        <label>
+          <span>Loại booking</span>
+          <select v-model="bookingType">
+            <option value="">Tất cả</option>
+            <option value="single">Đặt lẻ</option>
+            <option value="recurring">Đặt cố định</option>
+          </select>
+        </label>
+        <label>
+          <span>Thanh toán</span>
+          <select v-model="paymentStatus">
+            <option value="">Tất cả</option>
+            <option value="pending">Chờ thanh toán</option>
+            <option value="paid">Đã thanh toán</option>
+            <option value="refunded">Đã hoàn tiền</option>
+            <option value="not_required">Thanh toán tại sân</option>
+          </select>
+        </label>
+        <button type="submit" class="sg-client-button sg-client-button--primary">
+          <AppIcon name="search" aria-hidden="true" />
+          Áp dụng
+        </button>
+        <button type="button" class="sg-client-button" @click="resetFilters">
+          <AppIcon name="refresh" aria-hidden="true" />
+          Xóa lọc
+        </button>
+      </form>
 
       <section class="history-panel sg-client-card">
         <div v-if="loading" class="state sg-client-state">
@@ -77,6 +118,7 @@
               <div>
                 <span>Sân</span>
                 <strong>{{ courtText(booking) }}</strong>
+                <small v-if="booking.items?.length > 1">{{ booking.items.length }} khung giờ/sân</small>
               </div>
               <div>
                 <span>Thời gian chơi</span>
@@ -90,6 +132,11 @@
                 <span>Thanh toán</span>
                 <strong>{{ paymentStatusLabel(booking.payment_status) }}</strong>
               </div>
+            </div>
+
+            <div v-if="booking.has_court_change || booking.has_partial_cancellation" class="booking-flags">
+              <span v-if="booking.has_court_change">Đã đổi sân</span>
+              <span v-if="booking.has_partial_cancellation">Có khung bị hủy/gián đoạn</span>
             </div>
 
             <div class="booking-actions">
@@ -108,6 +155,14 @@
               <router-link v-if="venueId(booking)" :to="rebookLocation(booking)" class="ghost-action">
                 <AppIcon name="rotateCcw" aria-hidden="true" />
                 Đặt thêm lịch
+              </router-link>
+              <router-link
+                v-if="booking.booking_type === 'recurring' && booking.recurring_group_code"
+                :to="{ name: 'booking-recurring-group', params: { groupCode: booking.recurring_group_code } }"
+                class="ghost-action"
+              >
+                <AppIcon name="calendar" aria-hidden="true" />
+                Xem cả chuỗi
               </router-link>
               <button
                 v-if="booking.can_cancel"
@@ -171,6 +226,11 @@ export default {
       error: "",
       statusGroup: this.$route.query.status_group || "all",
       page: Number(this.$route.query.page || 1),
+      searchInput: this.$route.query.search || "",
+      fromDate: this.$route.query.from_date || "",
+      toDate: this.$route.query.to_date || "",
+      bookingType: this.$route.query.booking_type || "",
+      paymentStatus: this.$route.query.payment_status || "",
       lastPage: 1,
       cancellingId: "",
       cancelTarget: null,
@@ -189,6 +249,11 @@ export default {
       handler(query) {
         this.statusGroup = query.status_group || "all";
         this.page = Number(query.page || 1);
+        this.searchInput = query.search || "";
+        this.fromDate = query.from_date || "";
+        this.toDate = query.to_date || "";
+        this.bookingType = query.booking_type || "";
+        this.paymentStatus = query.payment_status || "";
         this.loadBookings();
       },
       immediate: true,
@@ -210,6 +275,11 @@ export default {
           status_group: this.statusGroup,
           page: this.page,
           per_page: 10,
+          search: this.searchInput,
+          from_date: this.fromDate,
+          to_date: this.toDate,
+          booking_type: this.bookingType,
+          payment_status: this.paymentStatus,
         });
         this.bookings = response.data || [];
         this.lastPage = Number(response.last_page || 1);
@@ -222,13 +292,37 @@ export default {
     changeStatusGroup(statusGroup) {
       this.$router.push({
         name: "booking-history",
-        query: { status_group: statusGroup, page: 1 },
+        query: this.filterQuery({ status_group: statusGroup, page: 1 }),
       });
+    },
+    applyFilters() {
+      this.$router.push({
+        name: "booking-history",
+        query: this.filterQuery({ status_group: this.statusGroup, page: 1 }),
+      });
+    },
+    resetFilters() {
+      this.searchInput = "";
+      this.fromDate = "";
+      this.toDate = "";
+      this.bookingType = "";
+      this.paymentStatus = "";
+      this.applyFilters();
+    },
+    filterQuery(base = {}) {
+      return {
+        ...base,
+        ...(this.searchInput ? { search: this.searchInput } : {}),
+        ...(this.fromDate ? { from_date: this.fromDate } : {}),
+        ...(this.toDate ? { to_date: this.toDate } : {}),
+        ...(this.bookingType ? { booking_type: this.bookingType } : {}),
+        ...(this.paymentStatus ? { payment_status: this.paymentStatus } : {}),
+      };
     },
     changePage(page) {
       this.$router.push({
         name: "booking-history",
-        query: { status_group: this.statusGroup, page },
+        query: this.filterQuery({ status_group: this.statusGroup, page }),
       });
     },
     cancelBooking(booking) {
@@ -261,6 +355,10 @@ export default {
         || "Cụm sân";
     },
     courtText(booking) {
+      if (booking.items?.length) {
+        const names = [...new Set(booking.items.map(item => item.venue_court?.name).filter(Boolean))];
+        if (names.length) return names.length > 2 ? `${names.slice(0, 2).join(', ')} và ${names.length - 2} sân khác` : names.join(', ');
+      }
       const court = booking.venue_court?.name || "Sân";
       const type = booking.venue_court?.court_type?.name;
       return type ? `${court} (${type})` : court;
@@ -324,6 +422,21 @@ export default {
   background: #f8fafc;
 }
 
+.booking-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.booking-flags span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e8f3ff;
+  color: #2563a6;
+  font-size: 12px;
+}
+
 .history-main {
   max-width: 1120px;
   margin: 0 auto;
@@ -381,6 +494,31 @@ export default {
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.5fr) repeat(4, minmax(130px, 1fr)) auto auto;
+  gap: 12px;
+  align-items: end;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #d9eee1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.history-filters label { display: grid; gap: 6px; }
+.history-filters label span { color: #64748b; font-size: 12px; font-weight: 600; }
+.history-filters input, .history-filters select { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #bce8ca; border-radius: 8px; background: #fff; color: #163225; font: inherit; }
+.history-filters button { white-space: nowrap; }
+
+@media (max-width: 1050px) {
+  .history-filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .history-filters { grid-template-columns: 1fr; }
 }
 
 .filters button {
