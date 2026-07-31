@@ -17,6 +17,34 @@
   --sg3-radius: 14px;
 }
 
+/* The v3 header is sticky and participates in document flow. Older client
+ * styles assumed a fixed header and added its height to every page shell. */
+body:has(.sg3-header) {
+  --sg-client-nav-offset: 0px;
+  --spg-header-height: 0px;
+}
+
+body:has(.sg3-header) .sgx-home > main,
+body:has(.sg3-header) .community-page,
+body:has(.sg3-header) .venue-market-page > main,
+body:has(.sg3-header) .venue-detail-page > main {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+body:has(.sg3-header) .sg-community-detail-main,
+body:has(.sg3-header) .news-detail-shell {
+  margin-top: 0 !important;
+  padding-top: 28px !important;
+}
+
+body:has(.sg3-header) .sg3-header + main.sg-client-shell,
+body:has(.sg3-header) .sg3-header + main.sg-client-reading-shell,
+body:has(.sg3-header) .sg3-header + main.utility-shell,
+body:has(.sg3-header) .sg3-header + main.news-detail-shell {
+  padding-top: 28px !important;
+}
+
 body:has(.sg-client-page),
 body:has(.sg-client-page) #app {
   background: var(--sg3-soft);
@@ -324,6 +352,7 @@ body:has(.sg-client-page) #app {
 .sg-client-page .sg-client-shell,
 .sg-client-page .community-container,
 .sg-client-page .detail-container { width: min(1240px, calc(100% - 40px)); margin-inline: auto; }
+.sg-client-page .sg-community-detail-main { width: min(1240px, calc(100% - 40px)); }
 .sg-client-page .sg-client-shell { padding-top: 28px; padding-bottom: 64px; }
 .sg-client-page .history-header,
 .sg-client-page .wallet-header,
