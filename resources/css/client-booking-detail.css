@@ -206,6 +206,47 @@
     gap: var(--sg-client-space-4);
 }
 
+.booking-items-list,
+.payment-history-list {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--sg-border, #d9eee1);
+}
+
+.booking-items-list h3,
+.payment-history-list h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+}
+
+.booking-item-row,
+.payment-history-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--sg-border, #d9eee1);
+}
+
+.booking-item-row div {
+    display: grid;
+    gap: 4px;
+}
+
+.booking-item-row span,
+.payment-history-row small {
+    color: var(--sg-text-muted, #64748b);
+}
+
+.payment-history-row {
+    justify-content: flex-start;
+}
+
+.payment-history-row strong {
+    margin-left: auto;
+}
+
 .card {
     min-width: 0;
     padding: var(--sg-client-space-5);

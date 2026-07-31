@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Player;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Complaint;
+use App\Models\ComplaintReply;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
@@ -12,6 +13,80 @@ use Intervention\Image\Drivers\Gd\Driver;
 
 class ComplaintController extends Controller
 {
+    public function index(Request $request)
+    {
+        $request->validate([
+            'status' => ['nullable', 'in:open,processing,resolved,rejected,closed'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $complaints = Complaint::query()
+            ->where('customer_id', $request->user()->id)
+            ->with(['venueCluster:id,name', 'booking:id,booking_code,booking_date,status', 'evidence'])
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->query('status')))
+            ->latest()
+            ->paginate((int) $request->input('per_page', 15));
+
+        return response()->json($complaints);
+    }
+
+    public function show(Request $request, string $id)
+    {
+        $complaint = Complaint::query()
+            ->where('customer_id', $request->user()->id)
+            ->with([
+                'venueCluster:id,name',
+                'booking:id,booking_code,booking_date,status,total_price',
+                'evidence',
+                'replies.user:id,full_name,username',
+                'replies.evidence',
+            ])
+            ->findOrFail($id);
+
+        return response()->json([
+            'data' => [
+                'complaint' => $complaint,
+                'timeline' => $complaint->replies->map(fn (ComplaintReply $reply) => [
+                    'type' => 'reply',
+                    'id' => $reply->id,
+                    'content' => $reply->content,
+                    'user' => $reply->user,
+                    'evidence' => $reply->evidence,
+                    'created_at' => $reply->created_at,
+                ])->values(),
+            ],
+        ]);
+    }
+
+    public function reply(Request $request, string $id)
+    {
+        $data = $request->validate(['content' => ['required', 'string', 'min:2', 'max:4000']]);
+        $complaint = Complaint::query()->where('customer_id', $request->user()->id)->findOrFail($id);
+
+        if (in_array($complaint->status, ['resolved', 'rejected', 'closed'], true)) {
+            return response()->json(['message' => 'Khiếu nại đã kết thúc, không thể gửi thêm phản hồi.'], 422);
+        }
+
+        $reply = ComplaintReply::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $request->user()->id,
+            'content' => $data['content'],
+        ]);
+
+        $reply->load('user:id,full_name,username');
+
+        return response()->json([
+            'message' => 'Đã gửi phản hồi.',
+            'data' => [
+                'type' => 'reply',
+                'id' => $reply->id,
+                'content' => $reply->content,
+                'user' => $reply->user,
+                'created_at' => $reply->created_at,
+            ],
+        ], 201);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

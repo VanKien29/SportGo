@@ -26,6 +26,28 @@
     <!-- Leaflet Map Library -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #app:empty {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #f8fafc;
+        }
+
+        #app:empty::before {
+            content: "";
+            width: 30px;
+            height: 30px;
+            border: 3px solid #d9f5e4;
+            border-top-color: #16a34a;
+            border-radius: 50%;
+            animation: sportgo-app-spin .75s linear infinite;
+        }
+
+        @keyframes sportgo-app-spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>
         (function() {

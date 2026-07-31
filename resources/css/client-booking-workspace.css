@@ -63,6 +63,21 @@
     margin: 0;
 }
 
+.wallet-payment-balance {
+  margin: 0 0 12px;
+  color: var(--sg-text-muted, #64748b);
+  font-size: 13px;
+}
+
+.wallet-payment-balance strong {
+  color: var(--sg-primary, #129447);
+}
+
+.payment-section label.disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
 .page-head h1 {
     color: var(--sg-client-text);
     font-size: var(--sg-client-font-2xl);

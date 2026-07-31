@@ -12,6 +12,13 @@ app.use(Toast, {
   closeOnClick: true,
   pauseOnHover: true,
 });
-app.mount('#app');
 
-loadSystemProfile();
+// Wait for the initial route and system branding before rendering the shell.
+// This prevents the client header/footer from flashing while the real page is still resolving.
+Promise.all([
+  router.isReady(),
+  loadSystemProfile(),
+]).finally(() => {
+  document.documentElement.classList.add('app-ready');
+  app.mount('#app');
+});
