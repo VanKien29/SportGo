@@ -1,8 +1,10 @@
-﻿<template>
-    <div class="court-types-container">
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card court-types-main-content">
+            <div class="court-types-container">
 
         <!-- Loading State -->
-        <div v-if="loading" class="loading-state card">
+        <div v-if="loading" class="state-box animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách bộ môn và loại sân...</p>
         </div>
@@ -120,7 +122,7 @@
 
                                 <!-- Actions -->
                                 <template #actions="{ row }">
-                                    <div class="table-actions">
+                                    <TableActionGroup>
                                         <ActionIconButton
                                             icon="pencil"
                                             label="Sửa loại sân"
@@ -134,7 +136,7 @@
                                             size="sm"
                                             @click="confirmDelete(row)"
                                         />
-                                    </div>
+                                    </TableActionGroup>
                                 </template>
                             </SaaSTable>
 
@@ -326,18 +328,21 @@
                 <span class="btn-float-text">Thêm bộ môn</span>
             </button>
         </div>
+        </div>
     </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "AdminCourtTypes",
-    components: { ActionIconButton, AppIcon, SaaSTable },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
     data() {
         return {
             courtTypes: [],
@@ -346,7 +351,7 @@ export default {
                 { key: "player_count", label: "Số người chơi" },
                 { key: "size", label: "Kích thước quy chuẩn" },
                 { key: "is_active", label: "Trạng thái" },
-                { key: "actions", label: "", align: "right" }
+                { key: "actions", label: "THAO TÁC", align: "right" }
             ],
             searchQuery: "",
             loading: true,
@@ -1277,5 +1282,27 @@ export default {
     .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
+}
+
+.profile-section-card.court-types-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.court-type-group,
+.grouped-court-types-list,
+.court-types-container,
+.loading-state,
+.error-state,
+.empty-state {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 </style>

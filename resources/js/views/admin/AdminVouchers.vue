@@ -2,26 +2,38 @@
     <div class="cluster-profile-surface standalone">
         <div class="profile-section-card vouchers-main-content">
             <SaaSFilterBar
-            v-model="filters.status"
-            v-model:search="filters.keyword"
-            :tabs="statusTabsUi"
-            search-id="search-admin-vouchers"
-            search-placeholder="Tìm mã hoặc tên voucher..."
-            @update:search="load"
-            @update:modelValue="load"
+          v-model:search="filters.keyword"
+          searchPlaceholder="Tìm mã hoặc tên voucher..."
+          @update:search="load"
         >
-            <template #actions>
-                <select v-model="filters.discount_type" @change="load" class="filter-select">
-                    <option value="">Tất cả loại giảm</option>
-                    <option value="percent">Phần trăm</option>
-                    <option value="fixed">Số tiền</option>
-                </select>
-                <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
-                <button class="btn primary" type="button" @click="openForm()">
-                    <AppIcon name="plus" size="16" />
-                    <span>Tạo voucher</span>
-                </button>
-            </template>
+          <template #actions>
+            <CustomSelect
+              v-model="filters.status"
+              :options="[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'draft', label: 'Bản nháp' },
+                { value: 'active', label: 'Đang áp dụng' },
+                { value: 'inactive', label: 'Đã tắt' },
+                { value: 'expired', label: 'Hết hạn' }
+              ]"
+              @change="load"
+            />
+            <CustomSelect
+              v-model="filters.discount_type"
+              :options="[
+                { value: '', label: 'Tất cả loại giảm' },
+                { value: 'percent', label: 'Phần trăm' },
+                { value: 'fixed', label: 'Số tiền' }
+              ]"
+              @change="load"
+            />
+            <ActionIconButton
+              icon="plus"
+              label="Tạo voucher"
+              variant="primary"
+              @click="openForm()"
+            />
+          </template>
         </SaaSFilterBar>
 
         <div v-if="error" class="alert error">{{ error }}</div>
@@ -35,7 +47,7 @@
             <div class="budget-metrics">
                 <article class="budget-metric">
                     <span>Đã dùng kỳ này</span>
-                    <strong>{{
+       Code             <strong>{{
                         money(
                             promotionExpenses?.voucher_total ||
                                 promotionExpenses?.total,
@@ -170,45 +182,50 @@
             </footer>
         </section>
 
-        <section class="table-card">
-            <div v-if="loading" class="state">Đang tải voucher hệ thống...</div>
-            <div v-else-if="vouchers.length === 0" class="state">
-                Chưa có voucher hệ thống.
-            </div>
+        <section class="table-card" style="border: none !important; box-shadow: none !important;">
             <SaaSTable
-                v-else
                 :columns="tableColumns"
                 :data="vouchers"
+                :loading="loading"
+                loading-text="Đang tải voucher hệ thống..."
+                empty-text="Chưa có voucher hệ thống."
             >
                 <template #code="{ row }">
                     <strong>{{ row.code }}</strong>
                 </template>
+
                 <template #name="{ row }">
                     {{ row.name }}
                 </template>
-                <template #type_label="{ row }">
+
+                <template #discount_type="{ row }">
                     {{ row.type_label }}
                 </template>
-                <template #discount="{ row }">
+
+                <template #discount_value="{ row }">
                     {{ discountText(row) }}
                 </template>
+
                 <template #min_order_amount="{ row }">
                     {{ money(row.min_order_amount) }}
                 </template>
+
                 <template #total_quantity="{ row }">
                     {{ row.total_quantity || "Không giới hạn" }}
                 </template>
+
                 <template #used_quantity="{ row }">
                     {{ row.used_quantity }}
                 </template>
-                <template #valid_range="{ row }">
+
+                <template #validity="{ row }">
                     {{ date(row.valid_from) }} - {{ date(row.valid_to) }}
                 </template>
+
                 <template #status="{ row }">
-                    <span class="badge" :class="row.status">{{
-                        row.status_label
-                    }}</span>
+                    <span class="badge" :class="row.status">{{ row.status_label }}</span>
                 </template>
+
                 <template #actions="{ row }">
                     <TableActionGroup>
                         <ActionIconButton
@@ -217,7 +234,6 @@
                             @click="openForm(row)"
                         />
                         <ActionIconButton
-                            v-if="row.status === 'active'"
                             icon="power"
                             label="Tắt voucher"
                             variant="danger"
@@ -452,14 +468,27 @@ import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
 import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
+import CustomSelect from "../../components/CustomSelect.vue";
 import { adminVoucherService } from "../../services/adminVoucherService.js";
 import { adminSystemWalletService } from "../../services/adminSystemWallet.js";
 
 export default {
     name: "AdminVouchers",
-    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable, CustomSelect },
     data() {
         return {
+            tableColumns: [
+                { key: 'code', label: 'Mã' },
+                { key: 'name', label: 'Tên' },
+                { key: 'discount_type', label: 'Loại giảm' },
+                { key: 'discount_value', label: 'Giá trị' },
+                { key: 'min_order_amount', label: 'Đơn tối thiểu' },
+                { key: 'total_quantity', label: 'Số lượng' },
+                { key: 'used_quantity', label: 'Đã dùng' },
+                { key: 'validity', label: 'Hiệu lực' },
+                { key: 'status', label: 'Trạng thái' },
+                { key: 'actions', label: 'Thao tác', align: 'center', class: 'actions-col' }
+            ],
             filters: { keyword: "", status: "", discount_type: "", per_page: 50 },
             vouchers: [],
             loading: false,
@@ -495,29 +524,6 @@ export default {
         window.removeEventListener("scroll", this.handleScroll);
     },
     computed: {
-        statusTabsUi() {
-            return [
-                { value: "", label: "Tất cả trạng thái" },
-                { value: "active", label: "Đang áp dụng" },
-                { value: "draft", label: "Bản nháp" },
-                { value: "inactive", label: "Đã tắt" },
-                { value: "expired", label: "Hết hạn" },
-            ];
-        },
-        tableColumns() {
-            return [
-                { key: "code", label: "MÃ VOUCHER" },
-                { key: "name", label: "TÊN VOUCHER" },
-                { key: "type_label", label: "LOẠI GIẢM" },
-                { key: "discount", label: "GIÁ TRỊ" },
-                { key: "min_order_amount", label: "ĐƠN TỐI THIỂU" },
-                { key: "total_quantity", label: "SỐ LƯỢNG" },
-                { key: "used_quantity", label: "ĐÃ DÙNG" },
-                { key: "valid_range", label: "HIỆU LỰC" },
-                { key: "status", label: "TRẠNG THÁI" },
-                { key: "actions", label: "THAO TÁC", align: "right" },
-            ];
-        },
         discountValueLabel() {
             return this.form.discount_type === "percent" ? "Giảm bao nhiêu %" : "Giảm bao nhiêu tiền";
         },
@@ -564,10 +570,6 @@ export default {
         },
     },
     methods: {
-        resetFilters() {
-            this.filters = { keyword: "", status: "", discount_type: "", per_page: 50 };
-            this.load();
-        },
         emptyForm() {
             return {
                 id: null,
@@ -1217,11 +1219,11 @@ footer {
     display: grid;
     grid-template-columns: minmax(220px, 1fr) minmax(340px, 1.4fr);
     gap: 16px;
-    border: 1px solid var(--admin-border);
-    border-radius: 12px;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
     background: var(--admin-surface);
-    padding: 0;
-    box-shadow: 0 12px 28px var(--admin-shadow-card);
+    padding: 12px 0;
 }
 
 .budget-copy {
@@ -1416,21 +1418,12 @@ footer {
 
 .profile-section-card.vouchers-main-content {
     background: var(--admin-surface, #ffffff);
-    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border: none !important;
     border-radius: 0;
     padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
-
-.table-card,
-.budget-card,
-.budget-metric,
-.history-panel {
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-}
 </style>
+

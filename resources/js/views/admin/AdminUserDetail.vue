@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="user-detail">
     <div class="back-action-bar">
       <BackButton to="/admin/users" />
@@ -6,7 +6,10 @@
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
-    <div v-if="loading" class="state-card">Đang tải chi tiết tài khoản...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải chi tiết tài khoản...</p>
+    </div>
 
     <template v-else-if="detail">
       <div class="detail-layout">

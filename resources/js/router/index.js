@@ -318,9 +318,7 @@ const routes = [
             },
             {
                 path: "system-profile",
-                name: "admin-system-profile",
-                component: () =>
-                    import("../views/admin/AdminSystemProfile.vue"),
+                redirect: { name: "admin-settings" },
             },
             {
                 path: "settings",

@@ -9,7 +9,10 @@
         </header>
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
-        <div v-if="loading" class="state">Đang tải cài đặt...</div>
+        <div v-if="loading" class="state-box animate-fade-in">
+            <div class="spinner"></div>
+            <p>Đang tải cài đặt...</p>
+        </div>
 
         <form v-else class="panel form" @submit.prevent="saveSettings">
             <label>

@@ -1,32 +1,21 @@
 <template>
-  <div class="cluster-profile-surface standalone">
-    <div class="profile-section-card complaints-main-content">
+  <div class="complaints-page">
       <div v-if="success" class="notice success">{{ success }}</div>
       <div v-if="error" class="notice error">{{ error }}</div>
 
     <div v-if="!detailOpen">
-        <div class="filter-toolbar card" style="margin-bottom: 24px;">
-          <!-- Tabs -->
-          <div class="tabs-header">
-            <button class="tab-btn" :class="{ active: filters.complaint_type === 'system' }" @click="filters.complaint_type = 'system'; loadComplaints()">
-              <AppIcon name="shield-alert" size="16" /> Khiếu nại hệ thống
-            </button>
-            <button class="tab-btn" :class="{ active: filters.complaint_type === 'venue' }" @click="filters.complaint_type = 'venue'; loadComplaints()">
-              <AppIcon name="message-square" size="16" /> Khiếu nại cụm sân
-            </button>
-          </div>
-
-          <!-- Filter and Search -->
-          <div class="filters-row" style="display: flex; gap: 12px; align-items: center; padding: 16px;">
-            <label class="field compact search-field" style="flex: 1;">
-              <AppIcon name="search" size="16" />
-              <input
-                v-model.trim="filters.keyword"
-                type="search"
-                placeholder="Tìm khách hàng, booking, cụm sân..."
-                @keyup.enter="loadComplaints"
-              />
-            </label>
+        <SaaSFilterBar
+          v-model="filters.complaint_type"
+          :tabs="[
+            { value: 'system', label: 'Khiếu nại hệ thống' },
+            { value: 'venue', label: 'Khiếu nại cụm sân' }
+          ]"
+          v-model:search="filters.keyword"
+          searchPlaceholder="Tìm khách hàng, booking, cụm sân..."
+          @update:modelValue="loadComplaints"
+          @update:search="loadComplaints"
+        >
+          <template #actions>
             <CustomSelect
               v-model="filters.status"
               :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]"
@@ -35,80 +24,68 @@
 
             <AdminDatePicker v-model="filters.date_from" placeholder="Từ ngày" @update:modelValue="loadComplaints" />
             <AdminDatePicker v-model="filters.date_to" placeholder="Đến ngày" @update:modelValue="loadComplaints" />
-            <ActionIconButton icon="filter" label="Lọc" variant="primary" @click="loadComplaints" />
             <ActionIconButton icon="settings" label="Cấu hình tự động" variant="secondary" @click="openAutoResolveModal" />
-          </div>
-        </div>
+          </template>
+        </SaaSFilterBar>
 
         <!-- Loading Screen -->
-        <div v-if="loading" class="state-box card">
+        <div v-if="loading" class="state-box animate-fade-in">
           <div class="spinner"></div>
           <p>Đang tải danh sách khiếu nại...</p>
         </div>
 
         <!-- Empty Screen -->
-        <div v-else-if="complaints.length === 0" class="state-box card">
+        <div v-else-if="complaints.length === 0" class="state-box animate-fade-in">
           <AppIcon name="fileText" size="36" />
           <p>Không tìm thấy khiếu nại nào.</p>
         </div>
 
         <!-- Complaints Table -->
         <div v-else class="table-container card">
-          <div class="table-scroll">
-            <table style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr style="text-align: left; border-bottom: 1px solid #e2e8f0;">
-                  <th style="padding: 12px 16px;">Khách hàng</th>
-                  <th style="padding: 12px 16px;">Nội dung khiếu nại</th>
-                  <th style="padding: 12px 16px;">Cụm sân / Booking</th>
-                  <th style="padding: 12px 16px;">Trạng thái</th>
-                  <th style="padding: 12px 16px;">Ngày tạo</th>
-                  <th class="center" style="width: 120px; padding: 12px 16px; text-align: center;">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="complaint in complaints" :key="complaint.id" class="complaint-row" style="border-bottom: 1px solid #f1f5f9;">
-                  <td style="padding: 12px 16px;">
-                    <div class="author-cell">
-                      <strong>{{ complaint.customer?.full_name || 'Khách hàng' }}</strong>
-                      <div class="muted small" style="font-size: 12px; color: #64748b;">{{ complaint.customer?.phone || 'Không có SĐT' }}</div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <div class="info-cell">
-                      <div class="post-title" style="font-weight: 500;">{{ truncate(complaint.content, 60) }}</div>
-                      <div class="complaint-type" style="margin-top: 4px;">
-                        <span class="type-badge" style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ typeLabel(complaint.complaint_type) }}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <div class="info-cell">
-                      <div class="post-court" style="font-size: 13px;">
-                        <strong>{{ complaint.venue_cluster?.name || 'Hệ thống' }}</strong>
-                      </div>
-                      <div v-if="complaint.booking" class="booking-link-cell mt-1" style="font-size: 12px; color: #64748b;">
-                        Mã: {{ complaint.booking.booking_code }}
-                      </div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <span class="status-badge" :class="'status-' + (complaint.status === 'resolved' ? 'success' : (complaint.status === 'processing' ? 'info' : 'warning'))" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="complaint.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (complaint.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
-                      {{ statusLabel(complaint.status) }}
-                    </span>
-                  </td>
-                  <td style="padding: 12px 16px; font-size: 13px;">
-                    <span class="date-cell">{{ formatDateTime(complaint.created_at) }}</span>
-                  </td>
-                  <td class="center" style="padding: 12px 16px; text-align: center;">
-                    <button @click="openDetail(complaint)" class="btn ghost icon-only" title="Xem chi tiết" style="padding: 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
-                      <AppIcon name="eye" size="18" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <SaaSTable :columns="tableColumns" :data="complaints">
+            <template #customer="{ row }">
+              <div class="author-cell">
+                <strong>{{ row.customer?.full_name || 'Khách hàng' }}</strong>
+                <div class="muted small" style="font-size: 12px; color: #64748b;">{{ row.customer?.phone || 'Không có SĐT' }}</div>
+              </div>
+            </template>
+
+            <template #content="{ row }">
+              <div class="info-cell">
+                <div class="post-title" style="font-weight: 500;">{{ truncate(row.content, 60) }}</div>
+                <div class="complaint-type" style="margin-top: 4px;">
+                  <span class="type-badge" style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ typeLabel(row.complaint_type) }}</span>
+                </div>
+              </div>
+            </template>
+
+            <template #target="{ row }">
+              <div class="info-cell">
+                <div class="post-court" style="font-size: 13px;">
+                  <strong>{{ row.venue_cluster?.name || 'Hệ thống' }}</strong>
+                </div>
+                <div v-if="row.booking" class="booking-link-cell mt-1" style="font-size: 12px; color: #64748b;">
+                  Mã: {{ row.booking.booking_code }}
+                </div>
+              </div>
+            </template>
+
+            <template #status="{ row }">
+              <span class="status-badge" :class="'status-' + (row.status === 'resolved' ? 'success' : (row.status === 'processing' ? 'info' : 'warning'))" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="row.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (row.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
+                {{ statusLabel(row.status) }}
+              </span>
+            </template>
+
+            <template #created_at="{ row }">
+              <span class="date-cell">{{ formatDateTime(row.created_at) }}</span>
+            </template>
+
+            <template #actions="{ row }">
+              <TableActionGroup>
+                <ActionIconButton icon="eye" label="Xem chi tiết" size="sm" @click="openDetail(row)" />
+              </TableActionGroup>
+            </template>
+          </SaaSTable>
         </div>
     </div>
 
@@ -299,20 +276,22 @@
       <img :src="previewImage" style="max-width: 90vw; max-height: 90vh; object-fit: contain;" @click.stop />
       <button @click="closeImagePreview" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 30px; cursor: pointer;">&times;</button>
     </div>
-    </div>
   </div>
 </template>
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import CustomSelect from "../../components/CustomSelect.vue";
 import AdminDatePicker from "../../components/AdminDatePicker.vue";
 import { adminComplaintService } from "../../services/adminModeration.js";
 
 export default {
     name: "AdminComplaints",
-    components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker },
+    components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker, TableActionGroup, SaaSFilterBar, SaaSTable },
     data() {
         return {
             complaints: [],
@@ -371,6 +350,16 @@ export default {
         },
         hasSentNotification() {
             return this.auditLogs && this.auditLogs.some(log => ['complaint.notified', 'complaint.resolved', 'complaint.rejected', 'complaint.closed'].includes(String(log.action).trim().toLowerCase()));
+        },
+        tableColumns() {
+            return [
+                { key: 'customer', label: 'KHÁCH HÀNG' },
+                { key: 'content', label: 'NỘI DUNG KHIẾU NẠI' },
+                { key: 'target', label: 'CỤM SÂN / BOOKING' },
+                { key: 'status', label: 'TRẠNG THÁI' },
+                { key: 'created_at', label: 'NGÀY TẠO' },
+                { key: 'actions', label: 'THAO TÁC', align: 'right' }
+            ];
         },
     },
     mounted() {
@@ -993,15 +982,5 @@ th.center, td.center {
 }
 .tab-btn.active .muted-icon {
   color: white;
-}
-
-.profile-section-card.complaints-main-content {
-  background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border-soft, #e2e8f0);
-  border-radius: 0;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 </style>

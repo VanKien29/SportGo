@@ -44,7 +44,10 @@
     </header>
 
     <p v-if="error" class="staff-schedules-alert">{{ error }}</p>
-    <div v-if="loading" class="staff-schedules-loading">Đang tải lịch trực...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải lịch trực...</p>
+    </div>
 
     <template v-else>
       <!-- CHẾ ĐỘ XEM THEO TUẦN -->
@@ -81,76 +84,67 @@
         </section>
       </div>
 
-      <!-- CHẾ ĐỘ XEM THEO NGÀY (Dạng timeline 24h) -->
-      <div v-else class="staff-day-view-container">
+      <!-- CHẾ ĐỘ XEM THEO NGÀY – 24h Horizontal Strip -->
+      <div v-else class="day-strip-view animate-fade-in">
 
-        <!-- Timeline Board -->
-        <div class="shift-timeline-layout">
-          <div class="timeline-board">
-            <div class="timeline-scroller">
-              <div class="timeline-axis">
-                <div class="axis-staff">Lịch biểu</div>
-                <div class="axis-track">
-                  <span
-                    v-for="tick in timelineTicks"
-                    :key="tick.label"
-                    class="axis-tick"
-                    :style="{ left: `${tick.left}%` }"
-                  >
-                    {{ tick.label }}
-                  </span>
-                </div>
-              </div>
+        <!-- Trục giờ -->
+        <div class="day-strip-ticks">
+          <span
+            v-for="tick in timelineTicks"
+            :key="tick.label"
+            class="day-strip-tick"
+            :style="{ left: tick.left + '%' }"
+          >{{ tick.label }}</span>
+        </div>
 
-              <article class="timeline-row">
-                <div class="staff-meta">
-                  <strong>Hôm nay</strong>
-                  <span>{{ selectedDaySchedules.length }} ca trực</span>
-                </div>
-                <div class="timeline-track">
-                  <span
-                    v-for="tick in timelineTicks"
-                    :key="`grid-${tick.label}`"
-                    class="track-gridline"
-                    :style="{ left: `${tick.left}%` }"
-                  ></span>
-                  <div
-                    v-for="block in todayTimelineBlocks"
-                    :key="block.id"
-                    class="timeline-block"
-                    :class="block.statusClass"
-                    :style="block.style"
-                    :title="`Trạng thái: ${block.statusLabel}. Ghi chú: ${block.notes}`"
-                  >
-                    <strong>{{ block.title }}</strong>
-                    <span class="block-time">{{ block.timeLabel }} · {{ block.venueName }}</span>
-                  </div>
-                </div>
-              </article>
+        <!-- Thanh nền 24h -->
+        <div class="day-strip-track">
+          <!-- Ô giờ nền (để nhìn thấy lưới) -->
+          <div
+            v-for="h in 24"
+            :key="h"
+            class="day-strip-hour-cell"
+            :style="{ left: ((h - 1) / 24 * 100) + '%', width: (1 / 24 * 100) + '%' }"
+          ></div>
+
+          <!-- Các block ca trực -->
+          <div
+            v-for="block in todayTimelineBlocks"
+            :key="block.id"
+            class="day-strip-block"
+            :class="block.statusClass"
+            :style="block.style"
+            :title="block.title + ' · ' + block.timeLabel + ' · ' + block.statusLabel"
+          >
+            <span class="day-strip-block-label">{{ block.title }}</span>
+            <span class="day-strip-block-time">{{ block.timeLabel }}</span>
+          </div>
+
+        </div>
+
+        <!-- Danh sách ca bên dưới strip -->
+        <div v-if="sortedSelectedDaySchedules.length" class="day-strip-list">
+          <div
+            v-for="sch in sortedSelectedDaySchedules"
+            :key="sch.id"
+            class="day-strip-item"
+          >
+            <span class="day-strip-item-dot" :class="sch.status"></span>
+            <div class="day-strip-item-body">
+              <strong>{{ shiftName(sch) }}</strong>
+              <span>{{ timeRange(sch) }}</span>
+              <span>{{ sch.venue_cluster?.name || 'Cụm sân' }}</span>
+              <span v-if="sch.notes" class="day-strip-item-note">{{ sch.notes }}</span>
             </div>
+            <span class="day-strip-item-status" :class="sch.status">{{ statusLabel(sch.status) }}</span>
           </div>
         </div>
 
-        <!-- Chi tiết ca trực bên dưới -->
-        <section v-if="selectedDaySchedules.length" class="staff-day-schedules-list">
-          <h4 class="staff-detail-title">Chi tiết ca trực</h4>
-          <article v-for="sch in selectedDaySchedules" :key="`detail-${sch.id}`" class="staff-day-shift-row">
-            <div class="staff-day-shift-main">
-              <div class="staff-day-shift-title-line">
-                <strong class="staff-day-shift-name">{{ shiftName(sch) }}</strong>
-                <span class="staff-day-shift-venue">{{ sch.venue_cluster?.name || 'Cụm sân được phân công' }}</span>
-              </div>
-              <span class="staff-day-shift-time">Thời gian: {{ timeRange(sch) }}</span>
-              <p v-if="sch.notes" class="staff-day-shift-notes">
-                <strong>Ghi chú:</strong> {{ sch.notes }}
-              </p>
-            </div>
-            <div class="staff-day-shift-status">
-              <span class="staff-day-status" :class="sch.status">{{ statusLabel(sch.status) }}</span>
-            </div>
-          </article>
-        </section>
-        <p v-else class="staff-empty-text">Không có ca trực nào trong ngày này.</p>
+        <!-- Empty state -->
+        <div v-else class="state-box animate-fade-in">
+          <p class="empty-msg">Không có ca trực nào trong ngày {{ formattedSelectedDate }}.</p>
+        </div>
+
       </div>
     </template>
       </section>
@@ -206,6 +200,11 @@ export default {
     selectedDaySchedules() {
       return this.schedules.filter((schedule) => schedule.date === this.selectedDate);
     },
+    sortedSelectedDaySchedules() {
+      return [...this.selectedDaySchedules].sort((a, b) => {
+        return (a.start_time || '').localeCompare(b.start_time || '');
+      });
+    },
     formattedSelectedDate() {
       return new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(this.selectedDate + 'T00:00:00'));
     },
@@ -219,33 +218,35 @@ export default {
       };
 
       const totalMins = 24 * 60;
-      return this.selectedDaySchedules.map((sch) => {
+      return this.sortedSelectedDaySchedules.map((sch) => {
         const startMins = parseTimeMins(sch.start_time);
-        const endMins = parseTimeMins(sch.end_time);
+        let endMins = parseTimeMins(sch.end_time);
+        // Ca qua đêm
+        if (endMins <= startMins && endMins !== 0) endMins += totalMins;
+        if (endMins > totalMins) endMins = totalMins;
         const left = (startMins / totalMins) * 100;
-        const width = ((endMins - startMins) / totalMins) * 100;
+        const width = Math.max(((endMins - startMins) / totalMins) * 100, 0.5);
         return {
           id: sch.id,
           title: sch.shift?.name || 'Ca trực',
-          timeLabel: `${sch.start_time.substring(0, 5)} - ${sch.end_time.substring(0, 5)}`,
+          timeLabel: `${(sch.start_time || '').substring(0, 5)} - ${(sch.end_time || '').substring(0, 5)}`,
           statusClass: sch.status,
           statusLabel: this.statusLabel(sch.status),
           notes: sch.notes || '',
           venueName: sch.venue_cluster?.name || 'Cụm sân',
-          style: {
-            left: `${left}%`,
-            width: `${width}%`,
-          },
+          style: { left: `${left}%`, width: `${width}%` },
         };
       });
     },
+    nowLineLeft() {
+      const now = new Date();
+      const mins = now.getHours() * 60 + now.getMinutes();
+      return (mins / (24 * 60)) * 100;
+    },
     timelineTicks() {
       const ticks = [];
-      for (let h = 0; h <= 24; h += 2) {
-        ticks.push({
-          label: `${String(h).padStart(2, '0')}:00`,
-          left: (h / 24) * 100,
-        });
+      for (let h = 0; h <= 24; h += 3) {
+        ticks.push({ label: `${String(h).padStart(2, '0')}:00`, left: (h / 24) * 100 });
       }
       return ticks;
     },
@@ -346,10 +347,11 @@ export default {
 
 <style scoped>
 .staff-schedules-page {
-  max-width: 1120px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
   color: var(--admin-text);
-  padding: 16px 0;
 }
 
 .staff-schedules-head {
@@ -357,7 +359,7 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 
 .staff-schedules-header-left {
@@ -376,7 +378,7 @@ export default {
 .staff-view-switcher {
   display: flex;
   gap: 8px;
-  padding-bottom: 4px;
+  padding: 0;
 }
 
 .staff-view-switcher button {
@@ -613,10 +615,208 @@ export default {
   font-size: 12px;
 }
 
-/* Day View Styles */
-.staff-day-view-container {
-  padding: 16px 0;
+/* ===== 24h Horizontal Strip Day View ===== */
+.day-strip-view {
+  padding: 8px 0 0;
 }
+
+/* Tick labels */
+.day-strip-ticks {
+  position: relative;
+  height: 18px;
+  margin-bottom: 4px;
+}
+
+.day-strip-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--admin-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Main 24h track */
+.day-strip-track {
+  position: relative;
+  height: 56px;
+  background: var(--admin-bg-soft, #f8fafc);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+/* Alternating hour background cells */
+.day-strip-hour-cell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.day-strip-hour-cell:nth-child(odd) {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+/* Shift blocks */
+.day-strip-block {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 3px;
+  padding: 0 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  min-width: 2px;
+  box-sizing: border-box;
+  cursor: default;
+  transition: opacity 0.15s ease;
+}
+
+.day-strip-block:hover {
+  opacity: 0.85;
+}
+
+.day-strip-block-label {
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.day-strip-block-time {
+  font-size: 10px;
+  opacity: 0.8;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* Block status colors */
+.day-strip-block.scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.day-strip-block.checked_in {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.day-strip-block.checked_out {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.day-strip-block.absent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.day-strip-block.cancelled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Now line */
+.day-strip-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ef4444;
+  border-radius: 1px;
+  z-index: 5;
+}
+
+.day-strip-now-line::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+/* Detail list below strip */
+.day-strip-list {
+  display: grid;
+  gap: 0;
+}
+
+.day-strip-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.day-strip-item:last-child {
+  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.day-strip-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.day-strip-item-dot.scheduled  { background: #3b82f6; }
+.day-strip-item-dot.checked_in { background: #22c55e; }
+.day-strip-item-dot.checked_out { background: #94a3b8; }
+.day-strip-item-dot.absent     { background: #ef4444; }
+.day-strip-item-dot.cancelled  { background: #cbd5e1; }
+
+.day-strip-item-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.day-strip-item-body strong {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--admin-text);
+}
+
+.day-strip-item-body span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--admin-muted);
+}
+
+.day-strip-item-note {
+  font-style: italic;
+}
+
+.day-strip-item-status {
+  font-size: 12px;
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+.day-strip-item-status.scheduled  { color: #3b82f6; }
+.day-strip-item-status.checked_in { color: #16a34a; }
+.day-strip-item-status.checked_out { color: var(--admin-muted); }
+.day-strip-item-status.absent     { color: #ef4444; }
+.day-strip-item-status.cancelled  { color: var(--admin-muted); }
+
+
 
 .staff-day-view-header {
   display: flex;
@@ -655,47 +855,187 @@ export default {
   color-scheme: dark !important;
 }
 
-/* Shift Timeline View Styles */
-.shift-timeline-layout {
-  padding: 16px;
-  background: var(--admin-surface);
-  overflow-x: auto;
-  margin-bottom: 24px;
-  border-top: 1px solid var(--admin-border-soft);
-  border-bottom: 1px solid var(--admin-border-soft);
+/* Vertical Timeline Layout */
+.staff-day-view-container {
+  padding: 8px 0;
 }
 
-.timeline-board {
-  min-width: 900px;
+.day-vertical-24h-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
 }
 
-.timeline-axis {
+.v-timeline-item {
   display: flex;
   align-items: center;
-  border-bottom: 2px solid var(--admin-border-soft);
-  padding-bottom: 10px;
-  margin-bottom: 10px;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
 }
 
-.axis-staff {
-  width: 180px;
-  font-weight: 400;
-  color: var(--admin-faint);
+.v-timeline-item:last-child {
+  border-bottom: none;
+}
+
+.v-time-col {
+  width: 100px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 400 !important;
+  color: var(--admin-text);
+  white-space: nowrap;
+}
+
+.v-time-dash {
+  color: var(--admin-muted);
+}
+
+.v-line-marker {
+  position: relative;
+  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v-marker-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--admin-muted, #94a3b8);
+}
+
+.v-shift-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v-shift-title {
+  font-size: 14px;
+  font-weight: 400 !important;
+  color: var(--admin-text);
+}
+
+.v-shift-venue {
+  font-size: 13px;
+  font-weight: 400 !important;
+  color: var(--admin-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.v-shift-notes {
+  font-size: 12px;
+  font-weight: 400 !important;
+  color: var(--admin-muted);
+}
+
+.v-shift-status {
+  font-size: 12px;
+  font-weight: 400 !important;
+  color: var(--admin-muted);
+  margin-left: auto;
+}
+
+.timeline-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timeline-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--admin-primary, #10b981);
   font-size: 13px;
 }
 
-.axis-track {
-  position: relative;
-  flex: 1;
-  height: 20px;
+.timeline-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.axis-tick {
-  position: absolute;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--admin-faint);
+.timeline-shift-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--admin-text);
+}
+
+.timeline-venue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--admin-muted);
+}
+
+.timeline-notes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--admin-muted);
+  background: var(--admin-hover, #f8fafc);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.staff-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.staff-card-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.staff-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.staff-card-shift-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--admin-text);
+}
+
+.staff-card-venue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--admin-muted);
+}
+
+.staff-card-notes {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--admin-muted);
+  background: var(--admin-hover, #f8fafc);
+  padding: 8px 10px;
+  border-radius: 6px;
 }
 
 .timeline-row {
@@ -971,9 +1311,10 @@ export default {
 
 .profile-section-card.staff-schedules-main-content {
   background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border: none !important;
+  box-shadow: none !important;
   border-radius: 0;
-  padding: 10px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;

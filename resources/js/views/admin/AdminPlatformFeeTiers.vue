@@ -31,11 +31,17 @@
 
         </SaaSFilterBar>
 
-        <section class="panel">
-            <div v-if="filteredTiers.length === 0" class="empty">
-                Chưa có bậc phí. Hãy tạo bậc phí đầu tiên.
-            </div>
-            <div v-else class="table-responsive">
+        <div v-if="loading" class="state-box animate-fade-in">
+            <div class="spinner"></div>
+            <p>Đang tải danh sách bậc phí...</p>
+        </div>
+
+        <div v-else-if="filteredTiers.length === 0" class="state-box animate-fade-in">
+            <p class="empty-msg">Chưa có bậc phí. Hãy tạo bậc phí đầu tiên.</p>
+        </div>
+
+        <section v-else class="panel">
+            <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
@@ -603,6 +609,7 @@ export default {
     components: { AppIcon, PlatformFeeSubnav, SaaSFilterBar },
     data() {
         return {
+            loading: true,
             tiers: [],
             discountProfiles: [],
             venues: [],
@@ -711,8 +718,13 @@ export default {
     },
     methods: {
         async loadTiers() {
-            this.tiers = await getTiers();
-            this.runPreview();
+            this.loading = true;
+            try {
+                this.tiers = await getTiers();
+                this.runPreview();
+            } finally {
+                this.loading = false;
+            }
         },
         async loadDiscountProfiles() {
             this.discountProfiles = await getDiscountProfiles();

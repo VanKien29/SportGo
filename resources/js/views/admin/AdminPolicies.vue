@@ -53,7 +53,10 @@
     </section>
 
     <section class="table-card">
-      <div v-if="loading" class="table-state">Đang tải danh sách chính sách...</div>
+      <div v-if="loading" class="state-box animate-fade-in">
+        <div class="spinner"></div>
+        <p>Đang tải danh sách chính sách...</p>
+      </div>
       <div v-else-if="policies.length === 0" class="table-state">Chưa có chính sách phù hợp.</div>
       <div v-else class="table-wrap">
         <table>

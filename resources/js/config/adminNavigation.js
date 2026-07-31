@@ -105,12 +105,6 @@ export const adminNavigationSections = [
         activeNames: ['admin-policies', 'admin-policy-detail'],
       },
       {
-        label: 'Thông tin hệ thống',
-        icon: 'building',
-        to: '/admin/system-profile',
-        activeNames: ['admin-system-profile'],
-      },
-      {
         label: 'Loại sân',
         icon: 'layers',
         to: '/admin/court-types',
@@ -133,12 +127,6 @@ export const adminNavigationSections = [
         icon: 'image',
         to: '/admin/banners',
         activeNames: ['admin-banners'],
-      },
-      {
-        label: 'Cài đặt giao diện',
-        icon: 'palette',
-        to: '/admin/settings',
-        activeNames: ['admin-settings'],
       },
     ],
   },

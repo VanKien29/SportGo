@@ -1,63 +1,72 @@
-﻿<template>
-  <section class="categories-container animate-fade-in">
-    <!-- Alert Thông báo -->
-    <div v-if="error" class="alert error animate-slide-in" style="margin-bottom: 20px;">
-      {{ error }}
-      <button class="alert-close" @click="error = ''">&times;</button>
-    </div>
-    <div v-if="success" class="alert success animate-slide-in" style="margin-bottom: 20px;">
-      {{ success }}
-      <button class="alert-close" @click="success = ''">&times;</button>
-    </div>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card service-categories-main-content">
+      <section class="categories-container animate-fade-in">
+        <!-- Alert Thông báo -->
+        <div v-if="error" class="alert error animate-slide-in" style="margin-bottom: 20px;">
+          {{ error }}
+          <button class="alert-close" @click="error = ''">&times;</button>
+        </div>
+        <div v-if="success" class="alert success animate-slide-in" style="margin-bottom: 20px;">
+          {{ success }}
+          <button class="alert-close" @click="success = ''">&times;</button>
+        </div>
 
-    <!-- SaaS Filter Bar -->
-    <SaaSFilterBar
-      v-model="statusFilter"
-      :tabs="statusTabs"
-      v-model:search="searchQuery"
-      searchPlaceholder="Tìm kiếm tên danh mục..."
-    />
+        <!-- SaaS Filter Bar -->
+        <SaaSFilterBar
+          v-model="statusFilter"
+          :tabs="statusTabs"
+          v-model:search="searchQuery"
+          searchPlaceholder="Tìm kiếm tên danh mục..."
+        >
+          <template #actions>
+            <button class="btn primary" type="button" @click="openFormModal()" style="background: var(--admin-primary); color: #fff; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer;">
+              <AppIcon name="plus" size="16" />
+              <span>Thêm danh mục</span>
+            </button>
+          </template>
+        </SaaSFilterBar>
 
-    <!-- Table content -->
-    <div class="table-container">
-      <div v-if="loading" class="state card" style="padding: 48px; text-align: center; color: #64748b; background: var(--admin-surface, #fff); border-radius: 12px; border: 1px solid var(--admin-border, #e2e8f0);">
-        <div class="spinner" style="margin: 0 auto 12px; border: 3px solid rgba(0,0,0,0.1); border-top-color: var(--primary-color, #10b981); width: 28px; height: 28px; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        Đang tải danh sách danh mục...
-      </div>
-      
-      <SaaSTable v-else :columns="columns" :data="filteredCategories" clickable @row-click="row => openFormModal(row)">
-        <template #name="{ row }">
-          <div class="name-col-cell" style="display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-weight: 400; color: var(--admin-text, #1e293b);">{{ row.name }}</span>
-            <span v-if="row.description" style="font-size: 12px; color: var(--admin-muted, #64748b); line-height: 1.4;">{{ row.description }}</span>
+        <!-- Table content -->
+        <div class="table-container">
+          <div v-if="loading" class="state-box animate-fade-in">
+            <div class="spinner"></div>
+            <p>Đang tải danh sách danh mục...</p>
           </div>
-        </template>
-        
-        <template #status="{ row }">
-          <span class="status-badge" :class="'status-is-' + row.status">
-            {{ row.status === 'active' ? 'Đang hoạt động' : 'Tạm ngưng' }}
-          </span>
-        </template>
-        
-        <template #actions="{ row }">
-          <div class="table-actions" @click.stop style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
-            <ActionIconButton icon="pencil" label="Chỉnh sửa" size="sm" @click="openFormModal(row)" />
-            <ActionIconButton
-              :icon="row.status === 'active' ? 'power' : 'check'"
-              :label="row.status === 'active' ? 'Tắt danh mục' : 'Kích hoạt'"
-              :variant="row.status === 'active' ? 'danger' : 'success'"
-              size="sm"
-              @click="toggleCategoryStatus(row)"
-            />
-            <ActionIconButton icon="trash" label="Xóa danh mục" variant="danger" size="sm" @click="deleteCategory(row)" />
-          </div>
-        </template>
+          
+          <SaaSTable v-else :columns="columns" :data="filteredCategories" clickable @row-click="row => openFormModal(row)">
+            <template #name="{ row }">
+              <div class="name-col-cell" style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 400; color: var(--admin-text, #1e293b);">{{ row.name }}</span>
+                <span v-if="row.description" style="font-size: 12px; color: var(--admin-muted, #64748b); line-height: 1.4;">{{ row.description }}</span>
+              </div>
+            </template>
+            
+            <template #status="{ row }">
+              <span class="status-badge" :class="'status-is-' + row.status">
+                {{ row.status === 'active' ? 'Đang hoạt động' : 'Tạm ngưng' }}
+              </span>
+            </template>
+            
+            <template #actions="{ row }">
+              <TableActionGroup @click.stop>
+                <ActionIconButton icon="pencil" label="Chỉnh sửa" size="sm" @click="openFormModal(row)" />
+                <ActionIconButton
+                  :icon="row.status === 'active' ? 'power' : 'check'"
+                  :label="row.status === 'active' ? 'Tắt danh mục' : 'Kích hoạt'"
+                  :variant="row.status === 'active' ? 'danger' : 'success'"
+                  size="sm"
+                  @click="toggleCategoryStatus(row)"
+                />
+                <ActionIconButton icon="trash" label="Xóa danh mục" variant="danger" size="sm" @click="deleteCategory(row)" />
+              </TableActionGroup>
+            </template>
 
-        <template #empty>
-          Không tìm thấy danh mục dịch vụ nào khớp với điều kiện lọc.
-        </template>
-      </SaaSTable>
-    </div>
+            <template #empty>
+              Không tìm thấy danh mục dịch vụ nào khớp với điều kiện lọc.
+            </template>
+          </SaaSTable>
+        </div>
 
     <!-- Modal Form Thêm/Sửa Danh mục -->
     <div v-if="showFormModal" class="modal-backdrop" @mousedown="handleBackdropMousedown" @click="handleBackdropClick($event, closeFormModal)">
@@ -138,7 +147,9 @@
         <span class="btn-float-text">Thêm danh mục</span>
       </button>
     </div>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -175,7 +186,7 @@ export default {
       columns: [
         { key: 'name', label: 'Tên danh mục' },
         { key: 'status', label: 'Trạng thái' },
-        { key: 'actions', label: '', align: 'right' }
+        { key: 'actions', label: 'THAO TÁC', align: 'right' }
       ]
     };
   },
@@ -571,5 +582,25 @@ export default {
     .btn-float-add:hover .btn-float-text {
         max-width: 80px;
     }
+}
+
+.profile-section-card.service-categories-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.categories-container,
+.table-container,
+.card,
+.state {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 </style>

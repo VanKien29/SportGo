@@ -196,9 +196,11 @@ export default {
   },
   created() {
     window.addEventListener('sidebar-style-changed', this.loadSidebarStyle);
+    window.addEventListener('admin-sidebar-style-changed', this.loadSidebarStyle);
   },
   beforeUnmount() {
     window.removeEventListener('sidebar-style-changed', this.loadSidebarStyle);
+    window.removeEventListener('admin-sidebar-style-changed', this.loadSidebarStyle);
   },
   methods: {
     loadSidebarStyle() {

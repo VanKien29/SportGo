@@ -1,8 +1,10 @@
-﻿<template>
-    <div class="amenities-container">
+<template>
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card amenities-main-content">
+            <div class="amenities-container">
 
         <!-- Loading State -->
-        <div v-if="loading" class="loading-state card">
+        <div v-if="loading" class="state-box animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách tiện ích...</p>
         </div>
@@ -15,32 +17,20 @@
 
         <template v-else>
             <!-- Controls Bar -->
-            <div class="avc-filters animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
-                <div class="filter-row">
-                    <div class="filter-tabs">
-                        <button
-                            v-for="option in statusOptions"
-                            :key="option.value"
-                            class="tab-btn"
-                            :class="{ active: statusFilter === option.value }"
-                            @click="selectStatus(option.value)"
-                        >
-                            {{ option.label }}
-                        </button>
-                    </div>
-                    <div class="filter-search">
-                        <div class="search-box">
-                            <AppIcon name="search" size="16" />
-                            <input
-                                type="text"
-                                v-model="searchQuery"
-                                placeholder="Tìm kiếm theo tên hoặc mô tả..."
-                                class="search-input"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <SaaSFilterBar
+                v-model="statusFilter"
+                v-model:search="searchQuery"
+                :tabs="statusOptions"
+                search-id="search-amenities"
+                search-placeholder="Tìm kiếm theo tên hoặc mô tả..."
+            >
+                <template #actions>
+                    <button class="btn primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); color: #fff; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer;">
+                        <AppIcon name="plus" size="16" />
+                        <span>Thêm tiện ích</span>
+                    </button>
+                </template>
+            </SaaSFilterBar>
 
             <!-- Empty State -->
             <div v-if="amenities.length === 0" class="empty-state card">
@@ -54,9 +44,6 @@
             <!-- No Results from Search/Filter -->
             <div v-else-if="filteredAmenities.length === 0" class="empty-state card">
                 <p>Không tìm thấy tiện ích nào phù hợp với điều kiện lọc.</p>
-                <button class="btn btn-outline" @click="resetFilters">
-                    Xóa bộ lọc
-                </button>
             </div>
 
             <!-- Elegant SaaS Table View -->
@@ -93,7 +80,7 @@
 
                     <!-- Action Column -->
                     <template #actions="{ row }">
-                        <div class="table-actions" @click.stop>
+                        <TableActionGroup @click.stop>
                             <ActionIconButton
                                 icon="eye"
                                 label="Xem chi tiết"
@@ -113,7 +100,7 @@
                                 size="sm"
                                 @click="confirmDelete(row)"
                             />
-                        </div>
+                        </TableActionGroup>
                     </template>
                 </SaaSTable>
             </div>
@@ -284,19 +271,22 @@
                 <span class="btn-float-text">Thêm tiện ích</span>
             </button>
         </div>
+        </div>
     </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { amenityService } from "../../services/amenityService";
 
 export default {
     name: "AdminAmenities",
-    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
     data() {
         return {
             amenities: [],
@@ -304,7 +294,7 @@ export default {
                 { key: "name", label: "Tên tiện ích" },
                 { key: "created_by", label: "Người tạo" },
                 { key: "status", label: "Trạng thái" },
-                { key: "actions", label: "", align: "right" }
+                { key: "actions", label: "THAO TÁC", align: "right" }
             ],
             searchQuery: "",
             statusFilter: "all",
@@ -1173,5 +1163,27 @@ export default {
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
+}
+
+.profile-section-card.amenities-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.amenities-container,
+.amenities-list-wrapper,
+.loading-state,
+.error-state,
+.empty-state,
+.card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 </style>

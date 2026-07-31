@@ -67,7 +67,7 @@ export default {
 
 <style scoped>
 .avc-filters {
-    margin-bottom: 12px;
+    margin-bottom: 0 !important;
     width: 100%;
     box-sizing: border-box;
 }

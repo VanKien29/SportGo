@@ -60,12 +60,12 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <div v-if="loading" class="state-box card sg-state-box">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải danh sách bài viết...</p>
     </div>
 
-    <div v-else-if="posts.length === 0" class="state-box card sg-state-box">
+    <div v-else-if="posts.length === 0" class="state-box animate-fade-in">
       <p>Không có bài viết phù hợp.</p>
     </div>
 

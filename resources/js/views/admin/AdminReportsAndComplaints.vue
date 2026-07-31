@@ -1,19 +1,23 @@
-﻿<template>
-  <div class="moderation-page">
-    <div style="display: flex; gap: 12px; margin-bottom: 24px; margin-top: 10px;">
-      <button class="tab-btn" :class="{ active: activeModuleTab === 'reports' }" @click="selectModuleTab('reports')">
-        <AppIcon name="flag" size="18" /> Báo cáo
-      </button>
-      <button class="tab-btn" :class="{ active: activeModuleTab === 'complaints' }" @click="selectModuleTab('complaints')">
-        <AppIcon name="message-square" size="18" /> Khiếu nại
-      </button>
-    </div>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card reports-complaints-main-content">
+      <div class="moderation-page">
+        <div style="display: flex; gap: 12px; margin: 0;">
+          <button class="tab-btn" :class="{ active: activeModuleTab === 'reports' }" @click="selectModuleTab('reports')">
+            <AppIcon name="flag" size="18" /> Báo cáo
+          </button>
+          <button class="tab-btn" :class="{ active: activeModuleTab === 'complaints' }" @click="selectModuleTab('complaints')">
+            <AppIcon name="message-square" size="18" /> Khiếu nại
+          </button>
+        </div>
 
-    <!-- Render tab tương ứng -->
-    <keep-alive>
-      <AdminReports ref="reportsTab" v-if="activeModuleTab === 'reports'" />
-      <AdminComplaints ref="complaintsTab" v-else-if="activeModuleTab === 'complaints'" />
-    </keep-alive>
+        <!-- Render tab tương ứng -->
+        <keep-alive>
+          <AdminReports ref="reportsTab" v-if="activeModuleTab === 'reports'" />
+          <AdminComplaints ref="complaintsTab" v-else-if="activeModuleTab === 'complaints'" />
+        </keep-alive>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -96,5 +100,23 @@ export default {
   background: #10b981;
   color: white;
   border-color: #10b981;
+}
+
+.profile-section-card.reports-complaints-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.reports-complaints-main-content :is(.card, .table-container, .saas-table-container, .state-box, .filter-toolbar, .moderation-page, .complaints-page) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 </style>

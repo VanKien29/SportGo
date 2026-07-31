@@ -1,10 +1,13 @@
-﻿<template>
+<template>
   <section class="admin-page">
     <BackButton to="/admin/roles" />
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
-    <div v-if="loading" class="loading-card">Đang tải chi tiết nhóm quyền...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải chi tiết nhóm quyền...</p>
+    </div>
 
     <template v-if="!loading && role">
       <header class="role-header">

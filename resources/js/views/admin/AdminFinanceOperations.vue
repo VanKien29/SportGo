@@ -119,15 +119,6 @@
                 <AppIcon name="filter" size="16" />
             </button>
             <button
-                class="icon-only"
-                type="button"
-                title="Xóa lọc"
-                aria-label="Xóa lọc"
-                @click="resetFilters"
-            >
-                <AppIcon name="x" size="16" />
-            </button>
-            <button
                 v-if="tab === 'withdrawals' && withdrawalScope === 'owner'"
                 class="export-btn"
                 type="button"

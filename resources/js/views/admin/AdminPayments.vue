@@ -47,7 +47,6 @@
                             <option value="last_month">Tháng trước</option>
                             <option value="custom">Tùy chỉnh</option>
                         </select>
-                        <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
                     </template>
                 </SaaSFilterBar>
 
@@ -62,7 +61,10 @@
                 <div v-if="success" class="alert success">{{ success }}</div>
 
                 <div class="table-wrap">
-                    <div v-if="loading" class="empty">Đang tải giao dịch...</div>
+                    <div v-if="loading" class="state-box animate-fade-in">
+                        <div class="spinner"></div>
+                        <p>Đang tải giao dịch...</p>
+                    </div>
                     <div v-else-if="payments.length === 0" class="empty">Không có giao dịch phù hợp.</div>
                     <SaaSTable
                         v-else

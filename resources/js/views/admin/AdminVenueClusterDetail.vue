@@ -2,11 +2,11 @@
   <div class="cluster-profile-surface standalone">
     <div class="profile-section-card cluster-detail-main-content">
       <!-- ── Loading / Error ── -->
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải dữ liệu cụm sân...</p>
     </div>
-    <div v-else-if="error" class="state-box card error-box">
+    <div v-else-if="error" class="state-box error-box animate-fade-in">
       <p>{{ error }}</p>
       <button class="btn btn-outline" @click="loadDetail">Thử lại</button>
     </div>

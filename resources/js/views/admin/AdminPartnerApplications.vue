@@ -48,12 +48,12 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải hồ sơ...</p>
     </div>
 
-    <div v-else-if="applications.length === 0" class="state-box card">
+    <div v-else-if="applications.length === 0" class="state-box animate-fade-in">
       <p>Không có hồ sơ phù hợp.</p>
     </div>
 

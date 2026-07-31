@@ -1,34 +1,22 @@
-﻿<template>
+<template>
   <div class="complaints-page">
     <div v-if="success" class="notice success">{{ success }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
     <div v-if="!detailOpen">
-        <div class="filter-toolbar card" style="margin-bottom: 24px;">
-          <!-- Tabs -->
-          <div class="tabs-header">
-            <button class="tab-btn" :class="{ active: filters.target_group === 'content' }" @click="setTargetGroup('content')">
-              <AppIcon name="file-text" size="16" /> Báo cáo nội dung
-            </button>
-            <button class="tab-btn" :class="{ active: filters.target_group === 'user' }" @click="setTargetGroup('user')">
-              <AppIcon name="user" size="16" /> Báo cáo người dùng
-            </button>
-            <button class="tab-btn" :class="{ active: filters.target_group === 'venue' }" @click="setTargetGroup('venue')">
-              <AppIcon name="map-pin" size="16" /> Báo cáo cụm sân
-            </button>
-          </div>
-
-          <!-- Filter and Search -->
-          <div class="filters-row" style="display: flex; gap: 12px; align-items: center; padding: 16px;">
-            <label class="field compact search-field" style="flex: 1;">
-              <AppIcon name="search" size="16" />
-              <input
-                v-model.trim="filters.keyword"
-                type="search"
-                placeholder="Tìm người gửi, nội dung hoặc mã..."
-                @keyup.enter="loadReports"
-              />
-            </label>
+        <SaaSFilterBar
+          v-model="filters.target_group"
+          :tabs="[
+            { value: 'content', label: 'Báo cáo nội dung' },
+            { value: 'user', label: 'Báo cáo người dùng' },
+            { value: 'venue', label: 'Báo cáo cụm sân' }
+          ]"
+          v-model:search="filters.keyword"
+          searchPlaceholder="Tìm người gửi, nội dung hoặc mã..."
+          @update:modelValue="setTargetGroup"
+          @update:search="loadReports"
+        >
+          <template #actions>
             <CustomSelect 
               v-if="filters.target_group === 'content'"
               v-model="filters.target_type" 
@@ -47,84 +35,72 @@
             />
             <AdminDatePicker v-model="filters.date_from" placeholder="Từ ngày" @update:modelValue="loadReports" />
             <AdminDatePicker v-model="filters.date_to" placeholder="Đến ngày" @update:modelValue="loadReports" />
-            <ActionIconButton icon="filter" label="Lọc" variant="primary" @click="loadReports" />
-          </div>
-        </div>
+          </template>
+        </SaaSFilterBar>
 
         <!-- Loading Screen -->
-        <div v-if="loading" class="state-box card">
+        <div v-if="loading" class="state-box animate-fade-in">
           <div class="spinner"></div>
           <p>Đang tải danh sách báo cáo...</p>
         </div>
 
         <!-- Empty Screen -->
-        <div v-else-if="reports.length === 0" class="state-box card">
+        <div v-else-if="reports.length === 0" class="state-box animate-fade-in">
           <AppIcon name="fileText" size="36" />
           <p>Không tìm thấy báo cáo nào.</p>
         </div>
 
         <!-- Reports Table -->
         <div v-else class="table-container card">
-          <div class="table-scroll">
-            <table style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr style="text-align: left; border-bottom: 1px solid #e2e8f0;">
-                  <th style="padding: 12px 16px;">Người báo cáo</th>
-                  <th style="padding: 12px 16px;">Đối tượng bị báo cáo</th>
-                  <th style="padding: 12px 16px;">Lý do / Nội dung</th>
-                  <th style="padding: 12px 16px;">Trạng thái</th>
-                  <th style="padding: 12px 16px;">Ngày tạo</th>
-                  <th class="center" style="width: 120px; padding: 12px 16px; text-align: center;">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="report in reports" :key="report.id" class="complaint-row" style="border-bottom: 1px solid #f1f5f9;">
-                  <td style="padding: 12px 16px;">
-                    <div class="author-cell">
-                      <strong>{{ report.reporter?.full_name || 'Khách hàng' }}</strong>
-                      <div class="muted small" style="font-size: 12px; color: #64748b;">{{ report.reporter?.email || '' }}</div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <div class="info-cell">
-                      <div class="post-title" style="font-weight: 500;">
-                        {{ report.target_label }}
-                        <a v-if="getTargetUrl(report)" :href="getTargetUrl(report)" target="_blank" style="color: #2563eb; text-decoration: none; margin-left: 8px;">
-                          <AppIcon name="external-link" size="12" />
-                        </a>
-                      </div>
-                      <div class="complaint-type" style="margin-top: 4px;">
-                        <span class="type-badge" style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ targetLabel(report.target_type) }}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <div class="info-cell">
-                      <div class="post-court" style="font-size: 13px; font-weight: 500; color: #dc2626;">
-                        {{ reasonLabel(report.reason) }}
-                      </div>
-                      <div class="mt-1" style="font-size: 13px; color: #334155;">
-                        {{ truncate(report.description, 50) }}
-                      </div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <span class="status-badge" :class="report.status" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="report.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (report.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
-                      {{ statusLabel(report.status) }}
-                    </span>
-                  </td>
-                  <td style="padding: 12px 16px; font-size: 13px;">
-                    <span class="date-cell">{{ formatDateTime(report.created_at) }}</span>
-                  </td>
-                  <td class="center" style="padding: 12px 16px; text-align: center;">
-                    <button @click="openDetail(report)" class="btn ghost icon-only" title="Xem chi tiết" style="padding: 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
-                      <AppIcon name="eye" size="18" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <SaaSTable :columns="tableColumns" :data="reports">
+            <template #reporter="{ row }">
+              <div class="author-cell">
+                <strong>{{ row.reporter?.full_name || 'Khách hàng' }}</strong>
+                <div class="muted small" style="font-size: 12px; color: #64748b;">{{ row.reporter?.email || '' }}</div>
+              </div>
+            </template>
+
+            <template #target="{ row }">
+              <div class="info-cell">
+                <div class="post-title" style="font-weight: 500;">
+                  {{ row.target_label }}
+                  <a v-if="getTargetUrl(row)" :href="getTargetUrl(row)" target="_blank" style="color: #2563eb; text-decoration: none; margin-left: 8px;">
+                    <AppIcon name="external-link" size="12" />
+                  </a>
+                </div>
+                <div class="complaint-type" style="margin-top: 4px;">
+                  <span class="type-badge" style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ targetLabel(row.target_type) }}</span>
+                </div>
+              </div>
+            </template>
+
+            <template #reason="{ row }">
+              <div class="info-cell">
+                <div class="post-court" style="font-size: 13px; font-weight: 500; color: #dc2626;">
+                  {{ reasonLabel(row.reason) }}
+                </div>
+                <div class="mt-1" style="font-size: 13px; color: #334155;">
+                  {{ truncate(row.description, 50) }}
+                </div>
+              </div>
+            </template>
+
+            <template #status="{ row }">
+              <span class="status-badge" :class="row.status" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="row.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (row.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
+                {{ statusLabel(row.status) }}
+              </span>
+            </template>
+
+            <template #created_at="{ row }">
+              <span class="date-cell">{{ formatDateTime(row.created_at) }}</span>
+            </template>
+
+            <template #actions="{ row }">
+              <TableActionGroup>
+                <ActionIconButton icon="eye" label="Xem chi tiết" size="sm" @click="openDetail(row)" />
+              </TableActionGroup>
+            </template>
+          </SaaSTable>
         </div>
     </div>
 
@@ -288,6 +264,9 @@
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import ActionIconButton from '../../components/ActionIconButton.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import CustomSelect from '../../components/CustomSelect.vue';
 import AdminDatePicker from '../../components/AdminDatePicker.vue';
 import { adminReportService } from '../../services/adminModeration.js';
@@ -295,7 +274,7 @@ import { adminUserService } from '../../services/adminUserService.js';
 
 export default {
   name: 'AdminReports',
-  components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker },
+  components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker, TableActionGroup, SaaSFilterBar, SaaSTable },
   data() {
     return {
       reports: [],
@@ -371,6 +350,16 @@ export default {
         return null;
       }
       return this.autoResolveConfigData.configs[this.activeAutoTab];
+    },
+    tableColumns() {
+      return [
+        { key: 'reporter', label: 'NGƯỜI BÁO CÁO' },
+        { key: 'target', label: 'ĐỐI TƯỢNG BỊ BÁO CÁO' },
+        { key: 'reason', label: 'LÝ DO / NỘI DUNG' },
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'created_at', label: 'NGÀY TẠO' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' }
+      ];
     },
   },
   async mounted() {

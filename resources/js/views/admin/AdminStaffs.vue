@@ -19,7 +19,6 @@
                 {{ role.display_name }}
               </option>
             </select>
-            <button class="btn btn-outline" type="button" @click="resetFilters">Xóa lọc</button>
             <button class="btn btn-create primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); border-color: var(--admin-primary); color: #fff;">
               <AppIcon name="plus" size="16" />
               <span>Thêm nhân sự</span>
@@ -35,6 +34,9 @@
           <SaaSTable
             :columns="tableColumns"
             :data="filteredUsers"
+            :loading="loading"
+            loading-text="Đang tải danh sách nhân sự..."
+            empty-text="Không có dữ liệu nhân sự phù hợp."
           >
             <template #full_name="{ row }">
               <div class="user-info-cell">

@@ -1,136 +1,117 @@
-﻿<template>
-  <div class="moderation-page">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card content-moderation-main-content">
+      <div class="moderation-page">
 
-      <!-- Lọc theo Trạng thái -->
-      <nav class="custom-tabs" aria-label="Lọc nhanh trạng thái bài viết">
-        <button
-          v-for="st in statusTabs"
-          :key="st.value"
-          :class="['custom-tab-btn', { active: filters.status === st.value }]"
-          type="button"
-          @click="setStatus(st.value)"
+        <!-- Lọc theo Trạng thái & SaaS Filter Bar -->
+        <SaaSFilterBar
+          v-model="filters.status"
+          v-model:search="filters.search"
+          :tabs="statusTabs"
+          search-id="search-moderation-posts"
+          :search-placeholder="searchPlaceholder"
+          @update:search="onFilterChange"
+          @update:modelValue="onStatusTabChange"
         >
-          {{ st.label }}
-        </button>
-      </nav>
-
-      <div class="filters">
-        <label class="field compact">
-          <span>Tìm kiếm</span>
-          <input
-            v-model="filters.search"
-            type="search"
-            :placeholder="searchPlaceholder"
-            @input="onFilterChange"
-          />
-        </label>
-
-        <div class="custom-switch-wrapper" title="Tự động tìm & duyệt các bài mới mỗi 5 giây">
-          <label class="custom-switch">
-            <input type="checkbox" :checked="autoApproveStore.isEnabled" @change="toggleAutoApprove" />
-            <span class="custom-slider"></span>
-          </label>
-          <span class="custom-switch-label">Duyệt tự động (5s)</span>
-        </div>
-
-      </div>
+          <template #actions>
+            <div class="custom-switch-wrapper" title="Tự động tìm & duyệt các bài mới mỗi 5 giây" style="display: flex; align-items: center; gap: 8px;">
+              <label class="custom-switch">
+                <input type="checkbox" :checked="autoApproveStore.isEnabled" @change="toggleAutoApprove" />
+                <span class="custom-slider"></span>
+              </label>
+              <span class="custom-switch-label" style="font-size: 13px; color: var(--admin-muted); white-space: nowrap;">Duyệt tự động (5s)</span>
+            </div>
+          </template>
+        </SaaSFilterBar>
 
     <!-- Thông báo kết quả -->
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
     <!-- Màn hình loading -->
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải danh sách bài viết...</p>
     </div>
 
     <!-- Màn hình trống -->
-    <div v-else-if="items.length === 0" class="state-box card">
+    <div v-else-if="items.length === 0" class="state-box animate-fade-in">
       <p>Không có bài viết nào phù hợp.</p>
     </div>
 
     <!-- Bảng hiển thị danh sách -->
     <div v-else class="moderation-table card">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Tác giả</th>
-              <th v-if="activeTab === 'system_posts'">Tiêu đề</th>
-              <th>Nội dung</th>
-              <th v-if="activeTab !== 'system_posts'">Hashtag</th>
-              <th v-if="activeTab !== 'system_posts'">Ảnh / File</th>
-              <th>Trạng thái</th>
-              <th>Thời gian tạo</th>
-              <th class="right">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in items" :key="item.id">
-              <td>
-                <div class="main-title">{{ item.author?.full_name || item.author?.username || '-' }}</div>
-                <div class="muted">{{ item.author?.phone || item.author?.email || '' }}</div>
-                <div v-if="activeTab === 'venue_posts' && item.venue_cluster" class="badge-cluster">
-                  {{ item.venue_cluster?.name }}
-                </div>
-              </td>
-              <td v-if="activeTab === 'system_posts'">
-                <div class="main-title">{{ item.title || '-' }}</div>
-              </td>
-              <td>
-                <div class="content-preview">{{ item.content }}</div>
-              </td>
-              <td v-if="activeTab !== 'system_posts'">
-                <div class="hashtags-list">
-                  <span v-for="tag in item.hashtags" :key="tag.id" class="tag">
-                    #{{ tag.name }}
-                  </span>
-                  <span v-if="!item.hashtags?.length" class="muted">-</span>
-                </div>
-              </td>
-              <td v-if="activeTab !== 'system_posts'">
-                <div v-if="item.media?.length" class="media-preview-box">
-                  <img :src="item.media[0].file_path" alt="preview" class="media-thumb" />
-                  <span v-if="item.media.length > 1" class="media-count">+{{ item.media.length - 1 }}</span>
-                </div>
-                <span v-else class="muted">Không có</span>
-              </td>
-              <td>
-                <span class="status" :class="getStatusClass(item.status)">
-                  {{ getStatusLabel(item.status) }}
-                </span>
-              </td>
-              <td>{{ formatDate(item.created_at) }}</td>
-              <td class="right">
-                <div class="actions">
-                  <button class="icon-btn" type="button" title="Xem chi tiết" @click="openDetail(item)">
-                    <AppIcon name="eye" size="16" />
-                  </button>
-                  <button
-                    v-if="['pending', 'pending_review', 'draft'].includes(item.status)"
-                    class="icon-btn approve"
-                    type="button"
-                    title="Duyệt bài"
-                    @click="approvePostDirect(item)"
-                  >
-                    <AppIcon name="check" size="16" />
-                  </button>
-                  <button
-                    v-if="item.status !== 'hidden' && item.status !== 'rejected'"
-                    class="icon-btn danger"
-                    type="button"
-                    title="Từ chối/Ẩn/Xóa"
-                    @click="openActionModal(item)"
-                  >
-                    <AppIcon name="x" size="16" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SaaSTable
+        :columns="tableColumns"
+        :data="items"
+      >
+        <template #author="{ row }">
+          <div class="main-title">{{ row.author?.full_name || row.author?.username || '-' }}</div>
+          <div class="muted">{{ row.author?.phone || row.author?.email || '' }}</div>
+          <div v-if="activeTab === 'venue_posts' && row.venue_cluster" class="badge-cluster">
+            {{ row.venue_cluster?.name }}
+          </div>
+        </template>
+
+        <template #title="{ row }">
+          <div class="main-title">{{ row.title || '-' }}</div>
+        </template>
+
+        <template #content="{ row }">
+          <div class="content-preview">{{ row.content }}</div>
+        </template>
+
+        <template #hashtags="{ row }">
+          <div class="hashtags-list">
+            <span v-for="tag in row.hashtags" :key="tag.id" class="tag">
+              #{{ tag.name }}
+            </span>
+            <span v-if="!row.hashtags?.length" class="muted">-</span>
+          </div>
+        </template>
+
+        <template #media="{ row }">
+          <div v-if="row.media?.length" class="media-preview-box">
+            <img :src="row.media[0].file_path" alt="preview" class="media-thumb" />
+            <span v-if="row.media.length > 1" class="media-count">+{{ row.media.length - 1 }}</span>
+          </div>
+          <span v-else class="muted">Không có</span>
+        </template>
+
+        <template #status="{ row }">
+          <span class="status" :class="getStatusClass(row.status)">
+            {{ getStatusLabel(row.status) }}
+          </span>
+        </template>
+
+        <template #created_at="{ row }">
+          {{ formatDate(row.created_at) }}
+        </template>
+
+        <template #actions="{ row }">
+          <TableActionGroup>
+            <ActionIconButton
+              icon="eye"
+              label="Xem chi tiết"
+              @click="openDetail(row)"
+            />
+            <ActionIconButton
+              v-if="['pending', 'pending_review', 'draft'].includes(row.status)"
+              icon="check"
+              label="Duyệt bài"
+              variant="success"
+              @click="approvePostDirect(row)"
+            />
+            <ActionIconButton
+              v-if="row.status !== 'hidden' && row.status !== 'rejected'"
+              icon="x"
+              label="Từ chối/Ẩn/Xóa"
+              variant="danger"
+              @click="openActionModal(row)"
+            />
+          </TableActionGroup>
+        </template>
+      </SaaSTable>
 
       <!-- Phân trang -->
       <div v-if="pagination.last_page > 1" class="pagination">
@@ -454,11 +435,17 @@
         </div>
       </div>
     </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import PostLikesModal from '../../components/admin/PostLikesModal.vue';
 import { adminModerationService } from '../../services/adminModeration.js';
 import { adminUserService } from '../../services/adminUserService.js';
@@ -466,7 +453,7 @@ import { autoApproveStore } from '../../stores/autoApprove.js';
 
 export default {
   name: 'AdminContentModeration',
-  components: { AppIcon, PostLikesModal },
+  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable, PostLikesModal },
   data() {
     return {
       activeTab: 'community_posts',
@@ -561,6 +548,23 @@ export default {
         return true;
       });
     },
+    tableColumns() {
+      const cols = [{ key: 'author', label: 'TÁC GIẢ' }];
+      if (this.activeTab === 'system_posts') {
+        cols.push({ key: 'title', label: 'TIÊU ĐỀ' });
+      }
+      cols.push({ key: 'content', label: 'NỘI DUNG' });
+      if (this.activeTab !== 'system_posts') {
+        cols.push({ key: 'hashtags', label: 'HASHTAG' });
+        cols.push({ key: 'media', label: 'ẢNH / FILE' });
+      }
+      cols.push(
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'created_at', label: 'THỜI GIAN TẠO' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' }
+      );
+      return cols;
+    },
   },
   watch: {
     'autoApproveStore.lastActionTime'() {
@@ -575,6 +579,9 @@ export default {
     this.fetchAutoApproveConfig();
   },
   methods: {
+    onStatusTabChange(val) {
+      this.setStatus(val);
+    },
     openNotifyModal(item) {
       this.notifyModal = {
         open: true,
@@ -1700,5 +1707,23 @@ th {
 .status.pending_verify {
   background: #fef3c7;
   color: #92400e;
+}
+
+.profile-section-card.content-moderation-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.content-moderation-main-content :is(.moderation-table, .card, .state-box, .moderation-page, .saas-table-container) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
 }
 </style>

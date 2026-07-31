@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="partner-detail-page">
     <header class="page-header">
       <div class="breadcrumbs">
@@ -11,7 +11,7 @@
       </div>
     </header>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải dữ liệu...</p>
     </div>

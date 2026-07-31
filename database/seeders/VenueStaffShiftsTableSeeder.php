@@ -61,9 +61,12 @@ class VenueStaffShiftsTableSeeder extends Seeder
         $today = Carbon::today();
         $yesterday = Carbon::yesterday();
 
-        foreach ($clusters as $cluster) {
+        foreach ($clusters as $cIndex => $cluster) {
+            $cStaff0 = $staffUsers[$cIndex * 2] ?? $staffUsers[0];
+            $cStaff1 = $staffUsers[$cIndex * 2 + 1] ?? $staffUsers[1];
+
             // Assign staff users to cluster
-            foreach ($staffUsers as $staffUser) {
+            foreach ([$cStaff0, $cStaff1] as $staffUser) {
                 if (Schema::hasTable('venue_staff_assignments')) {
                     VenueStaffAssignment::query()->updateOrCreate(
                         [
@@ -121,205 +124,87 @@ class VenueStaffShiftsTableSeeder extends Seeder
             );
 
             // 2. Seed Shift Schedules for Yesterday
-            if (isset($staffUsers[0])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[0]->id,
-                        'date' => $yesterday->toDateString(),
-                        'venue_staff_shift_id' => $shiftMorning->id,
-                    ],
-                    [
-                        'start_time' => '06:00:00',
-                        'end_time' => '12:00:00',
-                        'status' => 'checked_out',
-                        'check_in_at' => $yesterday->copy()->setTime(5, 55, 0),
-                        'check_out_at' => $yesterday->copy()->setTime(12, 5, 0),
-                        'notes' => 'Chấm công hoàn thành đúng giờ',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
-
-            if (isset($staffUsers[1])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[1]->id,
-                        'date' => $yesterday->toDateString(),
-                        'venue_staff_shift_id' => $shiftAfternoon->id,
-                    ],
-                    [
-                        'start_time' => '12:00:00',
-                        'end_time' => '18:00:00',
-                        'status' => 'checked_out',
-                        'check_in_at' => $yesterday->copy()->setTime(12, 10, 0),
-                        'check_out_at' => $yesterday->copy()->setTime(18, 0, 0),
-                        'notes' => 'Vào ca trễ 10p',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
+            VenueStaffShiftSchedule::query()->updateOrCreate(
+                [
+                    'venue_cluster_id' => $cluster->id,
+                    'user_id' => $cStaff0->id,
+                    'date' => $yesterday->toDateString(),
+                    'venue_staff_shift_id' => $shiftMorning->id,
+                ],
+                [
+                    'start_time' => '06:00:00',
+                    'end_time' => '12:00:00',
+                    'status' => 'checked_out',
+                    'check_in_at' => $yesterday->copy()->setTime(5, 55, 0),
+                    'check_out_at' => $yesterday->copy()->setTime(12, 5, 0),
+                    'notes' => 'Chấm công hoàn thành đúng giờ',
+                    'created_by' => $owner->id,
+                ]
+            );
 
             // 3. Seed Shift Schedules for TODAY
-            // staff 0: Ca sáng -> checked_out
-            if (isset($staffUsers[0])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[0]->id,
-                        'date' => $today->toDateString(),
-                        'venue_staff_shift_id' => $shiftMorning->id,
-                    ],
-                    [
-                        'start_time' => '06:00:00',
-                        'end_time' => '12:00:00',
-                        'status' => 'checked_out',
-                        'check_in_at' => $today->copy()->setTime(6, 0, 0),
-                        'check_out_at' => $today->copy()->setTime(12, 0, 0),
-                        'notes' => 'Ca sáng hoàn thành tốt',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
+            VenueStaffShiftSchedule::query()->updateOrCreate(
+                [
+                    'venue_cluster_id' => $cluster->id,
+                    'user_id' => $cStaff0->id,
+                    'date' => $today->toDateString(),
+                    'venue_staff_shift_id' => $shiftMorning->id,
+                ],
+                [
+                    'start_time' => '06:00:00',
+                    'end_time' => '12:00:00',
+                    'status' => 'checked_in',
+                    'check_in_at' => $today->copy()->setTime(5, 58, 0),
+                    'check_out_at' => null,
+                    'notes' => 'Đã vào ca sáng tại ' . $cluster->name,
+                    'created_by' => $owner->id,
+                ]
+            );
 
-            // staff 1: Ca sáng -> checked_in
-            if (isset($staffUsers[1])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[1]->id,
-                        'date' => $today->toDateString(),
-                        'venue_staff_shift_id' => $shiftMorning->id,
-                    ],
-                    [
-                        'start_time' => '06:00:00',
-                        'end_time' => '12:00:00',
-                        'status' => 'checked_in',
-                        'check_in_at' => $today->copy()->setTime(5, 58, 0),
-                        'check_out_at' => null,
-                        'notes' => 'Đã vào ca sáng',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
-
-            // staff 2: Ca chiều -> scheduled
-            if (isset($staffUsers[2])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[2]->id,
-                        'date' => $today->toDateString(),
-                        'venue_staff_shift_id' => $shiftAfternoon->id,
-                    ],
-                    [
-                        'start_time' => '12:00:00',
-                        'end_time' => '18:00:00',
-                        'status' => 'scheduled',
-                        'check_in_at' => null,
-                        'check_out_at' => null,
-                        'notes' => 'Chờ check-in ca chiều',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
-
-            // staff 3: Ca chiều -> checked_in
-            if (isset($staffUsers[3])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[3]->id,
-                        'date' => $today->toDateString(),
-                        'venue_staff_shift_id' => $shiftAfternoon->id,
-                    ],
-                    [
-                        'start_time' => '12:00:00',
-                        'end_time' => '18:00:00',
-                        'status' => 'checked_in',
-                        'check_in_at' => $today->copy()->setTime(11, 55, 0),
-                        'check_out_at' => null,
-                        'notes' => 'Đã vào ca chiều',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
-
-            // staff 4: Ca tối -> scheduled
-            if (isset($staffUsers[4])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[4]->id,
-                        'date' => $today->toDateString(),
-                        'venue_staff_shift_id' => $shiftEvening->id,
-                    ],
-                    [
-                        'start_time' => '18:00:00',
-                        'end_time' => '22:00:00',
-                        'status' => 'scheduled',
-                        'check_in_at' => null,
-                        'check_out_at' => null,
-                        'notes' => 'Ca tối',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
-
-            // staff 5: Ca đặc biệt -> checked_in
-            if (isset($staffUsers[5])) {
-                VenueStaffShiftSchedule::query()->updateOrCreate(
-                    [
-                        'venue_cluster_id' => $cluster->id,
-                        'user_id' => $staffUsers[5]->id,
-                        'date' => $today->toDateString(),
-                        'venue_staff_shift_id' => null,
-                    ],
-                    [
-                        'start_time' => '08:00:00',
-                        'end_time' => '16:00:00',
-                        'status' => 'checked_in',
-                        'check_in_at' => $today->copy()->setTime(8, 0, 0),
-                        'check_out_at' => null,
-                        'notes' => 'Hỗ trợ giải đấu thể thao',
-                        'created_by' => $owner->id,
-                    ]
-                );
-            }
+            VenueStaffShiftSchedule::query()->updateOrCreate(
+                [
+                    'venue_cluster_id' => $cluster->id,
+                    'user_id' => $cStaff1->id,
+                    'date' => $today->toDateString(),
+                    'venue_staff_shift_id' => $shiftAfternoon->id,
+                ],
+                [
+                    'start_time' => '12:00:00',
+                    'end_time' => '18:00:00',
+                    'status' => 'scheduled',
+                    'check_in_at' => null,
+                    'check_out_at' => null,
+                    'notes' => 'Chờ check-in ca chiều tại ' . $cluster->name,
+                    'created_by' => $owner->id,
+                ]
+            );
 
             // 4. Seed Shift Schedules for Days in Current Week
             $startOfWeek = $today->copy()->startOfWeek();
             for ($i = 0; $i < 7; $i++) {
                 $dayDate = $startOfWeek->copy()->addDays($i);
-                // Skip if yesterday or today already seeded
                 if ($dayDate->toDateString() === $yesterday->toDateString() || $dayDate->toDateString() === $today->toDateString()) {
                     continue;
                 }
 
                 $status = $dayDate->isPast() ? 'checked_out' : 'scheduled';
-
-                foreach ($staffUsers as $idx => $sUser) {
-                    $shiftToAssign = ($idx % 3 === 0) ? $shiftMorning : (($idx % 3 === 1) ? $shiftAfternoon : $shiftEvening);
-
-                    VenueStaffShiftSchedule::query()->updateOrCreate(
-                        [
-                            'venue_cluster_id' => $cluster->id,
-                            'user_id' => $sUser->id,
-                            'date' => $dayDate->toDateString(),
-                            'venue_staff_shift_id' => $shiftToAssign->id,
-                        ],
-                        [
-                            'start_time' => $shiftToAssign->start_time,
-                            'end_time' => $shiftToAssign->end_time,
-                            'status' => $status,
-                            'check_in_at' => $status === 'checked_out' ? $dayDate->copy()->setTimeFromTimeString($shiftToAssign->start_time) : null,
-                            'check_out_at' => $status === 'checked_out' ? $dayDate->copy()->setTimeFromTimeString($shiftToAssign->end_time) : null,
-                            'notes' => 'Phân ca tự động theo tuần',
-                            'created_by' => $owner->id,
-                        ]
-                    );
-                }
+                VenueStaffShiftSchedule::query()->updateOrCreate(
+                    [
+                        'venue_cluster_id' => $cluster->id,
+                        'user_id' => $cStaff0->id,
+                        'date' => $dayDate->toDateString(),
+                        'venue_staff_shift_id' => $shiftMorning->id,
+                    ],
+                    [
+                        'start_time' => '06:00:00',
+                        'end_time' => '12:00:00',
+                        'status' => $status,
+                        'check_in_at' => $status === 'checked_out' ? $dayDate->copy()->setTime(6, 0, 0) : null,
+                        'check_out_at' => $status === 'checked_out' ? $dayDate->copy()->setTime(12, 0, 0) : null,
+                        'notes' => 'Phân ca tự động theo tuần',
+                        'created_by' => $owner->id,
+                    ]
+                );
             }
         }
     }

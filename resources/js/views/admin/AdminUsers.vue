@@ -32,12 +32,12 @@
         <div v-if="success" class="alert success">{{ success }}</div>
 
         <div class="table-card">
-          <div v-if="loading" class="state">Đang tải danh sách tài khoản...</div>
-          <div v-else-if="users.length === 0" class="state">Không có tài khoản phù hợp với bộ lọc hiện tại.</div>
           <SaaSTable
-            v-else
             :columns="tableColumns"
             :data="users"
+            :loading="loading"
+            loading-text="Đang tải danh sách tài khoản..."
+            empty-text="Không có tài khoản phù hợp với bộ lọc hiện tại."
           >
             <template #full_name="{ row }">
               <strong>{{ row.full_name || '-' }}</strong>

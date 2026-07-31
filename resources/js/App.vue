@@ -391,7 +391,7 @@ textarea {
   border-bottom-color: rgba(0, 0, 0, 0.08) !important;
 }
 .light .schedule-head {
-  background: rgba(0, 0, 0, 0.02) !important;
+  background: transparent !important;
   color: rgba(0, 0, 0, 0.7) !important;
 }
 .light .schedule-court {

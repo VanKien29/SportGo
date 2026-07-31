@@ -140,7 +140,10 @@
         </section>
 
         <section class="panel">
-            <div v-if="loading" class="empty">Đang tải danh sách kỳ phí...</div>
+            <div v-if="loading" class="state-box animate-fade-in">
+                <div class="spinner"></div>
+                <p>Đang tải danh sách kỳ phí...</p>
+            </div>
             <div v-else-if="ledgers.length === 0" class="empty">
                 Chưa có kỳ phí. Hãy tạo kỳ phí mới.
             </div>

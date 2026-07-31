@@ -2,13 +2,13 @@
     <div class="cluster-profile-surface standalone">
         <div class="profile-section-card clusters-main-content">
             <!-- ── Loading ── -->
-        <div v-if="loading" class="state-box card animate-fade-in">
+        <div v-if="loading" class="state-box animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách cụm sân...</p>
         </div>
 
         <!-- ── Error ── -->
-        <div v-else-if="error" class="state-box card error-box animate-fade-in">
+        <div v-else-if="error" class="state-box error-box animate-fade-in">
             <p>{{ error }}</p>
             <button class="btn btn-outline" @click="loadClusters">
                 Thử lại
@@ -27,16 +27,13 @@
             />
 
             <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
-            <div v-if="clusters.length === 0" class="state-box card animate-fade-in">
+            <div v-if="clusters.length === 0" class="state-box animate-fade-in">
                 <p class="empty-msg">Chưa có cụm sân nào được đăng ký trên hệ thống.</p>
             </div>
 
             <!-- ── Empty State khi tìm kiếm không ra kết quả ── -->
-            <div v-else-if="filteredClusters.length === 0" class="state-box card animate-fade-in">
+            <div v-else-if="filteredClusters.length === 0" class="state-box animate-fade-in">
                 <p class="empty-msg">Không tìm thấy cụm sân nào phù hợp với điều kiện tìm kiếm.</p>
-                <button class="btn btn-outline" @click="searchText = ''; filterStatus = ''">
-                    Xóa bộ lọc
-                </button>
             </div>
 
             <!-- ── Elegant SaaS Table View ── -->
@@ -88,18 +85,6 @@
                             {{ statusLabel(row) }}
                         </span>
                     </template>
-
-                    <!-- Action Column -->
-                    <template #actions="{ row }">
-                        <div class="table-actions" @click.stop>
-                            <ActionIconButton
-                                icon="eye"
-                                label="Chi tiết"
-                                size="sm"
-                                @click="goDetail(row.id)"
-                            />
-                        </div>
-                    </template>
                 </SaaSTable>
             </div>
         </template>
@@ -131,8 +116,7 @@ export default {
                 { key: "owner", label: "Chủ sân" },
                 { key: "courts", label: "Số sân con", align: "center" },
                 { key: "fee_status", label: "Trạng thái phí" },
-                { key: "status", label: "Trạng thái" },
-                { key: "actions", label: "", align: "right" }
+                { key: "status", label: "Trạng thái" }
             ]
         };
     },

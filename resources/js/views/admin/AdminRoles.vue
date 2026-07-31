@@ -38,13 +38,13 @@
           </section>
 
           <div class="table-card">
-            <div v-if="loading" class="table-state">Đang tải nhóm quyền...</div>
-            <div v-else-if="sortedRoles.length === 0" class="table-state">Chưa có nhóm quyền quản trị nào phù hợp.</div>
-            <div v-else class="table-wrap">
-              <SaaSTable
-                :columns="tableColumns"
-                :data="sortedRoles"
-              >
+            <SaaSTable
+              :columns="tableColumns"
+              :data="sortedRoles"
+              :loading="loading"
+              loading-text="Đang tải nhóm quyền..."
+              empty-text="Chưa có nhóm quyền quản trị nào phù hợp."
+            >
                 <template #display_name="{ row }">
                   <div class="main-cell">
                     <strong>{{ row.display_name || row.name }}</strong>
@@ -102,7 +102,6 @@
                   </TableActionGroup>
                 </template>
               </SaaSTable>
-            </div>
           </div>
     </template>
 

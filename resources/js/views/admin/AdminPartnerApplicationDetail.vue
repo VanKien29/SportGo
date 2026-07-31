@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="partner-detail-page">
     <header class="page-head">
       <button class="btn ghost" type="button" @click="router.push({ name: 'admin-partner-applications' })">
@@ -19,7 +19,10 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <section v-if="loading" class="state-card">Đang tải hồ sơ...</section>
+    <section v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải hồ sơ...</p>
+    </section>
     <section v-else-if="!application" class="state-card error">Không tìm thấy hồ sơ đối tác.</section>
 
     <template v-else>

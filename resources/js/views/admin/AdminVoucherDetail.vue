@@ -11,7 +11,10 @@
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="loading" class="state">Đang tải chi tiết voucher...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải chi tiết voucher...</p>
+    </div>
 
     <template v-else-if="voucher">
       <section class="summary-grid">

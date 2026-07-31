@@ -1,11 +1,16 @@
-﻿<template>
-  <section class="post-detail">
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card post-detail-main-content">
+      <section class="post-detail">
     <div class="back-action-bar">
       <BackButton />
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="loading" class="state-card">Đang tải chi tiết bài đăng...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải chi tiết bài đăng...</p>
+    </div>
 
     <template v-else-if="post">
       <article class="post-content-card">
@@ -78,7 +83,9 @@
         </footer>
       </section>
     </template>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -181,4 +188,21 @@ export default {
 .pagination { display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: 13px; }
 .pagination div { display: flex; gap: 8px; }
 .btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 400; cursor: pointer; }
+
+.profile-section-card.post-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-content-card, .comments-section, .content-card, .state-card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
 </style>

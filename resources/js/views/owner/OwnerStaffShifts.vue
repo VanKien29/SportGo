@@ -78,12 +78,12 @@
           </div>
         </div>
 
-        <div v-if="loading" class="table-state-card">
-          <div class="spinner-sm"></div>
-          <span>Đang tải lịch trực hôm nay...</span>
+        <div v-if="loading" class="state-box animate-fade-in">
+          <div class="spinner"></div>
+          <p>Đang tải lịch trực hôm nay...</p>
         </div>
-        <div v-else-if="todaySchedules.length === 0" class="table-state-card">
-          <span>Hôm nay chưa có lịch trực nào được phân công.</span>
+        <div v-else-if="todaySchedules.length === 0" class="state-box animate-fade-in">
+          <p>Hôm nay chưa có lịch trực nào được phân công.</p>
         </div>
         <template v-else>
           <!-- 1.2.1 Dạng Bảng -->
