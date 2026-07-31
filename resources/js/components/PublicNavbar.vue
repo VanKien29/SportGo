@@ -334,7 +334,7 @@ export default {
         }
       }
 
-      const actionUrl = notification.data?.action_url;
+      const actionUrl = notification.action_url || notification.data?.action_url;
       if (typeof actionUrl === "string" && actionUrl.startsWith("/")) {
         this.$router.push(actionUrl);
       } else if (typeof notification.data?.url === "string" && notification.data.url.startsWith("/")) {

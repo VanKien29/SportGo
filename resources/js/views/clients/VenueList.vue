@@ -29,13 +29,27 @@
         <aside class="sg3-card sg3-filter-card" :class="{ 'is-open': mobileFiltersOpen }" aria-label="Bộ lọc tìm sân">
           <div class="sg3-filter-head"><h2>Bộ lọc</h2><button type="button" @click="resetFilters">Xóa lọc</button></div>
           <div class="sg3-filter-body">
-            <div class="sg3-chip-list">
+            <div class="sg3-filter-section">
+              <span class="sg3-filter-label">Môn thể thao</span>
+              <div class="sg3-chip-list">
               <button type="button" class="sg3-chip" :class="{ 'is-active': !filters.court_type_id }" @click="setCourtType('')">Tất cả</button>
               <button v-for="type in courtTypes" :key="type.id" type="button" class="sg3-chip" :class="{ 'is-active': String(filters.court_type_id) === String(type.id) }" @click="setCourtType(type.id)">{{ type.name }}</button>
+              </div>
             </div>
             <label class="sg3-field"><span>Giá từ</span><input v-model.number="filters.min_price" min="0" step="10000" type="number" placeholder="0 đ" /></label>
             <label class="sg3-field"><span>Giá đến</span><input v-model.number="filters.max_price" min="0" step="10000" type="number" placeholder="Không giới hạn" /></label>
             <label class="sg3-field"><span>Đánh giá tối thiểu</span><select v-model="filters.min_rating"><option value="">Không giới hạn</option><option value="4.5">Từ 4.5 sao</option><option value="4">Từ 4 sao</option><option value="3">Từ 3 sao</option></select></label>
+            <label class="sg3-field"><span>Số sân tối thiểu</span><select v-model="filters.min_courts"><option value="">Không giới hạn</option><option v-for="count in courtCountOptions" :key="count" :value="count">Từ {{ count }} sân</option></select></label>
+            <label class="sg3-field"><span>Thanh toán</span><select v-model="filters.payment_option"><option value="">Tất cả hình thức</option><option value="full_payment">Thanh toán đủ</option><option value="wallet">Ví SportGo</option><option value="deposit">Đặt cọc</option><option value="no_prepay">Trả sau tại sân</option></select></label>
+            <div class="sg3-filter-section">
+              <span class="sg3-filter-label">Tiện ích</span>
+              <div class="sg3-chip-list">
+                <button type="button" class="sg3-chip" :class="{ 'is-active': !filters.amenity_id }" @click="filters.amenity_id = ''">Tất cả</button>
+                <button v-for="amenity in amenities" :key="amenity.id" type="button" class="sg3-chip" :class="{ 'is-active': String(filters.amenity_id) === String(amenity.id) }" @click="filters.amenity_id = amenity.id">{{ amenity.name }}</button>
+              </div>
+            </div>
+            <label class="sg3-check-row"><input v-model="filters.has_services" type="checkbox" /> <span>Có dịch vụ tại sân</span></label>
+            <label class="sg3-check-row"><input v-model="filters.has_map" type="checkbox" /> <span>Có vị trí trên bản đồ</span></label>
             <button class="sg3-apply-filter" type="button" @click="applySideFilters"><AppIcon name="filter" :size="16" />Áp dụng bộ lọc</button>
           </div>
         </aside>
@@ -100,30 +114,31 @@ export default {
   data() {
     const defaultSlot = defaultSearchSlot();
     const today = defaultSlot.date;
-    return { venues: [], courtTypes: [], globalCourtTypes: [], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", filters: { q: "", court_type_id: "", area: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: defaultSlot.time, end_time: "", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
+    return { venues: [], courtTypes: [], globalCourtTypes: [], amenities: [], courtCountOptions: [1, 2, 4, 6, 8, 10], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", filters: { q: "", court_type_id: "", area: "", amenity_id: "", min_courts: "", has_services: false, has_map: false, payment_option: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: defaultSlot.time, end_time: "", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
   },
   computed: {
-    activeFilterLabel() { const parts = []; const type = this.courtTypes.find((item) => String(item.id) === String(this.filters.court_type_id)); if (type) parts.push(type.name); if (this.filters.area) parts.push(this.filters.area); if (this.filters.min_price || this.filters.max_price) parts.push(this.priceRangeLabel); parts.push(`${this.formatDateLabel(this.filters.booking_date)} lúc ${String(this.filters.start_time).slice(0, 5)}`); return parts.join(" · "); },
+    activeFilterLabel() { const parts = []; const type = this.courtTypes.find((item) => String(item.id) === String(this.filters.court_type_id)); const amenity = this.amenities.find((item) => String(item.id) === String(this.filters.amenity_id)); if (type) parts.push(type.name); if (amenity) parts.push(amenity.name); if (this.filters.area) parts.push(this.filters.area); if (this.filters.min_courts) parts.push(`Từ ${this.filters.min_courts} sân`); if (this.filters.has_services) parts.push("Có dịch vụ"); if (this.filters.has_map) parts.push("Có bản đồ"); if (this.filters.payment_option) parts.push(this.paymentLabel(this.filters.payment_option)); if (this.filters.min_price || this.filters.max_price) parts.push(this.priceRangeLabel); parts.push(`${this.formatDateLabel(this.filters.booking_date)} lúc ${String(this.filters.start_time).slice(0, 5)}`); return parts.join(" · "); },
     priceRangeLabel() { const min = this.filters.min_price ? this.formatCurrency(this.filters.min_price) : "0đ"; const max = this.filters.max_price ? this.formatCurrency(this.filters.max_price) : "không giới hạn"; return `${min} - ${max}`; },
     venuesWithLocation() { return this.venues.filter((venue) => venue.latitude && venue.longitude); },
   },
   watch: { "$route.query": { handler() { this.applyRouteQuery(); this.loadVenues(); }, deep: true } },
-  mounted() { this.applyRouteQuery(); this.loadCourtTypes(); this.loadVenues(); },
+  mounted() { this.applyRouteQuery(); this.loadCourtTypes(); this.loadFilterOptions(); this.loadVenues(); },
   methods: {
-    applyRouteQuery() { const query = this.$route.query; const defaultSlot = defaultSearchSlot(); const requestedDate = String(query.booking_date || query.date || defaultSlot.date); this.viewMode = query.view === "map" ? "map" : "list"; this.filters = { ...this.filters, q: query.q || "", court_type_id: query.court_type_id || "", area: query.area || "", min_price: query.min_price || "", max_price: query.max_price || "", min_rating: query.min_rating || "", booking_date: requestedDate >= defaultSlot.date ? requestedDate : defaultSlot.date, start_time: this.normalizeTime(query.start_time || query.time || defaultSlot.time), sort: query.sort || "recommended" }; this.filters.end_time = this.endTimeFromStart(this.filters.start_time); },
+    applyRouteQuery() { const query = this.$route.query; const defaultSlot = defaultSearchSlot(); const requestedDate = String(query.booking_date || query.date || defaultSlot.date); this.viewMode = query.view === "map" ? "map" : "list"; this.filters = { ...this.filters, q: query.q || "", court_type_id: query.court_type_id || "", area: query.area || "", amenity_id: query.amenity_id || "", min_courts: query.min_courts || "", has_services: query.has_services === "1", has_map: query.has_map === "1", payment_option: query.payment_option || "", min_price: query.min_price || "", max_price: query.max_price || "", min_rating: query.min_rating || "", booking_date: requestedDate >= defaultSlot.date ? requestedDate : defaultSlot.date, start_time: this.normalizeTime(query.start_time || query.time || defaultSlot.time), sort: query.sort || "recommended" }; this.filters.end_time = this.endTimeFromStart(this.filters.start_time); },
     async loadCourtTypes() { try { const response = await courtTypeService.getAll(); this.globalCourtTypes = this.normalizeCourtTypes((response.data || []).filter((type) => type?.id && type?.name && type.is_active !== false && !type.parent_id)); this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch { this.globalCourtTypes = []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } },
+    async loadFilterOptions() { try { const response = await venueService.filterOptions(); const data = response.data || {}; this.amenities = Array.isArray(data.amenities) ? data.amenities : []; if (Array.isArray(data.court_counts) && data.court_counts.length) this.courtCountOptions = data.court_counts; } catch { this.amenities = []; } },
     async loadVenues() { const requestId = ++this.venuesRequestId; this.loading = true; this.error = ""; try { const response = await venueService.list(this.cleanQuery(false)); if (requestId !== this.venuesRequestId) return; this.venues = response.data || []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch (error) { if (requestId !== this.venuesRequestId) return; this.error = error.message || "Không thể tải danh sách sân."; } finally { if (requestId === this.venuesRequestId) this.loading = false; } },
     inferCourtTypes(venues = []) { const availableTypes = new Map(); venues.forEach((venue) => (venue.court_types || []).forEach((type) => { if (type?.id && type?.name && type.is_active !== false) availableTypes.set(String(type.id), type); })); return this.normalizeCourtTypes(Array.from(availableTypes.values())); },
     syncCourtTypes(inferredTypes = []) { const types = new Map((this.globalCourtTypes.length ? this.globalCourtTypes : inferredTypes).map((type) => [String(type.id), type])); const selectedId = String(this.filters.court_type_id || ""); if (selectedId && !types.has(selectedId)) { const selectedType = [...inferredTypes, ...this.courtTypes].find((type) => String(type.id) === selectedId); if (selectedType) types.set(selectedId, selectedType); } this.courtTypes = this.normalizeCourtTypes(Array.from(types.values())); },
     normalizeCourtTypes(types = []) { return [...types].sort((left, right) => String(left.name).localeCompare(String(right.name), "vi")); },
     applyFilters() { if (this.filters.min_price !== "" && this.filters.max_price !== "" && Number(this.filters.max_price) < Number(this.filters.min_price)) { this.error = "Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu."; return; } this.filters.start_time = this.normalizeTime(this.filters.start_time); this.filters.end_time = this.endTimeFromStart(this.filters.start_time); this.$router.replace({ name: "venues", query: this.cleanQuery() }); },
     applySideFilters() { this.mobileFiltersOpen = false; this.applyFilters(); },
-    cleanQuery(includeView = true) { const params = { ...this.filters, view: includeView && this.viewMode === "map" ? "map" : "" }; return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")); },
+    cleanQuery(includeView = true) { const params = { ...this.filters, has_services: this.filters.has_services ? "1" : "", has_map: this.filters.has_map ? "1" : "", view: includeView && this.viewMode === "map" ? "map" : "" }; return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "" && value !== false)); },
     normalizeTime(time) { const label = String(time || "18:00:00").slice(0, 5); return `${label}:00`; },
     endTimeFromStart(time) { const [hour, minute] = this.normalizeTime(time).slice(0, 5).split(":").map(Number); return `${String(Math.min(hour + 1, 24)).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`; },
     setCourtType(id) { this.filters.court_type_id = id; this.applyFilters(); },
     setViewMode(mode) { this.viewMode = mode; this.$router.replace({ name: "venues", query: this.cleanQuery() }); },
-    resetFilters() { this.filters = { q: "", court_type_id: "", area: "", min_price: "", max_price: "", min_rating: "", booking_date: this.today, start_time: "18:00:00", end_time: "19:00:00", sort: "recommended" }; this.viewMode = "list"; this.applyFilters(); },
+    resetFilters() { this.filters = { q: "", court_type_id: "", area: "", amenity_id: "", min_courts: "", has_services: false, has_map: false, payment_option: "", min_price: "", max_price: "", min_rating: "", booking_date: this.today, start_time: "18:00:00", end_time: "19:00:00", sort: "recommended" }; this.viewMode = "list"; this.applyFilters(); },
     bookingQueryFromFilters(venue = null) { return { venue_cluster_id: venue?.id || "", cluster: venue?.id || "", booking_date: this.filters.booking_date, date: this.filters.booking_date, start_time: this.filters.start_time, end_time: this.filters.end_time, court_type: this.filters.court_type_id || "", return_to: this.$route.fullPath }; },
     goDetail(venue) { this.$router.push({ name: "venue-detail", params: { id: venue.slug || venue.id }, query: this.cleanQuery() }); },
     goBooking(venue) { this.$router.push({ name: "booking-create", query: this.bookingQueryFromFilters(venue) }); },
@@ -135,6 +150,7 @@ export default {
     hideBrokenImage(event) { event.target.style.display = "none"; },
     formatDateLabel(value) { if (!value) return "Chưa chọn ngày"; const [year, month, day] = String(value).split("-").map(Number); if (!year || !month || !day) return String(value); return new Intl.DateTimeFormat("vi-VN").format(new Date(year, month - 1, day)); },
     formatCurrency(amount) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(amount || 0)); },
+    paymentLabel(value) { return { full_payment: "Thanh toán đủ", wallet: "Ví SportGo", deposit: "Đặt cọc", no_prepay: "Trả sau" }[value] || value; },
     priceLabel(venue) { return venue.min_price ? `Từ ${this.formatCurrency(venue.min_price)}/giờ` : "Liên hệ giá"; },
     formatRating(venue) { const rating = Number(venue.rating_avg || venue.average_rating || 0); return rating > 0 ? rating.toFixed(1) : "Mới"; },
   },

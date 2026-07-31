@@ -134,7 +134,7 @@
                 </div>
                 <span class="court-layout-legend"><i></i>Sân đang hoạt động</span>
               </div>
-              <div class="court-layout-canvas" aria-label="Sơ đồ trực quan các sân">
+              <div class="court-layout-canvas" :style="layoutCanvasStyle" aria-label="Sơ đồ trực quan các sân">
                 <button
                   v-for="court in courtLayoutItems"
                   :key="court.id"
@@ -146,6 +146,15 @@
                   <strong>{{ court.shortName }}</strong>
                   <span>{{ court.court_type?.name || "Sân thể thao" }}</span>
                 </button>
+                <div
+                  v-for="decoration in layoutDecorationItems"
+                  :key="decoration.id"
+                  class="court-layout-decoration"
+                  :style="courtLayoutStyle(decoration)"
+                >
+                  <AppIcon :name="decorationIcon(decoration.type)" :size="16" />
+                  <span>{{ decoration.name }}</span>
+                </div>
               </div>
               <p v-if="selectedLayoutCourt" class="court-layout-selection">
                 Đang xem: <strong>{{ selectedLayoutCourt.name }}</strong>
@@ -522,6 +531,25 @@ export default {
     selectedLayoutCourt() {
       return this.courtLayoutItems.find((court) => court.id === this.selectedLayoutCourtId) || null;
     },
+    layoutDecorationItems() {
+      return Array.isArray(this.venue?.layout_decorations)
+        ? this.venue.layout_decorations
+        : [];
+    },
+    layoutBounds() {
+      const items = [...this.courtLayoutItems, ...this.layoutDecorationItems];
+      const placedItems = items.filter((item) => item.layout_x !== null && item.layout_x !== undefined && item.layout_y !== null && item.layout_y !== undefined);
+      if (!placedItems.length) return { minX: 0, minY: 0, width: 1200, height: 700 };
+
+      const minX = Math.min(...placedItems.map((item) => Number(item.layout_x) || 0));
+      const minY = Math.min(...placedItems.map((item) => Number(item.layout_y) || 0));
+      const maxX = Math.max(...placedItems.map((item) => (Number(item.layout_x) || 0) + Math.max(80, Number(item.layout_w) || 180)));
+      const maxY = Math.max(...placedItems.map((item) => (Number(item.layout_y) || 0) + Math.max(60, Number(item.layout_h) || 110)));
+      return { minX: minX - 80, minY: minY - 80, width: Math.max(900, maxX - minX + 160), height: Math.max(560, maxY - minY + 160) };
+    },
+    layoutCanvasStyle() {
+      return { aspectRatio: `${this.layoutBounds.width} / ${this.layoutBounds.height}` };
+    },
 
     groupedServices() {
       const services = this.venue?.services || [];
@@ -726,19 +754,25 @@ export default {
     courtLayoutStyle(court) {
       const hasLayout = court.layout_x !== null && court.layout_x !== undefined
         && court.layout_y !== null && court.layout_y !== undefined;
-      const fallbackColumn = court.layoutIndex % 4;
-      const fallbackRow = Math.floor(court.layoutIndex / 4);
-      const left = hasLayout ? Number(court.layout_x) / 10 : 2 + fallbackColumn * 24;
-      const top = hasLayout ? Number(court.layout_y) / 6 : 8 + fallbackRow * 31;
-      const width = hasLayout ? Math.max(14, Number(court.layout_w || 180) / 10) : 20;
-      const height = hasLayout ? Math.max(17, Number(court.layout_h || 110) / 6) : 23;
+      const fallbackIndex = Number(court.layoutIndex || 0);
+      const fallbackColumn = fallbackIndex % 4;
+      const fallbackRow = Math.floor(fallbackIndex / 4);
+      const fallbackX = 80 + fallbackColumn * 220;
+      const fallbackY = 80 + fallbackRow * 150;
+      const left = ((hasLayout ? Number(court.layout_x) : fallbackX) - this.layoutBounds.minX) / this.layoutBounds.width * 100;
+      const top = ((hasLayout ? Number(court.layout_y) : fallbackY) - this.layoutBounds.minY) / this.layoutBounds.height * 100;
+      const width = Math.max(8, Number(court.layout_w || 180) / this.layoutBounds.width * 100);
+      const height = Math.max(8, Number(court.layout_h || 110) / this.layoutBounds.height * 100);
       return {
-        left: `${Math.min(78, Math.max(1, left))}%`,
-        top: `${Math.min(70, Math.max(3, top))}%`,
-        width: `${Math.min(28, Math.max(15, width))}%`,
-        height: `${Math.min(30, Math.max(17, height))}%`,
+        left: `${Math.min(94, Math.max(1, left))}%`,
+        top: `${Math.min(90, Math.max(1, top))}%`,
+        width: `${Math.min(45, Math.max(8, width))}%`,
+        height: `${Math.min(40, Math.max(8, height))}%`,
         transform: `rotate(${Number(court.layout_rotation || 0)}deg)`,
       };
+    },
+    decorationIcon(type) {
+      return { entrance: 'building', reception: 'building', restroom: 'settings', seating: 'users', parking: 'mapPin', custom: 'layers' }[type] || 'layers';
     },
     selectLayoutCourt(court) {
       this.selectedLayoutCourtId = court.id;

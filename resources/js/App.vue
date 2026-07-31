@@ -1,5 +1,17 @@
 <template>
-  <router-view :key="$route.fullPath" />
+  <router-view v-slot="{ Component }">
+    <Suspense timeout="0">
+      <template #default>
+        <component :is="Component" />
+      </template>
+      <template #fallback>
+        <main class="app-route-loading" aria-live="polite">
+          <span class="app-route-loading__spinner" aria-hidden="true"></span>
+          <p>Đang mở trang...</p>
+        </main>
+      </template>
+    </Suspense>
+  </router-view>
   <ClientFooter v-if="showClientFooter" />
   <SetPasswordModal
     v-if="showSetPasswordModal"
@@ -138,6 +150,34 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.app-route-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  color: var(--sg-text-muted);
+  background: var(--sg-surface);
+}
+
+.app-route-loading p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.app-route-loading__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #d9f5e4;
+  border-top-color: var(--sg-green-dark);
+  border-radius: 50%;
+  animation: app-route-spin 0.75s linear infinite;
+}
+
+@keyframes app-route-spin {
+  to { transform: rotate(360deg); }
 }
 
 a {

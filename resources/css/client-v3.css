@@ -314,7 +314,11 @@ body:has(.sg-client-page) #app {
 .sg3-filter-head, .sg3-results-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sg3-filter-head h2 { margin: 0; font-size: 16px; }
 .sg3-filter-head button { border: 0; background: transparent; color: var(--sg3-green-dark); cursor: pointer; font-size: 12px; font-weight: 800; }
-.sg3-filter-body { display: grid; gap: 16px; margin-top: 18px; }
+.sg3-filter-body { display: grid; gap: 14px; margin-top: 18px; }
+.sg3-filter-section { display: grid; gap: 8px; }
+.sg3-filter-label { color: var(--sg3-muted); font-size: 11px; font-weight: 800; }
+.sg3-check-row { display: flex; align-items: center; gap: 9px; min-height: 24px; color: var(--sg3-ink); font-size: 12px; font-weight: 700; cursor: pointer; }
+.sg3-check-row input { width: 16px; height: 16px; margin: 0; accent-color: var(--sg3-green); }
 .sg3-chip-list { display: flex; flex-wrap: wrap; gap: 7px; }
 .sg3-chip { padding: 8px 10px; border: 1px solid var(--sg3-line); border-radius: 999px; background: #fff; color: var(--sg3-muted); cursor: pointer; font-size: 12px; font-weight: 700; }
 .sg3-chip:hover, .sg3-chip.is-active { border-color: var(--sg3-green); background: var(--sg3-green-soft); color: var(--sg3-green-dark); }
@@ -329,7 +333,7 @@ body:has(.sg-client-page) #app {
 .sg3-view-toggle button.is-active, .sg3-view-toggle button:hover { background: var(--sg3-green-soft); color: var(--sg3-green-dark); }
 .sg3-venue-grid { display: grid; gap: 13px; }
 .sg3-venue-card { display: grid; grid-template-columns: 205px minmax(0, 1fr); gap: 18px; padding: 13px; }
-.sg3-venue-card__image { position: relative; overflow: hidden; height: 190px; min-height: 0; aspect-ratio: 16 / 9; border-radius: 9px; background: #dcece1; cursor: pointer; }
+.sg3-venue-card__image { position: relative; overflow: hidden; width: 100%; min-width: 0; height: 190px; min-height: 0; aspect-ratio: auto; border-radius: 9px; background: #dcece1; cursor: pointer; }
 .sg3-venue-card__image img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
 .sg3-venue-card__fallback { display: grid; place-items: center; height: 100%; min-height: 0; color: var(--sg3-green-dark); font-size: 30px; font-weight: 900; }
 .sg3-venue-card__body { display: grid; align-content: space-between; gap: 14px; padding: 5px 3px 4px 0; }
@@ -356,6 +360,9 @@ body:has(.sg-client-page) #app {
 .court-layout-item:hover, .court-layout-item:focus-visible { z-index: 2; border-color: var(--sg3-green); background: var(--sg3-green-soft); outline: 0; }
 .court-layout-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .court-layout-item span { overflow: hidden; color: var(--sg3-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.court-layout-decoration { position: absolute; display: inline-flex; align-items: center; justify-content: center; gap: 5px; overflow: hidden; min-width: 44px; padding: 7px; border: 1px dashed #9fb6a7; border-radius: 8px; background: rgba(232, 246, 237, .86); color: var(--sg3-muted); font-size: 10px; font-weight: 800; text-align: center; transform-origin: center; pointer-events: none; }
+.court-layout-decoration svg { flex: 0 0 auto; color: var(--sg3-green-dark); }
+.court-layout-decoration span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .court-layout-selection { margin: 12px 0 18px; padding: 10px 12px; border-left: 3px solid var(--sg3-green); background: var(--sg3-green-soft); color: var(--sg3-green-dark); font-size: 13px; }
 .court-layout-selection span { margin-left: 8px; color: var(--sg3-muted); }
 
@@ -456,7 +463,7 @@ body:has(.sg-client-page) #app {
 .sg-client-page.venue-detail-page .hero-stats { border-color: var(--sg3-line); background: #fff; }
 .sg-client-page.venue-detail-page .hero-stats strong { color: var(--sg3-ink); }
 .sg-client-page.venue-detail-page .hero-stats span { color: var(--sg3-muted); }
-.sg-client-page.venue-detail-page .venue-tabs { margin-top: 18px; border: 1px solid var(--sg3-line); border-radius: 10px; background: #fff; }
+.sg-client-page.venue-detail-page .venue-tabs { margin-top: 18px; gap: 8px; padding: 7px; border: 1px solid var(--sg3-line); border-radius: 12px; background: #fff; }
 .sg-client-page.venue-detail-page .venue-tabs button { color: var(--sg3-muted); }
 .sg-client-page.venue-detail-page .venue-tabs button.active { border-bottom-color: var(--sg3-green); color: var(--sg3-green-dark); }
 .sg-client-page.venue-detail-page .detail-layout { gap: 18px; padding-top: 20px; }

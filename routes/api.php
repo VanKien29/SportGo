@@ -78,6 +78,7 @@ Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
 Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']);
 Route::get('/venues', [VenueController::class, 'index']);
+Route::get('/venues/filter-options', [VenueController::class, 'filterOptions']);
 Route::get('/venues/{id}', [VenueController::class, 'show']);
 Route::get('/venues/{id}/schedule', [VenueController::class, 'schedule']);
 Route::get('/venues/{clusterId}/affiliate-products', [PublicAffiliateProductController::class, 'index']);
