@@ -329,9 +329,9 @@ body:has(.sg-client-page) #app {
 .sg3-view-toggle button.is-active, .sg3-view-toggle button:hover { background: var(--sg3-green-soft); color: var(--sg3-green-dark); }
 .sg3-venue-grid { display: grid; gap: 13px; }
 .sg3-venue-card { display: grid; grid-template-columns: 205px minmax(0, 1fr); gap: 18px; padding: 13px; }
-.sg3-venue-card__image { position: relative; overflow: hidden; min-height: 168px; border-radius: 9px; background: #dcece1; cursor: pointer; }
-.sg3-venue-card__image img { width: 100%; height: 100%; min-height: 168px; object-fit: cover; }
-.sg3-venue-card__fallback { display: grid; place-items: center; height: 100%; min-height: 168px; color: var(--sg3-green-dark); font-size: 30px; font-weight: 900; }
+.sg3-venue-card__image { position: relative; overflow: hidden; height: 190px; min-height: 0; aspect-ratio: 16 / 9; border-radius: 9px; background: #dcece1; cursor: pointer; }
+.sg3-venue-card__image img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
+.sg3-venue-card__fallback { display: grid; place-items: center; height: 100%; min-height: 0; color: var(--sg3-green-dark); font-size: 30px; font-weight: 900; }
 .sg3-venue-card__body { display: grid; align-content: space-between; gap: 14px; padding: 5px 3px 4px 0; }
 .sg3-venue-card__title { display: flex; justify-content: space-between; gap: 15px; }
 .sg3-venue-card__title h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
@@ -345,6 +345,19 @@ body:has(.sg-client-page) #app {
 .sg3-map-panel > * { max-height: 470px; }
 .sg3-map-back { margin: 13px 0 2px; }
 .sg3-mobile-filter-toggle { display: none; }
+
+.court-layout-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.court-layout-heading h2 { margin: 0; }
+.court-layout-heading p { margin: 6px 0 0; color: var(--sg3-muted); font-size: 13px; }
+.court-layout-legend { display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid var(--sg3-line); border-radius: 999px; color: var(--sg3-muted); font-size: 11px; white-space: nowrap; }
+.court-layout-legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--sg3-green); }
+.court-layout-canvas { position: relative; min-height: 340px; overflow: hidden; border: 1px solid var(--sg3-line); border-radius: 12px; background: #f3faf5; background-image: linear-gradient(var(--sg3-line) 1px, transparent 1px), linear-gradient(90deg, var(--sg3-line) 1px, transparent 1px); background-size: 28px 28px; }
+.court-layout-item { position: absolute; display: grid; align-content: center; gap: 4px; min-width: 90px; padding: 9px; border: 1px solid #83c99b; border-radius: 9px; background: #fff; color: var(--sg3-ink); box-shadow: 0 3px 10px rgba(20, 38, 29, .08); cursor: pointer; text-align: left; transform-origin: center; }
+.court-layout-item:hover, .court-layout-item:focus-visible { z-index: 2; border-color: var(--sg3-green); background: var(--sg3-green-soft); outline: 0; }
+.court-layout-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.court-layout-item span { overflow: hidden; color: var(--sg3-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.court-layout-selection { margin: 12px 0 18px; padding: 10px 12px; border-left: 3px solid var(--sg3-green); background: var(--sg3-green-soft); color: var(--sg3-green-dark); font-size: 13px; }
+.court-layout-selection span { margin-left: 8px; color: var(--sg3-muted); }
 
 .sg3-account-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 20px; padding: 7px; border: 1px solid var(--sg3-line); border-radius: 10px; background: #fff; }
 .sg3-account-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border-radius: 7px; color: var(--sg3-muted); text-decoration: none; font-size: 12px; font-weight: 800; }
@@ -554,7 +567,7 @@ body:has(.sg-client-page) #app {
   .sg3-search-panel { grid-template-columns: 1fr; }
   .sg3-search-submit { grid-column: auto; }
   .sg3-venue-card { grid-template-columns: 1fr; }
-  .sg3-venue-card__image, .sg3-venue-card__image img { min-height: 190px; }
+  .sg3-venue-card__image { height: 190px; min-height: 0; }
   .sg3-results-toolbar { align-items: start; flex-direction: column; }
   .sg3-toolbar-actions { width: 100%; justify-content: space-between; }
   .sg3-toolbar-actions select { flex: 1; }

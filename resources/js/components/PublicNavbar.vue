@@ -337,6 +337,8 @@ export default {
       const actionUrl = notification.data?.action_url;
       if (typeof actionUrl === "string" && actionUrl.startsWith("/")) {
         this.$router.push(actionUrl);
+      } else if (typeof notification.data?.url === "string" && notification.data.url.startsWith("/")) {
+        this.$router.push(notification.data.url);
       } else if (
         notification.reference_type === "partner_application" &&
         notification.reference_id
@@ -376,6 +378,24 @@ export default {
               : "/community",
           );
         }
+      } else if (
+        notification.reference_id &&
+        (String(notification.reference_type || "").toLowerCase().includes("booking") ||
+          String(notification.type || "").toLowerCase().includes("booking"))
+      ) {
+        this.$router.push({ name: "booking-detail", params: { id: notification.reference_id } });
+      } else if (
+        notification.reference_id &&
+        (String(notification.reference_type || "").toLowerCase().includes("refund") ||
+          String(notification.type || "").toLowerCase().includes("refund"))
+      ) {
+        this.$router.push({ name: "client-refund-detail", params: { id: notification.reference_id } });
+      } else if (
+        notification.reference_id &&
+        (String(notification.reference_type || "").toLowerCase().includes("complaint") ||
+          String(notification.type || "").toLowerCase().includes("complaint"))
+      ) {
+        this.$router.push({ name: "client-complaint-detail", params: { id: notification.reference_id } });
       }
       this.showNotifDropdown = false;
     },

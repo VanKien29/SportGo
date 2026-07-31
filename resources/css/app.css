@@ -35,47 +35,6 @@
     --destructive-foreground: oklch(0.985 0 0);
 }
 
-.auth-layout input,
-[data-theme='dark'] input {
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    caret-color: #fff;
-}
-
-.auth-layout input {
-    background-color: #09090b !important;
-}
-
-.auth-layout input::selection,
-[data-theme='dark'] input::selection {
-    color: #fff;
-    background: rgba(34, 197, 94, .35);
-}
-
-.auth-layout input:-webkit-autofill,
-.auth-layout input:-webkit-autofill.never-hover-class-placeholder,
-.auth-layout input:-webkit-autofill:focus,
-.auth-layout input:-webkit-autofill:active,
-[data-theme='dark'] input:-webkit-autofill,
-[data-theme='dark'] input:-webkit-autofill.never-hover-class-placeholder,
-[data-theme='dark'] input:-webkit-autofill:focus,
-[data-theme='dark'] input:-webkit-autofill:active {
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    caret-color: #fff !important;
-    box-shadow: 0 0 0 1000px #09090b inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
-    transition: background-color 9999s ease-out 0s;
-}
-
-.auth-layout input:autofill,
-[data-theme='dark'] input:autofill {
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
-    box-shadow: 0 0 0 1000px #09090b inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #09090b inset !important;
-}
-
 input[type='date'],
 input[type='time'],
 input[type='datetime-local'],

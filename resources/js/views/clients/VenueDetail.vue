@@ -127,6 +127,31 @@
             </section>
 
             <section v-if="activeTab === 'courts' && courtGroups.length" class="detail-section">
+              <div class="court-layout-heading">
+                <div>
+                  <h2>Sơ đồ sân</h2>
+                  <p>Chọn sân trực tiếp trên sơ đồ để xem nhanh vị trí và loại sân.</p>
+                </div>
+                <span class="court-layout-legend"><i></i>Sân đang hoạt động</span>
+              </div>
+              <div class="court-layout-canvas" aria-label="Sơ đồ trực quan các sân">
+                <button
+                  v-for="court in courtLayoutItems"
+                  :key="court.id"
+                  type="button"
+                  class="court-layout-item"
+                  :style="courtLayoutStyle(court)"
+                  @click="selectLayoutCourt(court)"
+                >
+                  <strong>{{ court.shortName }}</strong>
+                  <span>{{ court.court_type?.name || "Sân thể thao" }}</span>
+                </button>
+              </div>
+              <p v-if="selectedLayoutCourt" class="court-layout-selection">
+                Đang xem: <strong>{{ selectedLayoutCourt.name }}</strong>
+                <span>{{ selectedLayoutCourt.court_type?.name || "Sân thể thao" }}</span>
+              </p>
+
               <h2>Loại sân và sân con</h2>
               <div class="court-groups">
                 <article v-for="group in courtGroups" :key="group.typeId" class="court-group">
@@ -430,6 +455,7 @@ export default {
       previewError: "",
       venueRequestId: 0,
       scheduleRequestId: 0,
+      selectedLayoutCourtId: null,
       showComplaintModal: false,
       showReportModal: false,
       showActionMenu: false,
@@ -485,6 +511,16 @@ export default {
         groups[typeId].courts.push(court);
       });
       return Object.values(groups);
+    },
+    courtLayoutItems() {
+      return (this.venue?.venue_courts || []).map((court, index) => ({
+        ...court,
+        shortName: String(court.name || `Sân ${index + 1}`).replace(/^Sân\s+/i, ""),
+        layoutIndex: index,
+      }));
+    },
+    selectedLayoutCourt() {
+      return this.courtLayoutItems.find((court) => court.id === this.selectedLayoutCourtId) || null;
     },
 
     groupedServices() {
@@ -684,6 +720,29 @@ export default {
       if (nextTab === 'overview') delete query.tab;
       else query.tab = nextTab;
       this.$router.replace({ name: 'venue-detail', params: { id: this.$route.params.id }, query });
+    },
+
+    courtLayoutStyle(court) {
+      const hasLayout = court.layout_x !== null && court.layout_x !== undefined
+        && court.layout_y !== null && court.layout_y !== undefined;
+      const fallbackColumn = court.layoutIndex % 4;
+      const fallbackRow = Math.floor(court.layoutIndex / 4);
+      const left = hasLayout ? Number(court.layout_x) / 10 : 2 + fallbackColumn * 24;
+      const top = hasLayout ? Number(court.layout_y) / 6 : 8 + fallbackRow * 31;
+      const width = hasLayout ? Math.max(14, Number(court.layout_w || 180) / 10) : 20;
+      const height = hasLayout ? Math.max(17, Number(court.layout_h || 110) / 6) : 23;
+      return {
+        left: `${Math.min(78, Math.max(1, left))}%`,
+        top: `${Math.min(70, Math.max(3, top))}%`,
+        width: `${Math.min(28, Math.max(15, width))}%`,
+        height: `${Math.min(30, Math.max(17, height))}%`,
+        transform: `rotate(${Number(court.layout_rotation || 0)}deg)`,
+      };
+    },
+    selectLayoutCourt(court) {
+      this.selectedLayoutCourtId = court.id;
+      this.bookCourtType = court.court_type_id || this.bookCourtType;
+      this.$nextTick(() => this.scrollToBooking());
     },
 
     initials(name) {
