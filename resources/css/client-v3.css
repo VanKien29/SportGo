@@ -383,6 +383,38 @@ body:has(.sg-client-page) #app {
 .sg-client-page.venue-detail-page .booking-form,
 .sg-client-page.venue-detail-page .mini-schedule { border-color: var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; }
 
+.sg-client-page.client-booking .booking-shell { width: min(1320px, calc(100% - 40px)); margin-inline: auto; padding-top: 28px; padding-bottom: 64px; }
+.sg-client-page.client-booking .page-head { gap: 11px; padding: 8px 0 3px; }
+.sg-client-page.client-booking .page-head h1 { font-size: clamp(26px, 3vw, 36px); }
+.sg-client-page.client-booking .page-head__topline { min-height: 38px; }
+.sg-client-page.client-booking .breadcrumbs { color: var(--sg3-muted); }
+.sg-client-page.client-booking .breadcrumbs a { color: var(--sg3-green-dark); }
+.sg-client-page.client-booking .flow-steps { border-color: var(--sg3-line); border-radius: 11px; background: #fff; box-shadow: none; }
+.sg-client-page.client-booking .flow-steps > div { padding: 13px 15px; }
+.sg-client-page.client-booking .flow-steps .active { background: var(--sg3-green-soft); }
+.sg-client-page.client-booking .flow-steps > div > span { width: 30px; height: 30px; border-radius: 8px; background: var(--sg3-soft); }
+.sg-client-page.client-booking .flow-steps .active > span, .sg-client-page.client-booking .flow-steps .done > span { background: var(--sg3-green); border-color: var(--sg3-green); }
+.sg-client-page.client-booking .workspace { grid-template-columns: minmax(0, 1.8fr) minmax(320px, .9fr); gap: 18px; }
+.sg-client-page.client-booking .schedule-workspace, .sg-client-page.client-booking .booking-summary { padding: 20px; border-color: var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; box-shadow: 0 3px 12px rgba(20,38,29,.035); }
+.sg-client-page.client-booking .workspace-head { gap: 15px; padding-bottom: 14px; border-bottom: 1px solid var(--sg3-line); }
+.sg-client-page.client-booking .workspace-head h2, .sg-client-page.client-booking .booking-summary h2 { font-size: 20px; letter-spacing: -.025em; }
+.sg-client-page.client-booking .booking-filters { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(210px, 1fr) minmax(0, 1fr); }
+.sg-client-page.client-booking .booking-filters label > span { color: var(--sg3-muted); font-size: 11px; font-weight: 800; }
+.sg-client-page.client-booking .booking-guide { border-color: var(--sg3-line); border-radius: 9px; background: #fbfdfb; }
+.sg-client-page.client-booking .period-tabs { gap: 6px; }
+.sg-client-page.client-booking .period-tabs button { min-height: 40px; border-color: var(--sg3-line); border-radius: 8px; background: #fff; color: var(--sg3-muted); }
+.sg-client-page.client-booking .period-tabs button.active { border-color: var(--sg3-green); background: var(--sg3-green); color: #fff; }
+.sg-client-page.client-booking .legend { flex-wrap: wrap; gap: 9px; color: var(--sg3-muted); font-size: 11px; }
+.sg-client-page.client-booking .schedule-board { border: 1px solid var(--sg3-line); border-radius: 10px; }
+.sg-client-page.client-booking .timeline-head { background: var(--sg3-green-soft); }
+.sg-client-page.client-booking .time-heading, .sg-client-page.client-booking .court-heading { border-color: var(--sg3-line); }
+.sg-client-page.client-booking .slot { border-color: var(--sg3-line); }
+.sg-client-page.client-booking .booking-summary { position: sticky; top: 96px; }
+.sg-client-page.client-booking .booking-summary header { padding-bottom: 14px; border-bottom: 1px solid var(--sg3-line); }
+.sg-client-page.client-booking .payment-section, .sg-client-page.client-booking .discount-section { border-color: var(--sg3-line); }
+.sg-client-page.client-booking .payment-section label.active { border-color: var(--sg3-green); background: var(--sg3-green-soft); }
+.sg-client-page.client-booking .selection-feedback { border-color: var(--sg3-line); border-radius: 9px; background: var(--sg3-soft); }
+
 @media (max-width: 1120px) {
   .sg3-header__inner { gap: 14px; }
   .sg3-primary-nav a { padding-inline: 8px; }
@@ -427,6 +459,10 @@ body:has(.sg-client-page) #app {
   .sg3-footer__main { grid-template-columns: 1fr 1fr; gap: 25px 18px; }
   .sg3-footer__brand { grid-column: 1 / -1; }
   .sg3-footer__bottom > div { align-items: start; flex-direction: column; }
+  .sg-client-page.client-booking .booking-shell { width: min(100% - 28px, 640px); }
+  .sg-client-page.client-booking .workspace { grid-template-columns: 1fr; }
+  .sg-client-page.client-booking .booking-summary { position: static; }
+  .sg-client-page.client-booking .booking-filters { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
