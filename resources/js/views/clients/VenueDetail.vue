@@ -1,5 +1,5 @@
 <template>
-  <div class="venue-detail-page">
+  <div class="venue-detail-page sg-client-page">
     <PublicNavbar />
 
     <!-- Loading State -->

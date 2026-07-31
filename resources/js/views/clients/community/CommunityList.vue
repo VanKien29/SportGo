@@ -1,5 +1,5 @@
 <template>
-  <div class="community-page">
+  <div class="community-page sg-client-page">
     <PublicNavbar />
 
     <main class="community-container">

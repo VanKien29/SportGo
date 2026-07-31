@@ -305,6 +305,84 @@ body:has(.sg-client-page) #app {
 .sg3-account-nav a { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border-radius: 7px; color: var(--sg3-muted); text-decoration: none; font-size: 12px; font-weight: 800; }
 .sg3-account-nav a:hover, .sg3-account-nav a.active { background: var(--sg3-green-soft); color: var(--sg3-green-dark); }
 
+.sg3-footer { margin-top: 42px; border-top: 1px solid var(--sg3-line); background: #fff; color: var(--sg3-ink); }
+.sg3-footer__main { display: grid; grid-template-columns: 1.4fr repeat(2, 1fr) 1.2fr; gap: 34px; padding-top: 40px; padding-bottom: 38px; }
+.sg3-footer__brand .sg3-brand { display: inline-flex; }
+.sg3-footer__brand .sg3-brand__mark { width: 36px; height: 36px; font-size: 12px; }
+.sg3-footer__brand .sg3-brand__name { font-size: 18px; }
+.sg3-footer__brand p { max-width: 280px; margin: 16px 0 0; color: var(--sg3-muted); font-size: 13px; line-height: 1.6; }
+.sg3-footer h3 { margin: 0 0 13px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.sg3-footer__links, .sg3-footer__contact { display: grid; align-content: start; gap: 9px; }
+.sg3-footer__links a, .sg3-footer__contact a, .sg3-footer__contact span { display: flex; align-items: center; gap: 8px; color: var(--sg3-muted); font-size: 13px; text-decoration: none; }
+.sg3-footer__links a:hover, .sg3-footer__contact a:hover { color: var(--sg3-green-dark); }
+.sg3-footer__contact svg { color: var(--sg3-green-dark); }
+.sg3-footer__bottom { border-top: 1px solid var(--sg3-line); }
+.sg3-footer__bottom > div { display: flex; justify-content: space-between; gap: 15px; padding-top: 16px; padding-bottom: 16px; color: var(--sg3-muted); font-size: 11px; }
+
+/* Compatibility layer for the functional client flows that predate v3. The
+ * selectors are scoped by sg-client-page so owner/admin surfaces stay intact. */
+.sg-client-page .sg-client-shell,
+.sg-client-page .community-container,
+.sg-client-page .detail-container { width: min(1240px, calc(100% - 40px)); margin-inline: auto; }
+.sg-client-page .sg-client-shell { padding-top: 28px; padding-bottom: 64px; }
+.sg-client-page .history-header,
+.sg-client-page .wallet-header,
+.sg-client-page .utility-header,
+.sg-client-page .page-head,
+.sg-client-page .community-heading,
+.sg-client-page .sg-news-heading { margin: 0; padding: 32px 0 22px; }
+.sg-client-page .history-header h1,
+.sg-client-page .wallet-header h1,
+.sg-client-page .utility-header h1,
+.sg-client-page .page-head h1,
+.sg-client-page .community-heading h1,
+.sg-client-page .sg-news-heading h1 { color: var(--sg3-ink); font-size: clamp(28px, 4vw, 40px); letter-spacing: -.04em; }
+.sg-client-page .history-header p,
+.sg-client-page .wallet-header p:last-child,
+.sg-client-page .utility-header p:last-child,
+.sg-client-page .page-head > p,
+.sg-client-page .community-heading p,
+.sg-client-page .sg-news-heading p { color: var(--sg3-muted); }
+.sg-client-page .sg-client-card { border: 1px solid var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; box-shadow: 0 3px 12px rgba(20, 38, 29, .035); }
+.sg-client-page .sg-client-button { min-height: 42px; padding: 0 14px; border: 1px solid var(--sg3-line-strong); border-radius: 9px; background: #fff; color: var(--sg3-ink); font-size: 13px; font-weight: 800; }
+.sg-client-page .sg-client-button--primary { border-color: var(--sg3-green); background: var(--sg3-green); color: #fff; }
+.sg-client-page .sg-client-button--primary:hover { background: var(--sg3-green-dark); }
+.sg-client-page .sg-client-button--quiet { border-color: transparent; color: var(--sg3-green-dark); }
+.sg-client-page .sg-client-input,
+.sg-client-page .history-filters input,
+.sg-client-page .history-filters select,
+.sg-client-page .booking-filters input,
+.sg-client-page .booking-filters select,
+.sg-client-page .sg-news-filter input { min-height: 42px; border: 1px solid var(--sg3-line) !important; border-radius: 8px; background: #fff !important; color: var(--sg3-ink) !important; -webkit-text-fill-color: var(--sg3-ink) !important; }
+.sg-client-page .history-filters,
+.sg-client-page .booking-filters { gap: 12px; padding: 16px; border: 1px solid var(--sg3-line); border-radius: 12px; background: #f7fbf8; }
+.sg-client-page .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 13px; padding: 6px; border: 1px solid var(--sg3-line); border-radius: 10px; background: #fff; }
+.sg-client-page .filters button { min-height: 36px; padding: 0 11px; border: 0; border-radius: 7px; background: transparent; color: var(--sg3-muted); cursor: pointer; font-size: 12px; font-weight: 800; }
+.sg-client-page .filters button.active, .sg-client-page .filters button:hover { background: var(--sg3-green-soft); color: var(--sg3-green-dark); }
+.sg-client-page .history-panel,
+.sg-client-page .notification-panel,
+.sg-client-page .complaint-panel,
+.sg-client-page .wallet-ledger-panel { margin-top: 16px; overflow: hidden; }
+.sg-client-page .booking-card { margin: 0 0 11px; padding: 18px; box-shadow: none; }
+.sg-client-page .booking-card:last-child { margin-bottom: 0; }
+.sg-client-page .booking-card h2 { color: var(--sg3-ink); }
+.sg-client-page .booking-card .status-badge,
+.sg-client-page .booking-card .booking-flags span { border-radius: 999px; }
+.sg-client-page .wallet-balance-card { margin-top: 16px; border-color: var(--sg3-green-dark); background: var(--sg3-green-dark) !important; color: #fff !important; }
+.sg-client-page .wallet-balance-card span, .sg-client-page .wallet-balance-card strong { color: #fff !important; }
+.sg-client-page .utility-state,
+.sg-client-page .wallet-state { min-height: 210px; border: 1px dashed var(--sg3-line-strong); border-radius: 12px; background: #fff; }
+.sg-client-page .notification-row:hover, .sg-client-page .notification-row.is-unread { background: var(--sg3-green-soft); }
+.sg-client-page .notification-row, .sg-client-page .complaint-row, .sg-client-page .ledger-row { border-color: var(--sg3-line); }
+.sg-client-page .community-container { padding-top: 30px; padding-bottom: 64px; }
+.sg-client-page .community-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.sg-client-page.venue-detail-page .hero-band { background: #eaf6ee; }
+.sg-client-page.venue-detail-page .detail-container { padding-inline: 0; }
+.sg-client-page.venue-detail-page .hero-band .detail-container { padding-top: 32px; padding-bottom: 30px; }
+.sg-client-page.venue-detail-page .detail-main > section,
+.sg-client-page.venue-detail-page .booking-form,
+.sg-client-page.venue-detail-page .mini-schedule { border-color: var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; }
+
 @media (max-width: 1120px) {
   .sg3-header__inner { gap: 14px; }
   .sg3-primary-nav a { padding-inline: 8px; }
@@ -329,6 +407,8 @@ body:has(.sg-client-page) #app {
   .sg3-mobile-filter-toggle { display: inline-flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; margin-bottom: 10px; padding: 0 13px; border: 1px solid var(--sg3-line); border-radius: 9px; background: #fff; color: var(--sg3-ink); cursor: pointer; font-weight: 800; }
   .sg3-filter-card { display: none; }
   .sg3-filter-card.is-open { display: block; }
+  .sg-client-page .sg-client-shell, .sg-client-page .community-container, .sg-client-page .detail-container { width: min(100% - 28px, 640px); }
+  .sg-client-page .community-heading { align-items: start; flex-direction: column; }
 }
 
 @media (max-width: 560px) {
@@ -344,6 +424,9 @@ body:has(.sg-client-page) #app {
   .sg3-toolbar-actions select { flex: 1; }
   .sg3-venue-actions { justify-content: stretch; }
   .sg3-venue-actions .sg3-button { flex: 1; }
+  .sg3-footer__main { grid-template-columns: 1fr 1fr; gap: 25px 18px; }
+  .sg3-footer__brand { grid-column: 1 / -1; }
+  .sg3-footer__bottom > div { align-items: start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
