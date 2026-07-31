@@ -5,17 +5,31 @@ namespace App\Http\Controllers\Api\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\VenuePost;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class DashboardController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'venue_cluster_id' => ['nullable', 'integer'],
+            'period' => ['nullable', Rule::in(['today', '7_days', '30_days', 'this_month', 'custom'])],
+            'date_from' => ['nullable', 'date', 'required_if:period,custom'],
+            'date_to' => ['nullable', 'date', 'required_if:period,custom', 'after_or_equal:date_from'],
+        ]);
+        $period = $this->resolvePeriod(
+            $validated['period'] ?? 'today',
+            $validated['date_from'] ?? null,
+            $validated['date_to'] ?? null,
+        );
         $clusterIds = $this->visibleClusterIds($request->user()->id);
-        $selectedClusterId = $request->query('venue_cluster_id');
+        $selectedClusterId = $validated['venue_cluster_id'] ?? null;
 
         if ($selectedClusterId) {
             if (! $clusterIds->contains($selectedClusterId)) {
@@ -74,6 +88,13 @@ class DashboardController extends Controller
                 'revenue' => 0,
                 'rating' => 0,
                 'venue_cluster_id' => null,
+                'period' => $period,
+                'period_summary' => $this->emptyPeriodSummary(),
+                'booking_statuses' => $this->emptyBookingStatuses(),
+                'revenue_trend' => $this->emptyRevenueTrend($period),
+                'operations' => $this->emptyOperations(),
+                'recent_bookings' => [],
+                'court_statuses' => ['total' => 0, 'active' => 0, 'maintenance' => 0, 'inactive' => 0],
                 'wallet' => $walletData,
                 'today_booking_summary' => $this->emptyTodayBookingSummary(),
                 'today_bookings' => [],
@@ -124,6 +145,33 @@ class DashboardController extends Controller
             'revenue' => (float) $todayRevenue,
         ];
 
+        $periodBookingQuery = Booking::query()
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->whereBetween('booking_date', [$period['date_from'], $period['date_to']]);
+        $periodBookingsCount = (clone $periodBookingQuery)->count();
+        $periodRevenue = (float) DB::table('payments')
+            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
+            ->whereIn('bookings.venue_cluster_id', $clusterIds)
+            ->whereBetween('bookings.booking_date', [$period['date_from'], $period['date_to']])
+            ->where('payments.status', 'paid')
+            ->sum('payments.amount');
+        $periodStatusCounts = (clone $periodBookingQuery)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $periodSummary = [
+            'bookings' => $periodBookingsCount,
+            'revenue' => $periodRevenue,
+            'average_booking_value' => $periodBookingsCount > 0 ? round($periodRevenue / $periodBookingsCount, 2) : 0,
+            'completed' => (int) ($periodStatusCounts['completed'] ?? 0),
+            'cancelled' => collect(['cancelled', 'rejected', 'expired'])
+                ->sum(fn (string $status): int => (int) ($periodStatusCounts[$status] ?? 0)),
+            'online_bookings' => (clone $periodBookingQuery)->where('source', 'online')->count(),
+            'counter_bookings' => (clone $periodBookingQuery)->where('source', '!=', 'online')->count(),
+        ];
+        $bookingStatuses = $this->bookingStatusBreakdown($periodStatusCounts);
+        $revenueTrend = $this->revenueTrend($clusterIds, $period);
+
         $todayBookings = $this->bookingDashboardQuery($clusterIds)
             ->whereDate('booking_date', $today)
             ->orderBy('start_time')
@@ -148,9 +196,105 @@ class DashboardController extends Controller
             ->get()
             ->map(fn (Booking $booking): array => $this->bookingDashboardPayload($booking));
 
+        $recentBookings = $this->bookingDashboardQuery($clusterIds)
+            ->whereBetween('booking_date', [$period['date_from'], $period['date_to']])
+            ->orderByDesc('booking_date')
+            ->orderByDesc('start_time')
+            ->limit(8)
+            ->get()
+            ->map(fn (Booking $booking): array => $this->bookingDashboardPayload($booking));
+
+        $refundBase = DB::table('refunds')
+            ->join('bookings', 'refunds.booking_id', '=', 'bookings.id')
+            ->whereIn('bookings.venue_cluster_id', $clusterIds);
+        $pendingRefundBase = (clone $refundBase)
+            ->where('refunds.status', 'pending_owner_confirmation');
+        $latestRefunds = (clone $refundBase)
+            ->select([
+                'refunds.id',
+                'refunds.amount',
+                'refunds.status',
+                'refunds.created_at',
+                'bookings.booking_code',
+            ])
+            ->orderByDesc('refunds.created_at')
+            ->limit(4)
+            ->get()
+            ->map(fn ($refund): array => [
+                'id' => $refund->id,
+                'booking_code' => $refund->booking_code,
+                'amount' => (float) $refund->amount,
+                'status' => $refund->status,
+                'status_label' => $this->refundStatusLabel($refund->status),
+                'created_at' => $refund->created_at,
+            ]);
+
+        $withdrawalBase = DB::table('owner_withdrawal_requests')
+            ->join('owner_wallets', 'owner_wallets.id', '=', 'owner_withdrawal_requests.owner_wallet_id')
+            ->where('owner_withdrawal_requests.owner_id', $request->user()->id)
+            ->when(
+                $selectedClusterId,
+                fn ($query, $clusterId) => $query->where('owner_wallets.venue_cluster_id', $clusterId)
+            );
+        $pendingWithdrawalStatuses = ['pending', 'reviewing', 'approved'];
+        $latestWithdrawals = (clone $withdrawalBase)
+            ->select([
+                'owner_withdrawal_requests.id',
+                'owner_withdrawal_requests.request_code',
+                'owner_withdrawal_requests.amount',
+                'owner_withdrawal_requests.status',
+                'owner_withdrawal_requests.requested_at',
+            ])
+            ->orderByDesc('owner_withdrawal_requests.requested_at')
+            ->limit(4)
+            ->get()
+            ->map(fn ($withdrawal): array => [
+                'id' => $withdrawal->id,
+                'request_code' => $withdrawal->request_code,
+                'amount' => (float) $withdrawal->amount,
+                'status' => $withdrawal->status,
+                'status_label' => $this->withdrawalStatusLabel($withdrawal->status),
+                'requested_at' => $withdrawal->requested_at,
+            ]);
+
+        $operations = [
+            'pending_bookings' => (clone $this->bookingDashboardQuery($clusterIds))
+                ->whereDate('booking_date', '>=', $today)
+                ->whereIn('status', ['pending_approval', 'pending_payment'])
+                ->count(),
+            'pending_refunds' => (clone $pendingRefundBase)->count(),
+            'pending_refund_amount' => (float) (clone $pendingRefundBase)->sum('refunds.amount'),
+            'pending_withdrawals' => (clone $withdrawalBase)
+                ->whereIn('owner_withdrawal_requests.status', $pendingWithdrawalStatuses)
+                ->count(),
+            'pending_withdrawal_amount' => (float) (clone $withdrawalBase)
+                ->whereIn('owner_withdrawal_requests.status', $pendingWithdrawalStatuses)
+                ->sum('owner_withdrawal_requests.amount'),
+            'open_complaints' => DB::table('complaints')
+                ->whereIn('venue_cluster_id', $clusterIds)
+                ->whereIn('status', ['open', 'processing'])
+                ->count(),
+            'latest_refunds' => $latestRefunds,
+            'latest_withdrawals' => $latestWithdrawals,
+        ];
+
+        $courtStatusCounts = DB::table('venue_courts')
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->whereNull('deleted_at')
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $courtStatuses = [
+            'total' => (int) $courtStatusCounts->sum(),
+            'active' => (int) ($courtStatusCounts['active'] ?? 0),
+            'maintenance' => (int) ($courtStatusCounts['maintenance'] ?? 0),
+            'inactive' => (int) ($courtStatusCounts['inactive'] ?? 0),
+        ];
+
         $goldenHours = DB::table('bookings')
             ->select(DB::raw("CONCAT(SUBSTRING(start_time, 1, 5), ' - ', SUBSTRING(end_time, 1, 5)) as time_slot"), DB::raw('count(*) as count'))
             ->whereIn('venue_cluster_id', $clusterIds)
+            ->whereBetween('booking_date', [$period['date_from'], $period['date_to']])
             ->where('status', '!=', 'cancelled')
             ->groupBy('time_slot')
             ->orderByDesc('count')
@@ -162,6 +306,7 @@ class DashboardController extends Controller
             ->join('venue_courts', 'bookings.venue_court_id', '=', 'venue_courts.id')
             ->select('venue_courts.name as court_name', DB::raw('sum(payments.amount) as revenue'))
             ->whereIn('bookings.venue_cluster_id', $clusterIds)
+            ->whereBetween('bookings.booking_date', [$period['date_from'], $period['date_to']])
             ->where('payments.status', 'paid')
             ->groupBy('venue_courts.id', 'venue_courts.name')
             ->orderByDesc('revenue')
@@ -204,6 +349,13 @@ class DashboardController extends Controller
             'revenue' => (float) $revenue,
             'rating' => round((float) $rating, 2),
             'venue_cluster_id' => $selectedClusterId,
+            'period' => $period,
+            'period_summary' => $periodSummary,
+            'booking_statuses' => $bookingStatuses,
+            'revenue_trend' => $revenueTrend,
+            'operations' => $operations,
+            'recent_bookings' => $recentBookings,
+            'court_statuses' => $courtStatuses,
             'wallet' => $walletData,
             'today_booking_summary' => $todaySummary,
             'today_bookings' => $todayBookings,
@@ -323,6 +475,163 @@ class DashboardController extends Controller
             'partial' => 'Thanh toán một phần',
             'unpaid' => 'Chưa thanh toán',
         ][$this->paymentState($paidAmount, $totalPrice)];
+    }
+
+    private function resolvePeriod(string $key, ?string $dateFrom, ?string $dateTo): array
+    {
+        $today = now()->startOfDay();
+
+        [$from, $to, $label] = match ($key) {
+            '7_days' => [$today->copy()->subDays(6), $today->copy(), '7 ngày gần nhất'],
+            '30_days' => [$today->copy()->subDays(29), $today->copy(), '30 ngày gần nhất'],
+            'this_month' => [$today->copy()->startOfMonth(), $today->copy(), 'Tháng này'],
+            'custom' => [
+                Carbon::parse($dateFrom)->startOfDay(),
+                Carbon::parse($dateTo)->startOfDay(),
+                'Khoảng tùy chọn',
+            ],
+            default => [$today->copy(), $today->copy(), 'Hôm nay'],
+        };
+
+        if ($from->diffInDays($to) > 366) {
+            abort(422, 'Khoảng thời gian thống kê không được vượt quá 366 ngày.');
+        }
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'date_from' => $from->toDateString(),
+            'date_to' => $to->toDateString(),
+        ];
+    }
+
+    private function bookingStatusBreakdown($statusCounts): array
+    {
+        $groups = [
+            ['key' => 'pending', 'label' => 'Đang chờ xử lý', 'statuses' => ['pending_approval', 'pending_payment']],
+            ['key' => 'confirmed', 'label' => 'Đã xác nhận', 'statuses' => ['confirmed']],
+            ['key' => 'playing', 'label' => 'Đang chơi', 'statuses' => ['checked_in']],
+            ['key' => 'completed', 'label' => 'Hoàn thành', 'statuses' => ['completed']],
+            ['key' => 'cancelled', 'label' => 'Hủy / từ chối', 'statuses' => ['cancelled', 'rejected', 'expired']],
+        ];
+
+        return collect($groups)->map(function (array $group) use ($statusCounts): array {
+            $count = collect($group['statuses'])
+                ->sum(fn (string $status): int => (int) ($statusCounts[$status] ?? 0));
+
+            return [
+                'key' => $group['key'],
+                'label' => $group['label'],
+                'count' => $count,
+            ];
+        })->all();
+    }
+
+    private function revenueTrend($clusterIds, array $period): array
+    {
+        $bookingCounts = DB::table('bookings')
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->whereBetween('booking_date', [$period['date_from'], $period['date_to']])
+            ->selectRaw('DATE(booking_date) as trend_date, COUNT(*) as total')
+            ->groupBy('trend_date')
+            ->pluck('total', 'trend_date');
+
+        $revenues = DB::table('payments')
+            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
+            ->whereIn('bookings.venue_cluster_id', $clusterIds)
+            ->whereBetween('bookings.booking_date', [$period['date_from'], $period['date_to']])
+            ->where('payments.status', 'paid')
+            ->selectRaw('DATE(bookings.booking_date) as trend_date, SUM(payments.amount) as revenue')
+            ->groupBy('trend_date')
+            ->pluck('revenue', 'trend_date');
+
+        return collect(CarbonPeriod::create($period['date_from'], $period['date_to']))
+            ->map(function (Carbon $date) use ($bookingCounts, $revenues): array {
+                $key = $date->toDateString();
+
+                return [
+                    'date' => $key,
+                    'label' => $date->format('d/m'),
+                    'bookings' => (int) ($bookingCounts[$key] ?? 0),
+                    'revenue' => (float) ($revenues[$key] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function emptyRevenueTrend(array $period): array
+    {
+        return collect(CarbonPeriod::create($period['date_from'], $period['date_to']))
+            ->map(fn (Carbon $date): array => [
+                'date' => $date->toDateString(),
+                'label' => $date->format('d/m'),
+                'bookings' => 0,
+                'revenue' => 0,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function refundStatusLabel(?string $status): string
+    {
+        return [
+            'pending_confirmation' => 'Chờ xác nhận',
+            'pending_owner_confirmation' => 'Chờ chủ sân',
+            'owner_confirmed' => 'Đã xác nhận',
+            'owner_rejected' => 'Đã từ chối',
+            'admin_processing' => 'Admin xử lý',
+            'processing' => 'Đang hoàn tiền',
+            'completed' => 'Hoàn tất',
+            'completed_cash' => 'Đã hoàn tiền mặt',
+            'failed' => 'Thất bại',
+            'rejected' => 'Từ chối',
+            'cancelled' => 'Đã hủy',
+        ][$status] ?? ($status ?: 'Không rõ');
+    }
+
+    private function withdrawalStatusLabel(?string $status): string
+    {
+        return [
+            'pending' => 'Chờ duyệt',
+            'reviewing' => 'Đang kiểm tra',
+            'approved' => 'Đã duyệt',
+            'rejected' => 'Từ chối',
+            'completed' => 'Đã chuyển tiền',
+            'cancelled' => 'Đã hủy',
+        ][$status] ?? ($status ?: 'Không rõ');
+    }
+
+    private function emptyPeriodSummary(): array
+    {
+        return [
+            'bookings' => 0,
+            'revenue' => 0,
+            'average_booking_value' => 0,
+            'completed' => 0,
+            'cancelled' => 0,
+            'online_bookings' => 0,
+            'counter_bookings' => 0,
+        ];
+    }
+
+    private function emptyBookingStatuses(): array
+    {
+        return $this->bookingStatusBreakdown(collect());
+    }
+
+    private function emptyOperations(): array
+    {
+        return [
+            'pending_bookings' => 0,
+            'pending_refunds' => 0,
+            'pending_refund_amount' => 0,
+            'pending_withdrawals' => 0,
+            'pending_withdrawal_amount' => 0,
+            'open_complaints' => 0,
+            'latest_refunds' => [],
+            'latest_withdrawals' => [],
+        ];
     }
 
     private function emptyTodayBookingSummary(): array
