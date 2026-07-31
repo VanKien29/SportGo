@@ -1,5 +1,6 @@
 <template>
     <AuthLayout
+        class="sg-account-auth sg-admin-auth"
         title="Quản trị hệ thống"
         subtitle="Đăng nhập tài khoản quản trị để tiếp tục"
         imageSrc="https://i.ibb.co/XrkdGrrv/original-ccdd6d6195fff2386a31b684b7abdd2e-removebg-preview.png"
@@ -9,7 +10,7 @@
     >
         <form
             @submit.prevent="handleSubmit"
-            class="flex flex-col gap-5 w-full text-left mt-2"
+            class="sg-account-form sg-login-form flex flex-col gap-5 w-full text-left mt-2"
             autocomplete="off"
             novalidate
         >

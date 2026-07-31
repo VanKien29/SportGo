@@ -579,3 +579,105 @@ body:has(.sg-client-page) #app {
   .sg3-skeleton::after { animation: none; }
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+
+/* Community v3: one surface per section, with the search control treated as
+ * a single component instead of several adjacent bordered boxes. */
+body:has(.sg3-header) .community-page {
+  color: var(--sg3-ink) !important;
+  background: var(--sg3-soft) !important;
+}
+
+body:has(.sg3-header) .community-page .community-heading {
+  min-height: 184px;
+  border: 1px solid var(--sg3-line) !important;
+  border-radius: 14px !important;
+  background: #eaf7ee !important;
+  box-shadow: none !important;
+}
+
+body:has(.sg3-header) .community-page .community-heading::before { background: var(--sg3-green) !important; }
+body:has(.sg3-header) .community-page .community-heading .eyebrow { color: var(--sg3-green-dark) !important; }
+body:has(.sg3-header) .community-page .community-heading h1 { color: var(--sg3-ink) !important; }
+body:has(.sg3-header) .community-page .community-heading p { color: var(--sg3-muted) !important; }
+body:has(.sg3-header) .community-page .heading-login { border-color: var(--sg3-green) !important; background: var(--sg3-green) !important; color: #fff !important; }
+
+body:has(.sg3-header) .community-page .composer-card,
+body:has(.sg3-header) .community-page .post-card,
+body:has(.sg3-header) .community-page .feed-toolbar,
+body:has(.sg3-header) .community-page .sidebar-card,
+body:has(.sg3-header) .community-page .feed-state {
+  border: 1px solid var(--sg3-line) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 14px rgba(20, 38, 29, .035) !important;
+}
+
+body:has(.sg3-header) .community-page .search-form,
+body:has(.sg3-header) .community-page .search-box {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 44px !important;
+  padding: 4px 5px 4px 11px !important;
+  border: 1px solid var(--sg3-line-strong) !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+body:has(.sg3-header) .community-page .search-form input,
+body:has(.sg3-header) .community-page .search-box input {
+  min-width: 0 !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--sg3-ink) !important;
+  -webkit-text-fill-color: var(--sg3-ink) !important;
+}
+
+body:has(.sg3-header) .community-page .search-form button,
+body:has(.sg3-header) .community-page .search-box button {
+  align-self: stretch !important;
+  min-height: 36px !important;
+  padding-inline: 13px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: var(--sg3-green) !important;
+  color: #fff !important;
+}
+
+body:has(.sg3-header) .community-page .category-list { gap: 6px !important; }
+body:has(.sg3-header) .community-page .category-list button { border-color: var(--sg3-line) !important; background: #fff !important; color: var(--sg3-muted) !important; }
+body:has(.sg3-header) .community-page .category-list button.active { border-color: var(--sg3-green) !important; background: var(--sg3-green-soft) !important; color: var(--sg3-green-dark) !important; }
+
+/* The public navbar participates in normal flow. No legacy fixed-header
+ * compensation should create a blank band above the chat workspace. */
+body:has(.sg3-header) .client-chat-page {
+  height: calc(100vh - 76px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: #f4f8f5 !important;
+  color: var(--sg3-ink) !important;
+}
+
+body:has(.sg3-header) .client-chat-page > .client-chat-workspace,
+body:has(.sg3-header) .client-chat-page > .chat-workspace {
+  height: 100% !important;
+  min-height: 0 !important;
+  padding-top: 0 !important;
+  border-top: 1px solid var(--sg3-line) !important;
+  background: #f4f8f5 !important;
+}
+
+body:has(.sg3-header) .client-chat-page [class~="bg-zinc-950"],
+body:has(.sg3-header) .client-chat-page [class~="bg-zinc-900\/50"] {
+  background: #fff !important;
+}
+
+body:has(.sg3-header) .client-chat-page [class~="text-zinc-100"],
+body:has(.sg3-header) .client-chat-page [class~="text-zinc-200"] {
+  color: var(--sg3-ink) !important;
+}

@@ -2,8 +2,8 @@
   <div
     :class="[
       'chat-page flex flex-col font-sans',
-      usesAdminChatTheme ? 'admin-chat-page admin-chat' : 'bg-zinc-950',
-      isAdmin ? '' : 'client-chat-page min-h-screen text-zinc-100'
+      usesAdminChatTheme ? 'admin-chat-page admin-chat' : 'client-chat-surface',
+      isAdmin ? '' : 'client-chat-page min-h-screen'
     ]"
     :data-admin-chat="usesAdminChatTheme ? '' : undefined"
   >
@@ -15,7 +15,7 @@
     <div
       :class="[
         'flex-1 flex overflow-hidden relative',
-        usesAdminChatTheme ? 'admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
+        usesAdminChatTheme ? 'admin-chat-workspace' : 'client-chat-workspace'
       ]"
     >
       <!-- Telegram Menu Drawer Overlay -->

@@ -21,8 +21,8 @@ class VenueClusterAmenitiesTableSeeder extends Seeder
         }
 
         $clusters = VenueCluster::query()
+            ->where('status', 'active')
             ->orderBy('name')
-            ->limit(3)
             ->get();
 
         if ($clusters->isEmpty()) {
@@ -51,7 +51,7 @@ class VenueClusterAmenitiesTableSeeder extends Seeder
         ];
 
         foreach ($clusters as $index => $cluster) {
-            $group = $groups[$index] ?? $groups[0];
+            $group = $groups[$index % count($groups)];
             foreach ($group as [$amenityName, $description]) {
                 $amenity = Amenity::query()
                     ->where('name', $amenityName)

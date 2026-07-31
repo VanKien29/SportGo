@@ -15,7 +15,13 @@ class BookingConfigsTableSeeder extends Seeder
             return;
         }
 
-        $clusters = VenueCluster::query()->whereIn('slug', ['green-sport-ba-dinh', 'sun-sport-cau-giay'])->get();
+        $clusters = VenueCluster::query()->whereIn('slug', [
+            'green-sport-ba-dinh',
+            'sun-sport-cau-giay',
+            'victory-sport-ha-dong',
+            'green-sport-cau-giay',
+            'green-sport-tay-ho',
+        ])->get();
 
         foreach ($clusters as $cluster) {
             BookingConfig::query()->updateOrCreate(
