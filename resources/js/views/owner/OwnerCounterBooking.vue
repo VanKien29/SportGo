@@ -409,8 +409,12 @@
                             >
                                 <button
                                     v-if="
-                                        selectedBusyBooking.status ===
-                                        'pending_approval'
+                                        [
+                                            'pending_approval',
+                                            'pending_payment',
+                                        ].includes(selectedBusyBooking.status) &&
+                                        selectedBusyBooking.payment_option ===
+                                            'no_prepay'
                                     "
                                     class="secondary-btn compact action-success"
                                     type="button"
@@ -1831,6 +1835,16 @@
                     </div>
 
                     <div class="modal-actions">
+                        <button
+                            v-if="canApproveBooking(bookingListDetail)"
+                            class="primary-btn"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="approveBookingFromList"
+                        >
+                            <AppIcon name="check" size="15" />
+                            {{ bookingActionLoading ? "Đang xử lý..." : "Xác nhận booking" }}
+                        </button>
                         <button
                             class="secondary-btn"
                             type="button"
@@ -4003,6 +4017,33 @@ export default {
         },
         closeBookingListDetail() {
             this.bookingListDetail = null;
+        },
+        canApproveBooking(booking) {
+            return Boolean(
+                booking &&
+                    ['pending_approval', 'pending_payment'].includes(booking.status) &&
+                    booking.payment_option === 'no_prepay',
+            );
+        },
+        async approveBookingFromList() {
+            const booking = this.bookingListDetail;
+            if (!this.canApproveBooking(booking) || this.bookingActionLoading) return;
+
+            this.bookingActionLoading = true;
+            this.error = '';
+            this.notice = '';
+            try {
+                const response = await ownerBookingService.updateStatus(booking.id, {
+                    action: 'confirm',
+                });
+                this.bookingListDetail = response.data || response;
+                this.notice = 'Đã xác nhận booking trả sau.';
+                await Promise.all([this.loadBookingList(), this.loadSchedule()]);
+            } catch (error) {
+                this.error = error.message || 'Không thể xác nhận booking.';
+            } finally {
+                this.bookingActionLoading = false;
+            }
         },
         slotStatus(courtId, slot) {
             if (!slot) return null;

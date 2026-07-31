@@ -9,6 +9,7 @@ use App\Models\CourtType;
 use App\Models\Role;
 use App\Models\SlotLock;
 use App\Models\User;
+use App\Models\UserWallet;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
@@ -385,6 +386,81 @@ class BookingTest extends TestCase
         $this->assertSame('Giữ chỗ chờ chủ sân duyệt trong 15 phút.', $lock->reason);
         $this->assertGreaterThanOrEqual(14, now()->diffInMinutes($lock->expires_at));
         $this->assertLessThanOrEqual(15, now()->diffInMinutes($lock->expires_at));
+    }
+
+    public function test_owner_can_confirm_pay_later_booking_and_release_temporary_hold(): void
+    {
+        $booking = $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '14:00:00',
+                'end_time' => '15:00:00',
+                'payment_option' => 'no_prepay',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('status', 'pending_approval')
+            ->json();
+
+        $owner = User::query()->findOrFail($this->cluster->owner_id);
+        $ownerRole = Role::query()->firstOrCreate([
+            'name' => 'venue_owner',
+        ], [
+            'display_name' => 'Venue Owner',
+            'is_system' => true,
+        ]);
+        UserRole::query()->create([
+            'user_id' => $owner->id,
+            'role_id' => $ownerRole->id,
+            'scope_type' => 'system',
+            'scope_id' => 0,
+        ]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->patchJson('/api/owner/bookings/'.$booking['id'].'/status', [
+                'action' => 'confirm',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'confirmed');
+
+        $this->assertDatabaseMissing('slot_locks', [
+            'booking_id' => $booking['id'],
+        ]);
+    }
+
+    public function test_wallet_booking_is_paid_once_and_released_from_hold(): void
+    {
+        UserWallet::query()->create([
+            'user_id' => $this->player->id,
+            'balance' => 50000,
+            'locked_balance' => 0,
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->player, 'sanctum')
+            ->postJson('/api/bookings', [
+                'venue_court_id' => $this->court->id,
+                'booking_date' => $this->bookingDate,
+                'start_time' => '16:00:00',
+                'end_time' => '17:00:00',
+                'payment_option' => 'wallet',
+            ]);
+        $booking = $response->assertCreated()
+            ->assertJsonPath('status', 'confirmed')
+            ->json();
+
+        $this->assertDatabaseHas('payments', [
+            'booking_id' => $booking['id'],
+            'method' => 'wallet',
+            'status' => 'paid',
+        ]);
+        $this->assertDatabaseHas('user_wallets', [
+            'user_id' => $this->player->id,
+            'balance' => 40000,
+        ]);
+        $this->assertDatabaseMissing('slot_locks', [
+            'booking_id' => $booking['id'],
+        ]);
     }
 
     /**

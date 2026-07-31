@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
@@ -391,9 +392,12 @@ class BookingManagementController extends Controller
             'cancellation_reason_type' => ['nullable', Rule::in(['owner_maintenance', 'owner_emergency', 'venue_locked', 'admin_action'])],
         ]);
 
+        // Một số booking trả sau được tạo trước khi trạng thái chờ duyệt được chuẩn hóa
+        // và còn nằm ở pending_payment. Cho phép owner xử lý chúng như pending_approval.
+        $isPayLater = $booking->payment_option === 'no_prepay';
         $allowedActions = match ($booking->status) {
             'pending_approval' => ['confirm', 'reject', 'cancel'],
-            'pending_payment' => ['cancel'],
+            'pending_payment' => $isPayLater ? ['confirm', 'reject', 'cancel'] : ['cancel'],
             'confirmed' => ['check_in', 'cancel'],
             'checked_in' => ['complete'],
             default => [],
@@ -464,6 +468,15 @@ class BookingManagementController extends Controller
                 : $booking->cancellation_reason_type,
             'cancelled_at' => in_array($status, ['cancelled', 'rejected'], true) ? now() : $booking->cancelled_at,
         ]);
+
+        if ($validated['action'] === 'confirm' && $isPayLater) {
+            // Lock auto chỉ có nhiệm vụ chờ owner duyệt; sau khi duyệt booking
+            // phải được giữ bởi trạng thái booking thay vì một lock tạm.
+            SlotLock::query()
+                ->where('booking_id', $booking->id)
+                ->where('lock_type', 'auto')
+                ->delete();
+        }
 
         $refunds = [];
         if ($status === 'completed') {

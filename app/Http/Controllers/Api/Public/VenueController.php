@@ -329,6 +329,7 @@ class VenueController extends Controller
 
         return [
             'allow_full_payment' => (bool) ($config?->allow_full_payment ?? true),
+            'allow_wallet' => (bool) ($config?->allow_full_payment ?? true),
             'allow_deposit' => (bool) ($config?->allow_deposit ?? true),
             'allow_no_prepay' => (bool) ($config?->allow_no_prepay ?? true),
             'deposit_percent' => $config?->deposit_percent !== null ? (float) $config->deposit_percent : null,

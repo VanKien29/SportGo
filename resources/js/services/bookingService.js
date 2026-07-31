@@ -49,11 +49,19 @@ export const bookingService = {
     return api(`/api/bookings/${id}`);
   },
 
+  getRecurringGroup(groupCode) {
+    return api(`/api/bookings/recurring-groups/${encodeURIComponent(groupCode)}`);
+  },
+
   cancelBooking(id, reason = '') {
     return api(`/api/bookings/${id}/cancel`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
+  },
+
+  previewCancellation(id) {
+    return api(`/api/bookings/${id}/cancel/preview`, { method: 'POST' });
   },
 
   // Tạo thông tin thanh toán SePay cho đơn đặt sân
@@ -68,5 +76,22 @@ export const bookingService = {
     return api(`/api/bookings/${id}/payments/cancel`, {
       method: 'POST',
     });
+  },
+
+  getWallet() {
+    return api('/api/user/wallet');
+  },
+
+  listRefunds(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.append(key, value);
+    });
+    const suffix = query.toString();
+    return api(`/api/refunds${suffix ? `?${suffix}` : ''}`);
+  },
+
+  getRefund(id) {
+    return api(`/api/refunds/${id}`);
   },
 };

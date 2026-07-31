@@ -248,8 +248,11 @@
 
                     <section v-if="available" class="payment-section">
                         <h3>Hình thức thanh toán</h3>
-                        <label v-for="option in paymentOptions" :key="option.value" :class="{ active: paymentOption === option.value }">
-                            <input v-model="paymentOption" type="radio" :value="option.value" />
+                        <p v-if="walletBalance !== null" class="wallet-payment-balance">
+                            Số dư ví: <strong>{{ money(walletBalance) }}</strong>
+                        </p>
+                        <label v-for="option in paymentOptions" :key="option.value" :class="{ active: paymentOption === option.value, disabled: option.disabled }">
+                            <input v-model="paymentOption" type="radio" :value="option.value" :disabled="option.disabled" />
                             <span class="payment-icon">
                                 <AppIcon :name="option.icon" size="17" />
                             </span>
@@ -313,6 +316,7 @@ export default {
             available: false,
             preview: null,
             paymentOption: "no_prepay",
+            walletBalance: null,
             _venueVouchers: [],
             _vipVouchers: [],
             selectedVenueVoucherId: "",
@@ -336,7 +340,17 @@ export default {
             return candidate.startsWith("/venues") && !candidate.startsWith("//") ? candidate : "/venues";
         },
         config() {
-            return this.currentCluster?.booking_config || {};
+            return {
+                min_duration_minutes: 30,
+                max_duration_minutes: null,
+                min_advance_booking_minutes: 30,
+                slot_hold_minutes: 20,
+                allow_full_payment: true,
+                allow_deposit: true,
+                allow_no_prepay: true,
+                deposit_percent: 30,
+                ...(this.currentCluster?.booking_config || {}),
+            };
         },
         courtTypes() {
             const types = new Map();
@@ -456,6 +470,9 @@ export default {
                 if (minutes < this.minDuration) return `${invalidCourt.name} cần đặt tối thiểu ${this.minDuration} phút.`;
                 return `${invalidCourt.name} chỉ được đặt tối đa ${this.maxDuration} phút.`;
             }
+            if (this.paymentOption === "wallet" && this.walletBalance !== null && this.walletBalance < this.total) {
+                return "Số dư ví không đủ cho booking này.";
+            }
             if (!this.available && !this.checking) return "Khung giờ không còn khả dụng.";
             return "";
         },
@@ -503,15 +520,22 @@ export default {
             return Math.max(this.afterMembership - this.voucherDiscount, 0);
         },
         requiredAmount() {
-            if (this.paymentOption === "full_payment") return this.total;
+            if (this.paymentOption === "full_payment" || this.paymentOption === "wallet") return this.total;
             if (this.paymentOption === "deposit") return this.total * (Number(this.config.deposit_percent || 30) / 100);
             return 0;
         },
         paymentOptions() {
             return [
                 this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Không cần trả trước", icon: "banknote" },
-                this.config.allow_deposit && { value: "deposit", label: `Đặt cọc ${this.config.deposit_percent || 30}%`, hint: "Giữ sân bằng tiền cọc", icon: "creditCard" },
+                this.config.allow_deposit !== false && { value: "deposit", label: `Đặt cọc ${this.config.deposit_percent || 30}%`, hint: "Giữ sân bằng tiền cọc", icon: "creditCard" },
                 this.config.allow_full_payment !== false && { value: "full_payment", label: "Thanh toán toàn bộ", hint: "Thanh toán online 100%", icon: "qrCode" },
+                this.config.allow_full_payment !== false && this.walletBalance !== null && {
+                    value: "wallet",
+                    label: "Thanh toán bằng ví",
+                    hint: this.walletBalance >= this.total ? `Đủ số dư · ${this.money(this.walletBalance)}` : "Số dư ví không đủ",
+                    icon: "wallet",
+                    disabled: this.walletBalance < this.total,
+                },
             ].filter(Boolean);
         },
         canSubmit() {
@@ -618,6 +642,12 @@ export default {
             try {
                 const query = this.$route.query || {};
                 const response = await bookingService.getInitData();
+                try {
+                    const walletResponse = await bookingService.getWallet();
+                    this.walletBalance = Number(walletResponse?.wallet?.balance || 0);
+                } catch {
+                    this.walletBalance = null;
+                }
                 this.clusters = response.clusters || [];
                 const requested = query.venue_cluster_id || query.cluster;
                 this.clusterId = this.clusters.find(item => String(item.id) === String(requested))?.id || this.clusters[0]?.id || "";

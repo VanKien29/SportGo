@@ -557,6 +557,7 @@ export default {
       const hours = this.venue?.operating_hours || {};
       const paymentMethods = [];
       if (policy.allow_full_payment) paymentMethods.push("Thanh toán toàn bộ");
+      if (policy.allow_wallet) paymentMethods.push("Ví SportGo");
       if (policy.allow_deposit) {
         paymentMethods.push(policy.deposit_percent
           ? `Đặt cọc ${Number(policy.deposit_percent).toLocaleString("vi-VN")}%`
