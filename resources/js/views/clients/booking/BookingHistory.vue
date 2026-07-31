@@ -140,10 +140,10 @@
             </div>
 
             <div class="booking-actions">
-              <router-link :to="{ name: 'booking-detail', params: { id: booking.id } }" class="ghost-action primary-detail">
+              <button type="button" class="ghost-action primary-detail" @click="selectedBooking = booking">
                 <AppIcon name="eye" aria-hidden="true" />
-                Xem chi tiết
-              </router-link>
+                Xem nhanh
+              </button>
               <router-link
                 v-if="venueId(booking)"
                 :to="{ name: 'venue-detail', params: { id: venueId(booking) } }"
@@ -206,6 +206,49 @@
       @close="closeCancelModal"
       @confirm="confirmCancellation"
     />
+
+    <Teleport to="body">
+      <div v-if="selectedBooking" class="booking-quick-view" role="dialog" aria-modal="true" aria-labelledby="booking-quick-view-title" @click.self="selectedBooking = null">
+        <section class="booking-quick-view__panel">
+          <header class="booking-quick-view__header">
+            <div>
+              <span class="code">#{{ selectedBooking.booking_code }}</span>
+              <h2 id="booking-quick-view-title">{{ clusterName(selectedBooking) }}</h2>
+            </div>
+            <button type="button" class="booking-quick-view__close" aria-label="Đóng xem nhanh" @click="selectedBooking = null">
+              <AppIcon name="x" aria-hidden="true" />
+            </button>
+          </header>
+
+          <div class="booking-quick-view__status">
+            <span :class="['status-badge', selectedBooking.status]">{{ statusLabel(selectedBooking.status) }}</span>
+            <span>{{ paymentStatusLabel(selectedBooking.payment_status) }}</span>
+          </div>
+
+          <dl class="booking-quick-view__grid">
+            <div><dt>Sân</dt><dd>{{ courtText(selectedBooking) }}</dd></div>
+            <div><dt>Ngày chơi</dt><dd>{{ formatDate(selectedBooking.booking_date) }}</dd></div>
+            <div><dt>Khung giờ</dt><dd>{{ formatTime(selectedBooking.start_time) }} - {{ formatTime(selectedBooking.end_time) }}</dd></div>
+            <div><dt>Thành tiền</dt><dd>{{ formatCurrency(selectedBooking.total_price) }}</dd></div>
+          </dl>
+
+          <div v-if="selectedBooking.has_court_change || selectedBooking.has_partial_cancellation" class="booking-flags">
+            <span v-if="selectedBooking.has_court_change">Đã đổi sân</span>
+            <span v-if="selectedBooking.has_partial_cancellation">Có khung bị hủy/gián đoạn</span>
+          </div>
+
+          <footer class="booking-quick-view__actions">
+            <button type="button" class="sg-client-button" @click="selectedBooking = null">Đóng</button>
+            <button v-if="selectedBooking.can_cancel" type="button" class="danger-action" @click="cancelFromQuickView">
+              <AppIcon name="circleX" aria-hidden="true" /> Hủy booking
+            </button>
+            <router-link :to="{ name: 'booking-detail', params: { id: selectedBooking.id } }" class="sg-client-button sg-client-button--primary" @click="selectedBooking = null">
+              Xem chi tiết đầy đủ
+            </router-link>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -235,6 +278,7 @@ export default {
       cancellingId: "",
       cancelTarget: null,
       cancelError: "",
+      selectedBooking: null,
       statusFilters: [
         { value: "all", label: "Tất cả" },
         { value: "upcoming", label: "Sắp tới" },
@@ -328,6 +372,11 @@ export default {
     cancelBooking(booking) {
       this.cancelTarget = booking;
       this.cancelError = "";
+    },
+    cancelFromQuickView() {
+      const booking = this.selectedBooking;
+      this.selectedBooking = null;
+      if (booking) this.cancelBooking(booking);
     },
     closeCancelModal() {
       if (this.cancellingId) return;
@@ -438,7 +487,7 @@ export default {
 }
 
 .history-main {
-  max-width: 1120px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 104px 24px 56px;
 }
@@ -512,6 +561,52 @@ export default {
 .history-filters label span { color: #64748b; font-size: 12px; font-weight: 600; }
 .history-filters input, .history-filters select { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #bce8ca; border-radius: 8px; background: #fff; color: #163225; font: inherit; }
 .history-filters button { white-space: nowrap; }
+
+.booking-quick-view {
+  position: fixed;
+  z-index: 1400;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 30, 22, .48);
+}
+
+.booking-quick-view__panel {
+  width: min(620px, 100%);
+  max-height: min(720px, calc(100vh - 40px));
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #bcdcc7;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 30, 22, .2);
+}
+
+.booking-quick-view__header,
+.booking-quick-view__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.booking-quick-view__header { padding-bottom: 18px; border-bottom: 1px solid #e0ece3; }
+.booking-quick-view__header h2 { margin: 5px 0 0; color: #14261d; font-size: 22px; }
+.booking-quick-view__close { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #bedbc7; border-radius: 8px; background: #fff; color: #315044; cursor: pointer; }
+.booking-quick-view__status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 18px 0; color: #66756d; font-size: 13px; }
+.booking-quick-view__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.booking-quick-view__grid div { min-width: 0; padding: 14px; border: 1px solid #e0ece3; border-radius: 9px; background: #f8fbf9; }
+.booking-quick-view__grid dt { color: #718078; font-size: 12px; }
+.booking-quick-view__grid dd { margin: 6px 0 0; overflow-wrap: anywhere; color: #14261d; font-weight: 800; }
+.booking-quick-view__actions { justify-content: flex-end; margin-top: 20px; padding-top: 18px; border-top: 1px solid #e0ece3; }
+
+@media (max-width: 620px) {
+  .booking-quick-view__panel { padding: 18px; }
+  .booking-quick-view__grid { grid-template-columns: 1fr; }
+  .booking-quick-view__actions { align-items: stretch; flex-direction: column-reverse; }
+  .booking-quick-view__actions > * { width: 100%; }
+}
 
 @media (max-width: 1050px) {
   .history-filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); }

@@ -12,7 +12,6 @@
       <nav class="sg3-primary-nav" aria-label="Điều hướng chính">
         <router-link to="/" exact-active-class="is-active">Trang chủ</router-link>
         <router-link to="/venues" active-class="is-active">Tìm sân</router-link>
-        <router-link to="/map" active-class="is-active">Bản đồ</router-link>
         <router-link to="/offers" active-class="is-active">Ưu đãi</router-link>
         <router-link to="/community" active-class="is-active">Cộng đồng</router-link>
         <router-link to="/news" active-class="is-active">Tin tức</router-link>
@@ -91,7 +90,6 @@
       <nav v-if="showMobileNav" id="sg3-mobile-navigation" class="sg3-mobile-nav" aria-label="Điều hướng di động">
         <router-link to="/" exact-active-class="is-active" @click="closeMobileNav"><Home :size="17" />Trang chủ</router-link>
         <router-link to="/venues" active-class="is-active" @click="closeMobileNav"><MapPinned :size="17" />Tìm sân</router-link>
-        <router-link to="/map" active-class="is-active" @click="closeMobileNav"><MapPinned :size="17" />Bản đồ</router-link>
         <router-link to="/offers" active-class="is-active" @click="closeMobileNav"><WalletCards :size="17" />Ưu đãi</router-link>
         <router-link to="/community" active-class="is-active" @click="closeMobileNav"><UsersRound :size="17" />Cộng đồng</router-link>
         <router-link to="/news" active-class="is-active" @click="closeMobileNav"><Newspaper :size="17" />Tin tức</router-link>

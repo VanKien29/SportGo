@@ -77,12 +77,30 @@ import { getAuth } from "../../stores/auth.js";
 
 const fallbackImage = "/images/home/badminton-cover.webp";
 
+function defaultSearchSlot() {
+  const date = new Date();
+  const currentMinutes = date.getHours() * 60 + date.getMinutes();
+  let startMinutes = Math.ceil((currentMinutes + 30) / 30) * 30;
+
+  if (startMinutes < 360) startMinutes = 360;
+  if (startMinutes > 1260) {
+    date.setDate(date.getDate() + 1);
+    startMinutes = 360;
+  }
+
+  return {
+    date: date.toLocaleDateString("en-CA"),
+    time: `${String(Math.floor(startMinutes / 60)).padStart(2, "0")}:${String(startMinutes % 60).padStart(2, "0")}:00`,
+  };
+}
+
 export default {
   name: "VenueList",
   components: { AppIcon, BookingDateTimePicker, PublicNavbar, VenueResultsMap },
   data() {
-    const today = new Date().toLocaleDateString("en-CA");
-    return { venues: [], courtTypes: [], globalCourtTypes: [], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", filters: { q: "", court_type_id: "", area: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: "18:00:00", end_time: "19:00:00", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
+    const defaultSlot = defaultSearchSlot();
+    const today = defaultSlot.date;
+    return { venues: [], courtTypes: [], globalCourtTypes: [], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", filters: { q: "", court_type_id: "", area: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: defaultSlot.time, end_time: "", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
   },
   computed: {
     activeFilterLabel() { const parts = []; const type = this.courtTypes.find((item) => String(item.id) === String(this.filters.court_type_id)); if (type) parts.push(type.name); if (this.filters.area) parts.push(this.filters.area); if (this.filters.min_price || this.filters.max_price) parts.push(this.priceRangeLabel); parts.push(`${this.formatDateLabel(this.filters.booking_date)} lúc ${String(this.filters.start_time).slice(0, 5)}`); return parts.join(" · "); },
@@ -92,7 +110,7 @@ export default {
   watch: { "$route.query": { handler() { this.applyRouteQuery(); this.loadVenues(); }, deep: true } },
   mounted() { this.applyRouteQuery(); this.loadCourtTypes(); this.loadVenues(); },
   methods: {
-    applyRouteQuery() { const query = this.$route.query; const requestedDate = String(query.booking_date || query.date || this.today); this.viewMode = query.view === "map" ? "map" : "list"; this.filters = { ...this.filters, q: query.q || "", court_type_id: query.court_type_id || "", area: query.area || "", min_price: query.min_price || "", max_price: query.max_price || "", min_rating: query.min_rating || "", booking_date: requestedDate >= this.today ? requestedDate : this.today, start_time: this.normalizeTime(query.start_time || query.time || "18:00:00"), sort: query.sort || "recommended" }; this.filters.end_time = this.endTimeFromStart(this.filters.start_time); },
+    applyRouteQuery() { const query = this.$route.query; const defaultSlot = defaultSearchSlot(); const requestedDate = String(query.booking_date || query.date || defaultSlot.date); this.viewMode = query.view === "map" ? "map" : "list"; this.filters = { ...this.filters, q: query.q || "", court_type_id: query.court_type_id || "", area: query.area || "", min_price: query.min_price || "", max_price: query.max_price || "", min_rating: query.min_rating || "", booking_date: requestedDate >= defaultSlot.date ? requestedDate : defaultSlot.date, start_time: this.normalizeTime(query.start_time || query.time || defaultSlot.time), sort: query.sort || "recommended" }; this.filters.end_time = this.endTimeFromStart(this.filters.start_time); },
     async loadCourtTypes() { try { const response = await courtTypeService.getAll(); this.globalCourtTypes = this.normalizeCourtTypes((response.data || []).filter((type) => type?.id && type?.name && type.is_active !== false && !type.parent_id)); this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch { this.globalCourtTypes = []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } },
     async loadVenues() { const requestId = ++this.venuesRequestId; this.loading = true; this.error = ""; try { const response = await venueService.list(this.cleanQuery(false)); if (requestId !== this.venuesRequestId) return; this.venues = response.data || []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch (error) { if (requestId !== this.venuesRequestId) return; this.error = error.message || "Không thể tải danh sách sân."; } finally { if (requestId === this.venuesRequestId) this.loading = false; } },
     inferCourtTypes(venues = []) { const availableTypes = new Map(); venues.forEach((venue) => (venue.court_types || []).forEach((type) => { if (type?.id && type?.name && type.is_active !== false) availableTypes.set(String(type.id), type); })); return this.normalizeCourtTypes(Array.from(availableTypes.values())); },

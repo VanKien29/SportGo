@@ -497,6 +497,23 @@ function localDateString(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function defaultSearchSlot() {
+  const date = new Date();
+  const currentMinutes = date.getHours() * 60 + date.getMinutes();
+  let startMinutes = Math.ceil((currentMinutes + 30) / 30) * 30;
+
+  if (startMinutes < 360) startMinutes = 360;
+  if (startMinutes > 1260) {
+    date.setDate(date.getDate() + 1);
+    startMinutes = 360;
+  }
+
+  return {
+    date: localDateString(date),
+    time: `${String(Math.floor(startMinutes / 60)).padStart(2, "0")}:${String(startMinutes % 60).padStart(2, "0")}:00`,
+  };
+}
+
 export default {
   name: "HomeView",
   components: {
@@ -522,7 +539,8 @@ export default {
     PublicNavbar,
   },
   data() {
-    const today = localDateString();
+    const defaultSlot = defaultSearchSlot();
+    const today = defaultSlot.date;
     return {
       today,
       currentYear: new Date().getFullYear(),
@@ -536,7 +554,7 @@ export default {
         area: "",
         court_type_id: "",
         booking_date: today,
-        start_time: "18:00:00",
+        start_time: defaultSlot.time,
       },
       timeOptions: [
         "05:00",

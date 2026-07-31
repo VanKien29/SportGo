@@ -23,7 +23,12 @@ class PriceSlotsTableSeeder extends Seeder
         $types = CourtType::query()->whereIn('name', array_keys($this->prices()))->pluck('id', 'name');
 
         $clusterTypes = [
-            'green-sport-ba-dinh' => ['Cầu lông (Sân tiêu chuẩn)', 'Pickleball (Sân tiêu chuẩn)'],
+            'green-sport-ba-dinh' => [
+                'Cầu lông (Sân tiêu chuẩn)',
+                'Pickleball (Sân tiêu chuẩn)',
+                'Tennis (Sân tiêu chuẩn)',
+                'Bóng rổ (Sân tiêu chuẩn)',
+            ],
             'sun-sport-cau-giay' => ['Bóng Đá (Sân 7)', 'Bóng Đá (Sân 11)'],
         ];
 
@@ -71,6 +76,14 @@ class PriceSlotsTableSeeder extends Seeder
             'Pickleball (Sân tiêu chuẩn)' => [
                 ['06:00:00', '17:00:00', 120000],
                 ['17:00:00', '22:00:00', 160000],
+            ],
+            'Tennis (Sân tiêu chuẩn)' => [
+                ['06:00:00', '17:00:00', 180000],
+                ['17:00:00', '22:00:00', 240000],
+            ],
+            'Bóng rổ (Sân tiêu chuẩn)' => [
+                ['06:00:00', '17:00:00', 150000],
+                ['17:00:00', '22:00:00', 200000],
             ],
             'Bóng Đá (Sân 7)' => [
                 ['06:00:00', '17:00:00', 500000],
