@@ -12,7 +12,7 @@ import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import ForgotPassword from "../views/ForgotPassword.vue";
-import Profile from "../views/Profile.vue";
+import ClientProfile from "../views/clients/ClientProfile.vue";
 import AdminLogin from "../views/admin/AdminLogin.vue";
 import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
 import AdminLayout from "../views/admin/AdminLayout.vue";
@@ -30,6 +30,7 @@ import AdminRoles from "../views/admin/AdminRoles.vue";
 import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
 import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
+import OwnerProfile from "../views/owner/OwnerProfile.vue";
 import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
@@ -38,6 +39,7 @@ import StaffLayout from "../views/staff/StaffLayout.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
+import ClientWallet from "../views/clients/Wallet.vue";
 import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
 import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
@@ -49,6 +51,9 @@ import CommunityPostDetail from "../views/clients/community/CommunityDetail.vue"
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
+    { path: "/map", name: "client-map", redirect: { name: "venues", query: { view: "map" } } },
+    { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
+    { path: "/offers", name: "client-offers", component: () => import("../views/clients/Offers.vue") },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
     { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
     { path: "/login", name: "login", component: Login },
@@ -66,7 +71,7 @@ const routes = [
     {
         path: "/profile",
         name: "profile",
-        component: Profile,
+        component: ClientProfile,
         meta: { requiresAuth: true },
     },
     {
@@ -138,6 +143,54 @@ const routes = [
         path: "/bookings",
         name: "booking-history",
         component: BookingHistory,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/bookings/recurring/:groupCode",
+        name: "booking-recurring-group",
+        component: () => import("../views/clients/booking/RecurringGroupDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/wallet",
+        name: "client-wallet",
+        component: ClientWallet,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/refunds",
+        name: "client-refunds",
+        component: () => import("../views/clients/Refunds.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/refunds/:id",
+        name: "client-refund-detail",
+        component: () => import("../views/clients/RefundDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/notifications",
+        name: "client-notifications",
+        component: () => import("../views/clients/Notifications.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/complaints",
+        name: "client-complaints",
+        component: () => import("../views/clients/Complaints.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/complaints/new",
+        name: "client-complaint-create",
+        component: () => import("../views/clients/ComplaintCreate.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/complaints/:id",
+        name: "client-complaint-detail",
+        component: () => import("../views/clients/ComplaintDetail.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -459,7 +512,7 @@ const routes = [
                 name: "owner-complaint-detail",
                 component: () => import("../views/owner/OwnerComplaintDetail.vue"),
             },
-            { path: "profile", name: "owner-profile", component: Profile },
+            { path: "profile", name: "owner-profile", component: OwnerProfile },
             {
                 path: "partner-profile",
                 name: "owner-partner-profile",
@@ -524,7 +577,7 @@ const routes = [
                 name: "staff-chat",
                 component: () => import("../views/Chat.vue"),
             },
-            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "profile", name: "staff-profile", component: OwnerProfile },
             { path: "", redirect: { name: "staff-dashboard" } },
         ],
     },
@@ -534,7 +587,15 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes,
+    scrollBehavior(to) {
+        if (to.hash) return { el: to.hash, behavior: "smooth" };
+        return { top: 0, left: 0 };
+    },
 });
+
+if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "manual";
+}
 
 router.beforeEach(async (to, from, next) => {
     applyThemeModeForPath(to.path);
@@ -566,14 +627,6 @@ router.beforeEach(async (to, from, next) => {
         return next();
     }
 
-    if (to.name === "profile" && auth?.role_group === "owner") {
-        return next({ name: "owner-profile" });
-    }
-
-    if (to.name === "profile" && auth?.role_group === "staff") {
-        return next({ name: "staff-profile" });
-    }
-
     if (to.matched.some((route) => route.meta.requiresAuth)) {
         const requiredRole = to.matched.find((route) => route.meta.role)?.meta
             .role;
@@ -596,10 +649,6 @@ router.beforeEach(async (to, from, next) => {
                     ? { name: "admin-login" }
                     : { name: "login", query: { redirect: to.fullPath } },
             );
-        }
-
-        if (to.name === "profile" && auth.role_group === "owner") {
-            return next({ name: "owner-profile" });
         }
 
         if (requiredRole && auth.role_group !== requiredRole) {

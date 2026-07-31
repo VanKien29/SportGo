@@ -61,6 +61,7 @@ use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
 use App\Http\Controllers\Api\Public\SystemProfileController;
+use App\Http\Controllers\Api\Public\OfferController;
 use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
@@ -71,6 +72,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/system-profile', [SystemProfileController::class, 'show']);
+Route::get('/offers', [OfferController::class, 'index']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
@@ -575,11 +577,17 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
         Route::get('/bookings/eligible-vouchers', [\App\Http\Controllers\Api\Player\BookingController::class, 'eligibleVouchers']);
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);
+        Route::get('/bookings/recurring-groups/{groupCode}', [\App\Http\Controllers\Api\Player\BookingController::class, 'recurringGroup']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
+        Route::post('/bookings/{id}/cancel/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelPreview']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+
+        Route::get('/user/wallet', [\App\Http\Controllers\Api\Player\WalletController::class, 'show']);
+        Route::get('/refunds', [\App\Http\Controllers\Api\Player\RefundController::class, 'index']);
+        Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 
         // Player Matchmaking Posts
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
@@ -609,6 +617,9 @@ Route::middleware('auth:sanctum')
 
         // Complaints (Player)
         Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);
+        Route::get('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'index']);
+        Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'show']);
+        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'reply']);
 
         // Chat routes
         Route::prefix('chat')
