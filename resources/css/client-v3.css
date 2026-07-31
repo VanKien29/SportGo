@@ -434,6 +434,36 @@ body:has(.sg-client-page) #app {
 .sg-client-page.client-booking .payment-section, .sg-client-page.client-booking .discount-section { border-color: var(--sg3-line); }
 .sg-client-page.client-booking .payment-section label.active { border-color: var(--sg3-green); background: var(--sg3-green-soft); }
 .sg-client-page.client-booking .selection-feedback { border-color: var(--sg3-line); border-radius: 9px; background: var(--sg3-soft); }
+.sg3-wallet-balance { display: grid; grid-template-columns: 1.5fr 1fr auto; gap: 20px; align-items: center; margin-bottom: 16px; padding: 25px; border-color: var(--sg3-green-dark); background: var(--sg3-green-dark); color: #fff; }
+.sg3-wallet-balance div { display: grid; gap: 7px; }
+.sg3-wallet-balance span { color: rgba(255,255,255,.72); font-size: 12px; }
+.sg3-wallet-balance strong { font-size: 26px; }
+.sg3-wallet-status { padding: 7px 10px; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; color: #fff !important; white-space: nowrap; }
+.sg3-ledger-card, .sg3-notification-card, .sg3-request-card { overflow: hidden; }
+.sg3-ledger-card > header, .sg3-notification-card > header, .sg3-request-card > header { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 18px 21px; border-bottom: 1px solid var(--sg3-line); }
+.sg3-ledger-card h2 { margin: 4px 0 0; font-size: 19px; }
+.sg3-notification-card > header strong, .sg3-request-card > header strong { color: var(--sg3-green-dark); font-size: 20px; }
+.sg3-ledger-list article, .sg3-notification-row, .sg3-request-row { display: grid; align-items: center; gap: 15px; padding: 16px 21px; border: 0; border-bottom: 1px solid var(--sg3-line); background: #fff; }
+.sg3-ledger-list article { grid-template-columns: minmax(0, 1fr) auto; }
+.sg3-ledger-list article > div:first-child, .sg3-request-row > div:first-child, .sg3-notification-row > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
+.sg3-ledger-list small, .sg3-request-row small, .sg3-notification-row small, .sg3-request-row > div:first-child span, .sg3-notification-row > span:nth-child(2) > span { color: var(--sg3-muted); font-size: 12px; }
+.sg3-ledger-amount { display: grid; gap: 4px; text-align: right; }
+.sg3-ledger-amount.credit strong { color: var(--sg3-green-dark); }
+.sg3-ledger-amount.debit strong { color: var(--sg3-danger); }
+.sg3-notification-row { grid-template-columns: 34px minmax(0, 1fr) 7px 18px; width: 100%; text-align: left; cursor: pointer; }
+.sg3-notification-row:hover, .sg3-notification-row.is-unread { background: var(--sg3-green-soft); }
+.sg3-notification-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #edf5ef; color: var(--sg3-green-dark); }
+.sg3-notification-row i { width: 7px; height: 7px; border-radius: 50%; background: var(--sg3-green); }
+.sg3-request-row { grid-template-columns: minmax(0, 1fr) auto 18px; }
+.sg3-request-row > div:first-child { gap: 5px; }
+.sg3-request-row > a { color: var(--sg3-green-dark); }
+.sg3-request-amount { display: grid; justify-items: end; gap: 7px; }
+.sg3-status-pill { display: inline-flex; width: max-content; padding: 5px 9px; border-radius: 999px; background: #eef3f0; color: var(--sg3-muted); font-size: 11px; font-weight: 800; }
+.sg3-status-pill.status-approved, .sg3-status-pill.status-completed, .sg3-status-pill.status-resolved, .sg3-status-pill.status-closed { background: var(--sg3-green-soft); color: var(--sg3-green-dark); }
+.sg3-status-pill.status-processing, .sg3-status-pill.status-pending { background: #fff4de; color: var(--sg3-amber); }
+.sg3-status-pill.status-rejected, .sg3-status-pill.status-cancelled { background: #fff0f0; color: var(--sg3-danger); }
+.sg3-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 16px; color: var(--sg3-muted); font-size: 12px; }
+.sg3-empty--inline { min-height: 190px; border: 0; border-radius: 0; }
 
 @media (max-width: 1120px) {
   .sg3-header__inner { gap: 14px; }
@@ -479,6 +509,12 @@ body:has(.sg-client-page) #app {
   .sg3-footer__main { grid-template-columns: 1fr 1fr; gap: 25px 18px; }
   .sg3-footer__brand { grid-column: 1 / -1; }
   .sg3-footer__bottom > div { align-items: start; flex-direction: column; }
+  .sg3-wallet-balance { grid-template-columns: 1fr; }
+  .sg3-wallet-status { justify-self: start; }
+  .sg3-request-row { grid-template-columns: minmax(0, 1fr) 18px; }
+  .sg3-request-amount { grid-column: 1 / -1; justify-items: start; }
+  .sg3-ledger-list article { grid-template-columns: 1fr; }
+  .sg3-ledger-amount { text-align: left; justify-items: start; }
   .sg-client-page.client-booking .booking-shell { width: min(100% - 28px, 640px); }
   .sg-client-page.client-booking .workspace { grid-template-columns: 1fr; }
   .sg-client-page.client-booking .booking-summary { position: static; }
