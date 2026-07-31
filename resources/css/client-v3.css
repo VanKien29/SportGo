@@ -34,6 +34,7 @@ body:has(.sg3-header) .venue-detail-page > main {
 
 body:has(.sg3-header) .sg-community-detail-main,
 body:has(.sg3-header) .news-detail-shell {
+  width: min(1240px, calc(100% - 40px));
   margin-top: 0 !important;
   padding-top: 28px !important;
 }
@@ -43,6 +44,22 @@ body:has(.sg3-header) .sg3-header + main.sg-client-reading-shell,
 body:has(.sg3-header) .sg3-header + main.utility-shell,
 body:has(.sg3-header) .sg3-header + main.news-detail-shell {
   padding-top: 28px !important;
+}
+
+body:has(.sg3-header) .sg-client-page :is(input, select, textarea),
+body:has(.sg3-header) .sg-community-detail-page :is(input, select, textarea) {
+  border: 1px solid var(--sg3-line) !important;
+  border-radius: 8px;
+  box-shadow: none !important;
+  color: var(--sg3-ink) !important;
+  -webkit-text-fill-color: var(--sg3-ink) !important;
+  background: #fff !important;
+  color-scheme: light;
+}
+
+body:has(.sg3-header) .sg-client-page :is(.sg3-card, .sg-client-card) > form {
+  border: 0;
+  box-shadow: none;
 }
 
 body:has(.sg-client-page),
