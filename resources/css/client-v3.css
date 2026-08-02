@@ -681,9 +681,17 @@ body:has(.sg3-header) .community-page .category-list button.active { border-colo
 
 /* The public navbar participates in normal flow. No legacy fixed-header
  * compensation should create a blank band above the chat workspace. */
+body:has(.client-chat-page),
+body:has(.client-chat-page) #app {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
 body:has(.sg3-header) .client-chat-page {
-  height: calc(100vh - 76px) !important;
+  height: 100vh !important;
   min-height: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
   overflow: hidden !important;
   background: #f4f8f5 !important;
   color: var(--sg3-ink) !important;
@@ -691,7 +699,6 @@ body:has(.sg3-header) .client-chat-page {
 
 body:has(.sg3-header) .client-chat-page > .client-chat-workspace,
 body:has(.sg3-header) .client-chat-page > .chat-workspace {
-  height: 100% !important;
   min-height: 0 !important;
   padding-top: 0 !important;
   border-top: 1px solid var(--sg3-line) !important;
