@@ -450,10 +450,15 @@ body:has(.sg-client-page) #app {
 .sg-client-page.venue-detail-page .mini-schedule { border-color: var(--sg3-line); border-radius: var(--sg3-radius); background: #fff; }
 .sg-client-page.venue-detail-page .hero-band { color: var(--sg3-ink); }
 .sg-client-page.venue-detail-page .venue-back-link { border: 1px solid var(--sg3-line-strong); background: #fff; color: var(--sg3-green-dark); }
+.sg-client-page.venue-detail-page .ghost-action { border-color: var(--sg3-line-strong); color: var(--sg3-green-dark); }
+.sg-client-page.venue-detail-page .ghost-action:hover { background: #fff; }
 .sg-client-page.venue-detail-page .breadcrumbs { color: var(--sg3-muted); }
 .sg-client-page.venue-detail-page .breadcrumbs a { color: var(--sg3-green-dark); }
+.sg-client-page.venue-detail-page .breadcrumbs strong { color: var(--sg3-ink); }
 .sg-client-page.venue-detail-page .hero-grid { gap: 25px; }
 .sg-client-page.venue-detail-page .gallery-main { overflow: hidden; border: 1px solid var(--sg3-line); border-radius: 12px; background: #dfeee3; }
+.sg-client-page.venue-detail-page .gallery-empty { color: var(--sg3-muted); background: #dfeee3; }
+.sg-client-page.venue-detail-page .gallery-empty span { background: #fff; color: var(--sg3-green-dark); }
 .sg-client-page.venue-detail-page .gallery-main img { max-height: 400px; object-fit: cover; }
 .sg-client-page.venue-detail-page .gallery-thumbs button { border-color: var(--sg3-line); border-radius: 8px; }
 .sg-client-page.venue-detail-page .gallery-thumbs button.active { border-color: var(--sg3-green); }

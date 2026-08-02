@@ -3,12 +3,12 @@
     <PublicNavbar />
 
     <!-- Loading State -->
-    <div v-if="loading" class="loading-screen">
+    <div v-if="loading" class="state-screen loading-screen">
       <div class="spinner"></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="error-screen">
+    <div v-else-if="error" class="state-screen error-screen">
       <p class="error-msg">{{ error }}</p>
       <button class="btn-outline" @click="$router.back()">Quay lại</button>
     </div>
