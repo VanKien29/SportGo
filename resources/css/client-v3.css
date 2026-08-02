@@ -216,7 +216,7 @@ body:has(.sg-client-page) #app {
 .sg3-icon-button { position: relative; width: 42px; padding: 0; }
 .sg3-account-trigger { gap: 8px; padding: 4px 10px 4px 5px; }
 .sg3-account-trigger > span:first-child,
-.sg3-account-summary > span { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 8px; background: var(--sg3-green); color: #fff; font-weight: 800; }
+.sg3-popover-panel header.sg3-account-summary > span { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 8px; background: var(--sg3-green); color: #fff; font-weight: 800; margin: 0; font-size: 14px; }
 .sg3-notification-badge { position: absolute; right: 0; top: -5px; min-width: 17px; padding: 2px 4px; border-radius: 999px; background: var(--sg3-danger); color: #fff; font-size: 10px; font-weight: 800; }
 .sg3-menu-wrap { position: relative; }
 .sg3-popover-panel { position: absolute; right: 0; top: calc(100% + 10px); width: min(360px, calc(100vw - 24px)); border: 1px solid var(--sg3-line); border-radius: 12px; background: #fff; box-shadow: var(--sg3-shadow); }
@@ -224,7 +224,7 @@ body:has(.sg-client-page) #app {
 .sg3-popover-panel header strong { display: block; font-size: 14px; }
 .sg3-popover-panel header span { display: block; margin-top: 3px; color: var(--sg3-muted); font-size: 12px; }
 .sg3-popover-panel header button { border: 0; background: transparent; color: var(--sg3-green-dark); cursor: pointer; font-weight: 700; }
-.sg3-account-summary { display: flex; gap: 10px; align-items: center; padding: 15px 17px; border-bottom: 1px solid var(--sg3-line); }
+.sg3-popover-panel header.sg3-account-summary { display: flex; justify-content: flex-start; gap: 10px; align-items: center; padding: 15px 17px; border-bottom: 1px solid var(--sg3-line); }
 .sg3-account-summary strong, .sg3-account-summary small { display: block; }
 .sg3-account-summary small { margin-top: 3px; color: var(--sg3-muted); }
 .sg3-account-links { display: grid; gap: 2px; padding: 8px; }
