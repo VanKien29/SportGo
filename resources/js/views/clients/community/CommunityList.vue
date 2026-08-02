@@ -217,7 +217,35 @@
                           </strong>
                           <p>{{ comment.content }}</p>
                         </div>
-                        <small>{{ timeAgo(comment.created_at) }}</small>
+                        <div class="comment-actions">
+                          <small>{{ timeAgo(comment.created_at) }}</small>
+                          <button type="button" class="reply-button" @click="setReply(post, comment)">Trả lời</button>
+                        </div>
+                        <div v-if="comment.replies?.length" class="comment-replies">
+                          <article v-for="reply in comment.replies" :key="reply.id" class="comment-item reply-item">
+                            <span class="avatar avatar-comment">
+                              <img
+                                v-if="reply.user?.avatar_url"
+                                :src="assetUrl(reply.user.avatar_url)"
+                                :alt="reply.user.full_name || reply.user.username"
+                              />
+                              <span v-else>{{ initial(reply.user?.full_name || reply.user?.username) }}</span>
+                            </span>
+                            <div>
+                              <div class="comment-bubble">
+                                <strong class="client-author-line">
+                                  {{ reply.user?.full_name || reply.user?.username || 'Thành viên SportGo' }}
+                                  <ClientAuthorBadges :badges="reply.user?.author_badges" />
+                                </strong>
+                                <p v-html="formatMention(reply.content)"></p>
+                              </div>
+                              <div class="comment-actions">
+                                <small>{{ timeAgo(reply.created_at) }}</small>
+                                <button type="button" class="reply-button" @click="setReply(post, comment, reply)">Trả lời</button>
+                              </div>
+                            </div>
+                          </article>
+                        </div>
                       </div>
                     </article>
                     <button
@@ -231,26 +259,33 @@
                   </div>
                   <p v-else class="no-comments">Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p>
 
-                  <form v-if="user" class="comment-form" @submit.prevent="submitComment(post)">
-                    <span class="avatar avatar-comment">{{ initial(user.fullName) }}</span>
-                    <label>
-                      <span class="sr-only">Viết bình luận</span>
-                      <input
-                        v-model.trim="commentDrafts[post.id]"
-                        type="text"
-                        maxlength="1000"
-                        placeholder="Viết bình luận..."
-                        :disabled="commentSubmitting[post.id]"
-                      />
-                    </label>
+                  <form v-if="user" class="comment-form-wrapper" @submit.prevent="submitComment(post)">
+                    <div v-if="replyingTo[post.id]" class="replying-indicator">
+                      <span>Đang trả lời <strong>{{ replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo' }}</strong></span>
+                      <button type="button" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" /></button>
+                    </div>
+                    <div class="comment-form">
+                      <span class="avatar avatar-comment">{{ initial(user.fullName) }}</span>
+                      <label>
+                        <span class="sr-only">Viết bình luận</span>
+                        <input
+                          :id="`comment-input-${post.id}`"
+                          v-model.trim="commentDrafts[post.id]"
+                          type="text"
+                          maxlength="1000"
+                          :placeholder="replyingTo[post.id] ? `Phản hồi ${replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo'}...` : 'Viết bình luận...'"
+                          :disabled="commentSubmitting[post.id]"
+                        />
+                      </label>
                     <button
                       type="submit"
                       class="send-comment"
                       aria-label="Gửi bình luận"
                       :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"
                     >
-                      <AppIcon name="send" />
-                    </button>
+                        <AppIcon name="send" />
+                      </button>
+                    </div>
                   </form>
                   <button v-else type="button" class="login-to-comment" @click="goToLogin">
                     Đăng nhập để bình luận
@@ -390,7 +425,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
@@ -429,6 +464,7 @@ const commentDrafts = reactive({});
 const commentSubmitting = reactive({});
 const showAllComments = reactive({});
 const likingPostIds = reactive(new Set());
+const replyingTo = reactive({});
 const matchmakingPosts = ref([]);
 const matchmakingLoading = ref(true);
 const matchmakingError = ref('');
@@ -561,31 +597,64 @@ async function submitComment(post) {
   if (!content || commentSubmitting[post.id]) return;
 
   commentSubmitting[post.id] = true;
+  const parentComment = replyingTo[post.id];
   try {
+    const payload = { content };
+    if (parentComment) payload.parent_id = parentComment.id;
+    
     const response = await api(`/api/venue-posts/${post.id}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(payload),
     });
-    if (!Array.isArray(post.top_level_comments)) post.top_level_comments = [];
-    post.top_level_comments.unshift({
-      id: response.data?.id || `new-${Date.now()}`,
+    
+    const newComment = response.data || {
+      id: `new-${Date.now()}`,
       content,
       created_at: new Date().toISOString(),
-      user: response.data?.user || {
+      user: {
         id: user.id,
         full_name: user.fullName,
         username: user.username,
         avatar_url: user.user?.avatar_url || null,
       },
-    });
+    };
+
+    if (parentComment) {
+      if (!Array.isArray(parentComment.replies)) parentComment.replies = [];
+      parentComment.replies.push(newComment);
+    } else {
+      if (!Array.isArray(post.top_level_comments)) post.top_level_comments = [];
+      post.top_level_comments.unshift(newComment);
+    }
+
     post.comment_count = Number(post.comment_count || 0) + 1;
     commentDrafts[post.id] = '';
+    replyingTo[post.id] = null;
     toast.success('Đã đăng bình luận.');
   } catch (requestError) {
     toast.error(requestError.message || 'Không thể gửi bình luận.');
   } finally {
     commentSubmitting[post.id] = false;
   }
+}
+
+function setReply(post, comment, targetReply = null) {
+  if (!user) {
+    toast.info('Vui lòng đăng nhập để bình luận.');
+    goToLogin();
+    return;
+  }
+  const targetUser = targetReply ? (targetReply.user?.full_name || targetReply.user?.username || 'Thành viên SportGo') : null;
+  replyingTo[post.id] = comment;
+  if (targetUser) {
+    commentDrafts[post.id] = `@${targetUser} `;
+  } else {
+    // If just replying to main comment and there's a draft starting with @, leave it or clear it
+  }
+  nextTick(() => {
+    const input = document.getElementById(`comment-input-${post.id}`);
+    if (input) input.focus();
+  });
 }
 
 async function sharePost(post) {
@@ -730,6 +799,11 @@ function timeAgo(value) {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} giờ trước`;
   if (seconds < 604800) return `${Math.floor(seconds / 86400)} ngày trước`;
   return formatDate(value);
+}
+
+function formatMention(text) {
+  if (!text) return '';
+  return text.replace(/^(@[^\s]+\s*(?:[^\s]+\s*)*?)(?=\s|$)/, '<strong style="color: #10b981;">$1</strong>').replace(/\n/g, '<br>');
 }
 
 function goToDetail(slug) {
@@ -1327,5 +1401,63 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
     bottom: 24px;
     right: 24px;
   }
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.reply-button {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.reply-button:hover {
+  color: #10b981;
+}
+.comment-replies {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 2px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reply-item {
+  margin-top: 0;
+}
+.comment-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+.replying-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+.replying-indicator button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+.replying-indicator button:hover {
+  color: #ef4444;
 }
 </style>
