@@ -609,6 +609,7 @@ body:has(.sg3-header) .community-page {
 
 body:has(.sg3-header) .community-page .community-heading {
   min-height: 184px;
+  padding: 42px 48px !important;
   border: 1px solid var(--sg3-line) !important;
   border-radius: 14px !important;
   background: #eaf7ee !important;
