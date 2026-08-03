@@ -58,20 +58,26 @@ class ChatController extends Controller
                 $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
             }
 
-            // Get last message
-            $lastMessage = Message::where('conversation_id', $conversation->id)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            // Calculate unread messages
+            // Calculate unread messages & last message considering cleared_history_at
             $myParticipant = $conversation->participants->first(function ($p) use ($userId) {
                 return $p->user_id === $userId;
             });
+            $clearedAt = $myParticipant ? $myParticipant->cleared_history_at : null;
+
+            $lastMsgQuery = Message::where('conversation_id', $conversation->id);
+            if ($clearedAt) {
+                $lastMsgQuery->where('created_at', '>', $clearedAt);
+            }
+            $lastMessage = $lastMsgQuery->orderBy('created_at', 'desc')->first();
+
             $lastReadAt = $myParticipant ? $myParticipant->last_read_at : null;
 
             $unreadQuery = Message::where('conversation_id', $conversation->id)
                 ->where('sender_id', '!=', $userId);
 
+            if ($clearedAt) {
+                $unreadQuery->where('created_at', '>', $clearedAt);
+            }
             if ($lastReadAt) {
                 $unreadQuery->where('created_at', '>', $lastReadAt);
             }
@@ -113,16 +119,20 @@ class ChatController extends Controller
     {
         $userId = $request->user()->id;
 
-        $isParticipant = ConversationParticipant::where('conversation_id', $conversationId)
+        $participant = ConversationParticipant::where('conversation_id', $conversationId)
             ->where('user_id', $userId)
-            ->exists();
+            ->first();
 
-        if (!$isParticipant) {
+        if (!$participant) {
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        $messages = Message::where('conversation_id', $conversationId)
-            ->with('sender:id,full_name,username,avatar_url,email,phone')
+        $query = Message::where('conversation_id', $conversationId);
+        if ($participant->cleared_history_at) {
+            $query->where('created_at', '>', $participant->cleared_history_at);
+        }
+
+        $messages = $query->with('sender:id,full_name,username,avatar_url,email,phone')
             ->orderBy('created_at', 'asc')
             ->limit(100)
             ->get();
@@ -1199,11 +1209,12 @@ class ChatController extends Controller
     }
 
     /**
-     * Delete a conversation and all its messages
+     * Delete a conversation (for self or for everyone)
      */
     public function deleteConversation(Request $request, $id)
     {
         $userId = $request->user()->id;
+        $deleteForEveryone = filter_var($request->input('delete_for_everyone', false), FILTER_VALIDATE_BOOLEAN);
 
         $participant = ConversationParticipant::where('conversation_id', $id)
             ->where('user_id', $userId)
@@ -1213,10 +1224,20 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        DB::transaction(function () use ($id, $userId) {
-            Message::where('conversation_id', $id)->delete();
-            ConversationParticipant::where('conversation_id', $id)->delete();
-            Conversation::where('id', $id)->delete();
+        DB::transaction(function () use ($id, $userId, $deleteForEveryone, $participant) {
+            if ($deleteForEveryone) {
+                Message::where('conversation_id', $id)->delete();
+                ConversationParticipant::where('conversation_id', $id)->delete();
+                Conversation::where('id', $id)->delete();
+            } else {
+                $participant->delete();
+
+                // If no participants left in this conversation, delete the conversation and messages
+                if (ConversationParticipant::where('conversation_id', $id)->count() === 0) {
+                    Message::where('conversation_id', $id)->delete();
+                    Conversation::where('id', $id)->delete();
+                }
+            }
 
             \App\Models\AuditLog::create([
                 'actor_id' => $userId,
@@ -1225,7 +1246,7 @@ class ChatController extends Controller
                 'module' => 'chat',
                 'entity_type' => 'conversation',
                 'entity_id' => $id,
-                'reason' => 'User deleted conversation',
+                'reason' => $deleteForEveryone ? 'User deleted conversation for everyone' : 'User deleted conversation for self',
             ]);
         });
 
@@ -1233,22 +1254,28 @@ class ChatController extends Controller
     }
 
     /**
-     * Clear all messages in a conversation
+     * Clear all messages in a conversation (for self or for everyone)
      */
     public function clearMessages(Request $request, $id)
     {
         $userId = $request->user()->id;
+        $deleteForEveryone = filter_var($request->input('delete_for_everyone', false), FILTER_VALIDATE_BOOLEAN);
 
-        $isParticipant = ConversationParticipant::where('conversation_id', $id)
+        $participant = ConversationParticipant::where('conversation_id', $id)
             ->where('user_id', $userId)
-            ->exists();
+            ->first();
 
-        if (!$isParticipant) {
+        if (!$participant) {
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        DB::transaction(function () use ($id, $userId) {
-            Message::where('conversation_id', $id)->delete();
+        DB::transaction(function () use ($id, $userId, $deleteForEveryone, $participant) {
+            if ($deleteForEveryone) {
+                Message::where('conversation_id', $id)->delete();
+                ConversationParticipant::where('conversation_id', $id)->update(['cleared_history_at' => null]);
+            } else {
+                $participant->update(['cleared_history_at' => now()]);
+            }
 
             \App\Models\AuditLog::create([
                 'actor_id' => $userId,
@@ -1257,7 +1284,7 @@ class ChatController extends Controller
                 'module' => 'chat',
                 'entity_type' => 'conversation',
                 'entity_id' => $id,
-                'reason' => 'User cleared message history',
+                'reason' => $deleteForEveryone ? 'User cleared message history for everyone' : 'User cleared message history for self',
             ]);
         });
 

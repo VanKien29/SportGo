@@ -1,199 +1,202 @@
 <template>
-  <div class="cluster-requests-surface">
-    <!-- Sub Category Switcher -->
-    <div class="sub-category-bar">
-      <button
-        type="button"
-        class="category-chip"
-        :class="{ active: subTab === 'scale' }"
-        @click="subTab = 'scale'"
-      >
-        <AppIcon name="layers" size="14" />
-        <span>Quy mô sân con</span>
-      </button>
-
-      <button
-        type="button"
-        class="category-chip"
-        :class="{ active: subTab === 'info' }"
-        @click="subTab = 'info'"
-      >
-        <AppIcon name="fileText" size="14" />
-        <span>Thông tin chung</span>
-      </button>
-
-      <button
-        type="button"
-        class="category-chip"
-        :class="{ active: subTab === 'location' }"
-        @click="subTab = 'location'"
-      >
-        <AppIcon name="mapPin" size="14" />
-        <span>Vị trí bản đồ</span>
-      </button>
-
-      <button
-        v-if="isModerationLocked || unlockRequests.length > 0"
-        type="button"
-        class="category-chip danger"
-        :class="{ active: subTab === 'unlock' }"
-        @click="subTab = 'unlock'"
-      >
-        <AppIcon name="lock" size="14" />
-        <span>Yêu cầu mở khóa</span>
-      </button>
-    </div>
-
-    <!-- Status Filters Bar & Action Header -->
-    <div class="requests-main-content">
-      <div class="approval-list-header">
-        <div class="header-left">
-          <h3>Lịch sử {{ currentSubTabLabel }}</h3>
-          <div class="status-filter-pills">
-            <button
-              v-for="status in statusOptions"
-              :key="status.value"
-              type="button"
-              class="filter-pill"
-              :class="{ active: statusFilter === status.value }"
-              @click="statusFilter = status.value"
-            >
-              {{ status.label }}
-            </button>
-          </div>
+  <div class="profile-section-card">
+    <!-- Main Profile Section Card (Đồng bộ 1:1 với các Tab trong Cụm Sân) -->
+    <div class="tab-section-header">
+        <div>
+          <h2>Yêu cầu thay đổi thông tin</h2>
+          <p class="section-subtitle">
+            Theo dõi lịch sử và tiến độ xét duyệt các yêu cầu thay đổi tên, hotline, mô tả và bộ sưu tập ảnh cụm sân.
+          </p>
         </div>
+      </div>
 
-        <button
-          v-if="subTab === 'scale'"
-          type="button"
-          class="btn btn-primary btn-sm"
-          :disabled="isClusterLocked"
-          @click="$emit('open-scale-request-modal')"
-        >
-          <AppIcon name="plus" size="14" />
-          <span>Tạo yêu cầu quy mô mới</span>
-        </button>
-
-        <button
-          v-else-if="subTab === 'unlock' && isModerationLocked"
-          type="button"
-          class="btn btn-primary btn-sm"
-          @click="$emit('open-unlock-modal')"
-        >
-          <AppIcon name="unlock" size="14" />
-          <span>Tạo giải trình mở khóa</span>
-        </button>
+      <!-- Filter Bar (Tabs lọc trạng thái) -->
+      <div v-if="requestsList.length > 0" class="table-filter-bar">
+        <div class="filter-tabs">
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: filterStatus === '' }"
+            @click="filterStatus = ''"
+          >
+            Tất cả ({{ requestsList.length }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: filterStatus === 'pending' }"
+            @click="filterStatus = 'pending'"
+          >
+            Chờ duyệt ({{ countStatus('pending') }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: filterStatus === 'approved' }"
+            @click="filterStatus = 'approved'"
+          >
+            Đã duyệt ({{ countStatus('approved') }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: filterStatus === 'rejected' }"
+            @click="filterStatus = 'rejected'"
+          >
+            Từ chối ({{ countStatus('rejected') }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn"
+            :class="{ active: filterStatus === 'cancelled' }"
+            @click="filterStatus = 'cancelled'"
+          >
+            Đã hủy ({{ countStatus('cancelled') }})
+          </button>
+        </div>
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải danh sách yêu cầu...</p>
+      <div v-if="loading" class="table-state-card">
+        <div class="spinner-sm"></div>
+        <span>Đang tải danh sách yêu cầu thay đổi...</span>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredRequests.length === 0" class="empty-state">
-        <AppIcon name="inbox" size="28" />
-        <p>Không tìm thấy yêu cầu nào theo bộ lọc.</p>
+      <div v-else-if="!requestsList.length" class="table-state-card">
+        <span>Chưa có yêu cầu thay đổi thông tin nào được gửi.</span>
       </div>
 
-      <!-- Requests Cards Grid -->
-      <div v-else class="requests-timeline-grid">
-        <div v-for="req in filteredRequests" :key="req.id" class="request-item-card">
-          <div class="request-card-header">
-            <div class="request-meta">
-              <span class="request-id">#{{ req.id }}</span>
-              <span class="status-pill" :class="req.status">
-                {{ formatStatusLabel(req.status) }}
-              </span>
-              <span class="request-date">{{ formatDate(req.created_at) }}</span>
-            </div>
-            <button
-              v-if="req.status === 'pending'"
-              type="button"
-              class="btn btn-sm btn-outline-danger"
-              @click="$emit('cancel-request', { type: subTab, id: req.id })"
-            >
-              Hủy yêu cầu
-            </button>
+      <!-- Empty Filter State -->
+      <div v-else-if="filteredRequests.length === 0" class="table-state-card">
+        <span>Không tìm thấy yêu cầu nào phù hợp với bộ lọc.</span>
+        <button
+          type="button"
+          class="btn btn-outline"
+          style="margin-top: 6px;"
+          @click="filterStatus = ''"
+        >
+          Xóa bộ lọc
+        </button>
+      </div>
+
+      <!-- Audit History List (Bố cục đồng bộ 1:1 với Hồ sơ đối tác) -->
+      <div v-else class="audit-history-list">
+        <div
+          v-for="(item, idx) in filteredRequests"
+          :key="item.id"
+          class="history-audit-item"
+        >
+          <div class="audit-axis-col">
+            <div class="audit-status-dot" :class="'dot--' + item.status"></div>
+            <div v-if="idx < filteredRequests.length - 1" class="audit-status-line"></div>
           </div>
 
-          <div class="request-card-body">
-            <h4 class="request-title">{{ getRequestTitle(req) }}</h4>
-            <p v-if="req.reason || req.note || req.description" class="request-desc">
-              {{ req.reason || req.note || req.description }}
+          <div class="audit-item-body">
+            <div class="audit-item-header">
+              <div class="audit-title-group">
+                <span class="audit-code">#YCTD-{{ item.id }}</span>
+                <span class="req-status-pill" :class="'pill-' + item.status">
+                  {{ formatStatusLabel(item.status) }}
+                </span>
+              </div>
+              <time class="audit-timestamp">{{ formatDate(item.created_at) }}</time>
+            </div>
+
+            <!-- Owner Reason Note -->
+            <p v-if="item.note" class="audit-note-text">
+              <span class="note-label">Lý do gửi:</span> {{ item.note }}
             </p>
 
-            <div v-if="req.admin_note" class="admin-feedback-box">
-              <strong>Phản hồi từ Ban quản trị:</strong>
-              <p>{{ req.admin_note }}</p>
+            <!-- Meta Info Grid (Cấu trúc thông tin 2 cột phẳng đồng bộ) -->
+            <div class="meta-info-grid">
+              <div v-if="item.new_name" class="meta-info-item">
+                <span class="meta-info-label">Tên cụm sân</span>
+                <span class="meta-info-value highlight">{{ item.new_name }}</span>
+              </div>
+              <div v-if="item.new_phone_contact" class="meta-info-item">
+                <span class="meta-info-label">Hotline</span>
+                <span class="meta-info-value">{{ item.new_phone_contact }}</span>
+              </div>
+              <div v-if="item.new_description" class="meta-info-item full-width">
+                <span class="meta-info-label">Mô tả</span>
+                <span class="meta-info-value desc-text">{{ item.new_description }}</span>
+              </div>
+              <div v-if="item.new_images && item.new_images.length" class="meta-info-item full-width">
+                <span class="meta-info-label">Bộ sưu tập ảnh ({{ item.new_images.length }} ảnh)</span>
+                <div class="req-img-thumbs">
+                  <div
+                    v-for="(img, imgIdx) in item.new_images"
+                    :key="imgIdx"
+                    class="req-img-thumb"
+                  >
+                    <img :src="imgUrl(img)" alt="Ảnh mới" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Admin Review Feedback Box -->
+            <div v-if="item.status_reason || item.reviewed_at" class="req-admin-feedback">
+              <div class="feedback-head">
+                <span>Phản hồi từ Admin ({{ formatDate(item.reviewed_at) }}):</span>
+              </div>
+              <p class="feedback-text">{{ item.status_reason || 'Đã duyệt cập nhật thông tin.' }}</p>
+            </div>
+
+            <!-- Action Button -->
+            <div v-if="item.status === 'pending'" class="audit-actions">
+              <button
+                type="button"
+                class="btn-cancel-req"
+                :disabled="isClusterLocked"
+                @click="$emit('cancel-request', item.id)"
+              >
+                Hủy yêu cầu này
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script>
-import AppIcon from '../../AppIcon.vue';
-
 export default {
   name: 'ClusterRequestsCenterTab',
-  components: { AppIcon },
   props: {
-    scaleRequests: { type: Array, default: () => [] },
     infoRequests: { type: Array, default: () => [] },
-    locationRequests: { type: Array, default: () => [] },
-    unlockRequests: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
     isClusterLocked: { type: Boolean, default: false },
-    isModerationLocked: { type: Boolean, default: false },
   },
-  emits: ['open-scale-request-modal', 'open-unlock-modal', 'cancel-request'],
+  emits: ['cancel-request'],
   data() {
     return {
-      subTab: 'scale',
-      statusFilter: '',
-      statusOptions: [
-        { value: '', label: 'Tất cả' },
-        { value: 'pending', label: 'Chờ duyệt' },
-        { value: 'approved', label: 'Đã duyệt' },
-        { value: 'rejected', label: 'Từ chối' },
-        { value: 'cancelled', label: 'Đã hủy' },
-      ],
+      filterStatus: '',
     };
   },
   computed: {
-    currentSubTabLabel() {
-      const labels = {
-        scale: 'yêu cầu quy mô',
-        info: 'yêu cầu thông tin',
-        location: 'yêu cầu vị trí',
-        unlock: 'yêu cầu mở khóa',
-      };
-      return labels[this.subTab] || 'yêu cầu';
-    },
-    activeList() {
-      if (this.subTab === 'info') return this.infoRequests;
-      if (this.subTab === 'location') return this.locationRequests;
-      if (this.subTab === 'unlock') return this.unlockRequests;
-      return this.scaleRequests;
+    requestsList() {
+      return Array.isArray(this.infoRequests) ? this.infoRequests : [];
     },
     filteredRequests() {
-      if (!this.statusFilter) return this.activeList;
-      return this.activeList.filter((r) => r.status === this.statusFilter);
+      if (!this.filterStatus) return this.requestsList;
+      return this.requestsList.filter((r) => r.status === this.filterStatus);
     },
   },
   methods: {
+    countStatus(status) {
+      return this.requestsList.filter((r) => r.status === status).length;
+    },
     formatStatusLabel(status) {
-      const map = {
-        pending: 'Chờ duyệt',
-        approved: 'Đã duyệt',
-        rejected: 'Từ chối',
-        cancelled: 'Đã hủy',
-      };
-      return map[status] || status;
+      return (
+        {
+          pending: 'Chờ duyệt',
+          approved: 'Đã duyệt',
+          rejected: 'Từ chối',
+          cancelled: 'Đã hủy',
+        }[status] || status
+      );
     },
     formatDate(dateStr) {
       if (!dateStr) return '';
@@ -210,162 +213,348 @@ export default {
         return dateStr;
       }
     },
-    getRequestTitle(req) {
-      if (req.title) return req.title;
-      if (req.type) return `Yêu cầu điều chỉnh: ${req.type}`;
-      if (req.address) return `Thay đổi địa chỉ: ${req.address}`;
-      return 'Yêu cầu cập nhật hệ thống';
+    imgUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      if (path.startsWith('/storage/')) return path;
+      return '/storage/' + path;
     },
   },
 };
 </script>
 
 <style scoped>
-.cluster-requests-surface {
-  background: var(--admin-surface, #ffffff);
-  border-radius: 0;
-  padding: 10px;
+.cluster-profile-surface {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-.sub-category-bar {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.category-chip {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid var(--admin-border-soft, rgba(255, 255, 255, 0.1));
-  background: var(--admin-hover, rgba(255, 255, 255, 0.06));
-  color: var(--admin-text, #f8fafc);
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.18s ease;
-}
-
-.category-chip.active {
-  background: var(--admin-primary, #16a34a);
-  color: #ffffff;
-  border-color: #16a34a;
-}
-
-.chip-badge {
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.requests-main-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.approval-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 
-.header-left h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--admin-text, #0f172a);
-}
-
-.status-filter-pills {
-  display: flex;
-  gap: 6px;
-}
-
-.filter-pill {
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: none;
-  background: var(--admin-bg, #f1f5f9);
-  color: var(--admin-muted, #64748b);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.filter-pill.active {
-  background: var(--admin-hover, #e2e8f0);
-  color: var(--admin-text, #0f172a);
-  font-weight: 500;
-}
-
-.requests-timeline-grid {
+.profile-section-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-.request-item-card {
-  background: var(--admin-bg, #f8fafc);
-  border-radius: 10px;
-  padding: 18px;
+/* Tab Section Header */
+.tab-section-header {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.request-card-header {
-  display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.request-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--admin-muted, #64748b);
-}
-
-.status-pill {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-}
-
-.status-pill.pending { background: #fef9c3; color: #854d0e; }
-.status-pill.approved { background: #dcfce7; color: #166534; }
-.status-pill.rejected, .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
-
-.request-title {
+.tab-section-header h2 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--admin-text, #0f172a);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-text, #101c15);
 }
 
-.request-desc {
+.section-subtitle {
   margin: 4px 0 0;
   font-size: 13px;
   color: var(--admin-muted, #64748b);
+}
+
+/* Filter Bar */
+.table-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 0;
+}
+
+.filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--admin-muted, #64748b);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: var(--admin-text, #101c15);
+  background: var(--admin-hover, #edf7ed);
+}
+
+.tab-btn.active {
+  background: var(--admin-bg-soft, #f7fbf5);
+  border-color: var(--admin-border-soft, #e3ece4);
+  color: var(--admin-primary, #22a653);
+  font-weight: 500;
+}
+
+/* State Cards */
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Audit History List (Timeline đồng bộ 1:1 với Hồ sơ đối tác) */
+.audit-history-list {
+  display: flex;
+  flex-direction: column;
+  padding-left: 4px;
+}
+
+.history-audit-item {
+  display: flex;
+  gap: 16px;
+  position: relative;
+}
+
+.audit-axis-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.audit-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--admin-muted, #94a3b8);
+  margin-top: 5px;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.audit-status-dot.dot--approved { background: #16a34a; }
+.audit-status-dot.dot--pending { background: #d97706; }
+.audit-status-dot.dot--rejected { background: #dc2626; }
+.audit-status-dot.dot--cancelled { background: #94a3b8; }
+
+.audit-status-line {
+  flex: 1;
+  width: 2px;
+  background: var(--admin-border-soft, #e2e8f0);
+  margin-top: 4px;
+  margin-bottom: -4px;
+}
+
+.audit-item-body {
+  flex: 1;
+  padding-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audit-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audit-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audit-code {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--admin-text, #101c15);
+}
+
+.req-status-pill {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.req-status-pill.pill-pending { background: #fef9c3; color: #854d0e; }
+.req-status-pill.pill-approved { background: #dcfce7; color: #166534; }
+.req-status-pill.pill-rejected { background: #fee2e2; color: #991b1b; }
+.req-status-pill.pill-cancelled { background: #f1f5f9; color: #64748b; }
+
+.audit-timestamp {
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+}
+
+.audit-note-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--admin-muted, #64748b);
+}
+
+.note-label {
+  font-weight: 500;
+  color: var(--admin-muted, #64748b);
+}
+
+/* Meta Info Grid (Lưới thông tin 2 cột phẳng đồng bộ) */
+.meta-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.meta-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-info-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.meta-info-label {
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+  font-weight: 400;
+}
+
+.meta-info-value {
+  font-size: 13px;
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+}
+
+.meta-info-value.highlight {
+  color: var(--admin-primary, #22a653);
+  font-weight: 500;
+}
+
+.desc-text {
   line-height: 1.4;
 }
 
-.admin-feedback-box {
-  margin-top: 8px;
-  padding: 10px 14px;
+.req-img-thumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.req-img-thumb {
+  width: 64px;
+  height: 64px;
   border-radius: 6px;
-  background: var(--admin-surface, #ffffff);
+  overflow: hidden;
+  border: 1px solid var(--admin-border-soft, #e3ece4);
+}
+
+.req-img-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.req-admin-feedback {
+  background: #f8fafc;
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 6px;
+  padding: 8px 12px;
   font-size: 12px;
-  color: var(--admin-text, #0f172a);
+  margin-top: 2px;
+}
+
+.feedback-head {
+  font-weight: 500;
+  color: var(--admin-muted, #64748b);
+  margin-bottom: 2px;
+}
+
+.feedback-text {
+  margin: 0;
+  color: var(--admin-text, #101c15);
+}
+
+.audit-actions {
+  display: flex;
+  margin-top: 2px;
+}
+
+.btn-cancel-req {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid #fca5a5;
+  background: #ffffff;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cancel-req:hover {
+  background: #fef2f2;
+}
+
+.btn-cancel-req:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark Theme overrides */
+[data-theme="dark"] .meta-info-grid {
+  background: #18181b !important;
+}
+
+[data-theme="dark"] .req-admin-feedback {
+  background: #18181b !important;
+  border-color: #3f3f46 !important;
+}
+
+[data-theme="dark"] .audit-code,
+[data-theme="dark"] .meta-info-value,
+[data-theme="dark"] .feedback-text {
+  color: #f4f4f5 !important;
+}
+
+@media (max-width: 640px) {
+  .meta-info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -946,7 +946,7 @@ const formatDate = (dateString) => {
   gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: inherit;
 }
 
 .page-header {

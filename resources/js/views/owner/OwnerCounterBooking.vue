@@ -9756,7 +9756,6 @@ input.invalid {
 /* ===== Synchronized 1:1 with OwnerVenueClusters.vue ===== */
 .cluster-hero-surface {
     background: transparent;
-    padding: 10px;
     border: none;
 }
 

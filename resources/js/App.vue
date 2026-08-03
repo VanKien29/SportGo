@@ -103,7 +103,7 @@ export default {
 }
 
 body {
-  font-family: var(--sportgo-font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-family: var(--sportgo-font-body, ui-sans-serif, system-ui, sans-serif);
   line-height: 1.55;
   color: var(--sg-text);
   background: var(--sg-surface);

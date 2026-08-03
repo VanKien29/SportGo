@@ -43,14 +43,16 @@ export const chatService = {
       method: 'POST'
     });
   },
-  deleteConversation(conversationId) {
+  deleteConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      body: JSON.stringify(options)
     });
   },
-  clearConversation(conversationId) {
+  clearConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}/clear`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify(options)
     });
   },
   searchUsers(query) {

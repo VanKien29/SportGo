@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <div class="venue-courts-container">
         <!-- Floating Add Button -->
         <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
@@ -3105,91 +3105,97 @@ export default {
 }
 
 .sidebar-section {
-    background: #ffffff;
-    border: 1px solid var(--sg-border);
-    border-radius: 12px;
-    padding: 16px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 10px;
+    padding: 12px 14px;
 }
 
 .section-title {
-    font-size: 14px;
-    font-weight: 400;
+    font-size: 12.5px;
+    font-weight: 600;
     margin-top: 0;
-    margin-bottom: 12px;
-    color: var(--sg-text);
-    border-bottom: 1px solid var(--sg-border);
-    padding-bottom: 8px;
+    margin-bottom: 8px;
+    color: var(--admin-text, #0f172a);
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding-bottom: 6px;
 }
 
 .section-desc {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    font-size: 11.5px;
+    color: var(--admin-muted, #64748b);
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 /* Inspector styles */
 .inspector-fields {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
 }
 
 .field-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
-    padding-bottom: 8px;
-    border-bottom: 1px dashed var(--sg-border);
+    align-items: center;
+    font-size: 11.5px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--admin-border-soft, #e2e8f0);
 }
 
 .field-row .label {
-    font-weight: 400;
-    color: rgba(15, 23, 42, 0.5);
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
 }
 
 .field-row .value {
-    font-weight: 400;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
 }
 
 .field-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .field-group label {
-    font-size: 12.5px;
+    font-size: 11.5px;
     font-weight: 400;
-    color: var(--sg-text);
+    color: var(--admin-muted, #64748b);
 }
 
 .input-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
-.input-row input {
+.input-row input,
+.inspector-panel :is(input, select, textarea, .form-control) {
     width: 100%;
-    padding: 8px 10px;
+    height: 30px !important;
+    padding: 4px 8px !important;
     border-radius: 6px;
-    border: 1px solid var(--sg-border);
-    font-size: 13px;
+    border: 1px solid var(--admin-border, #cbd5e1);
+    font-size: 12px !important;
     outline: none;
-    font-weight: 400;
+    font-weight: 400 !important;
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #0f172a);
 }
 
-.input-row input:focus {
-    border-color: #000000;
+.input-row input:focus,
+.inspector-panel :is(input, select, textarea, .form-control):focus {
+    border-color: #22a653 !important;
 }
 
 .input-row .x,
 .input-row .comma {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 400;
-    color: rgba(15, 23, 42, 0.3);
+    color: var(--admin-muted, #94a3b8);
 }
 
 .rotation-control {

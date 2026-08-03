@@ -36,7 +36,6 @@ export default {
 .cluster-hero-surface {
   background: var(--admin-surface, #ffffff);
   border-radius: 0;
-  padding: 10px;
   display: flex;
   flex-direction: column;
 }

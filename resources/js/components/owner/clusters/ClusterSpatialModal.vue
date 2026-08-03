@@ -3,7 +3,6 @@
     <div class="spatial-modal-card surface-card animate-fade-in">
       <div class="modal-header">
         <div class="modal-title-group">
-          <AppIcon name="map" size="20" />
           <div>
             <h3>Trình thiết kế sơ đồ mặt bằng 2D/3D</h3>
             <p class="text-muted text-xs">Sắp xếp vị trí không gian các sân con và khu vực tiện ích cảnh quan trực quan.</p>

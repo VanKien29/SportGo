@@ -24,16 +24,11 @@
       <p>Bạn chưa thực hiện nộp hồ sơ đối tác nào trên hệ thống SportGo.</p>
     </div>
 
-    <!-- MAIN PROFILE WORKSPACE (EXACTLY MATCHING CLUSTER GENERAL INFO PAGE) -->
-    <div v-else class="profile-master-workspace">
-      
-      <!-- Top Header Surface (Tabs + Optional Application Dropdown Selector) -->
-      <div class="profile-header-tabs-surface">
-
-        <!-- Integrated Tab Navigation Bar -->
-        <div class="hero-integrated-tabs">
-          <AppTabs :tabs="tabs" :model-value="activeTab" @update:model-value="activeTab = $event" />
-        </div>
+    <!-- MAIN PROFILE WORKSPACE -->
+    <div v-else class="owner-partner-profile-workspace">
+      <!-- Unified Hero Integrated Navtabs (Đồng bộ 1:1 chuẩn toàn hệ thống) -->
+      <div class="hero-integrated-tabs">
+        <AppTabs :tabs="tabs" :model-value="activeTab" @update:model-value="activeTab = $event" />
       </div>
 
       <!-- Content Surface (Seamless White Block connected below Tabs) -->
@@ -65,7 +60,7 @@
           </div>
 
           <!-- Section 1: Thông tin đăng ký đối tác (Standard Form Grid layout) -->
-          <section class="profile-section">
+          <div class="profile-section-card">
             <div class="tab-section-header">
               <div>
                 <h2>Thông tin đăng ký đối tác</h2>
@@ -99,10 +94,10 @@
                 <span class="meta-info-value">{{ activeApplication.venue_address || 'Chưa có thông tin địa chỉ' }}</span>
               </div>
             </div>
-          </section>
+          </div>
 
           <!-- Section 2: Lịch sử xử lý hồ sơ -->
-          <section v-if="(activeApplication.status_histories || []).length > 0" class="profile-section">
+          <div v-if="(activeApplication.status_histories || []).length > 0" class="profile-section-card">
             <div class="tab-section-header">
               <div>
                 <h2>Lịch sử xử lý hồ sơ</h2>
@@ -130,12 +125,12 @@
                 </div>
               </div>
             </div>
-          </section>
+          </div>
         </div>
 
         <!-- TAB 2: HỒ SƠ ĐIỆN TỬ & VĂN BẢN -->
         <div v-if="activeTab === 'documents'" class="tab-pane-flow">
-          <section class="profile-section">
+          <div class="profile-section-card">
             <div class="tab-section-header">
               <div>
                 <h2>Danh sách hợp đồng & văn bản điện tử</h2>
@@ -197,12 +192,12 @@
               <AppIcon name="fileText" size="32" class="faint-icon" />
               <p>Chưa có văn bản điện tử nào trong hồ sơ này.</p>
             </div>
-          </section>
+          </div>
         </div>
 
         <!-- TAB 3: CHẤM DỨT & QUYẾT TOÁN -->
         <div v-if="activeTab === 'termination'" class="tab-pane-flow">
-          <section class="profile-section">
+          <div class="profile-section-card">
             <div class="tab-section-header">
               <div>
                 <h2>Thủ tục chấm dứt hợp tác & Quyết toán</h2>
@@ -277,11 +272,10 @@
                 </div>
               </div>
             </div>
-          </section>
+          </div>
         </div>
 
       </div>
-
     </div>
 
     <!-- Document Viewer Modal -->
@@ -605,16 +599,16 @@ export default {
 .profile-master-workspace {
   display: flex;
   flex-direction: column;
-  background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border, #e2e8f0);
-  border-radius: 0;
-  padding: 10px;
-  gap: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  gap: 0;
 }
 
 /* Header Tabs Surface */
 .profile-header-tabs-surface {
-  background: transparent;
+  background: var(--admin-surface, #ffffff);
+  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
   border-radius: 0;
   padding: 0;
   display: flex;
@@ -681,13 +675,15 @@ export default {
 .tab-pane-flow {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 0;
 }
 
-.profile-section {
+.profile-section-card {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
 }
 
 .tab-section-header {

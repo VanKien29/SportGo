@@ -1,21 +1,169 @@
 <template>
-  <div class="courts-tab-surface">
-    <!-- Header -->
+  <div class="profile-section-card">
+    <!-- Header Section (Đồng bộ 1:1 với hệ thống) -->
     <div class="tab-section-header">
-      <div class="header-copy">
+      <div>
         <h2>Danh sách sân con</h2>
-        <p class="section-subtitle">Quản lý trạng thái, loại sân và khung giờ đặt cho từng sân con.</p>
+        <p class="section-subtitle">Quản lý danh sách, loại sân và trạng thái kinh doanh của các sân con tại cụm sân.</p>
       </div>
       <div class="header-actions">
-        <button type="button" class="btn btn-outline btn-sm" @click="$emit('open-spatial-editor')">
+        <button
+          type="button"
+          class="btn btn-outline"
+          @click="$emit('open-spatial-editor')"
+        >
           <AppIcon name="maximize" size="14" />
           <span>Sơ đồ mặt bằng</span>
         </button>
-        <button type="button" class="btn btn-primary btn-sm" :disabled="isClusterLocked" @click="$emit('open-scale-request')">
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="background-color: #22a653 !important; background: #22a653 !important; color: #ffffff !important; border: 1px solid #22a653 !important; transform: none !important; box-shadow: none !important;"
+          :disabled="isClusterLocked"
+          @click="$emit('open-scale-request')"
+        >
           <AppIcon name="plus" size="14" />
           <span>Yêu cầu thêm sân</span>
         </button>
       </div>
+    </div>
+
+    <!-- Filter Bar (Đã loại bỏ padding và ô tìm kiếm) -->
+    <div v-if="courts.length > 0" class="table-filter-bar">
+      <div class="filter-tabs">
+        <button
+          type="button"
+          class="tab-btn"
+          :class="{ active: filterStatus === '' }"
+          @click="filterStatus = ''"
+        >
+          Tất cả ({{ courts.length }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          :class="{ active: filterStatus === 'active' }"
+          @click="filterStatus = 'active'"
+        >
+          Đang hoạt động ({{ countStatus('active') }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          :class="{ active: filterStatus === 'inactive' }"
+          @click="filterStatus = 'inactive'"
+        >
+          Tạm ngưng ({{ countStatus('inactive') }})
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          :class="{ active: filterStatus === 'maintenance' }"
+          @click="filterStatus = 'maintenance'"
+        >
+          Bảo trì ({{ countStatus('maintenance') }})
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State Card -->
+    <div v-if="loading" class="table-state-card">
+      <div class="spinner-sm"></div>
+      <span>Đang tải danh sách sân con...</span>
+    </div>
+
+    <!-- Error State Card -->
+    <div v-else-if="error" class="table-state-card text-danger">
+      <span>{{ error }}</span>
+    </div>
+
+    <!-- Empty State Card (Khi chưa có sân con nào) -->
+    <div v-else-if="!courts.length" class="table-state-card">
+      <span>Cụm sân này chưa có sân con nào được tạo.</span>
+      <button
+        type="button"
+        class="btn btn-outline"
+        style="margin-top: 8px;"
+        :disabled="isClusterLocked"
+        @click="$emit('open-scale-request')"
+      >
+        + Gửi yêu cầu thêm sân con
+      </button>
+    </div>
+
+    <!-- Empty Search State Card (Khi lọc không ra kết quả) -->
+    <div v-else-if="filteredCourts.length === 0" class="table-state-card">
+      <span>Không tìm thấy sân con nào phù hợp.</span>
+      <button
+        type="button"
+        class="btn btn-outline"
+        style="margin-top: 6px;"
+        @click="searchQuery = ''; filterStatus = ''"
+      >
+        Xóa bộ lọc
+      </button>
+    </div>
+
+    <!-- Data Table Container (Đồng bộ 1:1 với ServicesTable / SaaSTable) -->
+    <div v-else class="courts-table-wrapper">
+      <table class="courts-data-table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Tên sân con</th>
+            <th>Loại sân</th>
+            <th>Giá bán/thuê</th>
+            <th>Trạng thái</th>
+            <th class="action-col">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="(item, idx) in filteredCourts"
+            :key="item.id || idx"
+            :class="{ 'row-inactive': item.status !== 'active' }"
+          >
+            <td class="cell-index">
+              <span class="index-num">#{{ String(idx + 1).padStart(2, '0') }}</span>
+            </td>
+            <td class="cell-name">
+              <span class="court-name">{{ getCourtName(item) }}</span>
+            </td>
+            <td class="cell-type">
+              <span>{{ getCourtType(item) }}</span>
+            </td>
+            <td class="cell-price">
+              <span class="price-value">{{ formatPrice(item.default_price || item.price_per_hour) }}</span>
+            </td>
+            <td class="cell-status">
+              <span class="status-text" :class="'status-' + (item.status || 'inactive')">
+                {{ getStatusLabel(item.status) }}
+              </span>
+            </td>
+            <td class="action-col">
+              <div class="table-actions">
+                <button
+                  type="button"
+                  class="action-btn edit-btn"
+                  title="Chỉnh sửa thông tin"
+                  @click="$emit('edit-court', item)"
+                >
+                  Sửa
+                </button>
+                <button
+                  type="button"
+                  class="action-btn toggle-btn"
+                  :title="item.status === 'active' ? 'Tạm ngưng sân' : 'Kích hoạt sân'"
+                  :disabled="isClusterLocked"
+                  @click="$emit('toggle-court-status', item)"
+                >
+                  {{ item.status === 'active' ? 'Tắt' : 'Bật' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
@@ -34,132 +182,73 @@ export default {
   },
   emits: ['edit-court', 'toggle-court-status', 'open-scale-request', 'open-spatial-editor'],
   data() {
-    return {};
+    return {
+      filterStatus: '',
+      searchQuery: '',
+    };
+  },
+  computed: {
+    filteredCourts() {
+      if (!Array.isArray(this.courts)) return [];
+      let list = [...this.courts];
+
+      if (this.filterStatus) {
+        list = list.filter((c) => (c.status || 'inactive') === this.filterStatus);
+      }
+
+      if (this.searchQuery.trim()) {
+        const q = this.searchQuery.toLowerCase().trim();
+        list = list.filter((c) => {
+          const name = this.getCourtName(c).toLowerCase();
+          const type = this.getCourtType(c).toLowerCase();
+          return name.includes(q) || type.includes(q);
+        });
+      }
+
+      return list;
+    },
   },
   methods: {
-    courtStatusLabel(status) {
-      return { active: 'Đang hoạt động', inactive: 'Tạm đóng', maintenance: 'Bảo trì' }[status] || status;
+    countStatus(status) {
+      if (!Array.isArray(this.courts)) return 0;
+      return this.courts.filter((c) => (c.status || 'inactive') === status).length;
     },
-    courtStatusIcon(status) {
-      return { active: 'circleCheck', inactive: 'clock', maintenance: 'alert' }[status] || 'clock';
+    getCourtName(court) {
+      if (!court) return '';
+      return court.name || court.court_name || `Sân con #${court.id}`;
+    },
+    getCourtType(court) {
+      if (!court) return 'Chưa phân loại';
+      if (court.court_type && typeof court.court_type === 'object') {
+        return court.court_type.name || court.court_type.label || 'Chưa phân loại';
+      }
+      return court.court_type || court.type_name || 'Chưa phân loại';
+    },
+    getStatusLabel(status) {
+      return (
+        {
+          active: 'Đang hoạt động',
+          inactive: 'Tạm ngưng',
+          maintenance: 'Bảo trì',
+        }[status] || 'Tạm ngưng'
+      );
+    },
+    formatPrice(val) {
+      if (!val && val !== 0) return 'Theo khung giờ';
+      return new Intl.NumberFormat('vi-VN').format(val) + ' đ/giờ';
     },
   },
 };
 </script>
 
 <style scoped>
-/* ── Surface ── */
-.courts-tab-surface {
-  background: var(--admin-surface);
-  border-radius: 0;
-  padding: 10px;
+.profile-section-card {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
-/* ── Courts Toolbar ── */
-.courts-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  background: var(--admin-bg);
-  border: 1px solid var(--admin-border-soft);
-  border-radius: 10px;
-}
-
-.toolbar-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 180px;
-  max-width: 300px;
-}
-
-.toolbar-search .search-icon {
-  position: absolute;
-  left: 10px;
-  color: var(--admin-faint);
-  pointer-events: none;
-}
-
-.toolbar-search .search-input {
-  width: 100%;
-  height: 32px;
-  padding: 0 28px 0 12px;
-  border-radius: 7px;
-  border: 1px solid var(--admin-border-soft);
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  font-size: 12.5px;
-}
-
-.toolbar-search .search-input:focus {
-  outline: none;
-  border-color: var(--admin-primary);
-}
-
-.toolbar-search .clear-search-btn {
-  position: absolute;
-  right: 6px;
-  background: transparent;
-  border: none;
-  color: var(--admin-faint);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.filter-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.filter-tab-btn {
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--admin-faint);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-
-.filter-tab-btn:hover {
-  color: var(--admin-text);
-}
-
-.filter-tab-btn.active {
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  font-weight: 400;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-}
-
-.court-type-pill {
-  font-size: 11.5px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: var(--admin-border-soft);
-  color: var(--admin-faint);
-  flex-shrink: 0;
-}
-
-.court-duration-tag {
-  font-size: 11.5px;
-  color: var(--admin-faint);
-  flex-shrink: 0;
-}
-
-/* ── Header ── */
+/* Tab Section Header */
 .tab-section-header {
   display: flex;
   align-items: flex-start;
@@ -168,482 +257,242 @@ export default {
   flex-wrap: wrap;
 }
 
-.header-copy { display: flex; flex-direction: column; gap: 3px; }
-
 .tab-section-header h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 400;
-  color: var(--admin-text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  min-width: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: rgba(34, 166, 83, 0.14);
-  color: #22a653;
-  font-size: 11px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-[data-theme="dark"] .count-badge {
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-text, #101c15);
 }
 
 .section-subtitle {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--admin-faint);
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--admin-muted, #64748b);
 }
 
-.header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-/* ── View Toggle ── */
-.view-toggle {
-  display: flex;
-  background: var(--admin-bg);
-  border-radius: 7px;
-  padding: 3px;
-  gap: 2px;
-}
-
-.vtgl-btn {
-  width: 30px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--admin-faint);
-  cursor: pointer;
-  transition: background 140ms, color 140ms, box-shadow 140ms;
-}
-
-.vtgl-btn.active {
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-}
-
-.vtgl-btn:hover:not(.active) { color: var(--admin-text); }
-
-/* ── Skeleton ── */
-.skeleton-list { display: flex; flex-direction: column; }
-
-.skeleton-row {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--admin-border-soft);
-}
-
-.skeleton-row:last-child { border-bottom: none; }
-
-.sk-index {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--admin-border-soft);
+  gap: 8px;
   flex-shrink: 0;
-  animation: sk-pulse 1.4s ease-in-out infinite;
 }
 
-.sk-body { flex: 1; display: flex; flex-direction: column; gap: 6px; animation: sk-pulse 1.4s ease-in-out infinite; }
-.sk-line { height: 10px; border-radius: 4px; background: var(--admin-border-soft); }
-.sk-line--wide { width: 45%; }
-.sk-line--narrow { width: 30%; }
-.sk-chip { width: 90px; height: 22px; border-radius: 999px; background: var(--admin-border-soft); flex-shrink: 0; animation: sk-pulse 1.4s ease-in-out infinite; }
-.sk-btns { display: flex; gap: 6px; flex-shrink: 0; animation: sk-pulse 1.4s ease-in-out infinite; }
-.sk-btn { width: 72px; height: 28px; border-radius: 6px; background: var(--admin-border-soft); }
-
-@keyframes sk-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-/* ── Feedback States ── */
-.state-box {
+/* Filter Bar */
+.table-filter-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px;
-  border-radius: 10px;
-  background: var(--admin-bg);
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
+  padding: 0;
 }
 
-.state-box--error { background: var(--admin-danger-soft); }
-
-.state-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
+.filter-tabs {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(34, 166, 83, 0.12);
-  color: #22a653;
-  flex-shrink: 0;
-}
-
-[data-theme="dark"] .state-icon { background: rgba(52, 211, 153, 0.12); color: #34d399; }
-.state-box--error .state-icon { background: var(--admin-danger-soft); color: var(--admin-danger); }
-
-.state-text { flex: 1; }
-
-.state-title {
-  margin: 0 0 3px;
-  font-size: 13.5px;
-  font-weight: 400;
-  color: var(--admin-text);
-}
-
-.state-desc {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--admin-faint);
-}
-
-/* Status Pill ── */
-.status-pill {
-  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  line-height: 1;
-  /* default/unknown */
-  background: var(--admin-hover);
-  color: var(--admin-faint);
 }
 
-/* Active — green, works on both themes */
-.status-pill--active {
-  background: rgba(34, 166, 83, 0.14);
-  color: #1a8244;
-}
-[data-theme="dark"] .status-pill--active {
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-}
-.status-pill--active .status-dot { background: #22c55e; }
-
-/* Inactive — neutral */
-.status-pill--inactive {
-  background: var(--admin-hover);
-  color: var(--admin-faint);
-}
-.status-pill--inactive .status-dot { background: var(--admin-faint); }
-
-/* Maintenance — amber */
-.status-pill--maintenance {
-  background: rgba(234, 179, 8, 0.12);
-  color: #92400e;
-}
-[data-theme="dark"] .status-pill--maintenance {
-  background: rgba(234, 179, 8, 0.14);
-  color: #fbbf24;
-}
-.status-pill--maintenance .status-dot { background: #eab308; }
-
-/* ── Action Buttons ── */
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 10px;
+.tab-btn {
+  padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid var(--admin-border-soft);
-  background-color: transparent;
+  border: 1px solid transparent;
   background: transparent;
-  -webkit-appearance: none;
-  appearance: none;
-  color: var(--admin-text);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 140ms, border-color 140ms, color 140ms;
-  white-space: nowrap;
-}
-
-.action-btn:disabled { opacity: 0.38; cursor: not-allowed; }
-
-.action-btn--edit:hover:not(:disabled) {
-  background: rgba(34, 166, 83, 0.1);
-  border-color: rgba(34, 166, 83, 0.4);
-  color: #1a8244;
-}
-[data-theme="dark"] .action-btn--edit:hover:not(:disabled) {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.3);
-  color: #34d399;
-}
-
-.action-btn--mute:hover:not(:disabled) {
-  background: var(--admin-danger-soft);
-  border-color: var(--admin-danger);
-  color: var(--admin-danger);
-}
-
-.action-btn--activate:hover:not(:disabled) {
-  background: rgba(34, 166, 83, 0.1);
-  border-color: rgba(34, 166, 83, 0.4);
-  color: #1a8244;
-}
-[data-theme="dark"] .action-btn--activate:hover:not(:disabled) {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.3);
-  color: #34d399;
-}
-
-/* ── LIST VIEW ── */
-.courts-list {
-  display: flex;
-  flex-direction: column;
-  border-radius: 10px;
-  border: 1px solid var(--admin-border-soft);
-  overflow: hidden;
-}
-
-.court-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  height: 46px;
-  background: transparent;
-  border-bottom: 1px solid var(--admin-border-soft);
-  transition: background 140ms;
-}
-
-.court-row:last-child { border-bottom: none; }
-
-.court-row:hover { background: var(--admin-hover); }
-
-/* On hover, sync action buttons so they don't show a different background patch */
-.court-row:hover .action-btn {
-  background-color: transparent;
-  background: transparent;
-}
-
-.court-row--inactive { opacity: 0.6; }
-
-/* Index number */
-.court-index {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  background: rgba(34, 166, 83, 0.12);
-  color: #1a8244;
-  font-size: 10.5px;
+  color: var(--admin-muted, #64748b);
+  font-size: 13px;
   font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: var(--admin-text, #101c15);
+  background: var(--admin-hover, #edf7ed);
+}
+
+.tab-btn.active {
+  background: var(--admin-bg-soft, #f7fbf5);
+  border-color: var(--admin-border-soft, #e3ece4);
+  color: var(--admin-primary, #22a653);
+  font-weight: 500;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--admin-primary, #22a653);
+}
+
+/* State Cards */
+.table-state-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-[data-theme="dark"] .court-index {
-  background: rgba(52, 211, 153, 0.12);
-  color: #34d399;
-}
-
-/* Court main — single inline line */
-.court-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* NO overflow:hidden — would create a stacking context causing distinct background patches */
-}
-
-.court-name {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--admin-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-  max-width: 50%;
-}
-
-.court-sep {
-  color: var(--admin-border);
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.court-type {
-  font-size: 12px;
-  color: var(--admin-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
-  min-width: 0;
-}
-
-/* Actions */
-.court-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.action-label { display: none; }
-
-@media (min-width: 900px) {
-  .action-label { display: inline; }
-  .court-name { max-width: none; }
-}
-
-/* ── GRID VIEW ── */
-.courts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.court-card {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border-soft);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
   flex-direction: column;
-  gap: 14px;
-  transition: border-color 160ms, box-shadow 160ms;
-}
-
-.court-card:hover {
-  border-color: var(--admin-border);
-  box-shadow: var(--admin-shadow-sm);
-}
-
-.court-card--inactive { opacity: 0.65; }
-
-.court-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.court-card-num {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--admin-faint);
-  font-variant-numeric: tabular-nums;
-  background: var(--admin-bg);
-  padding: 3px 7px;
-  border-radius: 5px;
-}
-
-.court-card-body { display: flex; flex-direction: column; gap: 10px; }
-
-.court-card-name {
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 400;
-  color: var(--admin-text);
-}
-
-.court-card-meta {
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12.5px;
-}
-
-.meta-row dt { color: var(--admin-faint); font-weight: 400; }
-.meta-row dd { margin: 0; color: var(--admin-text); font-weight: 500; }
-
-.court-card-footer {
-  display: flex;
   gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--admin-border-soft);
-}
-
-/* ── Spatial Notice ── */
-.spatial-notice {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 40px 10px;
-  border: 1px dashed var(--admin-border);
-  border-radius: 10px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
   text-align: center;
 }
 
-.spatial-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: rgba(34, 166, 83, 0.12);
-  color: #22a653;
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Data Table */
+.courts-table-wrapper {
+  overflow-x: auto;
+  border: none;
+  border-radius: 0;
+}
+
+.courts-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.courts-data-table th {
+  background: var(--admin-bg-soft, #f7fbf5);
+  color: var(--admin-text, #101c15);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 12px 14px;
+  border-bottom: none;
+}
+
+.courts-data-table td {
+  padding: 12px 14px;
+  border-bottom: none;
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.courts-data-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.courts-data-table tbody tr:hover {
+  background: var(--admin-hover, #edf7ed);
+}
+
+.courts-data-table tbody tr.row-inactive {
+  opacity: 0.6;
+}
+
+.index-num {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--admin-muted, #64748b);
+}
+
+.court-name {
+  font-weight: 500;
+  color: var(--admin-text, #101c15);
+}
+
+.price-value {
+  font-weight: 400;
+  color: var(--admin-text, #101c15);
+}
+
+.status-text {
+  font-weight: 400;
+  font-size: 12.5px;
+}
+
+.status-text.status-active {
+  color: #16a34a;
+}
+
+.status-text.status-inactive {
+  color: var(--admin-muted, #64748b);
+}
+
+.status-text.status-maintenance {
+  color: #d97706;
+}
+
+.action-col {
+  text-align: center;
+  width: 130px;
+}
+
+.table-actions {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
 }
 
-[data-theme="dark"] .spatial-icon {
-  background: rgba(52, 211, 153, 0.12);
-  color: #34d399;
-}
-
-.spatial-notice h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
+.action-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 400;
-  color: var(--admin-text);
+  border: 1px solid var(--admin-border-soft, #e3ece4);
+  background: var(--admin-surface, #ffffff);
+  color: var(--admin-text, #101c15);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.spatial-notice p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--admin-faint);
-  line-height: 1.55;
-  max-width: 340px;
+.action-btn:hover {
+  background: var(--admin-hover, #edf7ed);
+  border-color: var(--admin-border, #cfded1);
 }
 
-/* ── Responsive ── */
-@media (max-width: 480px) {
-  .tab-section-header { flex-direction: column; }
-  .action-btn { padding: 0 8px; }
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .court-row, .court-card, .skeleton-row { animation: none !important; }
+/* Dark theme overrides */
+[data-theme="dark"] .table-state-card {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .courts-data-table th {
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .courts-data-table tbody tr:hover {
+  background: #27272a !important;
+}
+
+[data-theme="dark"] .tab-btn.active {
+  background: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #22a653 !important;
+}
+
+[data-theme="dark"] .action-btn {
+  background: #18181b !important;
+  border-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .action-btn:hover {
+  background: #27272a !important;
 }
 </style>

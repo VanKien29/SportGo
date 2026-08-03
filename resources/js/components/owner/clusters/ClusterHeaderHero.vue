@@ -62,7 +62,6 @@ export default {
 .cluster-hero-surface {
   background: var(--admin-surface, #ffffff);
   border-radius: 0;
-  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -171,7 +170,7 @@ export default {
 }
 
 .hero-integrated-tabs {
-  padding: 0;
+  padding: 10px;
   border-top: none !important;
   border-bottom: none !important;
 }

@@ -81,14 +81,17 @@
                         :location-error="locationError"
                         :uploading-image="uploadingImage"
                         :is-cluster-locked="isClusterLocked"
+                        :has-pending-info-request="hasPendingInfoRequest"
                         @submit-info="handleUpdate"
                         @submit-location-request="handleRequestLocation"
                         @resolve-map-url="resolveMapUrl"
                         @province-change="onProvinceChange"
                         @ward-change="onWardChange"
                         @toggle-amenity="toggleAmenity"
-                        @upload-gallery-image="uploadGalleryImage"
-                        @delete-image="deleteGalleryImage"
+                        @upload-gallery-image="handleImageUpload"
+                        @delete-image="handleDeleteImage"
+                        @submit-gallery-request="handleGalleryRequest"
+                        @upload-temp-media="handleUploadTempMedia"
                     />
 
                     <!-- TAB 4: TRUNG TÂM YÊU CẦU & PHÊ DUYỆT -->
@@ -1815,6 +1818,9 @@ export default {
         isClusterLocked() {
             return this.isModerationLocked || this.isTerminationRestricted || this.isClusterArchived;
         },
+        hasPendingInfoRequest() {
+            return (this.infoRequests || []).some(r => r.status === 'pending');
+        },
         ownerDashboardCards() {
             const active = this.clusters.filter((cluster) => cluster.status === "active").length;
             const locked = this.clusters.filter((cluster) => cluster.status === "locked").length;
@@ -2535,26 +2541,69 @@ export default {
             return `/storage/${path}`;
         },
 
+        async compressImageToWebP(file, quality = 0.82, maxWidth = 1920) {
+            if (!file || !file.type.startsWith('image/')) return file;
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob(
+                            (blob) => {
+                                if (!blob) {
+                                    resolve(file);
+                                    return;
+                                }
+                                const webpFileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+                                const webpFile = new File([blob], webpFileName, {
+                                    type: 'image/webp',
+                                    lastModified: Date.now(),
+                                });
+                                resolve(webpFile);
+                            },
+                            'image/webp',
+                            quality
+                        );
+                    };
+                    img.onerror = () => resolve(file);
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => resolve(file);
+                reader.readAsDataURL(file);
+            });
+        },
+
         async handleImageUpload(e) {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
+            const rawFiles = Array.from(e.target.files);
+            if (rawFiles.length === 0) return;
             this.uploadingImage = true;
             this.updateError = null;
             try {
-                for (const file of files) {
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert(
-                            `File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`,
-                        );
-                        continue;
-                    }
+                for (const file of rawFiles) {
+                    // Tự động nén và chuyển đổi thành WebP siêu nhẹ trên trình duyệt
+                    const compressedFile = await this.compressImageToWebP(file, 0.82, 1920);
+
                     const formData = new FormData();
-                    formData.append("image", file);
+                    formData.append("image", compressedFile);
                     const res = await venueClusterService.uploadMedia(
                         this.selectedCluster.id,
                         formData,
                     );
-                    this.imagesList.push(res.data);
+                    const mediaItem = res.data?.data || res.data;
+                    if (mediaItem && (mediaItem.file_path || mediaItem.id)) {
+                        this.imagesList.push(mediaItem);
+                    }
                 }
                 this.selectedCluster.media = [...this.imagesList];
             } catch (err) {
@@ -2562,6 +2611,54 @@ export default {
             } finally {
                 this.uploadingImage = false;
                 e.target.value = "";
+            }
+        },
+
+        async uploadGalleryImage(e) {
+            await this.handleImageUpload(e);
+        },
+
+        async deleteGalleryImage(mediaId) {
+            await this.handleDeleteImage(mediaId);
+        },
+
+        async handleGalleryRequest(payload) {
+            if (!this.selectedCluster) return;
+            this.updating = true;
+            this.updateError = null;
+            try {
+                const reqData = {
+                    new_name: this.form.name || this.selectedCluster.name,
+                    new_phone_contact: this.form.phone_contact || this.selectedCluster.phone_contact || "",
+                    new_description: this.form.description || this.selectedCluster.description || "",
+                    new_images: payload.images || [],
+                    note: payload.note || "Yêu cầu thay đổi bộ sưu tập ảnh cụm sân",
+                };
+                await venueClusterService.createInformationChangeRequest(
+                    this.selectedCluster.id,
+                    reqData,
+                );
+                alert("Gửi yêu cầu cập nhật bộ sưu tập ảnh thành công! Vui lòng chờ Admin xét duyệt.");
+                await this.fetchInfoRequests(this.selectedCluster.id);
+            } catch (err) {
+                alert(err.message || "Không thể gửi yêu cầu cập nhật ảnh.");
+            } finally {
+                this.updating = false;
+            }
+        },
+
+        async handleUploadTempMedia({ formData, onSuccess }) {
+            if (!this.selectedCluster) return;
+            try {
+                const res = await venueClusterService.uploadTempMedia(
+                    this.selectedCluster.id,
+                    formData,
+                );
+                if (typeof onSuccess === 'function') {
+                    onSuccess(res.data?.data || res.data);
+                }
+            } catch (err) {
+                alert(err.message || "Tải ảnh tạm thất bại.");
             }
         },
 
@@ -2744,15 +2841,19 @@ export default {
         },
 
         // ── Map ──
-        async handleExtractCoordinates() {
-            if (!this.form.map_url) {
-                alert("Vui lòng nhập đường link Google Maps trước.");
+        async resolveMapUrl() {
+            const url = this.locationForm?.map_url || this.locationForm?.new_map_url || this.form?.map_url;
+            if (!url) {
+                this.mapExtractMsg = {
+                    type: "error",
+                    text: "Vui lòng nhập đường link Google Maps trước.",
+                };
                 return;
             }
             this.resolvingMap = true;
             this.mapExtractMsg = null;
             try {
-                await this.parseCoordinatesFromMapUrl(this.form.map_url);
+                await this.parseCoordinatesFromMapUrl(url);
             } catch (e) {
                 this.mapExtractMsg = {
                     type: "error",
@@ -2761,6 +2862,10 @@ export default {
             } finally {
                 this.resolvingMap = false;
             }
+        },
+
+        async handleExtractCoordinates() {
+            await this.resolveMapUrl();
         },
 
         async parseCoordinatesFromMapUrl(url) {
@@ -2773,11 +2878,19 @@ export default {
                     const res = await venueClusterService.resolveMapUrl(url);
                     const d = res.data;
                     if (d?.latitude && d?.longitude) {
-                        this.form.latitude = d.latitude;
-                        this.form.longitude = d.longitude;
+                        const lat = parseFloat(d.latitude);
+                        const lng = parseFloat(d.longitude);
+                        this.form.latitude = lat;
+                        this.form.longitude = lng;
+                        if (this.locationForm) {
+                            this.locationForm.latitude = lat;
+                            this.locationForm.longitude = lng;
+                            this.locationForm.new_latitude = lat;
+                            this.locationForm.new_longitude = lng;
+                        }
                         this.mapExtractMsg = {
                             type: "success",
-                            text: `Trích xuất thành công: Vĩ độ ${d.latitude}, Kinh độ ${d.longitude}`,
+                            text: `Trích xuất thành công: Vĩ độ ${lat}, Kinh độ ${lng}`,
                         };
                         return;
                     }
@@ -2790,29 +2903,38 @@ export default {
                     return;
                 }
             }
+
             let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (match) {
-                this.form.latitude = parseFloat(match[1]);
-                this.form.longitude = parseFloat(match[2]);
-                this.mapExtractMsg = {
-                    type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${match[1]}, Kinh độ ${match[2]}`,
-                };
-                return;
+            if (!match) {
+                match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             }
-            match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            if (!match) {
+                match = targetUrl.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+            }
+            if (!match) {
+                match = targetUrl.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+            }
+
             if (match) {
-                this.form.latitude = parseFloat(match[1]);
-                this.form.longitude = parseFloat(match[2]);
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                this.form.latitude = lat;
+                this.form.longitude = lng;
+                if (this.locationForm) {
+                    this.locationForm.latitude = lat;
+                    this.locationForm.longitude = lng;
+                    this.locationForm.new_latitude = lat;
+                    this.locationForm.new_longitude = lng;
+                }
                 this.mapExtractMsg = {
                     type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${match[1]}, Kinh độ ${match[2]}`,
+                    text: `Trích xuất thành công: Vĩ độ ${lat}, Kinh độ ${lng}`,
                 };
                 return;
             }
             this.mapExtractMsg = {
                 type: "error",
-                text: "Không tìm thấy tọa độ trong link này. Hãy thử link đầy đủ từ Google Maps desktop.",
+                text: "Không tìm thấy tọa độ trong link này. Hãy thử copy link đầy đủ từ trình duyệt.",
             };
         },
 
@@ -6036,9 +6158,9 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     justify-content: space-between;
     align-items: center;
     padding: 10px 16px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--admin-surface, #ffffff);
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -6054,14 +6176,14 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 }
 .info-badge {
     font-size: 12px;
-    color: var(--admin-text-sub, #94a3b8);
+    color: var(--admin-muted, #64748b);
     font-style: italic;
 }
-/* ─── Tool Switcher (Figma-style) ─── */
+/* ─── Tool Switcher ─── */
 .tool-switcher {
     display: flex;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--admin-bg, #f8fafc);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -6076,22 +6198,18 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #94a3b8;
+    color: var(--admin-muted, #64748b);
     transition: all 0.15s;
 }
-.tool-btn.never-hover-class-placeholder {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f8fafc;
-}
 .tool-btn.active {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    background: rgba(34, 166, 83, 0.12);
+    color: #22a653;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--admin-border-soft, #e2e8f0);
     align-self: center;
     margin: 0 2px;
 }
@@ -6104,14 +6222,14 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 }
 .canvas-viewport {
     flex: 1;
-    background: #0b0f17;
+    background: var(--admin-bg-soft, #f8fafc);
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     overflow: hidden;
     position: relative;
     cursor: default;
     user-select: none;
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 /* Mode: select → con trỏ chuẩn */
 .canvas-viewport.tool-select {
@@ -6140,14 +6258,13 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     pointer-events: none;
 }
 .guide-item {
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 4px 8px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding: 4px 10px;
     border-radius: 6px;
-    font-size: 11px;
-    color: #e2e8f0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 11.5px;
+    color: var(--admin-text, #0f172a);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 .zoom-controls {
     position: absolute;
@@ -6157,41 +6274,31 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    padding: 6px 8px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding: 5px 8px;
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 .btn-zoom {
-    padding: 5px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 6px;
-    background: rgba(30, 41, 59, 0.7);
-    color: #f8fafc;
+    background: var(--admin-bg, #f8fafc);
+    color: var(--admin-text, #0f172a);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 400;
     transition: all 0.15s ease;
 }
-.btn-zoom.never-hover-class-placeholder {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    overflow: hidden;
-}
-.btn-zoom.fit,
-.btn-zoom.reset {
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+.btn-zoom:hover {
+    background: var(--admin-hover, #edf7ed);
+    border-color: #22a653;
 }
 .zoom-level {
     font-size: 12px;
-    font-weight: 400;
-    color: #cbd5e1;
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
     min-width: 44px;
     text-align: center;
 }
@@ -6207,10 +6314,33 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     left: -3000px;
     width: 6000px;
     height: 6000px;
-    background-image: radial-gradient(circle, #334155 1.5px, transparent 1.5px);
+    background-image: radial-gradient(circle, #cbd5e1 1.5px, transparent 1.5px);
     background-size: 32px 32px;
-    opacity: 0.6;
+    opacity: 0.8;
     pointer-events: none;
+}
+
+/* Dark mode overrides for spatial canvas */
+[data-theme="dark"] .canvas-viewport {
+    background: #090d16 !important;
+    border-color: #27272a !important;
+}
+[data-theme="dark"] .canvas-grid-bg {
+    background-image: radial-gradient(circle, #334155 1.5px, transparent 1.5px) !important;
+    opacity: 0.6 !important;
+}
+[data-theme="dark"] .editor-toolbar,
+[data-theme="dark"] .tool-switcher,
+[data-theme="dark"] .guide-item,
+[data-theme="dark"] .zoom-controls {
+    background: #18181b !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+}
+[data-theme="dark"] .btn-zoom {
+    background: #27272a !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
 }
 .canvas-guideline {
     position: absolute;
@@ -6303,68 +6433,89 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 .sidebar-section {
     background: var(--admin-surface, #ffffff);
     border-radius: 10px;
-    border: 1px solid var(--admin-border);
-    padding: 18px 20px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding: 12px 14px;
 }
 .section-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--admin-text);
-    margin: 0 0 12px 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-text, #0f172a);
+    margin: 0 0 8px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
 }
 .section-desc {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
-    margin-bottom: 12px;
+    font-size: 11.5px;
+    color: var(--admin-muted, #64748b);
+    margin-bottom: 8px;
 }
 .inspector-warning-box {
     background: #fef9c3;
     border: 1px solid #fde047;
     border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 12px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    font-weight: 400;
     color: #713f12;
 }
 .inspector-fields {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 .field-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    align-items: center;
+    font-size: 11.5px;
+    padding-bottom: 4px;
+}
+.field-row .label {
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
+}
+.field-row .value {
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
 }
 .field-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 .field-group label {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(15, 23, 42, 0.6);
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--admin-muted, #64748b);
 }
 .input-row {
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.input-row input {
+.input-row input,
+.inspector-panel :is(input, select, textarea, .form-control) {
     flex: 1;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 6px;
-    padding: 6px 8px;
-    font-size: 13px;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    height: 30px !important;
     outline: none;
-    width: 70px;
+    font-weight: 400 !important;
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #0f172a);
+}
+.input-row input:focus,
+.inspector-panel :is(input, select, textarea, .form-control):focus {
+    border-color: #22a653 !important;
 }
 .input-row .x,
 .input-row .comma {
-    font-weight: 500;
-    color: rgba(15, 23, 42, 0.4);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--admin-muted, #94a3b8);
 }
 .rotation-control {
     display: flex;

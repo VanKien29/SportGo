@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div v-if="isOpen" class="confirm-overlay" role="presentation" @click.self="close">
     <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <header>
@@ -13,6 +13,11 @@
         <span>{{ reasonLabel }}</span>
         <textarea v-model.trim="reason" rows="4" :maxlength="maxLength" :placeholder="reasonPlaceholder"></textarea>
         <small>{{ reason.length }}/{{ maxLength }}</small>
+      </label>
+
+      <label v-if="showCheckbox" class="checkbox-field">
+        <input type="checkbox" v-model="checkboxChecked" />
+        <span>{{ checkboxLabel }}</span>
       </label>
 
       <p v-if="error" class="confirm-error" role="alert">{{ error }}</p>
@@ -42,12 +47,16 @@ const props = defineProps({
   reasonLabel: { type: String, default: 'Lý do' },
   reasonPlaceholder: { type: String, default: 'Nhập lý do thực hiện thao tác' },
   initialReason: { type: String, default: '' },
+  showCheckbox: { type: Boolean, default: false },
+  checkboxLabel: { type: String, default: '' },
+  initialCheckbox: { type: Boolean, default: false },
   maxLength: { type: Number, default: 1000 },
   loading: { type: Boolean, default: false },
   error: { type: String, default: '' },
 });
 const emit = defineEmits(['close', 'confirm']);
 const reason = ref('');
+const checkboxChecked = ref(false);
 const iconName = computed(() => props.tone === 'danger' ? 'alert' : 'circleCheck');
 
 function close() {
@@ -56,12 +65,17 @@ function close() {
 
 function confirm() {
   if (props.requireReason && !reason.value) return;
-  emit('confirm', reason.value);
+  emit('confirm', { reason: reason.value, checkboxValue: checkboxChecked.value });
 }
 
 watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) reason.value = props.initialReason;
-  else if (!props.loading) reason.value = '';
+  if (isOpen) {
+    reason.value = props.initialReason;
+    checkboxChecked.value = props.initialCheckbox;
+  } else if (!props.loading) {
+    reason.value = '';
+    checkboxChecked.value = false;
+  }
 });
 </script>
 
@@ -168,6 +182,28 @@ watch(() => props.isOpen, (isOpen) => {
   background: color-mix(in srgb, var(--admin-danger) 8%, var(--admin-surface));
   color: var(--admin-danger-text);
   font-size: var(--admin-font-size-sm);
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--admin-surface-subtle, #f8fafc);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: var(--admin-radius, 6px);
+  cursor: pointer;
+  user-select: none;
+  font-size: 13.5px;
+  color: var(--admin-text, #0f172a);
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--admin-primary, #3b82f6);
 }
 
 .confirm-modal footer {

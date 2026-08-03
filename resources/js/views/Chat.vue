@@ -273,6 +273,7 @@
               </button>
 
               <!-- Chat Options Menu Dropdown -->
+              <div v-if="showChatMenu" class="fixed inset-0 z-40" @click="showChatMenu = false"></div>
               <div
                 v-if="showChatMenu"
                 class="tg-dropdown-menu absolute right-0 top-11 w-56 z-50 py-1"
@@ -1141,6 +1142,9 @@
       :title="pendingChatAction?.title || 'Xác nhận thao tác'"
       :description="pendingChatAction?.description || ''"
       :confirm-text="pendingChatAction?.confirmText || 'Xác nhận'"
+      :show-checkbox="Boolean(pendingChatAction?.checkboxLabel)"
+      :checkbox-label="pendingChatAction?.checkboxLabel || ''"
+      :initial-checkbox="false"
       :loading="confirmChatLoading"
       :error="confirmChatError"
       @close="closeChatConfirmation"
@@ -1974,12 +1978,14 @@ export default {
 
     deleteActiveConversation() {
       if (!this.activeConversation) return;
+      const partnerName = this.activeConversation.title || 'đối phương';
       this.showChatMenu = false;
       this.pendingChatAction = {
         type: 'delete-conversation',
         targetId: this.activeConversation.id,
         title: 'Xóa cuộc trò chuyện?',
-        description: 'Toàn bộ tin nhắn trong cuộc trò chuyện sẽ bị xóa vĩnh viễn.',
+        description: 'Mặc định cuộc trò chuyện chỉ bị xóa khỏi danh sách của bạn.',
+        checkboxLabel: `Đồng thời xóa cuộc trò chuyện cho ${partnerName}`,
         confirmText: 'Xóa cuộc trò chuyện',
       };
       this.confirmChatError = '';
@@ -1987,12 +1993,14 @@ export default {
 
     clearChatHistory() {
       if (!this.activeConversation) return;
+      const partnerName = this.activeConversation.title || 'đối phương';
       this.showChatMenu = false;
       this.pendingChatAction = {
         type: 'clear-history',
         targetId: this.activeConversation.id,
         title: 'Xóa lịch sử tin nhắn?',
-        description: 'Các tin nhắn hiện có sẽ bị xóa nhưng cuộc trò chuyện vẫn được giữ lại.',
+        description: 'Mặc định tin nhắn chỉ bị xóa ở phía bạn, cuộc trò chuyện vẫn được giữ lại.',
+        checkboxLabel: `Đồng thời xóa lịch sử cho ${partnerName}`,
         confirmText: 'Xóa lịch sử',
       };
       this.confirmChatError = '';
@@ -2004,24 +2012,25 @@ export default {
       this.confirmChatError = '';
     },
 
-    async confirmChatAction() {
+    async confirmChatAction(payload) {
       if (!this.pendingChatAction || this.confirmChatLoading) return;
       const action = { ...this.pendingChatAction };
+      const deleteForEveryone = Boolean(payload?.checkboxValue);
       this.confirmChatLoading = true;
       this.confirmChatError = '';
       try {
         if (action.type === 'delete-conversation') {
-          await chatService.deleteConversation(action.targetId);
+          await chatService.deleteConversation(action.targetId, { delete_for_everyone: deleteForEveryone });
           this.conversations = this.conversations.filter(c => c.id !== action.targetId);
           this.activeConversation = null;
           this.messages = [];
-          this.toast.success('Đã xóa cuộc trò chuyện.');
+          this.toast.success(deleteForEveryone ? 'Đã xóa cuộc trò chuyện cho cả 2 bên.' : 'Đã xóa cuộc trò chuyện ở phía bạn.');
         } else if (action.type === 'clear-history') {
-          await chatService.clearConversation(action.targetId);
+          await chatService.clearConversation(action.targetId, { delete_for_everyone: deleteForEveryone });
           this.messages = [];
           const conversation = this.conversations.find(c => c.id === action.targetId);
           if (conversation) conversation.last_message = null;
-          this.toast.success('Đã xóa lịch sử tin nhắn.');
+          this.toast.success(deleteForEveryone ? 'Đã xóa lịch sử tin nhắn cho cả 2 bên.' : 'Đã xóa lịch sử tin nhắn ở phía bạn.');
         }
         this.pendingChatAction = null;
       } catch (error) {
@@ -2754,7 +2763,7 @@ export default {
   color: var(--tg-meta) !important;
 }
 
-.admin-chat-page :is(.tg-search-input, .zalo-chat-box, .tg-dropdown-menu, .tg-profile-action-btn) {
+.admin-chat-page :is(.tg-search-input, .zalo-chat-box, .tg-profile-action-btn) {
   border-radius: 0 !important;
 }
 
@@ -3882,59 +3891,77 @@ export default {
   cursor: wait !important;
   opacity: 0.6 !important;
 }
-/* Telegram Dropdown Menu styling */
+/* Telegram / Modern System Dropdown Menu styling (Matching ThemeToggle Popup) */
+.admin-chat-page .tg-dropdown-menu,
 .tg-dropdown-menu {
-  background-color: var(--tg-header-bg) !important;
-  border: 1px solid var(--tg-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--admin-shadow-lg) !important;
-  overflow: hidden !important;
-}
-
-.tg-dropdown-item {
-  color: var(--tg-received-text) !important;
+  background-color: var(--admin-surface, #ffffff) !important;
+  border: 1px solid var(--admin-border, #e2e8f0) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  padding: 6px !important;
   display: flex !important;
-  align-items: center !important;
-  width: 100% !important;
-  padding: 8px 16px !important;
-  font-size: 13px !important;
-  background: transparent !important;
-  border: none !important;
-  cursor: pointer !important;
-  text-align: left !important;
-  transition: background-color 150ms ease !important;
+  flex-direction: column !important;
+  gap: 2px !important;
   box-sizing: border-box !important;
 }
 
-.tg-dropdown-item.never-hover-class-placeholder {
-  background-color: var(--tg-active-row) !important;
-  color: var(--tg-received-text) !important;
+.admin-chat-page .tg-dropdown-item,
+.tg-dropdown-item {
+  color: var(--admin-text, #0f172a) !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 8px 10px !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+  box-sizing: border-box !important;
+}
+
+.tg-dropdown-item:hover {
+  background-color: var(--admin-hover, #f1f5f9) !important;
+  color: var(--admin-text, #0f172a) !important;
 }
 
 .tg-dropdown-icon {
-  color: var(--tg-meta) !important;
+  color: var(--admin-muted, #64748b) !important;
   width: 16px !important;
   height: 16px !important;
   flex-shrink: 0 !important;
-  margin-right: 12px !important;
+  margin-right: 10px !important;
+  transition: color 150ms ease !important;
+}
+
+.tg-dropdown-item:hover .tg-dropdown-icon {
+  color: var(--admin-text, #0f172a) !important;
 }
 
 .tg-dropdown-item-danger {
-  color: var(--admin-danger) !important;
-}
-
-.tg-dropdown-item-danger.never-hover-class-placeholder {
-  background-color: var(--admin-danger-soft) !important;
+  color: #ef4444 !important;
 }
 
 .tg-dropdown-item-danger .tg-dropdown-icon {
-  color: var(--admin-danger) !important;
+  color: #ef4444 !important;
+}
+
+.tg-dropdown-item-danger:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #dc2626 !important;
+}
+
+.tg-dropdown-item-danger:hover .tg-dropdown-icon {
+  color: #dc2626 !important;
 }
 
 .tg-dropdown-divider {
   height: 1px !important;
-  background-color: var(--tg-border) !important;
-  margin: 4px 0 !important;
+  background-color: var(--admin-border-soft, #e2e8f0) !important;
+  margin: 4px 6px !important;
 }
 
 /* Profile Sidebar Styling */

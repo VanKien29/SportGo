@@ -1533,11 +1533,11 @@ function maskAccountNumber(number) {
   flex-direction: column;
 }
 
-/* Header Tabs Surface (Exact match to ClusterHeaderHero & OwnerPartnerProfile) */
+/* Header Tabs Surface */
 .termination-header-tabs-surface {
-  background: var(--admin-surface, #ffffff);
-  border-radius: 12px 12px 0 0;
-  padding: 16px 24px 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
 }
