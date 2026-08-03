@@ -1,9 +1,5 @@
 @import './portals.css';
 @import './client.css';
-@import './client-shell-v2.css';
-@import './client-community-v2.css';
-@import './client-v3.css';
-@import './auth-v3.css';
 
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
