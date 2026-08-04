@@ -455,4 +455,3 @@ export default {
 };
 </script>
 
-<style scoped src="/resources/css/views/client-register.css"></style>

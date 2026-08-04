@@ -372,4 +372,3 @@ export default {
 };
 </script>
 
-<style scoped src="../../../css/client-vip.css"></style>

@@ -235,4 +235,3 @@ onMounted(() => document.addEventListener('keydown', handleEscape));
 onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
 </script>
 
-<style scoped src="../../css/components/client-meetup-post-modal.css"></style>

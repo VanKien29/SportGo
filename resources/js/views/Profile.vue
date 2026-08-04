@@ -85,4 +85,3 @@ export default {
 };
 </script>
 
-<style scoped src="/resources/css/views/client-profile.css"></style>

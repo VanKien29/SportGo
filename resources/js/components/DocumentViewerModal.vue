@@ -301,4 +301,3 @@ function formatDate(dateString) {
 }
 </script>
 
-<style src="../../css/client-document-viewer.css"></style>

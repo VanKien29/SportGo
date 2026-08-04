@@ -79,4 +79,3 @@ function isActive(key) {
 }
 </script>
 
-<style scoped src="../../css/components/client-account-nav.css"></style>

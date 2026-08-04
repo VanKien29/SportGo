@@ -8,4 +8,3 @@
 import Chat from '../Chat.vue';
 </script>
 
-<style scoped src="../../../css/client-chat-shell.css"></style>

@@ -200,4 +200,3 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped src="../../css/components/client-report-modal.css"></style>

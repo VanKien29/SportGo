@@ -235,4 +235,3 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped src="../../css/client-community-post-modal.css"></style>
