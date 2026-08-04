@@ -639,63 +639,85 @@
                     </button>
                 </div>
 
-                <div class="quick-ranges">
-                <button
-                    v-for="range in dynamicQuickRanges"
-                    :key="range.key"
-                    type="button"
-                    :class="{ active: activeTimePeriod === range.key }"
-                    :disabled="loading"
-                    @click="activeTimePeriod = range.key"
-                >
-                    <strong>{{ range.label }}</strong>
-                    <small>{{ range.range }}</small>
-                </button>
-            </div>
-
-            <div v-if="loading" class="state">Đang tải lịch sân...</div>
-            <div v-else-if="!selectedClusterId" class="state">
-                Vui lòng chọn cụm sân.
-            </div>
-            <div v-else-if="!scheduleCourts.length" class="state">
-                Cụm sân chưa có sân đang hoạt động.
-            </div>
-            <div v-else class="schedule-wrap">
-                <div class="schedule-grid" :style="scheduleGridStyle">
-                    <div class="grid-head sticky-col">Sân \ Giờ</div>
-                    <div
-                        v-for="slot in activePeriodSlots"
-                        :key="slot.start_time"
-                        class="grid-head time-head"
-                    >
-                        {{ time(slot.start_time) }}
-                    </div>
-
-                    <template v-for="court in scheduleCourts" :key="court.id">
-                        <div class="court-cell sticky-col">
-                            <strong>{{ court.name }}</strong>
-                            <span>{{ court.court_type?.name }}</span>
-                        </div>
+                <div class="period-tabs-bar" style="margin-bottom: 12px;">
+                    <div class="period-tabs" role="tablist">
                         <button
-                            v-for="slot in activePeriodSlots"
-                            :key="`${court.id}-${slot.start_time}`"
-                            class="slot-cell"
-                            :class="[
-                                slotClass(court.id, slot),
-                            ]"
-                            :title="slotTitle(court.id, slot)"
+                            v-for="range in dynamicQuickRanges"
+                            :key="range.key"
                             type="button"
-                            :disabled="!canInteractSlot(court.id, slot)"
-                            :aria-pressed="
-                                unlockMode
-                                    ? isUnlockSelected(court.id, slot)
-                                    : isSelected(court.id, slot)
-                            "
-                            @click="pickSlot(court, slot)"
-                        />
-                    </template>
+                            :class="{ active: activeTimePeriod === range.key }"
+                            :disabled="loading"
+                            @click="activeTimePeriod = range.key"
+                        >
+                            <strong>{{ range.label }}</strong>
+                            <span>({{ range.range }})</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+
+                <div v-if="loading" class="state">Đang tải lịch sân...</div>
+                <div v-else-if="!selectedClusterId" class="state">
+                    Vui lòng chọn cụm sân.
+                </div>
+                <div v-else-if="!scheduleCourts.length" class="state">
+                    Cụm sân chưa có sân đang hoạt động.
+                </div>
+                <div v-else class="time-row-matrix-wrap">
+                    <table class="time-row-matrix" role="grid" aria-label="Bảng chọn sân và khung giờ khóa">
+                        <thead>
+                            <tr>
+                                <th class="trm-corner" role="columnheader">KHUNG GIỜ</th>
+                                <th
+                                    v-for="court in scheduleCourts"
+                                    :key="court.id"
+                                    class="trm-court-head"
+                                    role="columnheader"
+                                >
+                                    <strong>{{ court.name }}</strong>
+                                    <span>{{ court.court_type?.name || "-" }}</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="slot in activePeriodSlots"
+                                :key="slot.start_time"
+                                role="row"
+                            >
+                                <td class="trm-time-cell" role="rowheader">
+                                    {{ time(slot.start_time) }} – {{ time(slot.end_time) }}
+                                </td>
+                                <td
+                                    v-for="court in scheduleCourts"
+                                    :key="`${court.id}-${slot.start_time}`"
+                                    class="trm-slot-cell"
+                                    role="gridcell"
+                                >
+                                    <button
+                                        type="button"
+                                        class="trm-slot-btn"
+                                        :class="[
+                                            slotClass(court.id, slot),
+                                            unlockMode && isUnlockSelected(court.id, slot) ? 'unlock-selected' : ''
+                                        ]"
+                                        :disabled="!canInteractSlot(court.id, slot)"
+                                        :aria-pressed="
+                                            unlockMode
+                                                ? isUnlockSelected(court.id, slot)
+                                                : isSelected(court.id, slot)
+                                        "
+                                        :title="slotTitle(court.id, slot)"
+                                        @click="pickSlot(court, slot)"
+                                    >
+                                        <span v-if="isSelected(court.id, slot)">Đã chọn</span>
+                                        <span v-else-if="unlockMode && isUnlockSelected(court.id, slot)">Chọn mở</span>
+                                        <span v-else-if="canInteractSlot(court.id, slot)" class="trm-empty-hint">+ Khóa</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- SECTION 3: Khoảng lịch đã khóa -->
@@ -2385,69 +2407,212 @@ export default {
     box-shadow: inset 0 0 0 2px #fff;
 }
 
-/* ===== Quick Ranges ===== */
-.quick-ranges {
+/* ===== Period Tabs & Time Row Matrix (Exact match to OwnerCounterBooking.vue) ===== */
+.period-tabs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.period-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 0;
-    padding: 0;
-    border-bottom: none;
-    background: transparent;
-    margin-top: 4px;
+    gap: 8px;
 }
-.quick-ranges button {
+
+.period-tabs button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    height: 38px;
     min-height: 38px;
-    padding: 8px 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 0;
-    background: #fff;
-    color: #334155;
-    font: inherit;
+    padding: 0 16px;
+    border-radius: var(--admin-radius, 8px);
+    border: 1px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #475569);
+    font-size: 13px;
     font-weight: 400;
     cursor: pointer;
-    transition: all 0.15s ease;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+    user-select: none;
 }
-.quick-ranges button:not(:first-child) {
-    border-left: none;
+
+.period-tabs button:hover:not(.active) {
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-text, #0f172a);
 }
-.quick-ranges button:first-child {
-    border-radius: 8px 0 0 8px;
+
+.period-tabs button.active {
+    background: var(--admin-accent, #10b981);
+    color: #ffffff;
+    border-color: var(--admin-accent, #10b981);
+    font-weight: 500;
 }
-.quick-ranges button:last-child {
-    border-radius: 0 8px 8px 0;
+
+.period-tabs button strong {
+    font-weight: 600;
 }
-.quick-ranges button strong {
-    font-size: 14px;
-    font-weight: 400;
-}
-.quick-ranges button small {
+
+.period-tabs button span {
     font-size: 12px;
     font-weight: 400;
-    opacity: 0.78;
+    opacity: 0.85;
 }
-.quick-ranges button.never-hover-class-placeholder:not(:disabled):not(.active) {
-    border-color: var(--admin-border);
-    background: var(--admin-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 9px rgba(0, 0, 0, 0.04);
+
+.time-row-matrix-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
 }
-.quick-ranges button.active {
-    border-color: var(--admin-primary, #16a34a);
-    background: var(--admin-primary, #16a34a);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+.time-row-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin: 0;
+    padding: 0;
 }
-.quick-ranges button.active strong,
-.quick-ranges button.active small {
-    color: #fff;
+
+.time-row-matrix .trm-corner {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 130px;
+    width: 130px;
+    padding: 10px 14px;
+    background: var(--admin-bg-soft, #f8fafc);
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-align: left;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
 }
-.quick-ranges button:disabled {
-    opacity: 0.45;
+
+.time-row-matrix .trm-court-head {
+    min-width: 140px;
+    padding: 8px 12px;
+    background: var(--admin-bg-soft, #f8fafc);
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
+    text-align: left;
+}
+
+.time-row-matrix .trm-court-head strong {
+    display: block;
+    color: var(--admin-text, #1e293b);
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix .trm-court-head span {
+    display: block;
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix tbody tr {
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    transition: background 0.1s;
+}
+
+.time-row-matrix tbody tr:hover {
+    background: #f8fafc;
+}
+
+.time-row-matrix .trm-time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 130px;
+    width: 130px;
+    padding: 0 14px;
+    height: 44px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-muted, #475569);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-cell {
+    padding: 0;
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 44px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    font-size: 12px;
+    color: var(--admin-primary, #16a34a);
+}
+
+.time-row-matrix .trm-slot-btn:not(:disabled):hover {
+    background: var(--admin-hover, #f1f5f9);
+}
+
+.time-row-matrix .trm-slot-btn:disabled {
     cursor: not-allowed;
 }
+
+.time-row-matrix .trm-empty-hint {
+    opacity: 0;
+    color: var(--admin-primary, #16a34a);
+    font-size: 11px;
+    font-weight: 400;
+    transition: opacity 0.15s;
+}
+
+.time-row-matrix tbody tr:hover .trm-slot-btn:not(:disabled) .trm-empty-hint {
+    opacity: 0.55;
+}
+
+.time-row-matrix .trm-slot-btn.selected {
+    background: var(--admin-primary, #16a34a) !important;
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #16a34a);
+    color: #ffffff !important;
+}
+
+.time-row-matrix .trm-slot-btn.selected span {
+    color: #ffffff !important;
+}
+
+.time-row-matrix .trm-slot-btn.unlock-selected {
+    background: #f3e3e0 !important;
+    box-shadow: inset 0 0 0 2px #b97870 !important;
+    color: #991b1b !important;
+}
+
+.time-row-matrix .trm-slot-btn.booked,
+.time-row-matrix .trm-slot-btn.booked-paid    { background: #e2f0e7; color: #166534; }
+.time-row-matrix .trm-slot-btn.booked-online  { background: #e5edf3; color: #1e40af; }
+.time-row-matrix .trm-slot-btn.booked-counter { background: #ebe9f1; color: #6b21a8; }
+.time-row-matrix .trm-slot-btn.manual,
+.time-row-matrix .trm-slot-btn.locked         { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
+.time-row-matrix .trm-slot-btn.unavailable    { background: #f8fafc; }
 
 /* ===== States ===== */
 .state {
@@ -2944,17 +3109,21 @@ export default {
     border: 1px solid #d7ead7;
     background: #fff;
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+    padding: 20px;
 }
-.conflict-modal header,
+.conflict-modal header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+}
 .conflict-modal footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 18px 20px 0;
-}
-.conflict-modal footer {
-    padding: 0 20px 18px;
+    padding: 0;
 }
 .conflict-modal h3 {
     margin: 0;
@@ -3048,10 +3217,10 @@ export default {
     padding: 0 20px 18px;
 }
 .conflict-help {
-    margin: 0 20px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: #f0fdf4;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
     color: #496355;
     font-size: 13px;
     line-height: 1.45;
@@ -3061,7 +3230,7 @@ export default {
     gap: 10px;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 20px;
+    padding: 0;
 }
 .conflict-card {
     display: grid;

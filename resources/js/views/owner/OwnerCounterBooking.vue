@@ -9121,11 +9121,13 @@ input.invalid {
 .owner-counter-page .booking-side,
 .owner-counter-page .form-card,
 .owner-counter-page .preview-box,
-.owner-counter-page .recurring-list-panel {
-    border: 0;
-    border-radius: 0;
-    background: var(--admin-surface);
-    box-shadow: none;
+.owner-counter-page .recurring-list-panel,
+.owner-counter-page .recurring-panel,
+.owner-counter-page .profile-section-card {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 .owner-counter-page .schedule-filters,
 .owner-counter-page .recurring-schedule-board,
