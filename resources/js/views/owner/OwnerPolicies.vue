@@ -73,20 +73,21 @@
           </div>
         </div>
 
-        <div class="tier-preview" v-if="policy.cancel_refund_configuration?.system_tiers?.length">
+        <div class="tier-preview" v-if="effectiveTiers(policy).length">
           <div class="tier-preview-head">
             <strong>Bảng mốc hủy & hoàn</strong>
             <small>{{ policy.cancel_refund_configuration.effective_source_label }}</small>
           </div>
           <div class="tier-preview-grid">
             <div
-              v-for="tier in policy.cancel_refund_configuration.system_tiers"
+              v-for="tier in effectiveTiers(policy)"
               :key="tier.key"
               class="tier-preview-card"
             >
               <span>{{ rangeText(tier) }}</span>
-              <strong>Hệ thống: {{ tier.allow_cancel ? `hoàn tối thiểu ${tier.refund_percent}%` : 'không cho hủy' }}</strong>
-              <p>{{ venueTierLine(policy, tier) }}</p>
+              <strong>{{ tier.allow_cancel ? `Hoàn ${tier.refund_percent}%` : 'Không cho hủy' }}</strong>
+              <p>{{ policy.cancel_refund_configuration.effective_source === 'venue' ? 'Chính sách riêng của cụm sân' : 'Đang dùng khung hệ thống' }}</p>
+              <small>{{ systemFloorLine(policy, tier) }}</small>
             </div>
           </div>
         </div>
@@ -133,8 +134,8 @@
           </div>
         </header>
         <div class="modal-guide">
-          <strong>Kế thừa từ hệ thống</strong>
-          <p>Khoảng giờ lấy theo khung hệ thống. Chủ sân chỉ được đặt mức hoàn bằng hoặc tốt hơn cho khách, và không được bỏ bước xác nhận bắt buộc.</p>
+          <strong>Được tùy chỉnh mốc thời gian</strong>
+          <p>Chủ sân có thể thêm, xóa hoặc đổi khoảng giờ. Bảng mốc phải liên tục từ 0 giờ đến vô hạn và tại mọi thời điểm không được bất lợi hơn chính sách hệ thống.</p>
         </div>
         <label class="status-field">
           Trạng thái chính sách sân
@@ -143,54 +144,89 @@
             <option value="draft">Lưu nháp, chưa áp dụng</option>
           </select>
         </label>
-        <div class="table-wrap">
-          <table class="tiers-table">
-            <thead>
-              <tr>
-                <th>Mốc thời gian</th>
-                <th>Khung hệ thống</th>
-                <th>Chính sách sân</th>
-                <th>Xác nhận hoàn</th>
-                <th>Nội dung cho khách</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(tier, index) in cancelRefundForm.tiers" :key="tier.key || index">
-                <td>
-                  <strong>{{ tier.label }}</strong>
-                  <small>{{ rangeText(tier) }}</small>
-                </td>
-                <td>
-                  <span>Hoàn tối thiểu {{ tier.system_refund_percent }}%</span>
-                  <small>{{ tier.system_allow_cancel ? 'Hệ thống cho hủy' : 'Hệ thống không cho hủy' }}</small>
-                </td>
-                <td>
-                  <label class="check">
-                    <input v-model="tier.allow_cancel" type="checkbox" disabled />
-                    <span>{{ tier.allow_cancel ? 'Có' : 'Không' }}</span>
-                  </label>
-                  <label>
-                    Tỷ lệ hoàn của sân
-                    <input v-model.number="tier.refund_percent" type="number" min="0" max="100" step="1" />
-                  </label>
-                </td>
-                <td class="confirm-cell">
-                  <label class="check"><input v-model="tier.require_owner_confirm" type="checkbox" :disabled="tier.system_require_owner_confirm" /> Chủ sân</label>
-                  <label class="check"><input v-model="tier.require_admin_confirm" type="checkbox" :disabled="tier.system_require_admin_confirm" /> Admin</label>
-                </td>
-                <td>
-                  <textarea v-model.trim="tier.customer_message" rows="2" maxlength="500" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="tier-editor-head">
+          <div>
+            <strong>Các mốc của cụm sân</strong>
+            <p>Chỉnh từ mốc thấp lên cao. Mốc cuối để trống “Đến dưới giờ”.</p>
+          </div>
+          <button class="btn secondary" type="button" @click="addCancelRefundTier">
+            <AppIcon name="plus" size="16" /> Thêm mốc
+          </button>
         </div>
-        <p v-if="cancelRefundError" class="form-error">{{ cancelRefundError }}</p>
+        <div class="tier-editor-list" @input="cancelRefundError = ''" @change="cancelRefundError = ''">
+          <article v-for="(tier, index) in cancelRefundForm.tiers" :key="tier.key || index" class="tier-editor-card">
+            <header class="tier-editor-card-head">
+              <div>
+                <span>Mốc {{ index + 1 }}</span>
+                <strong>{{ rangeText(tier) }}</strong>
+              </div>
+              <button
+                class="remove-tier"
+                type="button"
+                :disabled="cancelRefundForm.tiers.length <= 2"
+                :aria-label="`Xóa mốc ${index + 1}`"
+                @click="removeCancelRefundTier(index)"
+              >
+                <AppIcon name="trash" size="16" />
+              </button>
+            </header>
+
+            <div class="system-floor" :class="{ invalid: systemRequirementsForTier(tier).mixedAllow }">
+              <strong>Ràng buộc hệ thống</strong>
+              <span>{{ systemRequirementSummary(tier) }}</span>
+            </div>
+
+            <div class="tier-editor-grid">
+              <label>
+                Từ giờ
+                <input v-model.number="tier.from_hours" type="number" min="0" step="0.5" @change="applySystemMinimums(tier)" />
+              </label>
+              <label>
+                Đến dưới giờ
+                <input v-model="tier.to_hours" type="number" min="0" step="0.5" placeholder="Không giới hạn" @change="applySystemMinimums(tier)" />
+              </label>
+              <label>
+                Cho khách hủy
+                <select v-model="tier.allow_cancel" :disabled="!systemRequirementsForTier(tier).mixedAllow">
+                  <option :value="true">Có</option>
+                  <option :value="false">Không</option>
+                </select>
+              </label>
+              <label>
+                Tỷ lệ hoàn của sân
+                <input
+                  v-model.number="tier.refund_percent"
+                  type="number"
+                  :min="systemRequirementsForTier(tier).minimumRefundPercent"
+                  max="100"
+                  step="1"
+                />
+              </label>
+              <label class="customer-message-field">
+                Nội dung hiển thị cho khách
+                <textarea v-model.trim="tier.customer_message" rows="2" maxlength="500" placeholder="Giải thích ngắn gọn kết quả hủy và hoàn tiền." />
+              </label>
+            </div>
+
+            <div class="confirmation-row">
+              <span>Luồng xác nhận hoàn tiền</span>
+              <label class="check">
+                <input v-model="tier.require_owner_confirm" type="checkbox" :disabled="systemRequirementsForTier(tier).requireOwnerConfirm" />
+                Chủ sân xác nhận
+              </label>
+              <label class="check">
+                <input v-model="tier.require_admin_confirm" type="checkbox" :disabled="systemRequirementsForTier(tier).requireAdminConfirm" />
+                Admin hoàn tất
+              </label>
+            </div>
+          </article>
+        </div>
+        <p v-if="cancelRefundError || cancelRefundValidation" class="form-error">{{ cancelRefundError || cancelRefundValidation }}</p>
         <p class="preview">{{ cancelRefundPreview }}</p>
         <footer>
           <button class="btn secondary" type="button" @click="fillSystemDefault">Điền lại theo hệ thống</button>
           <button class="btn secondary" type="button" @click="closeCancelRefund">Hủy</button>
-          <button class="btn primary" type="submit" :disabled="saving">{{ saving ? 'Đang lưu...' : 'Lưu chính sách sân' }}</button>
+          <button class="btn primary" type="submit" :disabled="saving || !!cancelRefundValidation">{{ saving ? 'Đang lưu...' : 'Lưu chính sách sân' }}</button>
         </footer>
       </form>
     </div>
@@ -252,12 +288,20 @@ export default {
       return this.systemPolicies.filter((policy) => policy.cancel_refund_configuration?.base_rule_id);
     },
     cancelRefundPreview() {
-      const tiers = this.cancelRefundForm.tiers || [];
+      const tiers = this.sortedCancelRefundDraft;
       if (!tiers.length) return '';
       return tiers.map((tier) => {
         const action = tier.allow_cancel ? `hoàn ${Number(tier.refund_percent || 0)}%` : 'không cho hủy';
-        return `${tier.label}: ${action}.`;
+        return `${this.rangeText(tier)}: ${action}.`;
       }).join(' ');
+    },
+    sortedCancelRefundDraft() {
+      return [...(this.cancelRefundForm.tiers || [])].sort(
+        (first, second) => Number(first.from_hours || 0) - Number(second.from_hours || 0),
+      );
+    },
+    cancelRefundValidation() {
+      return this.validateCancelRefund();
     },
   },
   async mounted() {
@@ -355,44 +399,97 @@ export default {
       const config = this.cancelRefundConfig(policy);
       return config.effective_summary || config.venue_summary || 'Sân đang dùng mặc định hệ thống.';
     },
-    venueTierLine(policy, systemTier) {
+    effectiveTiers(policy) {
       const config = this.cancelRefundConfig(policy);
-      const venue = (config.venue_tiers || []).find((tier) => String(tier.key) === String(systemTier.key));
-      if (!venue) return 'Sân đang kế thừa đúng mốc hệ thống.';
-      const prefix = config.effective_source === 'venue' ? 'Sân đang áp dụng' : 'Bản nháp sân';
-      return venue.allow_cancel
-        ? `${prefix}: hoàn ${Number(venue.refund_percent || 0)}%.`
-        : `${prefix}: không cho hủy.`;
+      if (Array.isArray(config.effective_tiers) && config.effective_tiers.length) {
+        return config.effective_tiers;
+      }
+      if (config.effective_source === 'venue' && config.venue_tiers?.length) {
+        return config.venue_tiers;
+      }
+      return config.system_tiers || [];
+    },
+    systemFloorLine(policy, tier) {
+      const requirements = this.systemRequirementsForTier(
+        tier,
+        this.cancelRefundConfig(policy).system_tiers || [],
+      );
+      if (!requirements.overlappingTiers.length) return 'Không xác định được ràng buộc hệ thống.';
+      if (requirements.mixedAllow) return 'Mốc này cần tách tại ranh giới cho phép hủy của hệ thống.';
+      return `Tối thiểu hệ thống: ${requirements.allowCancel ? 'cho hủy' : 'không cho hủy'}, hoàn ${requirements.minimumRefundPercent}%.`;
+    },
+    systemRequirementsForTier(tier, suppliedSystemTiers = null) {
+      const systemTiers = suppliedSystemTiers
+        || this.cancelRefundModal?.cancel_refund_configuration?.system_tiers
+        || [];
+      const overlappingTiers = systemTiers.filter((systemTier) => this.timeRangesOverlap(tier, systemTier));
+      const allowValues = [...new Set(overlappingTiers.map((systemTier) => Boolean(systemTier.allow_cancel)))];
+      return {
+        overlappingTiers,
+        mixedAllow: allowValues.length > 1,
+        allowCancel: allowValues.length === 1 ? allowValues[0] : Boolean(tier.allow_cancel),
+        minimumRefundPercent: overlappingTiers.reduce(
+          (minimum, systemTier) => Math.max(minimum, Number(systemTier.refund_percent || 0)),
+          0,
+        ),
+        requireOwnerConfirm: overlappingTiers.some((systemTier) => Boolean(systemTier.require_owner_confirm)),
+        requireAdminConfirm: overlappingTiers.some((systemTier) => Boolean(systemTier.require_admin_confirm)),
+      };
+    },
+    systemRequirementSummary(tier) {
+      const requirements = this.systemRequirementsForTier(tier);
+      if (!requirements.overlappingTiers.length) {
+        return 'Khoảng giờ chưa giao với khung hệ thống. Hãy kiểm tra lại mốc bắt đầu và kết thúc.';
+      }
+      if (requirements.mixedAllow) {
+        return 'Khoảng này đi qua các vùng có quyền hủy khác nhau. Hãy tách mốc tại ranh giới hệ thống.';
+      }
+      const confirmations = [];
+      if (requirements.requireOwnerConfirm) confirmations.push('chủ sân xác nhận');
+      if (requirements.requireAdminConfirm) confirmations.push('admin hoàn tất');
+      const confirmationText = confirmations.length ? ` · Bắt buộc ${confirmations.join(', ')}` : '';
+      return `${requirements.allowCancel ? 'Cho hủy' : 'Không cho hủy'} · Hoàn tối thiểu ${requirements.minimumRefundPercent}%${confirmationText}`;
+    },
+    timeRangesOverlap(firstTier, secondTier) {
+      const firstFrom = this.nullableHour(firstTier.from_hours, 0);
+      const firstTo = this.nullableHour(firstTier.to_hours, Number.POSITIVE_INFINITY);
+      const secondFrom = this.nullableHour(secondTier.from_hours, 0);
+      const secondTo = this.nullableHour(secondTier.to_hours, Number.POSITIVE_INFINITY);
+      return Math.max(firstFrom, secondFrom) < Math.min(firstTo, secondTo);
+    },
+    nullableHour(value, fallback) {
+      if (value === '' || value === null || value === undefined) return fallback;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
     },
     openCancelRefund(policy) {
       const config = policy.cancel_refund_configuration;
-      const systemByKey = new Map((config.system_tiers || []).map((tier) => [tier.key, tier]));
-      const venueByKey = new Map((config.venue_tiers || []).map((tier) => [tier.key, tier]));
       this.cancelRefundModal = policy;
       this.cancelRefundError = '';
+      const sourceTiers = config.venue_tiers?.length ? config.venue_tiers : config.system_tiers || [];
       this.cancelRefundForm = {
         id: config.venue_rule_id || null,
         base_policy_rule_id: config.base_rule_id,
         status: config.venue_rule_status || 'active',
-        tiers: (config.system_tiers || []).map((systemTier) => {
-          const venueTier = venueByKey.get(systemTier.key) || systemTier;
-          return {
-            ...venueTier,
-            from_hours: systemTier.from_hours,
-            to_hours: systemTier.to_hours,
-            system_refund_percent: Number(systemTier.refund_percent || 0),
-            system_allow_cancel: Boolean(systemTier.allow_cancel),
-            system_require_owner_confirm: Boolean(systemTier.require_owner_confirm),
-            system_require_admin_confirm: Boolean(systemTier.require_admin_confirm),
-          };
-        }),
+        tiers: sourceTiers
+          .map((tier, index) => this.editorTier(tier, index))
+          .sort((first, second) => Number(first.from_hours || 0) - Number(second.from_hours || 0)),
       };
       for (const tier of this.cancelRefundForm.tiers) {
-        const system = systemByKey.get(tier.key);
-        if (system?.allow_cancel) tier.allow_cancel = true;
-        if (system?.require_owner_confirm) tier.require_owner_confirm = true;
-        if (system?.require_admin_confirm) tier.require_admin_confirm = true;
+        this.applySystemMinimums(tier);
       }
+    },
+    editorTier(tier, index) {
+      return {
+        key: tier.key || `venue_tier_${Date.now()}_${index}`,
+        from_hours: Number(tier.from_hours ?? 0),
+        to_hours: tier.to_hours === null || tier.to_hours === undefined ? '' : Number(tier.to_hours),
+        allow_cancel: tier.allow_cancel !== false,
+        refund_percent: Number(tier.refund_percent || 0),
+        require_owner_confirm: tier.require_owner_confirm !== false,
+        require_admin_confirm: tier.require_admin_confirm !== false,
+        customer_message: tier.customer_message || '',
+      };
     },
     closeCancelRefund() {
       this.cancelRefundModal = null;
@@ -401,38 +498,104 @@ export default {
     fillSystemDefault() {
       if (!this.cancelRefundModal) return;
       const systemTiers = this.cancelRefundModal.cancel_refund_configuration?.system_tiers || [];
-      const systemByKey = new Map(systemTiers.map((tier) => [tier.key, tier]));
-      this.cancelRefundForm.tiers = this.cancelRefundForm.tiers.map((tier) => {
-        const system = systemByKey.get(tier.key) || tier;
-        return {
-          ...tier,
-          allow_cancel: Boolean(system.allow_cancel),
-          refund_percent: Number(system.refund_percent || 0),
-          require_owner_confirm: Boolean(system.require_owner_confirm),
-          require_admin_confirm: Boolean(system.require_admin_confirm),
-          customer_message: system.customer_message || tier.customer_message || '',
-        };
-      });
+      this.cancelRefundForm.tiers = systemTiers
+        .map((tier, index) => this.editorTier(tier, index))
+        .sort((first, second) => Number(first.from_hours || 0) - Number(second.from_hours || 0));
+      this.cancelRefundError = '';
+    },
+    addCancelRefundTier() {
+      const sortedTiers = this.sortedCancelRefundDraft;
+      const highestTier = sortedTiers[sortedTiers.length - 1];
+      if (!highestTier) return;
+
+      const splitAt = Number(highestTier.from_hours || 0) + 24;
+      highestTier.to_hours = splitAt;
+      const newTier = {
+        ...highestTier,
+        key: `venue_tier_${Date.now()}_${sortedTiers.length}`,
+        from_hours: splitAt,
+        to_hours: '',
+      };
+      this.applySystemMinimums(highestTier);
+      this.applySystemMinimums(newTier);
+      this.cancelRefundForm.tiers = [...sortedTiers, newTier];
+      this.cancelRefundError = '';
+    },
+    removeCancelRefundTier(index) {
+      const sortedTiers = this.sortedCancelRefundDraft;
+      if (sortedTiers.length <= 2) return;
+
+      const removedTier = sortedTiers[index];
+      const previousTier = sortedTiers[index - 1];
+      const nextTier = sortedTiers[index + 1];
+      if (previousTier) previousTier.to_hours = removedTier.to_hours;
+      if (!previousTier && nextTier) nextTier.from_hours = 0;
+      sortedTiers.splice(index, 1);
+      sortedTiers.forEach((tier) => this.applySystemMinimums(tier));
+      this.cancelRefundForm.tiers = sortedTiers;
+      this.cancelRefundError = '';
+    },
+    applySystemMinimums(tier) {
+      const requirements = this.systemRequirementsForTier(tier);
+      if (!requirements.overlappingTiers.length) return;
+      if (!requirements.mixedAllow) tier.allow_cancel = requirements.allowCancel;
+      if (Number(tier.refund_percent || 0) < requirements.minimumRefundPercent) {
+        tier.refund_percent = requirements.minimumRefundPercent;
+      }
+      if (requirements.requireOwnerConfirm) tier.require_owner_confirm = true;
+      if (requirements.requireAdminConfirm) tier.require_admin_confirm = true;
     },
     validateCancelRefund() {
-      for (const tier of this.cancelRefundForm.tiers) {
-        if (Number(tier.refund_percent) < Number(tier.system_refund_percent)) {
-          return `${tier.label}: mức hoàn của sân không được thấp hơn ${tier.system_refund_percent}% theo chính sách hệ thống.`;
+      const tiers = this.sortedCancelRefundDraft;
+      if (tiers.length < 2) return 'Bảng mốc cần ít nhất 2 khoảng thời gian.';
+
+      const normalized = tiers.map((tier) => ({
+        tier,
+        from: Number(tier.from_hours),
+        to: tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined
+          ? null
+          : Number(tier.to_hours),
+        refundPercent: Number(tier.refund_percent),
+      }));
+      if (normalized.some((item) => Number.isNaN(item.from) || item.from < 0)) {
+        return 'Giờ bắt đầu phải lớn hơn hoặc bằng 0.';
+      }
+      if (normalized.some((item) => item.to !== null && (Number.isNaN(item.to) || item.to <= item.from))) {
+        return 'Giờ kết thúc phải lớn hơn giờ bắt đầu.';
+      }
+      if (normalized.some((item) => Number.isNaN(item.refundPercent) || item.refundPercent < 0 || item.refundPercent > 100)) {
+        return 'Tỷ lệ hoàn phải nằm trong khoảng 0-100%.';
+      }
+      if (normalized[0]?.from !== 0) return 'Bảng mốc phải bắt đầu từ 0 giờ.';
+
+      for (let index = 0; index < normalized.length; index += 1) {
+        const current = normalized[index];
+        const next = normalized[index + 1];
+        if (next && (current.to === null || current.to !== next.from)) {
+          return 'Các mốc phải liền nhau, không chồng hoặc hở khoảng.';
         }
-        if (tier.system_allow_cancel && !tier.allow_cancel) {
-          return `${tier.label}: sân không được chặn hủy khi hệ thống đang cho phép hủy.`;
+        if (!next && current.to !== null) {
+          return 'Mốc cuối phải để trống giờ kết thúc để phủ đến vô hạn.';
         }
-        if (!tier.system_allow_cancel && tier.allow_cancel) {
-          return `${tier.label}: sân không được cho hủy khi hệ thống không cho phép hủy.`;
+
+        const label = this.rangeText(current.tier);
+        const requirements = this.systemRequirementsForTier(current.tier);
+        if (!requirements.overlappingTiers.length) return `${label}: chưa nằm trong khung thời gian hệ thống.`;
+        if (requirements.mixedAllow) return `${label}: hãy tách mốc tại ranh giới quyền hủy của hệ thống.`;
+        if (Boolean(current.tier.allow_cancel) !== requirements.allowCancel) {
+          return `${label}: quyền hủy phải giữ đúng quy tắc hệ thống.`;
         }
-        if (!tier.allow_cancel && Number(tier.refund_percent) !== 0) {
-          return `${tier.label}: nếu không cho hủy thì tỷ lệ hoàn phải bằng 0%.`;
+        if (current.refundPercent < requirements.minimumRefundPercent) {
+          return `${label}: mức hoàn không được thấp hơn ${requirements.minimumRefundPercent}%.`;
         }
-        if (tier.system_require_owner_confirm && !tier.require_owner_confirm) {
-          return `${tier.label}: sân không được bỏ bước chủ sân xác nhận hoàn tiền.`;
+        if (!current.tier.allow_cancel && current.refundPercent !== 0) {
+          return `${label}: nếu không cho hủy thì tỷ lệ hoàn phải bằng 0%.`;
         }
-        if (tier.system_require_admin_confirm && !tier.require_admin_confirm) {
-          return `${tier.label}: sân không được bỏ bước admin xác nhận hoàn tất.`;
+        if (requirements.requireOwnerConfirm && !current.tier.require_owner_confirm) {
+          return `${label}: không được bỏ bước chủ sân xác nhận hoàn tiền.`;
+        }
+        if (requirements.requireAdminConfirm && !current.tier.require_admin_confirm) {
+          return `${label}: không được bỏ bước admin xác nhận hoàn tất.`;
         }
       }
       return '';
@@ -445,11 +608,13 @@ export default {
         const response = await ownerPolicyService.saveRule({
           venue_cluster_id: this.selectedClusterId,
           base_policy_rule_id: this.cancelRefundForm.base_policy_rule_id,
-          tiers: this.cancelRefundForm.tiers.map((tier) => ({
-            key: tier.key,
-            label: tier.label,
-            from_hours: tier.from_hours,
-            to_hours: tier.to_hours,
+          tiers: this.sortedCancelRefundDraft.map((tier, index) => ({
+            key: this.rangeKeyForTier(tier, index),
+            label: this.rangeText(tier),
+            from_hours: Number(tier.from_hours),
+            to_hours: tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined
+              ? null
+              : Number(tier.to_hours),
             allow_cancel: Boolean(tier.allow_cancel),
             refund_percent: Number(tier.refund_percent || 0),
             require_owner_confirm: Boolean(tier.require_owner_confirm),
@@ -467,6 +632,13 @@ export default {
         this.saving = false;
       }
     },
+    rangeKeyForTier(tier, index) {
+      const fromKey = String(Number(tier.from_hours || 0)).replace('.', '_');
+      const toKey = tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined
+        ? 'up'
+        : String(Number(tier.to_hours)).replace('.', '_');
+      return `venue_${index}_${fromKey}_${toKey}`;
+    },
     async resetPolicy(policy) {
       const venueRuleId = policy.cancel_refund_configuration?.venue_rule_id;
       if (!venueRuleId) return;
@@ -482,7 +654,7 @@ export default {
       }
     },
     rangeText(tier) {
-      if (tier.to_hours === null || tier.to_hours === undefined) return `Từ ${tier.from_hours} giờ trở lên`;
+      if (tier.to_hours === '' || tier.to_hours === null || tier.to_hours === undefined) return `Từ ${tier.from_hours} giờ trở lên`;
       if (Number(tier.from_hours) === 0) return `Dưới ${tier.to_hours} giờ`;
       return `Từ ${tier.from_hours} đến dưới ${tier.to_hours} giờ`;
     },
@@ -565,24 +737,51 @@ export default {
 .warning { background: #fef3c7; color: #92400e; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .56); display: grid; place-items: center; z-index: 500; padding: 20px; }
 .modal { width: min(680px, calc(100vw - 32px)); display: grid; gap: 14px; max-height: calc(100vh - 40px); overflow: auto; }
-.modal.wide { width: min(1180px, calc(100vw - 32px)); }
+.modal.wide { width: min(1080px, calc(100vw - 32px)); }
 .modal-guide { display: grid; gap: 4px; border: 1px solid #bbf7d0; border-radius: 10px; background: #f0fdf4; color: #166534; padding: 12px; }
 .modal-guide p { margin: 0; color: #166534; }
 .status-field { max-width: 360px; }
-.table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
-.tiers-table { width: 100%; min-width: 1040px; border-collapse: collapse; }
-.tiers-table th, .tiers-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
-.tiers-table th { background: var(--admin-surface-muted); font-size: 12px; color: var(--admin-muted); text-transform: uppercase; }
-.tiers-table td { background: var(--admin-surface); }
-.tiers-table strong, .tiers-table small, .tiers-table span { display: block; }
-.confirm-cell { min-width: 150px; }
+.tier-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.tier-editor-head div { display: grid; gap: 4px; }
+.tier-editor-head p { margin: 0; color: var(--admin-muted); }
+.tier-editor-list { display: grid; gap: 12px; }
+.tier-editor-card { display: grid; gap: 12px; border: 1px solid #dbe3ef; border-radius: 12px; padding: 14px; background: var(--admin-surface); }
+.tier-editor-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tier-editor-card-head div { display: grid; gap: 3px; }
+.tier-editor-card-head span { color: var(--admin-muted); font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.tier-editor-card-head strong { color: var(--admin-text); }
+.remove-tier { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid #fecaca; border-radius: 8px; background: #fff1f2; color: #be123c; cursor: pointer; }
+.remove-tier:disabled { cursor: not-allowed; opacity: .45; }
+.system-floor { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid #bbf7d0; border-radius: 9px; background: #f0fdf4; color: #166534; }
+.system-floor strong { font-size: 12px; text-transform: uppercase; }
+.system-floor span { font-size: 13px; line-height: 1.45; }
+.system-floor.invalid { border-color: #fdba74; background: #fff7ed; color: #9a3412; }
+.tier-editor-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.customer-message-field { grid-column: span 2; }
+.confirmation-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding-top: 4px; }
+.confirmation-row > span { color: var(--admin-muted); font-size: 13px; font-weight: 900; }
 .check { display: flex; gap: 8px; align-items: center; font-weight: 700; }
 label { display: grid; gap: 6px; font-weight: 800; }
-input, select, textarea { border: 1px solid #dbe3ef; border-radius: 8px; padding: 10px; font: inherit; width: 100%; }
+input, select, textarea { box-sizing: border-box; border: 1px solid #dbe3ef; border-radius: 8px; padding: 10px; font: inherit; width: 100%; min-width: 0; }
+input:disabled, select:disabled { background: var(--admin-surface-muted); color: var(--admin-muted); cursor: not-allowed; }
 textarea { resize: vertical; }
+.modal > footer { position: sticky; bottom: -18px; margin: 0 -18px -18px; padding: 14px 18px 18px; border-top: 1px solid var(--admin-border); background: var(--admin-surface); z-index: 2; }
 @media (max-width: 900px) {
   .inheritance-flow, .policy-summary-grid, .tier-preview-grid { grid-template-columns: 1fr; }
   .page-head, .section-head, .notice-card { grid-template-columns: 1fr; flex-direction: column; }
   .cluster-picker, .cluster-badge { width: 100%; min-width: 0; }
+  .tier-editor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .customer-message-field { grid-column: 1 / -1; }
+}
+@media (max-width: 620px) {
+  .modal-backdrop { padding: 8px; align-items: end; }
+  .modal, .modal.wide { width: calc(100vw - 16px); max-height: calc(100vh - 16px); border-radius: 14px 14px 0 0; }
+  .tier-editor-head, .tier-editor-card-head { align-items: flex-start; }
+  .tier-editor-head { flex-direction: column; }
+  .tier-editor-grid { grid-template-columns: 1fr; }
+  .customer-message-field { grid-column: auto; }
+  .confirmation-row { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .modal > footer { justify-content: stretch; }
+  .modal > footer .btn { justify-content: center; flex: 1 1 100%; }
 }
 </style>

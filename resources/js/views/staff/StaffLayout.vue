@@ -1,6 +1,6 @@
 <template>
   <OwnerShell
-    :sections="staffNavigationSections"
+    :sections="availableNavigationSections"
     :active-route-name="$route.name"
     :title="currentTitle"
     :section-label="currentSectionLabel"
@@ -25,6 +25,12 @@ import { staffNavigationSections, staffRouteSections, staffRouteTitles } from '.
 import { applyOwnerTheme, clearOwnerTheme, enableOwnerThemeScope } from '../../utils/ownerTheme.js';
 import { ownerUiSettingsService } from '../../services/ownerUiSettings.js';
 import { venueClusterService } from '../../services/venueClusters.js';
+import { getAuth } from '../../stores/auth.js';
+import {
+  canAccessStaffMenu,
+  canAccessStaffRoute,
+  firstAccessibleStaffRoute,
+} from '../../config/permissionAccess.js';
 
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
@@ -40,6 +46,18 @@ export default {
     };
   },
   computed: {
+    availableNavigationSections() {
+      const auth = getAuth();
+
+      return staffNavigationSections
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) =>
+            canAccessStaffMenu(auth, this.selectedClusterId, item.menuKey),
+          ),
+        }))
+        .filter((section) => section.items.length > 0);
+    },
     selectedCluster() {
       return this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
     },
@@ -85,6 +103,7 @@ export default {
         const hasSavedCluster = this.clusters.some((cluster) => String(cluster.id) === String(savedId));
         this.selectedClusterId = hasSavedCluster ? savedId : fallback;
         this.persistCluster({ notify: !hasSavedCluster });
+        this.ensureCurrentRouteAllowed();
       } finally {
         this.clusterLoading = false;
       }
@@ -92,6 +111,7 @@ export default {
     changeCluster(clusterId) {
       this.selectedClusterId = clusterId;
       this.persistCluster();
+      this.ensureCurrentRouteAllowed();
     },
     persistCluster({ notify = true } = {}) {
       if (!this.selectedClusterId) return;
@@ -107,6 +127,20 @@ export default {
       if (!this.clusters.some((cluster) => String(cluster.id) === String(clusterId))) return;
       this.selectedClusterId = clusterId;
       localStorage.setItem(SELECTED_CLUSTER_KEY, clusterId);
+      this.ensureCurrentRouteAllowed();
+    },
+    ensureCurrentRouteAllowed() {
+      const auth = getAuth();
+      if (canAccessStaffRoute(this.$route.name, auth, this.selectedClusterId)) return;
+
+      const destination = firstAccessibleStaffRoute(
+        auth,
+        this.selectedClusterId,
+        staffNavigationSections,
+      );
+      if (destination !== this.$route.path) {
+        this.$router.replace(destination);
+      }
     },
   },
 };

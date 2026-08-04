@@ -26,6 +26,8 @@ import {
 import { autoApproveStore } from '../../stores/autoApprove.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 import { applyCustomThemeStyles } from '../../utils/theme.js';
+import { getAuth } from '../../stores/auth.js';
+import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
 
 export default {
   name: 'AdminLayout',
@@ -36,6 +38,18 @@ export default {
     };
   },
   computed: {
+    filteredNavigationSections() {
+      const auth = getAuth();
+
+      return adminNavigationSections
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) =>
+            hasAllAdminPermissions(auth, item.permissionCodes || []),
+          ),
+        }))
+        .filter((section) => section.items.length > 0);
+    },
     currentTitle() {
       return adminRouteTitles[this.$route.name] || 'Admin';
     },
@@ -47,7 +61,7 @@ export default {
      * Dùng deep clone để không mutate config gốc.
      */
     navSectionsWithBadges() {
-      return adminNavigationSections.map((section) => ({
+      return this.filteredNavigationSections.map((section) => ({
         ...section,
         items: section.items.map((item) => {
           let badge = null;
@@ -82,7 +96,9 @@ export default {
     },
   },
   created() {
-    startPendingCountsPoll(60_000);
+    if (hasAllAdminPermissions(getAuth(), ['dashboard.view'])) {
+      startPendingCountsPoll(60_000);
+    }
   },
   beforeUnmount() {
     stopPendingCountsPoll();
@@ -90,8 +106,12 @@ export default {
   async mounted() {
     document.body?.classList.add('sg-admin-theme-scope');
     applyCustomThemeStyles();
-    autoApproveStore.init();
-    await this.syncUiSettings();
+    if (hasAllAdminPermissions(getAuth(), ['moderation.manage'])) {
+      autoApproveStore.init();
+    }
+    if (hasAllAdminPermissions(getAuth(), ['ui_settings.view'])) {
+      await this.syncUiSettings();
+    }
   },
   unmounted() {
     document.body?.classList.remove('sg-admin-theme-scope');

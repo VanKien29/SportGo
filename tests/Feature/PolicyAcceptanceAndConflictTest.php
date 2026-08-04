@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\Permission;
 use App\Models\PolicyActionBinding;
 use App\Models\PolicyRule;
 use App\Models\Role;
@@ -37,6 +38,20 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'is_system' => true,
         ]);
 
+        $adminRole->permissions()->syncWithoutDetaching(
+            collect([
+                'policy.view',
+                'policy.create',
+                'policy.update',
+                'policy.delete',
+                'policy.publish',
+                'policy.rule.manage',
+            ])->map(fn (string $code) => Permission::query()->firstOrCreate(
+                ['code' => $code],
+                ['name' => $code, 'group_name' => 'Chính sách']
+            )->id)->all()
+        );
+
         $this->user = User::create([
             'username' => 'policy_user',
             'full_name' => 'Policy User',
@@ -55,19 +70,23 @@ class PolicyAcceptanceAndConflictTest extends TestCase
             'status' => 'active',
         ]);
 
-        UserRole::create([
-            'user_id' => $this->user->id,
-            'role_id' => $userRole->id,
-            'scope_type' => 'system',
-            'scope_id' => 0,
-        ]);
+        UserRole::query()->updateOrCreate(
+            [
+                'user_id' => $this->user->id,
+                'scope_type' => 'system',
+                'scope_id' => 0,
+            ],
+            ['role_id' => $userRole->id]
+        );
 
-        UserRole::create([
-            'user_id' => $this->admin->id,
-            'role_id' => $adminRole->id,
-            'scope_type' => 'system',
-            'scope_id' => 0,
-        ]);
+        UserRole::query()->updateOrCreate(
+            [
+                'user_id' => $this->admin->id,
+                'scope_type' => 'system',
+                'scope_id' => 0,
+            ],
+            ['role_id' => $adminRole->id]
+        );
     }
 
     public function test_user_must_accept_only_active_effective_required_policies(): void

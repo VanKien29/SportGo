@@ -7,7 +7,8 @@ use App\Models\AuditLog;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Services\Admin\AdminAuditService;
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Services\Auth\SystemPermissionCatalog;
+use App\Services\Auth\SystemPermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,11 +20,12 @@ class AdminRoleController extends Controller
 {
     private const FIXED_CLIENT_ROLES = ['user', 'venue_owner', 'venue_staff'];
 
-    private const LOCKED_PERMISSION_ROLES = ['super_admin', 'admin'];
+    private const LOCKED_PERMISSION_ROLES = ['super_admin'];
 
-    public function __construct(private readonly AdminAuditService $audit)
-    {
-    }
+    public function __construct(
+        private readonly AdminAuditService $audit,
+        private readonly SystemPermissionService $systemPermissions,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -274,6 +276,18 @@ class AdminRoleController extends Controller
             ->values()
             ->all();
 
+        $selectedCodes = Permission::query()
+            ->whereIn('id', $permissionIds)
+            ->pluck('code')
+            ->all();
+        $dependencyErrors = SystemPermissionCatalog::validateSelection($selectedCodes);
+
+        if ($dependencyErrors !== []) {
+            throw ValidationException::withMessages([
+                'permission_ids' => $dependencyErrors,
+            ]);
+        }
+
         $this->ensureActorCanGrantPermissions($request, $permissionIds);
 
         $oldValues = [
@@ -317,6 +331,7 @@ class AdminRoleController extends Controller
         ]);
 
         $permissionId = (int) $data['permission_id'];
+        $permission = Permission::query()->findOrFail($permissionId);
         $action = $data['action'];
 
         $this->ensureActorCanGrantPermissions($request, [$permissionId]);
@@ -325,11 +340,35 @@ class AdminRoleController extends Controller
             'permissions' => $role->permissions->pluck('code')->values()->all(),
         ];
 
+        $selectedCodes = $role->permissions->pluck('code')->all();
+
         if ($action === 'grant') {
-            $role->permissions()->syncWithoutDetaching([$permissionId]);
+            $selectedCodes = collect($selectedCodes)
+                ->push($permission->code)
+                ->unique()
+                ->values()
+                ->all();
+            $dependencyErrors = SystemPermissionCatalog::validateSelection($selectedCodes);
+
+            if ($dependencyErrors !== []) {
+                throw ValidationException::withMessages([
+                    'permission_id' => $dependencyErrors,
+                ]);
+            }
         } else {
-            $role->permissions()->detach($permissionId);
+            $selectedCodes = collect($selectedCodes)
+                ->reject(fn (string $code): bool => $code === $permission->code)
+                ->values()
+                ->all();
+            $selectedCodes = SystemPermissionCatalog::cascadeRevokedAccess(
+                $selectedCodes,
+                [$permission->code]
+            );
         }
+
+        $role->permissions()->sync(
+            Permission::query()->whereIn('code', $selectedCodes)->pluck('id')->all()
+        );
 
         $freshRole = $role->fresh(['permissions'])->loadCount(['permissions', 'users']);
         $newPermissions = $freshRole->permissions->pluck('code')->values()->all();
@@ -386,20 +425,15 @@ class AdminRoleController extends Controller
 
     private function permissionGroups(): array
     {
-        return Permission::query()
+        $permissions = Permission::query()
             ->orderBy('group_name')
             ->orderBy('code')
-            ->get()
-            ->map(fn (Permission $permission): array => $this->permissionPayload($permission))
-            ->groupBy('module_key')
-            ->map(fn ($permissions, $moduleKey): array => [
-                'group_name' => $moduleKey,
-                'module_label' => $this->moduleLabel((string) $moduleKey),
-                'module_description' => $this->moduleDescription((string) $moduleKey),
-                'permissions' => $permissions->values(),
-            ])
-            ->values()
-            ->all();
+            ->get();
+
+        return SystemPermissionCatalog::matrixGroups(
+            $permissions,
+            fn (Permission $permission): array => $this->permissionPayload($permission)
+        );
     }
 
     private function permissionPayload(Permission $permission): array
@@ -428,6 +462,12 @@ class AdminRoleController extends Controller
 
     private function permissionMeta(string $code): array
     {
+        $catalogMeta = SystemPermissionCatalog::permissionMeta($code);
+
+        if ($catalogMeta !== null) {
+            return $catalogMeta;
+        }
+
         $map = [
             'dashboard.view' => ['Xem tổng quan hệ thống', 'Xem dashboard và các số liệu tổng quan.', 'normal', 'dashboard'],
             'profile.view' => ['Xem hồ sơ cá nhân', 'Xem thông tin hồ sơ của chính nhân sự đang đăng nhập.', 'normal', 'profile'],
@@ -554,50 +594,22 @@ class AdminRoleController extends Controller
         ][$riskLevel] ?? '';
     }
 
-    /**
-     * @throws AuthorizationException
-     */
     private function authorizePermission(Request $request, string|array $permissions): void
     {
-        $user = $request->user();
-
-        if (! $user) {
-            throw new AuthorizationException('Bạn cần đăng nhập để thực hiện thao tác này.');
-        }
-
-        $roles = $user->roles()->pluck('roles.name')->all();
-
-        if (array_intersect($roles, ['super_admin', 'admin'])) {
-            return;
-        }
-
-        $hasPermission = DB::table('user_roles')
-            ->join('role_permissions', 'role_permissions.role_id', '=', 'user_roles.role_id')
-            ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
-            ->where('user_roles.user_id', $user->id)
-            ->whereIn('permissions.code', (array) $permissions)
-            ->exists();
-
-        if (! $hasPermission) {
-            throw new AuthorizationException('Bạn không có quyền thực hiện thao tác này.');
-        }
+        $this->systemPermissions->authorizeAny($request->user(), $permissions);
     }
 
     private function ensureActorCanGrantPermissions(Request $request, array $permissionIds): void
     {
         $user = $request->user();
-        $roles = $user?->roles()->pluck('roles.name')->all() ?? [];
-
-        if (array_intersect($roles, ['super_admin', 'admin'])) {
+        if ($user && $this->systemPermissions->isSuperAdmin($user)) {
             return;
         }
 
-        $actorPermissionIds = DB::table('user_roles')
-            ->join('role_permissions', 'role_permissions.role_id', '=', 'user_roles.role_id')
-            ->where('user_roles.user_id', $user?->id)
-            ->pluck('role_permissions.permission_id')
+        $actorPermissionIds = Permission::query()
+            ->whereIn('code', $user ? $this->systemPermissions->codes($user) : [])
+            ->pluck('id')
             ->map(fn ($id) => (int) $id)
-            ->unique()
             ->all();
 
         if (array_diff($permissionIds, $actorPermissionIds) !== []) {

@@ -47,7 +47,9 @@ use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApp
 use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
 use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
 use App\Http\Middleware\EnsureAdminRole;
+use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureOwnerRole;
+use App\Http\Middleware\EnsureVenueStaffMenuPermission;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
 use App\Http\Controllers\Api\Public\SystemPostController as PublicSystemPostController;
@@ -116,7 +118,7 @@ Route::prefix('admin/auth')->group(function (): void {
     });
 });
 
-Route::middleware(['auth:sanctum', EnsureAdminRole::class])
+Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
@@ -348,7 +350,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class, EnforceVenueAccessRestrictions::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
@@ -526,7 +528,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/venue-services/{id}/toggle-status', [OwnerVenueServiceController::class, 'toggleStatus']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);
@@ -624,7 +626,7 @@ Route::middleware('auth:sanctum')
 
         // Chat routes
         Route::prefix('chat')
-            ->middleware('throttle:60,1')
+            ->middleware([EnsureVenueStaffMenuPermission::class.':chat', 'throttle:60,1'])
             ->group(function (): void {
             Route::get('/conversations', [ChatController::class, 'getConversations']);
             Route::post('/conversations', [ChatController::class, 'startConversation']);

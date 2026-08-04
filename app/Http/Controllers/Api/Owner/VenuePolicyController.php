@@ -86,8 +86,8 @@ class VenuePolicyController extends Controller
     public function storeRule(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
-            'base_policy_rule_id' => ['required', 'string', 'exists:policy_rules,id'],
+            'venue_cluster_id' => ['required', 'exists:venue_clusters,id'],
+            'base_policy_rule_id' => ['required', 'exists:policy_rules,id'],
             'tiers' => ['nullable', 'array'],
             'tiers.*.key' => ['nullable', 'string'],
             'tiers.*.label' => ['nullable', 'string', 'max:120'],
@@ -135,7 +135,7 @@ class VenuePolicyController extends Controller
             ]);
             $constraintResult = [
                 'passed' => true,
-                'message' => 'Cấu hình hủy & hoàn booking nằm trong khung hệ thống.',
+                'message' => 'Các mốc hủy & hoàn của sân đáp ứng mức tối thiểu tại mọi khoảng thời gian của hệ thống.',
                 'system_summary' => $this->refundPolicies->cancelRefundSummary($systemTiers),
                 'venue_summary' => $this->refundPolicies->cancelRefundSummary($venueTiers),
             ];
@@ -453,6 +453,7 @@ class VenuePolicyController extends Controller
             'effective_source' => $effectiveVenueRule ? 'venue' : 'system',
             'effective_source_label' => $effectiveVenueRule ? 'Đang áp dụng chính sách sân' : 'Đang kế thừa khung hệ thống',
             'effective_summary' => $this->refundPolicies->cancelRefundSummary($effectiveTiers),
+            'effective_tiers' => $effectiveTiers,
             ...$this->refundPolicies->cancelRefundPayload($systemTiers, $venueTiers),
         ];
     }

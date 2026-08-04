@@ -29,7 +29,7 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
 
-        <section class="budget-card">
+        <section v-if="canViewBudget" class="budget-card">
             <div class="budget-copy">
                 <span class="eyebrow">Ngân sách khuyến mãi</span>
                 <h3>Theo dõi chi phí voucher hệ thống</h3>
@@ -63,6 +63,7 @@
                     <input
                         v-model="budgetSettings.is_alert_enabled"
                         type="checkbox"
+                        :disabled="!canManageBudget"
                     />
                     <span>Bật cảnh báo</span>
                 </label>
@@ -73,17 +74,19 @@
                         type="number"
                         min="0"
                         step="1000"
+                        :disabled="!canManageBudget"
                     />
                 </label>
                 <label class="budget-field">
                     <span>Kỳ ngân sách</span>
-                    <select v-model="budgetSettings.budget_period">
+                    <select v-model="budgetSettings.budget_period" :disabled="!canManageBudget">
                         <option value="week">Tuần</option>
                         <option value="month">Tháng</option>
                         <option value="year">Năm</option>
                     </select>
                 </label>
                 <button
+                    v-if="canManageBudget"
                     class="btn primary"
                     type="submit"
                     :disabled="budgetSaving"
@@ -119,7 +122,7 @@
             </div>
         </section>
 
-        <section v-if="showHistoryPanel" class="table-card history-panel">
+        <section v-if="canViewBudget && showHistoryPanel" class="table-card history-panel">
             <div class="history-head">
                 <div>
                     <span class="eyebrow">Lịch sử sử dụng voucher</span>
@@ -189,7 +192,7 @@
                         <th>Đã dùng</th>
                         <th>Hiệu lực</th>
                         <th>Trạng thái</th>
-                        <th class="actions-col">Thao tác</th>
+                        <th v-if="canUpdateVoucher || canDeleteVoucher" class="actions-col">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -214,14 +217,16 @@
                                 voucher.status_label
                             }}</span>
                         </td>
-                        <td class="actions-col">
+                        <td v-if="canUpdateVoucher || canDeleteVoucher" class="actions-col">
                             <TableActionGroup>
                                 <ActionIconButton
+                                    v-if="canUpdateVoucher"
                                     icon="pencil"
                                     label="Sửa voucher"
                                     @click="openForm(voucher)"
                                 />
                                 <ActionIconButton
+                                    v-if="canDeleteVoucher"
                                     icon="power"
                                     label="Tắt voucher"
                                     variant="danger"
@@ -440,6 +445,7 @@
         </div>
         <!-- Floating Add Button -->
         <div
+            v-if="canCreateVoucher"
             class="floating-add-container"
             :class="{ 'has-scroll': showScrollTop }"
         >
@@ -457,6 +463,8 @@ import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
 import { adminVoucherService } from "../../services/adminVoucherService.js";
 import { adminSystemWalletService } from "../../services/adminSystemWallet.js";
+import { getAuth } from "../../stores/auth.js";
+import { hasAllAdminPermissions } from "../../config/permissionAccess.js";
 
 export default {
     name: "AdminVouchers",
@@ -491,13 +499,28 @@ export default {
     },
     mounted() {
         this.load();
-        this.loadBudget();
+        if (this.canViewBudget) this.loadBudget();
         window.addEventListener("scroll", this.handleScroll);
     },
     beforeUnmount() {
         window.removeEventListener("scroll", this.handleScroll);
     },
     computed: {
+        canCreateVoucher() {
+            return hasAllAdminPermissions(getAuth(), ["voucher.create"]);
+        },
+        canUpdateVoucher() {
+            return hasAllAdminPermissions(getAuth(), ["voucher.update"]);
+        },
+        canDeleteVoucher() {
+            return hasAllAdminPermissions(getAuth(), ["voucher.delete"]);
+        },
+        canViewBudget() {
+            return hasAllAdminPermissions(getAuth(), ["wallet.view"]);
+        },
+        canManageBudget() {
+            return hasAllAdminPermissions(getAuth(), ["reconciliation.manage"]);
+        },
         discountValueLabel() {
             return this.form.discount_type === "percent" ? "Giảm bao nhiêu %" : "Giảm bao nhiêu tiền";
         },

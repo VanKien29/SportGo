@@ -36,9 +36,8 @@
       </label>
       <label class="field">
         <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadApplications(1)">
-          <option value="">Tất cả</option>
-          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        <select v-model="statusFilter" @change="applyStatusFilter">
+          <option v-for="option in statusFilterOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
       </label>
     </div>
@@ -188,6 +187,38 @@ export default {
     this.loadApplications();
   },
   methods: {
+    selectListTab(tab) {
+      this.filters.tab = tab;
+      this.filters.status = '';
+      this.statusFilter = tab === 'all' ? 'all' : `tab:${tab}`;
+      this.loadApplications(1);
+    },
+    listTabCount(tab) {
+      const currentTab = this.filters.status ? null : (this.filters.tab || 'all');
+      if (tab === currentTab) {
+        return this.pagination.total || this.applications.length;
+      }
+
+      if (currentTab !== 'all' || this.pagination.last_page > 1) {
+        return '—';
+      }
+
+      return this.applications.filter((application) => this.applicationMatchesTab(application, tab)).length;
+    },
+    applicationMatchesTab(application, tab) {
+      const status = application.partner_status || application.status;
+      const matches = {
+        all: true,
+        pending_review: ['pending', 'reviewing', 'submitted', 'need_supplement', 'pending_review'].includes(status),
+        pending_signature: ['contract_pending_owner_signature', 'contract_pending_sportgo_signature', 'pending_signature'].includes(status),
+        active: ['active', 'completed'].includes(status),
+        terminating: status === 'terminating',
+        terminated: status === 'terminated',
+        rejected: ['rejected', 'cancelled'].includes(status),
+      };
+
+      return matches[tab] ?? false;
+    },
     async loadApplications(page = 1) {
       this.loading = true;
       this.error = '';

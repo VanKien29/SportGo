@@ -45,13 +45,12 @@ class AdminPaymentTest extends TestCase
         ]);
 
         foreach (['payment.view', 'payment.manage'] as $code) {
-            $permission = Permission::query()->create([
-                'code' => $code,
+            $permission = Permission::query()->firstOrCreate(['code' => $code], [
                 'name' => $code,
                 'group_name' => 'Tài chính',
             ]);
 
-            RolePermission::query()->create([
+            RolePermission::query()->firstOrCreate([
                 'role_id' => $financeRole->id,
                 'permission_id' => $permission->id,
             ]);

@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueStaffAssignment;
+use App\Services\Auth\VenueStaffMenuCatalog;
+use App\Services\Auth\VenueStaffMenuPermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,10 @@ use Illuminate\Validation\ValidationException;
 
 class StaffController extends Controller
 {
+    public function __construct(
+        private readonly VenueStaffMenuPermissionService $menuPermissions,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $cluster = $this->ownedCluster($request, $request->query('venue_cluster_id'));
@@ -45,6 +51,10 @@ class StaffController extends Controller
                     'status_label' => $this->statusLabel($user->status),
                     'roles' => $user->roles->pluck('name')->values()->all(),
                     'role_label' => 'Nhân viên sân',
+                    'menu_permissions' => $this->menuPermissions->keysForCluster(
+                        $user,
+                        (string) $first->venue_cluster_id
+                    ),
                     'assignments' => $assignments->map(fn (VenueStaffAssignment $assignment): array => [
                         'id' => $assignment->id,
                         'scope_type' => $assignment->scope_type,
@@ -94,6 +104,7 @@ class StaffController extends Controller
             'meta' => [
                 'venue_cluster' => $cluster,
                 'court_types' => $courtTypes,
+                'menu_permissions' => VenueStaffMenuCatalog::items(),
             ],
         ]);
     }
@@ -110,6 +121,8 @@ class StaffController extends Controller
             'scope_type' => ['required', Rule::in(['all_cluster', 'court_type'])],
             'court_type_ids' => ['array'],
             'court_type_ids.*' => ['integer', 'exists:court_types,id'],
+            'menu_keys' => ['required', 'array', 'min:1'],
+            'menu_keys.*' => ['string', 'distinct', Rule::in(VenueStaffMenuCatalog::keys())],
         ]);
 
         $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
@@ -144,6 +157,7 @@ class StaffController extends Controller
             ]);
 
             $this->syncAssignments($request, $user, $cluster->id, $data['scope_type'], $data['court_type_ids'] ?? []);
+            $this->menuPermissions->sync($user, (string) $cluster->id, $data['menu_keys'], $request->user());
 
             return $user;
         });
@@ -153,6 +167,7 @@ class StaffController extends Controller
             'username' => $user->username,
             'scope_type' => $data['scope_type'],
             'court_type_ids' => $data['court_type_ids'] ?? [],
+            'menu_keys' => $data['menu_keys'],
         ]);
 
         return response()->json([
@@ -172,6 +187,8 @@ class StaffController extends Controller
             'scope_type' => ['required', Rule::in(['all_cluster', 'court_type'])],
             'court_type_ids' => ['array'],
             'court_type_ids.*' => ['integer', 'exists:court_types,id'],
+            'menu_keys' => ['required', 'array', 'min:1'],
+            'menu_keys.*' => ['string', 'distinct', Rule::in(VenueStaffMenuCatalog::keys())],
         ]);
 
         $cluster = $this->ownedCluster($request, $data['venue_cluster_id']);
@@ -193,6 +210,7 @@ class StaffController extends Controller
                 ->update(['status' => 'inactive']);
 
             $this->syncAssignments($request, $staff, $cluster->id, $data['scope_type'], $data['court_type_ids'] ?? []);
+            $this->menuPermissions->sync($staff, (string) $cluster->id, $data['menu_keys'], $request->user());
         });
 
         $this->audit($request, 'owner.staff.updated', 'users', $staff->id, $old, [
@@ -200,6 +218,7 @@ class StaffController extends Controller
             'venue_cluster_id' => $cluster->id,
             'scope_type' => $data['scope_type'],
             'court_type_ids' => $data['court_type_ids'] ?? [],
+            'menu_keys' => $data['menu_keys'],
         ]);
 
         return response()->json([

@@ -45,16 +45,16 @@
         <form class="detail-form" @submit.prevent="saveInfo">
           <label>
             Mã nhóm
-            <input v-model.trim="form.name" :disabled="role.is_system" required />
+            <input v-model.trim="form.name" :disabled="role.is_system || !canUpdateRole" required />
             <small>Mã nhóm hệ thống không được đổi.</small>
           </label>
           <label>
             Tên hiển thị
-            <input v-model.trim="form.display_name" required />
+            <input v-model.trim="form.display_name" :disabled="!canUpdateRole" required />
           </label>
           <label>
             Mô tả phạm vi
-            <textarea v-model.trim="form.description" rows="4"></textarea>
+            <textarea v-model.trim="form.description" :disabled="!canUpdateRole" rows="4"></textarea>
           </label>
 
           <div class="info-grid">
@@ -69,7 +69,7 @@
           </div>
 
           <div class="actions-right">
-            <button class="btn primary" type="submit">Lưu thông tin</button>
+            <button v-if="canUpdateRole" class="btn primary" type="submit">Lưu thông tin</button>
           </div>
         </form>
       </section>
@@ -77,14 +77,21 @@
       <section v-if="activeTab === 'permissions'" class="panel permissions-panel">
         <div class="section-head with-search">
           <div>
-            <h3>Quyền được cấp</h3>
-            <p>Chọn quyền theo nghiệp vụ. Mã kỹ thuật chỉ để đối chiếu, không phải nội dung chính.</p>
+            <h3>Phân quyền theo chức năng</h3>
+            <p>Bật Truy cập trước, sau đó mới cấp Thêm, Sửa, Xóa/Ngưng hoặc Duyệt/Xử lý.</p>
           </div>
-          <input v-model.trim="permissionKeyword" placeholder="Tìm quyền..." />
+          <input v-model.trim="permissionKeyword" placeholder="Tìm chức năng..." />
         </div>
 
-        <div v-if="!role.can_edit_permissions" class="alert warning">
-          Nhóm này bị khóa chỉnh sửa quyền để tránh mất quyền quản trị lõi.
+        <div class="permission-rule">
+          <strong>Quy tắc an toàn</strong>
+          <span>Có quyền thao tác thì bắt buộc có Truy cập. Khi tắt Truy cập, các quyền phụ thuộc sẽ tự được thu hồi.</span>
+        </div>
+
+        <div v-if="!canEditPermissionMatrix" class="alert warning">
+          {{ role.can_edit_permissions
+            ? 'Tài khoản của bạn chỉ được xem bảng quyền, chưa được phép thay đổi.'
+            : 'Nhóm Super Admin được khóa chỉnh sửa để tránh mất quyền quản trị lõi.' }}
         </div>
 
         <div v-if="filteredPermissionGroups.length === 0" class="empty-card">
@@ -95,86 +102,84 @@
           <table class="permission-table">
             <thead>
               <tr>
-                <th>Nhóm quyền / Quyền</th>
-                <th>Mức nhạy cảm</th>
-                <th>Trạng thái</th>
-                <th>Cấp / thu hồi</th>
+                <th class="feature-column">Chức năng</th>
+                <th v-for="column in permissionActionColumns" :key="column.key" class="action-column">
+                  {{ column.label }}
+                </th>
+                <th class="action-column">Tất cả</th>
               </tr>
             </thead>
             <tbody>
               <template v-for="group in filteredPermissionGroups" :key="group.group_name">
                 <tr class="permission-group-row">
-                  <td colspan="2">
+                  <td :colspan="permissionActionColumns.length + 2">
                     <strong>{{ group.module_label || getModuleMeta(group.group_name).label }}</strong>
                     <span>{{ group.module_description || getModuleMeta(group.group_name).description }}</span>
-                  </td>
-                  <td>
                     <span class="count-pill">{{ groupGrantedCount(group) }}/{{ group.permissions.length }} quyền</span>
-                  </td>
-                  <td>
-                    <div class="bulk-actions">
-                      <button
-                        class="mini-btn success"
-                        type="button"
-                        :disabled="!role.can_edit_permissions || !canToggleGroup(group, true)"
-                        @click="toggleGroupImmediate(group, true)"
-                      >
-                        Bật nhóm
-                      </button>
-                      <button
-                        class="mini-btn danger"
-                        type="button"
-                        :disabled="!role.can_edit_permissions || !canToggleGroup(group, false)"
-                        @click="toggleGroupImmediate(group, false)"
-                      >
-                        Tắt nhóm
-                      </button>
-                    </div>
                   </td>
                 </tr>
 
                 <tr
-                  v-for="permission in group.permissions"
-                  :key="permission.id"
+                  v-for="row in group.rows"
+                  :key="row.key"
                   class="permission-row"
-                  :class="{ granted: hasPermission(permission.id) }"
+                  :class="{ granted: isRowAllEnabled(row) }"
                 >
                   <td class="permission-name-cell">
-                    <strong>{{ permission.label || getPermissionMeta(permission).label }}</strong>
-                    <span>{{ permission.description || getPermissionMeta(permission).description }}</span>
-                    <small>Mã quyền: <code>{{ permission.code }}</code></small>
+                    <strong>{{ row.label }}</strong>
+                    <span>{{ row.description }}</span>
                   </td>
-                  <td>
-                    <span
-                      v-if="permissionRiskLabel(permission)"
-                      class="risk-badge"
-                      :class="permissionRiskClass(permission)"
-                    >
-                      {{ permissionRiskLabel(permission) }}
-                    </span>
-                    <span v-else class="muted-text">Cơ bản</span>
-                  </td>
-                  <td>
-                    <span class="status-pill" :class="hasPermission(permission.id) ? 'enabled' : 'disabled'">
-                      {{ hasPermission(permission.id) ? 'Đang cấp' : 'Chưa cấp' }}
-                    </span>
-                  </td>
-                  <td>
+                  <td v-for="column in permissionActionColumns" :key="column.key" class="matrix-cell">
                     <button
-                      class="switch-toggle"
+                      v-if="row.actions?.[column.key]"
+                      class="matrix-switch"
                       type="button"
-                      :class="{ on: hasPermission(permission.id) }"
-                      :disabled="!role.can_edit_permissions || isPermissionBusy(permission.id)"
-                      @click="togglePermissionImmediate(permission)"
+                      :class="{ on: isActionEnabled(row, column.key) }"
+                      :disabled="isActionDisabled(row, column.key)"
+                      :title="actionTitle(row, column.key)"
+                      @click="toggleAction(row, column.key)"
                     >
-                      <span class="switch-knob"></span>
-                      <span>{{ hasPermission(permission.id) ? 'Bật' : 'Tắt' }}</span>
+                      <span></span>
+                    </button>
+                    <span v-else class="not-applicable">—</span>
+                  </td>
+                  <td class="matrix-cell">
+                    <button
+                      class="matrix-switch"
+                      type="button"
+                      :class="{ on: isRowAllEnabled(row) }"
+                      :disabled="!canEditPermissionMatrix"
+                      title="Bật hoặc tắt toàn bộ quyền của chức năng"
+                      @click="toggleRowAll(row)"
+                    >
+                      <span></span>
                     </button>
                   </td>
                 </tr>
               </template>
             </tbody>
           </table>
+        </div>
+
+        <div v-if="role.can_edit_permissions" class="save-bar">
+          <span>
+            {{ hasPermissionChanges
+              ? 'Có thay đổi chưa lưu. Quyền mới chỉ có hiệu lực sau khi bấm Lưu.'
+              : 'Chưa có thay đổi quyền.' }}
+          </span>
+          <div>
+            <button class="btn secondary" type="button" :disabled="!hasPermissionChanges" @click="resetPermissions">
+              Hủy thay đổi
+            </button>
+            <button
+              class="btn primary"
+              type="button"
+              :disabled="!canEditPermissionMatrix || !hasPermissionChanges"
+              @click="confirmSavePermsShow = true"
+            >
+              Lưu phân quyền
+            </button>
+          </div>
         </div>
       </section>
 
@@ -262,8 +267,9 @@ import {
   buildAuditDiff,
   getAuditActionLabel,
   getModuleMeta,
-  getPermissionMeta,
 } from '../../utils/labelMaps.js';
+import { getAuth } from '../../stores/auth.js';
+import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
 
 export default {
   name: 'AdminRoleDetail',
@@ -283,7 +289,13 @@ export default {
       error: '',
       success: '',
       confirmSavePermsShow: false,
-      permissionBusyKeys: [],
+      permissionActionColumns: [
+        { key: 'access', label: 'Truy cập' },
+        { key: 'create', label: 'Thêm' },
+        { key: 'update', label: 'Sửa' },
+        { key: 'delete', label: 'Xóa/Ngưng' },
+        { key: 'process', label: 'Duyệt/Xử lý' },
+      ],
       tabs: [
         { key: 'info', label: 'Thông tin nhóm quyền' },
         { key: 'permissions', label: 'Quyền được cấp' },
@@ -296,6 +308,14 @@ export default {
     hasPermissionChanges() {
       return this.sortedIds(this.selectedPermissionIds).join(',') !== this.sortedIds(this.originalPermissionIds).join(',');
     },
+    canUpdateRole() {
+      return this.role?.name !== 'super_admin'
+        && hasAllAdminPermissions(getAuth(), ['role.update']);
+    },
+    canEditPermissionMatrix() {
+      return Boolean(this.role?.can_edit_permissions)
+        && hasAllAdminPermissions(getAuth(), ['role.permission.manage']);
+    },
     filteredPermissionGroups() {
       const keyword = this.permissionKeyword.toLowerCase();
       if (!keyword) return this.permissionGroups;
@@ -303,19 +323,17 @@ export default {
       return this.permissionGroups
         .map((group) => ({
           ...group,
-          permissions: group.permissions.filter((permission) => {
-            const meta = getPermissionMeta(permission);
-            return [
+          rows: (group.rows || []).filter((row) => [
+            row.label,
+            row.description,
+            ...(row.permissions || []).flatMap((permission) => [
               permission.code,
               permission.name,
               permission.label,
-              permission.description,
-              meta.label,
-              meta.description,
-            ].filter(Boolean).join(' ').toLowerCase().includes(keyword);
-          }),
+            ]),
+          ].filter(Boolean).join(' ').toLowerCase().includes(keyword)),
         }))
-        .filter((group) => group.permissions.length > 0);
+        .filter((group) => group.rows.length > 0);
     },
   },
   mounted() {
@@ -324,7 +342,6 @@ export default {
   methods: {
     getAuditActionLabel,
     getModuleMeta,
-    getPermissionMeta,
     async loadDetail() {
       this.loading = true;
       this.error = '';
@@ -366,118 +383,63 @@ export default {
     hasPermission(permissionId) {
       return this.selectedPermissionIds.some((id) => Number(id) === Number(permissionId));
     },
-    permissionRiskLabel(permission) {
-      return permission.risk_label || getPermissionMeta(permission).riskLabel || '';
-    },
-    permissionRiskClass(permission) {
-      const fallback = permission.risk_level ? `risk-${permission.risk_level}` : '';
-      return getPermissionMeta(permission).riskClass || fallback;
-    },
     groupGrantedCount(group) {
       return group.permissions.filter((permission) => this.hasPermission(permission.id)).length;
     },
-    canToggleGroup(group, shouldGrant) {
-      return group.permissions.some((permission) => this.hasPermission(permission.id) !== shouldGrant)
-        && group.permissions.every((permission) => !this.isPermissionBusy(permission.id));
+    actionPermissionIds(row, actionKey) {
+      return (row.actions?.[actionKey]?.permission_ids || []).map(Number);
     },
-    isPermissionBusy(permissionId) {
-      return this.permissionBusyKeys.includes(String(permissionId));
+    isActionEnabled(row, actionKey) {
+      const ids = this.actionPermissionIds(row, actionKey);
+      return ids.length > 0 && ids.every((id) => this.hasPermission(id));
     },
-    setPermissionBusy(permissionId, busy) {
-      const key = String(permissionId);
-      if (busy && !this.permissionBusyKeys.includes(key)) {
-        this.permissionBusyKeys = [...this.permissionBusyKeys, key];
+    isActionDisabled(row, actionKey) {
+      if (!this.canEditPermissionMatrix) return true;
+      return actionKey !== 'access' && !this.isActionEnabled(row, 'access');
+    },
+    actionTitle(row, actionKey) {
+      const action = row.actions?.[actionKey];
+      return action?.permission_codes?.join(', ') || action?.label || '';
+    },
+    toggleAction(row, actionKey) {
+      if (this.isActionDisabled(row, actionKey)) return;
+      const ids = this.actionPermissionIds(row, actionKey);
+      const shouldEnable = !this.isActionEnabled(row, actionKey);
+
+      if (actionKey === 'access' && !shouldEnable) {
+        this.removePermissionIds(row.all_permission_ids || []);
         return;
       }
 
-      if (!busy) {
-        this.permissionBusyKeys = this.permissionBusyKeys.filter((item) => item !== key);
+      if (shouldEnable) {
+        this.addPermissionIds(ids);
+      } else {
+        this.removePermissionIds(ids);
       }
     },
-    async togglePermissionImmediate(permission) {
-      await this.applyPermissionToggle(permission, !this.hasPermission(permission.id));
+    isRowAllEnabled(row) {
+      const ids = (row.all_permission_ids || []).map(Number);
+      return ids.length > 0 && ids.every((id) => this.hasPermission(id));
     },
-    async toggleGroupImmediate(group, shouldGrant) {
-      if (!this.role.can_edit_permissions) return;
-
-      const targets = group.permissions.filter((permission) => this.hasPermission(permission.id) !== shouldGrant);
-      if (targets.length === 0) return;
-
-      this.error = '';
-      this.success = '';
-
-      for (const permission of targets) {
-        const ok = await this.applyPermissionToggle(permission, shouldGrant, true);
-        if (!ok) return;
-      }
-
-      this.success = shouldGrant
-        ? `Đã bật ${targets.length} quyền trong nhóm ${group.module_label || group.group_name}.`
-        : `Đã tắt ${targets.length} quyền trong nhóm ${group.module_label || group.group_name}.`;
-      setTimeout(() => { this.success = ''; }, 3000);
-    },
-    async applyPermissionToggle(permission, shouldGrant, silent = false) {
-      if (!this.role.can_edit_permissions || this.hasPermission(permission.id) === shouldGrant) return true;
-
-      this.setPermissionBusy(permission.id, true);
-      if (!silent) {
-        this.error = '';
-        this.success = '';
-      }
-
-      try {
-        const response = await adminRoleService.togglePermission(
-          this.role.id,
-          permission.id,
-          shouldGrant ? 'grant' : 'revoke',
-        );
-
-        if (response.data?.permission_ids) {
-          this.selectedPermissionIds = this.sortedIds(response.data.permission_ids);
-        } else if (shouldGrant) {
-          this.selectedPermissionIds = this.sortedIds([...this.selectedPermissionIds, permission.id]);
-        } else {
-          this.selectedPermissionIds = this.selectedPermissionIds.filter((id) => Number(id) !== Number(permission.id));
-        }
-
-        if (response.data?.role) {
-          this.role = { ...this.role, ...response.data.role };
-        }
-
-        this.originalPermissionIds = [...this.selectedPermissionIds];
-
-        if (!silent) {
-          this.success = shouldGrant
-            ? `Đã cấp quyền "${permission.label || permission.name}" cho nhóm.`
-            : `Đã thu hồi quyền "${permission.label || permission.name}" khỏi nhóm.`;
-          setTimeout(() => { this.success = ''; }, 3000);
-        }
-
-        return true;
-      } catch (error) {
-        this.error = error.message || 'Không cập nhật được quyền.';
-        return false;
-      } finally {
-        this.setPermissionBusy(permission.id, false);
+    toggleRowAll(row) {
+      if (!this.canEditPermissionMatrix) return;
+      const ids = row.all_permission_ids || [];
+      if (this.isRowAllEnabled(row)) {
+        this.removePermissionIds(ids);
+      } else {
+        this.addPermissionIds(ids);
       }
     },
-    toggleGroup(group, checked) {
-      if (!this.role.can_edit_permissions) return;
-
-      const ids = group.permissions.map((permission) => permission.id);
-      if (checked) {
-        this.selectedPermissionIds = this.sortedIds([...new Set([...this.selectedPermissionIds, ...ids])]);
-        return;
-      }
-
-      this.selectedPermissionIds = this.selectedPermissionIds.filter((id) => !ids.includes(id));
+    addPermissionIds(ids) {
+      this.selectedPermissionIds = this.sortedIds([
+        ...new Set([...this.selectedPermissionIds.map(Number), ...ids.map(Number)]),
+      ]);
     },
-    isGroupChecked(group) {
-      return group.permissions.length > 0 && group.permissions.every((permission) => this.selectedPermissionIds.includes(permission.id));
-    },
-    isGroupIndeterminate(group) {
-      const checked = group.permissions.filter((permission) => this.selectedPermissionIds.includes(permission.id)).length;
-      return checked > 0 && checked < group.permissions.length;
+    removePermissionIds(ids) {
+      const removed = new Set(ids.map(Number));
+      this.selectedPermissionIds = this.selectedPermissionIds
+        .map(Number)
+        .filter((id) => !removed.has(id));
     },
     async runAction(action, fallbackMessage) {
       this.error = '';
@@ -525,6 +487,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .link-btn {
@@ -621,6 +585,13 @@ code {
 
 .panel {
   padding: 22px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.permissions-panel {
+  overflow: hidden;
 }
 
 .section-head {
@@ -713,6 +684,8 @@ small {
 }
 
 .permission-table-wrap {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid #dbe5ef;
   border-radius: 12px;
@@ -1121,6 +1094,89 @@ pre {
   color: #334155;
 }
 
+.permission-rule {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.permission-rule span {
+  color: #3f6212;
+  line-height: 1.45;
+}
+
+.permission-table {
+  min-width: 780px !important;
+  table-layout: fixed;
+}
+
+.permission-table .feature-column {
+  width: 38%;
+  min-width: 280px;
+}
+
+.permission-table .permission-name-cell {
+  min-width: 0;
+}
+
+.permission-table .action-column,
+.permission-table .matrix-cell {
+  width: 10.333%;
+  padding-right: 4px !important;
+  padding-left: 4px !important;
+  text-align: center;
+}
+
+.permission-group-row .count-pill {
+  display: inline-flex;
+  margin-top: 8px;
+}
+
+.matrix-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background .18s ease;
+}
+
+.matrix-switch span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .28);
+  transition: transform .18s ease;
+}
+
+.matrix-switch.on {
+  background: #16a34a;
+}
+
+.matrix-switch.on span {
+  transform: translateX(18px);
+}
+
+.matrix-switch:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+
+.not-applicable {
+  color: #cbd5e1;
+}
+
 @media (max-width: 760px) {
   .with-search,
   .group-head,
@@ -1138,6 +1194,10 @@ pre {
 
   .info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .permission-rule {
+    flex-direction: column;
   }
 }
 </style>
