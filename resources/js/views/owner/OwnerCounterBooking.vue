@@ -19,76 +19,108 @@
                     {{ selectionError }}
                 </p>
 
-                <div v-if="scheduleError" class="state-card error-state">
+                <!-- Loading skeleton -->
+                <div
+                    v-if="counterScheduleLoading"
+                    class="schedule-loading-box"
+                    role="status"
+                    aria-label="Đang tải lịch sân"
+                >
+                    <div class="schedule-skeleton-head">
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-toolbar">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-summary">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-tabs">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-grid">
+                        <span v-for="item in 28" :key="item"></span>
+                    </div>
+                </div>
+                <div v-else-if="scheduleError" class="state-card error-state">
                     {{ scheduleError }}
                 </div>
                 <div v-else-if="!counterScheduleLoading && !scheduleCourts.length" class="state-card">
                     Không có sân phù hợp với bộ lọc hiện tại.
                 </div>
-
-                    <div class="period-row">
-
-
-                        <div class="legend">
-                            <span><i></i>Lịch trống</span>
-                            <span><i class="selected"></i>Đang chọn</span>
-                            <span
-                                ><i class="booked-paid"></i>Đã thanh toán</span
+                <div v-else>
+                    <div class="period-tabs-bar" style="margin-bottom: 10px;">
+                        <div class="period-tabs" role="tablist">
+                            <button
+                                v-for="period in dynamicTimePeriods"
+                                :key="period.key"
+                                type="button"
+                                :class="{ active: activeTimePeriod === period.key }"
+                                @click="activeTimePeriod = period.key"
                             >
-                            <span><i class="booked-online"></i>Đặt online</span>
-                            <span
-                                ><i class="booked-counter"></i>Chờ chuyển
-                                khoản</span
-                            >
-                            <span><i class="pay-later"></i>Thu sau</span>
-                            <span><i class="overdue"></i>Quá hạn</span>
-                            <span><i class="locked"></i>Khóa sân</span>
+                                <strong>{{ period.label }}</strong>
+                                <span>({{ period.range }})</span>
+                            </button>
                         </div>
                     </div>
 
-                    <div
-                        class="slot-matrix"
-                        role="grid"
-                        aria-label="Bảng chọn sân và khung giờ"
-                        :style="slotMatrixStyle"
-                    >
-                        <div class="matrix-head sticky-col" role="columnheader">
-                            Sân / giờ
-                        </div>
-                        <div
-                            v-for="slot in activePeriodSlots"
-                            :key="slot.start_time"
-                            class="matrix-head time-head"
-                            role="columnheader"
-                        >
-                            {{ formatTime(slot.start_time) }}
-                        </div>
-
-                        <template
-                            v-for="court in scheduleCourts"
-                            :key="court.id"
-                        >
-                            <div
-                                class="matrix-court sticky-col"
-                                role="rowheader"
-                            >
-                                <strong>{{ court.name }}</strong>
-                                <span>{{ court.court_type?.name || "-" }}</span>
-                            </div>
-                            <button
-                                v-for="slot in activePeriodSlots"
-                                :key="`${court.id}-${slot.start_time}`"
-                                type="button"
-                                class="time-slot"
-                                role="gridcell"
-                                :aria-pressed="isSlotSelected(court.id, slot)"
-                                :aria-label="slotActionTitle(court, slot)"
-                                :class="slotButtonClass(court.id, slot)"
-                                :disabled="isSlotDisabled(court.id, slot)"
-                                :title="slotActionTitle(court, slot)"
-                                @click="toggleSlot(court, slot)"
-                            ></button>
-                        </template>
+                    <!-- Transposed table: time=rows, courts=cols -->
+                    <div class="time-row-matrix-wrap">
+                        <table class="time-row-matrix" role="grid" aria-label="Bảng chọn sân và khung giờ">
+                            <thead>
+                                <tr>
+                                    <th class="trm-corner" role="columnheader">KHUNG GIỜ</th>
+                                    <th
+                                        v-for="court in scheduleCourts"
+                                        :key="court.id"
+                                        class="trm-court-head"
+                                        role="columnheader"
+                                    >
+                                        <strong>{{ court.name }}</strong>
+                                        <span>{{ court.court_type?.name || "-" }}</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="slot in activePeriodSlots"
+                                    :key="slot.start_time"
+                                    role="row"
+                                >
+                                    <td class="trm-time-cell" role="rowheader">
+                                        {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}
+                                    </td>
+                                    <td
+                                        v-for="court in scheduleCourts"
+                                        :key="`${court.id}-${slot.start_time}`"
+                                        class="trm-slot-cell"
+                                        role="gridcell"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="trm-slot-btn"
+                                            :class="slotButtonClass(court.id, slot)"
+                                            :disabled="isSlotDisabled(court.id, slot)"
+                                            :aria-pressed="isSlotSelected(court.id, slot)"
+                                            :aria-label="slotActionTitle(court, slot)"
+                                            :title="slotActionTitle(court, slot)"
+                                            @click="toggleSlot(court, slot)"
+                                        >
+                                            <span v-if="isSlotSelected(court.id, slot)">+ Đặt sân</span>
+                                            <span v-else-if="!isSlotDisabled(court.id, slot)" class="trm-empty-hint">+ Đặt sân</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
             <div
@@ -1877,8 +1909,8 @@ function toWeekDayIndex(date) {
     return (date.getDay() + 6) % 7;
 }
 
-const BOOKING_DAY_START = 6 * 60;
-const BOOKING_DAY_END = 22 * 60;
+const BOOKING_DAY_START = 0;
+const BOOKING_DAY_END = 24 * 60;
 const SLOT_STEP_MINUTES = 30;
 const WALK_IN_NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
 const WALK_IN_PHONE_PATTERN = /^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/;
@@ -2140,33 +2172,79 @@ export default {
                     : this.operatingEndMinutes,
                 open + SLOT_STEP_MINUTES,
             );
-            const raw = [
-                {
-                    key: "morning",
-                    label: "Sáng",
-                    start: open,
-                    end: Math.min(close, 12 * 60),
-                },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    start: Math.max(open, 12 * 60),
-                    end: Math.min(close, 18 * 60),
-                },
-                {
-                    key: "evening",
-                    label: "Tối",
-                    start: Math.max(open, 18 * 60),
-                    end: close,
-                },
-            ];
+            const configuredPeriods =
+                this.selectedClusterDetail?.booking_config?.custom_time_periods;
+
+            let raw = [];
+            if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
+                raw = configuredPeriods.map((p, idx) => ({
+                    key: `custom_${idx}`,
+                    label: p.label,
+                    start: this.timeToMinutes(p.start_time),
+                    end: this.timeToMinutes(p.end_time),
+                }));
+            } else {
+                raw = [
+                    {
+                        key: "late_night",
+                        label: "Khuya",
+                        start: open,
+                        end: Math.min(close, 6 * 60),
+                    },
+                    {
+                        key: "morning",
+                        label: "Sáng",
+                        start: Math.max(open, 6 * 60),
+                        end: Math.min(close, 12 * 60),
+                    },
+                    {
+                        key: "afternoon",
+                        label: "Chiều",
+                        start: Math.max(open, 12 * 60),
+                        end: Math.min(close, 18 * 60),
+                    },
+                    {
+                        key: "evening",
+                        label: "Tối",
+                        start: Math.max(open, 18 * 60),
+                        end: Math.min(close, 22 * 60),
+                    },
+                    {
+                        key: "night",
+                        label: "Đêm",
+                        start: Math.max(open, 22 * 60),
+                        end: close,
+                    },
+                ];
+            }
 
             const periods = raw
-                .filter((period) => period.end > period.start)
-                .map((period) => ({
-                    ...period,
-                    range: `${this.minutesToTime(period.start)} - ${this.minutesToTime(period.end)}`,
-                }));
+                .filter(
+                    (period) =>
+                        period.end > period.start &&
+                        period.start < close &&
+                        period.end > open,
+                )
+                .map((period) => {
+                    const clampedStart = Math.max(period.start, open);
+                    const clampedEnd = Math.min(period.end, close);
+                    return {
+                        ...period,
+                        start: clampedStart,
+                        end: clampedEnd,
+                        range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
+                    };
+                });
+
+            if (periods.length > 1) {
+                periods.push({
+                    key: "all",
+                    label: "Cả ngày",
+                    start: open,
+                    end: close,
+                    range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                });
+            }
 
             return periods.length
                 ? periods
@@ -6987,26 +7065,42 @@ input.invalid {
 .period-tabs button {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    height: 38px;
     min-height: 38px;
-    padding: 8px 12px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
-    color: #344238;
+    padding: 0 16px;
+    border-radius: var(--admin-radius, 8px);
+    border: 1px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #475569);
+    font-size: 13px;
     font-weight: 400;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+    user-select: none;
+}
+
+.period-tabs button:hover:not(.active) {
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-text, #0f172a);
 }
 
 .period-tabs button.active {
-    border-color: var(--admin-primary, #000000);
-    background: var(--admin-primary, #000000);
-    color: #fff;
+    background: var(--admin-accent, #10b981);
+    color: #ffffff;
+    border-color: var(--admin-accent, #10b981);
+    font-weight: 500;
 }
 
-.period-tabs span {
+.period-tabs button strong {
+    font-weight: 600;
+}
+
+.period-tabs button span {
     font-size: 12px;
     font-weight: 400;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 .slot-matrix {
@@ -9970,5 +10064,199 @@ input.invalid {
     .recurring-table-card table {
         min-width: 680px;
     }
+}
+
+/* ===== Time-Row Matrix (transposed: time=rows, courts=cols) ===== */
+.time-row-matrix-wrap {
+    min-height: 530px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    margin: 0;
+    padding: 0;
+}
+
+.time-row-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin: 0;
+    padding: 0;
+}
+
+.time-row-matrix .trm-corner {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 110px;
+    width: 110px;
+    padding: 8px 12px;
+    background: var(--admin-bg-soft, #f8fafc);
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-align: left;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-court-head {
+    min-width: 140px;
+    padding: 8px 10px;
+    background: var(--admin-bg-soft, #f8fafc);
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
+    text-align: left;
+}
+
+.time-row-matrix .trm-court-head strong {
+    display: block;
+    color: var(--admin-text, #1e293b);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix .trm-court-head span {
+    display: block;
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix tbody tr {
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    transition: background 0.1s;
+}
+
+.time-row-matrix .trm-time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 110px;
+    width: 110px;
+    padding: 0 12px;
+    height: 44px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-cell {
+    padding: 0;
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 44px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    font-size: 12px;
+    color: var(--admin-primary, #000);
+}
+
+.time-row-matrix .trm-slot-btn:not(:disabled):hover {
+    background: var(--admin-hover, #f1f5f9);
+}
+
+.time-row-matrix .trm-slot-btn:disabled {
+    cursor: not-allowed;
+}
+
+.time-row-matrix .trm-empty-hint {
+    opacity: 0;
+    color: var(--admin-primary, #000);
+    font-size: 11px;
+    font-weight: 400;
+    transition: opacity 0.15s;
+}
+
+.time-row-matrix tbody tr:hover .trm-slot-btn:not(:disabled) .trm-empty-hint {
+    opacity: 0.45;
+}
+
+/* Slot state colors — same tokens as slot-matrix */
+.time-row-matrix .trm-slot-btn.selected {
+    background: var(--admin-primary, #000);
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #000);
+}
+
+.time-row-matrix .trm-slot-btn.selected span {
+    color: #fff;
+}
+
+.time-row-matrix .trm-slot-btn.booked-paid    { background: #e2f0e7; }
+.time-row-matrix .trm-slot-btn.booked-online  { background: #e5edf3; }
+.time-row-matrix .trm-slot-btn.booked-counter { background: #ebe9f1; }
+.time-row-matrix .trm-slot-btn.pay-later      { background: #f3eddc; }
+.time-row-matrix .trm-slot-btn.overdue        { background: #f3e3e0; }
+.time-row-matrix .trm-slot-btn.locked         { background: #e9ecea; cursor: not-allowed; }
+.time-row-matrix .trm-slot-btn.viewing        { box-shadow: inset 0 0 0 2px #166534; }
+.time-row-matrix .trm-slot-btn.unavailable    { background: #f8fafc; }
+
+/* Dark mode */
+:global([data-theme="dark"]) .time-row-matrix-wrap {
+    border-color: var(--admin-border-soft);
+    background: var(--admin-surface);
+}
+:global([data-theme="dark"]) .time-row-matrix .trm-corner,
+:global([data-theme="dark"]) .time-row-matrix .trm-court-head {
+    background: var(--admin-bg-soft);
+}
+:global([data-theme="dark"]) .time-row-matrix .trm-time-cell {
+    background: var(--admin-surface);
+}
+
+/* Remove gap/padding between top tabs and section toolbar */
+.sg-shell-admin .content-area .owner-counter-page .cluster-profile-surface.standalone {
+    gap: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .hero-integrated-tabs {
+    padding-bottom: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .profile-section-card {
+    padding: 10px !important;
+    gap: 8px !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .counter-toolbar {
+    margin-bottom: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .period-row {
+    margin: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+:global(html) {
+    overflow-y: scroll !important;
+    scrollbar-gutter: stable;
 }
 </style>

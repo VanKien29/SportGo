@@ -15,16 +15,6 @@
           <AppIcon name="maximize" size="14" />
           <span>Sơ đồ mặt bằng</span>
         </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          style="background-color: #22a653 !important; background: #22a653 !important; color: #ffffff !important; border: 1px solid #22a653 !important; transform: none !important; box-shadow: none !important;"
-          :disabled="isClusterLocked"
-          @click="$emit('open-scale-request')"
-        >
-          <AppIcon name="plus" size="14" />
-          <span>Yêu cầu thêm sân</span>
-        </button>
       </div>
     </div>
 

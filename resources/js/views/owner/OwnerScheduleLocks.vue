@@ -2389,7 +2389,7 @@ export default {
 .quick-ranges {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 0;
     padding: 0;
     border-bottom: none;
     background: transparent;
@@ -2401,14 +2401,23 @@ export default {
     gap: 6px;
     min-height: 38px;
     padding: 8px 14px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 0;
     background: #fff;
-    color: #344238;
+    color: #334155;
     font: inherit;
     font-weight: 400;
     cursor: pointer;
     transition: all 0.15s ease;
+}
+.quick-ranges button:not(:first-child) {
+    border-left: none;
+}
+.quick-ranges button:first-child {
+    border-radius: 8px 0 0 8px;
+}
+.quick-ranges button:last-child {
+    border-radius: 0 8px 8px 0;
 }
 .quick-ranges button strong {
     font-size: 14px;

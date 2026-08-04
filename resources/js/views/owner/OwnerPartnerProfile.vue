@@ -176,13 +176,14 @@
                   </button>
 
                   <button
-                    class="btn-icon-square"
+                    class="btn btn-sm btn-outline"
                     type="button"
                     title="Tải văn bản về máy"
                     aria-label="Tải văn bản"
                     @click="downloadDocument(document.id)"
                   >
                     <AppIcon name="download" size="14" />
+                    <span>Tải xuống</span>
                   </button>
                 </div>
               </article>

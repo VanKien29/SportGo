@@ -31,3 +31,16 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
 Broadcast::channel('user.{userId}', function ($user, $userId) {
     return (string) $user->id === (string) $userId;
 });
+
+/**
+ * Presence channel for tracking active/online chat users.
+ */
+Broadcast::channel('chat-presence', function ($user) {
+    if ($user) {
+        return [
+            'id' => $user->id,
+            'name' => $user->full_name ?: $user->username,
+        ];
+    }
+    return false;
+});

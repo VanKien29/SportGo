@@ -5,6 +5,585 @@
 
 
 
+        <section v-if="activeTab === 'counter'" class="counter-board">
+            <div
+                class="schedule-panel"
+                :class="{ 'is-loading': counterScheduleLoading }"
+            >
+                <div class="panel-head compact">
+                    <div>
+                        <h2>{{ counterScheduleTitle }}</h2>
+                        <p>{{ currentScheduleLabel }}</p>
+                    </div>
+                </div>
+
+                <div class="filters schedule-filters counter-toolbar">
+                    <label class="schedule-filter-field cluster-field">
+                        <span>Cụm sân</span>
+                        <div class="schedule-filter-readonly">
+                            {{ selectedCluster?.name || "-" }}
+                        </div>
+                    </label>
+                    <div class="schedule-filter-field date-field">
+                        <span>Ngày chơi</span>
+                        <div class="counter-date-range">
+                            <button
+                                type="button"
+                                class="date-nav-btn"
+                                aria-label="Ngày trước"
+                                @click="shiftCounterDate(-1)"
+                            >
+                                <AppIcon name="chevronLeft" size="15" />
+                            </button>
+                            <div class="date-picker-wrap">
+                                <button
+                                    type="button"
+                                    class="date-range-trigger"
+                                    :class="{ open: counterDatePickerOpen }"
+                                    @click="
+                                        counterDatePickerOpen =
+                                            !counterDatePickerOpen
+                                    "
+                                >
+                                    <AppIcon name="calendar" size="16" />
+                                    <span>{{ counterDateRangeLabel }}</span>
+                                </button>
+                                <div
+                                    v-if="counterDatePickerOpen"
+                                    class="counter-date-popover"
+                                >
+                                    <MiniCalendar
+                                        mode="range"
+                                        :start-date="form.booking_date"
+                                        :end-date="form.booking_end_date"
+                                        :min-date="today"
+                                        @update:start-date="
+                                            handleCounterStartDateUpdate
+                                        "
+                                        @update:end-date="
+                                            handleCounterEndDateUpdate
+                                        "
+                                        @range-change="
+                                            handleCounterRangeChange
+                                        "
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                class="date-nav-btn"
+                                aria-label="Ngày sau"
+                                @click="shiftCounterDate(1)"
+                            >
+                                <AppIcon name="chevronRight" size="15" />
+                            </button>
+                            <button
+                                type="button"
+                                class="today-btn"
+                                @click="setCounterDateToday"
+                            >
+                                Hôm nay
+                            </button>
+                        </div>
+                    </div>
+                    <label class="schedule-filter-field type-field">
+                        <span>Loại sân</span>
+                        <select
+                            v-model="selectedCourtTypeId"
+                            @change="loadSchedule"
+                        >
+                            <option value="">Tất cả</option>
+                            <option
+                                v-for="type in courtTypeOptions"
+                                :key="type.id"
+                                :value="type.id"
+                            >
+                                {{ type.name }}
+                            </option>
+                        </select>
+                    </label>
+                </div>
+
+                <p v-if="selectionError" class="selection-error">
+                    {{ selectionError }}
+                </p>
+
+                <div
+                    v-if="counterScheduleLoading"
+                    class="schedule-loading-box"
+                    role="status"
+                    aria-label="Đang tải lịch sân"
+                >
+                    <div class="schedule-skeleton-head">
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-toolbar">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-summary">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-tabs">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="schedule-skeleton-grid">
+                        <span v-for="item in 28" :key="item"></span>
+                    </div>
+                </div>
+                <div v-else-if="scheduleError" class="state-card error-state">
+                    {{ scheduleError }}
+                </div>
+                <div v-else-if="!scheduleCourts.length" class="state-card">
+                    Không có sân phù hợp với bộ lọc hiện tại.
+                </div>
+                <div v-else class="time-board">
+                    <div class="selected-court-strip">
+                        <div>
+                            <span>Sân đã chọn</span>
+                            <strong>{{ selectedCourtText }}</strong>
+                        </div>
+                        <div>
+                            <span>Khung giờ</span>
+                            <strong>{{
+                                hasCounterSelection
+                                    ? selectedTimeText
+                                    : "Chưa chọn"
+                            }}</strong>
+                        </div>
+                        <div>
+                            <span>Tổng tiền</span>
+                            <strong>{{ formatCurrency(counterTotalAmount) }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="period-row">
+
+
+                        <div class="legend">
+                            <span><i></i>Lịch trống</span>
+                            <span><i class="selected"></i>Đang chọn</span>
+                            <span
+                                ><i class="booked-paid"></i>Đã thanh toán</span
+                            >
+                            <span><i class="booked-online"></i>Đặt online</span>
+                            <span
+                                ><i class="booked-counter"></i>Chờ chuyển
+                                khoản</span
+                            >
+                            <span><i class="pay-later"></i>Thu sau</span>
+                            <span><i class="overdue"></i>Quá hạn</span>
+                            <span><i class="locked"></i>Khóa sân</span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="slot-matrix"
+                        role="grid"
+                        aria-label="Bảng chọn sân và khung giờ"
+                        :style="slotMatrixStyle"
+                    >
+                        <div class="matrix-head sticky-col" role="columnheader">
+                            Sân / giờ
+                        </div>
+                        <div
+                            v-for="slot in activePeriodSlots"
+                            :key="slot.start_time"
+                            class="matrix-head time-head"
+                            role="columnheader"
+                        >
+                            {{ formatTime(slot.start_time) }}
+                        </div>
+
+                        <template
+                            v-for="court in scheduleCourts"
+                            :key="court.id"
+                        >
+                            <div
+                                class="matrix-court sticky-col"
+                                role="rowheader"
+                            >
+                                <strong>{{ court.name }}</strong>
+                                <span>{{ court.court_type?.name || "-" }}</span>
+                            </div>
+                            <button
+                                v-for="slot in activePeriodSlots"
+                                :key="`${court.id}-${slot.start_time}`"
+                                type="button"
+                                class="time-slot"
+                                role="gridcell"
+                                :aria-pressed="isSlotSelected(court.id, slot)"
+                                :aria-label="slotActionTitle(court, slot)"
+                                :class="slotButtonClass(court.id, slot)"
+                                :disabled="isSlotDisabled(court.id, slot)"
+                                :title="slotActionTitle(court, slot)"
+                                @click="toggleSlot(court, slot)"
+                            ></button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                v-if="hasCounterSelection || selectedOccupiedInterval"
+                class="counter-bottom-bar"
+            >
+                <div>
+                    <strong v-if="selectedOccupiedInterval">Đang xem lịch đã đặt</strong>
+                    <strong v-else>{{ selectedCourtText }} · {{ selectedDurationText }}</strong>
+                    <span v-if="selectedOccupiedInterval">{{ occupiedPanelSubtitle }}</span>
+                    <span v-else>{{ selectedTimeText }} · {{ formatCurrency(counterTotalAmount) }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="primary-btn"
+                    @click="counterDrawerOpen = true"
+                >
+                    {{ selectedOccupiedInterval ? "Xem chi tiết" : "Tiếp theo" }}
+                </button>
+            </div>
+
+            <button
+                v-if="counterDrawerOpen"
+                type="button"
+                class="counter-drawer-backdrop"
+                aria-label="Đóng thông tin booking"
+                @click="counterDrawerOpen = false"
+            ></button>
+
+            <aside class="booking-side" :class="{ open: counterDrawerOpen }">
+                <button
+                    type="button"
+                    class="drawer-close-btn"
+                    aria-label="Đóng thông tin booking"
+                    @click="counterDrawerOpen = false"
+                >
+                    <AppIcon name="x" size="18" />
+                </button>
+                <section v-if="!selectedOccupiedInterval" class="side-section">
+                    <div class="section-title muted">
+                        <h2>Thông tin booking</h2>
+                    </div>
+                    <div v-if="!hasCounterSelection" class="empty-summary">
+                        Chưa có khung giờ được chọn.
+                    </div>
+                    <dl v-else class="summary-list">
+                        <div
+                            v-for="[label, value] in counterSummaryRows"
+                            :key="label"
+                        >
+                            <dt>{{ label }}</dt>
+                            <dd>{{ value }}</dd>
+                        </div>
+                    </dl>
+                </section>
+
+                <template v-if="selectedOccupiedInterval">
+                    <section class="side-section occupied-detail">
+                        <div class="section-title muted">
+                            <h2>{{ occupiedPanelTitle }}</h2>
+                            <p>{{ occupiedPanelSubtitle }}</p>
+                        </div>
+                        <div
+                            v-if="selectedBusyBooking"
+                            class="booking-status-strip"
+                        >
+                            <span
+                                class="status-badge"
+                                :class="`tone-${bookingStatusTone(selectedBusyBooking.status)}`"
+                            >
+                                {{
+                                    bookingStatusLabel(
+                                        selectedBusyBooking.status,
+                                    )
+                                }}
+                            </span>
+                            <span
+                                class="status-badge"
+                                :class="`tone-${paymentStateTone(bookingPaymentState(selectedBusyBooking))}`"
+                            >
+                                {{
+                                    paymentStateLabel(
+                                        bookingPaymentState(
+                                            selectedBusyBooking,
+                                        ),
+                                    )
+                                }}
+                            </span>
+                        </div>
+                        <dl class="summary-list">
+                            <div
+                                v-for="[label, value] in occupiedSummaryRows"
+                                :key="label"
+                            >
+                                <dt>{{ label }}</dt>
+                                <dd>
+                                    <span
+                                        v-if="isBadgeValue(value)"
+                                        class="status-badge"
+                                        :class="`tone-${value.tone}`"
+                                    >
+                                        {{ value.text }}
+                                    </span>
+                                    <template v-else>{{ value }}</template>
+                                </dd>
+                            </div>
+                        </dl>
+                        <div v-if="selectedBusyBooking" class="status-actions">
+                            <button
+                                v-if="
+                                    selectedBusyBooking.status ===
+                                    'pending_approval'
+                                "
+                                class="secondary-btn compact action-success"
+                                type="button"
+                                :disabled="bookingActionLoading"
+                                @click="
+                                    openBookingActionConfirm('status', {
+                                        action: 'confirm',
+                                    })
+                                "
+                            >
+                                <AppIcon name="check" size="15" />
+                                <span>Xác nhận</span>
+                            </button>
+                            <button
+                                v-if="selectedBookingOutstanding > 0"
+                                class="secondary-btn compact action-cash"
+                                type="button"
+                                :disabled="bookingActionLoading"
+                                @click="
+                                    openBookingActionConfirm('collect', {
+                                        method: 'cash',
+                                    })
+                                "
+                            >
+                                <AppIcon name="banknote" size="15" />
+                                <span>Thu tiền mặt</span>
+                            </button>
+                            <button
+                                v-if="selectedBookingOutstanding > 0"
+                                class="secondary-btn compact action-transfer"
+                                type="button"
+                                :disabled="bookingActionLoading"
+                                @click="openSelectedBookingPaymentQr"
+                            >
+                                <AppIcon name="qrCode" size="15" />
+                                <span>Chuyển khoản</span>
+                            </button>
+                            <button
+                                v-if="
+                                    [
+                                        'pending_approval',
+                                        'pending_payment',
+                                        'confirmed',
+                                    ].includes(selectedBusyBooking.status)
+                                "
+                                class="secondary-btn compact danger"
+                                type="button"
+                                :disabled="bookingActionLoading"
+                                @click="
+                                    openBookingActionConfirm('status', {
+                                        action: 'cancel',
+                                    })
+                                "
+                            >
+                                <AppIcon name="trash" size="15" />
+                                <span>Hủy booking</span>
+                            </button>
+                        </div>
+                    </section>
+                </template>
+
+                <template v-else>
+                    <section
+                        class="side-section"
+                        :class="{ disabled: !hasCounterSelection }"
+                    >
+                        <div class="section-title muted">
+                            <h2>Khách hàng</h2>
+                        </div>
+                        <label>
+                            <span>Tên khách</span>
+                            <input
+                                v-model.trim="form.walk_in_name"
+                                type="text"
+                                autocomplete="name"
+                                minlength="2"
+                                maxlength="100"
+                                required
+                                :aria-invalid="
+                                    contactTouched.name &&
+                                    Boolean(walkInNameError)
+                                "
+                                :class="{
+                                    invalid:
+                                        contactTouched.name && walkInNameError,
+                                }"
+                                placeholder="Nhập tên khách"
+                                @input="handleContactInput('name')"
+                                @blur="validateContactField('name')"
+                            />
+                            <small
+                                v-if="contactTouched.name && walkInNameError"
+                                class="field-error"
+                            >
+                                {{ walkInNameError }}
+                            </small>
+                        </label>
+                        <label>
+                            <span>Số điện thoại</span>
+                            <input
+                                v-model.trim="form.walk_in_phone"
+                                type="tel"
+                                autocomplete="tel"
+                                inputmode="tel"
+                                maxlength="15"
+                                required
+                                :aria-invalid="
+                                    contactTouched.phone &&
+                                    Boolean(walkInPhoneError)
+                                "
+                                :class="{
+                                    invalid:
+                                        contactTouched.phone &&
+                                        walkInPhoneError,
+                                }"
+                                placeholder="Nhập số điện thoại"
+                                @input="handleContactInput('phone')"
+                                @blur="validateContactField('phone')"
+                            />
+                            <small
+                                v-if="contactTouched.phone && walkInPhoneError"
+                                class="field-error"
+                            >
+                                {{ walkInPhoneError }}
+                            </small>
+                        </label>
+                    </section>
+
+                    <section
+                        v-if="canShowCounterVouchers"
+                        class="side-section"
+                        :class="{ disabled: !hasCounterSelection }"
+                    >
+                        <div class="section-title muted">
+                            <h2>Voucher</h2>
+                        </div>
+                        <div class="voucher-picker">
+                            <div class="voucher-code-row">
+                                <input
+                                    v-model.trim="voucherCodeInput"
+                                    type="text"
+                                    placeholder="Nhập mã voucher"
+                                    :disabled="!hasCounterSelection"
+                                    @keyup.enter="applyVoucherCode"
+                                />
+                                <button
+                                    class="secondary-btn compact"
+                                    type="button"
+                                    :disabled="
+                                        !hasCounterSelection || voucherLoading
+                                    "
+                                    @click="applyVoucherCode"
+                                >
+                                    Áp dụng
+                                </button>
+                            </div>
+                            <small v-if="voucherError" class="field-error">{{
+                                voucherError
+                            }}</small>
+                            <div
+                                v-if="eligibleVouchers.length"
+                                class="voucher-list"
+                            >
+                                <button
+                                    v-for="voucher in eligibleVouchers"
+                                    :key="voucher.id"
+                                    type="button"
+                                    :class="{
+                                        active:
+                                            selectedVoucherId === voucher.id,
+                                    }"
+                                    @click="selectVoucher(voucher)"
+                                >
+                                    <span>
+                                        <strong>{{ voucher.code }}</strong>
+                                        <small>{{ voucher.name }}</small>
+                                    </span>
+                                    <em
+                                        >-{{
+                                            formatCurrency(
+                                                voucher.discount_amount,
+                                            )
+                                        }}</em
+                                    >
+                                </button>
+                            </div>
+                            <small
+                                v-else-if="
+                                    hasCounterSelection && !voucherLoading
+                                "
+                                class="voucher-empty"
+                            >
+                                Chưa có voucher đủ điều kiện cho khung này.
+                            </small>
+                        </div>
+                    </section>
+
+                    <section
+                        class="side-section"
+                        :class="{ disabled: !hasCounterSelection }"
+                    >
+                        <div class="section-title muted">
+                            <h2>Thu tiền</h2>
+                        </div>
+                        <div class="payment-list">
+                            <label
+                                v-for="option in counterCollectionOptions"
+                                :key="option.value"
+                                class="payment-card"
+                                :class="{
+                                    active:
+                                        form.collection_mode === option.value,
+                                }"
+                            >
+                                <input
+                                    v-model="form.collection_mode"
+                                    type="radio"
+                                    :value="option.value"
+                                    @change="applyCounterCollectionMode"
+                                />
+                                <span>
+                                    {{ option.label }}
+                                </span>
+                                <strong>{{
+                                    formatCurrency(option.amount)
+                                }}</strong>
+                            </label>
+                        </div>
+                    </section>
+
+                    <button
+                        class="primary-btn full"
+                        type="button"
+                        :disabled="submitting || !canSubmitCounter"
+                        @click="submitCounter"
+                    >
+                        <AppIcon name="plus" size="16" />
+                        <span>{{
+                            submitting ? "Đang tạo..." : "Tạo booking"
+                        }}</span>
+                    </button>
+                </template>
+            </aside>
+        </section>
 
         <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
             <div class="form-card">
@@ -1445,8 +2024,8 @@ function toWeekDayIndex(date) {
     return (date.getDay() + 6) % 7;
 }
 
-const BOOKING_DAY_START = 6 * 60;
-const BOOKING_DAY_END = 22 * 60;
+const BOOKING_DAY_START = 0;
+const BOOKING_DAY_END = 24 * 60;
 const SLOT_STEP_MINUTES = 30;
 const WALK_IN_NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
 const WALK_IN_PHONE_PATTERN = /^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/;
@@ -1663,33 +2242,79 @@ export default {
                 slotEnds.length ? Math.max(...slotEnds) : this.operatingEndMinutes,
                 open + SLOT_STEP_MINUTES,
             );
-            const raw = [
-                {
-                    key: "morning",
-                    label: "Sáng",
-                    start: open,
-                    end: Math.min(close, 12 * 60),
-                },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    start: Math.max(open, 12 * 60),
-                    end: Math.min(close, 18 * 60),
-                },
-                {
-                    key: "evening",
-                    label: "Tối",
-                    start: Math.max(open, 18 * 60),
-                    end: close,
-                },
-            ];
+            const configuredPeriods =
+                this.selectedClusterDetail?.booking_config?.custom_time_periods;
+
+            let raw = [];
+            if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
+                raw = configuredPeriods.map((p, idx) => ({
+                    key: `custom_${idx}`,
+                    label: p.label,
+                    start: this.timeToMinutes(p.start_time),
+                    end: this.timeToMinutes(p.end_time),
+                }));
+            } else {
+                raw = [
+                    {
+                        key: "late_night",
+                        label: "Khuya",
+                        start: open,
+                        end: Math.min(close, 6 * 60),
+                    },
+                    {
+                        key: "morning",
+                        label: "Sáng",
+                        start: Math.max(open, 6 * 60),
+                        end: Math.min(close, 12 * 60),
+                    },
+                    {
+                        key: "afternoon",
+                        label: "Chiều",
+                        start: Math.max(open, 12 * 60),
+                        end: Math.min(close, 18 * 60),
+                    },
+                    {
+                        key: "evening",
+                        label: "Tối",
+                        start: Math.max(open, 18 * 60),
+                        end: Math.min(close, 22 * 60),
+                    },
+                    {
+                        key: "night",
+                        label: "Đêm",
+                        start: Math.max(open, 22 * 60),
+                        end: close,
+                    },
+                ];
+            }
 
             const periods = raw
-                .filter((period) => period.end > period.start)
-                .map((period) => ({
-                    ...period,
-                    range: `${this.minutesToTime(period.start)} - ${this.minutesToTime(period.end)}`,
-                }));
+                .filter(
+                    (period) =>
+                        period.end > period.start &&
+                        period.start < close &&
+                        period.end > open,
+                )
+                .map((period) => {
+                    const clampedStart = Math.max(period.start, open);
+                    const clampedEnd = Math.min(period.end, close);
+                    return {
+                        ...period,
+                        start: clampedStart,
+                        end: clampedEnd,
+                        range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
+                    };
+                });
+
+            if (periods.length > 1) {
+                periods.push({
+                    key: "all",
+                    label: "Cả ngày",
+                    start: open,
+                    end: close,
+                    range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                });
+            }
 
             return periods.length
                 ? periods

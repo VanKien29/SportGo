@@ -13,30 +13,18 @@
       <div class="info-readonly-grid">
         <div class="info-readonly-item">
           <span class="info-readonly-label">Tên cụm sân</span>
-          <span class="info-readonly-value">{{ form.name || '—' }}</span>
+          <span class="info-readonly-value">{{ cluster?.name || '—' }}</span>
         </div>
         <div class="info-readonly-item">
           <span class="info-readonly-label">Số điện thoại liên hệ</span>
-          <span class="info-readonly-value">{{ form.phone_contact || '—' }}</span>
+          <span class="info-readonly-value">{{ cluster?.phone_contact || '—' }}</span>
         </div>
         <div class="info-readonly-item info-readonly-full">
           <span class="info-readonly-label">Giới thiệu / Mô tả cụm sân</span>
-          <span class="info-readonly-value">{{ form.description || '—' }}</span>
+          <span class="info-readonly-value">{{ cluster?.description || '—' }}</span>
         </div>
       </div>
 
-      <div class="form-actions">
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="isClusterLocked"
-          @click="showInfoModal = true"
-        >
-          <span>Gửi yêu cầu thay đổi thông tin</span>
-        </button>
-        <span v-if="updateSuccess" class="text-success text-sm">Gửi yêu cầu thành công! Đang chờ Admin xét duyệt.</span>
-        <span v-if="updateError" class="text-danger text-sm">{{ updateError }}</span>
-      </div>
     </div>
 
     <!-- Modal: Yêu cầu thay đổi thông tin -->
@@ -149,18 +137,6 @@
         </div>
       </div>
 
-      <div class="form-actions">
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="isClusterLocked"
-          @click="showLocationModal = true"
-        >
-          <span>Gửi yêu cầu duyệt vị trí mới</span>
-        </button>
-        <span v-if="locationSuccess" class="text-success text-sm">Gửi yêu cầu vị trí thành công!</span>
-        <span v-if="locationError" class="text-danger text-sm">{{ locationError }}</span>
-      </div>
     </div>
 
     <!-- Modal: Yêu cầu thay đổi vị trí -->
@@ -290,7 +266,6 @@
           class="amenity-chip-btn active"
           style="cursor: default;"
         >
-          <AppIcon name="check" size="13" />
           <span>{{ getAmenityName(amenity) }}</span>
         </div>
       </div>
@@ -504,6 +479,7 @@ export default {
   name: 'ClusterGeneralInfoTab',
   components: { AppIcon, BaseCombobox },
   props: {
+    cluster: { type: Object, required: true },
     form: { type: Object, required: true },
     locationForm: { type: Object, required: true },
     provinceOptions: { type: Array, default: () => [] },
@@ -546,6 +522,15 @@ export default {
       uploadingTempImage: false,
       submittingGalleryRequest: false,
     };
+  },
+  watch: {
+    showInfoModal(newVal) {
+      if (newVal && this.cluster) {
+        this.form.name = this.cluster.name;
+        this.form.phone_contact = this.cluster.phone_contact || '';
+        this.form.description = this.cluster.description || '';
+      }
+    }
   },
   computed: {
     currentProvinceCode() {

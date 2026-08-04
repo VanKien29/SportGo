@@ -2,7 +2,6 @@
   <div class="cluster-profile-surface standalone">
     <!-- Global Alert Notifications -->
     <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="notice" class="alert success">{{ notice }}</div>
     <div v-if="loading" class="state-card">Đang tải cấu hình đặt sân...</div>
     <div v-else-if="!selectedClusterId" class="state-card">Chưa có cụm sân để cấu hình.</div>
 
@@ -51,6 +50,49 @@
               <span>phút</span>
             </div>
           </label>
+        </div>
+      </section>
+
+      <!-- Section 1.5: Cấu hình các ca / khung giờ chơi -->
+      <section class="setting-section">
+        <header class="section-head split">
+          <div>
+            <h3>Cấu hình các ca / khung giờ chơi</h3>
+            <p class="section-sub">Tùy chỉnh tên ca và khoảng giờ cho từng ca (Sáng, Chiều, Tối, Đêm, Khuya...) để chọn nhanh trên lịch.</p>
+          </div>
+          <div class="head-actions" style="display: flex; gap: 8px;">
+            <button class="secondary-btn" type="button" @click="resetDefaultPeriods">Khôi phục mặc định</button>
+            <button class="secondary-btn" type="button" @click="addCustomPeriod">+ Thêm ca</button>
+          </div>
+        </header>
+
+        <div v-if="!form.custom_time_periods.length" class="empty-row">Đang sử dụng các ca chia tự động theo giờ mở/đóng cửa. Bấm "+ Thêm ca" hoặc "Khôi phục mặc định" để cấu hình.</div>
+        <div v-else class="period-config-list">
+          <div v-for="(period, index) in form.custom_time_periods" :key="period._key" class="period-config-row">
+            <label class="period-label-field">
+              <span>Tên ca</span>
+              <input v-model.trim="period.label" type="text" placeholder="Ví dụ: Sáng / Ca 1" maxlength="50">
+            </label>
+            <label>
+              <span>Giờ bắt đầu</span>
+              <select v-model="period.start_time">
+                <option v-for="time in openTimeOptions" :key="time" :value="time">{{ time }}</option>
+              </select>
+            </label>
+            <span class="range-arrow">→</span>
+            <label>
+              <span>Giờ kết thúc</span>
+              <select v-model="period.end_time">
+                <option v-for="time in closeTimeOptions" :key="time" :value="time">{{ time }}</option>
+              </select>
+            </label>
+            <button class="remove-btn" type="button" :aria-label="`Xóa ca ${index + 1}`" @click="removeCustomPeriod(index)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -228,6 +270,7 @@
 </template>
 
 <script>
+import { useToast } from 'vue-toastification';
 import { ownerBookingConfigService } from '../../services/ownerBookingConfigs.js';
 
 export default {
@@ -486,6 +529,15 @@ export default {
         { tier_key: 'diamond', label: 'Kim cương', tier_label: 'Kim cương', is_active: true, voucher_id: null, discount_percent: 8, min_completed_bookings: 30, min_spend_amount: 5000000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
       ];
     },
+    defaultCustomPeriods() {
+      return [
+        { _key: this.specialKey(), label: 'Khuya', start_time: '00:00', end_time: '06:00' },
+        { _key: this.specialKey(), label: 'Sáng', start_time: '06:00', end_time: '12:00' },
+        { _key: this.specialKey(), label: 'Chiều', start_time: '12:00', end_time: '18:00' },
+        { _key: this.specialKey(), label: 'Tối', start_time: '18:00', end_time: '22:00' },
+        { _key: this.specialKey(), label: 'Đêm', start_time: '22:00', end_time: '24:00' },
+      ];
+    },
     defaultForm() {
       return {
         min_duration_minutes: 30,
@@ -494,6 +546,7 @@ export default {
         fixed_open_time: '08:00',
         fixed_close_time: '22:00',
         special_operating_hours: [],
+        custom_time_periods: [],
         slot_hold_minutes: 20,
         reminder_before_minutes: 30,
         allow_full_payment: true,
@@ -509,6 +562,23 @@ export default {
     },
     specialKey() {
       return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    },
+    addCustomPeriod() {
+      this.form.custom_time_periods.push({
+        _key: this.specialKey(),
+        label: '',
+        start_time: '08:00',
+        end_time: '12:00',
+      });
+      this.notice = '';
+    },
+    removeCustomPeriod(index) {
+      this.form.custom_time_periods.splice(index, 1);
+      this.notice = '';
+    },
+    resetDefaultPeriods() {
+      this.form.custom_time_periods = this.defaultCustomPeriods();
+      this.notice = '';
     },
     validOperatingRange(openTime, closeTime) {
       const duration = this.timeToMinutes(closeTime) - this.timeToMinutes(openTime);
@@ -583,6 +653,14 @@ export default {
             open_time: this.normalizeTime(hours.open_time, '08:00'),
             close_time: this.normalizeTime(hours.close_time, '22:00'),
           })),
+          custom_time_periods: (config.custom_time_periods && config.custom_time_periods.length)
+            ? config.custom_time_periods.map((p) => ({
+                _key: this.specialKey(),
+                label: p.label || '',
+                start_time: this.normalizeTime(p.start_time, '08:00'),
+                end_time: this.normalizeTime(p.end_time, '12:00'),
+              }))
+            : [],
           slot_hold_minutes: Number(config.slot_hold_minutes),
           reminder_before_minutes: Number(config.reminder_before_minutes),
           allow_full_payment: Boolean(config.allow_full_payment),
@@ -631,16 +709,22 @@ export default {
           special_operating_hours: this.form.special_operating_hours
             .map(({ _key, _touched, ...hours }) => hours)
             .sort((a, b) => a.start_date.localeCompare(b.start_date)),
+          custom_time_periods: (this.form.custom_time_periods || [])
+            .filter((p) => p.label && p.start_time && p.end_time)
+            .map(({ _key, ...p }) => ({
+              label: p.label.trim(),
+              start_time: p.start_time,
+              end_time: p.end_time,
+            })),
         });
         const cluster = this.clusters.find((item) => item.id === this.selectedClusterId);
         if (cluster) cluster.booking_config = response.data;
-        this.notice = response.message;
         this.syncForm();
-        this.notice = response.message;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const toast = useToast();
+        toast.success(response.message || 'Đã lưu cấu hình đặt sân thành công!');
       } catch (error) {
-        this.error = error.message || 'Không thể lưu cấu hình đặt sân.';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const toast = useToast();
+        toast.error(error.message || 'Không thể lưu cấu hình đặt sân.');
       } finally {
         this.saving = false;
       }
@@ -826,6 +910,7 @@ export default {
 
 .fixed-hours label,
 .special-row label,
+.period-config-row label,
 .compact-fields label {
   display: grid;
   gap: 5px;
@@ -881,11 +966,47 @@ export default {
   background: var(--admin-surface-muted, #f8fafc);
 }
 
-.remove-btn {
+.period-config-list {
+  display: grid;
+  gap: 10px;
+}
+
+.period-config-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr auto 1fr 36px;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
+  background: var(--admin-surface-muted, #f8fafc);
+}
+
+.period-config-row .range-arrow {
   height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 0;
+}
+
+.remove-btn {
+  width: 36px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 9px;
   background: #fee2e2;
   color: #be123c;
-  font-size: 21px;
+  font-size: 16px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.remove-btn:hover {
+  background: #fecdd3;
+  color: #9f1239;
 }
 
 .two-column {

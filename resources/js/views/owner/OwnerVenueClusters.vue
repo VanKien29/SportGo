@@ -65,6 +65,7 @@
                     <!-- TAB 2: HỒ SƠ & CẤU HÌNH CỤM SÂN -->
                     <ClusterGeneralInfoTab
                         v-if="activeTab === 'info'"
+                        :cluster="selectedCluster"
                         :form="form"
                         :location-form="locationForm"
                         :province-options="provinceOptions"
@@ -802,7 +803,10 @@
                             </p>
                             <div class="document-upload-grid">
                                 <label class="document-upload-card">
-                                    <span>Giấy pháp lý / ĐKKD</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Giấy pháp lý / ĐKKD</span>
+                                    <div class="upload-select-action">
+                                        {{ scaleDocumentFiles.legal?.length ? `Đã chọn ${scaleDocumentFiles.legal.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="scaleLegalInput"
                                         type="file"
@@ -812,7 +816,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Hồ sơ mặt bằng / quy hoạch</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Hồ sơ mặt bằng / quy hoạch</span>
+                                    <div class="upload-select-action">
+                                        {{ scaleDocumentFiles.premise?.length ? `Đã chọn ${scaleDocumentFiles.premise.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="scalePremiseInput"
                                         type="file"
@@ -822,7 +829,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Tài liệu bổ sung khác</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Tài liệu bổ sung khác</span>
+                                    <div class="upload-select-action">
+                                        {{ scaleDocumentFiles.extra?.length ? `Đã chọn ${scaleDocumentFiles.extra.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="scaleExtraInput"
                                         type="file"
@@ -934,8 +944,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label
-                                    >Tỉnh/Thành phố mới
-                                    <span class="required">*</span></label
+                                    >Tỉnh/Thành phố mới</label
                                 >
                                 <BaseCombobox 
                                     v-model="locationForm.new_province_code"
@@ -946,8 +955,7 @@
                             </div>
                             <div class="form-group">
                                 <label
-                                    >Phường/Xã mới
-                                    <span class="required">*</span></label
+                                    >Phường/Xã mới</label
                                 >
                                 <BaseCombobox 
                                     v-model="locationForm.new_ward_code"
@@ -960,8 +968,7 @@
                         </div>
                         <div class="form-group">
                             <label
-                                >Địa chỉ cụ thể mới
-                                <span class="required">*</span></label
+                                >Địa chỉ cụ thể mới</label
                             >
                             <input
                                 v-model="locationForm.new_address"
@@ -1003,8 +1010,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label
-                                    >Vĩ độ (Latitude) mới
-                                    <span class="required">*</span></label
+                                    >Vĩ độ (Latitude) mới</label
                                 >
                                 <input
                                     v-model.number="locationForm.new_latitude"
@@ -1016,8 +1022,7 @@
                             </div>
                             <div class="form-group">
                                 <label
-                                    >Kinh độ (Longitude) mới
-                                    <span class="required">*</span></label
+                                    >Kinh độ (Longitude) mới</label
                                 >
                                 <input
                                     v-model.number="locationForm.new_longitude"
@@ -1041,8 +1046,7 @@
                         </div>
                         <div class="form-group">
                             <label
-                                >Lý do thay đổi vị trí
-                                <span class="required">*</span></label
+                                >Lý do thay đổi vị trí</label
                             >
                             <textarea
                                 v-model="locationForm.note"
@@ -1053,13 +1057,16 @@
                             ></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng</label>
                             <p class="map-help-text">
                                 Bắt buộc tải giấy ĐKKD/giấy cập nhật kinh doanh hoặc hình ảnh minh chứng vị trí mới.
                             </p>
                             <div class="document-upload-grid">
                                 <label class="document-upload-card">
-                                    <span>Giấy pháp lý / ĐKKD</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Giấy pháp lý / ĐKKD</span>
+                                    <div class="upload-select-action">
+                                        {{ locationDocumentFiles.legal?.length ? `Đã chọn ${locationDocumentFiles.legal.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="locationLegalInput"
                                         type="file"
@@ -1069,7 +1076,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Minh chứng vị trí / mặt bằng</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Minh chứng vị trí / mặt bằng</span>
+                                    <div class="upload-select-action">
+                                        {{ locationDocumentFiles.premise?.length ? `Đã chọn ${locationDocumentFiles.premise.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="locationPremiseInput"
                                         type="file"
@@ -1079,7 +1089,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Tài liệu bổ sung khác</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Tài liệu bổ sung khác</span>
+                                    <div class="upload-select-action">
+                                        {{ locationDocumentFiles.extra?.length ? `Đã chọn ${locationDocumentFiles.extra.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="locationExtraInput"
                                         type="file"
@@ -1369,7 +1382,6 @@
                         <div class="form-group">
                             <label for="cluster-edit-name">
                                 Tên cụm sân mới
-                                <span class="required">*</span>
                             </label>
                             <input
                                 id="cluster-edit-name"
@@ -1382,7 +1394,6 @@
                         <div class="form-group" style="margin-top: 16px;">
                             <label for="cluster-edit-phone">
                                 Số điện thoại liên hệ mới
-                                <span class="required">*</span>
                             </label>
                             <input
                                 id="cluster-edit-phone"
@@ -1429,14 +1440,16 @@
                             <!-- Preview danh sách ảnh tạm -->
                             <div class="owner-gallery-grid" v-if="tempImages.length > 0" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px;">
                                 <div v-for="(img, idx) in tempImages" :key="idx" class="owner-gallery-item" style="position: relative; aspect-ratio: 4/3; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
-                                    <img :src="img.url" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    <img :src="imageUrl(img.file_path || img.url)" style="width: 100%; height: 100%; object-fit: cover;" />
                                     <button
                                         type="button"
                                         class="btn-delete-image"
-                                        style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer;"
+                                        style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 20px; height: 20px; display: flex !important; align-items: center !important; justify-content: center !important; color: #fff; cursor: pointer; padding: 0 !important;"
                                         @click="removeTempImage(idx)"
                                     >
-                                        &times;
+                                        <svg style="width: 10px; height: 10px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
                                     </button>
                                 </div>
                             </div>
@@ -1446,7 +1459,6 @@
                         <div class="form-group" style="margin-top: 16px;">
                             <label for="cluster-edit-note">
                                 Lý do yêu cầu chỉnh sửa
-                                <span class="required">*</span>
                             </label>
                             <textarea
                                 id="cluster-edit-note"
@@ -1583,6 +1595,7 @@ import ClusterGeneralInfoTab from "../../components/owner/clusters/ClusterGenera
 import ClusterLocationTab from "../../components/owner/clusters/ClusterLocationTab.vue";
 import ClusterRequestsCenterTab from "../../components/owner/clusters/ClusterRequestsCenterTab.vue";
 import ClusterSpatialModal from "../../components/owner/clusters/ClusterSpatialModal.vue";
+import { useToast } from "vue-toastification";
 
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
@@ -2337,6 +2350,7 @@ export default {
             this.updating = true;
             this.updateSuccess = false;
             this.updateError = null;
+            const toast = useToast();
             try {
                 const payload = {
                     new_name: this.form.name,
@@ -2349,9 +2363,11 @@ export default {
                     payload,
                 );
                 this.updateSuccess = true;
+                toast.success("Gửi yêu cầu chỉnh sửa thông tin thành công!");
                 await this.fetchInfoRequests(this.selectedCluster.id);
             } catch (err) {
                 this.updateError = err.message || "Lỗi khi gửi yêu cầu chỉnh sửa thông tin.";
+                toast.error(this.updateError);
             } finally {
                 this.updating = false;
             }
@@ -7383,24 +7399,39 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 .supplement-file-list button,
 .supplement-documents a,
 .supplement-document-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 0 10px;
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 28px;
+    height: 30px;
+    padding: 0 12px;
     border-radius: 999px;
-    border: 1px solid #c7d2fe;
-    background: #eef2ff;
-    color: #3730a3;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
     font-size: 12px;
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
     appearance: none;
+    transition: all 0.15s ease;
 }
 
 .supplement-file-list button {
     appearance: none;
     font-family: inherit;
+}
+
+.supplement-file-list button:hover,
+.supplement-documents a:hover,
+.supplement-document-link:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
 }
 
 .request-document-actions {
@@ -7573,23 +7604,45 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 .document-upload-card {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 8px;
-    min-height: 86px;
-    padding: 12px;
-    border: 1px dashed #b8cbbd;
+    min-height: 96px;
+    padding: 12px !important;
+    border: 1px dashed #cbd5e1;
     border-radius: 8px;
-    background: #fbfdfb;
+    background: transparent;
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
 }
 
 .document-upload-card span {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
-    color: #16351f;
+    color: #475569;
 }
 
 .document-upload-card input {
-    width: 100%;
+    display: none !important;
+}
+
+.upload-select-action {
     font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    border: 1px solid #cbd5e1;
+    padding: 4px 14px;
+    border-radius: 20px;
+    background: #ffffff;
+    display: inline-block;
+    transition: all 0.15s ease;
+}
+
+.document-upload-card:hover .upload-select-action {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
 }
 
 .scale-remove-list {

@@ -119,6 +119,12 @@ class VenueInformationChangeController extends Controller
 
         $request->validate([
             'image' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'], // max 5MB
+        ], [
+            'image.required' => 'Vui lòng chọn hình ảnh để tải lên.',
+            'image.image'    => 'File tải lên phải là một hình ảnh.',
+            'image.mimes'    => 'Hình ảnh phải có định dạng jpeg, png, jpg hoặc webp.',
+            'image.max'      => 'Kích thước hình ảnh tối đa là 5MB.',
+            'image.uploaded' => 'Tải lên hình ảnh thất bại. Vui lòng kiểm tra lại dung lượng hoặc định dạng file.',
         ]);
 
         $path = $request->file('image')->store('temp_clusters', 'public');

@@ -1,5 +1,6 @@
 @import './admin.css';
 @import './client.css';
+@import './toast-custom.css';
 
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));

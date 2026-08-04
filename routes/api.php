@@ -621,6 +621,8 @@ Route::middleware('auth:sanctum')
             Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
             Route::post('/messages/{id}/react', [ChatController::class, 'reactToMessage']);
             Route::post('/messages/{id}/pin', [ChatController::class, 'togglePinMessage']);
+            Route::post('/messages/{id}/recall', [ChatController::class, 'recallMessage']);
+            Route::delete('/messages/{id}', [ChatController::class, 'deleteMessageForSelf']);
             Route::get('/conversations/{id}/bookings', [ChatController::class, 'getEligibleBookings']);
             Route::get('/conversations/{id}/related-bookings', [ChatController::class, 'getRelatedBookings']);
             Route::post('/conversations/{id}/support-requests', [ChatController::class, 'createBookingSupportRequest']);

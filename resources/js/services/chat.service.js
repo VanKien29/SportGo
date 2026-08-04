@@ -4,6 +4,19 @@ export const chatService = {
   getConversations() {
     return api('/api/chat/conversations');
   },
+  createGroupConversation(name, userIds, avatarFile = null) {
+    const formData = new FormData();
+    formData.append('type', 'group');
+    formData.append('name', name);
+    userIds.forEach(id => formData.append('user_ids[]', id));
+    if (avatarFile) {
+      formData.append('avatar', avatarFile);
+    }
+    return api('/api/chat/conversations', {
+      method: 'POST',
+      body: formData
+    });
+  },
   getMessages(conversationId) {
     return api(`/api/chat/conversations/${conversationId}/messages`);
   },
@@ -36,6 +49,16 @@ export const chatService = {
   togglePinMessage(messageId) {
     return api(`/api/chat/messages/${messageId}/pin`, {
       method: 'POST'
+    });
+  },
+  recallMessage(messageId) {
+    return api(`/api/chat/messages/${messageId}/recall`, {
+      method: 'POST'
+    });
+  },
+  deleteMessageForSelf(messageId) {
+    return api(`/api/chat/messages/${messageId}`, {
+      method: 'DELETE'
     });
   },
   markAsRead(conversationId) {

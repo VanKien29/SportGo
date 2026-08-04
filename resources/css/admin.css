@@ -1844,7 +1844,7 @@
 }
 
 .sg-shell-admin .content-area :is(.modal-footer, .modal-actions, .dialog-footer) {
-  border-top: 1px solid var(--admin-border) !important;
+  border-top: none !important;
   background: var(--admin-surface-muted) !important;
   padding: 14px 18px !important;
 }
@@ -14197,23 +14197,21 @@ div[class*="-main-content"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
-  border: 1px solid var(--admin-border-soft, #e2e8f0);
-  border-radius: 10px;
-  background: var(--admin-surface, #ffffff);
+  padding: 12px 4px;
+  border: none;
+  background: transparent;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
 }
 
 .amenity-vertical-item:hover {
-  background: var(--admin-hover, #f1f5f9);
-  border-color: var(--admin-border, #cbd5e1);
+  background: transparent;
 }
 
 .amenity-vertical-item.selected {
-  border-color: #22a653;
-  background: rgba(34, 166, 83, 0.05);
+  border-color: transparent;
+  background: transparent;
 }
 
 .amenity-item-left {
@@ -14223,11 +14221,11 @@ div[class*="-main-content"] {
 }
 
 .amenity-icon-box {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--admin-border, #cbd5e1);
-  background: var(--admin-bg, #f8fafc);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: var(--admin-muted, #64748b);
   display: flex;
   align-items: center;
@@ -14236,9 +14234,9 @@ div[class*="-main-content"] {
 }
 
 .amenity-icon-box.active {
-  background: #22a653;
-  border-color: #22a653;
-  color: #ffffff;
+  background: transparent;
+  border-color: transparent;
+  color: #22a653;
 }
 
 .amenity-vertical-name {
@@ -14248,19 +14246,20 @@ div[class*="-main-content"] {
 }
 
 .amenity-status-tag {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
 }
 
 .amenity-status-tag.status-on {
-  background: rgba(34, 166, 83, 0.14);
-  color: #16a34a;
+  background: transparent !important;
+  color: #22a653;
 }
 
 .amenity-status-tag.status-off {
-  background: var(--admin-bg, #f1f5f9);
+  background: transparent !important;
   color: var(--admin-muted, #94a3b8);
 }
 
