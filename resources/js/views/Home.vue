@@ -930,4 +930,3 @@ export default {
 };
 </script>
 
-<style src="../../css/sportgo-home-v2.css"></style>

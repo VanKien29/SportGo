@@ -584,4 +584,3 @@ function formatDate(value) {
 }
 </script>
 
-<style src="../../../css/partner/partner.css"></style>

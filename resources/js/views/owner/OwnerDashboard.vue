@@ -750,4 +750,3 @@ export default {
 };
 </script>
 
-<style scoped src="../../../css/owner-dashboard.css"></style>

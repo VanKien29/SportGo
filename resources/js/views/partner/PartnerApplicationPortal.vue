@@ -391,7 +391,6 @@
   </div>
 </template>
 
-<style src="../../../css/partner/partner.css"></style>
 <script setup>
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
