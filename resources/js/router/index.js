@@ -513,7 +513,7 @@ const routes = [
                 name: "owner-complaint-detail",
                 component: () => import("../views/owner/OwnerComplaintDetail.vue"),
             },
-            { path: "profile", name: "owner-profile", component: OwnerProfile },
+            { path: "profile", name: "owner-profile", component: () => import("../views/owner/OwnerProfile.vue") },
             {
                 path: "partner-profile",
                 name: "owner-partner-profile",
@@ -582,7 +582,7 @@ const routes = [
                 name: "staff-chat",
                 component: () => import("../views/Chat.vue"),
             },
-            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "profile", name: "staff-profile", component: () => import("../views/owner/OwnerProfile.vue") },
             { path: "", redirect: { name: "staff-bookings" } },
         ],
     },
