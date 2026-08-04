@@ -1,17 +1,5 @@
 export const adminNavigationSections = [
   {
-    label: 'Tổng quan',
-    items: [
-      {
-        label: 'Bảng điều hành',
-        icon: 'dashboard',
-        to: '/admin/dashboard',
-        activeNames: ['admin-dashboard'],
-        permissionCodes: ['dashboard.view'],
-      },
-    ],
-  },
-  {
     label: 'Vận hành sân',
     items: [
       {
@@ -135,13 +123,6 @@ export const adminNavigationSections = [
         permissionCodes: ['policy.view'],
       },
       {
-        label: 'Thông tin hệ thống',
-        icon: 'building',
-        to: '/admin/system-profile',
-        activeNames: ['admin-system-profile'],
-        permissionCodes: ['system_profile.view'],
-      },
-      {
         label: 'Loại sân',
         icon: 'layers',
         to: '/admin/court-types',
@@ -168,13 +149,6 @@ export const adminNavigationSections = [
         to: '/admin/banners',
         activeNames: ['admin-banners'],
         permissionCodes: ['banner.view'],
-      },
-      {
-        label: 'Cài đặt giao diện',
-        icon: 'palette',
-        to: '/admin/settings',
-        activeNames: ['admin-settings'],
-        permissionCodes: ['ui_settings.view'],
       },
     ],
   },
@@ -231,7 +205,7 @@ export const adminRouteTitles = {
   'admin-venue-platform-fees': 'Phí duy trì cụm sân',
   'admin-platform-fee-settings': 'Cài đặt nhắc phí',
   'admin-system-profile': 'Thông tin hệ thống',
-  'admin-settings': 'Cấu hình giao diện',
+  'admin-settings': 'Cài đặt hệ thống',
 };
 
 export function findAdminNavigationSection(routeName) {

@@ -1,5 +1,5 @@
 <template>
-  <section class="fee-page">
+  <div class="cluster-profile-surface standalone">
 
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
@@ -7,153 +7,150 @@
     <div v-else-if="!clusterId" class="state-card">Vui lòng chọn cụm sân ở thanh bên để xem phí.</div>
 
     <template v-else>
-      <div class="quick-payment-bar">
-        <div v-if="summary.overdue" class="payment-attention">
-          <span class="attention-icon">!</span>
-          <div>
-            <strong>{{ summary.overdue }} kỳ phí quá hạn · {{ money(overdueAmount) }}</strong>
-            <small>Thanh toán kỳ cũ nhất trước để tránh gián đoạn hoạt động.</small>
+      <div class="profile-section-card fee-main-content">
+        <div class="quick-payment-bar">
+          <div v-if="summary.overdue" class="payment-attention">
+            <span class="attention-icon">!</span>
+            <div>
+              <strong>{{ summary.overdue }} kỳ phí quá hạn · {{ money(overdueAmount) }}</strong>
+              <small>Thanh toán kỳ cũ nhất trước để tránh gián đoạn hoạt động.</small>
+            </div>
+            <button
+              class="overdue-payment-btn"
+              type="button"
+              :disabled="submitting || !oldestOverdueFee"
+              @click="payOverdue"
+            >
+              Thanh toán ngay
+            </button>
           </div>
-          <button
-            class="overdue-payment-btn"
-            type="button"
-            :disabled="submitting || !oldestOverdueFee"
-            @click="payOverdue"
-          >
-            Thanh toán ngay
-          </button>
+
+          <div v-else-if="dueSoonCount" class="payment-attention due-soon">
+            <span class="attention-icon">i</span>
+            <div>
+              <strong>{{ dueSoonCount }} kỳ phí sắp đến hạn</strong>
+              <small>Bạn có thể thanh toán tại bảng lịch sử kỳ phí bên dưới.</small>
+            </div>
+          </div>
+
+          <div class="advance-payment">
+            <div class="advance-copy">
+              <strong>Thanh toán trước</strong>
+              <small>Chọn cụm sân và kỳ hạn cần gia hạn</small>
+            </div>
+            <button type="button" :disabled="submitting" @click="openAdvancePlanner">
+              Chọn sân & kỳ hạn
+            </button>
+          </div>
         </div>
 
-        <div v-else-if="dueSoonCount" class="payment-attention due-soon">
-          <span class="attention-icon">i</span>
-          <div>
-            <strong>{{ dueSoonCount }} kỳ phí sắp đến hạn</strong>
-            <small>Bạn có thể thanh toán tại bảng lịch sử kỳ phí bên dưới.</small>
-          </div>
+        <div class="summary-grid">
+          <article v-if="activePeriod" class="summary-card active-period-card">
+            <span>Kỳ đang hiệu lực</span>
+            <strong>{{ date(activePeriod.period_start) }} - {{ date(activePeriod.period_end) }}</strong>
+            <small>{{ activePeriod.period_label || cycleLabel(activePeriod) }} · {{ periodRemainingLabel(activePeriod) }}</small>
+          </article>
+          <article class="summary-card primary-card">
+            <span>Tổng cần thanh toán</span>
+            <strong>{{ money(summary.outstanding_amount) }}</strong>
+            <small>{{ summary.pending + summary.overdue }} kỳ chưa hoàn tất</small>
+          </article>
+          <article class="summary-card">
+            <span>Chờ thanh toán</span>
+            <strong>{{ summary.pending }}</strong>
+            <small>Kỳ còn trong hạn</small>
+          </article>
+          <article class="summary-card">
+            <span>Quá hạn</span>
+            <strong class="danger-text">{{ summary.overdue }}</strong>
+            <small>Cần xử lý sớm</small>
+          </article>
+          <article class="summary-card">
+            <span>Tổng số kỳ</span>
+            <strong>{{ summary.total }}</strong>
+            <small>{{ venueName || 'Cụm sân đang chọn' }}</small>
+          </article>
         </div>
 
-        <div class="advance-payment">
-          <div class="advance-copy">
-            <strong>Thanh toán trước</strong>
-            <small>Chọn cụm sân và kỳ hạn cần gia hạn</small>
+        <article v-if="paymentAccount" class="bank-card">
+          <div>
+            <p class="eyebrow">THÔNG TIN THANH TOÁN</p>
+            <h3>Tài khoản nhận phí của SportGo</h3>
+            <p class="muted">Mỗi kỳ phí sẽ có QR và mã chuyển khoản riêng để hệ thống tự xác nhận.</p>
           </div>
-          <button type="button" :disabled="submitting" @click="openAdvancePlanner">
-            Chọn sân & kỳ hạn
-          </button>
+          <dl>
+            <div><dt>Ngân hàng</dt><dd>{{ paymentAccount.bank_name }}</dd></div>
+            <div><dt>Số tài khoản</dt><dd>{{ paymentAccount.account_number }}</dd></div>
+            <div><dt>Chủ tài khoản</dt><dd>{{ paymentAccount.account_holder_name }}</dd></div>
+          </dl>
+        </article>
+
+        <div class="services-table-section">
+          <div class="table-head">
+            <div>
+              <h3>Lịch sử kỳ phí</h3>
+              <p>Dữ liệu được tính theo kỳ phí và hạn đóng trên hệ thống.</p>
+            </div>
+          </div>
+
+          <div v-if="!filteredFees.length" class="table-state-card">
+            <span>Chưa có kỳ phí phù hợp.</span>
+          </div>
+          <div v-else class="services-table-wrapper">
+            <table class="services-data-table">
+              <thead>
+                <tr>
+                  <th>Kỳ phí</th>
+                  <th>Hạn đóng</th>
+                  <th>Số sân</th>
+                  <th>Số tiền</th>
+                  <th>Trạng thái</th>
+                  <th>Thanh toán</th>
+                  <th class="action-col">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="fee in filteredFees" :key="fee.id">
+                  <td>
+                    <strong>{{ date(fee.period_start) }} - {{ date(fee.period_end) }}</strong>
+                    <small class="cell-sub">{{ cycleLabel(fee) }} · {{ fee.tier?.name || 'Theo cấu hình' }}</small>
+                    <small :class="{ 'danger-text': fee.period_warning_level === 'overdue' }" class="cell-sub">{{ periodStatusLabel(fee) }}</small>
+                  </td>
+                  <td>
+                    <strong :class="{ 'danger-text': fee.effective_status === 'overdue' }">{{ date(fee.due_date) }}</strong>
+                    <small v-if="fee.warning_level === 'due_soon'" class="cell-sub">Còn {{ fee.days_until_due }} ngày</small>
+                    <small v-if="fee.effective_status === 'overdue'" class="danger-text cell-sub">Quá hạn {{ Math.abs(fee.days_until_due) }} ngày</small>
+                  </td>
+                  <td>{{ fee.court_count }}</td>
+                  <td>
+                    <strong>{{ money(fee.amount_due) }}</strong>
+                    <small v-if="fee.amount_paid" class="cell-sub">Đã ghi nhận {{ money(fee.amount_paid) }}</small>
+                  </td>
+                  <td><span class="status-pill" :class="fee.effective_status">{{ statusLabel(fee.effective_status) }}</span></td>
+                  <td>
+                    <span v-if="fee.effective_status === 'paid'" class="auto-status paid">Tự động xác nhận</span>
+                    <span v-else-if="fee.effective_status === 'cancelled'" class="auto-status cancelled">Không còn hiệu lực</span>
+                    <span v-else class="auto-status">QR ngân hàng</span>
+                    <small v-if="fee.payment?.code" class="cell-sub">Mã: {{ fee.payment.code }}</small>
+                    <small v-if="fee.cancelled_reason" class="cell-sub">Lý do: {{ fee.cancelled_reason }}</small>
+                  </td>
+                  <td class="action-col">
+                    <div class="table-actions">
+                      <button v-if="canPay(fee)" class="action-btn pay-btn" type="button" :disabled="submitting" @click="openPaymentModal(fee)">
+                        Thanh toán
+                      </button>
+                      <button v-if="canCancel(fee)" class="action-btn cancel-btn" type="button" :disabled="submitting" @click="openCancelDialog(fee)">
+                        Hủy
+                      </button>
+                      <span v-else-if="fee.effective_status === 'paid'" class="paid-at">{{ paidAt(fee.paid_at) }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-      <div class="summary-grid">
-        <article v-if="activePeriod" class="summary-card active-period-card">
-          <span>Kỳ đang hiệu lực</span>
-          <strong>{{ date(activePeriod.period_start) }} - {{ date(activePeriod.period_end) }}</strong>
-          <small>{{ activePeriod.period_label || cycleLabel(activePeriod) }} · {{ periodRemainingLabel(activePeriod) }}</small>
-        </article>
-        <article class="summary-card primary-card">
-          <span>Tổng cần thanh toán</span>
-          <strong>{{ money(summary.outstanding_amount) }}</strong>
-          <small>{{ summary.pending + summary.overdue }} kỳ chưa hoàn tất</small>
-        </article>
-        <article class="summary-card">
-          <span>Chờ thanh toán</span>
-          <strong>{{ summary.pending }}</strong>
-          <small>Kỳ còn trong hạn</small>
-        </article>
-        <article class="summary-card">
-          <span>Quá hạn</span>
-          <strong class="danger-text">{{ summary.overdue }}</strong>
-          <small>Cần xử lý sớm</small>
-        </article>
-        <article class="summary-card">
-          <span>Tổng số kỳ</span>
-          <strong>{{ summary.total }}</strong>
-          <small>{{ venueName || 'Cụm sân đang chọn' }}</small>
-        </article>
-      </div>
-
-      <article v-if="paymentAccount" class="bank-card">
-        <div>
-          <p class="eyebrow">THÔNG TIN THANH TOÁN</p>
-          <h3>Tài khoản nhận phí của SportGo</h3>
-          <p class="muted">Mỗi kỳ phí sẽ có QR và mã chuyển khoản riêng để hệ thống tự xác nhận.</p>
-        </div>
-        <dl>
-          <div><dt>Ngân hàng</dt><dd>{{ paymentAccount.bank_name }}</dd></div>
-          <div><dt>Số tài khoản</dt><dd>{{ paymentAccount.account_number }}</dd></div>
-          <div><dt>Chủ tài khoản</dt><dd>{{ paymentAccount.account_holder_name }}</dd></div>
-        </dl>
-      </article>
-
-      <article class="table-card">
-        <div class="table-head">
-          <div>
-            <h3>Lịch sử kỳ phí</h3>
-            <p>Dữ liệu được tính theo kỳ phí và hạn đóng trên hệ thống.</p>
-          </div>
-          <div class="table-actions">
-            <select v-model="statusFilter">
-              <option value="">Tất cả trạng thái</option>
-              <option value="pending">Chờ thanh toán</option>
-              <option value="overdue">Quá hạn</option>
-              <option value="paid">Đã thanh toán</option>
-              <option value="cancelled">Đã hủy</option>
-            </select>
-          </div>
-        </div>
-
-        <div v-if="!filteredFees.length" class="empty-state">Chưa có kỳ phí phù hợp.</div>
-        <div v-else class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Kỳ phí</th>
-                <th>Hạn đóng</th>
-                <th>Số sân</th>
-                <th>Số tiền</th>
-                <th>Trạng thái</th>
-                <th>Thanh toán</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="fee in filteredFees" :key="fee.id">
-                <td>
-                  <strong>{{ date(fee.period_start) }} - {{ date(fee.period_end) }}</strong>
-                  <small>{{ cycleLabel(fee) }} · {{ fee.tier?.name || 'Theo cấu hình' }}</small>
-                  <small :class="{ 'danger-text': fee.period_warning_level === 'overdue' }">{{ periodStatusLabel(fee) }}</small>
-                </td>
-                <td>
-                  <strong :class="{ 'danger-text': fee.effective_status === 'overdue' }">{{ date(fee.due_date) }}</strong>
-                  <small v-if="fee.warning_level === 'due_soon'">Còn {{ fee.days_until_due }} ngày</small>
-                  <small v-if="fee.effective_status === 'overdue'" class="danger-text">Quá hạn {{ Math.abs(fee.days_until_due) }} ngày</small>
-                </td>
-                <td>{{ fee.court_count }}</td>
-                <td>
-                  <strong>{{ money(fee.amount_due) }}</strong>
-                  <small v-if="fee.amount_paid">Đã ghi nhận {{ money(fee.amount_paid) }}</small>
-                </td>
-                <td><span class="status-pill" :class="fee.effective_status">{{ statusLabel(fee.effective_status) }}</span></td>
-                <td>
-                  <span v-if="fee.effective_status === 'paid'" class="auto-status paid">Tự động xác nhận</span>
-                  <span v-else-if="fee.effective_status === 'cancelled'" class="auto-status cancelled">Không còn hiệu lực</span>
-                  <span v-else class="auto-status">QR ngân hàng</span>
-                  <small v-if="fee.payment?.code">Mã: {{ fee.payment.code }}</small>
-                  <small v-if="fee.cancelled_reason">Lý do: {{ fee.cancelled_reason }}</small>
-                </td>
-                <td class="action-cell">
-                  <button v-if="canPay(fee)" class="submit-btn" type="button" :disabled="submitting" @click="openPaymentModal(fee)">
-                    Thanh toán
-                  </button>
-                  <button v-if="canCancel(fee)" class="cancel-link" type="button" :disabled="submitting" @click="openCancelDialog(fee)">
-                    Hủy
-                  </button>
-                  <span v-else-if="fee.effective_status === 'paid'" class="paid-at">{{ paidAt(fee.paid_at) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
     </template>
 
     <div v-if="advancePlannerOpen" class="modal-backdrop" @click.self="closeAdvancePlanner">
@@ -313,7 +310,7 @@
         </footer>
       </form>
     </div>
-  </section>
+  </div>
 </template>
 
 <script>
@@ -665,7 +662,7 @@ export default {
 
 .advance-copy small b {
   color: var(--admin-text);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .payment-attention.due-soon {
@@ -681,7 +678,7 @@ export default {
   flex: 0 0 27px;
   border: 2px solid currentColor;
   border-radius: 50%;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .overdue-payment-btn,
@@ -774,7 +771,7 @@ export default {
   margin: 0 0 6px;
   color: var(--admin-primary);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: .11em;
 }
 
@@ -822,19 +819,53 @@ export default {
   cursor: not-allowed;
 }
 
-.state-card,
-.table-card,
-.bank-card,
-.summary-card {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border);
-  border-radius: 14px;
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: 0;
+}
+
+.profile-section-card.fee-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.fee-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1280px;
+}
+
+.quick-payment-bar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--admin-surface, #ffffff);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .035);
 }
 
 .state-card {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
   padding: 34px;
   text-align: center;
-  color: var(--admin-muted);
+  color: var(--admin-muted, #64748b);
 }
 
 .alert {
@@ -862,7 +893,10 @@ export default {
 .summary-card {
   display: grid;
   gap: 7px;
-  padding: 19px;
+  padding: 16px 18px;
+  background: var(--admin-hover, #f8fafc);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
 }
 
 .summary-card span,
@@ -876,8 +910,8 @@ export default {
 }
 
 .active-period-card {
-  border-color: var(--admin-primary-ring);
-  background: var(--admin-primary-soft);
+  border-color: var(--admin-primary-ring, rgba(34, 166, 83, 0.25));
+  background: var(--admin-primary-soft, #f0fdf4);
 }
 
 .active-period-card strong {
@@ -886,8 +920,8 @@ export default {
 }
 
 .primary-card {
-  border-color: var(--admin-primary-ring);
-  background: var(--admin-header-gradient);
+  border-color: var(--admin-primary-ring, rgba(34, 166, 83, 0.25));
+  background: var(--admin-primary-soft, #f0fdf4);
 }
 
 .primary-card strong {
@@ -902,39 +936,24 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  padding: 20px;
+  padding: 18px 20px;
+  background: var(--admin-hover, #f8fafc);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
 }
 
-.bank-card dl {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(130px, 1fr));
-  gap: 24px;
-  margin: 0;
-}
-
-.bank-card dl div {
-  display: grid;
-  gap: 5px;
-}
-
-.bank-card dt {
-  color: var(--admin-muted);
-  font-size: 12px;
-}
-
-.bank-card dd {
-  margin: 0;
-  color: var(--admin-text);
-  font-weight: 600;
-}
-
-.table-card {
-  overflow: hidden;
+.services-table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .table-head {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--admin-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 4px;
 }
 
 .table-actions {
@@ -944,69 +963,84 @@ export default {
 }
 
 .table-head select {
-  border: 1px solid var(--admin-border);
-  border-radius: 9px;
-  padding: 9px 12px;
-  background: var(--admin-surface);
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--admin-surface, #ffffff);
   font: inherit;
-  color: var(--admin-text);
-}
-
-.table-wrap {
-  overflow: auto;
-}
-
-table {
-  width: 100%;
-  min-width: 1050px;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--admin-border);
-  text-align: left;
-  vertical-align: top;
-}
-
-th {
-  background: var(--admin-surface-muted);
-  color: var(--admin-faint);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-td {
-  color: var(--admin-text);
   font-size: 13px;
+  color: var(--admin-text, #101c15);
 }
 
-td strong,
-td small,
-td a {
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.services-table-wrapper {
+  overflow-x: auto;
+  border: none;
+  border-radius: 10px;
+}
+
+.services-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.services-data-table th {
+  background: var(--admin-bg-soft, #f7fbf5);
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 12px 14px;
+  border-bottom: none;
+}
+
+.services-data-table td {
+  padding: 12px 14px;
+  border-bottom: none;
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.services-data-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.services-data-table tbody tr:hover {
+  background: var(--admin-hover, #edf7ed);
+}
+
+.cell-sub {
   display: block;
-}
-
-td small {
-  margin-top: 5px;
-  color: var(--admin-muted);
-}
-
-td a {
-  margin-top: 5px;
-  color: var(--admin-primary);
-  font-weight: 500;
-  text-decoration: none;
+  margin-top: 3px;
+  color: var(--admin-muted, #64748b);
+  font-size: 12px;
 }
 
 .status-pill {
   display: inline-flex;
   border-radius: 999px;
-  padding: 5px 9px;
+  padding: 3px 9px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .status-pill.pending {
@@ -1016,21 +1050,44 @@ td a {
 
 .status-pill.overdue {
   background: var(--admin-danger-soft, rgba(239, 68, 68, 0.08));
-  color: var(--admin-danger);
+  color: var(--admin-danger, #ef4444);
 }
 
 .status-pill.paid {
   background: var(--admin-success-soft, rgba(16, 185, 129, 0.08));
-  color: var(--admin-primary);
+  color: var(--admin-primary, #22a653);
 }
 
 .status-pill.cancelled {
-  background: var(--admin-surface-muted);
-  color: var(--admin-muted);
+  background: var(--admin-surface-muted, #f1f5f9);
+  color: var(--admin-muted, #64748b);
 }
 
-.action-cell {
+.action-col {
+  width: 1%;
+  min-width: 100px;
   text-align: right;
+}
+
+.action-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.pay-btn {
+  background: var(--admin-primary, #22a653);
+  color: #ffffff;
+}
+
+.cancel-btn {
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.08));
+  color: var(--admin-danger, #ef4444);
 }
 
 .empty-state {

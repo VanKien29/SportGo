@@ -1,18 +1,17 @@
 <template>
-  <div class="page venue-posts-page">
-    <header class="page-header sg-page-header">
-      <div class="sg-page-heading">
-        <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
-          <router-link to="/admin/dashboard">Dashboard</router-link>
-          <span>/</span>
-          <span>Kiểm duyệt bài viết</span>
-        </nav>
-        <h2>Kiểm duyệt bài viết</h2>
-        <p>Kiểm tra, phê duyệt, từ chối hoặc quản lý các bài viết đăng tải từ chủ sân.</p>
-      </div>
-
-
-    </header>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card posts-main-content">
+      <header class="page-header sg-page-header">
+        <div class="sg-page-heading">
+          <nav class="sg-breadcrumbs" aria-label="Breadcrumb">
+            <router-link to="/admin/venue-clusters">Cụm sân</router-link>
+            <span>/</span>
+            <span>Kiểm duyệt bài viết</span>
+          </nav>
+          <h2>Kiểm duyệt bài viết</h2>
+          <p>Kiểm tra, phê duyệt, từ chối hoặc quản lý các bài viết đăng tải từ chủ sân.</p>
+        </div>
+      </header>
 
     <div class="toolbar card sg-filter-panel">
       <div class="filters">
@@ -61,12 +60,12 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <div v-if="loading" class="state-box card sg-state-box">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải danh sách bài viết...</p>
     </div>
 
-    <div v-else-if="posts.length === 0" class="state-box card sg-state-box">
+    <div v-else-if="posts.length === 0" class="state-box animate-fade-in">
       <p>Không có bài viết phù hợp.</p>
     </div>
 
@@ -98,7 +97,7 @@
           </thead>
           <tbody>
             <tr v-for="(post, index) in posts" :key="post.id">
-              <td class="center font-bold muted">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
+              <td class="center font-normal muted">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</td>
               <td>
                 <div class="thumbnail">
                   <img
@@ -126,7 +125,7 @@
                   {{ statusLabel(post.status) }}
                 </span>
               </td>
-              <td class="center font-bold">{{ post.view_count || 0 }}</td>
+              <td class="center font-normal">{{ post.view_count || 0 }}</td>
               <td class="right muted">{{ formatDate(post.created_at) }}</td>
               <td class="right">
                 <div class="actions">
@@ -227,7 +226,7 @@
 
             <h4>Quyết định kiểm duyệt</h4>
             <div class="field" style="margin-bottom: 12px;">
-              <label style="font-size: 13px; font-weight: 800; color: rgba(15,23,42,0.5); display:block; margin-bottom: 8px;">Lý do / Phản hồi (Bắt buộc nếu từ chối/ẩn)</label>
+              <label style="font-size: 13px; font-weight: 400; color: rgba(15,23,42,0.5); display:block; margin-bottom: 8px;">Lý do / Phản hồi (Bắt buộc nếu từ chối/ẩn)</label>
               <textarea
                 v-model="reviewReason"
                 placeholder="Nhập nội dung phản hồi cho chủ sân..."
@@ -275,6 +274,7 @@
           </section>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
@@ -560,7 +560,7 @@ export default {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   color: var(--sg-text);
 }
 .field input,
@@ -607,7 +607,7 @@ th, td {
 th {
   background: #f8fafc;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   color: #475569;
   text-transform: uppercase;
 }
@@ -618,7 +618,7 @@ th {
   gap: 12px;
   padding: 12px 16px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 /* Custom Status extensions */
@@ -688,7 +688,7 @@ th {
 .detail-section h4 {
   margin: 0 0 12px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
   color: var(--sg-text);
 }
 dl {
@@ -700,13 +700,13 @@ dl {
 dt {
   color: rgba(15, 23, 42, 0.5);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 dd {
   margin: 0;
   color: var(--sg-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 /* Specific post preview styling */
@@ -717,7 +717,7 @@ dd {
 }
 .post-title {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 400;
   color: var(--sg-text);
   margin: 0 0 8px;
 }
@@ -743,7 +743,7 @@ dd {
   gap: 8px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
   transition: background 0.18s, border-color 0.18s, color 0.18s;
 }
@@ -807,7 +807,7 @@ dd {
   padding: 12px 14px;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .notice.success {
@@ -865,7 +865,7 @@ dd {
 
 .main-title {
   color: var(--sg-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .muted {
@@ -878,7 +878,7 @@ dd {
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .status-pending,
@@ -910,5 +910,15 @@ dd {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.posts-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

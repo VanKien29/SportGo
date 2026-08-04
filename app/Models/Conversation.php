@@ -14,6 +14,7 @@ class Conversation extends Model
         'reference_type',
         'reference_id',
         'title',
+        'avatar_url',
         'created_by',
         'last_message_at',
     ];

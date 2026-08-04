@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Teleport to="body">
     <div v-if="modelValue" class="confirm-backdrop" @click.self="cancel">
       <section class="confirm-modal" :class="`confirm-${type}`" role="dialog" aria-modal="true">
@@ -94,7 +94,7 @@ export default {
   border-radius: 999px;
   background: #fef3c7;
   color: #92400e;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .confirm-danger .confirm-mark {
@@ -149,7 +149,7 @@ p {
   border-radius: 8px;
   padding: 9px 16px;
   font: inherit;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
 }
 

@@ -95,9 +95,10 @@
       >
         <span class="work-center-toast-icon"><AppIcon :name="categoryIcon(toastItem.category)" size="18" /></span>
         <div>
-          <small>Việc cần xử lý</small>
-          <strong>{{ toastItem.title }}</strong>
-          <button type="button" @click="openItem(toastItem)">{{ toastItem.action_label }}</button>
+          <small>{{ toastItem.subtitle || 'Thông báo hệ thống' }}</small>
+          <strong>{{ toastItem.title || toastItem.description }}</strong>
+          <span v-if="toastItem.description && toastItem.title !== toastItem.description" style="font-size: 12px; color: #475569; margin-top: 2px;">{{ toastItem.description }}</span>
+          <button v-if="toastItem.action_label" type="button" @click="openItem(toastItem)">{{ toastItem.action_label }}</button>
         </div>
         <button class="work-center-toast-close" type="button" title="Đóng" @click="dismissToast">
           <AppIcon name="x" size="15" />
@@ -145,16 +146,38 @@ export default {
   mounted() {
     document.addEventListener('pointerdown', this.closeFromOutside);
     document.addEventListener('keydown', this.closeOnEscape);
+    window.addEventListener('refresh-work-center', this.handleRefreshEvent);
+    window.addEventListener('show-toast', this.handleShowToastEvent);
     this.load();
     this.pollTimer = window.setInterval(() => this.load(), 60_000);
   },
   beforeUnmount() {
     document.removeEventListener('pointerdown', this.closeFromOutside);
     document.removeEventListener('keydown', this.closeOnEscape);
+    window.removeEventListener('refresh-work-center', this.handleRefreshEvent);
+    window.removeEventListener('show-toast', this.handleShowToastEvent);
     if (this.pollTimer) window.clearInterval(this.pollTimer);
     if (this.toastTimer) window.clearTimeout(this.toastTimer);
   },
   methods: {
+    handleRefreshEvent() {
+      this.load(true);
+    },
+    handleShowToastEvent(event) {
+      const detail = typeof event.detail === 'string' ? { message: event.detail } : (event.detail || {});
+      this.toastItem = {
+        id: 'toast-' + Date.now(),
+        category: detail.type === 'error' ? 'alert' : 'system',
+        subtitle: detail.type === 'error' ? 'Lỗi hệ thống' : 'Thông báo hệ thống',
+        title: detail.title || (detail.type === 'error' ? 'Thao tác không thành công' : 'Thành công'),
+        description: detail.message || detail.text || '',
+      };
+      if (this.toastTimer) window.clearTimeout(this.toastTimer);
+      this.toastTimer = window.setTimeout(() => {
+        this.toastItem = null;
+        this.toastTimer = null;
+      }, 4000);
+    },
     async load(force = false) {
       if (this.loading && !force) return;
       this.loading = true;
@@ -296,7 +319,7 @@ export default {
   background: #d13c32;
   color: #fff;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1;
 }
 
@@ -339,7 +362,7 @@ export default {
   margin-bottom: 3px;
   color: #617068;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -372,7 +395,7 @@ export default {
   border-bottom: 2px solid transparent;
   background: transparent;
   color: #5f6e66;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -465,7 +488,7 @@ export default {
 }
 
 .work-center-item-meta span {
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .work-center-item-copy strong,
@@ -495,7 +518,7 @@ export default {
   margin-top: 2px;
   color: #147a43;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .work-center-state {
@@ -557,7 +580,7 @@ export default {
 
 .work-center-toast small {
   color: #6b7971;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .work-center-toast strong {
@@ -572,7 +595,7 @@ export default {
   border: 0;
   background: transparent;
   color: #147a43;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
 }
 

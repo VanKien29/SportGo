@@ -1,31 +1,21 @@
 <template>
   <div class="complaints-page">
-    <div v-if="success" class="notice success">{{ success }}</div>
-    <div v-if="error" class="notice error">{{ error }}</div>
+      <div v-if="success" class="notice success">{{ success }}</div>
+      <div v-if="error" class="notice error">{{ error }}</div>
 
     <div v-if="!detailOpen">
-        <div class="filter-toolbar card" style="margin-bottom: 24px;">
-          <!-- Tabs -->
-          <div class="tabs-header">
-            <button class="tab-btn" :class="{ active: filters.complaint_type === 'system' }" @click="filters.complaint_type = 'system'; loadComplaints()">
-              <AppIcon name="shield-alert" size="16" /> Khiếu nại hệ thống
-            </button>
-            <button class="tab-btn" :class="{ active: filters.complaint_type === 'venue' }" @click="filters.complaint_type = 'venue'; loadComplaints()">
-              <AppIcon name="message-square" size="16" /> Khiếu nại cụm sân
-            </button>
-          </div>
-
-          <!-- Filter and Search -->
-          <div class="filters-row" style="display: flex; gap: 12px; align-items: center; padding: 16px;">
-            <label class="field compact search-field" style="flex: 1;">
-              <AppIcon name="search" size="16" />
-              <input
-                v-model.trim="filters.keyword"
-                type="search"
-                placeholder="Tìm khách hàng, booking, cụm sân..."
-                @keyup.enter="loadComplaints"
-              />
-            </label>
+        <SaaSFilterBar
+          v-model="filters.complaint_type"
+          :tabs="[
+            { value: 'system', label: 'Khiếu nại hệ thống' },
+            { value: 'venue', label: 'Khiếu nại cụm sân' }
+          ]"
+          v-model:search="filters.keyword"
+          searchPlaceholder="Tìm khách hàng, booking, cụm sân..."
+          @update:modelValue="loadComplaints"
+          @update:search="loadComplaints"
+        >
+          <template #actions>
             <CustomSelect
               v-model="filters.status"
               :options="[{value: '', label: 'Tất cả trạng thái'}, ...statuses]"
@@ -34,80 +24,68 @@
 
             <AdminDatePicker v-model="filters.date_from" placeholder="Từ ngày" @update:modelValue="loadComplaints" />
             <AdminDatePicker v-model="filters.date_to" placeholder="Đến ngày" @update:modelValue="loadComplaints" />
-            <ActionIconButton icon="filter" label="Lọc" variant="primary" @click="loadComplaints" />
             <ActionIconButton icon="settings" label="Cấu hình tự động" variant="secondary" @click="openAutoResolveModal" />
-          </div>
-        </div>
+          </template>
+        </SaaSFilterBar>
 
         <!-- Loading Screen -->
-        <div v-if="loading" class="state-box card">
+        <div v-if="loading" class="state-box animate-fade-in">
           <div class="spinner"></div>
           <p>Đang tải danh sách khiếu nại...</p>
         </div>
 
         <!-- Empty Screen -->
-        <div v-else-if="complaints.length === 0" class="state-box card">
+        <div v-else-if="complaints.length === 0" class="state-box animate-fade-in">
           <AppIcon name="fileText" size="36" />
           <p>Không tìm thấy khiếu nại nào.</p>
         </div>
 
         <!-- Complaints Table -->
         <div v-else class="table-container card">
-          <div class="table-scroll">
-            <table style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr style="text-align: left; border-bottom: 1px solid #e2e8f0;">
-                  <th style="padding: 12px 16px;">Khách hàng</th>
-                  <th style="padding: 12px 16px;">Nội dung khiếu nại</th>
-                  <th style="padding: 12px 16px;">Cụm sân / Booking</th>
-                  <th style="padding: 12px 16px;">Trạng thái</th>
-                  <th style="padding: 12px 16px;">Ngày tạo</th>
-                  <th class="center" style="width: 120px; padding: 12px 16px; text-align: center;">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="complaint in complaints" :key="complaint.id" class="complaint-row" style="border-bottom: 1px solid #f1f5f9;">
-                  <td style="padding: 12px 16px;">
-                    <div class="author-cell">
-                      <strong>{{ complaint.customer?.full_name || 'Khách hàng' }}</strong>
-                      <div class="muted small" style="font-size: 12px; color: #64748b;">{{ complaint.customer?.phone || 'Không có SĐT' }}</div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <div class="info-cell">
-                      <div class="post-title" style="font-weight: 500;">{{ truncate(complaint.content, 60) }}</div>
-                      <div class="complaint-type" style="margin-top: 4px;">
-                        <span class="type-badge" style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ typeLabel(complaint.complaint_type) }}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <div class="info-cell">
-                      <div class="post-court" style="font-size: 13px;">
-                        <strong>{{ complaint.venue_cluster?.name || 'Hệ thống' }}</strong>
-                      </div>
-                      <div v-if="complaint.booking" class="booking-link-cell mt-1" style="font-size: 12px; color: #64748b;">
-                        Mã: {{ complaint.booking.booking_code }}
-                      </div>
-                    </div>
-                  </td>
-                  <td style="padding: 12px 16px;">
-                    <span class="status-badge" :class="'status-' + (complaint.status === 'resolved' ? 'success' : (complaint.status === 'processing' ? 'info' : 'warning'))" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;" :style="complaint.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (complaint.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
-                      {{ statusLabel(complaint.status) }}
-                    </span>
-                  </td>
-                  <td style="padding: 12px 16px; font-size: 13px;">
-                    <span class="date-cell">{{ formatDateTime(complaint.created_at) }}</span>
-                  </td>
-                  <td class="center" style="padding: 12px 16px; text-align: center;">
-                    <button @click="openDetail(complaint)" class="btn ghost icon-only" title="Xem chi tiết" style="padding: 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer;">
-                      <AppIcon name="eye" size="18" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <SaaSTable :columns="tableColumns" :data="complaints">
+            <template #customer="{ row }">
+              <div class="author-cell">
+                <strong>{{ row.customer?.full_name || 'Khách hàng' }}</strong>
+                <div class="muted small" style="font-size: 12px; color: #64748b;">{{ row.customer?.phone || 'Không có SĐT' }}</div>
+              </div>
+            </template>
+
+            <template #content="{ row }">
+              <div class="info-cell">
+                <div class="post-title" style="font-weight: 500;">{{ truncate(row.content, 60) }}</div>
+                <div class="complaint-type" style="margin-top: 4px;">
+                  <span class="type-badge" style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;">{{ typeLabel(row.complaint_type) }}</span>
+                </div>
+              </div>
+            </template>
+
+            <template #target="{ row }">
+              <div class="info-cell">
+                <div class="post-court" style="font-size: 13px;">
+                  <strong>{{ row.venue_cluster?.name || 'Hệ thống' }}</strong>
+                </div>
+                <div v-if="row.booking" class="booking-link-cell mt-1" style="font-size: 12px; color: #64748b;">
+                  Mã: {{ row.booking.booking_code }}
+                </div>
+              </div>
+            </template>
+
+            <template #status="{ row }">
+              <span class="status-badge" :class="'status-' + (row.status === 'resolved' ? 'success' : (row.status === 'processing' ? 'info' : 'warning'))" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 400;" :style="row.status === 'resolved' ? 'background: #dcfce7; color: #166534;' : (row.status === 'processing' ? 'background: #dbeafe; color: #1e40af;' : 'background: #fef3c7; color: #92400e;')">
+                {{ statusLabel(row.status) }}
+              </span>
+            </template>
+
+            <template #created_at="{ row }">
+              <span class="date-cell">{{ formatDateTime(row.created_at) }}</span>
+            </template>
+
+            <template #actions="{ row }">
+              <TableActionGroup>
+                <ActionIconButton icon="eye" label="Xem chi tiết" size="sm" @click="openDetail(row)" />
+              </TableActionGroup>
+            </template>
+          </SaaSTable>
         </div>
     </div>
 
@@ -126,7 +104,7 @@
                 <AppIcon name="arrowLeft" size="24" />
               </button>
               <div>
-                <h1 class="page-title" style="margin: 0; font-size: 20px; font-weight: 700;">Chi tiết khiếu nại</h1>
+                <h1 class="page-title" style="margin: 0; font-size: 20px; font-weight: 400;">Chi tiết khiếu nại</h1>
                 <p class="subtitle" style="margin: 0; color: #64748b; font-size: 14px;">
                   Mã khiếu nại: <strong>{{ shortId(selected.id) }}</strong> ·
                   Tạo lúc: {{ formatDateTime(selected.created_at) }}
@@ -161,7 +139,7 @@
                 <h3 style="margin-top: 0; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">Thông tin Booking liên quan</h3>
                 <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
                   <span class="label" style="color: #64748b;">Mã Booking:</span>
-                  <span class="value" style="font-weight: 600;">{{ selected.booking_detail.booking_code }}</span>
+                  <span class="value" style="font-weight: 400;">{{ selected.booking_detail.booking_code }}</span>
                 </div>
                 <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
                   <span class="label" style="color: #64748b;">Thời gian:</span>
@@ -184,11 +162,11 @@
               <!-- Original Complaint Content -->
               <div class="card complaint-box" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
                 <div class="complaint-head" style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
-                  <div class="avatar" style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                  <div class="avatar" style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 400;">
                     {{ selected.customer?.full_name?.charAt(0) || 'U' }}
                   </div>
                   <div>
-                    <div style="font-weight: 600; font-size: 15px;">{{ selected.customer?.full_name || 'Khách hàng' }} <span style="color: #64748b; font-weight: normal;">đã gửi khiếu nại ({{ typeLabel(selected.complaint_type) }})</span></div>
+                    <div style="font-weight: 400; font-size: 15px;">{{ selected.customer?.full_name || 'Khách hàng' }} <span style="color: #64748b; font-weight: normal;">đã gửi khiếu nại ({{ typeLabel(selected.complaint_type) }})</span></div>
                     <div style="font-size: 13px; color: #94a3b8;">{{ formatDateTime(selected.created_at) }}</div>
                   </div>
                 </div>
@@ -206,13 +184,13 @@
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Giải quyết khiếu nại</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div>
-                    <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">Ghi chú giải quyết (gửi cho khách / chủ sân)</label>
+                    <label style="display: block; font-size: 14px; font-weight: 400; margin-bottom: 8px;">Ghi chú giải quyết (gửi cho khách / chủ sân)</label>
                     <textarea v-model="form.resolve_note" placeholder="Nhập ghi chú giải quyết..." style="width: 100%; min-height: 100px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
                   </div>
                   <div style="display: flex; gap: 12px;">
-                    <button @click="resolveComplaintWithStatus('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Giải quyết (Đồng ý)</button>
-                    <button @click="resolveComplaintWithStatus('rejected')" class="btn" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Từ chối khiếu nại</button>
-                    <button @click="resolveComplaintWithStatus('closed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;" :disabled="saving">Đóng khiếu nại</button>
+                    <button @click="resolveComplaintWithStatus('resolved')" class="btn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Giải quyết (Đồng ý)</button>
+                    <button @click="resolveComplaintWithStatus('rejected')" class="btn" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Từ chối khiếu nại</button>
+                    <button @click="resolveComplaintWithStatus('closed')" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 400; cursor: pointer;" :disabled="saving">Đóng khiếu nại</button>
                   </div>
                 </div>
               </div>
@@ -222,7 +200,7 @@
                 <h3 style="margin-top: 0; font-size: 16px; margin-bottom: 16px;">Gửi thông báo bổ sung</h3>
                 <div style="display: flex; flex-direction: column; gap: 16px;">
                   <div style="display: flex; gap: 24px; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <label style="font-size: 14px; font-weight: 600; color: #334155; margin: 0;">Gửi cho:</label>
+                    <label style="font-size: 14px; font-weight: 400; color: #334155; margin: 0;">Gửi cho:</label>
                     <div style="display: flex; gap: 20px;">
                       <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; color: #475569;">
                         <input type="radio" v-model="form.notify_recipient" value="reporter" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
@@ -238,13 +216,13 @@
                     <textarea v-model="form.notify_message" placeholder="Nhập nội dung thông báo muốn gửi..." style="width: 100%; min-height: 120px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; box-sizing: border-box; outline: none; transition: border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.1)';" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"></textarea>
                   </div>
                   <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
+                    <button @click="sendAdditionalNotification" class="btn primary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" :disabled="saving || !form.notify_message">
                       <AppIcon name="send" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi thông báo
                     </button>
-                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
+                    <button @click="fillTemplateNotifyMessage" class="btn ghost" style="padding: 10px 20px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" :disabled="saving">
                       Sử dụng văn mẫu
                     </button>
-                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
+                    <button v-if="!hasSentNotification" @click="sendToBothAuto" class="btn warning" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 400; cursor: pointer; transition: background 0.15s; white-space: nowrap; margin-left: auto;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" :disabled="saving">
                       <AppIcon name="zap" size="16" style="margin-right: 6px; display: inline-block; vertical-align: middle;" /> Gửi nhanh cho cả 2 (Văn mẫu)
                     </button>
                   </div>
@@ -304,13 +282,16 @@
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
 import CustomSelect from "../../components/CustomSelect.vue";
 import AdminDatePicker from "../../components/AdminDatePicker.vue";
 import { adminComplaintService } from "../../services/adminModeration.js";
 
 export default {
     name: "AdminComplaints",
-    components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker },
+    components: { AppIcon, ActionIconButton, CustomSelect, AdminDatePicker, TableActionGroup, SaaSFilterBar, SaaSTable },
     data() {
         return {
             complaints: [],
@@ -369,6 +350,16 @@ export default {
         },
         hasSentNotification() {
             return this.auditLogs && this.auditLogs.some(log => ['complaint.notified', 'complaint.resolved', 'complaint.rejected', 'complaint.closed'].includes(String(log.action).trim().toLowerCase()));
+        },
+        tableColumns() {
+            return [
+                { key: 'customer', label: 'KHÁCH HÀNG' },
+                { key: 'content', label: 'NỘI DUNG KHIẾU NẠI' },
+                { key: 'target', label: 'CỤM SÂN / BOOKING' },
+                { key: 'status', label: 'TRẠNG THÁI' },
+                { key: 'created_at', label: 'NGÀY TẠO' },
+                { key: 'actions', label: 'THAO TÁC', align: 'right' }
+            ];
         },
     },
     mounted() {
@@ -734,7 +725,7 @@ export default {
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -813,7 +804,7 @@ th {
   background: var(--admin-surface-muted);
   padding: 12px 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-faint);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -873,7 +864,7 @@ th.center, td.center {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   background: var(--admin-surface-hover);
   color: var(--admin-text);
 }
@@ -891,7 +882,7 @@ th.center, td.center {
 
 .booking-code {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-primary);
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
@@ -903,7 +894,7 @@ th.center, td.center {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .status-warning {
   background: rgba(245, 158, 11, 0.1);
@@ -976,7 +967,7 @@ th.center, td.center {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-muted);
   transition: all 0.2s;
   flex-shrink: 0;

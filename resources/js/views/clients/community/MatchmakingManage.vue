@@ -391,3 +391,4 @@ watch(() => route.params.id, resetAndFetch);
 onMounted(fetchParticipants);
 </script>
 
+

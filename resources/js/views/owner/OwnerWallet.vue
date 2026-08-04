@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="wallet-simple">
     <div v-if="error" class="error-msg">{{ error }}</div>
     <div v-if="successMsg" class="success-msg">{{ successMsg }}</div>
@@ -265,7 +265,7 @@ export default {
   color: #b91c1c;
   margin-bottom: 20px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .success-msg {
@@ -275,7 +275,7 @@ export default {
   color: #15803d;
   margin-bottom: 20px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .section-box {
@@ -289,7 +289,7 @@ export default {
 
 .section-title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.5px;
   margin-top: 0;
   margin-bottom: 15px;
@@ -326,7 +326,7 @@ export default {
 }
 
 .bold {
-  font-weight: 700;
+  font-weight: 400;
   color: #000000;
 }
 
@@ -339,7 +339,7 @@ export default {
 
 .form-label {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: #333333;
 }
 
@@ -373,7 +373,7 @@ export default {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .btn-simple:disabled {
@@ -395,7 +395,7 @@ export default {
 }
 
 .simple-table th {
-  font-weight: 700;
+  font-weight: 400;
   color: #666666;
   border-bottom: 2px solid #dddddd;
 }
@@ -411,7 +411,7 @@ export default {
   display: inline-block;
   padding: 4px 8px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   border: 1px solid #cccccc;
   border-radius: 2px;
   background-color: #fcfcfc;

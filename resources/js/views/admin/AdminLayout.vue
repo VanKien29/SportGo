@@ -25,9 +25,6 @@ import {
 
 import { autoApproveStore } from '../../stores/autoApprove.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
-import { applyCustomThemeStyles } from '../../utils/theme.js';
-import { getAuth } from '../../stores/auth.js';
-import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
 
 export default {
   name: 'AdminLayout',
@@ -61,38 +58,7 @@ export default {
      * Dùng deep clone để không mutate config gốc.
      */
     navSectionsWithBadges() {
-      return this.filteredNavigationSections.map((section) => ({
-        ...section,
-        items: section.items.map((item) => {
-          let badge = null;
-
-          // Hồ sơ đối tác
-          if (item.activeNames?.includes('admin-partner-applications')) {
-            badge = badgeLabel(pendingCounts.partner_applications);
-          }
-          // Cụm sân (approval + location + info changes)
-          if (
-            item.activeNames?.includes('admin-venue-clusters') ||
-            item.activeNames?.includes('admin-venue-cluster-detail')
-          ) {
-            badge = badgeLabel(pendingCounts.venue_clusters);
-          }
-          // Hoàn tiền & rút tiền
-          if (item.activeNames?.includes('admin-finance-operations')) {
-            badge = badgeLabel(pendingCounts.finance);
-          }
-          // Báo cáo & Khiếu nại
-          if (item.activeNames?.includes('admin-reports-complaints')) {
-            badge = badgeLabel(pendingCounts.moderation_support);
-          }
-          // Kiểm duyệt bài viết
-          if (item.activeNames?.includes('admin-moderation')) {
-            badge = badgeLabel(pendingCounts.detail.moderation_posts);
-          }
-
-          return badge ? { ...item, badge } : item;
-        }),
-      }));
+      return adminNavigationSections;
     },
   },
   created() {
@@ -149,7 +115,6 @@ export default {
             localStorage.setItem('admin-user-presets', JSON.stringify(data.custom_themes));
           }
 
-          applyCustomThemeStyles();
           window.dispatchEvent(new Event('sidebar-style-changed'));
         }
       } catch (e) {

@@ -15,79 +15,9 @@
     <div
       :class="[
         'flex-1 flex overflow-hidden relative',
-        usesAdminChatTheme ? 'admin-chat-workspace' : 'client-chat-workspace'
+        usesAdminChatTheme ? 'admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
       ]"
     >
-      <!-- Telegram Menu Drawer Overlay -->
-      <div
-        v-if="showTelegramMenu"
-        class="fixed inset-0 bg-transparent z-[9998]"
-        @click="closeTelegramMenu"
-      ></div>
-
-      <!-- Telegram Menu Drawer Panel -->
-      <div
-        :class="[
-          'fixed inset-y-0 left-0 w-[280px] z-[9999] flex flex-col transition-transform duration-300 tg-drawer-panel',
-          showTelegramMenu ? 'translate-x-0' : '-translate-x-full'
-        ]"
-      >
-        <!-- Drawer Profile Header -->
-        <div class="tg-drawer-header">
-          <div class="h-11 w-11 rounded-full bg-orange-500 flex items-center justify-center font-semibold text-sm text-white select-none">
-            {{ (currentUser?.full_name || currentUser?.username || 'U').charAt(0).toUpperCase() }}
-          </div>
-
-          <div class="flex items-center justify-between mt-1.5">
-            <div class="min-w-0">
-              <div class="font-semibold text-[13px] tg-drawer-header-name truncate">{{ currentUser?.full_name }}</div>
-              <div class="text-[11px] tg-drawer-header-sub mt-0.5">{{ currentUser?.email || currentUser?.phone || '' }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Drawer Navigation Items -->
-        <div class="flex-1 overflow-y-auto tg-drawer-nav">
-          <div class="py-2 px-2">
-            <!-- Tin nhắn đã lưu (Saved Messages - self chat) -->
-            <button @click="openSavedMessages" class="tg-drawer-item text-left w-full">
-              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-              <span>Tin nhắn đã lưu</span>
-            </button>
-
-          </div>
-
-          <!-- Divider -->
-          <div class="tg-drawer-divider"></div>
-
-          <!-- Theme Toggling Option -->
-          <div v-if="!usesAdminChatTheme" class="tg-drawer-toggle-row">
-            <div class="flex items-center gap-4 select-none">
-              <svg class="tg-drawer-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-              <span class="text-sm">Chế độ tối</span>
-            </div>
-
-            <!-- Custom Toggle Switch -->
-            <button
-              type="button"
-              @click="toggleNightMode"
-              class="tg-toggle-switch"
-              :class="isNightMode ? 'tg-toggle-on' : 'tg-toggle-off'"
-              aria-label="Chế độ tối"
-            >
-              <span
-                class="tg-toggle-knob"
-                :class="isNightMode ? 'tg-knob-on' : 'tg-knob-off'"
-              ></span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- Left Sidebar: Chat List -->
       <div
         :class="[
@@ -95,6 +25,87 @@
           mobileShowChat ? 'hidden' : 'flex'
         ]"
       >
+        <!-- Telegram Menu Drawer Overlay -->
+        <Transition name="drawer-fade">
+          <div
+            v-if="showTelegramMenu"
+            class="absolute inset-0 bg-black/40 backdrop-blur-xs z-[28] cursor-pointer"
+            @click="showTelegramMenu = false"
+          ></div>
+        </Transition>
+
+        <!-- Telegram Menu Drawer Panel -->
+        <Transition name="drawer-slide">
+          <div
+            v-if="showTelegramMenu"
+            class="absolute inset-y-0 left-0 w-60 z-[30] flex flex-col tg-drawer-panel shadow-xl"
+          >
+            <!-- Drawer Profile Header -->
+            <div class="tg-drawer-header flex items-center justify-between">
+              <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                <div
+                  class="h-9 w-9 rounded-full text-white flex items-center justify-center font-semibold text-xs select-none shrink-0 border border-zinc-700/50 shadow-sm uppercase"
+                  :style="{ backgroundColor: getAvatarColorHex(currentUser?.full_name) }"
+                >
+                  {{ (currentUser?.full_name || currentUser?.username || 'U').charAt(0) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="font-medium text-xs text-[var(--admin-text,#101c15)] truncate">{{ currentUser?.full_name }}</div>
+                  <div class="text-[11px] text-[var(--admin-muted,#64748b)] truncate mt-0.5">{{ currentUser?.email || currentUser?.phone || '' }}</div>
+                </div>
+              </div>
+
+              <!-- Close Button (X) -->
+              <button
+                type="button"
+                @click="showTelegramMenu = false"
+                class="p-1 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0 bg-transparent border-0 cursor-pointer ml-1"
+                title="Đóng menu"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Drawer Navigation Items (Text Only, No Icons) -->
+            <div class="flex-1 overflow-y-auto tg-drawer-nav">
+              <div class="py-1 px-1 space-y-0.5">
+                <!-- Tạo nhóm chat mới (Create Group) -->
+                <button @click="openCreateGroupModal(); showTelegramMenu = false" class="tg-drawer-item text-left w-full transition-all duration-150 rounded-lg">
+                  <span>Tạo nhóm chat mới</span>
+                </button>
+
+                <!-- Tin nhắn đã lưu (Saved Messages - self chat) -->
+                <button @click="openSavedMessages(); showTelegramMenu = false" class="tg-drawer-item text-left w-full transition-all duration-150 rounded-lg">
+                  <span>Tin nhắn đã lưu</span>
+                </button>
+              </div>
+
+              <!-- Theme Toggling Option -->
+              <div v-if="!usesAdminChatTheme" class="tg-drawer-toggle-row">
+                <div class="flex items-center gap-2 select-none">
+                  <span class="text-xs">Chế độ tối</span>
+                </div>
+
+                <!-- Custom Toggle Switch -->
+                <button
+                  type="button"
+                  @click="toggleNightMode"
+                  class="tg-toggle-switch"
+                  :class="isNightMode ? 'tg-toggle-on' : 'tg-toggle-off'"
+                  aria-label="Chế độ tối"
+                >
+                  <span
+                    class="tg-toggle-knob"
+                    :class="isNightMode ? 'tg-knob-on' : 'tg-knob-off'"
+                  ></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+
         <!-- Sidebar Header / Search -->
         <div class="p-3 flex items-center gap-2 tg-sidebar-header shrink-0">
           <button
@@ -133,7 +144,7 @@
             @click="clickSearchResult(user)"
             class="tg-conv-item w-full transition-all"
           >
-            <div class="tg-avatar tg-avatar-small">
+            <div class="tg-avatar tg-avatar-small" :style="{ backgroundColor: getAvatarColorHex(user.full_name) }">
               {{ (user?.full_name || 'U').charAt(0).toUpperCase() }}
             </div>
             <div class="flex-1 min-w-0">
@@ -163,8 +174,11 @@
             ]"
           >
             <!-- Avatar -->
-            <div class="tg-avatar">
-              {{ (conv.title || 'U').charAt(0).toUpperCase() }}
+            <div :class="['tg-avatar', isConvOnline(conv) ? 'tg-avatar-online' : '']" :style="!conv.avatar_url ? { backgroundColor: getAvatarColorHex(conv.title) } : {}">
+              <img v-if="conv.avatar_url" :src="conv.avatar_url" class="w-full h-full rounded-full object-cover" />
+              <template v-else>
+                {{ (conv.title || 'U').charAt(0).toUpperCase() }}
+              </template>
             </div>
 
             <!-- Content -->
@@ -179,7 +193,7 @@
                   {{ conv.last_message?.content || 'Chưa có tin nhắn' }}
                 </div>
                 <!-- Badge count -->
-                <div v-if="conv.unread_count > 0" class="h-5 min-w-5 px-1.5 bg-green-500 text-zinc-950 font-bold text-[10px] rounded-full flex items-center justify-center shrink-0">
+                <div v-if="conv.unread_count > 0" class="h-5 min-w-5 px-1.5 bg-green-500 text-zinc-950 font-normal text-[10px] rounded-full flex items-center justify-center shrink-0">
                   {{ conv.unread_count }}
                 </div>
               </div>
@@ -220,17 +234,20 @@
                 </svg>
               </button>
 
-              <div class="tg-avatar tg-avatar-small">
-                {{ profileInitial }}
+              <div :class="['tg-avatar', 'tg-avatar-small', isUserOnline(profileUser?.id) ? 'tg-avatar-online' : '']" :style="!profileAvatarUrl ? { backgroundColor: getAvatarColorHex(profileDisplayName) } : {}">
+                <img v-if="profileAvatarUrl" :src="profileAvatarUrl" class="w-full h-full rounded-full object-cover" />
+                <template v-else>
+                  {{ profileInitial }}
+                </template>
               </div>
               <div class="min-w-0">
                 <div class="font-medium text-sm text-zinc-100 flex items-center gap-2 min-w-0">
                   <span class="truncate">{{ profileDisplayName }}</span>
-                  <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-400 text-[9px] font-bold rounded border border-green-500/20 uppercase tracking-wider shrink-0">
+                  <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-400 text-[9px] font-normal rounded border border-green-500/20 uppercase tracking-wider shrink-0">
                     Sân đấu
                   </span>
                 </div>
-                <div class="text-[10px] text-zinc-500 flex items-center gap-1">
+                <div v-if="profileStatusText" class="text-[10px] text-zinc-500 flex items-center gap-1">
                   <span class="h-1.5 w-1.5 bg-green-500 rounded-full shrink-0"></span>
                   <span>{{ profileStatusText }}</span>
                 </div>
@@ -263,6 +280,7 @@
               </button>
 
               <!-- Chat Options Menu Dropdown -->
+              <div v-if="showChatMenu" class="fixed inset-0 z-40" @click="showChatMenu = false"></div>
               <div
                 v-if="showChatMenu"
                 class="tg-dropdown-menu absolute right-0 top-11 w-56 z-50 py-1"
@@ -296,36 +314,55 @@
             </div>
           </div>
 
-          <!-- Pinned Messages Banner -->
+          <!-- Pinned Messages Banner (Premium Light Redesign) -->
           <div
             v-if="pinnedMessages.length > 0"
-            class="pinned-messages-banner pl-3 pr-4 py-2 border-b border-zinc-800/80 border-l-2 border-l-[var(--tg-accent,var(--admin-primary,#22a653))] bg-zinc-900/80 backdrop-blur-md text-sm shrink-0 flex items-center justify-between select-none"
+            class="pinned-messages-banner"
           >
-            <div class="flex items-center gap-2 min-w-0 cursor-pointer" @click="scrollToMessage(pinnedMessages[0].id)">
-              <svg class="h-3.5 w-3.5 text-[var(--tg-accent,var(--admin-primary,#22a653))] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <div
+              class="pinned-banner-link"
+              @click="scrollToMessage(pinnedMessages[0].id)"
+            >
+              <!-- Left Accent Pin Indicator Line -->
+              <div class="pinned-accent-line"></div>
+
+              <!-- Pin Icon -->
+              <svg class="pinned-banner-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
-              <div class="truncate">
-                <span class="text-zinc-500 font-normal">Tin nhắn đã ghim: </span>
-                <span class="text-zinc-300 font-normal">{{ pinnedMessages[0].content }}</span>
+
+              <!-- Content details -->
+              <div class="pinned-banner-content">
+                <div class="pinned-banner-title">
+                  <span>Tin nhắn đã ghim</span>
+                  <span v-if="pinnedMessages[0].sender?.full_name" class="pinned-banner-sender">
+                    • {{ pinnedMessages[0].sender.full_name }}
+                  </span>
+                </div>
+                <div class="pinned-banner-text">
+                  {{ pinnedMessages[0].content || '[Hình ảnh/Nội dung đặc biệt]' }}
+                </div>
               </div>
             </div>
-            <div class="flex items-center gap-2.5">
+
+            <!-- Right Controls -->
+            <div class="pinned-banner-controls">
               <button
                 v-if="pinnedMessages.length > 1"
                 type="button"
-                class="text-zinc-400 hover:text-zinc-200 text-xs bg-zinc-800/50 hover:bg-zinc-850 px-2 py-0.5 rounded-full transition-colors border border-zinc-800/40 cursor-pointer font-normal"
+                class="pinned-more-btn"
                 @click="scrollToMessage(pinnedMessages[pinnedMessages.length - 1].id)"
               >
-                +{{ pinnedMessages.length - 1 }} tin nhắn khác
+                +{{ pinnedMessages.length - 1 }} tin khác
               </button>
+
               <button
                 type="button"
-                class="text-zinc-500 hover:text-zinc-300 p-1 rounded-full hover:bg-zinc-800/60 transition-colors bg-transparent border-0 cursor-pointer flex items-center justify-center"
+                class="pinned-close-btn"
                 @click="handleTogglePin(pinnedMessages[0])"
-                title="Bỏ ghim"
+                title="Bỏ ghim tin nhắn này"
               >
-                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -347,10 +384,10 @@
               v-else
               v-for="group in groupedMessages"
               :key="group.date"
-              class="space-y-4"
+              class="space-y-1.5"
             >
               <!-- Date Divider Separator -->
-              <div class="flex justify-center sticky top-0 z-10 py-3 my-2">
+              <div class="flex justify-center sticky top-0 z-10 py-1.5 my-1">
                 <span class="tg-date-divider">
                   {{ group.date }}
                 </span>
@@ -363,26 +400,53 @@
                 :id="'msg-' + msg.id"
                 :data-message-id="msg.id"
                 :class="[
-                  'bubble-row flex relative',
-                  msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start',
+                  'bubble-row flex items-end gap-2 relative my-1',
+                  msg.sender_id === currentUser?.id ? 'justify-end' : 'justify-start',
                   highlightedMessageId === msg.id ? 'bubble-row-highlight' : ''
                 ]"
                 @mouseenter="activeHoverMessageId = msg.id"
                 @mouseleave="activeHoverMessageId = null; hoverReactionTargetId = null"
               >
+                <!-- Avatar for Received Messages (Left Side) -->
+                <div
+                  v-if="msg.sender_id !== currentUser?.id"
+                  class="bubble-avatar shrink-0 select-none mb-0.5"
+                  :title="msg.sender?.full_name || msg.sender?.username || 'Người gửi'"
+                >
+                  <img
+                    v-if="msg.sender?.avatar_url"
+                    :src="msg.sender.avatar_url"
+                    class="w-7 h-7 rounded-full object-cover border border-zinc-700/60 shadow-xs"
+                    :alt="msg.sender?.full_name || 'Avatar'"
+                  />
+                  <div
+                    v-else
+                    class="w-7 h-7 rounded-full text-white font-semibold text-[11px] flex items-center justify-center border border-zinc-700/50 shadow-xs uppercase"
+                    :style="{ backgroundColor: getAvatarColorHex(msg.sender?.full_name || msg.sender?.username) }"
+                  >
+                    {{ (msg.sender?.full_name || msg.sender?.username || 'U').charAt(0) }}
+                  </div>
+                </div>
+
                 <div
                   :class="[
                     'bubble max-w-[70%] px-3 py-2 shadow-sm text-sm break-words relative group',
-                    msg.sender_id === currentUser.id ? 'bubble-sent' : 'bubble-received'
+                    msg.sender_id === currentUser?.id ? 'bubble-sent' : 'bubble-received'
                   ]"
                 >
+                  <!-- Sender Name for Received Messages -->
+                  <div
+                    v-if="msg.sender_id !== currentUser?.id && !msg.is_recalled"
+                    class="bubble-sender-name text-[11px] font-semibold mb-0.5 select-none"
+                    :style="{ color: getAvatarColorHex(msg.sender?.full_name || msg.sender?.username) }"
+                  >
+                    {{ msg.sender?.full_name || msg.sender?.username || 'Người dùng' }}
+                  </div>
                   <!-- Quick Hover Action Toolbar (Positioned relative to .bubble) -->
                   <div
                     v-if="activeHoverMessageId === msg.id && !msg.is_system"
-                    :class="[
-                      'absolute bottom-2 flex items-center gap-1.5 z-10 transition-opacity duration-150',
-                      msg.sender_id === currentUser.id ? 'right-full mr-3.5' : 'left-full ml-3.5'
-                    ]"
+                    class="tg-hover-toolbar"
+                    :class="msg.sender_id === currentUser.id ? 'is-sent' : 'is-received'"
                   >
                     <!-- Reply Button -->
                     <button
@@ -440,7 +504,7 @@
                   </div>
 
                   <!-- Pinned state small icon -->
-                  <div v-if="msg.is_pinned" class="absolute top-1 right-2 text-zinc-500 opacity-60" title="Tin nhắn đã ghim">
+                  <div v-if="msg.is_pinned && !msg.is_recalled" class="absolute top-1 right-2 text-zinc-500 opacity-60" title="Tin nhắn đã ghim">
                     <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
@@ -466,7 +530,7 @@
                   </div>
 
                   <!-- Booking Card Attachment -->
-                  <div v-if="msg.reference_type === 'booking' && msg.booking" class="booking-message-card rounded-lg mb-1.5 overflow-hidden">
+                  <div v-if="msg.reference_type === 'booking' && msg.booking" class="booking-message-card rounded-none mb-1.5 overflow-hidden">
                     <div class="booking-message-card__top">
                       <span class="booking-message-card__eyebrow">Booking đặt sân</span>
                       <span class="booking-message-card__code">#{{ msg.booking.booking_code }}</span>
@@ -489,7 +553,7 @@
                   </div>
 
                   <!-- Support Request Card Attachment -->
-                  <div v-if="msg.reference_type === 'booking_support_request' && msg.support_request" class="support-request-card rounded-lg mb-1.5 overflow-hidden">
+                  <div v-if="msg.reference_type === 'booking_support_request' && msg.support_request" class="support-request-card rounded-none mb-1.5 overflow-hidden">
                     <div class="support-request-card__top">
                       <span class="support-request-card__eyebrow">Y&#234;u c&#7847;u booking</span>
                       <span :class="['support-request-card__status', supportRequestStatusClass(msg.support_request.status)]">
@@ -524,7 +588,8 @@
 
                   <!-- Content text -->
                   <div class="bubble-text">
-                    <span v-if="msg.content !== '[Hình ảnh]' && msg.content !== '[H??nh ???nh]' && msg.reference_type !== 'booking' && msg.reference_type !== 'booking_support_request'">{{ msg.content }}</span>
+                    <span v-if="msg.is_recalled" class="italic opacity-60 select-none font-normal">Tin nhắn đã bị thu hồi</span>
+                    <span v-else-if="msg.content !== '[Hình ảnh]' && msg.content !== '[H??nh ???nh]' && msg.reference_type !== 'booking' && msg.reference_type !== 'booking_support_request'">{{ msg.content }}</span>
                     <span class="bubble-meta">
                        <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
 
@@ -841,11 +906,14 @@
             <div v-if="profileSidebarView === 'profile'" class="tg-profile-body flex-1 overflow-y-auto pb-5">
               <!-- Header Section -->
               <div class="flex flex-col items-center px-6 pb-5">
-                <div class="tg-profile-avatar">
-                  {{ profileInitial }}
+                <div :class="['tg-profile-avatar', isUserOnline(profileUser?.id) ? 'tg-avatar-online' : '']" :style="!profileAvatarUrl ? { backgroundColor: getAvatarColorHex(profileDisplayName) } : {}">
+                  <img v-if="profileAvatarUrl" :src="profileAvatarUrl" class="w-full h-full rounded-full object-cover" />
+                  <template v-else>
+                    {{ profileInitial }}
+                  </template>
                 </div>
-                <h3 class="tg-profile-value text-base font-semibold text-center truncate w-full mb-1">{{ profileDisplayName }}</h3>
-                <p class="text-[11px] text-zinc-500 font-medium">
+                <h3 class="tg-profile-value text-base font-normal text-center truncate w-full mb-1">{{ profileDisplayName }}</h3>
+                <p v-if="profileStatusText" class="text-[11px] text-zinc-500 font-medium">
                   {{ profileStatusText }}
                 </p>
               </div>
@@ -882,18 +950,6 @@
                     <div class="tg-profile-section-title">Booking c&#7911;a kh&#225;ch</div>
                     <p class="tg-related-bookings-sub">C&#225;c l&#7883;ch &#273;&#7863;t t&#7841;i c&#7909;m s&#226;n trong h&#7897;i tho&#7841;i n&#224;y.</p>
                   </div>
-                  <button
-                    type="button"
-                    class="tg-related-bookings-refresh"
-                    :disabled="loadingRelatedBookings"
-                    aria-label="T&#7843;i l&#7841;i booking li&#234;n quan"
-                    title="T&#7843;i l&#7841;i"
-                    @click="loadRelatedBookings"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-15.64 6.13M3 12a9 9 0 0115.64-6.13M21 3v6h-6M3 21v-6h6" />
-                    </svg>
-                  </button>
                 </div>
 
                 <div v-if="loadingRelatedBookings" class="tg-related-bookings-state" role="status">
@@ -925,14 +981,6 @@
                       </div>
                       <div class="tg-related-booking-price">{{ bookingCurrency(booking.total_price) }}</div>
                     </div>
-                    <button
-                      type="button"
-                      class="tg-related-booking-send"
-                      :disabled="sendingBookingId === booking.id"
-                      @click="sendBookingMessage(booking)"
-                    >
-                      {{ sendingBookingId === booking.id ? '\u0110ang g\u1eedi' : 'G\u1eedi' }}
-                    </button>
                   </article>
                 </div>
               </div>
@@ -1144,6 +1192,27 @@
           </svg>
           <span>{{ contextMenuMessage.is_pinned ? 'Bỏ ghim' : 'Ghim tin nhắn' }}</span>
         </button>
+        <button
+          v-if="contextMenuMessage.sender_id === currentUser?.id && !contextMenuMessage.is_recalled"
+          type="button"
+          class="context-menu-item text-amber-400 hover:text-amber-300"
+          @click="handleRecallMessage(contextMenuMessage)"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+          <span>Thu hồi tin nhắn</span>
+        </button>
+        <button
+          type="button"
+          class="context-menu-item text-red-400 hover:text-red-300"
+          @click="handleDeleteMessageForSelf(contextMenuMessage)"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span>Xóa phía tôi</span>
+        </button>
       </div>
 
     </div>
@@ -1153,11 +1222,155 @@
       :title="pendingChatAction?.title || 'Xác nhận thao tác'"
       :description="pendingChatAction?.description || ''"
       :confirm-text="pendingChatAction?.confirmText || 'Xác nhận'"
+      :show-checkbox="Boolean(pendingChatAction?.checkboxLabel)"
+      :checkbox-label="pendingChatAction?.checkboxLabel || ''"
+      :initial-checkbox="false"
       :loading="confirmChatLoading"
       :error="confirmChatError"
       @close="closeChatConfirmation"
       @confirm="confirmChatAction"
     />
+
+    <!-- Create Group Chat Modal -->
+    <div v-if="showCreateGroupModal" class="cg-modal-backdrop" @click.self="closeCreateGroupModal">
+      <div class="cg-modal-card">
+        <!-- Header -->
+        <div class="cg-modal-header">
+          <h3 class="cg-modal-title">Tạo nhóm chat mới</h3>
+          <button type="button" @click="closeCreateGroupModal" class="cg-modal-close-btn" title="Đóng">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body Form -->
+        <div class="space-y-4">
+          <!-- Group Logo (Avatar) Selector -->
+          <div class="flex flex-col items-center justify-center py-1">
+            <input
+              type="file"
+              ref="groupLogoInput"
+              accept="image/*"
+              class="hidden"
+              @change="onGroupLogoChange"
+            />
+            <button
+              type="button"
+              @click="$refs.groupLogoInput.click()"
+              class="w-16 h-16 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-emerald-500 transition-colors p-0"
+              style="outline: none !important;"
+            >
+              <img
+                v-if="groupLogoPreviewUrl"
+                :src="groupLogoPreviewUrl"
+                class="w-full h-full object-cover"
+              />
+              <div v-else class="flex flex-col items-center justify-center text-zinc-400 group-hover:text-emerald-500">
+                <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="text-[9px] font-medium uppercase">Ảnh</span>
+              </div>
+            </button>
+            <span class="text-[10px] text-zinc-400 mt-1">Ảnh đại diện nhóm</span>
+          </div>
+
+          <!-- Group Name Input -->
+          <div>
+            <label class="cg-field-label">Tên nhóm chat</label>
+            <input
+              v-model="newGroupName"
+              type="text"
+              placeholder="Ví dụ: Đội bóng Green Sport FC..."
+              class="cg-field-input"
+            />
+          </div>
+
+          <!-- Member Search Input -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="cg-field-label" style="margin: 0;">Thêm thành viên</label>
+              <span v-if="selectedGroupMembers.length > 0" class="text-[11px] font-medium text-emerald-400">
+                Đã chọn: {{ selectedGroupMembers.length }} thành viên
+              </span>
+            </div>
+            <input
+              v-model="groupSearchQuery"
+              @input="searchMembersForGroup"
+              type="text"
+              placeholder="Nhập tên hoặc số điện thoại để tìm..."
+              class="cg-field-input"
+            />
+
+            <!-- Selected Members Pills -->
+            <div v-if="selectedGroupMembers.length > 0" class="cg-pills-container">
+              <span
+                v-for="member in selectedGroupMembers"
+                :key="member.id"
+                class="cg-pill-tag"
+              >
+                <span>{{ member.full_name }}</span>
+                <button type="button" @click="toggleGroupMember(member)" class="cg-pill-remove" title="Bỏ chọn">
+                  <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </span>
+            </div>
+
+            <!-- Member Search Results -->
+            <div v-if="groupSearchResults.length > 0" class="cg-search-results">
+              <button
+                v-for="user in groupSearchResults"
+                :key="user.id"
+                type="button"
+                @click="toggleGroupMember(user)"
+                class="cg-search-item"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div
+                    class="h-7 w-7 rounded-full text-white text-xs font-medium flex items-center justify-center shrink-0 uppercase border border-white/10"
+                    :style="{ backgroundColor: getAvatarColorHex(user.full_name) }"
+                  >
+                    {{ (user.full_name || 'U').charAt(0) }}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-xs font-medium text-zinc-100 truncate">{{ user.full_name }}</div>
+                    <div class="text-[10px] text-zinc-400 truncate">@{{ user.username || 'user' }}</div>
+                  </div>
+                </div>
+                <div :class="['cg-checkbox', isGroupMemberSelected(user.id) ? 'is-checked' : '']">
+                  <svg v-if="isGroupMemberSelected(user.id)" class="h-3 w-3 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="cg-modal-footer">
+          <button type="button" @click="closeCreateGroupModal" class="cg-btn-cancel">
+            Hủy
+          </button>
+          <button
+            type="button"
+            :disabled="!newGroupName.trim() || selectedGroupMembers.length === 0 || creatingGroup"
+            @click="submitCreateGroup"
+            class="cg-btn-submit"
+          >
+            <svg v-if="creatingGroup" class="animate-spin h-3.5 w-3.5 text-emerald-950" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ creatingGroup ? 'Đang tạo nhóm...' : 'Tạo nhóm chat' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1197,12 +1410,22 @@ export default {
       mobileShowChat: false,
       echoConversationChannel: null,
       echoUserChannel: null,
+      echoPresenceChannel: null,
+      onlineUserIds: new Set(),
       fallbackPoll: null,
       pendingChatAction: null,
       confirmChatLoading: false,
       confirmChatError: '',
 
       showTelegramMenu: false,
+      showCreateGroupModal: false,
+      newGroupName: '',
+      groupSearchQuery: '',
+      groupSearchResults: [],
+      selectedGroupMembers: [],
+      creatingGroup: false,
+      groupLogoFile: null,
+      groupLogoPreviewUrl: '',
       isNightMode: false,
       selectedImageFiles: [],
       imagePreviewUrls: [],
@@ -1247,7 +1470,7 @@ export default {
       return this.groupMessages(this.messages);
     },
     pinnedMessages() {
-      return this.messages.filter(m => m.is_pinned);
+      return this.messages.filter(m => m.is_pinned && !m.is_recalled);
     },
     isAdmin() {
       return this.$route.path.startsWith('/admin') || this.$route.path.startsWith('/owner') || this.$route.path.startsWith('/staff');
@@ -1305,9 +1528,13 @@ export default {
     profileInitial() {
       return (this.profileDisplayName || 'S').charAt(0).toUpperCase();
     },
+    profileAvatarUrl() {
+      if (this.activeConversation?.avatar_url) return this.activeConversation.avatar_url;
+      return this.profileUser?.avatar_url || null;
+    },
     profileStatusText() {
       if (this.activeConversation?.type === 'venue_contact') return 'Hội thoại Sân đấu';
-      return 'trực tuyến';
+      return '';
     },
     profilePrimaryContact() {
       return this.profileUser?.phone || this.profileUser?.email || '';
@@ -1389,6 +1616,7 @@ export default {
 
     // Subscribe to user's personal channel for conversation list updates
     this.subscribeUserChannel();
+    this.subscribeOnlinePresence();
     if (!echo) {
       this.fallbackPoll = window.setInterval(() => {
         this.fetchConversations(false);
@@ -1424,6 +1652,7 @@ export default {
     // Leave WebSocket channels
     this.unsubscribeConversationChannel();
     this.unsubscribeUserChannel();
+    this.unsubscribeOnlinePresence();
   },
   watch: {
     // Subscribe to new conversation channel and clear/restart fallback poll
@@ -1484,6 +1713,16 @@ export default {
           if (msg) {
             msg.is_pinned = event.is_pinned;
           }
+        })
+        .listen('.message.recalled', (event) => {
+          const msg = this.messages.find(m => m.id === event.message_id);
+          if (msg) {
+            msg.is_recalled = true;
+            msg.is_pinned = false;
+            msg.content = 'Tin nhắn đã bị thu hồi';
+            msg.image_url = null;
+            msg.reactions = [];
+          }
         });
     },
 
@@ -1492,6 +1731,7 @@ export default {
         this.echoConversationChannel.stopListening('.message.sent');
         this.echoConversationChannel.stopListening('.message.reacted');
         this.echoConversationChannel.stopListening('.message.pinned');
+        this.echoConversationChannel.stopListening('.message.recalled');
         echo?.leave(this.echoConversationChannel.name ?? '');
         this.echoConversationChannel = null;
       }
@@ -1524,7 +1764,113 @@ export default {
       }
     },
 
+    subscribeOnlinePresence() {
+      if (!this.currentUser || !echo) return;
+      try {
+        this.echoPresenceChannel = echo.join('chat-presence')
+          .here((users) => {
+            const set = new Set();
+            users.forEach(u => set.add(String(u.id)));
+            this.onlineUserIds = set;
+          })
+          .joining((user) => {
+            this.onlineUserIds.add(String(user.id));
+          })
+          .leaving((user) => {
+            this.onlineUserIds.delete(String(user.id));
+          });
+      } catch (e) {
+        console.warn('Presence channel subscription failed:', e);
+      }
+    },
+
+    unsubscribeOnlinePresence() {
+      if (this.echoPresenceChannel) {
+        echo?.leave('chat-presence');
+        this.echoPresenceChannel = null;
+      }
+    },
+
+    isUserOnline(userId) {
+      if (!userId) return false;
+      return this.onlineUserIds.has(String(userId));
+    },
+
+    isConvOnline(conv) {
+      if (!conv) return false;
+      if (conv.type === 'saved') return true;
+      const targetUserId = conv.other_user?.id;
+      return this.isUserOnline(targetUserId);
+    },
+
     // ---- End WebSocket Methods ----
+    // ---- Group Chat Methods ----
+    openCreateGroupModal() {
+      this.showCreateGroupModal = true;
+      this.newGroupName = '';
+      this.groupSearchQuery = '';
+      this.groupSearchResults = [];
+      this.selectedGroupMembers = [];
+      this.groupLogoFile = null;
+      this.groupLogoPreviewUrl = '';
+    },
+    closeCreateGroupModal() {
+      this.showCreateGroupModal = false;
+    },
+    onGroupLogoChange(event) {
+      const file = event.target.files[0];
+      if (file) {
+        this.groupLogoFile = file;
+        this.groupLogoPreviewUrl = URL.createObjectURL(file);
+      }
+    },
+    async searchMembersForGroup() {
+      if (!this.groupSearchQuery.trim()) {
+        this.groupSearchResults = [];
+        return;
+      }
+      try {
+        const response = await chatService.searchUsers(this.groupSearchQuery);
+        this.groupSearchResults = response || [];
+      } catch (err) {
+        console.error('Failed to search members for group:', err);
+      }
+    },
+    isGroupMemberSelected(userId) {
+      return this.selectedGroupMembers.some(m => m.id === userId);
+    },
+    toggleGroupMember(user) {
+      const idx = this.selectedGroupMembers.findIndex(m => m.id === user.id);
+      if (idx !== -1) {
+        this.selectedGroupMembers.splice(idx, 1);
+      } else {
+        this.selectedGroupMembers.push(user);
+      }
+    },
+    async submitCreateGroup() {
+      if (!this.newGroupName.trim() || this.selectedGroupMembers.length === 0) return;
+      this.creatingGroup = true;
+      try {
+        const userIds = this.selectedGroupMembers.map(m => m.id);
+        const response = await chatService.createGroupConversation(
+          this.newGroupName.trim(),
+          userIds,
+          this.groupLogoFile
+        );
+        this.closeCreateGroupModal();
+        await this.fetchConversations(false);
+        const newConv = this.conversations.find(c => c.id === response.id);
+        if (newConv) {
+          this.selectConversation(newConv);
+        }
+        this.toast.success(response.message || 'Đã tạo nhóm chat thành công.');
+      } catch (err) {
+        this.toast.error(err.message || 'Không thể tạo nhóm chat.');
+      } finally {
+        this.creatingGroup = false;
+      }
+    },
+
     toggleTelegramMenu() {
       this.showTelegramMenu = !this.showTelegramMenu;
     },
@@ -1986,12 +2332,14 @@ export default {
 
     deleteActiveConversation() {
       if (!this.activeConversation) return;
+      const partnerName = this.activeConversation.title || 'đối phương';
       this.showChatMenu = false;
       this.pendingChatAction = {
         type: 'delete-conversation',
         targetId: this.activeConversation.id,
         title: 'Xóa cuộc trò chuyện?',
-        description: 'Toàn bộ tin nhắn trong cuộc trò chuyện sẽ bị xóa vĩnh viễn.',
+        description: 'Mặc định cuộc trò chuyện chỉ bị xóa khỏi danh sách của bạn.',
+        checkboxLabel: `Đồng thời xóa cuộc trò chuyện cho ${partnerName}`,
         confirmText: 'Xóa cuộc trò chuyện',
       };
       this.confirmChatError = '';
@@ -1999,12 +2347,14 @@ export default {
 
     clearChatHistory() {
       if (!this.activeConversation) return;
+      const partnerName = this.activeConversation.title || 'đối phương';
       this.showChatMenu = false;
       this.pendingChatAction = {
         type: 'clear-history',
         targetId: this.activeConversation.id,
         title: 'Xóa lịch sử tin nhắn?',
-        description: 'Các tin nhắn hiện có sẽ bị xóa nhưng cuộc trò chuyện vẫn được giữ lại.',
+        description: 'Mặc định tin nhắn chỉ bị xóa ở phía bạn, cuộc trò chuyện vẫn được giữ lại.',
+        checkboxLabel: `Đồng thời xóa lịch sử cho ${partnerName}`,
         confirmText: 'Xóa lịch sử',
       };
       this.confirmChatError = '';
@@ -2016,24 +2366,25 @@ export default {
       this.confirmChatError = '';
     },
 
-    async confirmChatAction() {
+    async confirmChatAction(payload) {
       if (!this.pendingChatAction || this.confirmChatLoading) return;
       const action = { ...this.pendingChatAction };
+      const deleteForEveryone = Boolean(payload?.checkboxValue);
       this.confirmChatLoading = true;
       this.confirmChatError = '';
       try {
         if (action.type === 'delete-conversation') {
-          await chatService.deleteConversation(action.targetId);
+          await chatService.deleteConversation(action.targetId, { delete_for_everyone: deleteForEveryone });
           this.conversations = this.conversations.filter(c => c.id !== action.targetId);
           this.activeConversation = null;
           this.messages = [];
-          this.toast.success('Đã xóa cuộc trò chuyện.');
+          this.toast.success(deleteForEveryone ? 'Đã xóa cuộc trò chuyện cho cả 2 bên.' : 'Đã xóa cuộc trò chuyện ở phía bạn.');
         } else if (action.type === 'clear-history') {
-          await chatService.clearConversation(action.targetId);
+          await chatService.clearConversation(action.targetId, { delete_for_everyone: deleteForEveryone });
           this.messages = [];
           const conversation = this.conversations.find(c => c.id === action.targetId);
           if (conversation) conversation.last_message = null;
-          this.toast.success('Đã xóa lịch sử tin nhắn.');
+          this.toast.success(deleteForEveryone ? 'Đã xóa lịch sử tin nhắn cho cả 2 bên.' : 'Đã xóa lịch sử tin nhắn ở phía bạn.');
         }
         this.pendingChatAction = null;
       } catch (error) {
@@ -2309,6 +2660,31 @@ export default {
       return option?.label || type || '-';
     },
 
+    getAvatarColorHex(name) {
+      if (!name) return '#10b981';
+      const cleanName = String(name)
+        .replace(/^Người dùng\s+/i, '')
+        .replace(/^Nhân viên sân\s+/i, '')
+        .trim();
+
+      const colors = [
+        '#f97316', // Orange
+        '#10b981', // Emerald green
+        '#3b82f6', // Blue
+        '#8b5cf6', // Purple
+        '#ec4899', // Pink
+        '#06b6d4', // Cyan
+        '#f43f5e', // Rose
+        '#6366f1', // Indigo
+      ];
+      let hash = 0;
+      for (let i = 0; i < cleanName.length; i++) {
+        hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const index = Math.abs(hash) % colors.length;
+      return colors[index];
+    },
+
     supportRequestStatusLabel(status) {
       return {
         pending: 'Chờ xử lý',
@@ -2401,26 +2777,46 @@ export default {
         return;
       }
       this.contextMenuMessage = message;
-      
-      const menuWidth = 160;
-      const menuHeight = 130;
+
+      const triggerEl = e.currentTarget;
+      const triggerRect = triggerEl ? triggerEl.getBoundingClientRect() : null;
+      const menuWidth = 180;
+      const estimatedHeight = 220;
       const windowWidth = window.innerWidth;
       const windowHeight = window.innerHeight;
-      
-      // Offset vertically downward from click cursor by 18px to avoid covering the 3-dots button
-      let x = e.clientX;
-      let y = e.clientY + 18;
-      
-      if (x + menuWidth > windowWidth) {
-        x = Math.max(10, windowWidth - menuWidth - 10);
+
+      let x = triggerRect ? triggerRect.left : e.clientX;
+      let y = triggerRect ? triggerRect.bottom + 4 : e.clientY + 18;
+
+      if (y + estimatedHeight > windowHeight - 12) {
+        if (triggerRect) {
+          y = Math.max(10, triggerRect.top - estimatedHeight - 4);
+        } else {
+          y = Math.max(10, e.clientY - estimatedHeight - 10);
+        }
       }
-      if (y + menuHeight > windowHeight) {
-        y = Math.max(10, e.clientY - menuHeight - 10);
+
+      if (x + menuWidth > windowWidth - 12) {
+        x = Math.max(10, windowWidth - menuWidth - 12);
       }
-      
-      this.contextMenuX = x;
-      this.contextMenuY = y;
+
+      this.contextMenuX = Math.max(10, x);
+      this.contextMenuY = Math.max(10, y);
       this.showContextMenu = true;
+
+      this.$nextTick(() => {
+        const menuEl = this.$el.querySelector('.custom-context-menu');
+        if (menuEl) {
+          const actualHeight = menuEl.getBoundingClientRect().height;
+          if (y + actualHeight > windowHeight - 12) {
+            if (triggerRect) {
+              this.contextMenuY = Math.max(10, triggerRect.top - actualHeight - 4);
+            } else {
+              this.contextMenuY = Math.max(10, e.clientY - actualHeight - 10);
+            }
+          }
+        }
+      });
     },
 
     closeContextMenu() {
@@ -2453,7 +2849,40 @@ export default {
         const response = await chatService.togglePinMessage(message.id);
         message.is_pinned = response.is_pinned;
       } catch (error) {
-        this.toast.error(error.message || 'Không thể thực hiện ghim tin nhắn.');
+        const toast = useToast();
+        toast.error(error.message || 'Không thể thực hiện ghim tin nhắn.');
+      }
+    },
+
+    async handleRecallMessage(message) {
+      this.closeContextMenu();
+      if (!message || message.is_recalled) return;
+      try {
+        const response = await chatService.recallMessage(message.id);
+        message.is_recalled = true;
+        message.is_pinned = false;
+        message.content = 'Tin nhắn đã bị thu hồi';
+        message.image_url = null;
+        message.reactions = [];
+        const toast = useToast();
+        toast.success(response.message || 'Đã thu hồi tin nhắn.');
+      } catch (error) {
+        const toast = useToast();
+        toast.error(error.message || 'Không thể thu hồi tin nhắn.');
+      }
+    },
+
+    async handleDeleteMessageForSelf(message) {
+      this.closeContextMenu();
+      if (!message) return;
+      try {
+        await chatService.deleteMessageForSelf(message.id);
+        this.messages = this.messages.filter(m => m.id !== message.id);
+        const toast = useToast();
+        toast.success('Đã xóa tin nhắn ở phía bạn.');
+      } catch (error) {
+        const toast = useToast();
+        toast.error(error.message || 'Không thể xóa tin nhắn.');
       }
     },
 
@@ -2534,9 +2963,9 @@ export default {
 
 .client-chat-page.admin-chat-page {
   --client-chat-nav-height: 64px;
-  --admin-bg: #eef6f0;
+  --admin-bg: #ffffff;
   --admin-surface: #ffffff;
-  --admin-surface-muted: #f3f8f1;
+  --admin-surface-muted: #ffffff;
   --admin-hover: #edf7ed;
   --admin-border: #cfded1;
   --admin-text: #101c15;
@@ -2557,11 +2986,11 @@ export default {
   height: 100vh;
   padding-top: var(--client-chat-nav-height);
   border: 0;
-  background: var(--admin-bg);
+  background: #ffffff;
   box-shadow: none;
 }
 .admin-chat-page {
-  --tg-chat-bg: var(--admin-bg);
+  --tg-chat-bg: #ffffff;
   --tg-sent-bg: var(--admin-primary-soft);
   --tg-sent-text: var(--admin-text);
   --tg-received-bg: var(--admin-surface);
@@ -2570,7 +2999,7 @@ export default {
   --tg-meta-sent: var(--admin-primary-dark);
   --tg-input-bg: var(--admin-surface);
   --tg-input-text: var(--admin-text);
-  --tg-sidebar-bg: var(--admin-surface-muted);
+  --tg-sidebar-bg: #ffffff;
   --tg-active-row: var(--admin-hover);
   --tg-header-bg: var(--admin-surface);
   --tg-border: var(--admin-border);
@@ -2585,20 +3014,166 @@ export default {
   height: auto;
   border: 1px solid var(--admin-border);
   border-radius: 0;
-  background: var(--admin-card-bg);
+  background: #ffffff;
   box-shadow: var(--admin-shadow-card);
 }
 
 .admin-chat-workspace {
   flex: 1;
   min-height: 0;
-  background: var(--tg-chat-bg) !important;
+  background: #ffffff !important;
 }
 
-.client-chat-page .admin-chat-workspace {
-  height: calc(100vh - var(--client-chat-nav-height));
-  border-top: 1px solid var(--admin-border);
-  box-shadow: var(--admin-shadow-card);
+.admin-chat-page,
+.admin-chat-page .admin-chat-workspace,
+.admin-chat-page .tg-message-container,
+.admin-chat-page .tg-chat-header,
+.admin-chat-page .tg-sidebar-header,
+.admin-chat-page .tg-drawer-panel,
+.admin-chat-page .tg-drawer-header,
+.admin-chat-page .tg-drawer-nav,
+.admin-chat-page .tg-profile-sidebar,
+.admin-chat-page .tg-profile-body,
+.admin-chat-page .tg-profile-action-btn,
+.admin-chat-page .chat-empty-main,
+.admin-chat-page .zalo-chat-box,
+.admin-chat-page .zalo-chat-footer,
+.admin-chat-page [class*="booking-picker"],
+.admin-chat-page [class*="booking-card"],
+.admin-chat-page [class*="booking-item"],
+.admin-chat-page [class*="bg-zinc-"],
+.admin-chat-page [class*="bg-slate-"],
+.admin-chat-page [class*="bg-green-"],
+.admin-chat-page [class*="bg-emerald-"] {
+  background-color: #ffffff !important;
+}
+
+.admin-chat-page [class*="border-zinc-"],
+.admin-chat-page [class*="border-slate-"],
+.admin-chat-page [class*="border-green-"],
+.admin-chat-page [class*="border-emerald-"] {
+  border-color: #e2e8f0 !important;
+}
+
+.admin-chat-page .tg-profile-action-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #101c15 !important;
+}
+
+.admin-chat-page .bubble-sent,
+.admin-chat-page [class*="bubble-sent"] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #101c15 !important;
+}
+
+.booking-message-card,
+.support-request-card,
+.booking-message-card__action,
+.support-request-card__action {
+  border-radius: 0 !important;
+}
+
+/* Hover Action Toolbar */
+.tg-hover-toolbar {
+  position: absolute !important;
+  bottom: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  z-index: 30 !important;
+}
+
+.tg-hover-toolbar.is-sent {
+  right: 100% !important;
+  margin-right: 14px !important;
+}
+
+.tg-hover-toolbar.is-received {
+  left: 100% !important;
+  margin-left: 14px !important;
+}
+
+.tg-hover-toolbar button {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+  color: var(--admin-faint, #64748b) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.tg-hover-toolbar button:hover {
+  color: var(--admin-text, #101c15) !important;
+  border-color: var(--admin-primary, #22a653) !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12) !important;
+}
+
+.booking-message-card {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  min-width: min(280px, 100%) !important;
+  border: 1px solid var(--admin-border-soft, #e2e8f0) !important;
+  background: var(--admin-bg-soft, #f7fbf5) !important;
+  color: var(--admin-text, #101c15) !important;
+  padding: 10px 12px !important;
+}
+
+.bubble-sent .booking-message-card {
+  background: var(--admin-bg-soft, #f7fbf5) !important;
+  color: var(--admin-text, #101c15) !important;
+}
+
+.booking-message-card__eyebrow {
+  color: var(--admin-muted, #64748b) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+}
+
+.booking-message-card__code {
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
+  color: var(--admin-primary, #22a653) !important;
+  font-family: inherit !important;
+}
+
+.booking-message-card__venue {
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  color: var(--admin-text, #101c15) !important;
+  margin-top: 2px !important;
+}
+
+.booking-message-card__meta {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  color: var(--admin-muted, #64748b) !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  font-weight: 400 !important;
+}
+
+.booking-message-card__amount {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: var(--admin-primary, #22a653) !important;
+}
+
+.booking-message-card__status {
+  font-size: 11.5px !important;
+  font-weight: 400 !important;
 }
 
 /* Group container classes */
@@ -2620,7 +3195,7 @@ export default {
   color: var(--tg-meta) !important;
 }
 
-.admin-chat-page :is(.tg-search-input, .zalo-chat-box, .tg-dropdown-menu, .tg-profile-action-btn) {
+.admin-chat-page :is(.tg-search-input, .zalo-chat-box, .tg-profile-action-btn) {
   border-radius: 0 !important;
 }
 
@@ -2636,8 +3211,50 @@ export default {
   color: var(--tg-received-text) !important;
 }
 
-.admin-chat-page .tg-conv-item.active {
-  box-shadow: inset 3px 0 0 var(--tg-accent);
+/* ── Vue Drawer Transitions (Smooth 60fps) ─────── */
+.drawer-fade-enter-active,
+.drawer-fade-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.drawer-fade-enter-from,
+.drawer-fade-leave-to {
+  opacity: 0;
+}
+
+.drawer-slide-enter-active {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease-out;
+  will-change: transform;
+}
+.drawer-slide-leave-active {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s ease-in;
+  will-change: transform;
+}
+.drawer-slide-enter-from {
+  transform: translate3d(-100%, 0, 0);
+  opacity: 0.8;
+}
+.drawer-slide-leave-to {
+  transform: translate3d(-100%, 0, 0);
+  opacity: 0;
+}
+
+/* Staggered slide-in for menu items */
+.drawer-slide-enter-active .tg-drawer-item {
+  animation: drawerItemSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.drawer-slide-enter-active .tg-drawer-item:nth-child(1) { animation-delay: 0.05s; }
+.drawer-slide-enter-active .tg-drawer-item:nth-child(2) { animation-delay: 0.09s; }
+.drawer-slide-enter-active .tg-drawer-item:nth-child(3) { animation-delay: 0.13s; }
+
+@keyframes drawerItemSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .admin-chat-page .tg-search-input {
@@ -2676,14 +3293,14 @@ export default {
 .tg-message-container {
   display: flex;
   flex-direction: column;
-  padding: 24px 28px;
-  gap: 16px;
+  padding: 12px 16px !important;
+  gap: 6px;
   background-color: var(--tg-chat-bg);
 }
 
 /* Chat bubble styling exactly like Telegram */
 .bubble-row {
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   width: 100%;
 }
 
@@ -2797,7 +3414,7 @@ export default {
 }
 .chat-empty-sidebar__title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tg-meta);
 }
 .chat-empty-sidebar__sub {
@@ -2820,7 +3437,7 @@ export default {
 }
 .chat-empty-main__title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tg-received-text);
 }
 .chat-empty-main__sub {
@@ -2850,13 +3467,13 @@ export default {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background-color: var(--tg-accent) !important;
-  color: var(--admin-primary-text) !important;
+  background-color: var(--tg-accent);
+  color: #ffffff !important;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   flex-shrink: 0;
   border: 1px solid var(--tg-border);
 }
@@ -2867,6 +3484,11 @@ export default {
   font-size: 14px;
 }
 
+.tg-avatar-online {
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+}
+
 /* ── Date Divider ───────────────────────────── */
 .tg-date-divider {
   display: inline-block;
@@ -2874,7 +3496,7 @@ export default {
   background-color: transparent !important;
   color: var(--tg-meta, #8c9094) !important;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: none;
@@ -2891,57 +3513,54 @@ export default {
 .tg-drawer-panel {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: none !important;
-  background-color: var(--tg-sidebar-bg) !important;
-  border-right: 1px solid var(--tg-border) !important;
+  background-color: #ffffff !important;
+  border-right: 1px solid var(--admin-border-soft, #e2e8f0) !important;
 }
 
 .tg-drawer-header {
-  background-color: var(--tg-header-bg) !important;
-  border-bottom: 1px solid var(--tg-border) !important;
-  padding: 14px 16px 12px !important;
-}
-
-.tg-drawer-header-name {
-  color: var(--tg-received-text) !important;
-}
-
-.tg-drawer-header-sub {
-  color: var(--tg-meta) !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0) !important;
+  padding: 16px 18px !important;
 }
 
 .tg-drawer-nav {
-  background-color: var(--tg-sidebar-bg) !important;
+  background-color: #ffffff !important;
 }
 
 .tg-drawer-item {
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 16px !important;
-  padding: 9px 16px !important;
-  color: var(--tg-received-text) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  transition: background-color 150ms ease !important;
+  gap: 12px !important;
+  padding: 10px 14px !important;
+  color: var(--admin-text, #101c15) !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  transition: all 150ms ease !important;
   width: 100% !important;
   min-height: auto !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   white-space: nowrap !important;
   cursor: pointer !important;
   text-decoration: none !important;
 }
 
-.tg-drawer-item.never-hover-class-placeholder {
-  background-color: var(--tg-active-row) !important;
-  color: var(--tg-received-text) !important;
+.tg-drawer-item:hover {
+  background-color: var(--admin-hover, #edf7ed) !important;
+  color: var(--admin-primary, #22a653) !important;
+}
+
+.tg-drawer-item:hover .tg-drawer-icon {
+  color: var(--admin-primary, #22a653) !important;
+  opacity: 1 !important;
 }
 
 .tg-drawer-icon {
-  color: var(--tg-meta) !important;
-  opacity: 0.75 !important;
+  color: var(--admin-muted, #64748b) !important;
+  opacity: 0.85 !important;
   flex-shrink: 0 !important;
   width: 18px !important;
   height: 18px !important;
@@ -3192,7 +3811,7 @@ export default {
   color: var(--tg-accent);
   cursor: pointer;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 0 10px;
 }
 
@@ -3248,7 +3867,7 @@ export default {
 .support-request-card__eyebrow {
   color: var(--tg-meta);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -3256,7 +3875,7 @@ export default {
 .support-request-card__status,
 .support-request-card__code {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .support-request-card__code {
@@ -3267,7 +3886,7 @@ export default {
 
 .support-request-card__title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .support-request-card__meta,
@@ -3312,7 +3931,7 @@ export default {
 .support-request-field label {
   color: var(--tg-received-text);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .support-request-field p {
@@ -3365,7 +3984,7 @@ export default {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 0 14px;
 }
 
@@ -3423,7 +4042,7 @@ export default {
 .booking-picker-header h3 {
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tg-received-text);
 }
 
@@ -3674,8 +4293,8 @@ export default {
   gap: 10px !important;
   width: 100% !important;
   border: 1px solid var(--tg-border) !important;
-  border-radius: 8px !important;
-  background: var(--tg-active-row) !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
   color: var(--tg-received-text) !important;
   padding: 10px !important;
   box-sizing: border-box !important;
@@ -3700,20 +4319,20 @@ export default {
   color: var(--tg-accent) !important;
   font-family: monospace !important;
   font-size: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 
 .tg-related-booking-status {
   flex: 0 0 auto !important;
   font-size: 11px !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
 }
 
 .tg-related-booking-venue,
 .tg-related-booking-price {
   color: var(--tg-received-text) !important;
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 400 !important;
 }
 
 .tg-related-booking-meta {
@@ -3730,12 +4349,12 @@ export default {
   min-width: 48px !important;
   min-height: 34px !important;
   border: 1px solid var(--tg-accent) !important;
-  border-radius: 8px !important;
+  border-radius: 0 !important;
   background: color-mix(in srgb, var(--tg-accent) 14%, transparent) !important;
   color: var(--tg-accent) !important;
   cursor: pointer !important;
   font-size: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   padding: 0 10px !important;
   transition: background-color 150ms ease, color 150ms ease !important;
 }
@@ -3751,59 +4370,77 @@ export default {
   cursor: wait !important;
   opacity: 0.6 !important;
 }
-/* Telegram Dropdown Menu styling */
+/* Telegram / Modern System Dropdown Menu styling (Matching ThemeToggle Popup) */
+.admin-chat-page .tg-dropdown-menu,
 .tg-dropdown-menu {
-  background-color: var(--tg-header-bg) !important;
-  border: 1px solid var(--tg-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--admin-shadow-lg) !important;
-  overflow: hidden !important;
-}
-
-.tg-dropdown-item {
-  color: var(--tg-received-text) !important;
+  background-color: var(--admin-surface, #ffffff) !important;
+  border: 1px solid var(--admin-border, #e2e8f0) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  padding: 6px !important;
   display: flex !important;
-  align-items: center !important;
-  width: 100% !important;
-  padding: 8px 16px !important;
-  font-size: 13px !important;
-  background: transparent !important;
-  border: none !important;
-  cursor: pointer !important;
-  text-align: left !important;
-  transition: background-color 150ms ease !important;
+  flex-direction: column !important;
+  gap: 2px !important;
   box-sizing: border-box !important;
 }
 
-.tg-dropdown-item.never-hover-class-placeholder {
-  background-color: var(--tg-active-row) !important;
-  color: var(--tg-received-text) !important;
+.admin-chat-page .tg-dropdown-item,
+.tg-dropdown-item {
+  color: var(--admin-text, #0f172a) !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  padding: 8px 10px !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: background-color 150ms ease, color 150ms ease !important;
+  box-sizing: border-box !important;
+}
+
+.tg-dropdown-item:hover {
+  background-color: var(--admin-hover, #f1f5f9) !important;
+  color: var(--admin-text, #0f172a) !important;
 }
 
 .tg-dropdown-icon {
-  color: var(--tg-meta) !important;
+  color: var(--admin-muted, #64748b) !important;
   width: 16px !important;
   height: 16px !important;
   flex-shrink: 0 !important;
-  margin-right: 12px !important;
+  margin-right: 10px !important;
+  transition: color 150ms ease !important;
+}
+
+.tg-dropdown-item:hover .tg-dropdown-icon {
+  color: var(--admin-text, #0f172a) !important;
 }
 
 .tg-dropdown-item-danger {
-  color: var(--admin-danger) !important;
-}
-
-.tg-dropdown-item-danger.never-hover-class-placeholder {
-  background-color: var(--admin-danger-soft) !important;
+  color: #ef4444 !important;
 }
 
 .tg-dropdown-item-danger .tg-dropdown-icon {
-  color: var(--admin-danger) !important;
+  color: #ef4444 !important;
+}
+
+.tg-dropdown-item-danger:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #dc2626 !important;
+}
+
+.tg-dropdown-item-danger:hover .tg-dropdown-icon {
+  color: #dc2626 !important;
 }
 
 .tg-dropdown-divider {
   height: 1px !important;
-  background-color: var(--tg-border) !important;
-  margin: 4px 0 !important;
+  background-color: var(--admin-border-soft, #e2e8f0) !important;
+  margin: 4px 6px !important;
 }
 
 /* Profile Sidebar Styling */
@@ -3837,20 +4474,20 @@ export default {
 .tg-profile-title {
   color: var(--tg-received-text) !important;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .tg-profile-section-title {
   color: var(--tg-meta) !important;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px !important;
 }
 
 .tg-profile-section {
-  padding: 0 24px !important;
+  padding: 0 16px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 16px !important;
@@ -3922,7 +4559,7 @@ export default {
   background-color: var(--tg-accent) !important;
   color: var(--admin-primary-text, #ffffff) !important;
   font-size: 24px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -3957,8 +4594,7 @@ export default {
 
 /* Indented details block */
 .tg-profile-info-block {
-  padding-left: 56px !important;
-  padding-right: 24px !important;
+  padding: 0 16px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 2px !important;
@@ -4009,7 +4645,7 @@ export default {
   padding: 0 14px !important;
   color: var(--tg-received-text) !important;
   font-size: 15px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
 }
 
 .tg-media-back {
@@ -4043,7 +4679,7 @@ export default {
   padding: 10px 10px 8px !important;
   color: var(--tg-received-text) !important;
   font-size: 13px !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   text-transform: capitalize !important;
 }
 
@@ -4117,7 +4753,7 @@ export default {
 
 .tg-lightbox-count {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .tg-lightbox-close {
@@ -4165,7 +4801,7 @@ export default {
 
 .tg-lightbox-info-title {
   color: var(--tg-lightbox-control-text);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .tg-lightbox-info-meta {
@@ -4328,14 +4964,16 @@ export default {
 /* Custom Context Menu */
 .custom-context-menu {
   position: fixed;
-  background: rgba(30, 30, 30, 0.9);
+  background: rgba(30, 30, 30, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
   padding: 4px;
-  min-width: 160px;
+  min-width: 170px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -4392,3 +5030,4 @@ export default {
 </style>
 
 <!-- Global style override using [data-admin-chat] for scoping layout values -->
+

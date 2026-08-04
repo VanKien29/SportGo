@@ -11,7 +11,7 @@
       </div>
     </header>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải dữ liệu...</p>
     </div>
@@ -55,7 +55,7 @@
           <div class="detail-grid">
             <div class="detail-col full">
               <span class="label">Tên cụm sân</span>
-              <span class="value" style="font-weight: 600;">{{ app.venue_info?.venue_name || app.business_info?.venue_name }}</span>
+              <span class="value" style="font-weight: 400;">{{ app.venue_info?.venue_name || app.business_info?.venue_name }}</span>
             </div>
             <div class="detail-col full">
               <span class="label">Địa chỉ</span>

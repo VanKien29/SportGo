@@ -1,4 +1,4 @@
-@php
+﻿@php
     $metadata = collect($receipt->metadata ?? [])
         ->reject(fn ($value, $key) => str_starts_with((string) $key, 'mail_') || $key === 'receipt_url')
         ->all();
@@ -97,7 +97,7 @@
 
         .brand {
             font-size: 22px;
-            font-weight: 900;
+            font-weight: 400;
         }
 
         .muted {
@@ -118,7 +118,7 @@
         }
 
         .code {
-            font-weight: 900;
+            font-weight: 400;
             text-align: right;
         }
 
@@ -164,11 +164,11 @@
             color: #64756c;
             font-size: 13px;
             margin-bottom: 6px;
-            font-weight: 700;
+            font-weight: 400;
         }
 
         .value {
-            font-weight: 900;
+            font-weight: 400;
             word-break: break-word;
         }
 
@@ -206,7 +206,7 @@
         .total-row td {
             border-bottom: 0;
             font-size: 18px;
-            font-weight: 900;
+            font-weight: 400;
         }
 
         @media print {

@@ -83,12 +83,16 @@ class StaffDashboardController extends Controller
         // 5. Ca trực hôm nay của nhân viên đăng nhập
         $myShiftToday = null;
         if (Schema::hasTable('venue_staff_shifts') && Schema::hasTable('venue_staff_shift_schedules')) {
-            $myShiftToday = VenueStaffShiftSchedule::query()
-                ->with(['shift'])
+            $shiftQuery = VenueStaffShiftSchedule::query()
+                ->with(['shift', 'venueCluster:id,name'])
                 ->where('user_id', $userId)
-                ->where('venue_cluster_id', $clusterId)
-                ->where('date', $today)
-                ->first();
+                ->where('date', $today);
+
+            if ($selectedClusterId) {
+                $shiftQuery->where('venue_cluster_id', $selectedClusterId);
+            }
+
+            $myShiftToday = $shiftQuery->first();
         }
 
         // 6. Thời gian trống của từng sân

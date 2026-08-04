@@ -1,9 +1,14 @@
 <template>
-  <section class="vip-admin-page">
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card vip-packages-main-content">
+      <section class="vip-admin-page">
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <div v-if="loading" class="state">Đang tải gói VIP...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải gói VIP...</p>
+    </div>
     <div v-else class="package-grid">
       <form v-for="pkg in packages" :key="pkg.id" class="package-card" novalidate @submit.prevent="save(pkg)">
         <header>
@@ -97,7 +102,6 @@
         <label :class="{ invalid: voucherErrors.description }">Mô tả<textarea v-model.trim="vipVoucherForm.description" maxlength="2000" rows="3"></textarea><small v-if="voucherErrors.description" class="field-error">{{ voucherErrors.description }}</small></label>
 
         <div class="voucher-actions">
-          <button class="btn secondary" type="button" @click="resetVipVoucherForm">Làm mới</button>
           <button class="btn primary" type="submit" :disabled="voucherSaving || availableVipPackages.length === 0">
             {{ voucherSaving ? 'Đang tạo...' : 'Tạo voucher' }}
           </button>
@@ -107,45 +111,50 @@
       <div class="voucher-table">
         <div v-if="voucherLoading" class="state">Đang tải voucher VIP...</div>
         <div v-else-if="vipPackageVouchers.length === 0" class="state">Chưa có voucher áp dụng theo gói VIP.</div>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>Mã</th>
-              <th>Tên</th>
-              <th>Gói áp dụng</th>
-              <th>Giảm</th>
-              <th>Đơn tối thiểu</th>
-              <th>Mỗi khách</th>
-              <th>Đã dùng</th>
-              <th>Hiệu lực</th>
-              <th>Trạng thái</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="voucher in vipPackageVouchers" :key="voucher.id">
-              <td><strong>{{ voucher.code }}</strong></td>
-              <td>{{ voucher.name }}</td>
-              <td>{{ vipVoucherPackageLabel(voucher) }}</td>
-              <td>{{ discountText(voucher) }}</td>
-              <td>{{ money(voucher.min_order_amount) }}</td>
-              <td>{{ voucher.per_user_limit || 'Không giới hạn' }}</td>
-              <td>{{ voucher.used_quantity }}</td>
-              <td>{{ date(voucher.valid_from) }} - {{ date(voucher.valid_to) }}</td>
-              <td><span class="badge" :class="voucher.status">{{ voucher.status_label }}</span></td>
-              <td class="actions-col">
-                <button
-                  class="mini-btn danger"
-                  type="button"
-                  :disabled="voucher.status === 'inactive'"
-                  @click="deactivateVipVoucher(voucher)"
-                >
-                  Tắt
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <SaaSTable
+          v-else
+          :columns="tableColumns"
+          :data="vipPackageVouchers"
+        >
+          <template #code="{ row }">
+            <strong>{{ row.code }}</strong>
+          </template>
+          <template #name="{ row }">
+            {{ row.name }}
+          </template>
+          <template #package="{ row }">
+            {{ vipVoucherPackageLabel(row) }}
+          </template>
+          <template #discount="{ row }">
+            {{ discountText(row) }}
+          </template>
+          <template #min_order_amount="{ row }">
+            {{ money(row.min_order_amount) }}
+          </template>
+          <template #per_user_limit="{ row }">
+            {{ row.per_user_limit || 'Không giới hạn' }}
+          </template>
+          <template #used_quantity="{ row }">
+            {{ row.used_quantity }}
+          </template>
+          <template #valid_range="{ row }">
+            {{ date(row.valid_from) }} - {{ date(row.valid_to) }}
+          </template>
+          <template #status="{ row }">
+            <span class="badge" :class="row.status">{{ row.status_label }}</span>
+          </template>
+          <template #actions="{ row }">
+            <TableActionGroup>
+              <ActionIconButton
+                v-if="row.status !== 'inactive'"
+                icon="power"
+                label="Tắt voucher"
+                variant="danger"
+                @click="deactivateVipVoucher(row)"
+              />
+            </TableActionGroup>
+          </template>
+        </SaaSTable>
       </div>
     </section>
 
@@ -161,15 +170,22 @@
         </div>
       </div>
     </div>
-  </section>
+    </section>
+  </div>
+</div>
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
+import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import { adminVoucherService } from '../../services/adminVoucherService.js';
 import { vipMembershipService } from '../../services/vipMembershipService.js';
 
 export default {
   name: 'AdminMembershipPackages',
+  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
   data() {
     return {
       packages: [],
@@ -190,6 +206,20 @@ export default {
     this.loadVipVouchers();
   },
   computed: {
+    tableColumns() {
+      return [
+        { key: 'code', label: 'MÃ VOUCHER' },
+        { key: 'name', label: 'TÊN VOUCHER' },
+        { key: 'package', label: 'GÓI ÁP DỤNG' },
+        { key: 'discount', label: 'GIÁ TRỊ' },
+        { key: 'min_order_amount', label: 'ĐƠN TỐI THIỂU' },
+        { key: 'per_user_limit', label: 'MỖI KHÁCH' },
+        { key: 'used_quantity', label: 'ĐÃ DÙNG' },
+        { key: 'valid_range', label: 'HIỆU LỰC' },
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' },
+      ];
+    },
     availableVipPackages() {
       const packages = this.packages
         .filter((pkg) => pkg.type !== 'free')
@@ -726,13 +756,35 @@ export default {
 </script>
 
 <style scoped>
-.vip-admin-page{display:grid;gap:16px}.alert,.state{padding:12px 14px;border-radius:10px;font-weight:750}.alert.error{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.alert.success{background:var(--admin-success-soft);color:var(--admin-success-text)}.state{background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-muted)}.package-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.package-card,.voucher-section{display:grid;gap:14px;padding:16px;border:1px solid var(--admin-border);border-radius:12px;background:var(--admin-surface)}.package-card header,.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.package-card h3,.section-head h3{margin:3px 0 0;color:var(--admin-text)}.package-card header span,.section-head span{color:var(--admin-success-text);font-size:11px;font-weight:900;text-transform:uppercase}.grid,.voucher-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:grid;gap:5px;color:var(--admin-muted);font-size:12px;font-weight:800}input,select,textarea{border:1px solid var(--admin-border);border-radius:8px;padding:0 10px;font:inherit}input,select{height:38px}textarea{padding-top:10px;resize:vertical}input[readonly]{background:var(--admin-surface-muted);color:var(--admin-text);font-weight:850}.package-note{margin:0;border-radius:8px;background:var(--admin-surface-muted);color:var(--admin-muted);font-size:12px;font-weight:800;line-height:1.45;padding:10px 12px}.toggle,.check{display:flex;align-items:center;gap:8px}.toggle input,.check input{width:16px;height:16px}.btn,.mini-btn{border:0;border-radius:8px;font-weight:850;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px}.primary{background:var(--admin-primary);color:var(--admin-primary-text)}.secondary{background:var(--admin-surface-muted);color:var(--admin-text)}.danger{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.primary:disabled,.mini-btn:disabled{opacity:.55;cursor:not-allowed}.voucher-form{display:grid;gap:12px}.voucher-actions{display:flex;justify-content:flex-end;gap:10px}.voucher-table{overflow:auto;border:1px solid var(--admin-border);border-radius:10px}table{width:100%;min-width:1040px;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid var(--admin-border);text-align:left;vertical-align:middle}tbody tr:last-child td{border-bottom:0}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:var(--admin-border)}.badge.active{background:var(--admin-success-soft);color:var(--admin-success-text)}.badge.inactive,.badge.expired{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.badge.draft{background:var(--admin-surface-muted);color:var(--admin-muted)}.actions-col{text-align:right}.modal-backdrop{position:fixed;inset:0;z-index:900;display:grid;place-items:center;background:color-mix(in srgb, var(--admin-bg) 72%, transparent);padding:20px}.confirm-modal{display:grid;gap:12px;width:min(440px,calc(100vw - 32px));border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface);padding:20px}.confirm-modal h3,.confirm-modal p{margin:0}.confirm-modal p{color:var(--admin-muted);font-weight:700;line-height:1.5}@media(max-width:1100px){.package-grid{grid-template-columns:1fr}.grid,.voucher-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.grid,.voucher-grid{grid-template-columns:1fr}.voucher-actions{justify-content:stretch}.voucher-actions .btn{flex:1}}
+.vip-admin-page{display:grid;gap:16px}.alert,.state{padding:12px 14px;border-radius:10px;font-weight: 400}.alert.error{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.alert.success{background:var(--admin-success-soft);color:var(--admin-success-text)}.state{background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-muted)}.package-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.package-card,.voucher-section{display:grid;gap:14px;padding:16px;border:1px solid var(--admin-border);border-radius:12px;background:var(--admin-surface)}.package-card header,.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.package-card h3,.section-head h3{margin:3px 0 0;color:var(--admin-text)}.package-card header span,.section-head span{color:var(--admin-success-text);font-size:11px;font-weight: 400;text-transform:uppercase}.grid,.voucher-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:grid;gap:5px;color:var(--admin-muted);font-size:12px;font-weight: 400}input,select,textarea{border:1px solid var(--admin-border);border-radius:8px;padding:0 10px;font:inherit}input,select{height:38px}textarea{padding-top:10px;resize:vertical}input[readonly]{background:var(--admin-surface-muted);color:var(--admin-text);font-weight: 400}.package-note{margin:0;border-radius:8px;background:var(--admin-surface-muted);color:var(--admin-muted);font-size:12px;font-weight: 400;line-height:1.45;padding:10px 12px}.toggle,.check{display:flex;align-items:center;gap:8px}.toggle input,.check input{width:16px;height:16px}.btn,.mini-btn{border:0;border-radius:8px;font-weight: 400;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px}.primary{background:var(--admin-primary);color:var(--admin-primary-text)}.secondary{background:var(--admin-surface-muted);color:var(--admin-text)}.danger{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.primary:disabled,.mini-btn:disabled{opacity:.55;cursor:not-allowed}.voucher-form{display:grid;gap:12px}.voucher-actions{display:flex;justify-content:flex-end;gap:10px}.voucher-table{overflow:auto;border:1px solid var(--admin-border);border-radius:10px}table{width:100%;min-width:1040px;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid var(--admin-border);text-align:left;vertical-align:middle}tbody tr:last-child td{border-bottom:0}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight: 400;background:var(--admin-border)}.badge.active{background:var(--admin-success-soft);color:var(--admin-success-text)}.badge.inactive,.badge.expired{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.badge.draft{background:var(--admin-surface-muted);color:var(--admin-muted)}.actions-col{text-align:right}.modal-backdrop{position:fixed;inset:0;z-index:900;display:grid;place-items:center;background:color-mix(in srgb, var(--admin-bg) 72%, transparent);padding:20px}.confirm-modal{display:grid;gap:12px;width:min(440px,calc(100vw - 32px));border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface);padding:20px}.confirm-modal h3,.confirm-modal p{margin:0}.confirm-modal p{color:var(--admin-muted);font-weight: 400;line-height:1.5}@media(max-width:1100px){.package-grid{grid-template-columns:1fr}.grid,.voucher-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.grid,.voucher-grid{grid-template-columns:1fr}.voucher-actions{justify-content:stretch}.voucher-actions .btn{flex:1}}
 .package-grid{align-items:start}
 .package-card{align-content:start;grid-auto-rows:max-content}
 .package-card>.btn{align-self:start;min-height:40px}
 .suffix-field{display:grid;grid-template-columns:minmax(0,1fr)38px;align-items:center;overflow:hidden;border:1px solid var(--admin-border);border-radius:8px;background:var(--admin-surface)}
 .suffix-field input{width:100%;min-width:0;height:36px;border:0;border-radius:0}
-.suffix-field span{display:grid;height:100%;place-items:center;border-left:1px solid var(--admin-border);background:var(--admin-surface-muted);color:var(--admin-muted);font-weight:900}
+.suffix-field span{display:grid;height:100%;place-items:center;border-left:1px solid var(--admin-border);background:var(--admin-surface-muted);color:var(--admin-muted);font-weight: 400}
 label.invalid input,label.invalid select,label.invalid textarea{border-color:var(--admin-danger);background:var(--admin-danger-soft)}
-.field-error{color:var(--admin-danger);font-size:11px;font-weight:800;line-height:1.35}
+.field-error{color:var(--admin-danger);font-size:11px;font-weight: 400;line-height:1.35}
+
+.profile-section-card.vip-packages-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.package-card,
+.voucher-section,
+.voucher-table,
+.state,
+.section-head,
+.package-card header {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
 </style>

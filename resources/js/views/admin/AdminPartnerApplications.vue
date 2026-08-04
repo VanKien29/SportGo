@@ -1,5 +1,7 @@
 <template>
-  <div class="partner-page">
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card applications-main-content">
+      <div class="partner-page">
     <header class="partner-list-header">
       <div>
         <h1>Hồ sơ đối tác</h1>
@@ -45,12 +47,12 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải hồ sơ...</p>
     </div>
 
-    <div v-else-if="applications.length === 0" class="state-box card">
+    <div v-else-if="applications.length === 0" class="state-box animate-fade-in">
       <p>Không có hồ sơ phù hợp.</p>
     </div>
 
@@ -125,6 +127,8 @@
       </div>
     </div>
 
+      </div>
+    </div>
   </div>
 </template>
 
@@ -346,7 +350,7 @@ export default {
 .partner-kpi-card span {
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -382,7 +386,7 @@ export default {
   align-items: center;
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -391,7 +395,7 @@ export default {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .field.full {
@@ -423,7 +427,7 @@ export default {
 .notice {
   padding: 12px 14px;
   border-radius: 8px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .notice.success {
@@ -500,7 +504,7 @@ th {
 
 .center { text-align: center; }
 .right { text-align: right; }
-.strong { font-weight: 900; color: var(--admin-text); }
+.strong { font-weight: 400; color: var(--admin-text); }
 .muted { color: var(--admin-muted); font-size: 13px; }
 
 .status {
@@ -508,7 +512,7 @@ th {
   padding: 5px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   background: var(--admin-border);
   color: var(--admin-text);
 }
@@ -558,7 +562,7 @@ th {
   gap: 8px;
   border-radius: 8px;
   border: 1px solid transparent;
-  font-weight: 900;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -588,7 +592,7 @@ th {
   color: #176534;
   cursor: pointer;
   padding: 0 11px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -706,5 +710,22 @@ th {
   .partner-mobile-row .open-record-btn {
     width: 100%;
   }
+}
+
+.profile-section-card.applications-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.table-card,
+.toolbar.card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>

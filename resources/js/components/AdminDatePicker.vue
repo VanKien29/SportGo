@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="adp-wrap" ref="wrapRef">
     <button type="button" class="adp-trigger" :class="{ 'adp-trigger--open': open }" @click.stop="toggle" :title="displayValue">
       <svg class="adp-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -182,7 +182,7 @@ export default {
   background: transparent;
   cursor: pointer;
   font-size: var(--admin-font-size-sm, 12px);
-  font-weight: 600;
+  font-weight: 400;
   padding: 4px 8px;
   border-radius: 6px;
   transition: background 0.15s ease;

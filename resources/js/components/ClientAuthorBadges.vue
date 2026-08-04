@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <span v-if="showBadges" class="client-author-badges" aria-label="Nhãn tài khoản">
     <span v-if="badges?.is_venue_owner" class="client-author-badge client-author-badge--owner">
       <AppIcon name="shieldCheck" :size="12" />
@@ -51,7 +51,7 @@ const showBadges = computed(() => Boolean(props.badges?.is_venue_owner || props.
   background: var(--sg-client-primary-soft);
   color: var(--sg-client-primary-dark);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1;
   white-space: nowrap;
 }

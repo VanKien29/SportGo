@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="theme-toggle-container" v-click-outside="closeDropdown">
     <!-- Trigger Button -->
     <button
@@ -39,7 +39,6 @@
 </template>
 
 <script>
-import { applyDocumentThemeMode } from '../../utils/themeMode.js';
 
 export default {
   name: 'ThemeToggle',
@@ -115,7 +114,13 @@ export default {
       this.$emit('theme-changed', theme);
     },
     applyTheme(theme) {
-      applyDocumentThemeMode(theme);
+      let resolvedTheme = theme;
+      if (theme === 'system') {
+        resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+      document.documentElement.classList.toggle('light', resolvedTheme === 'light');
+      document.documentElement.setAttribute('data-theme', resolvedTheme);
     },
     handleSystemThemeChange() {
       if (this.activeTheme === 'system') {
@@ -185,7 +190,7 @@ export default {
   color: var(--admin-muted);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;

@@ -3,12 +3,6 @@ export const ownerNavigationSections = [
     label: 'Tổng quan',
     items: [
       {
-        label: 'Bảng điều hành',
-        icon: 'dashboard',
-        to: '/owner/dashboard',
-        activeNames: ['owner-dashboard'],
-      },
-      {
         label: 'Hồ sơ đối tác',
         icon: 'fileText',
         to: '/owner/partner-profile',
@@ -30,12 +24,6 @@ export const ownerNavigationSections = [
         icon: 'building',
         to: '/owner/venue-clusters',
         activeNames: ['owner-venue-clusters'],
-      },
-      {
-        label: 'Sân con',
-        icon: 'court',
-        to: '/owner/venue-courts',
-        activeNames: ['owner-venue-courts'],
       },
       {
         label: 'Khóa lịch sân',
@@ -167,7 +155,7 @@ export const ownerRouteTitles = {
   'owner-booking-list': 'Danh sách booking',
   'owner-pricing': 'Cấu hình giá',
   'owner-booking-settings': 'Cấu hình đặt sân',
-  'owner-settings': 'Cấu hình giao diện',
+  'owner-settings': 'Cài đặt hệ thống',
   'owner-schedule-locks': 'Khóa lịch theo khung giờ',
   'owner-platform-fees': 'Phí nền tảng',
   'owner-finance': 'Tài chính & số dư',

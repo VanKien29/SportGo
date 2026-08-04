@@ -1,123 +1,108 @@
 <template>
-  <section class="admin-page">
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card roles-main-content">
+      <section class="admin-page">
 
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
+        <div v-if="error" class="alert error">{{ error }}</div>
+        <div v-if="success" class="alert success">{{ success }}</div>
 
-    <nav class="view-tabs">
-      <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
-      <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền</button>
-    </nav>
+        <nav class="view-tabs">
+          <button type="button" :class="{ active: currentView === 'list' }" @click="currentView = 'list'">Danh sách nhóm quyền</button>
+          <button type="button" :class="{ active: currentView === 'matrix' }" @click="currentView = 'matrix'">Ma trận phân quyền</button>
+        </nav>
 
-    <template v-if="currentView === 'list'">
-      <section class="filter-panel">
-        <div class="filter-head">
-          <strong>Bộ lọc</strong>
-          <span>Lọc theo tên, loại nhóm và trạng thái chỉnh sửa.</span>
-        </div>
-        <div class="filter-bar">
-          <label class="search-box">
-            <AppIcon name="search" size="18" />
-            <input
-              v-model.trim="filters.keyword"
-              placeholder="Tìm theo tên nhóm, mô tả hoặc mã nội bộ"
-              @keyup.enter="loadRoles"
-            />
-          </label>
-          <select v-model="filters.is_system" @change="loadRoles">
-            <option value="">Tất cả nhóm</option>
-            <option value="1">Nhóm hệ thống</option>
-            <option value="0">Nhóm tùy chỉnh</option>
-          </select>
-          <select v-model="configFilter">
-            <option value="">Tất cả mức quyền</option>
-            <option value="configurable">Có thể chỉnh sửa</option>
-            <option value="locked">Đang khóa chỉnh sửa</option>
-          </select>
-          <ActionIconButton icon="filter" label="Lọc danh sách" variant="primary" @click="loadRoles" />
-          <ActionIconButton icon="refresh" label="Xóa lọc" variant="secondary" :disabled="loading" @click="resetFilters" />
-        </div>
-      </section>
+        <template v-if="currentView === 'list'">
+          <SaaSFilterBar
+            v-model="activeTab"
+            v-model:search="filters.keyword"
+            :tabs="statusTabsUi"
+            search-id="search-roles"
+            search-placeholder="Tìm theo tên nhóm, mô tả hoặc mã nội bộ..."
+          >
+            <template #actions>
+              <select v-model="configFilter" class="filter-select">
+                <option value="">Tất cả mức quyền</option>
+                <option value="configurable">Có thể chỉnh sửa</option>
+                <option value="locked">Đang khóa chỉnh sửa</option>
+              </select>
+              <button class="btn primary" type="button" @click="openCreateModal">
+                <AppIcon name="plus" size="16" />
+                <span>Tạo nhóm quyền</span>
+              </button>
+            </template>
+          </SaaSFilterBar>
 
-      <section class="fixed-note">
-        <AppIcon name="shield" size="18" />
-        <span>Vai trò người dùng, chủ sân và nhân viên sân là vai trò nghiệp vụ cố định, không cấu hình tại màn này.</span>
-      </section>
+          <section class="fixed-note">
+            <AppIcon name="shield" size="18" />
+            <span>Vai trò người dùng, chủ sân và nhân viên sân là vai trò nghiệp vụ cố định, không cấu hình tại màn này.</span>
+          </section>
 
-    <div class="table-card">
-      <div v-if="loading" class="table-state">Đang tải nhóm quyền...</div>
-      <div v-else-if="filteredRoles.length === 0" class="table-state">Chưa có nhóm quyền quản trị nào phù hợp.</div>
-      <div v-else class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>
-                <button class="sort-btn" type="button" @click="sortBy('display_name')">
-                  Nhóm quyền
-                  <AppIcon :name="sortIcon('display_name')" size="14" />
-                </button>
-              </th>
-              <th>Mô tả</th>
-              <th>Loại nhóm</th>
-              <th>Quyền</th>
-              <th>Nhân sự</th>
-              <th>Mức nhạy cảm</th>
-              <th>Cập nhật</th>
-              <th class="actions-col">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="role in sortedRoles" :key="role.id">
-              <td class="main-cell">
-                <strong>{{ role.display_name || role.name }}</strong>
-                <span>{{ role.name }}</span>
-              </td>
-              <td class="desc-cell">{{ role.description || 'Chưa có mô tả phạm vi sử dụng.' }}</td>
-              <td>
-                <span class="type-badge" :class="role.is_system ? 'badge-system' : 'badge-custom'">
-                  {{ role.is_system ? 'Hệ thống' : 'Tùy chỉnh' }}
-                </span>
-              </td>
-              <td>
-                <span class="count-pill">{{ role.permissions_count || 0 }}</span>
-              </td>
-              <td>
-                <span class="count-pill">{{ role.users_count || 0 }}</span>
-              </td>
-              <td>
-                <span class="risk-badge" :class="sensitivityClass(role)">
-                  <AppIcon :name="sensitivityIcon(role)" size="14" />
-                  {{ sensitivityLabel(role) }}
-                </span>
-              </td>
-              <td class="date-cell">{{ formatDate(role.updated_at) }}</td>
-              <td class="actions-col">
-                <TableActionGroup>
-                  <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(role, 'info')" />
-                  <ActionIconButton icon="shieldCheck" label="Cấu hình quyền" @click="goDetail(role, 'permissions')" />
-                  <ActionIconButton
-                    v-if="canUpdateRole"
-                    icon="pencil"
-                    label="Sửa thông tin"
-                    :disabled="!role.is_configurable"
-                    @click="role.is_configurable && openEditModal(role)"
-                  />
-                  <ActionIconButton icon="users" label="Xem nhân sự đang dùng" @click="goDetail(role, 'users')" />
-                  <ActionIconButton
-                    v-if="canDeleteRole"
-                    icon="trash"
-                    :label="role.can_delete ? 'Xóa nhóm quyền' : deleteDisabledReason(role)"
-                    variant="danger"
-                    :disabled="!role.can_delete"
-                    @click="role.can_delete && openDeleteConfirm(role)"
-                  />
-                </TableActionGroup>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+          <div class="table-card">
+            <SaaSTable
+              :columns="tableColumns"
+              :data="sortedRoles"
+              :loading="loading"
+              loading-text="Đang tải nhóm quyền..."
+              empty-text="Chưa có nhóm quyền quản trị nào phù hợp."
+            >
+                <template #display_name="{ row }">
+                  <div class="main-cell">
+                    <strong>{{ row.display_name || row.name }}</strong>
+                    <span>{{ row.name }}</span>
+                  </div>
+                </template>
+
+                <template #description="{ row }">
+                  <span class="desc-cell">{{ row.description || 'Chưa có mô tả phạm vi sử dụng.' }}</span>
+                </template>
+
+                <template #is_system="{ row }">
+                  <span class="type-badge" :class="row.is_system ? 'badge-system' : 'badge-custom'">
+                    {{ row.is_system ? 'Hệ thống' : 'Tùy chỉnh' }}
+                  </span>
+                </template>
+
+                <template #permissions_count="{ row }">
+                  <span class="count-pill">{{ row.permissions_count || 0 }}</span>
+                </template>
+
+                <template #users_count="{ row }">
+                  <span class="count-pill">{{ row.users_count || 0 }}</span>
+                </template>
+
+                <template #sensitivity="{ row }">
+                  <span class="risk-badge" :class="sensitivityClass(row)">
+                    <AppIcon :name="sensitivityIcon(row)" size="14" />
+                    {{ sensitivityLabel(row) }}
+                  </span>
+                </template>
+
+                <template #updated_at="{ row }">
+                  <span class="date-cell">{{ formatDate(row.updated_at) }}</span>
+                </template>
+
+                <template #actions="{ row }">
+                  <TableActionGroup>
+                    <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(row, 'info')" />
+                    <ActionIconButton icon="shieldCheck" label="Cấu hình quyền" @click="goDetail(row, 'permissions')" />
+                    <ActionIconButton
+                      icon="pencil"
+                      label="Sửa thông tin"
+                      :disabled="!row.is_configurable"
+                      @click="row.is_configurable && openEditModal(row)"
+                    />
+                    <ActionIconButton icon="users" label="Xem nhân sự đang dùng" @click="goDetail(row, 'users')" />
+                    <ActionIconButton
+                      icon="trash"
+                      :label="row.can_delete ? 'Xóa nhóm quyền' : deleteDisabledReason(row)"
+                      variant="danger"
+                      :disabled="!row.can_delete"
+                      @click="row.can_delete && openDeleteConfirm(row)"
+                    />
+                  </TableActionGroup>
+                </template>
+              </SaaSTable>
+          </div>
     </template>
 
     <template v-else>
@@ -188,7 +173,9 @@
         <span class="btn-float-text">Tạo nhóm quyền</span>
       </button>
     </div>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -197,19 +184,22 @@ import AppIcon from '../../components/AppIcon.vue';
 import ConfirmModal from '../../components/ConfirmModal.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import AdminPermissionMatrix from '../../components/admin/AdminPermissionMatrix.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
 import { getAuth } from '../../stores/auth.js';
 import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
 
 export default {
   name: 'AdminRoles',
-  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup, AdminPermissionMatrix },
+  components: { ActionIconButton, AppIcon, ConfirmModal, TableActionGroup, AdminPermissionMatrix, SaaSFilterBar, SaaSTable },
   data() {
     return {
       currentView: 'list',
       roles: [],
       summary: {},
       filters: { keyword: '', is_system: '' },
+      activeTab: '',
       configFilter: '',
       form: this.defaultForm(),
       editingRole: null,
@@ -225,18 +215,35 @@ export default {
       showScrollTop: false,
     };
   },
+  watch: {
+    activeTab(val) {
+      if (val === 'system') this.filters.is_system = '1';
+      else if (val === 'custom') this.filters.is_system = '0';
+      else this.filters.is_system = '';
+      this.loadRoles();
+    },
+  },
   computed: {
-    canCreateRole() {
-      return hasAllAdminPermissions(getAuth(), ['role.create']);
+    statusTabsUi() {
+      const systemCount = this.roles.filter((r) => r.is_system).length;
+      const customCount = this.roles.filter((r) => !r.is_system).length;
+      return [
+        { value: '', label: 'Tất cả nhóm', count: this.roles.length },
+        { value: 'system', label: 'Nhóm hệ thống', count: systemCount },
+        { value: 'custom', label: 'Nhóm tùy chỉnh', count: customCount },
+      ];
     },
-    canUpdateRole() {
-      return hasAllAdminPermissions(getAuth(), ['role.update']);
-    },
-    canDeleteRole() {
-      return hasAllAdminPermissions(getAuth(), ['role.delete']);
-    },
-    canManagePermissions() {
-      return hasAllAdminPermissions(getAuth(), ['role.permission.manage']);
+    tableColumns() {
+      return [
+        { key: 'display_name', label: 'NHÓM QUYỀN' },
+        { key: 'description', label: 'MÔ TẢ' },
+        { key: 'is_system', label: 'LOẠI NHÓM' },
+        { key: 'permissions_count', label: 'QUYỀN' },
+        { key: 'users_count', label: 'NHÂN SỰ' },
+        { key: 'sensitivity', label: 'MỨC NHẠY CẢM' },
+        { key: 'updated_at', label: 'CẬP NHẬT' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' },
+      ];
     },
     filteredRoles() {
       if (!this.configFilter) return this.roles;
@@ -413,7 +420,7 @@ export default {
   margin: 0 0 4px;
   color: var(--admin-success-text);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -462,7 +469,7 @@ small {
   border-bottom: 3px solid transparent;
   background: transparent;
   color: var(--admin-muted);
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
@@ -588,7 +595,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -622,7 +629,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: 999px;
   background: var(--admin-surface-muted);
   color: var(--admin-text);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .type-badge,
@@ -684,7 +691,7 @@ tbody tr.never-hover-class-placeholder {
 .alert {
   border-radius: var(--admin-radius);
   padding: 11px 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .alert.error {
@@ -706,7 +713,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: var(--admin-radius);
   padding: 10px 14px;
   font: inherit;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -770,7 +777,7 @@ label {
   flex-direction: column;
   gap: 6px;
   color: var(--admin-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 small {
@@ -813,5 +820,21 @@ small {
   .filter-bar {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.roles-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.table-card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>

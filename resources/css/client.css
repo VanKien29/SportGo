@@ -133,7 +133,7 @@
   background: var(--sg-client-surface);
   color: var(--sg-client-text);
   font-size: var(--sg-client-font-base);
-  font-weight: 600;
+  font-weight: 400;
   transition: border-color var(--sg-client-transition), background-color var(--sg-client-transition), color var(--sg-client-transition);
 }
 
@@ -202,7 +202,7 @@
 .sg-client-eyebrow {
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-xs);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -230,7 +230,7 @@
   background: var(--sg-client-primary-soft);
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-xs);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-client-sr-only {
@@ -325,7 +325,7 @@
   background: var(--sg-client-surface);
   color: var(--sg-client-muted);
   font-size: var(--sg-client-font-sm);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-news-categories button.active {
@@ -375,7 +375,7 @@
   gap: var(--sg-client-space-2);
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-lg);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-news-media .sg-client-status {
@@ -439,7 +439,7 @@
   margin-top: auto;
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-sm);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-news-article {
@@ -601,7 +601,7 @@
   gap: var(--sg-client-space-1);
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-sm);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-community-post-detail {
@@ -633,7 +633,7 @@
   background: var(--sg-client-primary-soft);
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-base);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-community-avatar-small {
@@ -724,7 +724,7 @@
   background: var(--sg-client-primary-soft);
   color: var(--sg-client-primary-dark);
   font-size: var(--sg-client-font-xs);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-community-post-copy h1 {
@@ -828,7 +828,7 @@
   border-radius: var(--sg-client-radius-sm);
   color: var(--sg-client-muted);
   font-size: var(--sg-client-font-sm);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-community-actions > button:not(:disabled):hover {
@@ -901,7 +901,7 @@
 
 .sg-community-login-hint a {
   color: var(--sg-client-primary-dark);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .sg-community-comment-list {

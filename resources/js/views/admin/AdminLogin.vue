@@ -136,7 +136,7 @@ export default {
                     this.loginValue.trim(),
                     this.password,
                 );
-                this.$router.push(auth.redirect_to || "/admin/dashboard");
+                this.$router.push(auth.redirect_to || "/admin/venue-clusters");
             } catch (error) {
                 const details = error.data || {};
                 let lockedUntilFormatted = null;

@@ -170,29 +170,28 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--admin-bg-soft, rgba(0, 0, 0, 0.04));
-  border: 1px solid var(--admin-border, #e2e8f0);
+  background: transparent !important;
+  border: none !important;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 4px 6px;
   color: var(--admin-text, #1e293b);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
   user-select: none;
   min-height: 28px;
+  box-shadow: none !important;
 }
 
-.dropdown-trigger.never-hover-class-placeholder {
-  background: var(--admin-hover, rgba(0, 0, 0, 0.08));
-  border-color: var(--admin-primary, #3b82f6);
-}
-
+.dropdown-trigger.never-hover-class-placeholder,
+.dropdown-trigger:hover,
+.dropdown-trigger:focus,
+.dropdown-trigger:active,
 .dropdown-trigger.active {
-  background: var(--admin-surface, #fff);
-  border-color: var(--admin-primary, #3b82f6);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(59, 130, 246, 0.15));
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .dropdown-trigger.is-locked {

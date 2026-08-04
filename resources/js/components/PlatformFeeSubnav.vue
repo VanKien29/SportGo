@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <nav class="platform-fee-subnav" aria-label="Chức năng bậc phí nền tảng">
         <router-link
             v-for="item in items"
@@ -61,7 +61,7 @@ export default {
     background: #fff;
     color: var(--admin-muted, #334155);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     text-decoration: none;
 }
 

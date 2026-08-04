@@ -157,7 +157,4 @@ export default {
 };
 </script>
 
-<style scoped>
-.sg3-venue-page :deep(.sg3-venue-card__image) { padding: 0; border: 0; }
-.sg3-venue-page :deep(.sg3-search-submit svg), .sg3-venue-page :deep(.sg3-apply-filter svg) { flex: 0 0 auto; }
-</style>
+

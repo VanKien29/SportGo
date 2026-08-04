@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="layout">
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <nav class="sidebar-nav">
@@ -171,7 +171,7 @@ export default {
   border-radius: 10px;
   color: rgba(0, 0, 0, 0.6) !important;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   transition: all 0.2s ease;
   text-decoration: none;
 }
@@ -184,7 +184,7 @@ export default {
 :deep(.nav-active) {
   background: rgba(0, 0, 0, 0.05) !important;
   color: #000000 !important;
-  font-weight: 700;
+  font-weight: 400;
   border-left: 3px solid #000000;
   padding-left: 13px;
 }
@@ -201,7 +201,7 @@ export default {
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: #000000;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   text-align: left;
   display: flex;
   align-items: center;
@@ -255,7 +255,7 @@ export default {
   background: #000000;
   color: #ffffff;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .user-info {
@@ -269,7 +269,7 @@ export default {
   white-space: nowrap;
   color: rgba(0, 0, 0, 0.8);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .user-role {
@@ -297,7 +297,7 @@ export default {
   padding: 12px 16px;
   color: rgba(0, 0, 0, 0.8);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   text-align: left;
   background: transparent;
   border: none;
@@ -356,7 +356,7 @@ export default {
   flex: 1;
   color: var(--sg-text);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .content-area {

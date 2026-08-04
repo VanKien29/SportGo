@@ -24,7 +24,6 @@ import ClientProfile from "../views/clients/ClientProfile.vue";
 import AdminLogin from "../views/admin/AdminLogin.vue";
 import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
 import AdminLayout from "../views/admin/AdminLayout.vue";
-import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
 import AdminStaffs from "../views/admin/AdminStaffs.vue";
@@ -37,8 +36,6 @@ import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
 import AdminRoles from "../views/admin/AdminRoles.vue";
 import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
-import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
-import OwnerProfile from "../views/owner/OwnerProfile.vue";
 import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
@@ -95,9 +92,9 @@ const routes = [
         meta: { requiresAuth: false, title: "Cộng đồng" },
     },
     {
-      path: '/user/:id',
-      name: 'user.profile',
-      component: UserProfile
+        path: '/user/:id',
+        name: 'user.profile',
+        component: UserProfile
     },
     {
         path: "/news/:slug",
@@ -232,8 +229,7 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                name: "admin-dashboard",
-                component: AdminDashboard,
+                redirect: { name: "admin-venue-clusters" },
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
@@ -382,9 +378,7 @@ const routes = [
             },
             {
                 path: "system-profile",
-                name: "admin-system-profile",
-                component: () =>
-                    import("../views/admin/AdminSystemProfile.vue"),
+                redirect: { name: "admin-settings" },
             },
             {
                 path: "settings",
@@ -404,7 +398,7 @@ const routes = [
                 name: "admin-chat",
                 component: () => import("../views/Chat.vue"),
             },
-            { path: "", redirect: { name: "admin-dashboard" } },
+            { path: "", redirect: { name: "admin-venue-clusters" } },
         ],
     },
     {
@@ -414,8 +408,7 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                name: "owner-dashboard",
-                component: OwnerDashboard,
+                redirect: { name: "owner-venue-clusters" },
             },
             {
                 path: "venue-clusters",
@@ -547,7 +540,7 @@ const routes = [
                 name: "owner-refunds",
                 component: () => import("../views/owner/OwnerRefundRequests.vue"),
             },
-            { path: "", redirect: { name: "owner-dashboard" } },
+            { path: "", redirect: { name: "owner-venue-clusters" } },
         ],
     },
     {
@@ -557,8 +550,7 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                name: "staff-dashboard",
-                component: () => import("../views/staff/StaffDashboard.vue"),
+                redirect: { name: "staff-bookings" },
             },
             {
                 path: "schedules",
@@ -590,8 +582,8 @@ const routes = [
                 name: "staff-chat",
                 component: () => import("../views/Chat.vue"),
             },
-            { path: "profile", name: "staff-profile", component: OwnerProfile },
-            { path: "", redirect: { name: "staff-dashboard" } },
+            { path: "profile", name: "staff-profile", component: Profile },
+            { path: "", redirect: { name: "staff-bookings" } },
         ],
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },

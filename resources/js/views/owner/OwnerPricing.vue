@@ -1,262 +1,103 @@
 <template>
-  <section class="pricing-page">
+  <div class="pricing-master-workspace">
 
-    <div v-if="error" class="alert alert-error">{{ error }}</div>
-    <div v-if="notice" class="alert alert-success">{{ notice }}</div>
+    <!-- Toast Notifications -->
+    <Transition name="fade">
+      <div v-if="error" class="global-toast alert-error">
+        <span>{{ error }}</span>
+        <button type="button" class="toast-close-btn" @click="error = ''">✕</button>
+      </div>
+    </Transition>
 
-    <section class="base-price-card">
-      <div class="section-head compact">
-        <h3>Giá chung</h3>
+    <Transition name="fade">
+      <div v-if="notice" class="global-toast alert-success">
+        <span>{{ notice }}</span>
+        <button type="button" class="toast-close-btn" @click="notice = ''">✕</button>
+      </div>
+    </Transition>
+
+    <!-- Master Unified Surface Container -->
+    <div class="cluster-profile-surface standalone">
+
+      <!-- PART 1: Top Hero Surface -->
+      <PricingHeaderHero
+        :tabs="tabsForAppTabs"
+        :active-tab="activeTab"
+        @tab-change="selectTab"
+      />
+
+      <!-- PART 2: Single Unified Content Surface Card -->
+      <div class="profile-section-card pricing-main-content">
+        <!-- Section A: Giá chung (Giá cơ bản) -->
+        <PricingBaseSection
+          :court-types="courtTypes"
+          :base-price-drafts="basePriceDrafts"
+          :base-prices="basePrices"
+          :saving-base-price-id="savingBasePriceId"
+          :is-loading="isLoading"
+          :selected-cluster-id="selectedClusterId"
+          @update-draft="updateBasePriceDraft"
+          @save-base-price="saveBasePrice"
+        />
+
+        <!-- Section B: Bảng quy tắc giá nâng cao -->
+        <PricingRulesTable
+          :active-tab="activeTab"
+          :active-tab-meta="activeTabMeta"
+          :court-types="courtTypes"
+          :days="days"
+          :filtered-rows="rows"
+          :is-loading="isLoading"
+          :load-failed="loadFailed"
+          @open-create-modal="openCreateModal"
+          @open-edit-modal="openEditModal"
+          @toggle-row="toggleRow"
+          @delete-row="deleteRow"
+        />
       </div>
 
-      <div v-if="isLoading" class="empty-state compact-state">Đang tải...</div>
-      <div v-else-if="!selectedClusterId" class="empty-state compact-state">Chưa có cụm sân</div>
-      <div v-else-if="!courtTypes.length" class="empty-state compact-state">Chưa có loại sân</div>
-      <div v-else class="base-price-grid">
-        <div v-for="type in courtTypes" :key="type.id" class="base-price-row">
-          <strong>{{ type.name }}</strong>
-          <label class="money-input">
-            <input
-              v-model.number="basePriceDrafts[type.id]"
-              type="number"
-              min="1"
-              step="1000"
-              :class="{ invalid: !isValidBasePrice(basePriceDrafts[type.id]) }"
-              :disabled="savingBasePriceId === type.id"
-            >
-            <span>đ / giờ</span>
-            <small v-if="!isValidBasePrice(basePriceDrafts[type.id])">Giá phải lớn hơn 0.</small>
-          </label>
-          <button
-            class="btn primary"
-            type="button"
-            :disabled="savingBasePriceId === type.id || !isValidBasePrice(basePriceDrafts[type.id])"
-            @click="saveBasePrice(type)"
-          >
-            {{ savingBasePriceId === type.id ? 'Đang lưu...' : 'Lưu' }}
-          </button>
-        </div>
-      </div>
-
-      <div class="filters">
-        <label class="cluster-select">
-          Cụm sân
-          <select v-model="selectedClusterId" :disabled="isLoading || !clusters.length">
-            <option v-for="cluster in clusters" :key="cluster.id" :value="String(cluster.id)">{{ cluster.name }}</option>
-          </select>
-        </label>
-      </div>
-    </section>
-
-    <section class="pricing-card">
-      <nav class="price-tabs" aria-label="Nhóm cấu hình giá">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          type="button"
-          :class="{ active: activeTab === tab.value }"
-          @click="selectTab(tab.value)"
-        >
-          <span>{{ tab.label }}</span>
-          <small>{{ tabCount(tab.value) }}</small>
-        </button>
-      </nav>
-
-      <div class="table-toolbar">
-        <h3>{{ activeTabMeta.title }}</h3>
-        <button class="btn primary" type="button" :disabled="!selectedClusterId || !courtTypes.length" @click="openCreateModal">
-          + {{ activeTabMeta.addLabel }}
-        </button>
-      </div>
-
-      <div class="filters" :class="{ weekly: activeTab === 'weekly' }">
-        <label>
-          Loại sân
-          <select v-model="filters.court_type_id">
-            <option value="">Tất cả loại sân</option>
-            <option v-for="type in courtTypes" :key="type.id" :value="String(type.id)">{{ type.name }}</option>
-          </select>
-        </label>
-        <label v-if="activeTab === 'weekly'">
-          Ngày áp dụng
-          <select v-model="filters.day">
-            <option value="">Tất cả các ngày</option>
-            <option v-for="day in days" :key="day.value" :value="String(day.value)">{{ day.fullLabel }}</option>
-          </select>
-        </label>
-        <label>
-          Loại booking
-          <select v-model="filters.booking_type">
-            <option value="">Tất cả</option>
-            <option value="all">Dùng chung</option>
-            <option value="single">Đặt lẻ</option>
-            <option value="recurring">Đặt cố định</option>
-          </select>
-        </label>
-        <label>
-          Trạng thái
-          <select v-model="filters.status">
-            <option value="">Tất cả</option>
-            <option value="active">Đang áp dụng</option>
-            <option value="inactive">Đã tắt</option>
-          </select>
-        </label>
-      </div>
-
-      <div v-if="isLoading" class="empty-state">Đang tải cấu hình giá...</div>
-      <div v-else-if="loadFailed" class="empty-state load-error">
-        <span>Không thể tải dữ liệu cấu hình giá.</span>
-      </div>
-      <div v-else-if="!filteredRows.length" class="empty-state no-results">
-        <span>{{ hasActiveFilters ? 'Không có kết quả' : 'Chưa có dữ liệu' }}</span>
-        <button v-if="hasActiveFilters" class="btn secondary" type="button" @click="resetFilters">Xóa bộ lọc</button>
-      </div>
-      <div v-else class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Loại sân</th>
-              <th>{{ activeTab === 'weekly' ? 'Ngày trong tuần' : 'Ngày áp dụng' }}</th>
-              <th>Khung giờ</th>
-              <th>Loại booking</th>
-              <th>Giá / giờ</th>
-              <th>Trạng thái</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in filteredRows" :key="row.id">
-              <td>
-                <strong>{{ row.court_type?.name || courtTypeName(row.court_type_id) }}</strong>
-                <small v-if="row.note">{{ row.note }}</small>
-              </td>
-              <td>
-                <strong>{{ applicationLabel(row) }}</strong>
-                <small v-if="activeTab !== 'weekly'">{{ activeTabMeta.label }}</small>
-              </td>
-              <td><span class="time-pill">{{ time(row.start_time) }} - {{ time(row.end_time) }}</span></td>
-              <td>{{ bookingTypeLabel(row.booking_type) }}</td>
-              <td class="price">{{ money(row.price) }}</td>
-              <td>
-                <button
-                  class="switch"
-                  :class="{ on: row.is_active }"
-                  type="button"
-                  :aria-pressed="row.is_active"
-                  :title="row.is_active ? 'Tắt giá' : 'Bật giá'"
-                  @click="toggleRow(row)"
-                >
-                  <span></span>
-                </button>
-              </td>
-              <td>
-                <TableActionGroup>
-                  <ActionIconButton icon="pencil" label="Sửa cấu hình giá" @click="openEditModal(row)" />
-                  <ActionIconButton icon="trash" label="Xóa cấu hình giá" variant="danger" @click="deleteRow(row)" />
-                </TableActionGroup>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
-      <form class="price-modal" @submit.prevent="savePrice">
-        <header class="modal-head">
-          <div>
-            <p class="eyebrow">{{ editingRow ? 'CHỈNH SỬA' : 'THÊM MỚI' }}</p>
-            <h3>{{ editingRow ? `Cập nhật ${activeTabMeta.label.toLowerCase()}` : activeTabMeta.addLabel }}</h3>
-          </div>
-          <button type="button" @click="closeModal">Đóng</button>
-        </header>
-
-        <div class="form-grid">
-          <label>
-            Loại sân
-            <select v-model.number="form.court_type_id" required>
-              <option v-for="type in courtTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
-            </select>
-          </label>
-          <label>
-            Loại booking
-            <select v-model="form.booking_type" required>
-              <option value="all">Dùng chung</option>
-              <option value="single">Đặt lẻ</option>
-              <option value="recurring">Đặt cố định</option>
-            </select>
-          </label>
-        </div>
-
-        <template v-if="activeTab === 'weekly'">
-          <label>Ngày trong tuần</label>
-          <div class="day-grid">
-            <label v-for="day in days" :key="day.value" :class="{ selected: form.apply_to_days.includes(day.value) }">
-              <input v-model="form.apply_to_days" type="checkbox" :value="day.value">
-              <span>{{ day.label }}</span>
-            </label>
-          </div>
-        </template>
-
-        <label v-else>
-          Ngày áp dụng
-          <input v-model="form.holiday_date" type="date" required>
-        </label>
-
-        <div class="form-grid">
-          <label>
-            Giờ bắt đầu
-            <input v-model="form.start_time" type="time" required>
-          </label>
-          <label>
-            Giờ kết thúc
-            <input v-model="form.end_time" type="time" required>
-          </label>
-        </div>
-
-        <div class="form-grid">
-          <label>
-            Giá / giờ
-            <input v-model.number="form.price" type="number" min="1" step="1000" required>
-          </label>
-          <label v-if="activeTab !== 'weekly'">
-            Ghi chú
-            <input v-model.trim="form.note" type="text" maxlength="255" :placeholder="activeTabMeta.notePlaceholder">
-          </label>
-        </div>
-
-        <label class="active-row">
-          <input v-model="form.is_active" type="checkbox">
-          <span>Áp dụng ngay sau khi lưu</span>
-        </label>
-
-        <footer class="modal-actions">
-          <button class="btn secondary" type="button" @click="closeModal">Hủy</button>
-          <button class="btn primary" type="submit" :disabled="isSavingPrice">
-            {{ isSavingPrice ? 'Đang lưu...' : 'Lưu cấu hình' }}
-          </button>
-        </footer>
-      </form>
     </div>
-  </section>
+
+    <!-- Teleported Modal Dialog -->
+    <PricingRuleModal
+      :show="showModal"
+      :editing-row="editingRow"
+      :active-tab="activeTab"
+      :active-tab-meta="activeTabMeta"
+      :court-types="courtTypes"
+      :days="days"
+      :form="form"
+      :is-saving-price="isSavingPrice"
+      :error-message="modalError"
+      @close="closeModal"
+      @save-price="savePrice"
+      @update:form="form = $event"
+    />
+  </div>
 </template>
 
 <script>
-import ActionIconButton from '../../components/ActionIconButton.vue';
-import AppIcon from '../../components/AppIcon.vue';
-import TableActionGroup from '../../components/TableActionGroup.vue';
+import PricingBaseSection from '../../components/owner/pricing/PricingBaseSection.vue';
+import PricingHeaderHero from '../../components/owner/pricing/PricingHeaderHero.vue';
+import PricingRuleModal from '../../components/owner/pricing/PricingRuleModal.vue';
+import PricingRulesTable from '../../components/owner/pricing/PricingRulesTable.vue';
 import { api } from '../../services/api.js';
 
 export default {
   name: 'OwnerPricing',
-  components: { ActionIconButton, TableActionGroup, AppIcon },
+  components: {
+    PricingHeaderHero,
+    PricingBaseSection,
+    PricingRulesTable,
+    PricingRuleModal,
+  },
   data() {
     return {
       clusters: [],
       courtTypesByCluster: {},
       basePrices: [],
       basePriceDrafts: {},
-      systemDefaultPrice: 10000,
+      systemDefaultPrice: 100000,
       priceSlots: [],
       holidayPrices: [],
       selectedClusterId: localStorage.getItem('selected_cluster') || '',
@@ -267,13 +108,13 @@ export default {
       loadFailed: false,
       error: '',
       notice: '',
+      modalError: '',
       showModal: false,
       editingRow: null,
-      filters: { court_type_id: '', day: '', booking_type: '', status: '' },
       tabs: [
-        { value: 'weekly', label: 'Giá ngày thường' },
-        { value: 'holiday', label: 'Giá ngày lễ' },
-        { value: 'special_date', label: 'Giá ngày đặc biệt' },
+        { key: 'weekly', value: 'weekly', label: 'Giá ngày thường' },
+        { key: 'holiday', value: 'holiday', label: 'Giá ngày lễ' },
+        { key: 'special_date', value: 'special_date', label: 'Giá ngày đặc biệt' },
       ],
       form: this.defaultForm(),
       days: [
@@ -285,10 +126,16 @@ export default {
         { value: 6, label: 'T7', fullLabel: 'Thứ 7' },
         { value: 7, label: 'CN', fullLabel: 'Chủ nhật' },
       ],
-      showScrollTop: false,
     };
   },
   computed: {
+    tabsForAppTabs() {
+      return [
+        { key: 'weekly', value: 'weekly', label: 'Giá ngày thường' },
+        { key: 'holiday', value: 'holiday', label: 'Giá ngày lễ' },
+        { key: 'special_date', value: 'special_date', label: 'Giá ngày đặc biệt' },
+      ];
+    },
     selectedCluster() {
       return this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
     },
@@ -300,29 +147,29 @@ export default {
         weekly: {
           label: 'Giá ngày thường',
           eyebrow: 'LỊCH GIÁ HẰNG TUẦN',
-          title: 'Bảng giá ngày thường',
-          description: 'Cấu hình theo thứ và khung giờ. Khoảng trống sẽ lấy giá chung.',
+          title: 'Bảng quy tắc giá ngày thường',
+          description: 'Cấu hình khung giờ theo thứ trong tuần. Các khoảng trống chưa tạo quy tắc sẽ áp dụng Giá chung.',
           addLabel: 'Thêm giá ngày thường',
-          empty: 'Chưa có khung giá ngày thường. Hệ thống đang dùng giá chung.',
+          empty: 'Chưa có quy tắc giá ngày thường. Tất cả các giờ đang áp dụng Giá chung.',
           notePlaceholder: '',
         },
         holiday: {
           label: 'Giá ngày lễ',
           eyebrow: 'LỊCH NGÀY LỄ',
-          title: 'Bảng giá ngày lễ',
-          description: 'Chỉ khung giờ được cấu hình mới dùng giá lễ; giờ còn lại lấy giá ngày thường.',
+          title: 'Bảng quy tắc giá ngày lễ',
+          description: 'Áp dụng cho các ngày lễ cố định trong năm. Chỉ các khung giờ được cài mới đổi giá, giờ còn lại giữ nguyên.',
           addLabel: 'Thêm giá ngày lễ',
-          empty: 'Chưa có giá ngày lễ. Các ngày này sẽ dùng giá ngày thường.',
-          notePlaceholder: 'Ví dụ: Tết Dương lịch',
+          empty: 'Chưa có giá ngày lễ nào được thiết lập.',
+          notePlaceholder: 'Ví dụ: Tết Dương lịch, Giỗ Tổ Hùng Vương',
         },
         special_date: {
           label: 'Giá ngày đặc biệt',
           eyebrow: 'LỊCH RIÊNG',
-          title: 'Bảng giá ngày đặc biệt',
-          description: 'Dùng cho giải đấu, sự kiện hoặc ngày có mức giá riêng.',
+          title: 'Bảng quy tắc giá ngày đặc biệt',
+          description: 'Dành riêng cho ngày có giải đấu, sự kiện hoặc khung giờ cao điểm đột xuất.',
           addLabel: 'Thêm ngày đặc biệt',
-          empty: 'Chưa có ngày đặc biệt.',
-          notePlaceholder: 'Ví dụ: Giải đấu nội bộ',
+          empty: 'Chưa có quy tắc ngày đặc biệt nào được tạo.',
+          notePlaceholder: 'Ví dụ: Giải đấu nội bộ CLB',
         },
       }[this.activeTab];
     },
@@ -335,37 +182,17 @@ export default {
         && row.date_type === this.activeTab
       ));
     },
-    filteredRows() {
-      return this.rows.filter((row) => {
-        if (this.filters.court_type_id && String(row.court_type_id) !== this.filters.court_type_id) return false;
-        if (this.filters.booking_type && row.booking_type !== this.filters.booking_type) return false;
-        if (this.filters.status === 'active' && !row.is_active) return false;
-        if (this.filters.status === 'inactive' && row.is_active) return false;
-        if (this.activeTab === 'weekly' && this.filters.day) {
-          if (!this.normalizeDays(row.apply_to_days).includes(Number(this.filters.day))) return false;
-        }
-        return true;
-      });
-    },
-    hasActiveFilters() {
-      return Object.values(this.filters).some(Boolean);
-    },
   },
   watch: {
-    selectedClusterId(value) {
-      if (value) localStorage.setItem('selected_cluster', value);
-      this.resetFilters();
-      this.syncBasePriceDrafts();
+    selectedClusterId(newVal) {
+      if (newVal) {
+        localStorage.setItem('selected_cluster', newVal);
+        this.syncBasePriceDrafts();
+      }
     },
   },
-  async mounted() {
-    window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
-    window.addEventListener('scroll', this.handleScroll);
-    await this.loadPricing();
-  },
-  beforeUnmount() {
-    window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
-    window.removeEventListener('scroll', this.handleScroll);
+  mounted() {
+    this.fetchData();
   },
   methods: {
     defaultForm() {
@@ -374,29 +201,27 @@ export default {
         apply_to_days: [1, 2, 3, 4, 5],
         holiday_date: new Date().toISOString().split('T')[0],
         start_time: '06:00',
-        end_time: '17:00',
+        end_time: '22:00',
         booking_type: 'all',
-        price: 0,
+        price: 100000,
         note: '',
         is_active: true,
       };
     },
-    async handleClusterChanged(event) {
-      const clusterId = event.detail?.id || localStorage.getItem('selected_cluster') || '';
-      this.selectedClusterId = clusterId ? String(clusterId) : '';
-    },
-    async loadPricing() {
+    async fetchData() {
       this.isLoading = true;
       this.loadFailed = false;
-      this.error = '';
+      this.clearMessages();
+
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 15000);
+
       try {
-        const data = await api('/api/owner/pricing', { signal: controller.signal });
+        const data = await api('/api/owner/pricing-rules', { signal: controller.signal });
         this.clusters = data.clusters || [];
         this.courtTypesByCluster = data.court_types_by_cluster || {};
         this.basePrices = data.base_prices || [];
-        this.systemDefaultPrice = Number(data.system_default_price || 10000);
+        this.systemDefaultPrice = Number(data.system_default_price || 100000);
         this.priceSlots = data.price_slots || [];
         this.holidayPrices = data.holiday_prices || [];
         if (!this.clusters.some((cluster) => String(cluster.id) === String(this.selectedClusterId))) {
@@ -406,7 +231,7 @@ export default {
       } catch (error) {
         this.loadFailed = true;
         this.error = error.name === 'AbortError'
-          ? 'Tải cấu hình giá quá lâu. Vui lòng kiểm tra kết nối và thử lại.'
+          ? 'Tải cấu hình giá quá lâu. Vui lòng kiểm tra kết nối mạng và thử lại.'
           : (error.message || 'Không thể tải cấu hình giá.');
       } finally {
         window.clearTimeout(timeout);
@@ -415,16 +240,7 @@ export default {
     },
     selectTab(tab) {
       this.activeTab = tab;
-      this.resetFilters();
       this.clearMessages();
-    },
-    tabCount(tab) {
-      if (tab === 'weekly') {
-        return this.priceSlots.filter((row) => this.belongsToSelectedCluster(row)).length;
-      }
-      return this.holidayPrices.filter((row) => (
-        this.belongsToSelectedCluster(row) && row.date_type === tab
-      )).length;
     },
     basePriceRecord(courtTypeId) {
       return this.basePrices.find((row) => (
@@ -435,22 +251,23 @@ export default {
     belongsToSelectedCluster(row) {
       return String(row?.venue_cluster_id ?? '') === String(this.selectedClusterId ?? '');
     },
-    hasSavedBasePrice(courtTypeId) {
-      return Boolean(this.basePriceRecord(courtTypeId));
-    },
     syncBasePriceDrafts() {
       this.basePriceDrafts = Object.fromEntries(this.courtTypes.map((type) => [
         type.id,
         Number(this.basePriceRecord(type.id)?.price ?? this.systemDefaultPrice),
       ]));
     },
+    updateBasePriceDraft({ courtTypeId, price }) {
+      this.basePriceDrafts[courtTypeId] = price;
+    },
     isValidBasePrice(value) {
       return Number.isFinite(Number(value)) && Number(value) > 0;
     },
     async saveBasePrice(type) {
       this.clearMessages();
-      if (!this.isValidBasePrice(this.basePriceDrafts[type.id])) {
-        this.error = 'Giá chung phải là số lớn hơn 0.';
+      const val = this.basePriceDrafts[type.id];
+      if (!this.isValidBasePrice(val)) {
+        this.error = 'Giá chung phải là số hợp lệ lớn hơn 0.';
         return;
       }
       this.savingBasePriceId = type.id;
@@ -459,7 +276,7 @@ export default {
           method: 'PUT',
           body: JSON.stringify({
             venue_cluster_id: this.selectedClusterId,
-            price: Number(this.basePriceDrafts[type.id]),
+            price: Number(val),
           }),
         });
         const exists = this.basePrices.some((item) => item.id === saved.id);
@@ -467,7 +284,7 @@ export default {
           ? this.basePrices.map((item) => (item.id === saved.id ? saved : item))
           : [saved, ...this.basePrices];
         this.basePriceDrafts[type.id] = Number(saved.price);
-        this.notice = `Đã lưu giá chung cho ${type.name}.`;
+        this.notice = `Đã lưu thành công giá chung cho loại sân "${type.name}".`;
       } catch (error) {
         this.error = error.message || 'Không thể lưu giá chung.';
       } finally {
@@ -476,12 +293,14 @@ export default {
     },
     openCreateModal() {
       this.clearMessages();
+      this.modalError = '';
       this.editingRow = null;
       this.form = { ...this.defaultForm(), court_type_id: this.courtTypes[0]?.id || null };
       this.showModal = true;
     },
     openEditModal(row) {
       this.clearMessages();
+      this.modalError = '';
       this.editingRow = row;
       this.form = {
         ...this.defaultForm(),
@@ -501,19 +320,22 @@ export default {
       if (this.isSavingPrice) return;
       this.showModal = false;
       this.editingRow = null;
+      this.modalError = '';
     },
     async savePrice() {
       this.clearMessages();
-      if (this.activeTab === 'weekly' && !this.form.apply_to_days.length) {
-        this.error = 'Vui lòng chọn ít nhất một ngày trong tuần.';
+      this.modalError = '';
+
+      if (this.activeTab === 'weekly' && (!this.form.apply_to_days || !this.form.apply_to_days.length)) {
+        this.modalError = 'Vui lòng chọn ít nhất một ngày trong tuần.';
         return;
       }
       if (this.form.start_time >= this.form.end_time) {
-        this.error = 'Giờ kết thúc phải sau giờ bắt đầu.';
+        this.modalError = 'Giờ kết thúc phải lớn hơn giờ bắt đầu.';
         return;
       }
       if (!Number.isFinite(Number(this.form.price)) || Number(this.form.price) <= 0) {
-        this.error = 'Giá / giờ phải là số lớn hơn 0.';
+        this.modalError = 'Giá / giờ phải là số lớn hơn 0.';
         return;
       }
 
@@ -551,11 +373,11 @@ export default {
           body: JSON.stringify(payload),
         });
         this.replaceRow(isWeekly, saved);
-        this.notice = `Đã lưu ${this.activeTabMeta.label.toLowerCase()}.`;
+        this.notice = `Đã lưu thành công quy tắc ${this.activeTabMeta.label.toLowerCase()}.`;
         this.showModal = false;
         this.editingRow = null;
       } catch (error) {
-        this.error = error.message || 'Không thể lưu cấu hình giá.';
+        this.modalError = error.message || 'Không thể lưu cấu hình giá.';
       } finally {
         this.isSavingPrice = false;
       }
@@ -570,12 +392,13 @@ export default {
           body: JSON.stringify({ is_active: !row.is_active }),
         });
         this.replaceRow(isWeekly, saved);
+        this.notice = `Đã ${saved.is_active ? 'bật' : 'tắt'} quy tắc giá.`;
       } catch (error) {
         this.error = error.message || 'Không thể cập nhật trạng thái giá.';
       }
     },
     async deleteRow(row) {
-      if (!window.confirm(`Xóa ${this.activeTabMeta.label.toLowerCase()} này?`)) return;
+      if (!window.confirm(`Bạn có chắc chắn muốn xóa quy tắc ${this.activeTabMeta.label.toLowerCase()} này?`)) return;
       this.clearMessages();
       const isWeekly = this.activeTab === 'weekly';
       const basePath = isWeekly ? '/api/owner/price-slots' : '/api/owner/holiday-prices';
@@ -586,7 +409,7 @@ export default {
         } else {
           this.holidayPrices = this.holidayPrices.filter((item) => item.id !== row.id);
         }
-        this.notice = 'Đã xóa cấu hình giá.';
+        this.notice = 'Đã xóa thành công quy tắc giá.';
       } catch (error) {
         this.error = error.message || 'Không thể xóa cấu hình giá.';
       }
@@ -598,29 +421,14 @@ export default {
         ? this[key].map((item) => (item.id === saved.id ? saved : item))
         : [saved, ...this[key]];
     },
-    applicationLabel(row) {
-      return this.activeTab === 'weekly' ? this.formatDays(row.apply_to_days) : this.formatDate(row.holiday_date);
-    },
-    bookingTypeLabel(type) {
-      return { all: 'Dùng chung', single: 'Đặt lẻ', recurring: 'Đặt cố định' }[type] || type;
-    },
     courtTypeName(id) {
-      return this.courtTypes.find((type) => type.id === Number(id))?.name || 'Chưa rõ';
+      return this.courtTypes.find((type) => Number(type.id) === Number(id))?.name || 'Chưa rõ';
     },
     normalizeDays(days) {
+      if (typeof days === 'string') {
+        try { days = JSON.parse(days); } catch (e) { days = []; }
+      }
       return [...new Set((days || []).map((day) => (Number(day) === 0 ? 7 : Number(day))))].sort((a, b) => a - b);
-    },
-    formatDays(days) {
-      const values = this.normalizeDays(days);
-      if (values.join(',') === '1,2,3,4,5') return 'Thứ 2 - Thứ 6';
-      if (values.join(',') === '6,7') return 'Thứ 7, Chủ nhật';
-      if (values.length === 7) return 'Tất cả các ngày';
-      const labels = Object.fromEntries(this.days.map((day) => [day.value, day.fullLabel]));
-      return values.map((day) => labels[day]).join(', ');
-    },
-    formatDate(value) {
-      const date = new Date(`${this.dateOnly(value)}T00:00:00`);
-      return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat('vi-VN').format(date);
     },
     dateOnly(value) {
       return String(value || '').slice(0, 10);
@@ -628,23 +436,89 @@ export default {
     time(value) {
       return (value || '').slice(0, 5);
     },
-    money(value) {
-      return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-        maximumFractionDigits: 0,
-      }).format(Number(value || 0));
-    },
     clearMessages() {
       this.error = '';
       this.notice = '';
     },
-    resetFilters() {
-      this.filters = { court_type_id: '', day: '', booking_type: '', status: '' };
-    },
-    handleScroll() {
-      this.showScrollTop = window.scrollY > 150;
-    },
   },
 };
 </script>
+
+<style scoped>
+.pricing-master-workspace {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cluster-profile-surface.standalone {
+  background: var(--admin-surface, #ffffff);
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-main-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  background: var(--admin-surface, #ffffff);
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Global Toasts */
+.global-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 400;
+  box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(23, 34, 27, 0.06));
+}
+
+.global-toast.alert-error {
+  background: var(--admin-danger-soft, #fef2f2);
+  border: 1px solid var(--admin-danger, #dc2626);
+  color: var(--admin-danger-text, #991b1b);
+}
+
+.global-toast.alert-success {
+  background: var(--admin-success-soft, #e2f6e8);
+  border: 1px solid var(--admin-success, #22a653);
+  color: var(--admin-success-text, #15733a);
+}
+
+.toast-close-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.toast-close-btn:hover {
+  opacity: 1;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+</style>

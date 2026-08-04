@@ -1,6 +1,17 @@
 <template>
   <div class="saas-table-container">
-    <div class="saas-table-scroll">
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>{{ loadingText }}</p>
+    </div>
+
+    <div v-else-if="data.length === 0" class="state-box animate-fade-in">
+      <p class="empty-msg">
+        <slot name="empty">{{ emptyText }}</slot>
+      </p>
+    </div>
+
+    <div v-else class="saas-table-scroll">
       <table class="saas-table">
         <thead>
           <tr>
@@ -32,11 +43,6 @@
               </slot>
             </td>
           </tr>
-          <tr v-if="data.length === 0">
-            <td :colspan="columns.length" class="empty-cell">
-              <slot name="empty">Không có dữ liệu</slot>
-            </td>
-          </tr>
         </tbody>
       </table>
     </div>
@@ -50,7 +56,6 @@ export default {
     columns: {
       type: Array,
       required: true
-      // Format: { key: 'name', label: 'Name', align: 'left/center/right', style: {}, class: '' }
     },
     data: {
       type: Array,
@@ -59,6 +64,18 @@ export default {
     clickable: {
       type: Boolean,
       default: false
+    },
+    loading: {
+      type: Boolean,
+      default: false
+    },
+    loadingText: {
+      type: String,
+      default: 'Đang tải dữ liệu...'
+    },
+    emptyText: {
+      type: String,
+      default: 'Không có dữ liệu'
     }
   }
 };
@@ -67,10 +84,10 @@ export default {
 <style scoped>
 .saas-table-container {
   width: 100%;
-  background: var(--admin-surface, #ffffff);
-  border-radius: 12px;
-  border: 1px solid var(--admin-border, #e2e8f0);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
   overflow: hidden;
   box-sizing: border-box;
 }

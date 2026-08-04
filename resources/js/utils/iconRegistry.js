@@ -333,6 +333,10 @@ export const ICON_ALIASES = {
   back: 'arrow-left',
   arrowLeft: 'arrow-left',
   'shopping-bag': 'shoppingBag',
+  list: 'menu',
+  grid: 'dashboard',
+  layout: 'dashboard',
+  maximize: 'externalLink',
 };
 
 export const NAV_ICON_MAP = {

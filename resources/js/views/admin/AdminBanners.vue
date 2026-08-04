@@ -1,108 +1,103 @@
 <template>
-  <div class="admin-banners-page">
-    <div class="toolbar card">
-      <div class="filters">
-        <label class="field compact">
-          <span>Tìm kiếm</span>
-          <input
-            v-model="filters.search"
-            type="search"
-            placeholder="Tên banner, liên kết"
-            @input="onFilterChange"
-          />
-        </label>
-        <label class="field compact">
-          <span>Vị trí</span>
-          <select v-model="filters.position" @change="loadBanners(1)">
-            <option value="">Tất cả vị trí</option>
-            <option v-for="option in positionOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <label class="field compact">
-          <span>Trạng thái</span>
-          <select v-model="filters.is_active" @change="loadBanners(1)">
-            <option value="">Tất cả trạng thái</option>
-            <option value="1">Đang bật</option>
-            <option value="0">Đang tắt</option>
-          </select>
-        </label>
-      </div>
-    </div>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card banners-main-content">
+      <div class="admin-banners-page">
+        <SaaSFilterBar
+          v-model="filters.is_active"
+          v-model:search="filters.search"
+          :tabs="statusTabsUi"
+          search-id="search-banners"
+          search-placeholder="Tên banner, liên kết..."
+          @update:search="onFilterChange"
+          @update:modelValue="loadBanners(1)"
+        >
+          <template #actions>
+            <select v-model="filters.position" @change="loadBanners(1)" class="filter-select">
+              <option value="">Tất cả vị trí</option>
+              <option v-for="option in positionOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <button class="btn primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); color: #fff; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer;">
+              <AppIcon name="plus" size="16" />
+              <span>Tạo banner</span>
+            </button>
+          </template>
+        </SaaSFilterBar>
 
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải banner...</p>
     </div>
 
-    <div v-else-if="banners.length === 0" class="state-box card">
+    <div v-else-if="banners.length === 0" class="state-box animate-fade-in">
       <p>Chưa có banner phù hợp.</p>
     </div>
 
     <div v-else class="banner-table card">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Banner</th>
-              <th>Vị trí</th>
-              <th>Thời gian</th>
-              <th class="center">Thứ tự</th>
-              <th class="center">Trạng thái</th>
-              <th class="right">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="banner in banners" :key="banner.id">
-              <td>
-                <div class="banner-cell">
-                  <div class="banner-thumb">
-                    <img
-                      v-if="imageSrc(banner) && !failedBannerImages[banner.id]"
-                      :src="imageSrc(banner)"
-                      :alt="banner.title"
-                      @error="markBannerImageFailed(banner.id)"
-                    />
-                    <span v-else>Ảnh không sẵn sàng</span>
-                  </div>
-                  <div class="banner-main">
-                    <div class="banner-title">{{ banner.title }}</div>
-                    <a v-if="banner.link_url" :href="banner.link_url" target="_blank" rel="noopener noreferrer">
-                      {{ banner.link_url }}
-                    </a>
-                    <span v-else class="muted">Không có liên kết</span>
-                  </div>
-                </div>
-              </td>
-              <td>{{ positionLabel(banner.position) }}</td>
-              <td>
-                <div>{{ formatDate(banner.starts_at) }}</div>
-                <div class="muted">{{ formatDate(banner.ends_at) }}</div>
-              </td>
-              <td class="center">{{ banner.sort_order }}</td>
-              <td class="center">
-                <span class="status" :class="banner.is_active ? 'active' : 'inactive'">
-                  {{ banner.is_active ? 'Đang bật' : 'Đang tắt' }}
-                </span>
-              </td>
-              <td class="right">
-                <div class="actions">
-                  <button class="icon-btn" type="button" title="Chỉnh sửa" @click="openEditModal(banner)">
-                    <AppIcon name="pencil" size="16" />
-                  </button>
-                  <button class="icon-btn danger" type="button" title="Xóa" @click="deleteBanner(banner)">
-                    <AppIcon name="trash" size="16" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SaaSTable
+        :columns="tableColumns"
+        :data="banners"
+      >
+        <template #title="{ row }">
+          <div class="banner-cell">
+            <div class="banner-thumb">
+              <img
+                v-if="imageSrc(row) && !failedBannerImages[row.id]"
+                :src="imageSrc(row)"
+                :alt="row.title"
+                @error="markBannerImageFailed(row.id)"
+              />
+              <span v-else>Ảnh không sẵn sàng</span>
+            </div>
+            <div class="banner-main">
+              <div class="banner-title">{{ row.title }}</div>
+              <a v-if="row.link_url" :href="row.link_url" target="_blank" rel="noopener noreferrer">
+                {{ row.link_url }}
+              </a>
+              <span v-else class="muted">Không có liên kết</span>
+            </div>
+          </div>
+        </template>
+
+        <template #position="{ row }">
+          {{ positionLabel(row.position) }}
+        </template>
+
+        <template #schedule="{ row }">
+          <div>{{ formatDate(row.starts_at) }}</div>
+          <div class="muted">{{ formatDate(row.ends_at) }}</div>
+        </template>
+
+        <template #sort_order="{ row }">
+          {{ row.sort_order }}
+        </template>
+
+        <template #status="{ row }">
+          <span class="status" :class="row.is_active ? 'active' : 'inactive'">
+            {{ row.is_active ? 'Đang bật' : 'Đang tắt' }}
+          </span>
+        </template>
+
+        <template #actions="{ row }">
+          <TableActionGroup>
+            <ActionIconButton
+              icon="pencil"
+              label="Chỉnh sửa"
+              @click="openEditModal(row)"
+            />
+            <ActionIconButton
+              icon="trash"
+              label="Xóa"
+              variant="danger"
+              @click="deleteBanner(row)"
+            />
+          </TableActionGroup>
+        </template>
+      </SaaSTable>
 
       <div v-if="pagination.last_page > 1" class="pagination">
         <button class="icon-btn" type="button" title="Trang trước" aria-label="Trang trước" :disabled="pagination.current_page <= 1" @click="loadBanners(pagination.current_page - 1)">
@@ -199,16 +194,22 @@
         <span class="btn-float-text">Thêm banner</span>
       </button>
     </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import { adminBannerService } from '../../services/adminBanners.js';
 
 export default {
   name: 'AdminBanners',
-  components: { AppIcon },
+  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
   data() {
     return {
       banners: [],
@@ -249,8 +250,24 @@ export default {
     this.loadBanners();
     window.addEventListener('scroll', this.handleScroll);
   },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll);
+  computed: {
+    statusTabsUi() {
+      return [
+        { value: '', label: 'Tất cả trạng thái' },
+        { value: '1', label: 'Đang bật' },
+        { value: '0', label: 'Đang tắt' }
+      ];
+    },
+    tableColumns() {
+      return [
+        { key: 'title', label: 'BANNER' },
+        { key: 'position', label: 'VỊ TRÍ' },
+        { key: 'schedule', label: 'THỜI GIAN' },
+        { key: 'sort_order', label: 'THỨ TỰ', align: 'center' },
+        { key: 'status', label: 'TRẠNG THÁI', align: 'center' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' }
+      ];
+    }
   },
   methods: {
     emptyForm() {
@@ -453,7 +470,7 @@ export default {
   gap: 6px;
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .field.full {
@@ -482,7 +499,7 @@ export default {
   border: 1px solid transparent;
   border-radius: var(--admin-radius);
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 400;
   transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
@@ -535,7 +552,7 @@ export default {
 .notice {
   border-radius: var(--admin-radius);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 12px 14px;
 }
 
@@ -601,7 +618,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -637,7 +654,7 @@ tbody tr.never-hover-class-placeholder {
   background: var(--admin-surface-muted);
   color: var(--admin-faint);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .banner-thumb img,
@@ -657,7 +674,7 @@ tbody tr.never-hover-class-placeholder {
 
 .banner-title {
   color: var(--admin-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .banner-main a,
@@ -700,7 +717,7 @@ tbody tr.never-hover-class-placeholder {
   gap: 12px;
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   padding: 12px 16px;
 }
 
@@ -771,7 +788,7 @@ tbody tr.never-hover-class-placeholder {
   align-items: center;
   gap: 10px;
   color: var(--admin-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 @media (max-width: 860px) {
@@ -784,5 +801,23 @@ tbody tr.never-hover-class-placeholder {
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.banners-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.banners-main-content :is(.banner-table, .toolbar, .card, .state-box, .admin-banners-page, .saas-table-container) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
 }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="news-detail-page">
         <PublicNavbar />
 
@@ -1003,7 +1003,7 @@ export default {
   border-radius: 12px;
   background: #fff;
   color: #425247;
-  font-weight: 800;
+  font-weight: 400;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
@@ -1013,7 +1013,7 @@ export default {
 
 .news-state a {
   color: #0d8c51;
-  font-weight: 900;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -1023,7 +1023,7 @@ export default {
   gap: 8px;
   color: #65676B;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   margin-bottom: 16px;
   padding: 0 8px;
 }
@@ -1085,7 +1085,7 @@ export default {
 
 .fb-avatar-text {
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 400;
   color: #65676b;
 }
 
@@ -1097,7 +1097,7 @@ export default {
 .fb-post-meta strong {
   font-size: 15px;
   color: #050505;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .meta-sub {
@@ -1113,14 +1113,14 @@ export default {
 }
 
 .meta-venue {
-  font-weight: 600;
+  font-weight: 400;
   color: #0866FF;
 }
 
 .fb-post-title {
   margin: 0 16px 8px;
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.3;
   color: #050505;
 }
@@ -1254,7 +1254,7 @@ export default {
   border-radius: 4px;
   color: #65676B;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -1341,7 +1341,7 @@ export default {
 .login-prompt a {
   color: #0866FF;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .comments-list {
@@ -1373,7 +1373,7 @@ export default {
 .comment-bubble strong {
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   margin-bottom: 2px;
 }
 
@@ -1398,7 +1398,7 @@ export default {
   margin-top: 4px;
   font-size: 12px;
   color: #65676B;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .clickable {
@@ -1462,7 +1462,7 @@ export default {
 .likers-modal-header h3 {
   margin: 0;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: #050505;
 }
 .close-btn {
@@ -1504,7 +1504,7 @@ export default {
   padding: 8px 0;
 }
 .liker-list-item span {
-  font-weight: 600;
+  font-weight: 400;
   font-size: 15px;
   color: #050505;
 }

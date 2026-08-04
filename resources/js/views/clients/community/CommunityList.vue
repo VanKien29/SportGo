@@ -859,7 +859,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 
 .section-title {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 400;
   color: #1e293b;
   margin-bottom: 20px;
 }
@@ -928,12 +928,12 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 1.1rem;
 }
 
 .m-name {
-  font-weight: 600;
+  font-weight: 400;
   font-size: 0.95rem;
   color: #334155;
 }
@@ -997,7 +997,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
   color: white;
   border: none;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -1032,7 +1032,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
   color: #475569;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1059,7 +1059,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
   padding: 8px;
   border-radius: 6px;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s;
@@ -1073,7 +1073,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 
 .news-header h1 {
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
   margin-bottom: 12px;
 }
@@ -1147,7 +1147,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
   background: white;
   color: #64748b;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1232,7 +1232,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   backdrop-filter: blur(4px);
 }
 
@@ -1257,7 +1257,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 
 .news-title {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
   color: #1e293b;
   margin-bottom: 12px;
   line-height: 1.4;
@@ -1281,7 +1281,7 @@ onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 
 .news-readmore {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: #334155;
   display: flex;
   align-items: center;

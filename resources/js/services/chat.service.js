@@ -4,6 +4,19 @@ export const chatService = {
   getConversations() {
     return api('/api/chat/conversations');
   },
+  createGroupConversation(name, userIds, avatarFile = null) {
+    const formData = new FormData();
+    formData.append('type', 'group');
+    formData.append('name', name);
+    userIds.forEach(id => formData.append('user_ids[]', id));
+    if (avatarFile) {
+      formData.append('avatar', avatarFile);
+    }
+    return api('/api/chat/conversations', {
+      method: 'POST',
+      body: formData
+    });
+  },
   getMessages(conversationId) {
     return api(`/api/chat/conversations/${conversationId}/messages`);
   },
@@ -38,19 +51,31 @@ export const chatService = {
       method: 'POST'
     });
   },
+  recallMessage(messageId) {
+    return api(`/api/chat/messages/${messageId}/recall`, {
+      method: 'POST'
+    });
+  },
+  deleteMessageForSelf(messageId) {
+    return api(`/api/chat/messages/${messageId}`, {
+      method: 'DELETE'
+    });
+  },
   markAsRead(conversationId) {
     return api(`/api/chat/conversations/${conversationId}/read`, {
       method: 'POST'
     });
   },
-  deleteConversation(conversationId) {
+  deleteConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      body: JSON.stringify(options)
     });
   },
-  clearConversation(conversationId) {
+  clearConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}/clear`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify(options)
     });
   },
   searchUsers(query) {

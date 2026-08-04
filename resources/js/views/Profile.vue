@@ -71,11 +71,11 @@ export default {
   methods: {
     goBack() {
       if (this.role === 'owner') {
-        this.$router.push('/owner/dashboard');
+        this.$router.push('/owner/venue-clusters');
         return;
       }
       if (this.role === 'staff') {
-        this.$router.push('/staff/dashboard');
+        this.$router.push('/staff/bookings');
         return;
       }
 
@@ -84,4 +84,5 @@ export default {
   },
 };
 </script>
+
 

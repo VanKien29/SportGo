@@ -1,317 +1,232 @@
 <template>
-  <div class="settings-container animate-fade-in">
-    <!-- Success Feedback Alert -->
-    <div v-if="successMessage" class="alert success" style="margin-bottom: 0px; border-radius: 12px; display: flex; align-items: center; gap: 8px;">
-      <AppIcon name="check" size="18" />
-      <span>{{ successMessage }}</span>
-    </div>
-    <div v-if="errorMessage" class="alert error" role="alert" style="margin-bottom: 0px; border-radius: 12px;">
-      <span>{{ errorMessage }}</span>
-    </div>
-
-    <!-- Sidebar Style Selection -->
-    <div class="settings-card">
-      <div class="settings-card-header">
-        <h2>Kiểu hiển thị Sidebar</h2>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card settings-main-content">
+      <!-- Tabs Header -->
+      <div style="display: flex; gap: 8px; margin-bottom: 0;">
+        <button
+          :class="['btn', activeSettingTab === 'system' ? 'primary' : 'ghost']"
+          type="button"
+          @click="activeSettingTab = 'system'"
+          style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;"
+        >
+          <span>Cấu hình hệ thống</span>
+        </button>
+        <button
+          :class="['btn', activeSettingTab === 'ui' ? 'primary' : 'ghost']"
+          type="button"
+          @click="activeSettingTab = 'ui'"
+          style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;"
+        >
+          <span>Giao diện & Sidebar</span>
+        </button>
       </div>
-      <div class="settings-card-content">
-        <div class="sidebar-type-grid">
-          <div
-            class="sidebar-type-card"
-            :class="{ active: sidebarStyle === 'one-level' }"
-            @click="sidebarStyle = 'one-level'"
-          >
-            <div class="sidebar-card-preview one-level-preview">
-              <div class="preview-sidebar">
-                <div class="preview-logo"></div>
-                <div class="preview-menu-items">
-                  <div class="preview-menu-item active">
-                    <div class="preview-icon"></div>
-                    <div class="preview-text"></div>
-                  </div>
-                  <div class="preview-menu-item">
-                    <div class="preview-icon"></div>
-                    <div class="preview-text"></div>
-                  </div>
-                  <div class="preview-menu-item">
-                    <div class="preview-icon"></div>
-                    <div class="preview-text"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="preview-content">
-                <div class="preview-header"></div>
-                <div class="preview-body">
-                  <div class="preview-card-item"></div>
-                  <div class="preview-card-item"></div>
-                </div>
-              </div>
-            </div>
-            <div class="sidebar-card-info">
-              <h3>Sidebar đơn cấp</h3>
-              <p>Hiển thị danh mục trực tiếp trên một thanh điều hướng duy nhất</p>
-            </div>
-          </div>
 
-          <div
-            class="sidebar-type-card"
-            :class="{ active: sidebarStyle === 'two-level' }"
-            @click="sidebarStyle = 'two-level'"
-          >
-            <div class="sidebar-card-preview two-level-preview">
-              <div class="preview-rail">
-                <div class="preview-rail-logo"></div>
-                <div class="preview-rail-items">
-                  <div class="preview-rail-item active"></div>
-                  <div class="preview-rail-item"></div>
-                  <div class="preview-rail-item"></div>
-                </div>
-              </div>
-              <div class="preview-sub-sidebar">
-                <div class="preview-sub-title"></div>
-                <div class="preview-sub-items">
-                  <div class="preview-sub-item active"></div>
-                  <div class="preview-sub-item"></div>
-                  <div class="preview-sub-item"></div>
-                </div>
-              </div>
-              <div class="preview-content">
-                <div class="preview-header"></div>
-                <div class="preview-body">
-                  <div class="preview-card-item"></div>
-                  <div class="preview-card-item"></div>
-                </div>
-              </div>
-            </div>
-            <div class="sidebar-card-info">
-              <h3>Sidebar hai cấp</h3>
-              <p>Chia làm thanh chính (Rail) chứa icon và thanh phụ hiển thị menu chi tiết</p>
-            </div>
-          </div>
+
+
+      <!-- TAB 1: CẤU HÌNH HỆ THỐNG -->
+      <div v-if="activeSettingTab === 'system'">
+        <div v-if="systemLoading" class="state-box animate-fade-in">
+          <div class="spinner"></div>
+          <p>Đang tải thông tin hệ thống...</p>
         </div>
-      </div>
-    </div>
-
-    <!-- Theme Customization (Flat Layout) -->
-    <div class="settings-card">
-      <div class="settings-card-header">
-        <h2>Thiết lập Giao diện</h2>
-      </div>
-
-      <div class="settings-card-content theme-layout-grid">
-        <!-- Left Column: Controls -->
-        <div class="controls-column">
-          <!-- Presets Section -->
-          <div class="settings-section-title">Chủ đề màu sắc</div>
-          <div class="presets-grid">
-            <div
-              v-for="preset in allPresets"
-              :key="preset.id"
-              class="preset-card"
-              :class="{ active: selectedPresetId === preset.id }"
-              :title="preset.name"
-              @click="selectPreset(preset)"
-            >
-              <span class="preset-color-dot" :style="{ background: preset.color }"></span>
-              <span class="preset-name">{{ preset.name }}</span>
-              <button
-                v-if="preset.isUserPreset"
-                type="button"
-                class="delete-preset-btn"
-                title="Xóa"
-                @click.stop="deleteUserPreset(preset.id)"
-              >
-                &times;
-              </button>
+        <form v-else class="profile-form" @submit.prevent="submitSystemProfile">
+          <!-- Nhận diện -->
+          <div class="settings-section-block" style="margin-bottom: 20px;">
+            <div class="settings-card-header">
+              <h2>Nhận diện hệ thống</h2>
+            </div>
+            <div class="settings-card-content" style="padding: 0;">
+              <div class="form-grid two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Tên hệ thống <b>*</b></span>
+                  <input v-model.trim="systemForm.system_name" type="text" class="form-control" placeholder="SportGo" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Tên viết tắt</span>
+                  <input v-model.trim="systemForm.company_short_name" type="text" class="form-control" placeholder="SportGo" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field file-field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Upload logo</span>
+                  <input type="file" accept=".jpg,.jpeg,.png,.webp,.svg" class="form-control" @change="onSystemFileChange($event, 'logo')" style="width: 100%; padding: 6px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Logo URL</span>
+                  <input v-model.trim="systemForm.logo_url" type="text" class="form-control" placeholder="/storage/system/logo.png" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field file-field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Upload favicon</span>
+                  <input type="file" accept=".ico,.jpg,.jpeg,.png,.webp,.svg,image/*" class="form-control" @change="onSystemFileChange($event, 'favicon')" style="width: 100%; padding: 6px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Favicon URL</span>
+                  <input v-model.trim="systemForm.favicon_url" type="text" class="form-control" placeholder="/storage/system/favicon.ico" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+              </div>
             </div>
           </div>
 
-          <!-- Radius Section -->
-          <div class="settings-section-title">Độ bo góc</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="r in radiusOptions"
-              :key="r.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedRadius === r.value }"
-              @click="selectedRadius = r.value"
-            >
-              {{ r.label }}
-            </button>
+          <!-- Thông tin công ty / Pháp lý -->
+          <div class="settings-section-block" style="margin-bottom: 20px;">
+            <div class="settings-card-header">
+              <h2>Thông tin pháp lý công ty</h2>
+            </div>
+            <div class="settings-card-content" style="padding: 0;">
+              <div class="form-grid two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <label class="field wide" style="grid-column: 1 / -1;">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Tên công ty <b>*</b></span>
+                  <input v-model.trim="systemForm.company_name" type="text" class="form-control" placeholder="Công ty TNHH SportGo" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Mã số thuế</span>
+                  <input v-model.trim="systemForm.tax_code" type="text" class="form-control" placeholder="0101234567" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Mã số kinh doanh</span>
+                  <input v-model.trim="systemForm.business_code" type="text" class="form-control" placeholder="0101234567" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Số giấy phép kinh doanh</span>
+                  <input v-model.trim="systemForm.business_license_number" type="text" class="form-control" placeholder="GP-..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Người đại diện <b>*</b></span>
+                  <input v-model.trim="systemForm.representative_name" type="text" class="form-control" placeholder="Nguyễn Văn A" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Chức vụ</span>
+                  <input v-model.trim="systemForm.representative_title" type="text" class="form-control" placeholder="Giám đốc" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field wide" style="grid-column: 1 / -1;">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Địa chỉ công ty <b>*</b></span>
+                  <textarea v-model.trim="systemForm.company_address" class="form-control" rows="3" placeholder="Số nhà, phường/xã, tỉnh/thành phố" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;"></textarea>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <!-- Font Size Section -->
-          <div class="settings-section-title">Cỡ chữ</div>
-          <div class="radius-selector-group">
-            <button
-              v-for="f in fontSizeOptions"
-              :key="f.value"
-              type="button"
-              class="radius-btn"
-              :class="{ active: selectedFontSize === f.value }"
-              @click="selectedFontSize = f.value"
-            >
-              {{ f.label }}
-            </button>
+          <!-- Kênh hỗ trợ -->
+          <div class="settings-section-block" style="margin-bottom: 20px;">
+            <div class="settings-card-header">
+              <h2>Kênh hỗ trợ & Liên hệ</h2>
+            </div>
+            <div class="settings-card-content" style="padding: 0;">
+              <div class="form-grid three" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Email hỗ trợ</span>
+                  <input v-model.trim="systemForm.support_email" type="email" class="form-control" placeholder="support@sportgo.vn" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Số điện thoại hỗ trợ</span>
+                  <input v-model.trim="systemForm.support_phone" type="text" class="form-control" placeholder="0900000000" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+                <label class="field">
+                  <span style="font-size: 13px; font-weight: 500; color: var(--admin-text, #1e293b); display: block; margin-bottom: 6px;">Website</span>
+                  <input v-model.trim="systemForm.website_url" type="text" class="form-control" placeholder="https://sportgo.vn" style="width: 100%; padding: 8px 12px; border: 1px solid var(--admin-border, #cbd5e1); border-radius: 6px;" />
+                </label>
+              </div>
+            </div>
           </div>
 
-          <!-- Color Customizer Section -->
-          <div class="settings-section-title">Chỉnh sửa bảng màu</div>
-          
-          <!-- Mode Tabs (Segmented Toggle Control) -->
-          <div class="mode-toggle-group">
-            <button
-              type="button"
-              class="toggle-tab-btn"
-              :class="{ active: activeModeTab === 'light' }"
-              @click="activeModeTab = 'light'"
-            >
-              Giao diện Sáng
-            </button>
-            <button
-              type="button"
-              class="toggle-tab-btn"
-              :class="{ active: activeModeTab === 'dark' }"
-              @click="activeModeTab = 'dark'"
-            >
-              Giao diện Tối
+          <!-- Bottom Action Footer -->
+          <div class="settings-card-footer" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button type="submit" class="btn btn-primary" :disabled="systemSaving" style="background: var(--admin-primary, #10b981); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+              <span>{{ systemSaving ? 'Đang lưu...' : 'Lưu thông tin hệ thống' }}</span>
             </button>
           </div>
+        </form>
+      </div>
 
-          <!-- Figma Style Colors List -->
-          <div class="figma-color-rows">
-            <div
-              v-for="color in colorDefinitions"
-              :key="color.key"
-              class="figma-color-row"
-              :title="color.desc"
-            >
-              <!-- Color Swatch & Custom Figma Popover Trigger -->
-              <div class="figma-color-swatch-wrapper" @click.stop="openCustomPicker(color.key)">
-                <div class="figma-color-indicator" :style="{ background: theme[activeModeTab][color.key] }"></div>
-                
-                <!-- Popover custom color picker -->
-                <div v-if="activePickerColorKey === color.key" class="figma-popover" @click.stop>
-                  <!-- SV Canvas -->
-                  <div 
-                    class="sv-canvas" 
-                    :style="{ backgroundColor: hueColorHex }" 
-                    @mousedown="handleSVMousedown"
-                  >
-                    <div class="sv-white-gradient"></div>
-                    <div class="sv-black-gradient"></div>
-                    <div class="sv-cursor" :style="{ left: pickerSat + '%', top: (100 - pickerVal) + '%' }"></div>
-                  </div>
-                  
-                  <!-- Sliders block -->
-                  <div class="picker-sliders">
-                    <!-- Hue Slider -->
-                    <div class="hue-slider-track" :style="{ '--hue-percent': (pickerHue / 360) * 100 + '%' }">
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="360" 
-                        v-model="pickerHue" 
-                        class="hue-range-input"
-                        @input="updateColorFromHSV"
-                      />
+      <!-- TAB 2: HIỂN THỊ & GIAO DIỆN -->
+      <div v-else-if="activeSettingTab === 'ui'">
+        <!-- Sidebar Style Selection Card -->
+        <div class="settings-section-block">
+          <div class="settings-card-header">
+            <h2>Kiểu hiển thị Sidebar</h2>
+          </div>
+          <div class="settings-card-content">
+            <div class="sidebar-type-grid">
+              <div
+                class="sidebar-type-card"
+                :class="{ active: sidebarStyle === 'one-level' }"
+                @click="sidebarStyle = 'one-level'"
+              >
+                <div class="sidebar-card-preview one-level-preview">
+                  <div class="preview-sidebar">
+                    <div class="preview-logo"></div>
+                    <div class="preview-menu-items">
+                      <div class="preview-menu-item active">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text"></div>
+                      </div>
+                      <div class="preview-menu-item">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text"></div>
+                      </div>
+                      <div class="preview-menu-item">
+                        <div class="preview-icon"></div>
+                        <div class="preview-text"></div>
+                      </div>
                     </div>
                   </div>
-                  
-                  <!-- Inputs row -->
-                  <div class="picker-inputs-row">
-                    <div class="picker-input-group">
-                      <span class="picker-input-label">HEX</span>
-                      <input 
-                        type="text" 
-                        :value="theme[activeModeTab][color.key]" 
-                        @input="onHexInputChange($event)"
-                        class="picker-hex-input"
-                      />
+                  <div class="preview-content">
+                    <div class="preview-header"></div>
+                    <div class="preview-body">
+                      <div class="preview-card-item"></div>
+                      <div class="preview-card-item"></div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <!-- Color Name -->
-              <div class="figma-color-name">{{ color.label }}</div>
-
-
-            </div>
-          </div>
-
-          <!-- Save Custom Preset Box -->
-          <div class="save-preset-inline">
-            <input
-              type="text"
-              v-model="newThemeName"
-              placeholder="Tên chủ đề tùy chỉnh của bạn..."
-              class="theme-name-input"
-            />
-            <div class="preset-action-buttons">
-              <button
-                v-if="isCustomPresetActive"
-                type="button"
-                class="btn-primary update-preset-btn"
-                @click="updateActivePreset"
-                :disabled="!newThemeName.trim()"
-              >
-                Cập nhật chủ đề
-              </button>
-              <button
-                type="button"
-                class="btn-secondary save-preset-btn"
-                @click="saveAsNewPreset"
-                :disabled="!newThemeName.trim()"
-              >
-                Lưu thành chủ đề mới
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right Column: Live Preview -->
-        <div class="preview-column">
-          <div class="settings-section-title">Xem trước thực tế</div>
-          <div class="preview-container">
-            <!-- Simulated Light Preview -->
-            <div :style="lightPreviewStyle" class="preview-item">
-              <span class="preview-mode-tag">Giao diện Sáng</span>
-              <div :style="previewCardStyle" class="preview-card-body">
-                <div class="preview-card-title">Tiêu đề Khối</div>
-                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
-                <div class="preview-btn-row">
-                  <button type="button" :style="lightBtnPrimaryStyle" class="preview-btn">Primary</button>
-                  <button type="button" :style="lightBtnDestructiveStyle" class="preview-btn">Danger</button>
+                <div class="sidebar-card-info">
+                  <h3>Sidebar đơn cấp</h3>
+                  <p>Hiển thị danh mục trực tiếp trên một thanh điều hướng duy nhất</p>
                 </div>
               </div>
-            </div>
 
-            <!-- Simulated Dark Preview -->
-            <div :style="darkPreviewStyle" class="preview-item">
-              <span class="preview-mode-tag dark">Giao diện Tối</span>
-              <div :style="previewCardStyle" class="preview-card-body">
-                <div class="preview-card-title">Tiêu đề Khối</div>
-                <div class="preview-card-text">Đây là nội dung văn bản phụ sử dụng màu sắc chủ đề.</div>
-                <div class="preview-btn-row">
-                  <button type="button" :style="darkBtnPrimaryStyle" class="preview-btn">Primary</button>
-                  <button type="button" :style="darkBtnDestructiveStyle" class="preview-btn">Danger</button>
+              <div
+                class="sidebar-type-card"
+                :class="{ active: sidebarStyle === 'two-level' }"
+                @click="sidebarStyle = 'two-level'"
+              >
+                <div class="sidebar-card-preview two-level-preview">
+                  <div class="preview-rail">
+                    <div class="preview-rail-logo"></div>
+                    <div class="preview-rail-items">
+                      <div class="preview-rail-item active"></div>
+                      <div class="preview-rail-item"></div>
+                      <div class="preview-rail-item"></div>
+                    </div>
+                  </div>
+                  <div class="preview-sub-sidebar">
+                    <div class="preview-sub-title"></div>
+                    <div class="preview-sub-items">
+                      <div class="preview-sub-item active"></div>
+                      <div class="preview-sub-item"></div>
+                      <div class="preview-sub-item"></div>
+                    </div>
+                  </div>
+                  <div class="preview-content">
+                    <div class="preview-header"></div>
+                    <div class="preview-body">
+                      <div class="preview-card-item"></div>
+                      <div class="preview-card-item"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="sidebar-card-info">
+                  <h3>Sidebar hai cấp</h3>
+                  <p>Thanh chính (Rail) chứa icon và thanh phụ hiển thị menu chi tiết</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Action Bar -->
-      <div class="settings-card-footer">
-        <button type="button" class="btn-secondary" @click="resetAll">
-          Mặc định ban đầu
-        </button>
-        <button type="button" class="btn-primary" @click="saveTheme">
-          <span>Áp dụng cấu hình</span>
-        </button>
+        <!-- Bottom Action Footer -->
+        <div class="settings-card-footer">
+          <button type="button" class="btn btn-primary" :disabled="saving" @click="saveTheme">
+            <span>{{ saving ? 'Đang áp dụng...' : 'Áp dụng thay đổi' }}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -319,8 +234,9 @@
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
-import { applyCustomThemeStyles } from '../../utils/theme.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
+import { fetchSystemProfile, saveSystemProfile } from '../../services/adminSystemProfile.service.js';
+import { applySystemProfile } from '../../stores/systemProfile.js';
 
 const PRESETS = [
   {
@@ -505,6 +421,28 @@ export default {
   components: { AppIcon },
   data() {
     return {
+      activeSettingTab: 'system',
+      systemLoading: false,
+      systemSaving: false,
+      systemForm: {
+        system_name: "",
+        company_name: "",
+        company_short_name: "",
+        representative_name: "",
+        representative_title: "",
+        company_address: "",
+        tax_code: "",
+        business_code: "",
+        business_license_number: "",
+        support_email: "",
+        support_phone: "",
+        website_url: "",
+        logo_url: "",
+        favicon_url: "",
+      },
+      systemFiles: { logo: null, favicon: null },
+      localLogoPreview: "",
+      saving: false,
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
       selectedPresetId: 'sportgo',
       selectedRadius: '8px',
@@ -605,6 +543,7 @@ export default {
     },
   },
   async created() {
+    this.loadSystemProfile();
     this.loadUserPresets();
     this.loadSavedTheme();
     await this.fetchUiSettingsFromDb();
@@ -613,6 +552,70 @@ export default {
     document.removeEventListener('click', this.closeCustomPicker);
   },
   methods: {
+    async loadSystemProfile() {
+      this.systemLoading = true;
+      try {
+        const data = await fetchSystemProfile();
+        if (data) {
+          Object.keys(this.systemForm).forEach((key) => {
+            this.systemForm[key] = data[key] ?? "";
+          });
+        }
+      } catch (err) {
+        this.errorMessage = err.message || "Không thể tải thông tin hệ thống.";
+      } finally {
+        this.systemLoading = false;
+      }
+    },
+    onSystemFileChange(event, type) {
+      const file = event.target.files?.[0] || null;
+      this.systemFiles[type] = file;
+      if (type === "logo") {
+        if (this.localLogoPreview) URL.revokeObjectURL(this.localLogoPreview);
+        this.localLogoPreview = file ? URL.createObjectURL(file) : "";
+      }
+    },
+    buildSystemFormData() {
+      const payload = new FormData();
+      Object.keys(this.systemForm).forEach((key) => {
+        payload.append(key, this.systemForm[key] ?? "");
+      });
+      if (this.systemFiles.logo) payload.append("logo_file", this.systemFiles.logo);
+      if (this.systemFiles.favicon) payload.append("favicon_file", this.systemFiles.favicon);
+      return payload;
+    },
+    async submitSystemProfile() {
+      this.systemSaving = true;
+      this.errorMessage = "";
+      this.successMessage = "";
+      try {
+        const response = await saveSystemProfile(this.buildSystemFormData());
+        if (response?.data) {
+          Object.keys(this.systemForm).forEach((key) => {
+            this.systemForm[key] = response.data[key] ?? "";
+          });
+          applySystemProfile(response.data);
+        }
+        window.dispatchEvent(new CustomEvent('show-toast', {
+          detail: {
+            type: 'success',
+            title: 'Cài đặt hệ thống',
+            message: 'Lưu thông tin hệ thống thành công!'
+          }
+        }));
+        window.dispatchEvent(new CustomEvent('refresh-work-center'));
+      } catch (err) {
+        window.dispatchEvent(new CustomEvent('show-toast', {
+          detail: {
+            type: 'error',
+            title: 'Lỗi lưu thông tin',
+            message: err.message || 'Không thể lưu thông tin hệ thống.'
+          }
+        }));
+      } finally {
+        this.systemSaving = false;
+      }
+    },
     getContrastColor(hex) {
       if (!hex) return '#ffffff';
       let c = hex.replace(/^#/, '');
@@ -873,23 +876,33 @@ export default {
       }
     },
     async saveTheme() {
+      this.saving = true;
       this.successMessage = '';
       this.errorMessage = '';
-      const payload = {
-        light: this.theme.light,
-        dark: this.theme.dark,
-        radius: this.selectedRadius,
-        font_size: this.selectedFontSize
-      };
-      localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
-      localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
-      localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
-      applyCustomThemeStyles();
-      
-      // Dispatch style change event to let AdminShell re-render immediately
-      window.dispatchEvent(new Event('sidebar-style-changed'));
-
       try {
+        const payload = {
+          light: this.theme.light,
+          dark: this.theme.dark,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize
+        };
+        localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
+        localStorage.setItem('admin-sidebar-style', this.sidebarStyle);
+        localStorage.setItem('admin-user-presets', JSON.stringify(this.userPresets));
+
+        // Construct payload for admin theme CSS generation:
+        const settingsPayload = {
+          active_theme_id: this.selectedPresetId,
+          radius: this.selectedRadius,
+          font_size: this.selectedFontSize,
+          presets: this.defaultPresets,
+          custom_themes: this.userPresets
+        };
+        
+        window.dispatchEvent(new Event('sidebar-style-changed'));
+        window.dispatchEvent(new Event('admin-sidebar-style-changed'));
+        window.dispatchEvent(new CustomEvent('admin-theme-updated', { detail: settingsPayload }));
+
         const payloadDb = {
           active_theme_id: this.selectedPresetId,
           sidebar_style: this.sidebarStyle,
@@ -899,21 +912,26 @@ export default {
           custom_themes: this.userPresets,
         };
         await adminUiSettingsService.updateSettings(payloadDb);
+
+        window.dispatchEvent(new CustomEvent('show-toast', {
+          detail: {
+            type: 'success',
+            title: 'Giao diện hệ thống',
+            message: 'Cấu hình giao diện đã lưu và áp dụng thành công!'
+          }
+        }));
+        window.dispatchEvent(new CustomEvent('refresh-work-center'));
       } catch (e) {
-        this.errorMessage = e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setTimeout(() => {
-          this.errorMessage = '';
-        }, 5000);
-        return;
+        window.dispatchEvent(new CustomEvent('show-toast', {
+          detail: {
+            type: 'error',
+            title: 'Lỗi cấu hình giao diện',
+            message: e.message || 'Không thể đồng bộ cấu hình giao diện với hệ thống.'
+          }
+        }));
+      } finally {
+        this.saving = false;
       }
-      
-      this.successMessage = 'Cấu hình giao diện đã lưu và áp dụng thành công!';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      setTimeout(() => {
-        this.successMessage = '';
-      }, 5000);
     },
   },
 };
@@ -1551,5 +1569,67 @@ export default {
 .settings-card h3,
 .sidebar-card-info h3 {
   font-weight: 500 !important;
+}
+
+.profile-section-card.settings-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-card-content {
+  padding: 0 !important;
+}
+
+.table-state-card {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.sidebar-type-card {
+  border: 1px solid var(--admin-border-soft, #cbd5e1);
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.sidebar-type-card.active {
+  border-color: var(--admin-primary, #22a653) !important;
+  background: var(--admin-hover, #edf7ed) !important;
+  box-shadow: none !important;
+}
+
+.sidebar-card-preview {
+  border-radius: 0 !important;
+  border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+}
+
+.table-state-card.alert-success-custom {
+  background: var(--admin-hover, #edf7ed);
+  color: var(--admin-primary, #22a653);
+  border: 1px dashed var(--admin-primary, #22a653);
+  border-radius: 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-state-card.alert-error-custom {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px dashed #dc2626;
+  border-radius: 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

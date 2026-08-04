@@ -17,7 +17,6 @@
         <span class="nav-item-label">{{ item.label }}</span>
       </span>
       <span class="nav-item-right">
-        <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
         <AppIcon
           v-if="hasChildren"
           name="chevronRight"

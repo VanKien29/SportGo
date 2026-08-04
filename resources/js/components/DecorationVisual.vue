@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div 
     class="decoration-visual-wrapper"
     :style="wrapperStyle"
@@ -160,7 +160,7 @@ export default {
 
 .decor-label {
   font-size: 1em;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   white-space: nowrap;

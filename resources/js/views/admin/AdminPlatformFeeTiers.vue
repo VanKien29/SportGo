@@ -1,5 +1,7 @@
 <template>
-    <section class="pf-page">
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card tiers-main-content">
+      <section class="pf-page">
 
         <!-- Floating Add Button -->
         <div
@@ -29,11 +31,17 @@
 
         </SaaSFilterBar>
 
-        <section class="panel">
-            <div v-if="filteredTiers.length === 0" class="empty">
-                Chưa có bậc phí. Hãy tạo bậc phí đầu tiên.
-            </div>
-            <div v-else class="table-responsive">
+        <div v-if="loading" class="state-box animate-fade-in">
+            <div class="spinner"></div>
+            <p>Đang tải danh sách bậc phí...</p>
+        </div>
+
+        <div v-else-if="filteredTiers.length === 0" class="state-box animate-fade-in">
+            <p class="empty-msg">Chưa có bậc phí. Hãy tạo bậc phí đầu tiên.</p>
+        </div>
+
+        <section v-else class="panel">
+            <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
@@ -534,7 +542,9 @@
                 </footer>
             </div>
         </div>
-    </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -599,6 +609,7 @@ export default {
     components: { AppIcon, PlatformFeeSubnav, SaaSFilterBar },
     data() {
         return {
+            loading: true,
             tiers: [],
             discountProfiles: [],
             venues: [],
@@ -707,8 +718,13 @@ export default {
     },
     methods: {
         async loadTiers() {
-            this.tiers = await getTiers();
-            this.runPreview();
+            this.loading = true;
+            try {
+                this.tiers = await getTiers();
+                this.runPreview();
+            } finally {
+                this.loading = false;
+            }
         },
         async loadDiscountProfiles() {
             this.discountProfiles = await getDiscountProfiles();
@@ -1088,7 +1104,7 @@ export default {
     margin: 0 0 4px;
     color: #16a34a;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 h2,
@@ -1096,7 +1112,6 @@ h3,
 p {
     margin: 0;
 }
-.panel,
 .notice-card,
 .info-card,
 .modal {
@@ -1105,13 +1120,16 @@ p {
     border-radius: 8px;
 }
 .panel {
-    padding: 16px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
 }
 .notice-card {
     padding: 14px 16px;
     background: #fff7ed;
     color: #9a3412;
-    font-weight: 800;
+    font-weight: 400;
 }
 .info-grid {
     display: grid;
@@ -1121,7 +1139,7 @@ p {
 .info-card {
     padding: 12px;
     color: #334155;
-    font-weight: 800;
+    font-weight: 400;
 }
 .filter-panel {
     align-items: center;
@@ -1243,7 +1261,7 @@ td small {
     border: 0;
     border-radius: 8px;
     padding: 10px 14px;
-    font-weight: 600;
+    font-weight: 400;
     cursor: pointer;
 }
 .btn.primary {
@@ -1279,7 +1297,7 @@ label {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-weight: 800;
+    font-weight: 400;
     color: #334155;
 }
 .preview-result,
@@ -1301,7 +1319,7 @@ label {
     display: block;
     color: var(--admin-muted, #64748b) !important;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 6px;
@@ -1311,13 +1329,13 @@ label {
     display: block;
     color: var(--admin-text, #0f172a) !important;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .alert {
     border-radius: 8px;
     padding: 10px 12px;
     margin-top: 10px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .alert.error,
 .toast.error {
@@ -1335,7 +1353,7 @@ label {
 .toast {
     border-radius: 8px;
     padding: 11px 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .empty {
     padding: 36px;
@@ -1417,7 +1435,7 @@ label {
 .modal-head button {
     border: 0;
     background: transparent;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .form-grid {
@@ -1439,7 +1457,7 @@ label {
 .field-error,
 small.field-error {
     color: #dc2626 !important;
-    font-weight: 800;
+    font-weight: 400;
 }
 .validation-message {
     display: flex;
@@ -1452,7 +1470,7 @@ small.field-error {
     background: #fef2f2;
     color: #dc2626 !important;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
 }
 .validation-message svg {
@@ -1476,5 +1494,15 @@ small.field-error {
     .discount-form {
         grid-template-columns: 1fr;
     }
+}
+
+.profile-section-card.tiers-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 </style>

@@ -1,13 +1,15 @@
-﻿<template>
-  <section class="detail-page">
-    <button class="link-btn" type="button" @click="$router.push({ name: 'admin-platform-fee-ledgers' })">Quay láº¡i danh sÃ¡ch</button>
+<template>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card ledger-detail-main-content">
+      <section class="detail-page">
+        <button class="link-btn" type="button" @click="$router.push({ name: 'admin-platform-fee-ledgers' })">Quay lại danh sách</button>
 
     <div v-if="!ledger" class="panel empty">KhÃ´ng tÃ¬m tháº¥y ká»³ phÃ­.</div>
     <template v-else>
       <!-- Ledger Info Bar -->
       <div class="ledger-info-bar" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
         <h2 style="margin: 0;">{{ ledger.code }}</h2>
-        <span style="color: #64748b; font-size: 14px; font-weight: 600;">{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</span>
+        <span style="color: #64748b; font-size: 14px; font-weight: 400;">{{ ledger.venue?.name }} - {{ ledger.owner?.full_name }}</span>
         <span class="status-dot" :class="ledger.status" :title="statusLabel(ledger.status)" :aria-label="statusLabel(ledger.status)"></span>
       </div>
 
@@ -171,7 +173,9 @@
     </div>
 
     <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -340,7 +344,7 @@ export default {
 
 <style scoped>
 .detail-page { display: flex; flex-direction: column; gap: 16px; }
-.panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.panel { background: transparent; border: none; border-radius: 0; padding: 0; }
 .panel-head, .ledger-actions, .modal-head, .icon-text { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
 h2, h3, p { margin: 0; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -359,15 +363,15 @@ h2, h3, p { margin: 0; }
 .status-dot.paid { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
 .status-dot.overdue { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
 .status-dot.cancelled { background: #94a3b8; box-shadow: 0 0 0 3px #e2e8f0; }
-.email-chip { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 900; }
+.email-chip { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 400; }
 .email-chip { background: #e0f2fe; color: #075985; }
-.btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 900; cursor: pointer; }
+.btn { border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 400; cursor: pointer; }
 .btn.primary { background: #16a34a; color: #fff; }
 .btn.secondary { background: #e2e8f0; color: #334155; }
 .btn.danger { background: #dc2626; color: #fff; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .icon-text { align-items: center; justify-content: center; }
-.link-btn { border: 0; background: transparent; color: #047857; font-weight: 900; cursor: pointer; width: fit-content; }
+.link-btn { border: 0; background: transparent; color: #047857; font-weight: 400; cursor: pointer; width: fit-content; }
 table { width: 100%; border-collapse: collapse; }
 .table-scroll { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .table-scroll table { min-width: 760px; }
@@ -375,7 +379,7 @@ th, td { padding: 11px 12px; border-bottom: 1px solid #e2e8f0; text-align: left;
 th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
 .empty { text-align: center; color: #64748b; }
 .compact { padding: 24px; }
-.toast { border-radius: 8px; padding: 11px 13px; font-weight: 800; }
+.toast { border-radius: 8px; padding: 11px 13px; font-weight: 400; }
 .toast.success { background: #ecfdf5; color: #047857; }
 .toast.error { background: #fef2f2; color: #991b1b; }
 .expiring_soon { color: #92400e; }
@@ -383,7 +387,7 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
 .modal-backdrop { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.55); }
 .modal { width: min(560px, calc(100vw - 32px)); background: #fff; border-radius: 8px; padding: 18px; }
 .cancel-modal { display: grid; gap: 16px; }
-.cancel-modal label { display: grid; gap: 7px; color: #334155; font-weight: 800; }
+.cancel-modal label { display: grid; gap: 7px; color: #334155; font-weight: 400; }
 .cancel-modal textarea { width: 100%; resize: vertical; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font: inherit; }
 .cancel-warning { padding: 12px; border-radius: 8px; background: #fff7ed; color: #9a3412; line-height: 1.5; }
 .cancel-actions { display: flex; justify-content: flex-end; gap: 10px; }
@@ -408,5 +412,15 @@ th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: upper
   .ledger-actions { flex-direction: column; align-items: stretch; }
   .ledger-actions .btn, .panel-head .btn { width: 100%; min-width: 0; white-space: normal; }
   .cancel-actions { display: grid; grid-template-columns: 1fr; }
+}
+
+.profile-section-card.ledger-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

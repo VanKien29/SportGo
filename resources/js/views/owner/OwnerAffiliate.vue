@@ -1,7 +1,7 @@
 <template>
-    <div class="page">
+    <div class="cluster-profile-surface standalone">
         <!-- Khi chưa chọn cụm sân -->
-        <div v-if="!selectedCluster" class="empty-state card">
+        <div v-if="!selectedCluster" class="profile-section-card affiliate-main-content empty-state card">
             <div class="empty-icon-wrapper">
                 <AppIcon name="building" size="32" />
             </div>
@@ -12,7 +12,7 @@
         </div>
 
         <!-- Khi đã chọn cụm sân -->
-        <div v-else>
+        <div v-else class="profile-section-card affiliate-main-content">
             <!-- Alert message if any -->
             <div v-if="productsError" class="alert alert-danger" style="margin-bottom: 16px;">
                 {{ productsError }}
@@ -42,10 +42,10 @@
                         <AppIcon name="search" size="32" />
                     </div>
                     <div>
-                        <h5 class="empty-title" style="font-weight: 700; font-size: 15px; color: #1e293b; margin-bottom: 6px;">Không tìm thấy sản phẩm</h5>
+                        <h5 class="empty-title" style="font-weight: 400; font-size: 15px; color: #1e293b; margin-bottom: 6px;">Không tìm thấy sản phẩm</h5>
                         <p class="empty-desc" style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Không tìm thấy sản phẩm tiếp thị liên kết nào khớp với bộ lọc hiện tại của bạn.</p>
                     </div>
-                    <button type="button" class="btn btn-outline" style="min-height: 38px; padding: 0 16px; border: 1px solid var(--admin-border); border-radius: 8px; background: var(--admin-surface); font-weight: 700; font-size: 13px; cursor: pointer; color: var(--admin-text);" @click="resetFilters">Xóa bộ lọc</button>
+                    <button type="button" class="btn btn-outline" style="min-height: 38px; padding: 0 16px; border: 1px solid var(--admin-border); border-radius: 8px; background: var(--admin-surface); font-weight: 400; font-size: 13px; cursor: pointer; color: var(--admin-text);" @click="resetFilters">Xóa bộ lọc</button>
                 </div>
 
                 <!-- Bảng sản phẩm -->
@@ -337,7 +337,7 @@
                                             <input type="checkbox" v-model="productForm.is_active" style="display: none;" />
                                             <div class="toggle-dot" :style="productForm.is_active ? 'transform: translateX(20px);' : ''"></div>
                                         </div>
-                                        <span style="color: #1e293b; font-weight: 600; font-size: 13px;">
+                                        <span style="color: #1e293b; font-weight: 400; font-size: 13px;">
                                             {{ productForm.is_active ? 'Bật hiển thị cho khách hàng' : 'Ẩn đối với khách hàng' }}
                                         </span>
                                     </div>
@@ -351,7 +351,7 @@
                                     <img v-if="productImagePreview" :src="productImagePreview" class="preview-img-full" />
                                     <div v-else class="empty-image-placeholder">
                                         <AppIcon name="image" size="48" style="color: #94a3b8; margin-bottom: 8px;" />
-                                        <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 600;">Chọn hình ảnh sản phẩm</p>
+                                        <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 400;">Chọn hình ảnh sản phẩm</p>
                                         <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8;">Hỗ trợ JPG, PNG, WebP (Tối đa 5MB)</p>
                                     </div>
                                     <div v-if="productImagePreview" class="hover-change-text">Nhấp để thay đổi ảnh mới</div>
@@ -730,6 +730,37 @@ export default {
 </script>
 
 <style scoped>
+.cluster-profile-surface.standalone {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-radius: 0;
+}
+
+.profile-section-card.affiliate-main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 10px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border, #e2e8f0);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.profile-section-card.affiliate-main-content .empty-state,
+.profile-section-card.affiliate-main-content .affiliate-list-card,
+.profile-section-card.affiliate-main-content .card,
+.profile-section-card.affiliate-main-content .loading-state {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
 .page {
     display: grid;
     gap: 18px;
@@ -785,7 +816,7 @@ export default {
 
 .popup-title {
     font-size: 13.5px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--admin-text, #1e293b);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -795,7 +826,7 @@ export default {
     background: none;
     border: none;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     color: #ef4444;
     cursor: pointer;
     padding: 0;
@@ -820,7 +851,7 @@ export default {
 }
 
 .filter-item label {
-    font-weight: 700;
+    font-weight: 400;
     font-size: 11.5px;
     color: var(--admin-text, #475569);
     margin: 0;
@@ -922,7 +953,7 @@ export default {
 .empty-title {
     margin: 0 0 6px 0;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 400;
     color: #1e293b;
 }
 .empty-desc {
@@ -954,7 +985,7 @@ export default {
     border-bottom: 1px solid #e2e8f0;
     padding: 14px 16px;
     text-align: left;
-    font-weight: 700;
+    font-weight: 400;
     color: #475569;
 }
 .affiliate-table td {
@@ -974,7 +1005,7 @@ export default {
 .affiliate-table th.col-price { width: 160px; text-align: right; }
 .affiliate-table td.cell-price { text-align: right; }
 .affiliate-table th.col-clicks { width: 100px; text-align: center; }
-.affiliate-table td.cell-clicks { text-align: center; font-weight: 700; color: #475569; }
+.affiliate-table td.cell-clicks { text-align: center; font-weight: 400; color: #475569; }
 .affiliate-table th.col-status { width: 120px; text-align: center; }
 .affiliate-table td.cell-status { text-align: center; }
 .affiliate-table th.col-actions { width: 120px; text-align: center; }
@@ -1000,7 +1031,7 @@ export default {
     color: #cbd5e1;
 }
 .product-title {
-    font-weight: 700;
+    font-weight: 400;
     color: #1e293b;
     margin-bottom: 4px;
     display: -webkit-box;
@@ -1021,7 +1052,7 @@ export default {
     padding: 4px 10px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
     display: inline-block;
 }
@@ -1032,7 +1063,7 @@ export default {
 .platform-badge.khac { background-color: #ecfdf5; color: #10b981; }
 
 .price-discount {
-    font-weight: 700;
+    font-weight: 400;
     color: #10b981;
     font-size: 14.5px;
 }
@@ -1166,7 +1197,7 @@ export default {
 
 .modal-header h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: #0f172a;
 }
@@ -1251,7 +1282,7 @@ export default {
 }
 
 .form-label-bold {
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13.5px;
     color: #334155;
     display: block;
@@ -1313,7 +1344,7 @@ export default {
 .custom-option.selected {
     background-color: rgba(59, 130, 246, 0.15);
     color: #3b82f6;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 /* Image Upload UI components */
@@ -1356,7 +1387,7 @@ export default {
     background: rgba(15, 23, 42, 0.75);
     color: #fff;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     text-align: center;
     padding: 8px 4px;
     backdrop-filter: blur(4px);
@@ -1424,7 +1455,7 @@ export default {
         gap: 6px;
         color: #64748b;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 400;
     }
     .uploaded-img {
         width: 100%;

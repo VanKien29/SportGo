@@ -43,13 +43,13 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 8px;
   font: inherit;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(23, 34, 27, 0.05);
-  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
+  box-shadow: none;
+  transition: background .16s ease, color .16s ease, transform .16s ease;
 }
 
 .size-sm {
@@ -69,48 +69,40 @@ export default {
 
 .action-icon-button.never-hover-class-placeholder:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(47, 158, 68, 0.08);
 }
 
 .variant-primary {
-  border-color: var(--admin-primary);
   background: var(--admin-primary);
   color: #fff;
 }
 
 .variant-secondary {
-  background: var(--admin-surface);
-  border-color: var(--admin-border);
+  background: var(--admin-bg-soft, #f7fbf5);
   color: var(--admin-text);
 }
 
 .variant-secondary.never-hover-class-placeholder:not(:disabled) {
-  border-color: rgba(47, 158, 68, 0.3);
   background: var(--admin-hover);
   color: var(--admin-primary-dark);
 }
 
 .variant-success {
-  border-color: var(--admin-primary-soft);
   background: var(--admin-primary-soft);
   color: var(--admin-primary-dark);
 }
 
 .variant-warning {
-  border-color: var(--admin-warning-soft);
   background: var(--admin-warning-soft);
   color: var(--admin-warning);
 }
 
 .variant-danger {
-  border-color: var(--admin-danger-soft);
   background: var(--admin-danger-soft);
   color: var(--admin-danger);
 }
 
 .variant-ghost {
-  border-color: var(--admin-border);
-  background: var(--admin-surface);
+  background: transparent;
   color: var(--admin-muted);
 }
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <teleport to="body">
     <div v-if="show" class="modal-overlay" @click.self="handleSkip">
       <div class="modal-card">
@@ -171,7 +171,7 @@ export default {
 
 .modal-brand {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .modal-brand span {
@@ -186,7 +186,7 @@ export default {
   background: rgba(59, 130, 246, 0.14);
   color: #93c5fd;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .modal-header h2 {
@@ -220,7 +220,7 @@ export default {
 .modal-form label {
   color: rgba(255, 255, 255, 0.72);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .input-wrap {
@@ -251,7 +251,7 @@ export default {
 .input-wrap button,
 .skip-btn {
   color: rgba(255, 255, 255, 0.62);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .checklist {
@@ -275,7 +275,7 @@ export default {
   border-radius: 10px;
   background: #22c55e;
   color: #fff;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .submit-btn:disabled {

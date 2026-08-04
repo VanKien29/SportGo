@@ -1,10 +1,11 @@
 <template>
     <div class="avc-filters animate-fade-in">
         <div class="filter-row">
-            <div class="filter-tabs">
+            <div class="filter-tabs" v-if="tabs && tabs.length">
                 <button
                     v-for="tab in tabs"
                     :key="tab.value"
+                    type="button"
                     class="tab-btn"
                     :class="{ active: modelValue === tab.value }"
                     @click="$emit('update:modelValue', tab.value)"
@@ -45,7 +46,7 @@ export default {
         },
         tabs: {
             type: Array,
-            required: true
+            default: () => []
         },
         search: {
             type: String,
@@ -66,59 +67,82 @@ export default {
 
 <style scoped>
 .avc-filters {
-    padding: 12px 0;
+    margin-bottom: 0 !important;
+    width: 100%;
+    box-sizing: border-box;
 }
 .filter-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
+    width: 100%;
 }
 .filter-tabs {
     display: flex;
+    align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
 }
 .avc-filters .filter-tabs button.tab-btn {
-    height: 38px !important;
-    min-height: 38px !important;
+    height: 36px !important;
+    min-height: 36px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 0 16px !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--admin-border) !important;
-    background: var(--admin-surface) !important;
-    color: var(--admin-muted) !important;
+    padding: 0 14px !important;
+    border-radius: 6px !important;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    background: var(--admin-surface, #ffffff) !important;
+    color: var(--admin-muted, #475569) !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     cursor: pointer !important;
-    transition: all 0.18s !important;
+    transition: all 0.18s ease !important;
     box-sizing: border-box !important;
+    white-space: nowrap !important;
 }
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary) !important;
-    border-color: var(--admin-primary) !important;
-    color: var(--admin-primary-text, #fff) !important;
-}
-.avc-filters .filter-tabs button.tab-btn:not(.active).never-hover-class-placeholder {
-    background: var(--admin-hover, #f8fafc) !important;
-    border-color: var(--admin-border-focus, #cbd5e1) !important;
-    color: var(--admin-text, #1e293b) !important;
+    background: var(--admin-primary, #22a653) !important;
+    border-color: var(--admin-primary, #22a653) !important;
+    color: #ffffff !important;
 }
 .filter-search {
     flex: 1;
-    min-width: 250px;
+    min-width: 260px;
 }
-/* Search box border styling to increase contrast on light theme */
 .filter-search .search-box {
-    border-color: var(--admin-border) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    height: 38px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    background: var(--admin-surface, #ffffff) !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+}
+.filter-search .search-box .search-input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    flex: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-size: 13px !important;
+    color: var(--admin-text, #0f172a) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
 }
 .filter-search .search-box input::placeholder {
-    color: var(--admin-faint) !important;
+    color: var(--admin-faint, #94a3b8) !important;
 }
 .filter-search .search-box svg {
-    color: var(--admin-faint) !important;
+    color: var(--admin-faint, #94a3b8) !important;
+    flex-shrink: 0 !important;
 }
 .filter-actions {
     display: flex;

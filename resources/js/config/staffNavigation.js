@@ -2,11 +2,9 @@ export const staffNavigationSections = [
   {
     label: 'Công việc',
     items: [
-      { label: 'Tổng quan', icon: 'dashboard', to: '/staff/dashboard', activeNames: ['staff-dashboard'], menuKey: 'dashboard' },
-      { label: 'Lịch trực của tôi', icon: 'calendar', to: '/staff/schedules', activeNames: ['staff-schedules'], menuKey: 'schedules' },
-      { label: 'Lịch đặt sân', icon: 'calendar', to: '/staff/bookings', activeNames: ['staff-bookings'], menuKey: 'bookings' },
-      { label: 'Đặt sân tại quầy', icon: 'plus', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'], menuKey: 'counter_booking' },
-      { label: 'Quản lý voucher sân', icon: 'tag', to: '/staff/vouchers', activeNames: ['staff-vouchers'], menuKey: 'vouchers' },
+      { label: 'Lịch trực của tôi', icon: 'clock', to: '/staff/schedules', activeNames: ['staff-schedules'] },
+      { label: 'Lịch đặt sân', icon: 'calendar', to: '/staff/bookings', activeNames: ['staff-bookings'] },
+      { label: 'Đặt sân tại quầy', icon: 'plus', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'] },
     ],
   },
   {

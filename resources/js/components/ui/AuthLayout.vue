@@ -20,11 +20,9 @@
 
       <div class="sg-auth-form-column w-full max-w-[430px]">
         <!-- Brand / Header -->
-        <div class="sg-auth-heading flex flex-col text-left !mb-8">
-          <div class="sg-auth-brand-mark" aria-hidden="true">SG</div>
-          <p class="sg-auth-kicker">SPORTGO ACCOUNT</p>
-          <h1 class="text-2xl font-bold tracking-tight">{{ title }}</h1>
-          <p class="text-sm !mt-2">{{ subtitle }}</p>
+        <div class="flex flex-col items-center text-center !mb-8">
+          <h1 class="text-2xl font-normal tracking-tight text-white">{{ title }}</h1>
+          <p class="text-sm text-zinc-400 !mt-2">{{ subtitle }}</p>
         </div>
 
         <!-- Main Form Slot -->

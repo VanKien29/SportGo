@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
@@ -9,7 +9,7 @@
     <div style="max-width:640px;margin:0 auto;padding:28px 16px">
         <div style="border:1px solid #d7e5dc;background:#ffffff;border-radius:12px;overflow:hidden">
             <div style="padding:18px 22px;background:#16a34a;color:#ffffff">
-                <div style="font-size:20px;font-weight:800">SportGo</div>
+                <div style="font-size:20px;font-weight: 400">SportGo</div>
                 <div style="font-size:13px;opacity:.9;margin-top:4px">Hóa đơn đã được phát hành</div>
             </div>
             <div style="padding:24px 22px;line-height:1.6">
@@ -19,23 +19,23 @@
                 <table style="width:100%;border-collapse:collapse;margin:0 0 20px">
                     <tr>
                         <td style="padding:10px 0;border-bottom:1px solid #edf2ef;color:#617067">Mã hóa đơn</td>
-                        <td style="padding:10px 0;border-bottom:1px solid #edf2ef;text-align:right;font-weight:800">{{ $receipt->receipt_code }}</td>
+                        <td style="padding:10px 0;border-bottom:1px solid #edf2ef;text-align:right;font-weight: 400">{{ $receipt->receipt_code }}</td>
                     </tr>
                     <tr>
                         <td style="padding:10px 0;border-bottom:1px solid #edf2ef;color:#617067">Nội dung</td>
-                        <td style="padding:10px 0;border-bottom:1px solid #edf2ef;text-align:right;font-weight:800">{{ $receipt->title }}</td>
+                        <td style="padding:10px 0;border-bottom:1px solid #edf2ef;text-align:right;font-weight: 400">{{ $receipt->title }}</td>
                     </tr>
                     <tr>
                         <td style="padding:10px 0;border-bottom:1px solid #edf2ef;color:#617067">Số tiền</td>
-                        <td style="padding:10px 0;border-bottom:1px solid #edf2ef;text-align:right;font-weight:800">{{ number_format((float) $receipt->amount, 0, ',', '.') }} {{ $receipt->currency }}</td>
+                        <td style="padding:10px 0;border-bottom:1px solid #edf2ef;text-align:right;font-weight: 400">{{ number_format((float) $receipt->amount, 0, ',', '.') }} {{ $receipt->currency }}</td>
                     </tr>
                     <tr>
                         <td style="padding:10px 0;color:#617067">Ngày phát hành</td>
-                        <td style="padding:10px 0;text-align:right;font-weight:800">{{ optional($receipt->issued_at)->format('d/m/Y H:i') }}</td>
+                        <td style="padding:10px 0;text-align:right;font-weight: 400">{{ optional($receipt->issued_at)->format('d/m/Y H:i') }}</td>
                     </tr>
                 </table>
 
-                <a href="{{ $receiptUrl }}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:800">Xem hóa đơn</a>
+                <a href="{{ $receiptUrl }}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight: 400">Xem hóa đơn</a>
                 <p style="margin:18px 0 0;color:#617067;font-size:13px">Liên kết xem hóa đơn có hiệu lực trong 30 ngày.</p>
             </div>
         </div>

@@ -3,42 +3,7 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <div class="tabs-and-actions">
-            <div class="tabs">
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'counter' }"
-                    @click="setActiveTab('counter')"
-                >
-                    <AppIcon name="plus" size="16" />
-                    <span>Booking tại quầy</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurring' }"
-                    @click="setActiveTab('recurring')"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'bookingList' }"
-                    @click="setActiveTab('bookingList')"
-                >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách booking</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurringList' }"
-                    @click="setActiveTab('recurringList')"
-                >
-                    <AppIcon name="fileText" size="16" />
-                    <span>Danh sách cố định</span>
-                </button>
-            </div>
-        </div>
+
 
         <section v-if="activeTab === 'counter'" class="counter-board">
             <div
@@ -199,20 +164,7 @@
                     </div>
 
                     <div class="period-row">
-                        <div class="period-tabs">
-                            <button
-                                v-for="period in dynamicTimePeriods"
-                                :key="period.key"
-                                type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
-                                @click="activeTimePeriod = period.key"
-                            >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
-                            </button>
-                        </div>
+
 
                         <div class="legend">
                             <span><i></i>Lịch trống</span>
@@ -635,12 +587,7 @@
 
         <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
             <div class="form-card">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch cố định</h2>
-                        <p>Nhóm lịch sẽ dùng cùng mã cố định để dễ theo dõi.</p>
-                    </div>
-                </div>
+
 
                 <div class="form-grid recurring-form-grid">
                     <div class="readonly-field">
@@ -833,20 +780,7 @@
                     </div>
 
                     <div class="period-row">
-                        <div class="period-tabs">
-                            <button
-                                v-for="period in dynamicTimePeriods"
-                                :key="period.key"
-                                type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
-                                @click="activeTimePeriod = period.key"
-                            >
-                                <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
-                            </button>
-                        </div>
+
 
                         <div class="legend">
                             <span><i></i>Trống</span>
@@ -1153,16 +1087,6 @@
         </section>
 
         <section v-else-if="activeTab === 'bookingList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking</h2>
-                    <p>
-                        Theo dõi booking online và booking tại quầy theo ngày,
-                        sân, trạng thái và thanh toán.
-                    </p>
-                </div>
-            </div>
-
             <div class="filters booking-list-filters">
                 <label>
                     <span>Sân con</span>
@@ -1338,16 +1262,6 @@
         </section>
 
         <section v-else-if="activeTab === 'recurringList'" class="recurring-list-panel">
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking cố định</h2>
-                    <p>
-                        Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và số
-                        tiền còn phải thu.
-                    </p>
-                </div>
-            </div>
-
             <div class="filters recurring-list-filters">
                 <label>
                     <span>Cụm sân</span>
@@ -2110,8 +2024,8 @@ function toWeekDayIndex(date) {
     return (date.getDay() + 6) % 7;
 }
 
-const BOOKING_DAY_START = 6 * 60;
-const BOOKING_DAY_END = 22 * 60;
+const BOOKING_DAY_START = 0;
+const BOOKING_DAY_END = 24 * 60;
 const SLOT_STEP_MINUTES = 30;
 const WALK_IN_NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
 const WALK_IN_PHONE_PATTERN = /^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/;
@@ -2328,33 +2242,79 @@ export default {
                 slotEnds.length ? Math.max(...slotEnds) : this.operatingEndMinutes,
                 open + SLOT_STEP_MINUTES,
             );
-            const raw = [
-                {
-                    key: "morning",
-                    label: "Sáng",
-                    start: open,
-                    end: Math.min(close, 12 * 60),
-                },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    start: Math.max(open, 12 * 60),
-                    end: Math.min(close, 18 * 60),
-                },
-                {
-                    key: "evening",
-                    label: "Tối",
-                    start: Math.max(open, 18 * 60),
-                    end: close,
-                },
-            ];
+            const configuredPeriods =
+                this.selectedClusterDetail?.booking_config?.custom_time_periods;
+
+            let raw = [];
+            if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
+                raw = configuredPeriods.map((p, idx) => ({
+                    key: `custom_${idx}`,
+                    label: p.label,
+                    start: this.timeToMinutes(p.start_time),
+                    end: this.timeToMinutes(p.end_time),
+                }));
+            } else {
+                raw = [
+                    {
+                        key: "late_night",
+                        label: "Khuya",
+                        start: open,
+                        end: Math.min(close, 6 * 60),
+                    },
+                    {
+                        key: "morning",
+                        label: "Sáng",
+                        start: Math.max(open, 6 * 60),
+                        end: Math.min(close, 12 * 60),
+                    },
+                    {
+                        key: "afternoon",
+                        label: "Chiều",
+                        start: Math.max(open, 12 * 60),
+                        end: Math.min(close, 18 * 60),
+                    },
+                    {
+                        key: "evening",
+                        label: "Tối",
+                        start: Math.max(open, 18 * 60),
+                        end: Math.min(close, 22 * 60),
+                    },
+                    {
+                        key: "night",
+                        label: "Đêm",
+                        start: Math.max(open, 22 * 60),
+                        end: close,
+                    },
+                ];
+            }
 
             const periods = raw
-                .filter((period) => period.end > period.start)
-                .map((period) => ({
-                    ...period,
-                    range: `${this.minutesToTime(period.start)} - ${this.minutesToTime(period.end)}`,
-                }));
+                .filter(
+                    (period) =>
+                        period.end > period.start &&
+                        period.start < close &&
+                        period.end > open,
+                )
+                .map((period) => {
+                    const clampedStart = Math.max(period.start, open);
+                    const clampedEnd = Math.min(period.end, close);
+                    return {
+                        ...period,
+                        start: clampedStart,
+                        end: clampedEnd,
+                        range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
+                    };
+                });
+
+            if (periods.length > 1) {
+                periods.push({
+                    key: "all",
+                    label: "Cả ngày",
+                    start: open,
+                    end: close,
+                    range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                });
+            }
 
             return periods.length
                 ? periods
@@ -3154,8 +3114,18 @@ export default {
         activeTab() {
             this.queueRecurringPreview();
         },
+        "$route.name"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.tab"() {
+            this.handleRouteModeChange();
+        },
+        "$route.query.view"() {
+            this.handleRouteModeChange();
+        },
     },
     async created() {
+        this.syncActiveTabFromRoute();
         await this.loadOwnerData();
     },
     mounted() {
@@ -3173,6 +3143,32 @@ export default {
         clearTimeout(this.recurringPreviewTimer);
     },
     methods: {
+        syncActiveTabFromRoute() {
+            if (this.$route.name === "staff-booking-list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.view === "list") {
+                this.activeTab = "bookingList";
+                return;
+            }
+
+            if (this.$route.query?.tab === "recurring") {
+                this.activeTab = "recurring";
+                return;
+            }
+
+            this.activeTab = "counter";
+        },
+        async handleRouteModeChange() {
+            const before = this.activeTab;
+            this.syncActiveTabFromRoute();
+
+            if (before === this.activeTab || !this.selectedClusterId) return;
+
+            await this.refreshActiveTab();
+        },
         sameDateSet(a = [], b = []) {
             if (a.length !== b.length) return false;
             return [...a].sort().join("|") === [...b].sort().join("|");
