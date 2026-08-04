@@ -134,6 +134,33 @@ class SystemSetting extends Model
         return $payload;
     }
 
+    public static function documentProfilePayload(): array
+    {
+        $profile = self::profilePayload();
+        $companyName = trim((string) ($profile['company_name'] ?? ''));
+        $taxCode = trim((string) (($profile['tax_code'] ?? '') ?: ($profile['business_code'] ?? '')));
+        $representativeName = trim((string) ($profile['representative_name'] ?? ''));
+        $representativeTitle = trim((string) ($profile['representative_title'] ?? ''));
+
+        return array_filter([
+            'sportgo_company_name' => $companyName,
+            'sportgo_tax_code' => $taxCode,
+            'sportgo_address' => trim((string) ($profile['company_address'] ?? '')),
+            'sportgo_representative_name' => $representativeName,
+            'sportgo_representative' => $representativeName,
+            'sportgo_representative_title' => $representativeTitle,
+            'sportgo_representative_position' => $representativeTitle,
+            'sportgo_authorization_basis' => $representativeName !== ''
+                ? 'Người đại diện theo pháp luật'
+                : '',
+            'sportgo_phone' => trim((string) ($profile['support_phone'] ?? '')),
+            'sportgo_email' => trim((string) ($profile['support_email'] ?? '')),
+            'sportgo_website' => trim((string) ($profile['website_url'] ?? '')),
+            'sportgo_logo_url' => trim((string) ($profile['logo_url'] ?? '')),
+            'sportgo_business_license_number' => trim((string) ($profile['business_license_number'] ?? '')),
+        ], fn (mixed $value): bool => $value !== null && $value !== '');
+    }
+
     public static function upsertProfileValue(string $key, mixed $value, array $meta = []): void
     {
         if (! Schema::hasTable((new static())->getTable())) {

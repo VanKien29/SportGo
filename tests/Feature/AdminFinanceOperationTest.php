@@ -54,9 +54,12 @@ class AdminFinanceOperationTest extends TestCase
         $ownerRole = Role::query()->create(['name' => 'venue_owner', 'display_name' => 'Chủ sân', 'is_system' => true]);
         $userRole = Role::query()->create(['name' => 'user', 'display_name' => 'Khách hàng', 'is_system' => true]);
 
-        foreach (['refund.view', 'refund.approve', 'withdrawal.manage'] as $code) {
-            $permission = Permission::query()->create(['code' => $code, 'name' => $code, 'group_name' => 'Tài chính']);
-            RolePermission::query()->create(['role_id' => $financeRole->id, 'permission_id' => $permission->id]);
+        foreach (['refund.view', 'refund.approve', 'withdrawal.view', 'withdrawal.manage'] as $code) {
+            $permission = Permission::query()->firstOrCreate(
+                ['code' => $code],
+                ['name' => $code, 'group_name' => 'Tài chính']
+            );
+            RolePermission::query()->firstOrCreate(['role_id' => $financeRole->id, 'permission_id' => $permission->id]);
         }
 
         $this->finance = $this->createUser('finance_ops', 'finance.ops@sportgo.vn');

@@ -7,6 +7,7 @@ use App\Models\GeneratedDocumentSignature;
 use App\Models\DocumentTemplate;
 use App\Models\Media;
 use App\Models\PartnerApplication;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\VenueCourt;
 use App\Models\VenueCourtApprovalRequest;
@@ -66,6 +67,7 @@ class PartnerDocumentService
         $referenceId = $context['reference_id'] ?? (string) $reference->getKey();
         $documentVersion = $this->nextDocumentVersion($documentType, $referenceType, $referenceId);
         $renderedAt = now();
+        $renderData = array_replace($renderData, SystemSetting::documentProfilePayload());
         $renderData = array_merge($renderData, [
             'document_code' => $documentCode,
             'document_version' => $documentVersion,
@@ -541,7 +543,11 @@ class PartnerDocumentService
             ['alignment' => 'right']
         );
         $section->addText('ĐƠN XÁC NHẬN HỦY YÊU CẦU CHẤM DỨT HỢP TÁC', ['bold' => true, 'size' => 15], $center);
-        $section->addText('Kính gửi: Công ty TNHH SportGo', ['bold' => true], ['spaceBefore' => 180, 'spaceAfter' => 180]);
+        $section->addText(
+            'Kính gửi: '.($data['sportgo_company_name'] ?? 'Công ty TNHH SportGo'),
+            ['bold' => true],
+            ['spaceBefore' => 180, 'spaceAfter' => 180]
+        );
         $section->addText(
             'Tôi là chủ sân/đối tác đã gửi yêu cầu chấm dứt hợp tác, nay xác nhận hủy yêu cầu đó với các thông tin dưới đây:',
             [],
@@ -1167,8 +1173,17 @@ XML;
             $replaced = $xml;
 
             // Kính gửi
-            $replaced = preg_replace('/Kính gửi:\s*(?:<[^>]+>)*\[Tên công ty\/đơn vị vận hành nền tảng SportGo\]/u', 'Kính gửi: Công ty TNHH SportGo', $replaced);
-            $replaced = preg_replace('/Kính gửi:\s*(?:<[^>]+>)*\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\./u', 'Kính gửi: Công ty TNHH SportGo', $replaced);
+            $recipient = 'Kính gửi: '.($data['sportgo_company_name'] ?? 'Công ty TNHH SportGo');
+            $replaced = preg_replace_callback(
+                '/Kính gửi:\s*(?:<[^>]+>)*\[Tên công ty\/đơn vị vận hành nền tảng SportGo\]/u',
+                fn (): string => $recipient,
+                $replaced
+            );
+            $replaced = preg_replace_callback(
+                '/Kính gửi:\s*(?:<[^>]+>)*\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\.\./u',
+                fn (): string => $recipient,
+                $replaced
+            );
 
             // Auto-fill contract number and date if they use dots instead of placeholders
             if (isset($data['contract_code'])) {
@@ -2602,13 +2617,16 @@ XML;
         ], '; ');
 
         return [
-            'Tên đơn vị' => 'Công ty TNHH SportGo',
-            'Mã số thuế/ĐKKD' => '0000000000',
-            'Địa chỉ trụ sở' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
-            'Người đại diện' => 'Nguyễn Đức Kiên',
-            'Chức vụ' => 'Giám đốc',
-            'Căn cứ đại diện/ủy quyền' => 'Người đại diện theo pháp luật',
-            'Số điện thoại/Email' => 'contact@sportgo.vn',
+            'Tên đơn vị' => $this->firstFilled($data, ['sportgo_company_name']) ?: 'Công ty TNHH SportGo',
+            'Mã số thuế/ĐKKD' => $this->firstFilled($data, ['sportgo_tax_code']) ?: '0000000000',
+            'Địa chỉ trụ sở' => $this->firstFilled($data, ['sportgo_address']) ?: config('app.url'),
+            'Người đại diện' => $this->firstFilled($data, ['sportgo_representative_name', 'sportgo_representative']) ?: 'Đại diện SportGo',
+            'Chức vụ' => $this->firstFilled($data, ['sportgo_representative_title', 'sportgo_representative_position']) ?: 'Đại diện pháp lý',
+            'Căn cứ đại diện/ủy quyền' => $this->firstFilled($data, ['sportgo_authorization_basis']) ?: 'Người đại diện theo pháp luật',
+            'Số điện thoại/Email' => $this->joinFilled([
+                $this->firstFilled($data, ['sportgo_phone']),
+                $this->firstFilled($data, ['sportgo_email']),
+            ], ' - ') ?: 'Chưa cung cấp',
             'Tài khoản thu phí/hoàn trả nếu có' => 'Không có',
             'Mã hồ sơ đăng ký' => $this->firstFilled($data, ['application_code', 'document_code']),
             'Loại người đề nghị' => $this->applicantTypeLabel($this->firstFilled($data, ['applicant_type'])),
@@ -3064,13 +3082,16 @@ XML;
         ], '; ');
 
         return [
-            'Tên đơn vị' => 'Công ty TNHH SportGo',
-            'Mã số thuế/ĐKKD' => '0000000000',
-            'Địa chỉ trụ sở' => 'Tòa P cao đẳng FPT Polytechnic Đường Phan Tây Nhạc, Phường Xuân Phương, Hà Nội',
-            'Người đại diện' => 'Nguyễn Đức Kiên',
-            'Chức vụ' => 'Giám đốc',
-            'Căn cứ đại diện/ủy quyền' => 'Người đại diện theo pháp luật',
-            'Số điện thoại/Email' => 'contact@sportgo.vn',
+            'Tên đơn vị' => $this->firstFilled($data, ['sportgo_company_name']) ?: 'Công ty TNHH SportGo',
+            'Mã số thuế/ĐKKD' => $this->firstFilled($data, ['sportgo_tax_code']) ?: '0000000000',
+            'Địa chỉ trụ sở' => $this->firstFilled($data, ['sportgo_address']) ?: config('app.url'),
+            'Người đại diện' => $this->firstFilled($data, ['sportgo_representative_name', 'sportgo_representative']) ?: 'Đại diện SportGo',
+            'Chức vụ' => $this->firstFilled($data, ['sportgo_representative_title', 'sportgo_representative_position']) ?: 'Đại diện pháp lý',
+            'Căn cứ đại diện/ủy quyền' => $this->firstFilled($data, ['sportgo_authorization_basis']) ?: 'Người đại diện theo pháp luật',
+            'Số điện thoại/Email' => $this->joinFilled([
+                $this->firstFilled($data, ['sportgo_phone']),
+                $this->firstFilled($data, ['sportgo_email']),
+            ], ' - ') ?: 'Chưa cung cấp',
             'Tài khoản thu phí/hoàn trả nếu có' => 'Tài khoản SportGo trên hệ thống thanh toán trung gian',
             'Họ tên/Tên tổ chức' => $businessName ?: $applicantName,
             'Số CCCD/CMND/Hộ chiếu/MST/ĐKKD' => $legalNumbers,

@@ -4,6 +4,8 @@ const USER_KEY = 'auth_user';
 const ROLES_KEY = 'auth_roles';
 const ROLE_GROUP_KEY = 'auth_role_group';
 const REDIRECT_KEY = 'auth_redirect_to';
+const PERMISSIONS_KEY = 'auth_permissions';
+const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
 export function readToken() {
@@ -25,6 +27,8 @@ function clearAuthStorage() {
     ROLES_KEY,
     ROLE_GROUP_KEY,
     REDIRECT_KEY,
+    PERMISSIONS_KEY,
+    VENUE_STAFF_PERMISSIONS_KEY,
     SELECTED_CLUSTER_KEY,
   ].forEach((key) => localStorage.removeItem(key));
 }
@@ -48,10 +52,21 @@ function makeApiError(response, data, fallback) {
   return error;
 }
 
+function venueClusterHeaders(path) {
+  const appliesToVenueWorkspace = String(path).startsWith('/api/owner/')
+    || String(path).startsWith('/api/chat/');
+  const clusterId = localStorage.getItem(SELECTED_CLUSTER_KEY);
+
+  return appliesToVenueWorkspace && clusterId
+    ? { 'X-Venue-Cluster-Id': clusterId }
+    : {};
+}
+
 export async function api(path, options = {}) {
   const headers = {
     Accept: 'application/json',
     ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+    ...venueClusterHeaders(path),
     ...(options.headers || {}),
   };
 
@@ -80,6 +95,7 @@ export async function api(path, options = {}) {
 export async function apiFormData(path, formData, options = {}) {
   const headers = {
     Accept: 'application/json',
+    ...venueClusterHeaders(path),
     ...(options.headers || {}),
   };
 
@@ -121,6 +137,7 @@ export async function apiDownload(path, options = {}) {
       'application/octet-stream',
     ].join(','),
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...venueClusterHeaders(path),
     ...(options.headers || {}),
   };
 

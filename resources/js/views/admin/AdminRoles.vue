@@ -96,6 +96,7 @@
                   <ActionIconButton icon="eye" label="Xem chi tiết" @click="goDetail(role, 'info')" />
                   <ActionIconButton icon="shieldCheck" label="Cấu hình quyền" @click="goDetail(role, 'permissions')" />
                   <ActionIconButton
+                    v-if="canUpdateRole"
                     icon="pencil"
                     label="Sửa thông tin"
                     :disabled="!role.is_configurable"
@@ -103,6 +104,7 @@
                   />
                   <ActionIconButton icon="users" label="Xem nhân sự đang dùng" @click="goDetail(role, 'users')" />
                   <ActionIconButton
+                    v-if="canDeleteRole"
                     icon="trash"
                     :label="role.can_delete ? 'Xóa nhóm quyền' : deleteDisabledReason(role)"
                     variant="danger"
@@ -119,7 +121,7 @@
     </template>
 
     <template v-else>
-      <AdminPermissionMatrix />
+      <AdminPermissionMatrix :editable="canManagePermissions" />
     </template>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
@@ -180,7 +182,7 @@
     />
 
     <!-- Floating Add Button -->
-    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
+    <div v-if="canCreateRole" class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
       <button class="btn-float-add" @click="openCreateModal">
         <AppIcon name="plus" size="20" />
         <span class="btn-float-text">Tạo nhóm quyền</span>
@@ -196,6 +198,8 @@ import ConfirmModal from '../../components/ConfirmModal.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import AdminPermissionMatrix from '../../components/admin/AdminPermissionMatrix.vue';
 import { adminRoleService } from '../../services/adminRoles.js';
+import { getAuth } from '../../stores/auth.js';
+import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
 
 export default {
   name: 'AdminRoles',
@@ -222,6 +226,18 @@ export default {
     };
   },
   computed: {
+    canCreateRole() {
+      return hasAllAdminPermissions(getAuth(), ['role.create']);
+    },
+    canUpdateRole() {
+      return hasAllAdminPermissions(getAuth(), ['role.update']);
+    },
+    canDeleteRole() {
+      return hasAllAdminPermissions(getAuth(), ['role.delete']);
+    },
+    canManagePermissions() {
+      return hasAllAdminPermissions(getAuth(), ['role.permission.manage']);
+    },
     filteredRoles() {
       if (!this.configFilter) return this.roles;
       return this.roles.filter((role) => {

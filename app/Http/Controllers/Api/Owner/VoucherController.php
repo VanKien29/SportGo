@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\VenueCluster;
+use App\Services\VenueStaffAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class VoucherController extends Controller
 {
+    public function __construct(
+        private readonly VenueStaffAccessService $staffAccess,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $cluster = $this->ownedCluster($request, $request->query('venue_cluster_id'));
@@ -567,9 +572,9 @@ class VoucherController extends Controller
             throw ValidationException::withMessages(['venue_cluster_id' => 'Vui lòng chọn cụm sân.']);
         }
 
-        return VenueCluster::query()
-            ->where('owner_id', $request->user()->id)
-            ->findOrFail($clusterId);
+        $this->staffAccess->assertClusterAccess($request->user(), (string) $clusterId);
+
+        return VenueCluster::query()->findOrFail($clusterId);
     }
 
     private function statusLabel(?string $status): string

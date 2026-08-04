@@ -7,6 +7,14 @@ import {
     restoreAuth,
 } from "../stores/auth.js";
 import { applyThemeModeForPath } from "../utils/themeMode.js";
+import { adminNavigationSections } from "../config/adminNavigation.js";
+import { staffNavigationSections } from "../config/staffNavigation.js";
+import {
+    canAccessAdminRoute,
+    canAccessStaffRoute,
+    firstAccessibleAdminRoute,
+    firstAccessibleStaffRoute,
+} from "../config/permissionAccess.js";
 
 import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
@@ -568,6 +576,11 @@ const routes = [
                 component: () => import("../views/staff/StaffCounterBooking.vue"),
             },
             {
+                path: "vouchers",
+                name: "staff-vouchers",
+                component: OwnerVouchers,
+            },
+            {
                 path: "settings",
                 name: "staff-settings",
                 component: () => import("../views/owner/OwnerSettings.vue"),
@@ -622,7 +635,7 @@ router.beforeEach(async (to, from, next) => {
         if (auth?.role_group === "admin") {
             const serverAuth = await restoreAdminAuth();
             if (serverAuth?.role_group === "admin")
-                return next({ name: "admin-dashboard" });
+                return next(firstAccessibleAdminRoute(serverAuth, adminNavigationSections));
         }
         return next();
     }
@@ -653,13 +666,33 @@ router.beforeEach(async (to, from, next) => {
 
         if (requiredRole && auth.role_group !== requiredRole) {
             if (auth.role_group === "admin")
-                return next({ name: "admin-dashboard" });
+                return next(firstAccessibleAdminRoute(auth, adminNavigationSections));
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
-            if (auth.role_group === "staff")
-                return next({ name: "staff-dashboard" });
+            if (auth.role_group === "staff") {
+                const clusterId = localStorage.getItem("selected_cluster")
+                    || Object.keys(auth.venue_staff_permissions || {})[0]
+                    || "";
+                return next(firstAccessibleStaffRoute(auth, clusterId, staffNavigationSections));
+            }
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
+        }
+
+        if (requiredRole === "admin" && !canAccessAdminRoute(to.name, auth)) {
+            return next(firstAccessibleAdminRoute(auth, adminNavigationSections));
+        }
+
+        if (requiredRole === "staff") {
+            const clusterId = localStorage.getItem("selected_cluster")
+                || Object.keys(auth.venue_staff_permissions || {})[0]
+                || "";
+            if (clusterId && !localStorage.getItem("selected_cluster")) {
+                localStorage.setItem("selected_cluster", clusterId);
+            }
+            if (!canAccessStaffRoute(to.name, auth, clusterId)) {
+                return next(firstAccessibleStaffRoute(auth, clusterId, staffNavigationSections));
+            }
         }
     }
 
@@ -667,11 +700,15 @@ router.beforeEach(async (to, from, next) => {
         auth = await restoreAuth();
         if (!auth) return next();
         if (auth.role_group === "admin")
-            return next({ name: "admin-dashboard" });
+            return next(firstAccessibleAdminRoute(auth, adminNavigationSections));
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
-        if (auth.role_group === "staff")
-            return next({ name: "staff-dashboard" });
+        if (auth.role_group === "staff") {
+            const clusterId = localStorage.getItem("selected_cluster")
+                || Object.keys(auth.venue_staff_permissions || {})[0]
+                || "";
+            return next(firstAccessibleStaffRoute(auth, clusterId, staffNavigationSections));
+        }
         return next({ name: "home" });
     }
 

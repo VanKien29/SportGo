@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Models\VenueCluster;
 use App\Models\VenueStaffAssignment;
+use App\Models\VenueStaffMenuPermission;
 use App\Models\VenueStaffShift;
 use App\Models\VenueStaffShiftSchedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,12 +64,11 @@ class StaffShiftTest extends TestCase
             'user_id' => $this->owner->id,
             'role_id' => $this->ownerRole->id,
             'scope_type' => 'system',
-            'scope_id' => '00000000-0000-0000-0000-000000000000',
+            'scope_id' => 0,
         ]);
 
         // Create cluster owned by owner
         $this->cluster = VenueCluster::query()->create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
             'owner_id' => $this->owner->id,
             'name' => 'Cụm Sân Test',
             'slug' => 'cum-san-test',
@@ -94,6 +94,15 @@ class StaffShiftTest extends TestCase
             'assigned_by' => $this->owner->id,
             'status' => 'active',
         ]);
+
+        foreach (['dashboard', 'schedules'] as $menuKey) {
+            VenueStaffMenuPermission::query()->create([
+                'user_id' => $this->staff->id,
+                'venue_cluster_id' => $this->cluster->id,
+                'menu_key' => $menuKey,
+                'granted_by' => $this->owner->id,
+            ]);
+        }
     }
 
     public function test_owner_can_crud_shifts(): void
