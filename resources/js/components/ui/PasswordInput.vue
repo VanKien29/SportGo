@@ -73,3 +73,10 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.sg-password-control::-ms-reveal,
+.sg-password-control::-ms-clear {
+  display: none;
+}
+</style>
