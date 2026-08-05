@@ -1,73 +1,69 @@
 <template>
-  <footer class="sg3-footer">
-    <div class="sg3-footer__main sg3-container">
-      <section class="sg3-footer__brand">
-        <router-link to="/" class="sg3-brand"><span class="sg3-brand__mark">{{ initials }}</span><span class="sg3-brand__name">{{ brandMain }}<strong>{{ brandAccent }}</strong></span></router-link>
-        <p>Tìm sân, xem lịch trống và kết nối cộng đồng thể thao trong một hành trình rõ ràng.</p>
-      </section>
+  <footer class="alb-footer">
+    <div class="sg-container alb-footer-grid">
+      <!-- Col 1: Brand Info -->
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+          <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px;">SG</div>
+          <span style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Sport<span style="color: #34d399;">Go</span></span>
+        </div>
+        <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px; max-width: 320px;">
+          Nền tảng chuyên biệt cho kết nối & đặt lịch trực tuyến các cụm sân Pickleball, Cầu Lông, Tennis, Bóng Đá hàng đầu Việt Nam.
+        </p>
+        <div style="font-size: 13.5px; color: #94a3b8; display: flex; flex-direction: column; gap: 8px;">
+          <span>Hotline hỗ trợ: 1900 6789 (24/7)</span>
+          <span>Email: support@sportgo.vn</span>
+          <span>Trụ sở chính: Hà Nội & TP. Hồ Chí Minh</span>
+        </div>
+      </div>
 
-      <section class="sg3-footer__links">
-        <h3>Khám phá</h3>
-        <router-link to="/venues">Tìm sân thể thao</router-link>
-        <router-link to="/map">Bản đồ sân</router-link>
-        <router-link to="/featured">Sân nổi bật</router-link>
-        <router-link to="/offers">Ưu đãi</router-link>
-        <router-link to="/community">Cộng đồng SportGo</router-link>
-      </section>
+      <!-- Col 2: DÀNH CHO NGƯỜI CHƠI -->
+      <div class="alb-footer-col">
+        <h4>HỆ THỐNG SÂN</h4>
+        <div class="alb-footer-links">
+          <router-link to="/venues">Tất Cả Cụm Sân</router-link>
+          <router-link to="/venues?q=Pickleball">Sân Pickleball Pro</router-link>
+          <router-link to="/venues?q=Cầu+Lông">Sân Cầu Lông BWF</router-link>
+          <router-link to="/venues?q=Bóng+Đá">Sân Bóng Đá Cỏ FIFA</router-link>
+          <router-link to="/venues?q=Tennis">Sân Tennis ITF</router-link>
+        </div>
+      </div>
 
-      <section class="sg3-footer__links">
-        <h3>Dành cho bạn</h3>
-        <router-link to="/bookings">Lịch đã đặt</router-link>
-        <router-link to="/profile">Tài khoản cá nhân</router-link>
-        <router-link to="/wallet">Ví SportGo</router-link>
-        <router-link to="/complaints">Trung tâm hỗ trợ</router-link>
-        <router-link to="/become-partner">Trở thành đối tác</router-link>
-      </section>
+      <!-- Col 3: DÀNH CHO CHỦ SÂN -->
+      <div class="alb-footer-col">
+        <h4>TÍNH NĂNG & DỊCH VỤ</h4>
+        <div class="alb-footer-links">
+          <router-link to="/become-partner">Dành Cho Chủ Sân</router-link>
+          <router-link to="/bookings">Lịch Đặt Của Tôi</router-link>
+          <router-link to="/offers">Ưu Đãi & Khuyến Mãi</router-link>
+          <router-link to="/news">Tin Tức & Kinh Nghiệm</router-link>
+          <router-link to="/community">Cộng Đồng Ghép Đội</router-link>
+        </div>
+      </div>
 
-      <section class="sg3-footer__contact">
-        <h3>Liên hệ {{ brandName }}</h3>
-        <a :href="`tel:${supportPhoneRaw}`">
-          <Phone :size="17" aria-hidden="true" />
-          {{ supportPhone }}
-        </a>
-        <a v-if="supportEmail" :href="`mailto:${supportEmail}`">
-          <Mail :size="17" aria-hidden="true" />
-          {{ supportEmail }}
-        </a>
-        <span>
-          <MapPin :size="17" aria-hidden="true" />
-          {{ supportAddress }}
-        </span>
-      </section>
+      <!-- Col 4: HỖ TRỢ & BẢO MẬT -->
+      <div class="alb-footer-col">
+        <h4>HỖ TRỢ KHÁCH HÀNG</h4>
+        <div class="alb-footer-links">
+          <a href="#support">Trung Tâm Hỗ Trợ 24/7</a>
+          <a href="#">Điều Khoản Sử Dụng</a>
+          <a href="#">Chính Sách Bảo Mật</a>
+          <a href="#">Quy Định Hoàn Tiền</a>
+          <a href="#">Tải App Mobile iOS / Android</a>
+        </div>
+      </div>
     </div>
 
-    <div class="sg3-footer__bottom">
-      <div class="sg3-container">
-        <span>© {{ currentYear }} {{ brandName }}. Nền tảng đặt sân thể thao.</span>
-        <span>Điều khoản · Chính sách bảo mật</span>
+    <!-- Bottom copyrights -->
+    <div class="alb-footer-bottom">
+      <div class="sg-container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <span>© {{ currentYear }} SportGo Platform. Tất cả quyền được bảo lưu.</span>
+        <span>Phần mềm chuyên biệt đặt lịch & quản lý sân thể thao</span>
       </div>
     </div>
   </footer>
 </template>
 
 <script setup>
-import { Mail, MapPin, Phone } from "lucide-vue-next";
-import { computed } from "vue";
-import { systemName, systemProfileState } from "../stores/systemProfile.js";
-
 const currentYear = new Date().getFullYear();
-const brandName = computed(() => systemName() || "SportGo");
-const brandMain = computed(() => {
-  const match = brandName.value.match(/^(.*?)(go)$/i);
-  return match ? match[1] : brandName.value;
-});
-const brandAccent = computed(() => {
-  const match = brandName.value.match(/^(.*?)(go)$/i);
-  return match ? match[2] : "";
-});
-const initials = computed(() => brandName.value.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "SG");
-const supportPhone = computed(() => systemProfileState.profile.support_phone || "1900 6789");
-const supportPhoneRaw = computed(() => String(supportPhone.value).replace(/[^\d+]/g, "") || "19006789");
-const supportEmail = computed(() => systemProfileState.profile.support_email || "");
-const supportAddress = computed(() => systemProfileState.profile.company_address || "Hà Nội, Việt Nam");
 </script>

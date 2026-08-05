@@ -1,7 +1,7 @@
 <template>
   <div class="sg-client-page sg3-profile-page">
     <PublicNavbar />
-    <main class="sg3-profile-main sg3-container" aria-label="Tài khoản cá nhân">
+    <main class="sg3-profile-main sg-container" aria-label="Tài khoản cá nhân">
       <div class="sg3-page-head">
         <div>
           <div class="sg3-breadcrumbs"><router-link to="/">Trang chủ</router-link><span>/</span><strong>Tài khoản</strong></div>

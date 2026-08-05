@@ -2,7 +2,7 @@
   <div class="community-page sg-client-page">
     <PublicNavbar />
 
-    <main class="community-container">
+    <main class="sg-container community-container">
       <header class="community-heading">
         <div>
           <span class="eyebrow">Cộng đồng SportGo</span>

@@ -16,7 +16,7 @@
     <!-- Content -->
     <template v-else-if="venue">
         <section class="hero-band">
-          <div class="detail-container">
+          <div class="sg-container">
             <router-link class="venue-back-link" :to="{ name: 'venues', query: searchQuery }">
               <AppIcon name="chevronLeft" size="16" />
               Quay lại tìm sân
@@ -94,7 +94,7 @@
           </div>
         </section>
 
-        <nav class="detail-container venue-tabs" aria-label="Nội dung chi tiết sân">
+        <nav class="sg-container venue-tabs" aria-label="Nội dung chi tiết sân">
           <button
             v-for="tab in venueTabs"
             :key="tab.id"
@@ -109,7 +109,7 @@
           </button>
         </nav>
 
-        <section class="detail-container detail-layout">
+        <section class="sg-container detail-layout">
           <div class="detail-main">
             <section v-if="activeTab === 'overview' && venue.description" class="detail-section">
               <h2>Thông tin sân</h2>

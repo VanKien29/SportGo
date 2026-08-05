@@ -707,4 +707,32 @@ router.beforeEach(async (to, from, next) => {
     return next();
 });
 
+// Dynamic On-Page SEO Navigation Guard
+router.afterEach((to) => {
+    const routeTitles = {
+        home: "SportGo – Nền tảng Đặt lịch & Quản lý Sân Thể Thao Trực Tuyến",
+        venues: "Tìm Sân Thể Thao Đạt Chuẩn - Pickleball, Cầu Lông, Bóng Đá | SportGo",
+        "venue-detail": "Chi Tiết Cụm Sân & Sơ Đồ Giờ Trống Realtime | SportGo",
+        "booking-create": "Đặt Lịch Giữ Chỗ Sân Thể Thao Trực Tuyến | SportGo",
+        "booking-history": "Lịch Sử Đặt Sân & Vé QR Code Check-in | SportGo",
+        ClientNewsList: "Tin Tức & Kinh Nghiệm Thể Thao | SportGo",
+        ClientCommunityList: "Cộng Đồng Thể Thao - Tìm Đối Thủ & Ghép Đội | SportGo",
+        "partner-application": "Đăng Ký Đối Tác Chủ Sân Thể Thao | SportGo",
+        login: "Đăng Nhập Tài Khoản | SportGo",
+        register: "Đăng Ký Tài Khoản Mới | SportGo",
+    };
+
+    const title = to.meta?.title ? `${to.meta.title} | SportGo` : (routeTitles[to.name] || "SportGo - Đặt Sân Thể Thao Trực Tuyến");
+    document.title = title;
+
+    // Update Meta Description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+        metaDesc = document.createElement('meta');
+        metaDesc.name = "description";
+        document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = `${title}. Tìm sân gần bạn, xem ma trận giờ trống và giữ chỗ dễ dàng cùng SportGo.`;
+});
+
 export default router;
