@@ -14,7 +14,7 @@
           <div class="modal-card-body">
             <!-- Cluster Select -->
             <div class="form-field">
-              <label>Cụm sân áp dụng <span class="req">*</span></label>
+              <label>Cụm sân áp dụng</label>
               <select
                 :value="createForm.venue_cluster_id"
                 required
@@ -29,7 +29,7 @@
 
             <!-- Booking Select -->
             <div class="form-field">
-              <label>Lịch đặt sân sắp tới <span class="req">*</span></label>
+              <label>Lịch đặt sân sắp tới</label>
               <select
                 :value="createForm.booking_id"
                 :disabled="!createForm.venue_cluster_id || eligibleBookingsLoading"
@@ -61,7 +61,7 @@
             <!-- Needed Players & Cost -->
             <div class="form-row-2">
               <div class="form-field">
-                <label>Số người cần thêm <span class="req">*</span></label>
+                <label>Số người cần thêm</label>
                 <input
                   type="number"
                   min="1"
@@ -112,7 +112,7 @@
             </p>
 
             <div class="form-field">
-              <label>Lý do ẩn bài <span class="req">*</span></label>
+              <label>Lý do ẩn bài</label>
               <textarea
                 :value="hideReason"
                 rows="3"
@@ -145,7 +145,7 @@
         <form @submit.prevent="$emit('submit-report')">
           <div class="modal-card-body">
             <div class="form-field">
-              <label>Lý do vi phạm <span class="req">*</span></label>
+              <label>Lý do vi phạm</label>
               <select
                 :value="reportForm.reason"
                 required
@@ -259,11 +259,12 @@ export default {
 }
 
 .modal-card-header {
-  padding: 16px 20px;
+  padding: 16px 20px 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: none;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .modal-title {
@@ -313,7 +314,6 @@ export default {
 }
 
 .form-field input,
-.form-field select,
 .form-field textarea {
   width: 100%;
   padding: 9px 12px;
@@ -327,10 +327,48 @@ export default {
   transition: border-color 0.15s ease;
 }
 
+.form-field select {
+  width: 100%;
+  padding: 10px 36px 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  background-color: var(--admin-surface, #ffffff);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color: var(--admin-text, #0f172a);
+  font-size: 13.5px;
+  font-weight: 400;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.form-field select:hover {
+  border-color: var(--admin-primary, #10b981);
+}
+
 .form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {
-  border-color: var(--admin-primary, #22a653);
+  border-color: var(--admin-primary, #10b981);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.form-field select option {
+  padding: 10px 14px;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+}
+
+.form-field select option:disabled {
+  color: #94a3b8;
 }
 
 .help-text {
@@ -349,12 +387,13 @@ export default {
 }
 
 .modal-card-footer {
-  padding: 16px 20px;
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  border-top: none;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .btn-secondary-cancel {

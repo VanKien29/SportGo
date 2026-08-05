@@ -298,6 +298,7 @@ export default {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  gap: 0 !important;
 }
 
 .matchmaking-main-content {
@@ -309,6 +310,7 @@ export default {
   border-radius: 0;
   border: none;
   box-shadow: none;
+  margin-top: 0 !important;
 }
 
 /* Global Toasts */
