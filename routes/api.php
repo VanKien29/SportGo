@@ -86,6 +86,8 @@ Route::get('/venues/{id}/schedule', [VenueController::class, 'schedule']);
 Route::get('/venues/{clusterId}/affiliate-products', [PublicAffiliateProductController::class, 'index']);
 Route::post('/affiliate-products/{id}/click', [PublicAffiliateProductController::class, 'trackClick']);
 Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'index']);
+Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
+Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
@@ -575,8 +577,6 @@ Route::middleware('auth:sanctum')
         Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
         Route::get('/service-categories', [AdminServiceCategoryController::class, 'index']);
-        Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
-        Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
         Route::get('/bookings/eligible-vouchers', [\App\Http\Controllers\Api\Player\BookingController::class, 'eligibleVouchers']);
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);

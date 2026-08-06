@@ -3,10 +3,10 @@
     <PublicNavbar />
 
     <main>
-      <!-- PAGE HEADER -->
-      <section class="alb-section" style="background: #0f172a; color: #ffffff; padding: 48px 0;">
+      <!-- PAGE HEADER & PILL SEARCH BAR -->
+      <section class="alb-section" style="background: #0f172a; color: #ffffff; padding: 48px 0 36px;">
         <div class="sg-container">
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px; margin-bottom: 32px;">
             <div>
               <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #4ade80; letter-spacing: 1px; margin-bottom: 8px; display: block;">TÌM KIẾM CỤM SÂN</span>
               <h1 style="font-size: 28px; font-weight: 600; color: #ffffff; margin-bottom: 8px;">Hệ Thống Sân Thể Thao Đạt Chuẩn</h1>
@@ -18,77 +18,63 @@
               <span>Lịch đã đặt của tôi</span>
             </router-link>
           </div>
+
+          <!-- Integrated Pill Search Bar -->
+          <PillSearchBar />
         </div>
       </section>
 
       <!-- SEARCH & FILTER CONTENT -->
       <section class="alb-section">
         <div class="sg-container" style="display: grid; grid-template-columns: 280px 1fr; gap: 32px;">
-          <!-- FILTER SIDEBAR -->
-          <aside style="background: #f8fafc; border: 1px solid #d1d5db; border-radius: 4px; padding: 20px; align-self: flex-start;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb;">
-              <h2 style="font-size: 16px; font-weight: 600; color: #111827;">Bộ Lọc Tìm Kiếm</h2>
-              <button type="button" style="background: transparent; border: none; font-size: 13px; color: #15803d; cursor: pointer; font-weight: 500;" @click="resetFilters">Xóa bộ lọc</button>
+          <!-- FILTER SIDEBAR (Frameless Flat Layout) -->
+          <aside style="background: transparent; border: none; padding: 0; align-self: flex-start;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h2 style="font-size: 15px; font-weight: 500; color: #111827;">Bộ Lọc Tìm Kiếm</h2>
+              <button type="button" style="background: transparent; border: none; font-size: 13px; color: #15803d; cursor: pointer; font-weight: 400;" @click="resetFilters">Xóa bộ lọc</button>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 18px;">
               <!-- Search text -->
               <div>
-                <label style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Từ khóa / Tên sân</label>
-                <div class="alb-search-input-wrap">
-                  <input v-model.trim="filters.q" type="search" placeholder="Ví dụ: Cầu lông Ba Đình..." @keyup.enter="applyFilters" />
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Từ khóa / Tên sân</label>
+                <div class="alb-search-input-wrap" style="background: #ffffff; border: 1.5px solid #1e293b; border-radius: 8px; padding: 4px 10px;">
+                  <input v-model.trim="filters.q" type="search" placeholder="Ví dụ: Cầu lông Ba Đình..." style="width: 100%; border: none !important; outline: none !important; font-size: 14px; font-weight: 400; color: #0f172a; background: transparent;" @keyup.enter="applyFilters" />
                 </div>
               </div>
 
               <!-- Court Type -->
               <div>
-                <label style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Môn thể thao</label>
-                <div class="alb-search-input-wrap">
-                  <select v-model="filters.court_type_id" @change="applyFilters">
-                    <option value="">Tất cả bộ môn</option>
-                    <option v-for="type in courtTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
-                  </select>
-                </div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Môn thể thao</label>
+                <ClientCombobox
+                  v-model="filters.court_type_id"
+                  :options="courtTypeOptions"
+                  placeholder="Tất cả bộ môn"
+                  @change="applyFilters"
+                />
               </div>
 
               <!-- Dropdown 1: Tỉnh / Thành phố -->
               <div>
-                <label style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Tỉnh / Thành phố</label>
-                <div class="alb-search-input-wrap">
-                  <select v-model="filters.province_code" @change="onProvinceChange">
-                    <option value="">Tất cả Tỉnh/Thành</option>
-                    <option v-for="prov in provincesList" :key="prov.code" :value="prov.code">{{ prov.name }}</option>
-                  </select>
-                </div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Tỉnh / Thành phố</label>
+                <ClientCombobox
+                  v-model="filters.province_code"
+                  :options="provinceOptions"
+                  placeholder="Tất cả Tỉnh/Thành"
+                  @change="onProvinceChange"
+                />
               </div>
 
               <!-- Dropdown 2: Phường / Xã -->
               <div>
-                <label style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Phường / Xã</label>
-                <div class="alb-search-input-wrap">
-                  <select v-model="filters.ward_code" :disabled="!filters.province_code" @change="onWardChange">
-                    <option value="">Tất cả Phường/Xã</option>
-                    <option v-for="w in wardsList" :key="w.code" :value="w.code">{{ w.name }}</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Date Picker -->
-              <div>
-                <label style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Ngày chơi</label>
-                <div class="alb-search-input-wrap">
-                  <input v-model="filters.booking_date" type="date" :min="today" @change="applyFilters" />
-                </div>
-              </div>
-
-              <!-- Start Time -->
-              <div>
-                <label style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Khung giờ chơi</label>
-                <div class="alb-search-input-wrap">
-                  <select v-model="filters.start_time" @change="applyFilters">
-                    <option v-for="time in timeOptions" :key="time" :value="`${time}:00`">{{ time }}</option>
-                  </select>
-                </div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Phường / Xã</label>
+                <ClientCombobox
+                  v-model="filters.ward_code"
+                  :options="wardOptions"
+                  placeholder="Tất cả Phường/Xã"
+                  :disabled="!filters.province_code"
+                  @change="onWardChange"
+                />
               </div>
 
               <button class="alb-search-btn" type="button" style="width: 100%; justify-content: center; margin-top: 8px;" @click="applyFilters">
@@ -99,10 +85,10 @@
 
           <!-- VENUES LIST GRID -->
           <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb;">
-              <span style="font-size: 15px; font-weight: 600; color: #111827;">Hiển thị {{ venues.length }} kết quả</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 4px;">
+              <span style="font-size: 15px; font-weight: 500; color: #111827;">Hiển thị {{ venues.length }} kết quả</span>
               <div style="display: flex; gap: 12px; align-items: center;">
-                <select v-model="filters.sort" style="background: #ffffff; border: 1px solid #d1d5db; padding: 6px 12px; border-radius: 4px; font-size: 13.5px; color: #111827;" @change="applyFilters">
+                <select v-model="filters.sort" style="background: #ffffff; border: 1.5px solid #1e293b; padding: 6px 12px; border-radius: 6px; font-size: 13.5px; color: #111827; font-weight: 400;" @change="applyFilters">
                   <option value="recommended">Gợi ý phù hợp</option>
                   <option value="price">Giá thấp trước</option>
                   <option value="rating">Đánh giá cao</option>
@@ -114,10 +100,19 @@
               Đang tải danh sách sân...
             </div>
 
-            <div v-else-if="venues.length === 0" style="text-align: center; padding: 60px 20px; background: #f8fafc; border: 1px solid #d1d5db; border-radius: 4px;">
-              <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 8px;">Không tìm thấy cụm sân phù hợp</h3>
-              <p style="font-size: 14px; color: #374151; margin-bottom: 16px;">Vui lòng thử điều chỉnh lại ngày chơi, giờ hoặc nới rộng khu vực tìm kiếm.</p>
-              <button class="alb-search-btn" type="button" style="display: inline-flex;" @click="resetFilters">Xem Tất Cả Cụm Sân</button>
+            <div v-else-if="venues.length === 0" class="sg-empty-state-wrapper">
+              <div class="sg-empty-anim-container" style="width: 200px; height: 200px;">
+                <!-- Floating Question Marks -->
+                <div class="sg-qmark sg-qmark-left" style="top: 10px; left: -10px;">?</div>
+                <div class="sg-qmark sg-qmark-right" style="top: 30px; right: -10px;">?</div>
+
+                <!-- Generated Vector Art Illustration -->
+                <img :src="'/images/sports_player_search_empty.png'" alt="Không tìm thấy sân" class="sg-empty-img" />
+              </div>
+
+              <h3 style="font-size: 17px; font-weight: 500; color: #0f172a; margin-top: 16px; margin-bottom: 6px;">Không tìm thấy cụm sân phù hợp</h3>
+              <p style="font-size: 14px; color: #475569; margin-bottom: 20px; max-width: 420px; margin-left: auto; margin-right: auto;">Vui lòng thử điều chỉnh lại từ khóa tìm kiếm hoặc mở rộng phạm vi khu vực.</p>
+              <button class="alb-search-btn" type="button" style="display: inline-flex; font-weight: 400; padding: 10px 24px;" @click="resetFilters">Xem Tất Cả Cụm Sân</button>
             </div>
 
             <div v-else class="alb-venue-grid">
@@ -154,14 +149,15 @@
         </div>
       </section>
     </main>
-
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
-import ClientFooter from "../../components/ClientFooter.vue";
+import PillSearchBar from "../../components/PillSearchBar.vue";
+import ClientCombobox from "../../components/ClientCombobox.vue";
+import ClientDatePicker from "../../components/ClientDatePicker.vue";
+import ClientTimeSlots from "../../components/ClientTimeSlots.vue";
 import { courtTypeService } from "../../services/courtTypes.js";
 import { venueService } from "../../services/venues.js";
 import { api } from "../../services/api.js";
@@ -179,7 +175,10 @@ export default {
   name: "VenueList",
   components: {
     PublicNavbar,
-    ClientFooter,
+    PillSearchBar,
+    ClientCombobox,
+    ClientDatePicker,
+    ClientTimeSlots,
   },
   data() {
     return {
@@ -203,6 +202,29 @@ export default {
       },
       timeOptions: ["06:00", "08:00", "10:00", "14:00", "16:00", "18:00", "20:00"],
     };
+  },
+  computed: {
+    provinceOptions() {
+      return [
+        { value: "", label: "Tất cả Tỉnh/Thành" },
+        ...this.provincesList.map((p) => ({ value: String(p.code), label: p.name })),
+      ];
+    },
+    wardOptions() {
+      return [
+        { value: "", label: "Tất cả Phường/Xã" },
+        ...this.wardsList.map((w) => ({ value: String(w.code), label: w.name })),
+      ];
+    },
+    timeSlotOptions() {
+      return this.timeOptions.map((t) => ({ value: `${t}:00`, label: t }));
+    },
+    courtTypeOptions() {
+      return [
+        { value: "", label: "Tất cả bộ môn" },
+        ...this.courtTypes.map((c) => ({ value: String(c.id), label: c.name })),
+      ];
+    },
   },
   mounted() {
     this.loadProvinces();
@@ -291,10 +313,15 @@ export default {
         q: "",
         court_type_id: "",
         area: "",
+        province_code: "",
+        province_name: "",
+        ward_code: "",
+        ward_name: "",
         booking_date: localDateString(),
         start_time: "18:00:00",
         sort: "recommended",
       };
+      this.wardsList = [];
       this.loadVenues();
     },
     venueImage(venue) {

@@ -860,10 +860,9 @@ body {
 }
 
 .alb-orbit-node:hover {
-  border-color: #15803d;
-  color: #15803d;
-  z-index: 20;
-  transform: scale(1.08);
+  border-color: #94a3b8 !important;
+  color: #111827 !important;
+  transform: none !important;
 }
 
 /* Keep node text upright during spin */
@@ -918,5 +917,315 @@ body {
 @keyframes sg-counter-spin-reverse {
   from { transform: rotate(-360deg); }
   to { transform: rotate(0deg); }
+}
+
+/* International Standard Pill Search & Action Bar */
+.sg-pill-search-container {
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 40;
+}
+
+.sg-pill-bar {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 6px 12px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.sg-pill-bar:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  transform: none !important;
+}
+
+.sg-pill-search-input-wrap {
+  flex: 1;
+  min-width: 180px;
+  padding: 0 12px;
+}
+
+.sg-pill-input {
+  width: 100%;
+  border: none !important;
+  outline: none !important;
+  background: transparent;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.sg-pill-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.sg-pill-divider {
+  width: 1px;
+  height: 28px;
+  background-color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.sg-pill-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #1e293b;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sg-pill-btn:hover {
+  background: transparent !important;
+  color: #1e293b !important;
+}
+
+.sg-pill-btn.is-active {
+  color: #15803d;
+}
+
+.sg-pill-badge {
+  background: #15803d;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 10px;
+  line-height: 1;
+}
+
+/* Modal Popover Styles */
+.sg-filter-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.sg-filter-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: sg-modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sg-modal-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.sg-filter-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+}
+
+.sg-filter-modal-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #111827;
+  margin: 0;
+}
+
+.sg-filter-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.sg-filter-close-btn:hover {
+  color: #0f172a;
+}
+
+.sg-filter-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.sg-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sg-filter-field label {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #0f172a;
+}
+
+.sg-filter-select-wrap {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.sg-filter-select-wrap select,
+.sg-filter-select-wrap input {
+  width: 100%;
+  border: none !important;
+  outline: none !important;
+  background: transparent;
+  font-size: 14px;
+  color: #111827;
+  font-weight: 500;
+}
+
+.sg-filter-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8fafc;
+}
+
+.sg-btn-reset {
+  background: transparent;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #15803d;
+  cursor: pointer;
+}
+
+.sg-btn-apply {
+  background: #15803d;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .sg-pill-bar {
+    flex-wrap: wrap;
+    border-radius: 12px;
+    padding: 8px;
+    gap: 8px;
+  }
+  .sg-pill-divider {
+    display: none;
+  }
+  .sg-pill-search-input-wrap {
+    width: 100%;
+    flex: 100%;
+    margin-bottom: 4px;
+  }
+  .sg-pill-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Animated Empty State (Searching Player Graphic) */
+.sg-empty-state-wrapper {
+  text-align: center;
+  padding: 50px 20px;
+  background: transparent !important;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-empty-anim-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-empty-svg,
+.sg-empty-img {
+  width: 170px;
+  height: 170px;
+  object-fit: contain;
+  z-index: 10;
+  border-radius: 50%;
+  animation: sg-empty-float 3.5s ease-in-out infinite;
+}
+
+@keyframes sg-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+
+.sg-qmark {
+  position: absolute;
+  font-size: 16px;
+  font-weight: 700;
+  color: #15803d;
+  background: #ffffff;
+  border: 1.5px solid #15803d;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.15);
+  z-index: 20;
+}
+
+.sg-qmark-left {
+  top: 15px;
+  left: 0px;
+  animation: sg-qmark-float 2.8s ease-in-out infinite;
+}
+
+.sg-qmark-right {
+  top: 35px;
+  right: -5px;
+  animation: sg-qmark-float 3.2s ease-in-out infinite 0.5s;
+}
+
+.sg-qmark-top {
+  top: -5px;
+  left: 55px;
+  animation: sg-qmark-float 2.5s ease-in-out infinite 1s;
+}
+
+@keyframes sg-qmark-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.1); }
 }
 

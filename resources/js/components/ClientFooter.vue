@@ -3,9 +3,9 @@
     <div class="sg-container alb-footer-grid">
       <!-- Col 1: Brand Info -->
       <div>
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
-          <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px;">SG</div>
-          <span style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Sport<span style="color: #34d399;">Go</span></span>
+        <div style="margin-bottom: 16px;">
+          <img v-if="brandLogo" :src="brandLogo" :alt="brandName" style="max-height: 44px; object-fit: contain;" />
+          <div v-else style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px;">SG</div>
         </div>
         <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px; max-width: 320px;">
           Nền tảng chuyên biệt cho kết nối & đặt lịch trực tuyến các cụm sân Pickleball, Cầu Lông, Tennis, Bóng Đá hàng đầu Việt Nam.
@@ -65,5 +65,10 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
+import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
+
 const currentYear = new Date().getFullYear();
+const brandName = computed(() => systemName() || "SportGo");
+const brandLogo = computed(() => resolveSystemAsset(systemProfileState.profile.logo_url));
 </script>

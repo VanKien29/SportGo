@@ -1,68 +1,51 @@
 <template>
-  <nav class="sg3-account-nav" aria-label="Điều hướng tài khoản">
+  <nav class="an-nav" aria-label="Điều hướng tài khoản">
     <router-link
       v-for="item in items"
       :key="item.key"
       :to="item.to"
+      class="an-link"
       :class="{ active: isActive(item.key) }"
       :aria-current="isActive(item.key) ? 'page' : undefined"
     >
-      <span aria-hidden="true">
-        <AppIcon :name="item.icon" :size="18" />
-      </span>
-      <span>
-        <strong>{{ item.label }}</strong>
-      </span>
+      <span>{{ item.label }}</span>
     </router-link>
   </nav>
 </template>
 
 <script setup>
 import { useRoute } from 'vue-router';
-import AppIcon from './AppIcon.vue';
 
 const route = useRoute();
 const items = [
   {
     key: 'profile',
     label: 'Tài khoản',
-    description: 'Hồ sơ & thành viên',
-    icon: 'users',
     to: { name: 'profile' },
   },
   {
     key: 'bookings',
-    label: 'Lịch đặt',
-    description: 'Theo dõi booking',
-    icon: 'calendar',
+    label: 'Lịch đặt sân',
     to: { name: 'booking-history' },
   },
   {
     key: 'refunds',
     label: 'Hoàn tiền',
-    description: 'Theo dõi yêu cầu hoàn',
-    icon: 'refresh',
     to: { name: 'client-refunds' },
   },
   {
     key: 'wallet',
     label: 'Ví SportGo',
-    description: 'Số dư & biến động',
-    icon: 'wallet',
     to: { name: 'client-wallet' },
   },
   {
     key: 'notifications',
     label: 'Thông báo',
-    description: 'Cập nhật tài khoản',
-    icon: 'bell',
     to: { name: 'client-notifications' },
   },
   {
     key: 'complaints',
     label: 'Khiếu nại',
-    description: 'Trao đổi hỗ trợ',
-    icon: 'messageSquare',
     to: { name: 'client-complaints' },
   },
 ];
@@ -79,3 +62,35 @@ function isActive(key) {
 }
 </script>
 
+<style scoped>
+.an-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.an-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #1e293b;
+  text-decoration: none;
+  border: none;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  border-radius: 4px;
+}
+
+.an-link:hover {
+  color: #0f172a;
+}
+
+.an-link.active {
+  color: #15803d;
+  font-weight: 500;
+}
+</style>

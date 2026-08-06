@@ -52,11 +52,12 @@ import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
 import CommunityPostDetail from "../views/clients/community/CommunityDetail.vue";
+import ClientMapView from "../views/clients/ClientMapView.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
-    { path: "/map", name: "client-map", redirect: { name: "venues", query: { view: "map" } } },
+    { path: "/map", name: "client-map", component: ClientMapView },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
     { path: "/offers", name: "client-offers", component: () => import("../views/clients/Offers.vue") },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
@@ -136,7 +137,7 @@ const routes = [
         path: "/booking",
         name: "booking-create",
         component: BookingForm,
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: false },
     },
     {
         path: "/booking/:id",

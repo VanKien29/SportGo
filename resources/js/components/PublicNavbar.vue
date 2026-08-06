@@ -90,17 +90,16 @@
                     <div class="dd-role">{{ roleLabel }}</div>
                   </div>
                 </div>
-                <div class="dd-divider"></div>
 
                 <router-link :to="profileRoute" class="dd-item" @click="showDropdown = false">
                   Thông tin cá nhân
                 </router-link>
 
-                <router-link v-if="user.role === 'user'" to="/bookings" class="dd-item" @click="showDropdown = false">
+                <router-link v-if="isClientUser" to="/bookings" class="dd-item" @click="showDropdown = false">
                   Lịch đặt sân
                 </router-link>
 
-                <router-link v-if="user.role === 'user'" :to="{ name: 'profile', query: { tab: 'refunds' } }" class="dd-item" @click="showDropdown = false">
+                <router-link v-if="isClientUser" :to="{ name: 'profile', query: { tab: 'refunds' } }" class="dd-item" @click="showDropdown = false">
                   Số dư hoàn tiền
                 </router-link>
 
@@ -108,11 +107,10 @@
                   Trò chuyện
                 </router-link>
 
-                <button v-if="user.role !== 'user'" type="button" class="dd-item" @click="goToDashboard">
+                <button v-if="!isClientUser" type="button" class="dd-item" @click="goToDashboard">
                   Trang quản trị
                 </button>
 
-                <div class="dd-divider"></div>
                 <button type="button" class="dd-item logout" @click="handleLogout">
                   Đăng xuất
                 </button>
@@ -170,8 +168,11 @@ export default {
       return this.user?.fullName?.trim()?.charAt(0)?.toUpperCase() || "?";
     },
     roleLabel() {
-      const labels = { admin: "Quản trị viên", owner: "Chủ sân", user: "Người chơi" };
+      const labels = { admin: "Quản trị viên", owner: "Chủ sân", user: "Người chơi", customer: "Người chơi" };
       return labels[this.user?.role] || "Tài khoản";
+    },
+    isClientUser() {
+      return !["admin", "owner"].includes(this.user?.role);
     },
     profileRoute() {
       return this.user?.role === "owner" ? "/owner/profile" : "/profile";
@@ -255,3 +256,170 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+/* ACCOUNT MENU & DROPDOWN FIXES */
+.sg3-menu-wrap {
+  position: relative;
+}
+
+.sg3-account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.sg3-account-trigger:hover {
+  background: #f1f5f9;
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-name-text {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+/* DROPDOWN PANEL */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 230px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dd-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dd-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.dd-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dd-role {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.dd-item {
+  display: flex;
+  align-items: center;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: #1e293b;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dd-item:hover {
+  background: #f8fafc;
+  color: #15803d;
+}
+
+.dd-item.logout {
+  color: #dc2626;
+}
+
+.dd-item.logout:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* NOTIFICATION DROPDOWN FIXES */
+.sg3-popover-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.sg3-icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  position: relative;
+}
+
+.sg3-notification-badge {
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+</style>

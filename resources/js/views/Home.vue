@@ -32,80 +32,9 @@
         </div>
       </section>
 
-      <!-- SEARCH FORM -->
-      <div class="sg-container" style="padding-top: 40px; padding-bottom: 24px;">
-        <div class="alb-search-card">
-          <div class="alb-search-sport-tabs">
-            <button
-              v-for="sport in sportsCategories"
-              :key="sport.id"
-              type="button"
-              class="alb-sport-tab-pill"
-              :class="{ 'is-active': selectedSportTab === sport.id }"
-              @click="selectedSportTab = sport.id"
-            >
-              <span>{{ sport.name }}</span>
-            </button>
-          </div>
-
-          <form class="alb-search-form-grid" @submit.prevent="submitSearch">
-            <!-- Dropdown 1: Tỉnh / Thành phố -->
-            <div class="alb-search-box-field">
-              <label>Tỉnh / Thành phố</label>
-              <div class="alb-search-input-wrap">
-                <select v-model="search.province_code" @change="onProvinceChange">
-                  <option value="">Tất cả Tỉnh/Thành</option>
-                  <option v-for="prov in provincesList" :key="prov.code" :value="prov.code">{{ prov.name }}</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Dropdown 2: Phường / Xã -->
-            <div class="alb-search-box-field">
-              <label>Phường / Xã</label>
-              <div class="alb-search-input-wrap">
-                <select v-model="search.ward_code" :disabled="!search.province_code" @change="onWardChange">
-                  <option value="">Tất cả Phường/Xã</option>
-                  <option v-for="w in wardsList" :key="w.code" :value="w.code">{{ w.name }}</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="alb-search-box-field">
-              <label>Ngày chơi</label>
-              <div class="alb-search-input-wrap">
-                <input v-model="search.booking_date" type="date" :min="today" />
-              </div>
-            </div>
-
-            <div class="alb-search-box-field">
-              <label>Giờ bắt đầu</label>
-              <div class="alb-search-input-wrap">
-                <select v-model="search.start_time">
-                  <option v-for="time in timeOptions" :key="time" :value="`${time}:00`">
-                    {{ time }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div class="alb-search-box-field">
-              <label>Môn thể thao</label>
-              <div class="alb-search-input-wrap">
-                <select v-model="search.court_type_id">
-                  <option value="">Tất cả bộ môn</option>
-                  <option v-for="type in courtTypes" :key="type.id" :value="type.id">
-                    {{ type.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <button type="submit" class="alb-search-btn">
-              <span>Tìm Sân Ngay</span>
-            </button>
-          </form>
-        </div>
+      <!-- INTERNATIONAL STANDARD PILL SEARCH BAR -->
+      <div class="sg-container" style="padding-top: 36px; padding-bottom: 24px;">
+        <PillSearchBar />
       </div>
 
       <!-- SECTION 1: ORBITING SPORTS CATEGORIES SHOWCASE -->
@@ -347,14 +276,12 @@
         </div>
       </section>
     </main>
-
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../components/PublicNavbar.vue";
-import ClientFooter from "../components/ClientFooter.vue";
+import PillSearchBar from "../components/PillSearchBar.vue";
 import { api } from "../services/api.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
 
@@ -369,7 +296,7 @@ export default {
   name: "HomeView",
   components: {
     PublicNavbar,
-    ClientFooter,
+    PillSearchBar,
   },
   data() {
     return {
@@ -453,6 +380,32 @@ export default {
       } finally {
         this.loadingVenues = false;
       }
+    },
+    selectSportTab(tabId) {
+      this.selectedSportTab = tabId;
+      if (tabId === "all") {
+        this.search.court_type_id = "";
+      } else {
+        const found = this.courtTypes.find(
+          (c) =>
+            c.name.toLowerCase().includes(tabId.toLowerCase()) ||
+            tabId.toLowerCase().includes(c.name.toLowerCase())
+        );
+        if (found) {
+          this.search.court_type_id = found.id;
+        }
+      }
+    },
+    resetSearchForm() {
+      this.selectedSportTab = "all";
+      this.search.province_code = "";
+      this.search.province_name = "";
+      this.search.ward_code = "";
+      this.search.ward_name = "";
+      this.search.court_type_id = "";
+      this.search.booking_date = localDateString();
+      this.search.start_time = "18:00:00";
+      this.wardsList = [];
     },
     submitSearch() {
       const areaParts = [this.search.ward_name, this.search.province_name].filter(Boolean);
