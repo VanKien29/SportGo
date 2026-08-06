@@ -25,6 +25,8 @@ import {
 
 import { autoApproveStore } from '../../stores/autoApprove.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
+import { getAuth } from '../../stores/auth.js';
+import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
 
 export default {
   name: 'AdminLayout',
@@ -71,7 +73,9 @@ export default {
   },
   async mounted() {
     document.body?.classList.add('sg-admin-theme-scope');
-    applyCustomThemeStyles();
+    if (typeof applyCustomThemeStyles === 'function') {
+      applyCustomThemeStyles();
+    }
     if (hasAllAdminPermissions(getAuth(), ['moderation.manage'])) {
       autoApproveStore.init();
     }

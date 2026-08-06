@@ -1,160 +1,344 @@
 <template>
-  <div class="sg-client-page sg3-venue-page">
+  <div class="alb-app sg-client-page">
     <PublicNavbar />
+
     <main>
-      <section class="sg3-venue-hero">
-        <div class="sg3-container">
-          <div class="sg3-page-head">
+      <!-- PAGE HEADER & PILL SEARCH BAR -->
+      <section class="alb-section" style="background: #0f172a; color: #ffffff; padding: 48px 0 36px;">
+        <div class="sg-container">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px; margin-bottom: 32px;">
             <div>
-              <div class="sg3-breadcrumbs"><router-link to="/">Trang chủ</router-link><span>/</span><strong>Tìm sân</strong></div>
-              <p class="sg3-kicker">Marketplace SportGo</p>
-              <h1>Tìm sân phù hợp để chơi ngay</h1>
-              <p>{{ loading ? "Đang tìm lịch trống theo lựa chọn của bạn..." : `${venues.length} cụm sân phù hợp với bộ lọc hiện tại` }}</p>
+              <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #4ade80; letter-spacing: 1px; margin-bottom: 8px; display: block;">TÌM KIẾM CỤM SÂN</span>
+              <h1 style="font-size: 28px; font-weight: 600; color: #ffffff; margin-bottom: 8px;">Hệ Thống Sân Thể Thao Đạt Chuẩn</h1>
+              <p style="font-size: 14.5px; color: #ffffff;">
+                {{ loading ? "Đang tìm kiếm sân trống phù hợp..." : `Tìm thấy ${venues.length} cụm sân khả dụng` }}
+              </p>
             </div>
-            <router-link class="sg3-button sg3-button--secondary" :to="{ name: 'booking-history' }"><AppIcon name="history" :size="17" />Lịch đặt sân</router-link>
+            <router-link to="/bookings" class="alb-btn-owner" style="background: #1e293b; border: 1px solid #334155;">
+              <span>Lịch đã đặt của tôi</span>
+            </router-link>
           </div>
 
-          <form class="sg3-search-panel" @submit.prevent="applyFilters">
-            <label class="sg3-field"><span>Tên sân hoặc địa điểm</span><input v-model.trim="filters.q" type="search" placeholder="Ví dụ: Green Sport, Ba Đình" /></label>
-            <label class="sg3-field"><span>Môn thể thao</span><select v-model="filters.court_type_id"><option value="">Tất cả môn</option><option v-for="type in courtTypes" :key="type.id" :value="type.id">{{ type.name }}</option></select></label>
-            <label class="sg3-field"><span>Khu vực</span><input v-model.trim="filters.area" type="text" placeholder="Quận, phường, tỉnh thành" /></label>
-            <label class="sg3-field"><span>Ngày và giờ chơi</span><BookingDateTimePicker v-model:date="filters.booking_date" v-model:time="filters.start_time" :min-date="today" :time-options="timeOptions" compact /></label>
-            <button class="sg3-search-submit" type="submit"><AppIcon name="search" :size="17" />Tìm sân</button>
-          </form>
+          <!-- Integrated Pill Search Bar -->
+          <PillSearchBar />
         </div>
       </section>
 
-      <section class="sg3-container sg3-market-layout">
-        <button class="sg3-mobile-filter-toggle" type="button" :aria-expanded="mobileFiltersOpen" @click="mobileFiltersOpen = !mobileFiltersOpen"><span><AppIcon name="filter" :size="17" />Bộ lọc nâng cao</span><AppIcon :name="mobileFiltersOpen ? 'chevronUp' : 'chevronDown'" :size="17" /></button>
-        <aside class="sg3-card sg3-filter-card" :class="{ 'is-open': mobileFiltersOpen }" aria-label="Bộ lọc tìm sân">
-          <div class="sg3-filter-head"><h2>Bộ lọc</h2><button type="button" @click="resetFilters">Xóa lọc</button></div>
-          <div class="sg3-filter-body">
-            <div class="sg3-filter-section">
-              <span class="sg3-filter-label">Môn thể thao</span>
-              <div class="sg3-chip-list">
-              <button type="button" class="sg3-chip" :class="{ 'is-active': !filters.court_type_id }" @click="setCourtType('')">Tất cả</button>
-              <button v-for="type in courtTypes" :key="type.id" type="button" class="sg3-chip" :class="{ 'is-active': String(filters.court_type_id) === String(type.id) }" @click="setCourtType(type.id)">{{ type.name }}</button>
+      <!-- SEARCH & FILTER CONTENT -->
+      <section class="alb-section">
+        <div class="sg-container" style="display: grid; grid-template-columns: 280px 1fr; gap: 32px;">
+          <!-- FILTER SIDEBAR (Frameless Flat Layout) -->
+          <aside style="background: transparent; border: none; padding: 0; align-self: flex-start;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h2 style="font-size: 15px; font-weight: 500; color: #111827;">Bộ Lọc Tìm Kiếm</h2>
+              <button type="button" style="background: transparent; border: none; font-size: 13px; color: #15803d; cursor: pointer; font-weight: 400;" @click="resetFilters">Xóa bộ lọc</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 18px;">
+              <!-- Search text -->
+              <div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Từ khóa / Tên sân</label>
+                <div class="alb-search-input-wrap" style="background: #ffffff; border: 1.5px solid #1e293b; border-radius: 8px; padding: 4px 10px;">
+                  <input v-model.trim="filters.q" type="search" placeholder="Ví dụ: Cầu lông Ba Đình..." style="width: 100%; border: none !important; outline: none !important; font-size: 14px; font-weight: 400; color: #0f172a; background: transparent;" @keyup.enter="applyFilters" />
+                </div>
+              </div>
+
+              <!-- Court Type -->
+              <div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Môn thể thao</label>
+                <ClientCombobox
+                  v-model="filters.court_type_id"
+                  :options="courtTypeOptions"
+                  placeholder="Tất cả bộ môn"
+                  @change="applyFilters"
+                />
+              </div>
+
+              <!-- Dropdown 1: Tỉnh / Thành phố -->
+              <div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Tỉnh / Thành phố</label>
+                <ClientCombobox
+                  v-model="filters.province_code"
+                  :options="provinceOptions"
+                  placeholder="Tất cả Tỉnh/Thành"
+                  @change="onProvinceChange"
+                />
+              </div>
+
+              <!-- Dropdown 2: Phường / Xã -->
+              <div>
+                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Phường / Xã</label>
+                <ClientCombobox
+                  v-model="filters.ward_code"
+                  :options="wardOptions"
+                  placeholder="Tất cả Phường/Xã"
+                  :disabled="!filters.province_code"
+                  @change="onWardChange"
+                />
+              </div>
+
+              <button class="alb-search-btn" type="button" style="width: 100%; justify-content: center; margin-top: 8px;" @click="applyFilters">
+                <span>Áp Dụng Tìm Kiếm</span>
+              </button>
+            </div>
+          </aside>
+
+          <!-- VENUES LIST GRID -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 4px;">
+              <span style="font-size: 15px; font-weight: 500; color: #111827;">Hiển thị {{ venues.length }} kết quả</span>
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <select v-model="filters.sort" style="background: #ffffff; border: 1.5px solid #1e293b; padding: 6px 12px; border-radius: 6px; font-size: 13.5px; color: #111827; font-weight: 400;" @change="applyFilters">
+                  <option value="recommended">Gợi ý phù hợp</option>
+                  <option value="price">Giá thấp trước</option>
+                  <option value="rating">Đánh giá cao</option>
+                </select>
               </div>
             </div>
-            <label class="sg3-field"><span>Giá từ</span><input v-model.number="filters.min_price" min="0" step="10000" type="number" placeholder="0 đ" /></label>
-            <label class="sg3-field"><span>Giá đến</span><input v-model.number="filters.max_price" min="0" step="10000" type="number" placeholder="Không giới hạn" /></label>
-            <label class="sg3-field"><span>Đánh giá tối thiểu</span><select v-model="filters.min_rating"><option value="">Không giới hạn</option><option value="4.5">Từ 4.5 sao</option><option value="4">Từ 4 sao</option><option value="3">Từ 3 sao</option></select></label>
-            <label class="sg3-field"><span>Số sân tối thiểu</span><select v-model="filters.min_courts"><option value="">Không giới hạn</option><option v-for="count in courtCountOptions" :key="count" :value="count">Từ {{ count }} sân</option></select></label>
-            <label class="sg3-field"><span>Thanh toán</span><select v-model="filters.payment_option"><option value="">Tất cả hình thức</option><option value="full_payment">Thanh toán đủ</option><option value="wallet">Ví SportGo</option><option value="deposit">Đặt cọc</option><option value="no_prepay">Trả sau tại sân</option></select></label>
-            <div class="sg3-filter-section">
-              <span class="sg3-filter-label">Tiện ích</span>
-              <div class="sg3-chip-list">
-                <button type="button" class="sg3-chip" :class="{ 'is-active': !filters.amenity_id }" @click="filters.amenity_id = ''">Tất cả</button>
-                <button v-for="amenity in amenities" :key="amenity.id" type="button" class="sg3-chip" :class="{ 'is-active': String(filters.amenity_id) === String(amenity.id) }" @click="filters.amenity_id = amenity.id">{{ amenity.name }}</button>
-              </div>
+
+            <div v-if="loading" style="text-align: center; padding: 60px 0; color: #374151;">
+              Đang tải danh sách sân...
             </div>
-            <label class="sg3-check-row"><input v-model="filters.has_services" type="checkbox" /> <span>Có dịch vụ tại sân</span></label>
-            <label class="sg3-check-row"><input v-model="filters.has_map" type="checkbox" /> <span>Có vị trí trên bản đồ</span></label>
-            <button class="sg3-apply-filter" type="button" @click="applySideFilters"><AppIcon name="filter" :size="16" />Áp dụng bộ lọc</button>
-          </div>
-        </aside>
 
-        <section class="sg3-results-area">
-          <div class="sg3-results-toolbar">
-            <div><strong>{{ venues.length }} kết quả</strong><span>{{ activeFilterLabel }}</span></div>
-            <div class="sg3-toolbar-actions"><select v-model="filters.sort" aria-label="Sắp xếp" @change="applyFilters"><option value="recommended">Gợi ý phù hợp</option><option value="price">Giá thấp trước</option><option value="rating">Đánh giá cao</option><option value="courts">Nhiều sân nhất</option><option value="name">Tên A-Z</option></select><div class="sg3-view-toggle" aria-label="Chế độ xem"><button type="button" :class="{ 'is-active': viewMode === 'list' }" aria-label="Xem danh sách" @click="setViewMode('list')"><AppIcon name="menu" :size="17" /></button><button type="button" :class="{ 'is-active': viewMode === 'map' }" aria-label="Xem bản đồ" @click="setViewMode('map')"><AppIcon name="mapPin" :size="17" /></button></div></div>
-          </div>
+            <div v-else-if="venues.length === 0" class="sg-empty-state-wrapper">
+              <div class="sg-empty-anim-container" style="width: 200px; height: 200px;">
+                <!-- Floating Question Marks -->
+                <div class="sg-qmark sg-qmark-left" style="top: 10px; left: -10px;">?</div>
+                <div class="sg-qmark sg-qmark-right" style="top: 30px; right: -10px;">?</div>
 
-          <div v-if="viewMode === 'map'" class="sg3-card sg3-map-panel">
-            <VenueResultsMap v-if="venuesWithLocation.length" :venues="venuesWithLocation" @select="goDetail" />
-            <div v-else class="sg3-empty"><div><strong>Chưa có điểm sân trên bản đồ</strong><p>Những cụm sân trong kết quả này chưa có tọa độ hiển thị.</p></div></div>
-            <button class="sg3-button sg3-button--secondary sg3-map-back" type="button" @click="setViewMode('list')">Quay lại danh sách</button>
+                <!-- Generated Vector Art Illustration -->
+                <img :src="'/images/sports_player_search_empty.png'" alt="Không tìm thấy sân" class="sg-empty-img" />
+              </div>
+
+              <h3 style="font-size: 17px; font-weight: 500; color: #0f172a; margin-top: 16px; margin-bottom: 6px;">Không tìm thấy cụm sân phù hợp</h3>
+              <p style="font-size: 14px; color: #475569; margin-bottom: 20px; max-width: 420px; margin-left: auto; margin-right: auto;">Vui lòng thử điều chỉnh lại từ khóa tìm kiếm hoặc mở rộng phạm vi khu vực.</p>
+              <button class="alb-search-btn" type="button" style="display: inline-flex; font-weight: 400; padding: 10px 24px;" @click="resetFilters">Xem Tất Cả Cụm Sân</button>
+            </div>
+
+            <div v-else class="alb-venue-grid">
+              <article v-for="venue in venues" :key="venue.id" class="alb-venue-card">
+                <div class="alb-venue-card__thumb">
+                  <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" />
+                  <span class="alb-venue-card__badge">{{ venue.court_types?.[0]?.name || "Sân Thể Thao" }}</span>
+                  <div class="alb-venue-card__rating">
+                    <span>{{ formatRating(venue) }} sao</span>
+                  </div>
+                </div>
+
+                <div class="alb-venue-card__body">
+                  <h3 class="alb-venue-card__title">{{ venue.name }}</h3>
+                  <div class="alb-venue-card__address">
+                    <span>{{ venue.address || venue.province || "Đang cập nhật địa chỉ" }}</span>
+                  </div>
+
+                  <div class="alb-venue-card__footer">
+                    <div class="alb-venue-card__price">
+                      {{ priceLabel(venue) }}
+                    </div>
+                    <router-link
+                      :to="{ name: 'venue-detail', params: { id: venue.slug || venue.id } }"
+                      class="alb-venue-card__btn"
+                    >
+                      <span>Xem Lịch Sân</span>
+                    </router-link>
+                  </div>
+                </div>
+              </article>
+            </div>
           </div>
-          <div v-else-if="loading" class="sg3-venue-grid" aria-label="Đang tải sân"><article v-for="item in 3" :key="item" class="sg3-card sg3-venue-card"><div class="sg3-skeleton sg3-venue-card__image"></div><div class="sg3-venue-card__body"><div><div class="sg3-skeleton" style="width: 62%; height: 22px; border-radius: 6px"></div><div class="sg3-skeleton" style="width: 86%; height: 14px; margin-top: 12px; border-radius: 5px"></div></div><div class="sg3-skeleton" style="width: 48%; height: 38px; border-radius: 8px"></div></div></article></div>
-          <div v-else-if="error" class="sg3-error"><div><strong>Không tải được danh sách sân</strong><p>{{ error }}</p><button class="sg3-button sg3-button--primary" type="button" @click="loadVenues">Thử lại</button></div></div>
-          <div v-else-if="venues.length === 0" class="sg3-empty"><div><strong>Chưa có sân trống ở lựa chọn này</strong><p>Thử đổi giờ chơi, khu vực hoặc nới bộ lọc để SportGo tìm thêm sân cho bạn.</p><button class="sg3-button sg3-button--primary" type="button" @click="resetFilters">Xem tất cả sân</button></div></div>
-          <div v-else class="sg3-venue-grid">
-            <article v-for="venue in venues" :key="venue.id" class="sg3-card sg3-venue-card">
-              <button type="button" class="sg3-venue-card__image" @click="goDetail(venue)" :aria-label="`Xem ${venue.name}`"><img :src="venueImage(venue)" :alt="venue.name" @error="hideBrokenImage" /><span class="sg3-venue-card__fallback">{{ initials(venue.name) }}</span></button>
-              <div class="sg3-venue-card__body"><div><div class="sg3-venue-card__title"><div><h2>{{ venue.name }}</h2><p>{{ venue.address || venue.ward || venue.province || "Đang cập nhật địa chỉ" }}</p></div><strong class="sg3-rating"><AppIcon name="star" :size="15" />{{ formatRating(venue) }}</strong></div><div class="sg3-venue-meta"><span>{{ courtCount(venue) }} sân hoạt động</span><span v-for="name in courtTypeNames(venue)" :key="name">{{ name }}</span><span>{{ priceLabel(venue) }}</span><span class="is-available">Có lịch trống</span></div></div><div class="sg3-venue-actions"><button class="sg3-button sg3-button--secondary" type="button" @click="goDetail(venue)"><AppIcon name="eye" :size="16" />Chi tiết</button><button class="sg3-button sg3-button--primary" type="button" @click="goBooking(venue)"><AppIcon name="calendar" :size="16" />Đặt sân</button></div></div>
-            </article>
-          </div>
-        </section>
+        </div>
       </section>
     </main>
   </div>
 </template>
 
 <script>
-import AppIcon from "../../components/AppIcon.vue";
-import BookingDateTimePicker from "../../components/BookingDateTimePicker.vue";
 import PublicNavbar from "../../components/PublicNavbar.vue";
-import VenueResultsMap from "../../components/VenueResultsMap.vue";
+import PillSearchBar from "../../components/PillSearchBar.vue";
+import ClientCombobox from "../../components/ClientCombobox.vue";
+import ClientDatePicker from "../../components/ClientDatePicker.vue";
+import ClientTimeSlots from "../../components/ClientTimeSlots.vue";
 import { courtTypeService } from "../../services/courtTypes.js";
 import { venueService } from "../../services/venues.js";
-import { getAuth } from "../../stores/auth.js";
+import { api } from "../../services/api.js";
 
 const fallbackImage = "/images/home/badminton-cover.webp";
 
-function defaultSearchSlot() {
-  const date = new Date();
-  const currentMinutes = date.getHours() * 60 + date.getMinutes();
-  let startMinutes = Math.ceil((currentMinutes + 30) / 30) * 30;
-
-  if (startMinutes < 360) startMinutes = 360;
-  if (startMinutes > 1260) {
-    date.setDate(date.getDate() + 1);
-    startMinutes = 360;
-  }
-
-  return {
-    date: date.toLocaleDateString("en-CA"),
-    time: `${String(Math.floor(startMinutes / 60)).padStart(2, "0")}:${String(startMinutes % 60).padStart(2, "0")}:00`,
-  };
+function localDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default {
   name: "VenueList",
-  components: { AppIcon, BookingDateTimePicker, PublicNavbar, VenueResultsMap },
+  components: {
+    PublicNavbar,
+    PillSearchBar,
+    ClientCombobox,
+    ClientDatePicker,
+    ClientTimeSlots,
+  },
   data() {
-    const defaultSlot = defaultSearchSlot();
-    const today = defaultSlot.date;
-    return { venues: [], courtTypes: [], globalCourtTypes: [], amenities: [], courtCountOptions: [1, 2, 4, 6, 8, 10], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", filters: { q: "", court_type_id: "", area: "", amenity_id: "", min_courts: "", has_services: false, has_map: false, payment_option: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: defaultSlot.time, end_time: "", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
+    return {
+      today: localDateString(),
+      loading: true,
+      venues: [],
+      courtTypes: [],
+      provincesList: [],
+      wardsList: [],
+      filters: {
+        q: "",
+        court_type_id: "",
+        area: "",
+        province_code: "",
+        province_name: "",
+        ward_code: "",
+        ward_name: "",
+        booking_date: localDateString(),
+        start_time: "18:00:00",
+        sort: "recommended",
+      },
+      timeOptions: ["06:00", "08:00", "10:00", "14:00", "16:00", "18:00", "20:00"],
+    };
   },
   computed: {
-    activeFilterLabel() { const parts = []; const type = this.courtTypes.find((item) => String(item.id) === String(this.filters.court_type_id)); const amenity = this.amenities.find((item) => String(item.id) === String(this.filters.amenity_id)); if (type) parts.push(type.name); if (amenity) parts.push(amenity.name); if (this.filters.area) parts.push(this.filters.area); if (this.filters.min_courts) parts.push(`Từ ${this.filters.min_courts} sân`); if (this.filters.has_services) parts.push("Có dịch vụ"); if (this.filters.has_map) parts.push("Có bản đồ"); if (this.filters.payment_option) parts.push(this.paymentLabel(this.filters.payment_option)); if (this.filters.min_price || this.filters.max_price) parts.push(this.priceRangeLabel); parts.push(`${this.formatDateLabel(this.filters.booking_date)} lúc ${String(this.filters.start_time).slice(0, 5)}`); return parts.join(" · "); },
-    priceRangeLabel() { const min = this.filters.min_price ? this.formatCurrency(this.filters.min_price) : "0đ"; const max = this.filters.max_price ? this.formatCurrency(this.filters.max_price) : "không giới hạn"; return `${min} - ${max}`; },
-    venuesWithLocation() { return this.venues.filter((venue) => venue.latitude && venue.longitude); },
+    provinceOptions() {
+      return [
+        { value: "", label: "Tất cả Tỉnh/Thành" },
+        ...this.provincesList.map((p) => ({ value: String(p.code), label: p.name })),
+      ];
+    },
+    wardOptions() {
+      return [
+        { value: "", label: "Tất cả Phường/Xã" },
+        ...this.wardsList.map((w) => ({ value: String(w.code), label: w.name })),
+      ];
+    },
+    timeSlotOptions() {
+      return this.timeOptions.map((t) => ({ value: `${t}:00`, label: t }));
+    },
+    courtTypeOptions() {
+      return [
+        { value: "", label: "Tất cả bộ môn" },
+        ...this.courtTypes.map((c) => ({ value: String(c.id), label: c.name })),
+      ];
+    },
   },
-  watch: { "$route.query": { handler() { this.applyRouteQuery(); this.loadVenues(); }, deep: true } },
-  mounted() { this.applyRouteQuery(); this.loadCourtTypes(); this.loadFilterOptions(); this.loadVenues(); },
+  mounted() {
+    this.loadProvinces();
+    this.syncQueryToFilters();
+    this.loadCourtTypes();
+    this.loadVenues();
+  },
   methods: {
-    applyRouteQuery() { const query = this.$route.query; const defaultSlot = defaultSearchSlot(); const requestedDate = String(query.booking_date || query.date || defaultSlot.date); this.viewMode = query.view === "map" ? "map" : "list"; this.filters = { ...this.filters, q: query.q || "", court_type_id: query.court_type_id || "", area: query.area || "", amenity_id: query.amenity_id || "", min_courts: query.min_courts || "", has_services: query.has_services === "1", has_map: query.has_map === "1", payment_option: query.payment_option || "", min_price: query.min_price || "", max_price: query.max_price || "", min_rating: query.min_rating || "", booking_date: requestedDate >= defaultSlot.date ? requestedDate : defaultSlot.date, start_time: this.normalizeTime(query.start_time || query.time || defaultSlot.time), sort: query.sort || "recommended" }; this.filters.end_time = this.endTimeFromStart(this.filters.start_time); },
-    async loadCourtTypes() { try { const response = await courtTypeService.getAll(); this.globalCourtTypes = this.normalizeCourtTypes((response.data || []).filter((type) => type?.id && type?.name && type.is_active !== false && !type.parent_id)); this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch { this.globalCourtTypes = []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } },
-    async loadFilterOptions() { try { const response = await venueService.filterOptions(); const data = response.data || {}; this.amenities = Array.isArray(data.amenities) ? data.amenities : []; if (Array.isArray(data.court_counts) && data.court_counts.length) this.courtCountOptions = data.court_counts; } catch { this.amenities = []; } },
-    async loadVenues() { const requestId = ++this.venuesRequestId; this.loading = true; this.error = ""; try { const response = await venueService.list(this.cleanQuery(false)); if (requestId !== this.venuesRequestId) return; this.venues = response.data || []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch (error) { if (requestId !== this.venuesRequestId) return; this.error = error.message || "Không thể tải danh sách sân."; } finally { if (requestId === this.venuesRequestId) this.loading = false; } },
-    inferCourtTypes(venues = []) { const availableTypes = new Map(); venues.forEach((venue) => (venue.court_types || []).forEach((type) => { if (type?.id && type?.name && type.is_active !== false) availableTypes.set(String(type.id), type); })); return this.normalizeCourtTypes(Array.from(availableTypes.values())); },
-    syncCourtTypes(inferredTypes = []) { const types = new Map((this.globalCourtTypes.length ? this.globalCourtTypes : inferredTypes).map((type) => [String(type.id), type])); const selectedId = String(this.filters.court_type_id || ""); if (selectedId && !types.has(selectedId)) { const selectedType = [...inferredTypes, ...this.courtTypes].find((type) => String(type.id) === selectedId); if (selectedType) types.set(selectedId, selectedType); } this.courtTypes = this.normalizeCourtTypes(Array.from(types.values())); },
-    normalizeCourtTypes(types = []) { return [...types].sort((left, right) => String(left.name).localeCompare(String(right.name), "vi")); },
-    applyFilters() { if (this.filters.min_price !== "" && this.filters.max_price !== "" && Number(this.filters.max_price) < Number(this.filters.min_price)) { this.error = "Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu."; return; } this.filters.start_time = this.normalizeTime(this.filters.start_time); this.filters.end_time = this.endTimeFromStart(this.filters.start_time); this.$router.replace({ name: "venues", query: this.cleanQuery() }); },
-    applySideFilters() { this.mobileFiltersOpen = false; this.applyFilters(); },
-    cleanQuery(includeView = true) { const params = { ...this.filters, has_services: this.filters.has_services ? "1" : "", has_map: this.filters.has_map ? "1" : "", view: includeView && this.viewMode === "map" ? "map" : "" }; return Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "" && value !== false)); },
-    normalizeTime(time) { const label = String(time || "18:00:00").slice(0, 5); return `${label}:00`; },
-    endTimeFromStart(time) { const [hour, minute] = this.normalizeTime(time).slice(0, 5).split(":").map(Number); return `${String(Math.min(hour + 1, 24)).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`; },
-    setCourtType(id) { this.filters.court_type_id = id; this.applyFilters(); },
-    setViewMode(mode) { this.viewMode = mode; this.$router.replace({ name: "venues", query: this.cleanQuery() }); },
-    resetFilters() { this.filters = { q: "", court_type_id: "", area: "", amenity_id: "", min_courts: "", has_services: false, has_map: false, payment_option: "", min_price: "", max_price: "", min_rating: "", booking_date: this.today, start_time: "18:00:00", end_time: "19:00:00", sort: "recommended" }; this.viewMode = "list"; this.applyFilters(); },
-    bookingQueryFromFilters(venue = null) { return { venue_cluster_id: venue?.id || "", cluster: venue?.id || "", booking_date: this.filters.booking_date, date: this.filters.booking_date, start_time: this.filters.start_time, end_time: this.filters.end_time, court_type: this.filters.court_type_id || "", return_to: this.$route.fullPath }; },
-    goDetail(venue) { this.$router.push({ name: "venue-detail", params: { id: venue.slug || venue.id }, query: this.cleanQuery() }); },
-    goBooking(venue) { this.$router.push({ name: "booking-create", query: this.bookingQueryFromFilters(venue) }); },
-    courtCount(venue) { return Number(venue.court_count || venue.venue_courts_count || venue.venue_courts?.length || 0); },
-    courtTypeNames(venue) { const names = (venue.court_types || []).map((type) => type.name).filter(Boolean); return names.length ? names.slice(0, 3) : ["Đa môn"]; },
-    initials(name = "") { return String(name).trim().slice(0, 2).toUpperCase() || "SG"; },
-    imageUrl(path) { if (!path) return ""; if (/^https?:\/\//.test(path)) return path; if (path.startsWith("/")) return path; return `/storage/${path}`; },
-    venueImage(venue) { return this.imageUrl(venue.image_path || venue.cover_image || venue.thumbnail) || fallbackImage; },
-    hideBrokenImage(event) { event.target.style.display = "none"; },
-    formatDateLabel(value) { if (!value) return "Chưa chọn ngày"; const [year, month, day] = String(value).split("-").map(Number); if (!year || !month || !day) return String(value); return new Intl.DateTimeFormat("vi-VN").format(new Date(year, month - 1, day)); },
-    formatCurrency(amount) { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(amount || 0)); },
-    paymentLabel(value) { return { full_payment: "Thanh toán đủ", wallet: "Ví SportGo", deposit: "Đặt cọc", no_prepay: "Trả sau" }[value] || value; },
-    priceLabel(venue) { return venue.min_price ? `Từ ${this.formatCurrency(venue.min_price)}/giờ` : "Liên hệ giá"; },
-    formatRating(venue) { const rating = Number(venue.rating_avg || venue.average_rating || 0); return rating > 0 ? rating.toFixed(1) : "Mới"; },
+    async loadProvinces() {
+      try {
+        const res = await api("/api/locations/provinces");
+        this.provincesList = res.data || res || [];
+
+        // If query has province_code, fetch its wards
+        if (this.filters.province_code) {
+          this.fetchWardsForProvince(this.filters.province_code);
+        }
+      } catch (e) {
+        this.provincesList = [];
+      }
+    },
+    async fetchWardsForProvince(provinceCode) {
+      if (!provinceCode) {
+        this.wardsList = [];
+        return;
+      }
+      try {
+        const res = await api(`/api/locations/wards?province_code=${provinceCode}`);
+        this.wardsList = res.data || res || [];
+      } catch (e) {
+        this.wardsList = [];
+      }
+    },
+    async onProvinceChange() {
+      this.filters.ward_code = "";
+      this.filters.ward_name = "";
+      this.wardsList = [];
+      if (this.filters.province_code) {
+        const p = this.provincesList.find((x) => String(x.code) === String(this.filters.province_code));
+        this.filters.province_name = p ? p.name : "";
+        await this.fetchWardsForProvince(this.filters.province_code);
+      } else {
+        this.filters.province_name = "";
+      }
+      this.applyFilters();
+    },
+    onWardChange() {
+      const w = this.wardsList.find((x) => String(x.code) === String(this.filters.ward_code));
+      this.filters.ward_name = w ? w.name : "";
+      this.applyFilters();
+    },
+    syncQueryToFilters() {
+      const q = this.$route.query;
+      if (q.q) this.filters.q = q.q;
+      if (q.court_type_id) this.filters.court_type_id = q.court_type_id;
+      if (q.province_code) this.filters.province_code = q.province_code;
+      if (q.ward_code) this.filters.ward_code = q.ward_code;
+      if (q.area) this.filters.area = q.area;
+      if (q.booking_date) this.filters.booking_date = q.booking_date;
+      if (q.start_time) this.filters.start_time = q.start_time;
+    },
+    async loadCourtTypes() {
+      try {
+        const types = await courtTypeService.getCourtTypes();
+        this.courtTypes = types || [];
+      } catch (e) {
+        this.courtTypes = [];
+      }
+    },
+    async loadVenues() {
+      this.loading = true;
+      try {
+        const res = await venueService.getVenues(this.filters);
+        this.venues = res.data || res || [];
+      } catch (e) {
+        this.venues = [];
+      } finally {
+        this.loading = false;
+      }
+    },
+    applyFilters() {
+      this.loadVenues();
+    },
+    resetFilters() {
+      this.filters = {
+        q: "",
+        court_type_id: "",
+        area: "",
+        province_code: "",
+        province_name: "",
+        ward_code: "",
+        ward_name: "",
+        booking_date: localDateString(),
+        start_time: "18:00:00",
+        sort: "recommended",
+      };
+      this.wardsList = [];
+      this.loadVenues();
+    },
+    venueImage(venue) {
+      const img = venue.image_path || venue.cover_image || venue.thumbnail;
+      if (!img) return fallbackImage;
+      if (/^https?:\/\//.test(img)) return img;
+      return img.startsWith("/") ? img : `/storage/${img}`;
+    },
+    formatRating(venue) {
+      const rating = Number(venue.rating_avg || venue.average_rating || 4.9);
+      return rating.toFixed(1);
+    },
+    priceLabel(venue) {
+      if (!venue.min_price) return "Liên hệ";
+      const formatted = new Intl.NumberFormat("vi-VN").format(venue.min_price);
+      return `${formatted} đ/giờ`;
+    },
   },
 };
 </script>
-
-

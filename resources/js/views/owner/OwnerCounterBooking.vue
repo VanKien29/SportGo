@@ -89,7 +89,13 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <tr v-if="!activePeriodSlots.length">
+                                    <td :colspan="scheduleCourts.length + 1" style="text-align: center; padding: 40px 16px; color: #64748b; background: #f8fafc; font-size: 14px;">
+                                        Ca này nằm ngoài giờ hoạt động của sân ({{ currentScheduleLabel || 'sân đóng cửa' }}). Không có khung giờ chơi.
+                                    </td>
+                                </tr>
                                 <tr
+                                    v-else
                                     v-for="slot in activePeriodSlots"
                                     :key="slot.start_time"
                                     role="row"
@@ -781,65 +787,71 @@
                     </div>
 
                     <div class="period-row">
-
-
-                        <div class="legend">
-                            <span><i></i>Trống</span>
-                            <span><i class="selected"></i>Khung cố định</span>
-                            <span
-                                ><i class="booked-paid"></i>Đã thanh toán</span
+                        <div class="period-tabs" role="tablist">
+                            <button
+                                v-for="period in dynamicTimePeriods"
+                                :key="period.key"
+                                type="button"
+                                :class="{ active: activeTimePeriod === period.key }"
+                                @click="activeTimePeriod = period.key"
                             >
-                            <span><i class="booked-online"></i>Chờ online</span>
-                            <span><i class="booked-counter"></i>Chờ CK</span>
-                            <span><i class="pay-later"></i>Thu sau</span>
-                            <span><i class="overdue"></i>Quá hạn</span>
-                            <span><i class="locked"></i>Khóa sân</span>
+                                <strong>{{ period.label }}</strong>
+                                <span>({{ period.range }})</span>
+                            </button>
                         </div>
                     </div>
 
-                    <div
-                        class="slot-matrix recurring-slot-matrix"
-                        role="grid"
-                        aria-label="Bảng chọn sân và khung giờ cố định"
-                        :style="slotMatrixStyle"
-                    >
-                        <div class="matrix-head sticky-col" role="columnheader">
-                            Sân / giờ
-                        </div>
-                        <div
-                            v-for="slot in activePeriodSlots"
-                            :key="slot.start_time"
-                            class="matrix-head time-head"
-                            role="columnheader"
-                        >
-                            {{ formatTime(slot.start_time) }}
-                        </div>
-
-                        <template
-                            v-for="court in scheduleCourts"
-                            :key="court.id"
-                        >
-                            <div
-                                class="matrix-court sticky-col"
-                                role="rowheader"
-                            >
-                                <strong>{{ court.name }}</strong>
-                                <span>{{ court.court_type?.name || "-" }}</span>
-                            </div>
-                            <button
-                                v-for="slot in activePeriodSlots"
-                                :key="`${court.id}-${slot.start_time}`"
-                                type="button"
-                                class="time-slot"
-                                role="gridcell"
-                                :aria-pressed="isSlotSelected(court.id, slot)"
-                                :aria-label="slotActionTitle(court, slot)"
-                                :class="slotButtonClass(court.id, slot)"
-                                :disabled="isSlotDisabled(court.id, slot)"
-                                :title="slotActionTitle(court, slot)"
-                                @click="toggleSlot(court, slot)"
-                            ></button>
-                        </template>
+                    <div v-if="!activePeriodSlots.length" class="state-card" style="margin-top: 10px;">
+                        Ca này nằm ngoài giờ hoạt động của sân ({{ currentScheduleLabel || 'sân đóng cửa' }}). Không có khung giờ chơi.
+                    </div>
+                    <div v-else class="time-row-matrix-wrap" style="margin-top: 10px;">
+                        <table class="time-row-matrix" role="grid" aria-label="Bảng chọn sân và khung giờ cố định">
+                            <thead>
+                                <tr>
+                                    <th class="trm-corner" role="columnheader">KHUNG GIỜ</th>
+                                    <th
+                                        v-for="court in scheduleCourts"
+                                        :key="court.id"
+                                        class="trm-court-head"
+                                        role="columnheader"
+                                    >
+                                        <strong>{{ court.name }}</strong>
+                                        <span>{{ court.court_type?.name || "-" }}</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="slot in activePeriodSlots"
+                                    :key="slot.start_time"
+                                    role="row"
+                                >
+                                    <td class="trm-time-cell" role="rowheader">
+                                        {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}
+                                    </td>
+                                    <td
+                                        v-for="court in scheduleCourts"
+                                        :key="`${court.id}-${slot.start_time}`"
+                                        class="trm-slot-cell"
+                                        role="gridcell"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="trm-slot-btn"
+                                            :class="slotButtonClass(court.id, slot)"
+                                            :disabled="isSlotDisabled(court.id, slot)"
+                                            :aria-pressed="isSlotSelected(court.id, slot)"
+                                            :aria-label="slotActionTitle(court, slot)"
+                                            :title="slotActionTitle(court, slot)"
+                                            @click="toggleSlot(court, slot)"
+                                        >
+                                            <span v-if="isSlotSelected(court.id, slot)">Khung cố định</span>
+                                            <span v-else-if="!isSlotDisabled(court.id, slot)" class="trm-empty-hint">+ Đặt sân</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
@@ -2189,16 +2201,24 @@ export default {
             const configuredPeriods =
                 this.selectedClusterDetail?.booking_config?.custom_time_periods;
 
-            let raw = [];
+            let periods = [];
             if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
-                raw = configuredPeriods.map((p, idx) => ({
-                    key: `custom_${idx}`,
-                    label: p.label,
-                    start: this.timeToMinutes(p.start_time),
-                    end: this.timeToMinutes(p.end_time),
-                }));
+                periods = configuredPeriods
+                    .filter((p) => p.label && p.start_time && p.end_time)
+                    .map((p, idx) => {
+                        const start = this.timeToMinutes(p.start_time);
+                        const end = this.timeToMinutes(p.end_time);
+                        return {
+                            key: `custom_${idx}`,
+                            label: p.label,
+                            start,
+                            end,
+                            range: `${this.minutesToTime(start)} - ${this.minutesToTime(end)}`,
+                        };
+                    })
+                    .filter((period) => period.end > period.start);
             } else {
-                raw = [
+                const raw = [
                     {
                         key: "late_night",
                         label: "Khuya",
@@ -2230,25 +2250,25 @@ export default {
                         end: close,
                     },
                 ];
-            }
 
-            const periods = raw
-                .filter(
-                    (period) =>
-                        period.end > period.start &&
-                        period.start < close &&
-                        period.end > open,
-                )
-                .map((period) => {
-                    const clampedStart = Math.max(period.start, open);
-                    const clampedEnd = Math.min(period.end, close);
-                    return {
-                        ...period,
-                        start: clampedStart,
-                        end: clampedEnd,
-                        range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
-                    };
-                });
+                periods = raw
+                    .filter(
+                        (period) =>
+                            period.end > period.start &&
+                            period.start < close &&
+                            period.end > open,
+                    )
+                    .map((period) => {
+                        const clampedStart = Math.max(period.start, open);
+                        const clampedEnd = Math.min(period.end, close);
+                        return {
+                            ...period,
+                            start: clampedStart,
+                            end: clampedEnd,
+                            range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
+                        };
+                    });
+            }
 
             if (periods.length > 1) {
                 periods.push({
@@ -3021,6 +3041,12 @@ export default {
         },
     },
     watch: {
+        dynamicTimePeriods: {
+            handler() {
+                this.ensureActiveTimePeriod();
+            },
+            immediate: true,
+        },
         "form.recurring_start_date"(newDate, oldDate) {
             if (
                 this.activeTab === "recurring" &&
@@ -3551,8 +3577,15 @@ export default {
                     (period) => period.key === this.activeTimePeriod,
                 )
             ) {
+                const firstWithSlots = this.dynamicTimePeriods.find((period) => {
+                    if (period.key === "all") return false;
+                    return this.scheduleSlots.some((slot) => {
+                        const start = this.timeToMinutes(slot.start_time);
+                        return start >= period.start && start < period.end;
+                    });
+                });
                 this.activeTimePeriod =
-                    this.dynamicTimePeriods[0]?.key || "morning";
+                    firstWithSlots?.key || this.dynamicTimePeriods[0]?.key || "all";
             }
         },
         scrollSelectedBookingIntoView() {
@@ -9163,12 +9196,17 @@ input.invalid {
 .owner-counter-page .form-card,
 .owner-counter-page .preview-box,
 .owner-counter-page .recurring-list-panel,
-.owner-counter-page .recurring-panel,
-.owner-counter-page .profile-section-card {
+.owner-counter-page .recurring-panel {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
+}
+.owner-counter-page .profile-section-card {
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    padding: 10px !important;
 }
 .owner-counter-page .schedule-filters,
 .owner-counter-page .recurring-schedule-board,
@@ -9443,6 +9481,7 @@ input.invalid {
 .cluster-profile-surface.standalone {
     display: flex;
     flex-direction: column;
+    gap: 0 !important;
     background: var(--admin-surface, #ffffff);
     border-radius: 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);

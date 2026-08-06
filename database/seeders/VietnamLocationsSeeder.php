@@ -69,43 +69,7 @@ class VietnamLocationsSeeder extends Seeder
                 }
             }
         } catch (\Throwable $e) {
-            $this->command?->warn('Không thể tải dữ liệu từ API Vietnam Locations: ' . $e->getMessage() . '. Đang sử dụng dữ liệu dự phòng.');
-        }
-
-        // Dữ liệu dự phòng khi không có kết nối internet/API
-        if (VnProvince::query()->count() === 0) {
-            VnProvince::query()->insert([
-                [
-                    'code' => 'demo-hn',
-                    'name' => 'Hà Nội (demo/cache)',
-                    'codename' => 'ha_noi_demo_cache',
-                    'division_type' => 'city',
-                    'phone_code' => 24,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ],
-            ]);
-
-            VnWard::query()->insert([
-                [
-                    'code' => 'demo-hn-ba-dinh',
-                    'name' => 'Ba Đình (demo/cache)',
-                    'codename' => 'ba_dinh_demo_cache',
-                    'division_type' => 'ward',
-                    'province_code' => 'demo-hn',
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ],
-                [
-                    'code' => 'demo-hn-cau-giay',
-                    'name' => 'Cầu Giấy (demo/cache)',
-                    'codename' => 'cau_giay_demo_cache',
-                    'division_type' => 'ward',
-                    'province_code' => 'demo-hn',
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ],
-            ]);
+            $this->command?->error('Lỗi tải dữ liệu từ API Vietnam Locations: ' . $e->getMessage());
         }
     }
 }

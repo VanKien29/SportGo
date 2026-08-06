@@ -253,10 +253,12 @@ export default {
 
 .modal-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  background: var(--admin-bg-soft, #f7fbf5);
+  padding: 16px 20px 0 20px;
+  background: transparent;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .head-title-wrap {
@@ -293,7 +295,7 @@ export default {
 }
 
 .modal-form-body {
-  padding: 24px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -472,8 +474,10 @@ export default {
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 8px;
-  padding-top: 16px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: none !important;
+  border-bottom: none !important;
 }
 
 .btn-cancel {
