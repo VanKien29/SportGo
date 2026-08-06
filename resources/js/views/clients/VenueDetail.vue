@@ -14,19 +14,19 @@
     </div>
 
     <!-- Content -->
-    <template v-else-if="venue">
+    <main v-else-if="venue" class="venue-detail-main">
         <section class="hero-band">
           <div class="detail-container">
-            <router-link class="venue-back-link" :to="{ name: 'venues', query: searchQuery }">
+            <router-link class="venue-back-link !text-slate-800 !bg-white/80 hover:!bg-white !border-slate-300" :to="{ name: 'venues', query: searchQuery }">
               <AppIcon name="chevronLeft" size="16" />
               Quay lại tìm sân
             </router-link>
-            <nav class="breadcrumbs" aria-label="Duong dan">
-              <router-link :to="{ name: 'home' }">Trang chủ</router-link>
+            <nav class="breadcrumbs !text-slate-500" aria-label="Duong dan">
+              <router-link :to="{ name: 'home' }" class="!text-slate-700 hover:!text-emerald-700">Trang chủ</router-link>
               <span>/</span>
-              <router-link :to="{ name: 'venues', query: searchQuery }">Tìm sân</router-link>
+              <router-link :to="{ name: 'venues', query: searchQuery }" class="!text-slate-700 hover:!text-emerald-700">Tìm sân</router-link>
               <span>/</span>
-              <strong>{{ venue.name }}</strong>
+              <strong class="!text-slate-900">{{ venue.name }}</strong>
             </nav>
 
             <div class="hero-grid">
@@ -401,7 +401,7 @@
               </div>
           </aside>
         </section>
-      </template>
+      </main>
 
     <ComplaintModal
       :is-open="showComplaintModal"
