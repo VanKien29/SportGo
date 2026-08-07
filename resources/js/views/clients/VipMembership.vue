@@ -3,9 +3,10 @@
         <PublicNavbar />
         <main class="vip-page sg-client-shell">
             <header class="page-head">
-                <div>
+                <div class="page-head-copy">
                     <p>SportGo VIP</p>
-                    <h1>Chọn gói VIP</h1>
+                    <h1>Chọn gói phù hợp với bạn</h1>
+                    <span>Quyền lợi rõ ràng, giá minh bạch và kích hoạt sau khi thanh toán.</span>
                 </div>
                 <div class="head-actions">
                     <button class="back-btn" type="button" @click="goBack">
@@ -23,6 +24,20 @@
                 Bạn đang có gói VIP còn hiệu lực. Hệ thống chỉ cho phép dùng 1
                 gói VIP tại một thời điểm.
             </div>
+
+            <section class="vip-intro" aria-label="Thông tin gói VIP">
+                <div class="vip-intro__lead">
+                    <span class="vip-intro__icon"><AppIcon name="star" :size="20" /></span>
+                    <div>
+                        <strong>Đặc quyền SportGo dành cho người chơi thường xuyên</strong>
+                        <p>Chọn chu kỳ bên dưới để xem đúng mức giá và mức tiết kiệm của từng gói.</p>
+                    </div>
+                </div>
+                <div class="vip-intro__facts">
+                    <span><AppIcon name="shieldCheck" :size="15" /> Giá lấy từ cấu hình hệ thống</span>
+                    <span><AppIcon name="calendar" :size="15" /> Có thể chọn tháng, quý hoặc năm</span>
+                </div>
+            </section>
 
             <section v-if="subscription" class="current-plan">
                 <div>
@@ -102,7 +117,10 @@
             </section>
 
             <div v-if="loading" class="state">Đang tải gói VIP...</div>
-            <section v-else class="plan-grid">
+            <div v-else-if="!paidPackages.length" class="state">
+                Hiện chưa có gói VIP đang mở bán. Vui lòng quay lại sau.
+            </div>
+            <section v-else class="plan-grid" aria-label="Danh sách gói VIP">
                 <article
                     v-for="pkg in paidPackages"
                     :key="pkg.id"
@@ -112,44 +130,74 @@
                         { current: isCurrentPackage(pkg) },
                     ]"
                 >
-                    <header>
-                        <div>
-                            <span>{{ packageBadgeText(pkg) }}</span>
-                            <h2>{{ pkg.label || pkg.name }}</h2>
+                    <header class="plan-card__header">
+                        <div class="plan-card__identity">
+                            <span class="plan-card__icon" :class="`plan-card__icon--${pkg.type}`">
+                                <AppIcon :name="pkg.type === 'pro' ? 'shieldCheck' : 'star'" :size="19" />
+                            </span>
+                            <div>
+                                <span class="plan-card__eyebrow">{{ packageBadgeText(pkg) }}</span>
+                                <h2>{{ pkg.label || pkg.name }}</h2>
+                                <p>{{ packageDescription(pkg) }}</p>
+                            </div>
                         </div>
-                        <em v-if="isCurrentPackage(pkg)">Đang dùng</em>
+                        <div class="plan-card__labels">
+                            <span v-if="pkg.type === 'saving'" class="plan-card__recommended">Phổ biến</span>
+                            <em v-if="isCurrentPackage(pkg)">Đang dùng</em>
+                        </div>
                     </header>
 
-                    <ul>
-                        <li>
-                            Hoàn tiền {{ pkg.cashback_percent }}% sau booking
-                            hoàn tất
-                        </li>
-                        <li>
-                            {{ postLimitText(pkg.match_post_limit_per_month) }}
-                        </li>
-                        <li>
-                            {{
-                                pkg.priority_complaint
-                                    ? "Ưu tiên xử lý khiếu nại"
-                                    : "Xử lý khiếu nại tiêu chuẩn"
-                            }}
-                        </li>
-                    </ul>
+                    <div class="plan-price">
+                        <div>
+                            <strong>{{ money(pkg.monthly_price) }}</strong>
+                            <span>/ tháng</span>
+                        </div>
+                        <small>Giá tham chiếu theo chu kỳ tháng</small>
+                    </div>
+
+                    <div class="plan-card__section-head">
+                        <div>
+                            <strong>Chọn chu kỳ thanh toán</strong>
+                            <span>Thanh toán một lần cho toàn bộ chu kỳ</span>
+                        </div>
+                        <span v-if="cycleDiscount(pkg, 'yearly') > 0" class="plan-card__saving">
+                            Tiết kiệm {{ formatPercent(cycleDiscount(pkg, 'yearly')) }}%/năm
+                        </span>
+                    </div>
 
                     <div class="cycle-list">
                         <button
                             v-for="cycle in pkg.available_cycles"
                             :key="cycle.key"
+                            class="cycle-option"
                             type="button"
                             :disabled="
                                 !canPurchasePackage(pkg) || Boolean(subscribing)
                             "
                             @click="openConfirm(pkg, cycle)"
                         >
-                            <span>{{ purchaseActionText(pkg, cycle) }}</span>
-                            <strong>{{ money(cycle.price) }}</strong>
+                            <span class="cycle-option__name">
+                                <strong>{{ cycleLabel(cycle) }}</strong>
+                                <small v-if="cycleDiscount(pkg, cycle.key) > 0">Giảm {{ formatPercent(cycleDiscount(pkg, cycle.key)) }}%</small>
+                            </span>
+                            <span class="cycle-option__price">
+                                <strong>{{ money(cycle.price) }}</strong>
+                                <small>{{ money(cycleUnitPrice(cycle)) }}/tháng</small>
+                            </span>
                         </button>
+                    </div>
+
+                    <div class="plan-card__features">
+                        <div class="plan-card__section-head plan-card__section-head--features">
+                            <strong>Quyền lợi trong gói</strong>
+                            <span>{{ packageFeatures(pkg).length }} quyền lợi</span>
+                        </div>
+                        <ul>
+                            <li v-for="feature in packageFeatures(pkg)" :key="feature.key">
+                                <span class="plan-feature__icon"><AppIcon name="check" :size="14" /></span>
+                                <span><strong>{{ feature.value }}</strong><small>{{ feature.label }}</small></span>
+                            </li>
+                        </ul>
                     </div>
                 </article>
             </section>
@@ -212,11 +260,12 @@
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
+import AppIcon from "../../components/AppIcon.vue";
 import { vipMembershipService } from "../../services/vipMembershipService.js";
 
 export default {
     name: "VipMembership",
-    components: { PublicNavbar },
+    components: { AppIcon, PublicNavbar },
     data() {
         return {
             packages: [],
@@ -281,6 +330,59 @@ export default {
             if (pkg.type === "saving") return "SportGo Tiết kiệm";
             if (pkg.type === "pro") return "SportGo Pro";
             return pkg.badge_name || pkg.label || pkg.name;
+        },
+        packageDescription(pkg) {
+            if (pkg.type === "saving") return "Cân bằng chi phí và quyền lợi cho người chơi đều đặn.";
+            if (pkg.type === "pro") return "Tối đa đặc quyền cho người chơi và cộng đồng giao lưu.";
+            return "Quyền lợi cơ bản để bắt đầu hành trình cùng SportGo.";
+        },
+        packageFeatures(pkg) {
+            const cashback = Number(pkg.cashback_percent || 0);
+            const postLimit = Number(pkg.match_post_limit_per_month || 0);
+            const voucherCount = Number(pkg.voucher_count_per_month || 0);
+            const voucherDiscount = Number(pkg.voucher_discount_percent || 0);
+            const voucherMax = Number(pkg.voucher_max_discount_amount || 0);
+            const voucherMin = Number(pkg.voucher_min_order_amount || 0);
+
+            return [
+                {
+                    key: "cashback",
+                    value: cashback > 0 ? `${this.formatPercent(cashback)}% cashback` : "Không có cashback",
+                    label: "Hoàn tiền sau booking hoàn tất",
+                },
+                {
+                    key: "matchmaking",
+                    value: this.postLimitText(postLimit),
+                    label: "Đăng bài tuyển giao lưu mỗi tháng",
+                },
+                {
+                    key: "voucher-count",
+                    value: voucherCount > 0 ? `${voucherCount} voucher VIP/tháng` : "Không có voucher VIP",
+                    label: "Voucher được phát theo chu kỳ hệ thống",
+                },
+                {
+                    key: "voucher-value",
+                    value: voucherDiscount > 0 ? `Giảm ${this.formatPercent(voucherDiscount)}%` : "Không áp dụng giảm voucher",
+                    label: voucherDiscount > 0 && voucherMax > 0
+                        ? `Tối đa ${this.money(voucherMax)} · đơn từ ${this.money(voucherMin)}`
+                        : "Ưu đãi voucher theo cấu hình gói",
+                },
+                {
+                    key: "complaint",
+                    value: pkg.priority_complaint ? "Ưu tiên xử lý" : "Xử lý tiêu chuẩn",
+                    label: "Khiếu nại và hỗ trợ từ SportGo",
+                },
+            ];
+        },
+        cycleDiscount(pkg, cycle) {
+            return Number(pkg.pricing_discounts?.[cycle] || 0);
+        },
+        cycleUnitPrice(cycle) {
+            const months = Number(cycle.months || 1);
+            return Number(cycle.price || 0) / Math.max(months, 1);
+        },
+        formatPercent(value) {
+            return Number(value || 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
         },
         cycleLabel(cycle) {
             return (
@@ -371,5 +473,3 @@ export default {
     },
 };
 </script>
-
-

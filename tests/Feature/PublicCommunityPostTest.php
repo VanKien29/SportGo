@@ -113,7 +113,8 @@ class PublicCommunityPostTest extends TestCase
                 'content' => 'Cảm ơn bạn đã chia sẻ kinh nghiệm này.',
             ])
             ->assertOk()
-            ->assertJsonPath('data.user.id', $member->id);
+            ->assertJsonPath('data.user.id', $member->id)
+            ->assertJsonPath('data.comment_count', 1);
 
         $this->assertDatabaseHas('community_post_comments', [
             'post_id' => $post->id,
@@ -129,6 +130,12 @@ class PublicCommunityPostTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.is_liked', true)
             ->assertJsonPath('data.like_count', 1);
+
+        $this->getJson('/api/venue-posts?feed_type=community_post')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', "community-{$post->id}")
+            ->assertJsonPath('data.0.like_count', 1)
+            ->assertJsonPath('data.0.comment_count', 1);
 
         $this->assertDatabaseHas('community_post_likes', [
             'post_id' => $post->id,

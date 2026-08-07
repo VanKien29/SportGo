@@ -71,7 +71,14 @@
           <div v-else class="sg3-venue-grid">
             <article v-for="venue in venues" :key="venue.id" class="sg3-card sg3-venue-card">
               <button type="button" class="sg3-venue-card__image" @click="goDetail(venue)" :aria-label="`Xem ${venue.name}`"><img :src="venueImage(venue)" :alt="venue.name" @error="hideBrokenImage" /><span class="sg3-venue-card__fallback">{{ initials(venue.name) }}</span></button>
-              <div class="sg3-venue-card__body"><div><div class="sg3-venue-card__title"><div><h2>{{ venue.name }}</h2><p>{{ venue.address || venue.ward || venue.province || "Đang cập nhật địa chỉ" }}</p></div><strong class="sg3-rating"><AppIcon name="star" :size="15" />{{ formatRating(venue) }}</strong></div><div class="sg3-venue-meta"><span>{{ courtCount(venue) }} sân hoạt động</span><span v-for="name in courtTypeNames(venue)" :key="name">{{ name }}</span><span>{{ priceLabel(venue) }}</span><span class="is-available">Có lịch trống</span></div></div><div class="sg3-venue-actions"><button class="sg3-button sg3-button--secondary" type="button" @click="goDetail(venue)"><AppIcon name="eye" :size="16" />Chi tiết</button><button class="sg3-button sg3-button--primary" type="button" @click="goBooking(venue)"><AppIcon name="calendar" :size="16" />Đặt sân</button></div></div>
+              <div class="sg3-venue-card__body">
+                <div>
+                  <div class="sg3-venue-card__title"><div><h2>{{ venue.name }}</h2><p>{{ venue.address || venue.ward || venue.province || "Đang cập nhật địa chỉ" }}</p></div><strong class="sg3-rating"><AppIcon name="star" :size="15" />{{ formatRating(venue) }}</strong></div>
+                  <div class="sg3-venue-meta"><span>{{ courtCount(venue) }} sân hoạt động</span><span v-for="name in courtTypeNames(venue)" :key="name">{{ name }}</span><span>{{ priceLabel(venue) }}</span><span class="is-available">Có lịch trống</span></div>
+                  <div class="sg3-venue-location"><AppIcon name="mapPin" :size="15" /><span>{{ venueLocationLabel(venue) }}</span></div>
+                </div>
+                <div class="sg3-venue-actions"><button class="sg3-button sg3-button--secondary" type="button" @click="goDetail(venue)"><AppIcon name="eye" :size="16" />Chi tiết</button><button class="sg3-button sg3-button--primary" type="button" @click="goBooking(venue)"><AppIcon name="calendar" :size="16" />Đặt sân</button></div>
+              </div>
             </article>
           </div>
         </section>
@@ -88,6 +95,7 @@ import VenueResultsMap from "../../components/VenueResultsMap.vue";
 import { courtTypeService } from "../../services/courtTypes.js";
 import { venueService } from "../../services/venues.js";
 import { getAuth } from "../../stores/auth.js";
+import { normalizeMediaUrl } from "../../utils/mediaUrl.js";
 
 const fallbackImage = "/images/home/badminton-cover.webp";
 
@@ -114,7 +122,7 @@ export default {
   data() {
     const defaultSlot = defaultSearchSlot();
     const today = defaultSlot.date;
-    return { venues: [], courtTypes: [], globalCourtTypes: [], amenities: [], courtCountOptions: [1, 2, 4, 6, 8, 10], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", filters: { q: "", court_type_id: "", area: "", amenity_id: "", min_courts: "", has_services: false, has_map: false, payment_option: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: defaultSlot.time, end_time: "", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
+    return { venues: [], courtTypes: [], globalCourtTypes: [], amenities: [], courtCountOptions: [1, 2, 4, 6, 8, 10], today, loading: true, venuesRequestId: 0, error: "", mobileFiltersOpen: false, viewMode: this.$route.query.view === "map" ? "map" : "list", userLocation: null, filters: { q: "", court_type_id: "", area: "", amenity_id: "", min_courts: "", has_services: false, has_map: false, payment_option: "", min_price: "", max_price: "", min_rating: "", booking_date: today, start_time: defaultSlot.time, end_time: "", sort: "recommended" }, timeOptions: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"] };
   },
   computed: {
     activeFilterLabel() { const parts = []; const type = this.courtTypes.find((item) => String(item.id) === String(this.filters.court_type_id)); const amenity = this.amenities.find((item) => String(item.id) === String(this.filters.amenity_id)); if (type) parts.push(type.name); if (amenity) parts.push(amenity.name); if (this.filters.area) parts.push(this.filters.area); if (this.filters.min_courts) parts.push(`Từ ${this.filters.min_courts} sân`); if (this.filters.has_services) parts.push("Có dịch vụ"); if (this.filters.has_map) parts.push("Có bản đồ"); if (this.filters.payment_option) parts.push(this.paymentLabel(this.filters.payment_option)); if (this.filters.min_price || this.filters.max_price) parts.push(this.priceRangeLabel); parts.push(`${this.formatDateLabel(this.filters.booking_date)} lúc ${String(this.filters.start_time).slice(0, 5)}`); return parts.join(" · "); },
@@ -122,7 +130,7 @@ export default {
     venuesWithLocation() { return this.venues.filter((venue) => venue.latitude && venue.longitude); },
   },
   watch: { "$route.query": { handler() { this.applyRouteQuery(); this.loadVenues(); }, deep: true } },
-  mounted() { this.applyRouteQuery(); this.loadCourtTypes(); this.loadFilterOptions(); this.loadVenues(); },
+  mounted() { this.applyRouteQuery(); this.loadCourtTypes(); this.loadFilterOptions(); this.loadVenues(); this.requestUserLocation(); },
   methods: {
     applyRouteQuery() { const query = this.$route.query; const defaultSlot = defaultSearchSlot(); const requestedDate = String(query.booking_date || query.date || defaultSlot.date); this.viewMode = query.view === "map" ? "map" : "list"; this.filters = { ...this.filters, q: query.q || "", court_type_id: query.court_type_id || "", area: query.area || "", amenity_id: query.amenity_id || "", min_courts: query.min_courts || "", has_services: query.has_services === "1", has_map: query.has_map === "1", payment_option: query.payment_option || "", min_price: query.min_price || "", max_price: query.max_price || "", min_rating: query.min_rating || "", booking_date: requestedDate >= defaultSlot.date ? requestedDate : defaultSlot.date, start_time: this.normalizeTime(query.start_time || query.time || defaultSlot.time), sort: query.sort || "recommended" }; this.filters.end_time = this.endTimeFromStart(this.filters.start_time); },
     async loadCourtTypes() { try { const response = await courtTypeService.getAll(); this.globalCourtTypes = this.normalizeCourtTypes((response.data || []).filter((type) => type?.id && type?.name && type.is_active !== false && !type.parent_id)); this.syncCourtTypes(this.inferCourtTypes(this.venues)); } catch { this.globalCourtTypes = []; this.syncCourtTypes(this.inferCourtTypes(this.venues)); } },
@@ -145,7 +153,30 @@ export default {
     courtCount(venue) { return Number(venue.court_count || venue.venue_courts_count || venue.venue_courts?.length || 0); },
     courtTypeNames(venue) { const names = (venue.court_types || []).map((type) => type.name).filter(Boolean); return names.length ? names.slice(0, 3) : ["Đa môn"]; },
     initials(name = "") { return String(name).trim().slice(0, 2).toUpperCase() || "SG"; },
-    imageUrl(path) { if (!path) return ""; if (/^https?:\/\//.test(path)) return path; if (path.startsWith("/")) return path; return `/storage/${path}`; },
+    requestUserLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(({ coords }) => {
+        this.userLocation = { latitude: Number(coords.latitude), longitude: Number(coords.longitude) };
+      }, () => {}, { enableHighAccuracy: false, maximumAge: 300000, timeout: 5000 });
+    },
+    distanceToVenue(venue) {
+      if (!this.userLocation || venue?.latitude === null || venue?.longitude === null || venue?.latitude === undefined || venue?.longitude === undefined) return null;
+      const toRadians = (value) => value * Math.PI / 180;
+      const latitude = Number(venue.latitude);
+      const longitude = Number(venue.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+      const earthRadius = 6371;
+      const deltaLatitude = toRadians(latitude - this.userLocation.latitude);
+      const deltaLongitude = toRadians(longitude - this.userLocation.longitude);
+      const a = Math.sin(deltaLatitude / 2) ** 2 + Math.cos(toRadians(this.userLocation.latitude)) * Math.cos(toRadians(latitude)) * Math.sin(deltaLongitude / 2) ** 2;
+      return Math.round(earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    },
+    venueLocationLabel(venue) {
+      const area = venue?.ward || venue?.province || venue?.address || "Đang cập nhật vị trí";
+      const distance = this.distanceToVenue(venue);
+      return distance === null ? area : `${area} · cách ${distance} km`;
+    },
+    imageUrl(path) { return normalizeMediaUrl({ file_path: path }); },
     venueImage(venue) { return this.imageUrl(venue.image_path || venue.cover_image || venue.thumbnail) || fallbackImage; },
     hideBrokenImage(event) { event.target.style.display = "none"; },
     formatDateLabel(value) { if (!value) return "Chưa chọn ngày"; const [year, month, day] = String(value).split("-").map(Number); if (!year || !month || !day) return String(value); return new Intl.DateTimeFormat("vi-VN").format(new Date(year, month - 1, day)); },
@@ -156,5 +187,3 @@ export default {
   },
 };
 </script>
-
-

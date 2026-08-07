@@ -221,20 +221,24 @@
               </div>
               <div class="price-list" role="table" aria-label="Bảng giá sân">
                 <div class="price-table-head" role="row">
-                  <span role="columnheader">Loại sân / khung giờ</span>
-                  <span role="columnheader">Đơn giá</span>
+                  <span role="columnheader">Sân / loại sân</span>
+                  <span role="columnheader">Khung giờ / ngày áp dụng</span>
+                  <span role="columnheader">Giá</span>
                 </div>
                 <article v-for="price in basePrices" :key="`base-${price.id}`" role="row">
                   <span>{{ price.court_type?.name || "Tất cả loại sân" }}</span>
+                  <span class="price-application">Khung giờ cơ bản</span>
                   <strong>{{ formatCurrency(price.price) }}/giờ</strong>
                 </article>
                 <article v-for="slot in priceSlots" :key="`slot-${slot.id}`" role="row">
-                  <span>{{ slot.court_type?.name || "Tất cả loại sân" }} · {{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
+                  <span>{{ slot.court_type?.name || "Tất cả loại sân" }}</span>
+                  <span class="price-application">{{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
                   <strong>{{ formatCurrency(slot.price) }}/giờ</strong>
                 </article>
                 <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="holiday-price-item" role="row">
-                  <span>
-                    Giá ngày {{ formatDate(holiday.holiday_date) }} · {{ holiday.court_type?.name || "Tất cả loại sân" }}
+                  <span>{{ holiday.court_type?.name || "Tất cả loại sân" }}</span>
+                  <span class="price-application">
+                    {{ holiday.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ' }} · {{ formatDate(holiday.holiday_date) }}<template v-if="holiday.start_time"> · {{ timeLabel(holiday.start_time) }} - {{ timeLabel(holiday.end_time) }}</template>
                     <small v-if="holiday.note">{{ holiday.note }}</small>
                   </span>
                   <strong>{{ formatCurrency(holiday.price) }}/giờ</strong>
@@ -469,6 +473,7 @@ import { venueService } from "../../services/venues.js";
 import { reviewService } from "../../services/reviewService.js";
 import { favoriteService } from "../../services/favoriteService.js";
 import { getAuth } from "../../stores/auth.js";
+import { normalizeMediaUrl } from "../../utils/mediaUrl.js";
 import { useToast } from "vue-toastification";
 
 export default {
@@ -1028,10 +1033,7 @@ export default {
     },
 
     imageUrl(path) {
-      if (!path) return null;
-      if (path.startsWith('http')) return path;
-      if (path.startsWith('/')) return path;
-      return `/storage/${path}`;
+      return normalizeMediaUrl(typeof path === 'object' ? path : { file_path: path });
     },
 
     removeGalleryImage(image) {

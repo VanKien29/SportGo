@@ -262,6 +262,8 @@ class PlayerPostController extends Controller
         DB::beginTransaction();
         try {
             $post = PlayerPost::with('booking.venueCluster')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $this->cancelExpiredPendingParticipants($post);
+            $post->refresh();
             $participant = DB::table('player_post_participants')
                 ->where('post_id', $post->id)
                 ->where('user_id', $userId)
@@ -351,6 +353,8 @@ class PlayerPostController extends Controller
                 ->whereKey($id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $this->cancelExpiredPendingParticipants($post);
+            $post->refresh();
 
             if ($post->status !== 'open' || $post->needed_players <= 0 || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
                 DB::rollBack();
@@ -420,7 +424,13 @@ class PlayerPostController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $participants = DB::table('player_post_participants')
+        DB::beginTransaction();
+        try {
+            $post = PlayerPost::with('booking.venueCluster')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $this->cancelExpiredPendingParticipants($post);
+            $post->refresh();
+
+            $participants = DB::table('player_post_participants')
             ->join('users', 'player_post_participants.user_id', '=', 'users.id')
             ->where('post_id', $post->id)
             ->select(
@@ -434,7 +444,7 @@ class PlayerPostController extends Controller
             ->orderBy('player_post_participants.created_at', 'desc')
             ->get();
 
-        $data = $participants->map(function ($p) {
+            $data = $participants->map(function ($p) {
             return [
                 'user_id' => $p->user_id,
                 'name' => $p->full_name ?? $p->username ?? 'Người dùng',
@@ -442,9 +452,9 @@ class PlayerPostController extends Controller
                 'status' => $p->status,
                 'created_at' => $p->created_at,
             ];
-        });
+            });
 
-        return response()->json([
+            $response = response()->json([
             'post' => [
                 'id' => $post->id,
                 'title' => $post->title,
@@ -452,10 +462,19 @@ class PlayerPostController extends Controller
                 'status' => $post->status,
                 'needed_players' => $post->needed_players,
                 'venue_name' => $post->booking->venueCluster->name ?? 'Sân chưa xác định',
-                'time' => substr($post->booking->start_time, 0, 5) . ' - ' . $post->booking->booking_date->format('d/m/Y'),
+                'booking_date' => $post->booking->booking_date->format('Y-m-d'),
+                'start_time' => substr($post->booking->start_time, 0, 5),
+                'end_time' => substr($post->booking->end_time, 0, 5),
+                'time' => substr($post->booking->start_time, 0, 5) . ' - ' . substr($post->booking->end_time, 0, 5) . ' · ' . $post->booking->booking_date->format('d/m/Y'),
             ],
             'participants' => $data
-        ]);
+            ]);
+            DB::commit();
+            return $response;
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Không thể tải danh sách yêu cầu. Vui lòng thử lại.'], 500);
+        }
     }
 
     /**
@@ -471,7 +490,9 @@ class PlayerPostController extends Controller
 
         DB::beginTransaction();
         try {
-            $post = PlayerPost::with('booking')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $post = PlayerPost::with('booking.venueCluster')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $this->cancelExpiredPendingParticipants($post);
+            $post->refresh();
 
             // Check current status
             $participant = DB::table('player_post_participants')
@@ -479,7 +500,7 @@ class PlayerPostController extends Controller
                 ->where('user_id', $userId)
                 ->first();
 
-            if (!$participant || $participant->status === 'approved') {
+            if (!$participant || $participant->status !== 'pending') {
                 DB::rollBack();
                 return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã được duyệt.'], 409);
             }
@@ -534,14 +555,16 @@ class PlayerPostController extends Controller
 
         DB::beginTransaction();
         try {
-            $post = PlayerPost::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+            $post = PlayerPost::with('booking')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $this->cancelExpiredPendingParticipants($post);
+            $post->refresh();
 
             $participant = DB::table('player_post_participants')
                 ->where('post_id', $post->id)
                 ->where('user_id', $userId)
                 ->first();
 
-            if (!$participant || $participant->status === 'rejected') {
+            if (!$participant || !in_array($participant->status, ['pending', 'approved'], true)) {
                 DB::rollBack();
                 return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã bị từ chối.'], 409);
             }
@@ -583,6 +606,52 @@ class PlayerPostController extends Controller
     private function isEligibleBooking(Booking $booking): bool
     {
         return $booking->status === 'confirmed' && $this->isFutureBooking($booking);
+    }
+
+    private function cancelExpiredPendingParticipants(PlayerPost $post): void
+    {
+        if (! $post->booking || $this->isFutureBooking($post->booking)) {
+            return;
+        }
+
+        $pendingUserIds = DB::table('player_post_participants')
+            ->where('post_id', $post->id)
+            ->where('status', 'pending')
+            ->pluck('user_id');
+
+        if ($pendingUserIds->isEmpty()) {
+            if (in_array($post->status, ['open', 'full'], true)) {
+                $post->status = 'closed';
+                $post->status_reason = 'matchmaking_session_ended';
+                $post->save();
+            }
+
+            return;
+        }
+
+        DB::table('player_post_participants')
+            ->where('post_id', $post->id)
+            ->where('status', 'pending')
+            ->update([
+                'status' => 'cancelled',
+                'responded_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        $post->status = 'closed';
+        $post->status_reason = 'matchmaking_session_ended';
+        $post->save();
+
+        foreach ($pendingUserIds as $pendingUserId) {
+            Notification::create([
+                'user_id' => $pendingUserId,
+                'type' => 'matchmaking_request_expired',
+                'title' => 'Yêu cầu giao lưu đã tự hủy',
+                'body' => 'Buổi giao lưu đã kết thúc nên yêu cầu tham gia của bạn đã được tự động hủy.',
+                'reference_type' => 'player_post',
+                'reference_id' => $post->id,
+            ]);
+        }
     }
 
     private function isFutureBooking(Booking $booking): bool

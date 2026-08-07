@@ -23,6 +23,12 @@
           <li><span>4</span><strong>Ký hợp đồng</strong><small>Kích hoạt đối tác</small></li>
         </ol>
 
+        <section class="portal-metrics" aria-label="Tổng quan hồ sơ đối tác">
+          <article><span class="portal-metric-icon"><AppIcon name="fileText" size="16" /></span><div><strong>{{ applications.length }}</strong><span>Tổng hồ sơ</span></div></article>
+          <article><span class="portal-metric-icon is-amber"><AppIcon name="clock" size="16" /></span><div><strong>{{ reviewingCount }}</strong><span>Đang xử lý</span></div></article>
+          <article><span class="portal-metric-icon is-blue"><AppIcon name="edit" size="16" /></span><div><strong>{{ draft ? '1' : '0' }}</strong><span>Bản nháp trên máy</span></div></article>
+        </section>
+
         <div v-if="pageError" class="portal-card application-notice application-notice--danger portal-load-error" role="alert">
           <div>
             <strong>Chưa thể tải trạng thái hồ sơ.</strong>
@@ -45,8 +51,9 @@
           </div>
         </div>
 
-        <div class="flex-between mb-4">
-          <p style="font-size: 14px; color: var(--text-muted);">{{ applications.length }} hồ sơ</p>
+        <div class="portal-list-heading">
+          <div><p>Hồ sơ của bạn</p><span>Chọn một hồ sơ để xem tiến trình, giấy tờ và các bước cần làm tiếp theo.</span></div>
+          <span class="portal-list-count">{{ applications.length }} hồ sơ</span>
         </div>
 
         <div v-if="loading" class="portal-state">
@@ -125,6 +132,7 @@
               <h1>Thông tin đối tác và cụm sân</h1>
               <p>Hoàn thành lần lượt bốn nhóm thông tin. Bạn có thể lưu nháp để tiếp tục sau.</p>
             </div>
+            <div class="wizard-assurance"><AppIcon name="shieldCheck" size="18" /><span>Thông tin được bảo mật và chỉ dùng cho quá trình xét duyệt đối tác.</span></div>
             <nav class="registration-progress" aria-label="Các phần của hồ sơ">
               <a href="#partner-step-personal"><span>1</span>Cá nhân</a>
               <a href="#partner-step-business"><span>2</span>Kinh doanh</a>
@@ -362,7 +370,7 @@
 
             <!-- Form Actions -->
             <div class="wizard-footer">
-              <div></div>
+              <div class="wizard-footer-note"><AppIcon name="save" size="16" /><span>Hồ sơ có thể lưu nháp bất kỳ lúc nào. Bạn sẽ được chuyển sang bước ký điện tử sau khi gửi.</span></div>
               <div class="wizard-actions">
                 <button type="button" class="btn btn-outline" @click="saveDraft">Lưu nháp</button>
                 <button type="submit" class="btn btn-primary" :disabled="submitDisabled">

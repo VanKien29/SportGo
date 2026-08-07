@@ -365,8 +365,13 @@ async function submitComment() {
             method: "POST",
             body: JSON.stringify({ content: newComment.value }),
         });
-        post.value.top_level_comments = [response.data, ...comments.value];
-        post.value.comment_count = Number(post.value.comment_count || 0) + 1;
+        const createdComment = response.data || null;
+        if (createdComment) {
+            post.value.top_level_comments = [createdComment, ...comments.value];
+        }
+        post.value.comment_count = Number(
+            createdComment?.comment_count ?? Number(post.value.comment_count || 0) + 1,
+        );
         newComment.value = "";
     } catch (requestError) {
         commentError.value = requestError.message || "Không thể gửi bình luận.";

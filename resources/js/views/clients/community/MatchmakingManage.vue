@@ -223,16 +223,29 @@ const editing = ref(false);
 const editContent = ref('');
 const savingPost = ref(false);
 
-const bookingStartAt = computed(() => {
-  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+function parseBookingAt(dateValue, timeValue) {
+  const dateMatch = String(dateValue || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  const timeMatch = String(timeValue || '').match(/(\d{1,2}):(\d{2})/);
+  if (!dateMatch || !timeMatch) return null;
+  const [, year, month, day] = dateMatch;
+  const [, hour, minute] = timeMatch;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const fallbackBookingAt = computed(() => {
+  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(?:(\d{1,2}):(\d{2})\s*·\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
   if (!match) return null;
-  const [, hour, minute, day, month, year] = match;
+  const [, hour, minute, , , day, month, year] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
   return Number.isNaN(date.getTime()) ? null : date;
 });
 
+const bookingStartAt = computed(() => parseBookingAt(post.value?.booking_date, post.value?.start_time) || fallbackBookingAt.value);
+const bookingEndAt = computed(() => parseBookingAt(post.value?.booking_date, post.value?.end_time) || bookingStartAt.value);
+
 const isSessionExpired = computed(() => Boolean(
-  bookingStartAt.value && bookingStartAt.value.getTime() <= Date.now(),
+  bookingEndAt.value && bookingEndAt.value.getTime() <= Date.now(),
 ));
 
 const canApprove = computed(() => post.value?.status === 'open'
@@ -264,6 +277,7 @@ const requestFilters = computed(() => [
   { value: 'pending', label: 'Chờ duyệt', count: requestCounts.value.pending },
   { value: 'approved', label: 'Đã đồng ý', count: requestCounts.value.approved },
   { value: 'rejected', label: 'Đã từ chối', count: requestCounts.value.rejected },
+  { value: 'cancelled', label: 'Đã hủy', count: requestCounts.value.cancelled },
 ]);
 
 const orderedParticipants = computed(() => {
@@ -288,7 +302,7 @@ const decisionGuideTitle = computed(() => {
 
 const decisionGuideMessage = computed(() => {
   if (isSessionExpired.value) {
-    return 'Không thể duyệt thêm người cho lịch đã kết thúc. Bạn vẫn có thể từ chối yêu cầu còn tồn để hoàn tất danh sách.';
+    return 'Các yêu cầu chờ duyệt đã được tự động hủy khi buổi giao lưu kết thúc. Bạn vẫn có thể xem lại toàn bộ lịch sử xử lý.';
   }
   return canApprove.value
     ? 'Khi đồng ý, số người còn cần sẽ giảm. Hãy kiểm tra hồ sơ trước khi xác nhận.'

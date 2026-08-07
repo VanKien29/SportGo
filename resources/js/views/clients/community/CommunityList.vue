@@ -1,410 +1,213 @@
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-900 pb-20">
+  <div class="sg-community-page">
     <PublicNavbar />
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <header class="relative flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden p-8 md:p-10 border border-slate-800 rounded-2xl bg-slate-900 shadow-xl mb-8">
-        <div class="absolute top-0 inset-x-0 h-1 bg-emerald-500"></div>
-        <div class="max-w-2xl relative z-10">
-          <span class="block mb-2 text-xs font-extrabold uppercase tracking-wide text-emerald-400">Cộng đồng SportGo</span>
-          <h1 class="text-3xl md:text-4xl font-bold text-white leading-tight">Cùng chơi, cùng chia sẻ</h1>
-          <p class="mt-3 text-slate-300 text-base md:text-lg leading-relaxed">Theo dõi câu chuyện thể thao, trao đổi kinh nghiệm và tìm đồng đội cho trận đấu tiếp theo.</p>
+    <main class="sg-community-main">
+      <header class="sg-community-hero">
+        <div class="sg-community-hero-copy">
+          <p class="sg-community-eyebrow">Cộng đồng SportGo</p>
+          <h1>Cùng chơi, cùng chia sẻ</h1>
+          <p class="sg-community-hero-description">Tìm kinh nghiệm hữu ích, kết nối người chơi và theo dõi những câu chuyện mới từ các sân thể thao.</p>
+
+          <form class="sg-community-search" role="search" @submit.prevent="applyFilters">
+            <AppIcon name="search" class="sg-community-search-icon" />
+            <label class="sr-only" for="community-search">Tìm trong cộng đồng</label>
+            <input id="community-search" v-model.trim="searchQuery" type="search" placeholder="Tìm bài viết, kinh nghiệm, địa điểm..." autocomplete="off" />
+            <button type="submit">Tìm kiếm</button>
+          </form>
+
+          <div class="sg-community-quick-topics" aria-label="Chủ đề phổ biến">
+            <span>Chủ đề phổ biến</span>
+            <button v-for="category in categories.slice(0, 4)" :key="category" type="button" :class="{ active: selectedCategory === category }" @click="setCategory(category)">
+              {{ category }}
+            </button>
+          </div>
         </div>
-        <button v-if="!user" type="button" class="relative z-10 inline-flex min-h-[44px] items-center gap-2 px-5 text-sm font-bold text-slate-900 bg-emerald-400 border border-transparent rounded-lg hover:bg-emerald-300 hover:shadow-md transition-all whitespace-nowrap" @click="goToLogin">
-          Đăng nhập để tham gia
-          <AppIcon name="chevronRight" class="w-4 h-4" />
-        </button>
+
+        <div class="sg-community-hero-action">
+          <span>Kết nối ngoài sân</span>
+          <router-link to="/community/matchmaking">Xem tuyển giao lưu <AppIcon name="chevronRight" /></router-link>
+        </div>
       </header>
 
-      <nav class="community-section-nav" aria-label="Khu vực cộng đồng">
-        <router-link to="/community" exact-active-class="is-active">Bảng tin</router-link>
-        <router-link to="/community/matchmaking" active-class="is-active"><AppIcon name="users" class="w-4 h-4" /> Tuyển giao lưu</router-link>
+      <nav class="sg-community-section-nav" aria-label="Khu vực cộng đồng">
+        <router-link to="/community" exact-active-class="is-active"><AppIcon name="newspaper" /> Bảng tin</router-link>
+        <router-link to="/community/matchmaking" active-class="is-active"><AppIcon name="users" /> Tuyển giao lưu</router-link>
       </nav>
 
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 items-start">
-        <section class="min-w-0 space-y-6" aria-label="Bảng tin cộng đồng">
-          <article v-if="canCreateCommunityPost" class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <div class="flex items-center gap-3">
-              <span class="flex-none grid place-items-center w-10 h-10 rounded-full bg-emerald-600 text-white text-sm font-bold overflow-hidden">
-                {{ initial(user?.fullName) }}
-              </span>
-              <button type="button" class="flex-1 min-h-[44px] px-4 text-sm text-left text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:text-slate-700 hover:border-emerald-200 transition-colors" @click="showCommunityModal = true">
-                Bạn muốn chia sẻ điều gì với cộng đồng?
-              </button>
+      <div class="sg-community-mobile-toolbar">
+        <span><strong>{{ posts.length }}</strong> bài đang hiển thị</span>
+        <button type="button" @click="showMobileFilters = !showMobileFilters">{{ showMobileFilters ? 'Ẩn bộ lọc' : 'Mở bộ lọc' }}</button>
+      </div>
+
+      <div class="sg-community-layout">
+        <section class="sg-community-feed" aria-label="Bảng tin cộng đồng">
+          <article v-if="canCreateCommunityPost" class="sg-community-composer">
+            <div class="sg-community-composer-head">
+              <span class="sg-community-avatar sg-community-avatar--user">{{ initial(user?.fullName) }}</span>
+              <button type="button" class="sg-community-composer-trigger" @click="showCommunityModal = true">Bạn muốn chia sẻ điều gì với cộng đồng?</button>
             </div>
-            <div class="flex gap-2 mt-4 pt-4 border-t border-slate-100">
-              <button type="button" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors" @click="showCommunityModal = true">
-                <AppIcon name="edit" class="w-4 h-4" />
-                Bài chia sẻ
-              </button>
-              <button v-if="isPlayer" type="button" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors" @click="showMeetupModal = true">
-                <AppIcon name="users" class="w-4 h-4" />
-                Tìm người chơi cùng
-              </button>
+            <div class="sg-community-composer-actions">
+              <button type="button" @click="showCommunityModal = true"><AppIcon name="edit" /> Bài chia sẻ</button>
+              <button v-if="isPlayer" type="button" @click="showMeetupModal = true"><AppIcon name="users" /> Tạo kèo giao lưu</button>
             </div>
           </article>
 
-          <section class="p-5 bg-white border-l-4 border-emerald-600 border-y border-r border-slate-200 rounded-xl shadow-sm mb-2" aria-label="Tiêu đề bảng tin">
+          <div class="sg-community-feed-heading">
             <div>
-              <span class="block text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">Dành cho bạn</span>
-              <h2 class="text-lg font-bold text-slate-900">Bảng tin mới nhất</h2>
+              <p class="sg-community-eyebrow">Khám phá nội dung</p>
+              <h2>Bảng tin mới nhất</h2>
+              <p v-if="searchQuery || selectedCategory">Kết quả được lọc theo {{ searchQuery ? `“${searchQuery}”` : 'chủ đề đã chọn' }}.</p>
+              <p v-else>Những chia sẻ mới nhất từ cộng đồng người chơi SportGo.</p>
             </div>
-          </section>
-
-          <div v-if="loading" class="grid place-items-center min-h-[250px] p-8 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white text-center" aria-live="polite">
-            <span class="w-8 h-8 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-3" aria-hidden="true"></span>
-            <p class="text-sm">Đang tải bảng tin...</p>
-          </div>
-          <div v-else-if="error" class="grid place-items-center min-h-[250px] p-8 text-red-600 border border-dashed border-red-300 rounded-xl bg-red-50 text-center" role="alert">
-            <AppIcon name="alert" class="w-8 h-8 mb-2" />
-            <strong class="text-red-800">Không thể tải bảng tin</strong>
-            <p class="text-sm mt-1 mb-4">{{ error }}</p>
-            <button type="button" class="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700" @click="fetchPosts({ page: 1 })">Thử lại</button>
-          </div>
-          <div v-else-if="!posts.length" class="grid place-items-center min-h-[250px] p-8 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white text-center">
-            <AppIcon name="newspaper" class="w-8 h-8 mb-2" />
-            <strong class="text-slate-700">Chưa có bài viết phù hợp</strong>
-            <p class="text-sm mt-1">Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.</p>
+            <span class="sg-community-result-count">{{ posts.length }} bài</span>
           </div>
 
-          <div v-else class="space-y-4">
-            <article v-for="post in posts" :key="post.id" class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200">
-              <header class="flex items-center justify-between gap-3 p-5 pb-3">
-                <button type="button" class="flex flex-1 items-center gap-3 text-left" @click="goToUser(post.author?.id)">
-                  <span class="flex-none grid place-items-center w-10 h-10 rounded-full bg-emerald-600 text-white text-sm font-bold overflow-hidden">
-                    <img
-                      v-if="post.author?.avatar_url"
-                      :src="assetUrl(post.author.avatar_url)"
-                      :alt="post.author.full_name || post.author.username"
-                      class="w-full h-full object-cover"
-                    />
+          <div v-if="loading" class="sg-community-state" aria-live="polite">
+            <span class="sg-community-spinner" aria-hidden="true"></span>
+            <p>Đang tải bảng tin...</p>
+          </div>
+          <div v-else-if="error" class="sg-community-state sg-community-state--error" role="alert">
+            <AppIcon name="alert" />
+            <strong>Không thể tải bảng tin</strong>
+            <p>{{ error }}</p>
+            <button type="button" @click="fetchPosts({ page: 1 })">Thử lại</button>
+          </div>
+          <div v-else-if="!posts.length" class="sg-community-state">
+            <AppIcon name="newspaper" />
+            <strong>Chưa có bài viết phù hợp</strong>
+            <p>Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.</p>
+            <button v-if="searchQuery || selectedCategory" type="button" @click="clearFilters">Xóa bộ lọc</button>
+          </div>
+
+          <div v-else class="sg-community-post-list">
+            <article v-for="post in posts" :key="post.id" class="sg-community-post-card">
+              <header class="sg-community-post-header">
+                <button type="button" class="sg-community-post-author" @click="goToUser(post.author?.id)">
+                  <span class="sg-community-avatar">
+                    <img v-if="post.author?.avatar_url" :src="assetUrl(post.author.avatar_url)" :alt="post.author.full_name || post.author.username" />
                     <span v-else>{{ initial(post.author?.full_name || post.author?.username) }}</span>
                   </span>
-                  <span class="grid gap-0.5">
-                    <strong class="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-                      {{ post.author?.full_name || post.author?.username || 'Thành viên SportGo' }}
-                      <ClientAuthorBadges :badges="post.author_badges" />
-                    </strong>
-                    <small class="text-xs text-slate-500">
-                      {{ timeAgo(post.published_at || post.created_at) }}
-                      <template v-if="post.venue_cluster?.name"> · {{ post.venue_cluster.name }}</template>
-                    </small>
+                  <span>
+                    <strong>{{ post.author?.full_name || post.author?.username || 'Thành viên SportGo' }} <ClientAuthorBadges :badges="post.author_badges" /></strong>
+                    <small>{{ timeAgo(post.published_at || post.created_at) }}<template v-if="post.venue_cluster?.name"> · {{ post.venue_cluster.name }}</template></small>
                   </span>
                 </button>
 
-                <div class="relative">
-                  <button
-                    type="button"
-                    class="grid place-items-center w-8 h-8 text-slate-500 rounded-full hover:bg-slate-100 transition-colors"
-                    :aria-expanded="openMenuPostId === post.id"
-                    aria-label="Tùy chọn bài viết"
-                    @click.stop="togglePostMenu(post.id)"
-                  >
-                    <AppIcon name="moreHorizontal" class="w-5 h-5" />
-                  </button>
-                  <div v-if="openMenuPostId === post.id" class="absolute z-20 top-full right-0 mt-1 w-48 p-1.5 bg-white border border-slate-200 rounded-lg shadow-lg" role="menu" @click.stop>
-                    <button type="button" class="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-md hover:bg-red-50" role="menuitem" @click="openReport(post)">
-                      <AppIcon name="alert" class="w-4 h-4" />
-                      Báo cáo bài viết
-                    </button>
+                <div class="sg-community-post-menu">
+                  <button type="button" class="sg-community-icon-button" :aria-expanded="openMenuPostId === post.id" aria-label="Tùy chọn bài viết" @click.stop="togglePostMenu(post.id)"><AppIcon name="moreHorizontal" /></button>
+                  <div v-if="openMenuPostId === post.id" class="sg-community-menu" role="menu" @click.stop>
+                    <button type="button" role="menuitem" @click="openReport(post)"><AppIcon name="alert" /> Báo cáo bài viết</button>
                   </div>
                 </div>
               </header>
 
-              <div class="px-5 pb-3">
-                <div v-if="post.hashtags?.length" class="flex flex-wrap gap-2 mb-2">
-                  <span v-for="tag in post.hashtags.slice(0, 3)" :key="tag.id || tag.name" class="text-xs font-bold text-emerald-700">#{{ tag.name }}</span>
-                </div>
-                <button type="button" class="grid gap-1 text-left w-full" @click="goToDetail(post.slug || post.id)">
-                  <strong v-if="post.title && !titleRepeatsContent(post)" class="text-base text-slate-900 font-bold leading-snug">{{ post.title }}</strong>
-                  <span class="text-sm text-slate-700 line-clamp-4 leading-relaxed">{{ plainText(post.content || post.short_description) }}</span>
-                </button>
-              </div>
-
-              <button
-                v-if="postMedia(post).length === 1"
-                type="button"
-                class="block w-full aspect-[16/10] bg-slate-100 overflow-hidden"
-                @click="goToDetail(post.slug || post.id)"
-              >
-                <img :src="postMedia(post)[0]" :alt="post.title || 'Ảnh bài viết'" class="w-full h-full object-cover" @error="handlePostImageError" />
+              <button type="button" class="sg-community-post-copy" @click="goToDetail(post.slug || post.id)">
+                <div v-if="post.hashtags?.length" class="sg-community-post-tags"><span v-for="tag in post.hashtags.slice(0, 4)" :key="tag.id || tag.name">#{{ tag.name }}</span></div>
+                <strong v-if="post.title && !titleRepeatsContent(post)">{{ post.title }}</strong>
+                <span>{{ plainText(post.content || post.short_description) }}</span>
               </button>
-              <button
-                v-else-if="postMedia(post).length > 1"
-                type="button"
-                :class="['grid w-full bg-slate-100 overflow-hidden gap-0.5', postMedia(post).length === 2 ? 'grid-cols-2 aspect-[16/8]' : 'grid-cols-2 aspect-[16/10]']"
-                @click="goToDetail(post.slug || post.id)"
-              >
-                <span v-for="(image, imageIndex) in postMedia(post).slice(0, 4)" :key="`${post.id}-${imageIndex}`" class="relative block w-full h-full min-h-[150px]">
-                  <img :src="image" :alt="`${post.title || 'Ảnh bài viết'} ${imageIndex + 1}`" class="w-full h-full object-cover absolute inset-0" @error="handlePostImageError" />
-                  <b v-if="imageIndex === 3 && postMedia(post).length > 4" class="absolute inset-0 grid place-items-center text-white text-2xl bg-black/60">+{{ postMedia(post).length - 4 }}</b>
+
+              <button v-if="postMedia(post).length === 1" type="button" class="sg-community-post-media sg-community-post-media--single" @click="goToDetail(post.slug || post.id)">
+                <img :src="postMedia(post)[0]" :alt="post.title || 'Ảnh bài viết'" @error="handlePostImageError" />
+              </button>
+              <button v-else-if="postMedia(post).length > 1" type="button" class="sg-community-post-media sg-community-post-media--grid" :class="{ 'is-two': postMedia(post).length === 2 }" @click="goToDetail(post.slug || post.id)">
+                <span v-for="(image, imageIndex) in postMedia(post).slice(0, 4)" :key="`${post.id}-${imageIndex}`">
+                  <img :src="image" :alt="`${post.title || 'Ảnh bài viết'} ${imageIndex + 1}`" @error="handlePostImageError" />
+                  <b v-if="imageIndex === 3 && postMedia(post).length > 4">+{{ postMedia(post).length - 4 }}</b>
                 </span>
               </button>
 
-              <div class="flex items-center gap-4 px-5 py-3 text-xs font-medium text-slate-500 border-b border-slate-100">
-                <span class="flex items-center gap-1.5"><AppIcon name="heart" class="w-4 h-4" /> {{ post.like_count || 0 }}</span>
-                <button type="button" class="ml-auto hover:text-slate-800 transition-colors cursor-pointer" @click="toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
-                <span>{{ post.view_count || 0 }} lượt xem</span>
+              <div class="sg-community-post-stats">
+                <span><AppIcon name="heart" /> {{ post.like_count || 0 }} lượt thích</span>
+                <button type="button" @click="toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
               </div>
 
-              <div class="grid grid-cols-3 gap-1 p-2">
-                <button
-                  type="button"
-                  :class="['inline-flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-colors cursor-pointer', post.is_liked ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700', {'opacity-50 cursor-not-allowed': likingPostIds.has(post.id) || !post.likes_available}]"
-                  :disabled="likingPostIds.has(post.id) || !post.likes_available"
-                  :title="post.likes_available ? '' : 'Lượt thích của bài cụm sân đang chờ cập nhật dữ liệu hệ thống'"
-                  @click="toggleLike(post)"
-                >
-                  <AppIcon name="heart" class="w-4 h-4" />
-                  {{ post.is_liked ? 'Đã thích' : 'Thích' }}
-                </button>
-                <button type="button" :class="['inline-flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg cursor-pointer transition-colors', commentsOpen[post.id] ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700']" @click="toggleComments(post)">
-                  <AppIcon name="messageCircle" class="w-4 h-4" />
-                  Bình luận
-                </button>
-                <button type="button" class="inline-flex items-center justify-center gap-2 py-2 text-sm font-semibold cursor-pointer text-slate-600 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors" @click="sharePost(post)">
-                  <AppIcon name="share" class="w-4 h-4" />
-                  Chia sẻ
-                </button>
+              <div class="sg-community-post-actions">
+                <button type="button" :class="{ active: post.is_liked }" :disabled="likingPostIds.has(post.id) || post.likes_available === false" :title="post.likes_available === false ? 'Tính năng thích đang tạm thời chưa khả dụng' : ''" @click="toggleLike(post)"><AppIcon name="heart" /> {{ post.is_liked ? 'Đã thích' : 'Thích' }}</button>
+                <button type="button" :class="{ active: commentsOpen[post.id] }" @click="toggleComments(post)"><AppIcon name="messageCircle" /> Bình luận</button>
+                <button type="button" @click="sharePost(post)"><AppIcon name="share" /> Chia sẻ</button>
               </div>
 
-              <section v-if="commentsOpen[post.id]" class="p-5 bg-slate-50 border-t border-slate-100" aria-label="Bình luận bài viết">
-                <div v-if="detailsLoading[post.id]" class="flex items-center justify-center gap-2 min-h-[72px] text-xs text-slate-500">
-                  <span class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" aria-hidden="true"></span>
-                  Đang tải bình luận...
-                </div>
+              <section v-if="commentsOpen[post.id]" class="sg-community-comments" aria-label="Bình luận bài viết">
+                <div v-if="detailsLoading[post.id]" class="sg-community-comments-loading"><span class="sg-community-spinner"></span> Đang tải bình luận...</div>
                 <template v-else>
-                  <div v-if="post.top_level_comments?.length" class="space-y-3 mb-4">
-                    <article v-for="comment in visibleComments(post)" :key="comment.id" class="grid grid-cols-[32px_1fr] items-start gap-3">
-                      <span class="grid place-items-center w-8 h-8 rounded-full bg-emerald-600 text-white text-[10px] font-bold overflow-hidden">
-                        <img
-                          v-if="comment.user?.avatar_url"
-                          :src="assetUrl(comment.user.avatar_url)"
-                          :alt="comment.user.full_name || comment.user.username"
-                          class="w-full h-full object-cover"
-                        />
+                  <div v-if="post.top_level_comments?.length" class="sg-community-comment-list">
+                    <article v-for="comment in visibleComments(post)" :key="comment.id" class="sg-community-comment">
+                      <span class="sg-community-avatar sg-community-avatar--small">
+                        <img v-if="comment.user?.avatar_url" :src="assetUrl(comment.user.avatar_url)" :alt="comment.user.full_name || comment.user.username" />
                         <span v-else>{{ initial(comment.user?.full_name || comment.user?.username) }}</span>
                       </span>
-                      <div>
-                        <div class="inline-grid gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl max-w-full">
-                          <strong class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                            {{ comment.user?.full_name || comment.user?.username || 'Thành viên SportGo' }}
-                            <ClientAuthorBadges :badges="comment.user?.author_badges" />
-                          </strong>
-                          <p class="text-sm text-slate-700 whitespace-pre-wrap break-words">{{ comment.content }}</p>
-                        </div>
-                        <div class="flex items-center gap-3 mt-1 ml-2">
-                          <small class="text-xs text-slate-500">{{ timeAgo(comment.created_at) }}</small>
-                          <button type="button" class="text-xs font-bold text-slate-500 hover:text-emerald-700 cursor-pointer" @click="setReply(post, comment)">Trả lời</button>
-                        </div>
-                        <div v-if="comment.replies?.length" class="mt-3 space-y-3">
-                          <article v-for="reply in comment.replies" :key="reply.id" class="grid grid-cols-[28px_1fr] items-start gap-2">
-                            <span class="grid place-items-center w-7 h-7 rounded-full bg-emerald-600 text-white text-[9px] font-bold overflow-hidden">
-                              <img
-                                v-if="reply.user?.avatar_url"
-                                :src="assetUrl(reply.user.avatar_url)"
-                                :alt="reply.user.full_name || reply.user.username"
-                                class="w-full h-full object-cover"
-                              />
+                      <div class="sg-community-comment-body">
+                        <div class="sg-community-comment-bubble"><strong>{{ comment.user?.full_name || comment.user?.username || 'Thành viên SportGo' }} <ClientAuthorBadges :badges="comment.user?.author_badges" /></strong><p>{{ comment.content }}</p></div>
+                        <div class="sg-community-comment-meta"><small>{{ timeAgo(comment.created_at) }}</small><button type="button" @click="setReply(post, comment)">Trả lời</button></div>
+                        <div v-if="comment.replies?.length" class="sg-community-reply-list">
+                          <article v-for="reply in comment.replies" :key="reply.id" class="sg-community-comment sg-community-comment--reply">
+                            <span class="sg-community-avatar sg-community-avatar--tiny">
+                              <img v-if="reply.user?.avatar_url" :src="assetUrl(reply.user.avatar_url)" :alt="reply.user.full_name || reply.user.username" />
                               <span v-else>{{ initial(reply.user?.full_name || reply.user?.username) }}</span>
                             </span>
-                            <div>
-                              <div class="inline-grid gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl max-w-full">
-                                <strong class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                                  {{ reply.user?.full_name || reply.user?.username || 'Thành viên SportGo' }}
-                                  <ClientAuthorBadges :badges="reply.user?.author_badges" />
-                                </strong>
-                                <p class="text-sm text-slate-700 whitespace-pre-wrap break-words" v-html="formatMention(reply.content)"></p>
-                              </div>
-                              <div class="flex items-center gap-3 mt-1 ml-2">
-                                <small class="text-xs text-slate-500">{{ timeAgo(reply.created_at) }}</small>
-                                <button type="button" class="text-xs font-bold text-slate-500 hover:text-emerald-700 cursor-pointer" @click="setReply(post, comment, reply)">Trả lời</button>
-                              </div>
-                            </div>
+                            <div class="sg-community-comment-body"><div class="sg-community-comment-bubble"><strong>{{ reply.user?.full_name || reply.user?.username || 'Thành viên SportGo' }} <ClientAuthorBadges :badges="reply.user?.author_badges" /></strong><p>{{ reply.content }}</p></div><div class="sg-community-comment-meta"><small>{{ timeAgo(reply.created_at) }}</small><button type="button" @click="setReply(post, comment, reply)">Trả lời</button></div></div>
                           </article>
                         </div>
                       </div>
                     </article>
-                    <button
-                      v-if="post.top_level_comments.length > commentPreviewLimit && !showAllComments[post.id]"
-                      type="button"
-                      class="px-2 py-1 text-xs font-bold text-emerald-700 hover:underline"
-                      @click="showAllComments[post.id] = true"
-                    >
-                      Xem thêm {{ post.top_level_comments.length - commentPreviewLimit }} bình luận
-                    </button>
+                    <button v-if="post.top_level_comments.length > commentPreviewLimit && !showAllComments[post.id]" type="button" class="sg-community-more-comments" @click="showAllComments[post.id] = true">Xem thêm {{ post.top_level_comments.length - commentPreviewLimit }} bình luận</button>
                   </div>
-                  <p v-else class="flex justify-center py-4 text-xs text-slate-500">Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p>
+                  <p v-else class="sg-community-comments-empty">Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p>
 
-                  <form v-if="user" class="mt-4" @submit.prevent="submitComment(post)">
-                    <div v-if="replyingTo[post.id]" class="flex items-center justify-between px-3 py-1.5 mb-2 text-xs bg-slate-200 text-slate-700 rounded-md">
-                      <span>Đang trả lời <strong>{{ replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo' }}</strong></span>
-                      <button type="button" class="hover:text-red-600" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" class="w-3 h-3" /></button>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <span class="flex-none grid place-items-center w-8 h-8 rounded-full bg-emerald-600 text-white text-[10px] font-bold">{{ initial(user.fullName) }}</span>
-                      <label class="flex-1 min-w-0">
-                        <span class="sr-only">Viết bình luận</span>
-                        <input
-                          :id="`comment-input-${post.id}`"
-                          v-model.trim="commentDrafts[post.id]"
-                          type="text"
-                          maxlength="1000"
-                          class="w-full h-9 px-3 text-sm text-slate-900 bg-white border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-slate-400"
-                          :placeholder="replyingTo[post.id] ? `Phản hồi ${replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo'}...` : 'Viết bình luận...'"
-                          :disabled="commentSubmitting[post.id]"
-                        />
-                      </label>
-                      <button
-                        type="submit"
-                        class="flex-none grid place-items-center w-9 h-9 text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Gửi bình luận"
-                        :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"
-                      >
-                        <AppIcon name="send" class="w-4 h-4 ml-[-2px]" />
-                      </button>
-                    </div>
+                  <form v-if="user" class="sg-community-comment-form" @submit.prevent="submitComment(post)">
+                    <div v-if="replyingTo[post.id]" class="sg-community-replying"><span>Đang trả lời <strong>{{ replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'thành viên' }}</strong></span><button type="button" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" /></button></div>
+                    <div class="sg-community-comment-input-row"><span class="sg-community-avatar sg-community-avatar--small sg-community-avatar--user">{{ initial(user.fullName) }}</span><label><span class="sr-only">Viết bình luận</span><input :id="`comment-input-${post.id}`" v-model.trim="commentDrafts[post.id]" type="text" maxlength="1000" :placeholder="replyingTo[post.id] ? `Phản hồi ${replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'thành viên'}...` : 'Viết bình luận...'" :disabled="commentSubmitting[post.id]" /></label><button type="submit" aria-label="Gửi bình luận" :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"><AppIcon name="send" /></button></div>
                   </form>
-                  <button v-else type="button" class="block w-full py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-center transition-colors" @click="goToLogin">
-                    Đăng nhập để bình luận
-                  </button>
+                  <button v-else type="button" class="sg-community-login-comment" @click="goToLogin">Đăng nhập để bình luận</button>
                 </template>
               </section>
             </article>
 
-            <button
-              v-if="pagination.current_page < pagination.last_page"
-              type="button"
-              class="flex items-center justify-center w-full min-h-[44px] gap-2 px-4 py-2 mt-4 text-sm font-bold text-emerald-800 bg-white border border-emerald-200 rounded-xl shadow-sm hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-              :disabled="loadingMore"
-              @click="loadMorePosts"
-            >
-              <span v-if="loadingMore" class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" aria-hidden="true"></span>
-              {{ loadingMore ? 'Đang tải thêm...' : 'Xem thêm bài viết' }}
-            </button>
-            <p v-else class="text-center py-4 text-sm text-slate-500">Bạn đã xem hết các bài viết hiện có.</p>
+            <button v-if="pagination.current_page < pagination.last_page" type="button" class="sg-community-load-more" :disabled="loadingMore" @click="loadMorePosts"><span v-if="loadingMore" class="sg-community-spinner"></span>{{ loadingMore ? 'Đang tải thêm...' : 'Xem thêm bài viết' }}</button>
+            <p v-else class="sg-community-end-note">Bạn đã xem hết các bài viết hiện có.</p>
           </div>
         </section>
 
-        <aside class="sticky top-24 space-y-6" aria-label="Khám phá cộng đồng">
-          <section class="hidden lg:block bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <h2 class="text-lg font-bold text-slate-900 mb-4">Khám phá</h2>
-            <form class="mb-4" @submit.prevent="applyFilters">
-              <div class="relative w-full">
-                <AppIcon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                <input v-model.trim="searchQuery" type="text" placeholder="Tìm trong cộng đồng" aria-label="Tìm trong cộng đồng" class="w-full h-10 !pl-10 !pr-14 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-slate-400" />
-                <button type="submit" class="absolute right-1 top-1 bottom-1 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors">Tìm</button>
-              </div>
-            </form>
-            <div class="flex flex-wrap gap-2" aria-label="Chủ đề bài viết">
-              <button type="button" :class="['px-3 py-1 text-xs font-semibold rounded-full border transition-colors', !selectedCategory ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800']" @click="setCategory('')">Tất cả</button>
-              <button
-                v-for="category in categories"
-                :key="category"
-                type="button"
-                :class="['px-3 py-1 text-xs font-semibold rounded-full border transition-colors', selectedCategory === category ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800']"
-                @click="setCategory(category)"
-              >
-                {{ category }}
-              </button>
-              <button
-                v-if="searchQuery || selectedCategory"
-                type="button"
-                class="px-3 py-1 text-xs font-semibold rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                @click="clearFilters"
-              >
-                Xóa lọc
-              </button>
+        <aside class="sg-community-sidebar" :class="{ 'is-open': showMobileFilters }" aria-label="Khám phá cộng đồng">
+          <section class="sg-community-panel sg-community-filter-panel">
+            <div class="sg-community-panel-heading"><div><p class="sg-community-eyebrow">Lọc nội dung</p><h2>Chủ đề</h2></div><button v-if="searchQuery || selectedCategory" type="button" class="sg-community-text-button" @click="clearFilters">Xóa lọc</button></div>
+            <div class="sg-community-category-list" aria-label="Chủ đề bài viết">
+              <button type="button" :class="{ active: !selectedCategory }" @click="setCategory('')"><span>Tất cả bài viết</span><b v-if="!selectedCategory">✓</b></button>
+              <button v-for="category in categories" :key="category" type="button" :class="{ active: selectedCategory === category }" @click="setCategory(category)"><span>{{ category }}</span><b v-if="selectedCategory === category">✓</b></button>
             </div>
+            <div v-if="searchQuery" class="sg-community-active-query"><AppIcon name="search" /><span>Đang tìm “{{ searchQuery }}”</span></div>
           </section>
 
-          <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <header class="flex items-start justify-between mb-4">
-              <div>
-                <span class="block text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">Ghép kèo</span>
-                <h2 class="text-lg font-bold text-slate-900">Kèo sắp tới</h2>
-              </div>
-              <button v-if="isPlayer" type="button" class="grid place-items-center w-8 h-8 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true">
-                <AppIcon name="plus" class="w-4 h-4" />
-              </button>
-            </header>
-
-            <div v-if="matchmakingLoading" class="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
-              <span class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" aria-hidden="true"></span>
-              Đang tải kèo...
-            </div>
-            <div v-else-if="matchmakingError" class="p-4 text-center bg-red-50 border border-dashed border-red-200 rounded-lg text-red-600" role="alert">
-              <AppIcon name="alert" class="w-6 h-6 mx-auto mb-2" />
-              <p class="text-sm mb-3">{{ matchmakingError }}</p>
-              <button type="button" class="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors" @click="fetchMatchmakingPosts">Tải lại</button>
-            </div>
-            <div v-else-if="matchmakingPosts.length" class="space-y-3">
-              <article v-for="post in matchmakingPosts" :key="post.id" class="p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-emerald-300 transition-colors">
-                <header class="flex items-start justify-between gap-2 mb-3">
-                  <button type="button" class="flex items-center gap-2 text-left" @click="goToUser(post.author?.id)">
-                    <span class="grid place-items-center w-8 h-8 rounded-full bg-emerald-600 text-white text-xs font-bold overflow-hidden">
-                      <img v-if="post.author?.avatar" :src="assetUrl(post.author.avatar)" :alt="post.author.name" class="w-full h-full object-cover" />
-                      <span v-else>{{ initial(post.author?.name) }}</span>
-                    </span>
-                    <span class="grid gap-0.5">
-                      <strong class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                        {{ post.author?.name || 'Người chơi SportGo' }}
-                        <ClientAuthorBadges :badges="post.author?.author_badges" />
-                      </strong>
-                      <small class="text-[10px] text-slate-500">{{ timeAgo(post.created_at) }}</small>
-                    </span>
-                  </button>
-                  <span class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded border border-amber-200">Cần {{ post.needed_players }}</span>
-                </header>
-                <div class="space-y-1 mb-3 text-xs text-slate-600">
-                  <span class="flex items-center gap-1.5"><AppIcon name="mapPin" class="w-3.5 h-3.5 text-slate-400" /> <span class="truncate">{{ post.booking?.venue_name || 'Cụm sân' }}</span></span>
-                  <span class="flex items-center gap-1.5"><AppIcon name="clock" class="w-3.5 h-3.5 text-slate-400" /> {{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span>
-                </div>
-                <p v-if="post.description" class="text-sm text-slate-700 line-clamp-2 mb-3">{{ post.description }}</p>
-                <button
-                  v-if="!isOwnPost(post)"
-                  type="button"
-                  class="w-full py-2 text-sm font-bold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  :class="post.user_status ? 'bg-slate-200 text-slate-600' : 'bg-emerald-600 hover:bg-emerald-700 text-white'"
-                  :disabled="joiningPostId === post.id || Boolean(post.user_status)"
-                  @click="joinMatchmaking(post)"
-                >
-                  {{ joinLabel(post) }}
-                </button>
-                <router-link v-else class="flex justify-center w-full py-2 text-sm font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors" :to="`/matchmaking-posts/${post.id}/manage`">Quản lý yêu cầu</router-link>
+          <section class="sg-community-panel sg-community-matchmaking-panel">
+            <header class="sg-community-panel-heading"><div><p class="sg-community-eyebrow">Ghép kèo</p><h2>Kèo sắp tới</h2></div><button v-if="isPlayer" type="button" class="sg-community-icon-button sg-community-icon-button--accent" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true"><AppIcon name="plus" /></button></header>
+            <div v-if="matchmakingLoading" class="sg-community-panel-state"><span class="sg-community-spinner"></span> Đang tải kèo...</div>
+            <div v-else-if="matchmakingError" class="sg-community-panel-state sg-community-panel-state--error" role="alert"><p>{{ matchmakingError }}</p><button type="button" @click="fetchMatchmakingPosts">Tải lại</button></div>
+            <div v-else-if="matchmakingPosts.length" class="sg-community-match-list">
+              <article v-for="post in matchmakingPosts" :key="post.id" class="sg-community-match-card">
+                <header><button type="button" @click="goToUser(post.author?.id)"><span class="sg-community-avatar sg-community-avatar--tiny">{{ initial(post.author?.name) }}</span><span><strong>{{ post.author?.name || 'Người chơi SportGo' }}</strong><small>{{ timeAgo(post.created_at) }}</small></span></button><b>Cần {{ post.needed_players }}</b></header>
+                <p class="sg-community-match-line"><AppIcon name="mapPin" /> {{ post.booking?.venue_name || 'Cụm sân' }}</p>
+                <p class="sg-community-match-line"><AppIcon name="clock" /> {{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</p>
+                <p v-if="post.description" class="sg-community-match-description">{{ post.description }}</p>
+                <button v-if="!isOwnPost(post)" type="button" class="sg-community-match-action" :class="{ muted: post.user_status }" :disabled="joiningPostId === post.id || Boolean(post.user_status)" @click="joinMatchmaking(post)">{{ joinLabel(post) }}</button>
+                <router-link v-else class="sg-community-match-action" to="/community/matchmaking">Quản lý yêu cầu</router-link>
               </article>
             </div>
-            <div v-else class="py-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl">
-              <AppIcon name="users" class="w-8 h-8 mx-auto mb-2 text-slate-400" />
-              <p class="text-sm text-slate-600 mb-3">Chưa có kèo công khai sắp tới.</p>
-              <button v-if="isPlayer" type="button" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors" @click="showMeetupModal = true">Tạo kèo đầu tiên</button>
-            </div>
+            <div v-else class="sg-community-panel-state"><AppIcon name="users" /><p>Chưa có kèo công khai sắp tới.</p><button v-if="isPlayer" type="button" @click="showMeetupModal = true">Tạo kèo đầu tiên</button></div>
+            <router-link class="sg-community-panel-link" to="/community/matchmaking">Xem tất cả tuyển giao lưu <AppIcon name="chevronRight" /></router-link>
           </section>
+
+          <section class="sg-community-panel sg-community-guideline-panel"><p class="sg-community-eyebrow">Cùng giữ feed hữu ích</p><h2>Chia sẻ điều bạn thật sự muốn trao đổi</h2><p>Ưu tiên kinh nghiệm cụ thể, thông tin trận đấu rõ ràng và bình luận tôn trọng người chơi khác.</p></section>
         </aside>
       </div>
     </main>
 
-    <CommunityPostModal
-      :is-open="showCommunityModal"
-      @close="showCommunityModal = false"
-      @success="handleCommunityPostCreated"
-    />
-    <MeetupPostModal
-      :is-open="showMeetupModal"
-      @close="showMeetupModal = false"
-      @success="handleMeetupPostCreated"
-    />
-    <ReportModal
-      :is-open="Boolean(reportTarget)"
-      :target-type="reportTarget?.feed_type === 'community_post' ? 'community_post' : 'venue_post'"
-      :target-id="reportTarget?.entity_id || reportTarget?.id || ''"
-      :target-name="reportTarget?.title || 'Bài viết cộng đồng'"
-      @close="reportTarget = null"
-      @success="handleReportSuccess"
-    />
+    <CommunityPostModal :is-open="showCommunityModal" @close="showCommunityModal = false" @success="handleCommunityPostCreated" />
+    <MeetupPostModal :is-open="showMeetupModal" @close="showMeetupModal = false" @success="handleMeetupPostCreated" />
+    <ReportModal :is-open="Boolean(reportTarget)" :target-type="reportTarget?.feed_type === 'community_post' ? 'community_post' : 'venue_post'" :target-id="reportTarget?.entity_id || reportTarget?.id || ''" :target-name="reportTarget?.title || 'Bài viết cộng đồng'" @close="reportTarget = null" @success="handleReportSuccess" />
   </div>
 </template>
-
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
@@ -464,17 +267,10 @@ async function fetchPosts({ page = 1, append = false } = {}) {
     const response = await api(`/api/venue-posts?${params.toString()}`);
     const incoming = Array.isArray(response.data) ? response.data : [];
     posts.value = append ? [...posts.value, ...incoming] : incoming;
-    pagination.value = {
-      current_page: Number(response.current_page || page),
-      last_page: Number(response.last_page || 1),
-    };
+    pagination.value = { current_page: Number(response.current_page || page), last_page: Number(response.last_page || 1) };
   } catch (requestError) {
-    if (append) {
-      toast.error(requestError.message || 'Không thể tải thêm bài viết.');
-    } else {
-      posts.value = [];
-      error.value = requestError.message || 'Không thể tải bài viết cộng đồng.';
-    }
+    if (append) toast.error(requestError.message || 'Không thể tải thêm bài viết.');
+    else { posts.value = []; error.value = requestError.message || 'Không thể tải bài viết cộng đồng.'; }
   } finally {
     loading.value = false;
     loadingMore.value = false;
@@ -497,12 +293,7 @@ async function fetchMatchmakingPosts() {
 
 function applyFilters() {
   showMobileFilters.value = false;
-  router.replace({
-    query: {
-      ...(searchQuery.value ? { q: searchQuery.value } : {}),
-      ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
-    },
-  });
+  router.replace({ query: { ...(searchQuery.value ? { q: searchQuery.value } : {}), ...(selectedCategory.value ? { category: selectedCategory.value } : {}) } });
   fetchPosts({ page: 1 });
 }
 
@@ -522,15 +313,19 @@ function loadMorePosts() {
   fetchPosts({ page: pagination.value.current_page + 1, append: true });
 }
 
+function postKey(post) {
+  return post?.slug || post?.id;
+}
+
 async function ensurePostDetails(post) {
   if (Array.isArray(post.top_level_comments)) return;
   detailsLoading[post.id] = true;
   try {
-    const response = await api(`/api/venue-posts/${post.slug || post.id}`);
+    const response = await api(`/api/venue-posts/${postKey(post)}`);
     const detail = response.data || {};
     post.top_level_comments = Array.isArray(detail.top_level_comments) ? detail.top_level_comments : [];
-    post.comment_count = Number(detail.comment_count || post.comment_count || 0);
-    post.like_count = Number(detail.like_count || post.like_count || 0);
+    post.comment_count = Number(detail.comment_count ?? post.comment_count ?? 0);
+    post.like_count = Number(detail.like_count ?? post.like_count ?? 0);
     post.is_liked = Boolean(detail.is_liked);
     post.likes_available = detail.likes_available !== false;
   } catch (requestError) {
@@ -547,20 +342,13 @@ async function toggleComments(post) {
 }
 
 async function toggleLike(post) {
-  if (!user) {
-    toast.info('Vui lòng đăng nhập để thích bài viết.');
-    goToLogin();
-    return;
-  }
-  if (post.likes_available === false) {
-    toast.info('Tính năng thích đang tạm thời chưa khả dụng.');
-    return;
-  }
+  if (!user) { toast.info('Vui lòng đăng nhập để thích bài viết.'); goToLogin(); return; }
+  if (post.likes_available === false) { toast.info('Tính năng thích đang tạm thời chưa khả dụng.'); return; }
   if (likingPostIds.has(post.id)) return;
 
   likingPostIds.add(post.id);
   try {
-    const response = await api(`/api/venue-posts/${post.id}/likes`, { method: 'POST' });
+    const response = await api(`/api/venue-posts/${postKey(post)}/likes`, { method: 'POST' });
     post.is_liked = Boolean(response.data?.is_liked);
     post.like_count = Number(response.data?.like_count ?? post.like_count ?? 0);
   } catch (requestError) {
@@ -571,35 +359,17 @@ async function toggleLike(post) {
 }
 
 async function submitComment(post) {
-  if (!user) {
-    goToLogin();
-    return;
-  }
+  if (!user) { goToLogin(); return; }
   const content = commentDrafts[post.id]?.trim();
-  if (!content || commentSubmitting[post.id]) return;
+  if (!content || content.length < 2 || commentSubmitting[post.id]) return;
 
   commentSubmitting[post.id] = true;
   const parentComment = replyingTo[post.id];
   try {
     const payload = { content };
     if (parentComment) payload.parent_id = parentComment.id;
-    
-    const response = await api(`/api/venue-posts/${post.id}/comments`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    
-    const newComment = response.data || {
-      id: `new-${Date.now()}`,
-      content,
-      created_at: new Date().toISOString(),
-      user: {
-        id: user.id,
-        full_name: user.fullName,
-        username: user.username,
-        avatar_url: user.user?.avatar_url || null,
-      },
-    };
+    const response = await api(`/api/venue-posts/${postKey(post)}/comments`, { method: 'POST', body: JSON.stringify(payload) });
+    const newComment = response.data || { id: `new-${Date.now()}`, content, created_at: new Date().toISOString(), user: { id: user.id, full_name: user.fullName, username: user.username, avatar_url: user.user?.avatar_url || user.avatar_url || null } };
 
     if (parentComment) {
       if (!Array.isArray(parentComment.replies)) parentComment.replies = [];
@@ -609,7 +379,7 @@ async function submitComment(post) {
       post.top_level_comments.unshift(newComment);
     }
 
-    post.comment_count = Number(post.comment_count || 0) + 1;
+    post.comment_count = Number(response.data?.comment_count ?? Number(post.comment_count || 0) + 1);
     commentDrafts[post.id] = '';
     replyingTo[post.id] = null;
     toast.success('Đã đăng bình luận.');
@@ -621,34 +391,18 @@ async function submitComment(post) {
 }
 
 function setReply(post, comment, targetReply = null) {
-  if (!user) {
-    toast.info('Vui lòng đăng nhập để bình luận.');
-    goToLogin();
-    return;
-  }
+  if (!user) { toast.info('Vui lòng đăng nhập để bình luận.'); goToLogin(); return; }
   const targetUser = targetReply ? (targetReply.user?.full_name || targetReply.user?.username || 'Thành viên SportGo') : null;
   replyingTo[post.id] = comment;
-  if (targetUser) {
-    commentDrafts[post.id] = `@${targetUser} `;
-  } else {
-    // If just replying to main comment and there's a draft starting with @, leave it or clear it
-  }
-  nextTick(() => {
-    const input = document.getElementById(`comment-input-${post.id}`);
-    if (input) input.focus();
-  });
+  if (targetUser) commentDrafts[post.id] = `@${targetUser} `;
+  nextTick(() => document.getElementById(`comment-input-${post.id}`)?.focus());
 }
 
 async function sharePost(post) {
-  const href = router.resolve({ name: 'community-post-detail', params: { slug: post.slug || post.id } }).href;
+  const href = router.resolve({ name: 'community-post-detail', params: { slug: postKey(post) } }).href;
   const url = new URL(href, window.location.origin).toString();
-  const shareData = { title: post.title || 'Bài viết SportGo', text: post.short_description || plainText(post.content), url };
-
   try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-      return;
-    }
+    if (navigator.share) { await navigator.share({ title: post.title || 'Bài viết SportGo', text: post.short_description || plainText(post.content), url }); return; }
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
     await navigator.clipboard.writeText(url);
     toast.success('Đã sao chép liên kết bài viết.');
@@ -659,11 +413,7 @@ async function sharePost(post) {
 
 function openReport(post) {
   openMenuPostId.value = null;
-  if (!user) {
-    toast.info('Vui lòng đăng nhập để gửi báo cáo.');
-    goToLogin();
-    return;
-  }
+  if (!user) { toast.info('Vui lòng đăng nhập để gửi báo cáo.'); goToLogin(); return; }
   reportTarget.value = post;
 }
 
@@ -673,15 +423,8 @@ function handleReportSuccess() {
 }
 
 async function joinMatchmaking(post) {
-  if (!user) {
-    toast.info('Vui lòng đăng nhập để tham gia giao lưu.');
-    goToLogin();
-    return;
-  }
-  if (!isPlayer.value) {
-    toast.info('Chức năng này dành cho tài khoản người dùng.');
-    return;
-  }
+  if (!user) { toast.info('Vui lòng đăng nhập để tham gia giao lưu.'); goToLogin(); return; }
+  if (!isPlayer.value) { toast.info('Chức năng này dành cho tài khoản người dùng.'); return; }
   joiningPostId.value = post.id;
   try {
     await api(`/api/matchmaking-posts/${post.id}/join`, { method: 'POST' });
@@ -696,24 +439,14 @@ async function joinMatchmaking(post) {
 
 function joinLabel(post) {
   if (joiningPostId.value === post.id) return 'Đang gửi...';
-  return {
-    pending: 'Đang chờ duyệt',
-    approved: 'Đã tham gia',
-    rejected: 'Đã bị từ chối',
-  }[post.user_status] || 'Xin tham gia';
+  return { pending: 'Đang chờ duyệt', approved: 'Đã tham gia', rejected: 'Đã bị từ chối' }[post.user_status] || 'Xin tham gia';
 }
 
-function isOwnPost(post) {
-  return String(user?.id || '') === String(post.author?.id || '');
-}
+function isOwnPost(post) { return String(user?.id || '') === String(post.author?.id || ''); }
 
 function handleCommunityPostCreated(response) {
   showCommunityModal.value = false;
-  if (response?.data?.status === 'published') {
-    toast.success('Bài viết đã được đăng.');
-    fetchPosts({ page: 1 });
-    return;
-  }
+  if (response?.data?.status === 'published') { toast.success('Bài viết đã được đăng.'); fetchPosts({ page: 1 }); return; }
   toast.success(response?.message || 'Bài viết đã được gửi và đang chờ kiểm duyệt.');
 }
 
@@ -760,9 +493,7 @@ function handlePostImageError(event) {
   if (image?.getAttribute('src') !== fallbackPostImage) image.src = fallbackPostImage;
 }
 
-function initial(name) {
-  return String(name || 'S').trim().charAt(0).toUpperCase();
-}
+function initial(name) { return String(name || 'S').trim().charAt(0).toUpperCase(); }
 
 function formatDate(value) {
   if (!value) return 'Chưa rõ ngày';
@@ -783,30 +514,11 @@ function timeAgo(value) {
   return formatDate(value);
 }
 
-function formatMention(text) {
-  if (!text) return '';
-  return text.replace(/^(@[^\s]+\s*(?:[^\s]+\s*)*?)(?=\s|$)/, '<strong style="color: #10b981;">$1</strong>').replace(/\n/g, '<br>');
-}
-
-function goToDetail(slug) {
-  router.push({ name: 'community-post-detail', params: { slug } });
-}
-
-function goToUser(id) {
-  if (id) router.push(`/user/${id}`);
-}
-
-function goToLogin() {
-  router.push({ name: 'login', query: { redirect: route.fullPath } });
-}
-
-function togglePostMenu(postId) {
-  openMenuPostId.value = openMenuPostId.value === postId ? null : postId;
-}
-
-function closePostMenu() {
-  openMenuPostId.value = null;
-}
+function goToDetail(slug) { router.push({ name: 'community-post-detail', params: { slug } }); }
+function goToUser(id) { if (id) router.push(`/user/${id}`); }
+function goToLogin() { router.push({ name: 'login', query: { redirect: route.fullPath } }); }
+function togglePostMenu(postId) { openMenuPostId.value = openMenuPostId.value === postId ? null : postId; }
+function closePostMenu() { openMenuPostId.value = null; }
 
 onMounted(() => {
   fetchPosts();
@@ -816,3 +528,206 @@ onMounted(() => {
 
 onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 </script>
+
+<style scoped>
+.sg-community-page { min-height: 100vh; background: #f4f8f5; color: #17261c; }
+.sg-community-main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 90px 0 80px; }
+.sg-community-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; padding: 26px 30px 21px; border: 1px solid #d6e6da; border-radius: 12px; background: #fff; box-shadow: 0 8px 22px rgba(35, 74, 48, .045); }
+.sg-community-hero-copy { min-width: 0; }
+.sg-community-eyebrow { margin: 0 0 10px; color: #087f3e; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.sg-community-hero h1 { max-width: 660px; margin: 0; color: #102118; font-family: "Outfit", "Inter", sans-serif; font-size: clamp(32px, 4vw, 42px); line-height: 1.08; letter-spacing: -.035em; }
+.sg-community-hero-description { max-width: 650px; margin: 9px 0 17px; color: #5d7163; font-size: 14px; line-height: 1.55; }
+.sg-community-search { display: flex; position: relative; max-width: 700px; align-items: center; gap: 10px; padding: 5px; border: 1px solid #c7ded0; border-radius: 8px; background: #fff; }
+.sg-community-search-icon { width: 19px; height: 19px; margin-left: 12px; color: #6b8173; }
+.sg-community-search input { min-width: 0; flex: 1; height: 42px; border: 0; outline: 0; color: #17261c; font: inherit; font-size: 14px; }
+.sg-community-search input::placeholder { color: #91a197; }
+.sg-community-search button, .sg-community-state button, .sg-community-panel-state button { border: 0; border-radius: 7px; background: #087f3e; color: #fff; cursor: pointer; font-size: 13px; font-weight: 800; }
+.sg-community-search button { min-height: 42px; padding: 0 18px; }
+.sg-community-search button:hover, .sg-community-state button:hover, .sg-community-panel-state button:hover { background: #066d35; }
+.sg-community-quick-topics { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 17px; color: #708177; font-size: 12px; }
+.sg-community-quick-topics button { padding: 5px 10px; border: 1px solid #d4e4d8; border-radius: 999px; background: rgba(255,255,255,.65); color: #426050; cursor: pointer; font-size: 12px; }
+.sg-community-quick-topics button:hover, .sg-community-quick-topics button.active { border-color: #84c99b; background: #dff4e6; color: #087f3e; }
+.sg-community-hero-action { align-self: center; min-width: 164px; padding-left: 18px; border-left: 1px solid #e0ebe2; }
+.sg-community-hero-action > span { display: block; margin-bottom: 7px; color: #7a8b80; font-size: 11px; }
+.sg-community-hero-action a, .sg-community-panel-link { display: inline-flex; align-items: center; gap: 7px; color: #087f3e; font-size: 13px; font-weight: 800; text-decoration: none; }
+.sg-community-hero-action a:hover, .sg-community-panel-link:hover { color: #055c2c; }
+.sg-community-hero-action a svg, .sg-community-panel-link svg { width: 15px; height: 15px; }
+.sg-community-section-nav { display: flex; gap: 8px; margin: 18px 0 30px; padding: 6px; border: 1px solid #d6e6da; border-radius: 10px; background: #fff; }
+.sg-community-section-nav a { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 7px; color: #64766a; font-size: 13px; font-weight: 700; text-decoration: none; }
+.sg-community-section-nav a svg { width: 17px; height: 17px; }
+.sg-community-section-nav a:hover, .sg-community-section-nav a.is-active { background: #e5f6eb; color: #087f3e; }
+.sg-community-mobile-toolbar { display: none; }
+.sg-community-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+.sg-community-feed, .sg-community-sidebar { min-width: 0; }
+.sg-community-sidebar { position: sticky; top: 84px; display: grid; gap: 18px; }
+.sg-community-composer, .sg-community-feed-heading, .sg-community-post-card, .sg-community-panel, .sg-community-state { border: 1px solid #d6e6da; border-radius: 12px; background: #fff; box-shadow: 0 8px 22px rgba(35, 74, 48, .055); }
+.sg-community-composer { padding: 19px; }
+.sg-community-composer-head { display: flex; align-items: center; gap: 12px; }
+.sg-community-composer-trigger { min-height: 44px; flex: 1; padding: 0 15px; border: 1px solid #d6e6da; border-radius: 8px; background: #f7faf8; color: #829188; cursor: pointer; text-align: left; font-size: 13px; }
+.sg-community-composer-trigger:hover { border-color: #8ac99c; background: #f0faf3; color: #4a6655; }
+.sg-community-composer-actions { display: flex; gap: 8px; margin-top: 17px; padding-top: 14px; border-top: 1px solid #edf3ee; }
+.sg-community-composer-actions button, .sg-community-text-button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #5d7163; cursor: pointer; font-size: 12px; font-weight: 800; }
+.sg-community-composer-actions button { padding: 7px 9px; border-radius: 6px; }
+.sg-community-composer-actions button:hover { background: #eaf8ee; color: #087f3e; }
+.sg-community-composer-actions svg { width: 16px; height: 16px; }
+.sg-community-feed-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 18px 0 12px; padding: 20px 22px; }
+.sg-community-feed-heading h2 { margin: 0; color: #14241a; font-size: 22px; }
+.sg-community-feed-heading p:not(.sg-community-eyebrow) { margin: 6px 0 0; color: #728278; font-size: 13px; }
+.sg-community-result-count { align-self: center; padding: 6px 10px; border-radius: 999px; background: #eff8f1; color: #087f3e; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.sg-community-state { display: grid; min-height: 250px; place-items: center; align-content: center; gap: 8px; padding: 30px; color: #718075; text-align: center; }
+.sg-community-state svg { width: 30px; height: 30px; color: #71a983; }
+.sg-community-state strong { color: #34493a; font-size: 15px; }
+.sg-community-state p { margin: 0; font-size: 13px; }
+.sg-community-state button { min-height: 36px; padding: 0 13px; margin-top: 4px; }
+.sg-community-state--error { border-color: #f0caca; background: #fffafa; color: #a33c3c; }
+.sg-community-state--error svg { color: #c75b5b; }
+.sg-community-state--error strong { color: #8a2d2d; }
+.sg-community-post-list { display: grid; gap: 14px; }
+.sg-community-post-card { overflow: hidden; }
+.sg-community-post-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; }
+.sg-community-post-author { display: flex; min-width: 0; align-items: center; gap: 11px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.sg-community-post-author > span:last-child { display: grid; min-width: 0; gap: 4px; }
+.sg-community-post-author strong { overflow: hidden; color: #1b2b20; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.sg-community-post-author small { color: #7b8d81; font-size: 11px; }
+.sg-community-avatar { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; overflow: hidden; border-radius: 50%; background: #dff4e6; color: #087f3e; font-size: 13px; font-weight: 800; }
+.sg-community-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sg-community-avatar--small { width: 31px; height: 31px; font-size: 10px; }
+.sg-community-avatar--tiny { width: 28px; height: 28px; font-size: 10px; }
+.sg-community-avatar--user { background: #087f3e; color: #fff; }
+.sg-community-post-menu { position: relative; }
+.sg-community-icon-button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #78887e; cursor: pointer; }
+.sg-community-icon-button:hover { border-color: #d6e6da; background: #f5faf6; color: #087f3e; }
+.sg-community-icon-button svg { width: 18px; height: 18px; }
+.sg-community-icon-button--accent { border-color: #cbe7d2; background: #eaf8ee; color: #087f3e; }
+.sg-community-menu { position: absolute; z-index: 10; top: 38px; right: 0; width: 176px; padding: 5px; border: 1px solid #d6e6da; border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(20, 42, 26, .14); }
+.sg-community-menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 9px; border: 0; border-radius: 5px; background: transparent; color: #a43b3b; cursor: pointer; font-size: 12px; font-weight: 700; text-align: left; }
+.sg-community-menu button:hover { background: #fff2f2; }
+.sg-community-menu svg { width: 15px; height: 15px; }
+.sg-community-post-copy { display: grid; width: calc(100% - 40px); gap: 8px; margin: 0 20px 17px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.sg-community-post-copy strong { color: #16291c; font-size: 17px; line-height: 1.35; }
+.sg-community-post-copy > span { display: -webkit-box; overflow: hidden; color: #405449; font-size: 14px; line-height: 1.65; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+.sg-community-post-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.sg-community-post-tags span { color: #087f3e; font-size: 11px; font-weight: 800; }
+.sg-community-post-media { display: block; width: 100%; padding: 0; border: 0; background: #edf4ef; cursor: pointer; overflow: hidden; }
+.sg-community-post-media--single { aspect-ratio: 16 / 9; }
+.sg-community-post-media--grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; aspect-ratio: 16 / 9; }
+.sg-community-post-media--grid.is-two { aspect-ratio: 16 / 8; }
+.sg-community-post-media--grid span { position: relative; min-height: 0; overflow: hidden; }
+.sg-community-post-media img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.sg-community-post-media:hover img { transform: scale(1.02); }
+.sg-community-post-media b { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(16, 33, 24, .48); color: #fff; font-size: 18px; }
+.sg-community-post-stats { display: flex; align-items: center; gap: 17px; padding: 12px 20px; border-bottom: 1px solid #edf3ee; color: #7a8b80; font-size: 11px; }
+.sg-community-post-stats span { display: inline-flex; align-items: center; gap: 5px; }
+.sg-community-post-stats svg { width: 14px; height: 14px; color: #0a9950; }
+.sg-community-post-stats button { margin-left: auto; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.sg-community-post-stats button:hover { color: #087f3e; }
+.sg-community-post-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 7px 12px; }
+.sg-community-post-actions button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 7px; background: transparent; color: #64766a; cursor: pointer; font-size: 12px; font-weight: 800; }
+.sg-community-post-actions button:hover, .sg-community-post-actions button.active { background: #eaf8ee; color: #087f3e; }
+.sg-community-post-actions button:disabled { cursor: not-allowed; opacity: .45; }
+.sg-community-post-actions svg { width: 16px; height: 16px; }
+.sg-community-comments { padding: 17px 20px 20px; border-top: 1px solid #e1ede4; background: #f8fbf8; }
+.sg-community-comments-loading { display: flex; min-height: 70px; align-items: center; justify-content: center; gap: 8px; color: #7b8d81; font-size: 12px; }
+.sg-community-spinner { display: inline-block; width: 17px; height: 17px; border: 2px solid #cbe7d2; border-top-color: #087f3e; border-radius: 50%; animation: sg-community-spin .8s linear infinite; }
+@keyframes sg-community-spin { to { transform: rotate(360deg); } }
+.sg-community-comment-list { display: grid; gap: 14px; }
+.sg-community-comment { display: grid; grid-template-columns: 31px minmax(0, 1fr); gap: 9px; }
+.sg-community-comment--reply { grid-template-columns: 28px minmax(0, 1fr); }
+.sg-community-comment-body { min-width: 0; }
+.sg-community-comment-bubble { display: inline-grid; max-width: 100%; gap: 5px; padding: 10px 12px; border: 1px solid #e0eae2; border-radius: 4px 12px 12px 12px; background: #fff; }
+.sg-community-comment-bubble strong { color: #263a2c; font-size: 11px; }
+.sg-community-comment-bubble p { margin: 0; color: #46594b; font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sg-community-comment-meta { display: flex; align-items: center; gap: 12px; margin: 4px 0 0 8px; }
+.sg-community-comment-meta small, .sg-community-comment-meta button { color: #88978e; font-size: 10px; }
+.sg-community-comment-meta button { padding: 0; border: 0; background: transparent; cursor: pointer; font-weight: 800; }
+.sg-community-comment-meta button:hover { color: #087f3e; }
+.sg-community-reply-list { display: grid; gap: 11px; margin-top: 11px; padding-left: 18px; border-left: 2px solid #dcebe0; }
+.sg-community-more-comments { justify-self: start; padding: 0; border: 0; background: transparent; color: #087f3e; cursor: pointer; font-size: 11px; font-weight: 800; }
+.sg-community-comments-empty { margin: 0; padding: 12px 0; color: #89988e; font-size: 12px; text-align: center; }
+.sg-community-comment-form { display: grid; gap: 9px; margin-top: 15px; }
+.sg-community-replying { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 6px; background: #eaf4ec; color: #627568; font-size: 11px; }
+.sg-community-replying button { display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #718277; cursor: pointer; }
+.sg-community-replying svg { width: 14px; height: 14px; }
+.sg-community-comment-input-row { display: flex; align-items: center; gap: 8px; }
+.sg-community-comment-input-row label { min-width: 0; flex: 1; }
+.sg-community-comment-input-row input { width: 100%; height: 38px; padding: 0 13px; border: 1px solid #d6e6da; border-radius: 999px; outline: 0; background: #fff; color: #17261c; font-size: 12px; }
+.sg-community-comment-input-row input:focus { border-color: #64b67b; box-shadow: 0 0 0 3px rgba(37, 165, 82, .1); }
+.sg-community-comment-input-row > button { display: grid; width: 35px; height: 35px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: #087f3e; color: #fff; cursor: pointer; }
+.sg-community-comment-input-row > button:disabled { cursor: not-allowed; opacity: .45; }
+.sg-community-comment-input-row svg { width: 15px; height: 15px; }
+.sg-community-login-comment { width: 100%; min-height: 38px; border: 1px solid #cbe7d2; border-radius: 7px; background: #eaf8ee; color: #087f3e; cursor: pointer; font-size: 12px; font-weight: 800; }
+.sg-community-load-more { display: flex; min-height: 43px; align-items: center; justify-content: center; gap: 8px; border: 1px solid #cbe7d2; border-radius: 8px; background: #fff; color: #087f3e; cursor: pointer; font-size: 12px; font-weight: 800; }
+.sg-community-load-more:hover { background: #eaf8ee; }
+.sg-community-load-more:disabled { cursor: wait; opacity: .65; }
+.sg-community-end-note { margin: 2px 0; color: #8b9a90; font-size: 11px; text-align: center; }
+.sg-community-panel { padding: 20px; }
+.sg-community-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sg-community-text-button { color: #087f3e; }
+.sg-community-category-list { display: grid; gap: 4px; margin-top: 16px; }
+.sg-community-category-list button { display: flex; align-items: center; justify-content: space-between; min-height: 36px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #687a6e; cursor: pointer; font-size: 12px; text-align: left; }
+.sg-community-category-list button:hover { background: #f2f8f3; color: #087f3e; }
+.sg-community-category-list button.active { background: #e5f6eb; color: #087f3e; font-weight: 800; }
+.sg-community-category-list b { font-size: 12px; }
+.sg-community-active-query { display: flex; align-items: center; gap: 7px; margin-top: 15px; padding: 9px 10px; border-radius: 6px; background: #f5faf6; color: #6d7e73; font-size: 11px; }
+.sg-community-active-query svg { width: 14px; height: 14px; color: #087f3e; }
+.sg-community-match-list { display: grid; gap: 10px; margin-top: 16px; }
+.sg-community-match-card { padding: 12px; border: 1px solid #e0ebe2; border-radius: 9px; background: #fbfdfb; }
+.sg-community-match-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 11px; }
+.sg-community-match-card > header > button { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.sg-community-match-card > header > button > span:last-child { display: grid; gap: 2px; }
+.sg-community-match-card strong { overflow: hidden; color: #34493a; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.sg-community-match-card small { color: #91a096; font-size: 10px; }
+.sg-community-match-card > header > b { flex: 0 0 auto; padding: 4px 6px; border-radius: 999px; background: #fff1d4; color: #95600a; font-size: 10px; }
+.sg-community-match-line { display: flex; align-items: center; gap: 6px; margin: 7px 0 0; overflow: hidden; color: #748379; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.sg-community-match-line svg { width: 13px; height: 13px; flex: 0 0 auto; color: #5e9b6e; }
+.sg-community-match-description { display: -webkit-box; overflow: hidden; margin: 10px 0; color: #5b6c60; font-size: 11px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.sg-community-match-action { display: flex; min-height: 32px; align-items: center; justify-content: center; width: 100%; margin-top: 12px; border: 0; border-radius: 6px; background: #087f3e; color: #fff; cursor: pointer; font-size: 11px; font-weight: 800; text-decoration: none; }
+.sg-community-match-action:hover { background: #066d35; }
+.sg-community-match-action.muted, .sg-community-match-action:disabled { background: #edf1ee; color: #87948b; cursor: not-allowed; }
+.sg-community-panel-state { display: grid; min-height: 100px; place-items: center; align-content: center; gap: 7px; color: #7a8a80; font-size: 11px; text-align: center; }
+.sg-community-panel-state p { margin: 0; }
+.sg-community-panel-state svg { width: 24px; height: 24px; color: #71a983; }
+.sg-community-panel-state button { min-height: 30px; padding: 0 11px; font-size: 11px; }
+.sg-community-panel-state--error { color: #a33c3c; }
+.sg-community-panel-link { width: 100%; justify-content: center; margin-top: 15px; padding-top: 14px; border-top: 1px solid #edf3ee; font-size: 11px; }
+.sg-community-guideline-panel { background: #10271a; border-color: #10271a; }
+.sg-community-guideline-panel .sg-community-eyebrow { color: #8de2a4; }
+.sg-community-guideline-panel h2 { color: #fff; font-size: 17px; }
+.sg-community-guideline-panel > p:last-child { margin: 11px 0 0; color: #b8cdbd; font-size: 12px; line-height: 1.6; }
+@media (max-width: 960px) {
+  .sg-community-hero { grid-template-columns: 1fr; }
+  .sg-community-hero-action { justify-self: start; }
+  .sg-community-layout { grid-template-columns: minmax(0, 1fr); }
+  .sg-community-sidebar { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sg-community-guideline-panel { grid-column: 1 / -1; }
+}
+@media (max-width: 680px) {
+  .sg-community-main { width: min(100% - 24px, 560px); padding: 82px 0 56px; }
+  .sg-community-hero { grid-template-columns: 1fr; gap: 18px; padding: 22px 18px 18px; border-radius: 10px; }
+  .sg-community-hero h1 { font-size: 34px; }
+  .sg-community-hero-description { margin: 13px 0 19px; font-size: 14px; }
+  .sg-community-search { align-items: stretch; flex-wrap: wrap; gap: 4px; padding: 5px; }
+  .sg-community-search-icon { align-self: center; }
+  .sg-community-search input { height: 38px; }
+  .sg-community-search button { width: 100%; min-height: 36px; }
+  .sg-community-quick-topics { gap: 6px; }
+  .sg-community-quick-topics > span { width: 100%; }
+  .sg-community-hero-action { width: 100%; padding: 12px 0 0; border-top: 1px solid #e0ebe2; border-left: 0; }
+  .sg-community-section-nav { margin: 12px 0 14px; }
+  .sg-community-section-nav a { flex: 1; justify-content: center; padding: 10px 8px; font-size: 12px; }
+  .sg-community-mobile-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; color: #77877c; font-size: 11px; }
+  .sg-community-mobile-toolbar button { padding: 7px 10px; border: 1px solid #cbe7d2; border-radius: 6px; background: #fff; color: #087f3e; cursor: pointer; font-size: 11px; font-weight: 800; }
+  .sg-community-sidebar { display: none; grid-template-columns: 1fr; }
+  .sg-community-sidebar.is-open { display: grid; margin-bottom: 14px; }
+  .sg-community-guideline-panel { grid-column: auto; }
+  .sg-community-feed-heading { align-items: flex-start; padding: 17px; }
+  .sg-community-feed-heading h2 { font-size: 19px; }
+  .sg-community-result-count { display: none; }
+  .sg-community-post-header { padding: 15px 14px 10px; }
+  .sg-community-post-copy { width: calc(100% - 28px); margin-right: 14px; margin-left: 14px; }
+  .sg-community-post-stats { padding-right: 14px; padding-left: 14px; }
+  .sg-community-post-actions { padding-right: 8px; padding-left: 8px; }
+  .sg-community-post-actions button { gap: 4px; font-size: 11px; }
+  .sg-community-comments { padding-right: 14px; padding-left: 14px; }
+}
+</style>
