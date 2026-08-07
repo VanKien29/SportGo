@@ -1,11 +1,16 @@
 <template>
-  <section class="post-detail">
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card post-detail-main-content">
+      <section class="post-detail">
     <div class="back-action-bar">
       <BackButton />
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="loading" class="state-card">Đang tải chi tiết bài đăng...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải chi tiết bài đăng...</p>
+    </div>
 
     <template v-else-if="post">
       <article class="post-content-card">
@@ -78,7 +83,9 @@
         </footer>
       </section>
     </template>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -139,7 +146,7 @@ export default {
 <style scoped>
 .post-detail { display: grid; gap: 16px; }
 .back-action-bar { display: flex; align-items: center; margin-bottom: 12px; }
-.back-link { color: #15803d; font-weight: 800; text-decoration: none; }
+.back-link { color: #15803d; font-weight: 400; text-decoration: none; }
 .muted { color: #64748b; }
 
 .post-content-card, .comments-section, .state-card {
@@ -162,23 +169,40 @@ export default {
 .content-text { margin: 0; color: #1e293b; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .content-media-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .media-thumb { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
-.media-unavailable { display: inline-grid; min-width: 180px; min-height: 96px; place-items: center; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; }
+.media-unavailable { display: inline-grid; min-width: 180px; min-height: 96px; place-items: center; border: 1px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 400; }
 .media-unavailable.compact { min-width: 80px; min-height: 60px; }
 .content-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; flex-wrap: wrap; align-items: center; }
 
 .avatar-sm { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
-.avatar-sm-placeholder { width: 24px; height: 24px; border-radius: 50%; background: #16a34a; color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; }
+.avatar-sm-placeholder { width: 24px; height: 24px; border-radius: 50%; background: #16a34a; color: #fff; font-size: 10px; font-weight: 400; display: grid; place-items: center; }
 
-.status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 800; background: #e2e8f0; }
+.status { border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 400; background: #e2e8f0; }
 .status.active, .status.visible, .status.published { background: #dcfce7; color: #166534; }
 .status.hidden { background: #fee2e2; color: #b91c1c; }
 .status.pending, .status.draft { background: #fef3c7; color: #92400e; }
 
-.alert { padding: 12px; border-radius: 10px; font-weight: 700; }
+.alert { padding: 12px; border-radius: 10px; font-weight: 400; }
 .error { background: #fee2e2; color: #b91c1c; }
 .state-card { color: #64748b; text-align: center; }
 
 .pagination { display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: 13px; }
 .pagination div { display: flex; gap: 8px; }
-.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn-sm { border: 1px solid #dbe3ef; background: #fff; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 400; cursor: pointer; }
+
+.profile-section-card.post-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-content-card, .comments-section, .content-card, .state-card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
 </style>

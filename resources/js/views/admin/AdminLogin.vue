@@ -1,5 +1,6 @@
 <template>
     <AuthLayout
+        class="sg-account-auth sg-admin-auth"
         title="Quản trị hệ thống"
         subtitle="Đăng nhập tài khoản quản trị để tiếp tục"
         imageSrc="https://i.ibb.co/XrkdGrrv/original-ccdd6d6195fff2386a31b684b7abdd2e-removebg-preview.png"
@@ -9,7 +10,7 @@
     >
         <form
             @submit.prevent="handleSubmit"
-            class="flex flex-col gap-5 w-full text-left mt-2"
+            class="sg-account-form sg-login-form flex flex-col gap-5 w-full text-left mt-2"
             autocomplete="off"
             novalidate
         >
@@ -44,7 +45,7 @@
                 <div class="flex flex-col gap-2">
                     <label
                         for="admin-login"
-                        class="text-sm font-medium text-zinc-200 text-left"
+                        class="text-sm font-medium text-left"
                     >
                         Tên đăng nhập / Email / Số điện thoại
                     </label>
@@ -54,7 +55,7 @@
                         type="text"
                         placeholder="Nhập tài khoản quản trị"
                         autocomplete="username"
-                        class="flex h-10 w-full rounded-md border border-zinc-800 !bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
+                        class="sg-auth-input flex h-10 w-full rounded-md border !px-3 !py-2 text-sm focus:outline-none transition-all"
                     />
                 </div>
 
@@ -62,12 +63,12 @@
                 <div class="flex flex-col gap-2">
                     <div class="flex items-center justify-between">
                         <label
-                            class="text-sm font-medium text-zinc-200 text-left"
+                            class="text-sm font-medium text-left"
                             >Mật khẩu</label
                         >
                         <router-link
                             to="/admin/forgot-password"
-                            class="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                            class="text-xs transition-colors"
                         >
                             Quên mật khẩu admin?
                         </router-link>
@@ -84,7 +85,7 @@
             <button
                 type="submit"
                 :disabled="isLoading"
-                class="flex h-10 w-full items-center justify-center rounded-md !border !border-solid !border-zinc-700 !bg-zinc-900 text-zinc-100 hover:!bg-zinc-800 hover:!border-zinc-600 transition-all font-medium text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                class="sg-auth-submit flex h-10 w-full items-center justify-center transition-all font-medium text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 <span v-if="!isLoading">Đăng nhập quản trị</span>
                 <span
@@ -135,7 +136,7 @@ export default {
                     this.loginValue.trim(),
                     this.password,
                 );
-                this.$router.push(auth.redirect_to || "/admin/dashboard");
+                this.$router.push(auth.redirect_to || "/admin/venue-clusters");
             } catch (error) {
                 const details = error.data || {};
                 let lockedUntilFormatted = null;

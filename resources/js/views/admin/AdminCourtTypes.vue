@@ -1,8 +1,10 @@
 <template>
-    <div class="court-types-container">
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card court-types-main-content">
+            <div class="court-types-container">
 
         <!-- Loading State -->
-        <div v-if="loading" class="loading-state card">
+        <div v-if="loading" class="state-box animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách bộ môn và loại sân...</p>
         </div>
@@ -120,7 +122,7 @@
 
                                 <!-- Actions -->
                                 <template #actions="{ row }">
-                                    <div class="table-actions">
+                                    <TableActionGroup>
                                         <ActionIconButton
                                             icon="pencil"
                                             label="Sửa loại sân"
@@ -134,7 +136,7 @@
                                             size="sm"
                                             @click="confirmDelete(row)"
                                         />
-                                    </div>
+                                    </TableActionGroup>
                                 </template>
                             </SaaSTable>
 
@@ -326,18 +328,21 @@
                 <span class="btn-float-text">Thêm bộ môn</span>
             </button>
         </div>
+        </div>
     </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "AdminCourtTypes",
-    components: { ActionIconButton, AppIcon, SaaSTable },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
     data() {
         return {
             courtTypes: [],
@@ -346,7 +351,7 @@ export default {
                 { key: "player_count", label: "Số người chơi" },
                 { key: "size", label: "Kích thước quy chuẩn" },
                 { key: "is_active", label: "Trạng thái" },
-                { key: "actions", label: "", align: "right" }
+                { key: "actions", label: "THAO TÁC", align: "right" }
             ],
             searchQuery: "",
             loading: true,
@@ -758,7 +763,7 @@ export default {
     gap: 12px;
     color: var(--admin-faint, #64748b);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     text-align: center;
 }
 
@@ -777,7 +782,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -847,7 +852,7 @@ export default {
 
 .modal-header h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: var(--sg-text);
 }
@@ -877,7 +882,7 @@ export default {
 
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -908,7 +913,7 @@ export default {
     align-items: center;
     gap: 10px;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     color: var(--sg-text);
 }
@@ -941,7 +946,7 @@ export default {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     border: 1px solid #e5e7eb;
 }
 
@@ -1027,13 +1032,13 @@ export default {
 .custom-select-option.active {
     background: var(--admin-primary-soft) !important;
     color: var(--admin-primary-dark) !important;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .option-badge-root,
 .option-badge-parent {
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 400;
     padding: 2px 6px;
     border-radius: 4px;
     text-transform: uppercase;
@@ -1104,7 +1109,7 @@ export default {
     max-width: 0;
     opacity: 0;
     margin-left: 0;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
@@ -1277,5 +1282,27 @@ export default {
     .btn-float-add.never-hover-class-placeholder .btn-float-text {
         max-width: 80px;
     }
+}
+
+.profile-section-card.court-types-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.court-type-group,
+.grouped-court-types-list,
+.court-types-container,
+.loading-state,
+.error-state,
+.empty-state {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 </style>

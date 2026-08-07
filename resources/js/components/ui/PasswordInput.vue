@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col w-full gap-1.5 text-left">
-    <label v-if="label" :for="inputId" class="text-sm font-medium text-zinc-200 text-left">
+    <label v-if="label" :for="inputId" class="sg-password-label text-sm font-medium text-left">
       {{ label }} <span v-if="required" class="text-red-500">*</span>
     </label>
     <div class="relative">
@@ -12,12 +12,12 @@
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
-        class="flex h-10 w-full rounded-md border border-zinc-800 !bg-zinc-950 !px-3 !py-2 !pe-10 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
+        class="sg-password-control flex h-10 w-full rounded-md border !px-3 !py-2 !pe-10 text-sm focus:outline-none transition-all"
       />
       <button
         type="button"
         @click="togglePasswordVisibility"
-        class="absolute inset-y-0 end-0 flex h-full w-10 items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+        class="sg-password-toggle absolute inset-y-0 end-0 flex h-full w-10 items-center justify-center transition-colors focus:outline-none"
         :aria-label="showPassword ? 'Hide password' : 'Show password'"
       >
         <!-- EyeOff icon -->
@@ -73,3 +73,10 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.sg-password-control::-ms-reveal,
+.sg-password-control::-ms-clear {
+  display: none;
+}
+</style>

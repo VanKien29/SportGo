@@ -1,8 +1,10 @@
 <template>
-    <div class="amenities-container">
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card amenities-main-content">
+            <div class="amenities-container">
 
         <!-- Loading State -->
-        <div v-if="loading" class="loading-state card">
+        <div v-if="loading" class="state-box animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách tiện ích...</p>
         </div>
@@ -15,32 +17,20 @@
 
         <template v-else>
             <!-- Controls Bar -->
-            <div class="avc-filters animate-fade-in" v-if="amenities.length > 0 || searchQuery || statusFilter !== 'all'">
-                <div class="filter-row">
-                    <div class="filter-tabs">
-                        <button
-                            v-for="option in statusOptions"
-                            :key="option.value"
-                            class="tab-btn"
-                            :class="{ active: statusFilter === option.value }"
-                            @click="selectStatus(option.value)"
-                        >
-                            {{ option.label }}
-                        </button>
-                    </div>
-                    <div class="filter-search">
-                        <div class="search-box">
-                            <AppIcon name="search" size="16" />
-                            <input
-                                type="text"
-                                v-model="searchQuery"
-                                placeholder="Tìm kiếm theo tên hoặc mô tả..."
-                                class="search-input"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <SaaSFilterBar
+                v-model="statusFilter"
+                v-model:search="searchQuery"
+                :tabs="statusOptions"
+                search-id="search-amenities"
+                search-placeholder="Tìm kiếm theo tên hoặc mô tả..."
+            >
+                <template #actions>
+                    <button class="btn primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); color: #fff; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer;">
+                        <AppIcon name="plus" size="16" />
+                        <span>Thêm tiện ích</span>
+                    </button>
+                </template>
+            </SaaSFilterBar>
 
             <!-- Empty State -->
             <div v-if="amenities.length === 0" class="empty-state card">
@@ -54,9 +44,6 @@
             <!-- No Results from Search/Filter -->
             <div v-else-if="filteredAmenities.length === 0" class="empty-state card">
                 <p>Không tìm thấy tiện ích nào phù hợp với điều kiện lọc.</p>
-                <button class="btn btn-outline" @click="resetFilters">
-                    Xóa bộ lọc
-                </button>
             </div>
 
             <!-- Elegant SaaS Table View -->
@@ -93,7 +80,7 @@
 
                     <!-- Action Column -->
                     <template #actions="{ row }">
-                        <div class="table-actions" @click.stop>
+                        <TableActionGroup @click.stop>
                             <ActionIconButton
                                 icon="eye"
                                 label="Xem chi tiết"
@@ -113,7 +100,7 @@
                                 size="sm"
                                 @click="confirmDelete(row)"
                             />
-                        </div>
+                        </TableActionGroup>
                     </template>
                 </SaaSTable>
             </div>
@@ -135,7 +122,7 @@
                     <div class="detail-grid">
                         <div class="detail-item">
                             <span class="detail-label">Tên tiện ích</span>
-                            <span class="detail-value font-bold text-lg">{{ viewItem.name }}</span>
+                            <span class="detail-value font-normal text-lg">{{ viewItem.name }}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Trạng thái</span>
@@ -284,19 +271,22 @@
                 <span class="btn-float-text">Thêm tiện ích</span>
             </button>
         </div>
+        </div>
     </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { amenityService } from "../../services/amenityService";
 
 export default {
     name: "AdminAmenities",
-    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
     data() {
         return {
             amenities: [],
@@ -304,7 +294,7 @@ export default {
                 { key: "name", label: "Tên tiện ích" },
                 { key: "created_by", label: "Người tạo" },
                 { key: "status", label: "Trạng thái" },
-                { key: "actions", label: "", align: "right" }
+                { key: "actions", label: "THAO TÁC", align: "right" }
             ],
             searchQuery: "",
             statusFilter: "all",
@@ -527,7 +517,7 @@ export default {
 
 .page-title {
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: var(--sg-text, #0f172a);
 }
@@ -570,7 +560,7 @@ export default {
     background: var(--admin-surface) !important;
     color: #475569 !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
+    font-weight: 400 !important;
     cursor: pointer !important;
     transition: all 0.18s !important;
     box-sizing: border-box !important;
@@ -645,7 +635,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     cursor: pointer;
     border: 1px solid transparent;
@@ -795,7 +785,7 @@ export default {
 .modal-header h3 {
     margin: 0;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .btn-close {
@@ -821,7 +811,7 @@ export default {
 
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .form-control {
@@ -848,7 +838,7 @@ export default {
     gap: 8px;
     cursor: pointer;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .checkbox-label input {
@@ -873,7 +863,7 @@ export default {
     border: 1px solid #fecaca;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .required {
@@ -902,7 +892,7 @@ export default {
 }
 .detail-label {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1041,7 +1031,7 @@ export default {
     max-width: 0;
     opacity: 0;
     margin-left: 0;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
@@ -1166,12 +1156,34 @@ export default {
 .custom-select-option.active {
     background: rgba(15, 23, 42, 0.05) !important;
     color: #0f172a !important;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .custom-select-option.disabled {
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
+}
+
+.profile-section-card.amenities-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: none !important;
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.amenities-container,
+.amenities-list-wrapper,
+.loading-state,
+.error-state,
+.empty-state,
+.card {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 </style>

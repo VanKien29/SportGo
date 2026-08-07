@@ -17,7 +17,13 @@ class VenueCourtsTableSeeder extends Seeder
         }
 
         $clusters = VenueCluster::query()
-            ->whereIn('slug', ['green-sport-ba-dinh', 'sun-sport-cau-giay'])
+            ->whereIn('slug', [
+                'green-sport-ba-dinh',
+                'sun-sport-cau-giay',
+                'victory-sport-ha-dong',
+                'green-sport-cau-giay',
+                'green-sport-tay-ho',
+            ])
             ->get()
             ->keyBy('slug');
 
@@ -34,10 +40,27 @@ class VenueCourtsTableSeeder extends Seeder
         $courts = [
             ['green-sport-ba-dinh', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A1', 1, null, null, null, null, 0],
             ['green-sport-ba-dinh', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A2', 2, null, null, null, null, 0],
-            ['green-sport-ba-dinh', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 3, null, null, null, null, 0],
-            ['green-sport-ba-dinh', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 4, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A3', 3, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông A4', 4, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P1', 5, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P2', 6, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P3', 7, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball P4', 8, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Tennis (Sân tiêu chuẩn)', 'Sân tennis T1', 9, null, null, null, null, 0],
+            ['green-sport-ba-dinh', 'Bóng rổ (Sân tiêu chuẩn)', 'Sân bóng rổ B1', 10, null, null, null, null, 0],
             ['sun-sport-cau-giay', 'Bóng Đá (Sân 7)', 'Sân bóng đá F1', 1, null, null, null, null, 0],
             ['sun-sport-cau-giay', 'Bóng Đá (Sân 11)', 'Sân bóng đá F2', 2, null, null, null, null, 0],
+            ['victory-sport-ha-dong', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông V1', 1, null, null, null, null, 0],
+            ['victory-sport-ha-dong', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball V2', 2, null, null, null, null, 0],
+            ['victory-sport-ha-dong', 'Bóng Đá (Sân 7)', 'Sân bóng đá V3', 3, null, null, null, null, 0],
+            ['green-sport-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông CG1', 1, null, null, null, null, 0],
+            ['green-sport-cau-giay', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông CG2', 2, null, null, null, null, 0],
+            ['green-sport-cau-giay', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball CG3', 3, null, null, null, null, 0],
+            ['green-sport-cau-giay', 'Tennis (Sân tiêu chuẩn)', 'Sân tennis CG4', 4, null, null, null, null, 0],
+            ['green-sport-tay-ho', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball TH1', 1, null, null, null, null, 0],
+            ['green-sport-tay-ho', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball TH2', 2, null, null, null, null, 0],
+            ['green-sport-tay-ho', 'Tennis (Sân tiêu chuẩn)', 'Sân tennis TH3', 3, null, null, null, null, 0],
+            ['green-sport-tay-ho', 'Bóng Đá (Sân 7)', 'Sân bóng đá TH4', 4, null, null, null, null, 0],
         ];
 
         foreach ($courts as [$clusterSlug, $courtTypeName, $courtName, $sortOrder, $x, $y, $w, $h, $rot]) {

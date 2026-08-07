@@ -1,5 +1,5 @@
 <template>
-    <section class="schedule-lock-page">
+    <div class="schedule-lock-master-workspace">
         <!-- Floating Lock Button (sticky bottom bar) -->
         <Teleport to="body">
             <div v-if="unlockMode || hasLockSelection" class="sticky-bottom-bar">
@@ -81,8 +81,23 @@
             </div>
         </Teleport>
 
-        <div v-if="error" class="alert error">{{ error }}</div>
-        <div v-if="notice" class="alert success">{{ notice }}</div>
+        <!-- Main Master Content Surface (Exact match to ClusterGeneralInfoTab) -->
+        <div class="cluster-profile-surface standalone">
+            
+            <!-- SECTION 1: Cấu hình ngày & Chọn sân khóa cả ngày -->
+            <div class="profile-section-card">
+                <div class="tab-section-header">
+                    <div>
+                        <h2>Khóa lịch sân & Cấu hình khoảng ngày</h2>
+                        <p class="section-subtitle">
+                            Chọn ngày, lý do khóa và chọn nhanh các sân cần khóa toàn bộ giờ hoạt động.
+                        </p>
+                    </div>
+                    <span v-if="locks.length" class="count-pill">{{ locks.length }} khoảng đã khóa</span>
+                </div>
+
+                <div v-if="error" class="alert error">{{ error }}</div>
+                <div v-if="notice" class="alert success">{{ notice }}</div>
 
         <!-- Conflict Preview Modal (unchanged logic) -->
         <div
@@ -530,7 +545,6 @@
                                     ngày hoặc khoảng ngày đã chọn.
                                 </small>
                             </div>
-                            <span>{{ selectedCourtIds.length }} sân</span>
                             <button
                                 type="button"
                                 :disabled="
@@ -581,54 +595,38 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
+    </div>
 
-        <!-- ===== MIDDLE: Schedule Grid (full width) ===== -->
-        <article
-            class="schedule-card"
-            :class="{ 'unlock-mode': unlockMode }"
-        >
-            <div class="schedule-headline">
-                <div class="schedule-headline-left">
-                    <p class="eyebrow">
-                        {{
-                            isDateRange
-                                ? "TRẠNG THÁI THEO KHOẢNG NGÀY"
-                                : "TRẠNG THÁI TRONG NGÀY"
-                        }}
-                    </p>
-                    <h3>{{ dateRangeLabel }}</h3>
-                    <small v-if="isDateRange" class="schedule-date-note">
-                        Lưới giờ: {{ date(form.start_date) }}
-                    </small>
-                </div>
-                <div class="schedule-headline-right">
+    <!-- SECTION 2: Lưới xem & Chọn giờ khóa trực quan -->
+            <div class="profile-section-card">
+                <div class="tab-section-header">
+                    <div>
+                        <h2>Lưới thời gian & Chọn khung giờ khóa</h2>
+                        <p class="section-subtitle">
+                            {{ isDateRange ? 'Đang chọn khoảng ngày: ' + dateRangeLabel : 'Lưới giờ trong ngày: ' + dateRangeLabel }}
+                        </p>
+                    </div>
                     <div class="legend">
                         <span><i class="dot-available"></i>Trống</span>
                         <span><i class="dot-booking"></i>Đã đặt</span>
                         <span><i class="dot-manual"></i>Đã khóa</span>
                         <span>
-                            <i
-                                :class="
-                                    unlockMode
-                                        ? 'dot-unlock-selected'
-                                        : 'dot-selected'
-                                "
-                            ></i>
-                            {{ unlockMode ? "Chọn mở" : "Đang chọn" }}
+                            <i :class="unlockMode ? 'dot-unlock-selected' : 'dot-selected'"></i>
+                            {{ unlockMode ? 'Chọn mở' : 'Đang chọn' }}
                         </span>
                     </div>
+                </div>
+
+                <div class="schedule-actions-row">
                     <button
                         class="attention-btn"
                         type="button"
-                        :disabled="
-                            unlockMode || previewing || !hasLockSelection
-                        "
+                        :disabled="unlockMode || previewing || !hasLockSelection"
                         @click="openAttentionPreview"
                     >
-                        {{ previewing ? "Đang kiểm tra..." : "Xem lịch trùng" }}
+                        {{ previewing ? 'Đang kiểm tra...' : 'Xem lịch trùng' }}
                     </button>
                     <button
                         class="unlock-mode-btn"
@@ -637,110 +635,134 @@
                         :disabled="!hasManagedLocksOnSchedule || unlocking"
                         @click="toggleUnlockMode"
                     >
-                        {{ unlockMode ? "Thoát mở khóa" : "Mở khóa" }}
+                        {{ unlockMode ? 'Thoát mở khóa' : 'Mở khóa' }}
                     </button>
-
                 </div>
-            </div>
 
-            <div class="quick-ranges">
-                <button
-                    v-for="range in dynamicQuickRanges"
-                    :key="range.key"
-                    type="button"
-                    :class="{ active: activeTimePeriod === range.key }"
-                    :disabled="loading"
-                    @click="activeTimePeriod = range.key"
-                >
-                    <strong>{{ range.label }}</strong>
-                    <small>{{ range.range }}</small>
-                </button>
-            </div>
-
-            <div v-if="loading" class="state">Đang tải lịch sân...</div>
-            <div v-else-if="!selectedClusterId" class="state">
-                Vui lòng chọn cụm sân.
-            </div>
-            <div v-else-if="!scheduleCourts.length" class="state">
-                Cụm sân chưa có sân đang hoạt động.
-            </div>
-            <div v-else class="schedule-wrap">
-                <div class="schedule-grid" :style="scheduleGridStyle">
-                    <div class="grid-head sticky-col">Sân \ Giờ</div>
-                    <div
-                        v-for="slot in activePeriodSlots"
-                        :key="slot.start_time"
-                        class="grid-head time-head"
-                    >
-                        {{ time(slot.start_time) }}
-                    </div>
-
-                    <template v-for="court in scheduleCourts" :key="court.id">
-                        <div class="court-cell sticky-col">
-                            <strong>{{ court.name }}</strong>
-                            <span>{{ court.court_type?.name }}</span>
-                        </div>
+                <div class="period-tabs-bar" style="margin-bottom: 12px;">
+                    <div class="period-tabs" role="tablist">
                         <button
-                            v-for="slot in activePeriodSlots"
-                            :key="`${court.id}-${slot.start_time}`"
-                            class="slot-cell"
-                            :class="[
-                                slotClass(court.id, slot),
-                            ]"
-                            :title="slotTitle(court.id, slot)"
+                            v-for="range in dynamicQuickRanges"
+                            :key="range.key"
                             type="button"
-                            :disabled="!canInteractSlot(court.id, slot)"
-                            :aria-pressed="
-                                unlockMode
-                                    ? isUnlockSelected(court.id, slot)
-                                    : isSelected(court.id, slot)
-                            "
-                            @click="pickSlot(court, slot)"
-                        />
-                    </template>
-                </div>
-            </div>
-        </article>
-
-        <!-- ===== BOTTOM: Existing locks (collapsible) ===== -->
-        <details v-if="locks.length" class="locks-section" open>
-            <summary class="locks-summary">
-                <div>
-                    <strong>Khoảng đã khóa</strong>
-                    <span>{{ lockSummaryLabel }}</span>
-                </div>
-            </summary>
-            <div class="lock-table" role="table" aria-label="Khoảng lịch đã khóa">
-                <div class="lock-table-head" role="row">
-                    <span>Sân và ngày</span>
-                    <span>Khung giờ</span>
-                    <span>Lý do</span>
-                    <span>Trạng thái</span>
-                </div>
-                <div v-for="lock in locks" :key="lock.id" class="lock-table-row" role="row">
-                    <div>
-                        <strong>{{ lock.venue_court?.name || "Sân chưa rõ" }}</strong>
-                        <small>
-                            {{ date(lockDate(lock)) }} ·
-                            {{ lock.lock_type_label || "Khóa thủ công" }}
-                        </small>
+                            :class="{ active: activeTimePeriod === range.key }"
+                            :disabled="loading"
+                            @click="activeTimePeriod = range.key"
+                        >
+                            <strong>{{ range.label }}</strong>
+                            <span>({{ range.range }})</span>
+                        </button>
                     </div>
-                    <strong class="lock-time">
-                        {{ time(lock.start_time) }} - {{ time(lock.end_time) }}
-                    </strong>
-                    <span class="lock-reason">{{ lock.reason || "Không có lý do" }}</span>
-                    <span class="lock-status" :class="lock.status || 'active'">
-                        {{ lock.status_label || "Đang khóa" }}
-                    </span>
+                </div>
+
+                <div v-if="loading" class="state">Đang tải lịch sân...</div>
+                <div v-else-if="!selectedClusterId" class="state">
+                    Vui lòng chọn cụm sân.
+                </div>
+                <div v-else-if="!scheduleCourts.length" class="state">
+                    Cụm sân chưa có sân đang hoạt động.
+                </div>
+                <div v-else class="time-row-matrix-wrap">
+                    <table class="time-row-matrix" role="grid" aria-label="Bảng chọn sân và khung giờ khóa">
+                        <thead>
+                            <tr>
+                                <th class="trm-corner" role="columnheader">KHUNG GIỜ</th>
+                                <th
+                                    v-for="court in scheduleCourts"
+                                    :key="court.id"
+                                    class="trm-court-head"
+                                    role="columnheader"
+                                >
+                                    <strong>{{ court.name }}</strong>
+                                    <span>{{ court.court_type?.name || "-" }}</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="slot in activePeriodSlots"
+                                :key="slot.start_time"
+                                role="row"
+                            >
+                                <td class="trm-time-cell" role="rowheader">
+                                    {{ time(slot.start_time) }} – {{ time(slot.end_time) }}
+                                </td>
+                                <td
+                                    v-for="court in scheduleCourts"
+                                    :key="`${court.id}-${slot.start_time}`"
+                                    class="trm-slot-cell"
+                                    role="gridcell"
+                                >
+                                    <button
+                                        type="button"
+                                        class="trm-slot-btn"
+                                        :class="[
+                                            slotClass(court.id, slot),
+                                            unlockMode && isUnlockSelected(court.id, slot) ? 'unlock-selected' : ''
+                                        ]"
+                                        :disabled="!canInteractSlot(court.id, slot)"
+                                        :aria-pressed="
+                                            unlockMode
+                                                ? isUnlockSelected(court.id, slot)
+                                                : isSelected(court.id, slot)
+                                        "
+                                        :title="slotTitle(court.id, slot)"
+                                        @click="pickSlot(court, slot)"
+                                    >
+                                        <span v-if="isSelected(court.id, slot)">Đã chọn</span>
+                                        <span v-else-if="unlockMode && isUnlockSelected(court.id, slot)">Chọn mở</span>
+                                        <span v-else-if="canInteractSlot(court.id, slot)" class="trm-empty-hint">+ Khóa</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </details>
-    </section>
+
+            <!-- SECTION 3: Khoảng lịch đã khóa -->
+            <div v-if="locks.length" class="profile-section-card">
+                <div class="tab-section-header">
+                    <div>
+                        <h2>Danh sách khoảng lịch đã khóa</h2>
+                        <p class="section-subtitle">{{ lockSummaryLabel }}</p>
+                    </div>
+                </div>
+
+                <div class="lock-table" role="table" aria-label="Khoảng lịch đã khóa">
+                    <div class="lock-table-head" role="row">
+                        <span>Sân và ngày</span>
+                        <span>Khung giờ</span>
+                        <span>Lý do</span>
+                        <span>Trạng thái</span>
+                    </div>
+                    <div v-for="lock in locks" :key="lock.id" class="lock-table-row" role="row">
+                        <div>
+                            <strong>{{ lock.venue_court?.name || "Sân chưa rõ" }}</strong>
+                            <small>
+                                {{ date(lockDate(lock)) }} ·
+                                {{ lock.lock_type_label || "Khóa thủ công" }}
+                            </small>
+                        </div>
+                        <strong class="lock-time">
+                            {{ time(lock.start_time) }} - {{ time(lock.end_time) }}
+                        </strong>
+                        <span class="lock-reason">{{ lock.reason || "Không có lý do" }}</span>
+                        <span class="lock-status" :class="lock.status || 'active'">
+                            {{ lock.status_label || "Đang khóa" }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </template>
 
 <script>
 import { bookingService } from "../../services/bookingService.js";
 import { ownerScheduleLockService } from "../../services/ownerScheduleLocks.js";
+import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
 
@@ -753,6 +775,7 @@ export default {
         return {
             today,
             selectedClusterId: localStorage.getItem("selected_cluster") || "",
+            selectedClusterDetail: null,
             locks: [],
             scheduleSlots: [],
             scheduleCourts: [],
@@ -974,33 +997,74 @@ export default {
                 slotEnds.length ? Math.max(...slotEnds) : 22 * 60,
                 open + 30,
             );
-            const ranges = [
-                {
-                    key: "morning",
-                    label: "Sáng",
-                    startMinutes: open,
-                    endMinutes: Math.min(close, 12 * 60),
-                },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    startMinutes: Math.max(open, 12 * 60),
-                    endMinutes: Math.min(close, 18 * 60),
-                },
-                {
-                    key: "evening",
-                    label: "Tối",
-                    startMinutes: Math.max(open, 18 * 60),
-                    endMinutes: close,
-                },
-            ]
-                .filter((range) => range.endMinutes > range.startMinutes)
-                .map((range) => ({
-                    ...range,
-                    start: this.minutesToTime(range.startMinutes),
-                    end: this.minutesToTime(range.endMinutes),
-                    range: `${this.minutesToTime(range.startMinutes)} - ${this.minutesToTime(range.endMinutes)}`,
+            const configuredPeriods =
+                this.selectedClusterDetail?.booking_config?.custom_time_periods;
+
+            let raw = [];
+            if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
+                raw = configuredPeriods.map((p, idx) => ({
+                    key: `custom_${idx}`,
+                    label: p.label,
+                    startMinutes: this.minutes(p.start_time),
+                    endMinutes: this.minutes(p.end_time),
                 }));
+            } else {
+                raw = [
+                    {
+                        key: "morning",
+                        label: "Sáng",
+                        startMinutes: open,
+                        endMinutes: Math.min(close, 12 * 60),
+                    },
+                    {
+                        key: "afternoon",
+                        label: "Chiều",
+                        startMinutes: Math.max(open, 12 * 60),
+                        endMinutes: Math.min(close, 18 * 60),
+                    },
+                    {
+                        key: "evening",
+                        label: "Tối",
+                        startMinutes: Math.max(open, 18 * 60),
+                        endMinutes: close,
+                    },
+                ];
+            }
+
+            const ranges = raw
+                .filter((range) => {
+                    if (range.endMinutes <= range.startMinutes) return false;
+                    const hasSlots = this.scheduleSlots.some((slot) => {
+                        const start = this.minutes(slot.start_time);
+                        return start >= range.startMinutes && start < range.endMinutes;
+                    });
+                    const overlapsOperating = range.startMinutes < close && range.endMinutes > open;
+                    return hasSlots || overlapsOperating;
+                })
+                .map((range) => {
+                    const clampedStart = Math.max(range.startMinutes, open);
+                    const clampedEnd = Math.min(range.endMinutes, close);
+                    return {
+                        ...range,
+                        startMinutes: clampedStart,
+                        endMinutes: clampedEnd,
+                        start: this.minutesToTime(clampedStart),
+                        end: this.minutesToTime(clampedEnd),
+                        range: `${this.minutesToTime(range.startMinutes)} - ${this.minutesToTime(range.endMinutes)}`,
+                    };
+                });
+
+            if (ranges.length > 1) {
+                ranges.push({
+                    key: "all",
+                    label: "Cả ngày",
+                    startMinutes: open,
+                    endMinutes: close,
+                    start: this.minutesToTime(open),
+                    end: this.minutesToTime(close),
+                    range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                });
+            }
 
             return ranges.length
                 ? ranges
@@ -1036,6 +1100,14 @@ export default {
             return {
                 gridTemplateColumns: `minmax(150px, .9fr) repeat(${this.activePeriodSlots.length}, minmax(54px, 1fr))`,
             };
+        },
+    },
+    watch: {
+        dynamicQuickRanges: {
+            handler() {
+                this.ensureActiveTimePeriod();
+            },
+            immediate: true,
         },
     },
     async mounted() {
@@ -1106,11 +1178,22 @@ export default {
             }
 
             try {
-                await Promise.all([this.loadSchedule(), this.loadLocks()]);
+                await Promise.all([this.loadSchedule(), this.loadLocks(), this.loadClusterDetail()]);
             } catch (error) {
                 this.error = error.message || "Không thể tải lịch sân.";
             } finally {
                 this.loading = false;
+            }
+        },
+        async loadClusterDetail() {
+            if (!this.selectedClusterId) return;
+            try {
+                const response = await ownerBookingConfigService.list();
+                this.selectedClusterDetail = (response.data || []).find(
+                    (cluster) => String(cluster.id) === String(this.selectedClusterId),
+                ) || null;
+            } catch {
+                this.selectedClusterDetail = null;
             }
         },
         async loadSchedule() {
@@ -1777,24 +1860,83 @@ export default {
 </script>
 
 <style scoped>
-/* ===== Page layout ===== */
-.schedule-lock-page {
-    display: grid;
-    gap: 14px;
-    max-width: 1400px;
+/* ===== Master Workspace Layout (Exact match to ClusterGeneralInfoTab) ===== */
+.schedule-lock-master-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
     padding-bottom: 80px; /* space for sticky bar */
     font-family: var(--admin-font-family, inherit);
 }
 
-.schedule-lock-page :where(button, input, textarea, select) {
+.schedule-lock-master-workspace :where(button, input, textarea, select) {
     font-family: inherit;
+}
+
+.cluster-profile-surface {
+    display: flex;
+    flex-direction: column;
+    gap: 0 !important;
+    background: var(--admin-surface, #ffffff);
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.profile-section-card {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.profile-section-card + .profile-section-card {
+    border-top: none !important;
+    margin-top: 0 !important;
+}
+
+.tab-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.tab-section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--admin-text, #0f172a);
+}
+
+.section-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--admin-muted, #64748b);
+}
+
+.count-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-muted, #64748b);
+}
+
+.schedule-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
 }
 
 /* ===== Alerts ===== */
 .alert {
     padding: 13px 15px;
     border-radius: 10px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .alert.error {
     background: #fee2e2;
@@ -1807,46 +1949,47 @@ export default {
 
 /* ===== Config Strip (calendar + settings) ===== */
 .config-strip {
-    display: grid;
-    grid-template-columns: 236px minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: flex-start;
     width: 100%;
-    padding: 14px;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    background: #fff;
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.035);
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
 }
 
 .config-left {
     flex: 0 0 auto;
-    width: 236px;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .config-left :deep(.mini-cal) {
-    border: 0;
-    padding: 0;
-    max-width: 236px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px;
+    background: #ffffff;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .config-right {
-    display: grid;
-    grid-template-columns: minmax(260px, 340px) minmax(420px, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 12px;
+    flex: 1 1 360px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     align-self: stretch;
-    align-items: start;
 }
 
 .config-section {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
-}
-
-.config-section:nth-child(2) {
-    grid-column: 1 / -1;
-    max-width: none;
+    width: 100%;
 }
 
 .lock-preview-panel {
@@ -1858,7 +2001,7 @@ export default {
     margin: 0;
     color: #64748b;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
@@ -1885,19 +2028,19 @@ export default {
 .lock-flow-note strong {
     color: #14532d;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .lock-flow-note span {
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.45;
 }
 
 .incident-summary {
     color: #b45309 !important;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 /* ===== Reason ===== */
@@ -1908,7 +2051,7 @@ export default {
 .reason-label span {
     color: #334155;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
 }
 .reason-label textarea {
     width: 100%;
@@ -1926,10 +2069,10 @@ export default {
 .court-picker {
     display: grid;
     gap: 12px;
-    padding: 14px;
-    border: 1px solid #d9e8d9;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #fbfefb, #f4fbf5);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 .picker-head {
     display: flex;
@@ -1948,7 +2091,7 @@ export default {
 .picker-head small {
     color: #64748b;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
 }
 .picker-head span {
@@ -1957,7 +2100,7 @@ export default {
     background: var(--admin-primary-soft, #dcfce7);
     color: var(--admin-primary-dark, #166534);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .picker-head button {
     border: 0;
@@ -1965,7 +2108,7 @@ export default {
     color: var(--admin-primary, #16a34a);
     font: inherit;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .court-chip-grid {
@@ -2046,7 +2189,7 @@ export default {
 .court-chip-grid small {
     color: #64748b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* ===== Preview (collapsible) ===== */
@@ -2085,7 +2228,7 @@ export default {
     margin-left: auto;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .preview-details[open] summary::after {
@@ -2099,13 +2242,13 @@ export default {
 .preview-details summary span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .preview-details summary em {
     color: #b45309;
     font-size: 12px;
     font-style: normal;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .lock-empty-preview {
@@ -2142,13 +2285,13 @@ export default {
     flex: 0 0 auto;
     color: #14532d;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .lock-empty-preview span {
     color: #607267;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.45;
     max-width: 760px;
 }
@@ -2194,7 +2337,7 @@ export default {
     background: #eef2ff;
     color: #475569;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .lock-preview-list article.busy > span {
     background: #ffedd5;
@@ -2209,11 +2352,11 @@ export default {
 
 /* ===== Schedule Card ===== */
 .schedule-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    background: #fff;
-    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
-    overflow: hidden;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
 }
 .schedule-headline {
     display: flex;
@@ -2232,7 +2375,7 @@ export default {
     margin-top: 4px;
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .schedule-headline-right {
     display: flex;
@@ -2248,7 +2391,7 @@ export default {
     color: #92400e;
     font: inherit;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -2267,7 +2410,7 @@ export default {
     color: #8b4a44;
     font: inherit;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
 }
@@ -2284,7 +2427,7 @@ export default {
     margin: 0 0 4px;
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.1em;
 }
 
@@ -2296,7 +2439,7 @@ export default {
     gap: 10px;
     color: #64748b;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .legend span {
     display: flex;
@@ -2328,66 +2471,219 @@ export default {
     box-shadow: inset 0 0 0 2px #fff;
 }
 
-/* ===== Quick Ranges ===== */
-.quick-ranges {
+/* ===== Period Tabs & Time Row Matrix (Exact match to OwnerCounterBooking.vue) ===== */
+.period-tabs-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.period-tabs {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 14px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    background: #fff;
 }
-.quick-ranges button {
+
+.period-tabs button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    height: 38px;
     min-height: 38px;
-    padding: 8px 14px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
-    color: #344238;
-    font: inherit;
-    font-weight: 850;
+    padding: 0 16px;
+    border-radius: var(--admin-radius, 8px);
+    border: 1px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #475569);
+    font-size: 13px;
+    font-weight: 400;
     cursor: pointer;
-    transition: all 0.15s ease;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+    user-select: none;
 }
-.quick-ranges button strong {
-    font-size: 14px;
-    font-weight: 850;
+
+.period-tabs button:hover:not(.active) {
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-text, #0f172a);
 }
-.quick-ranges button small {
+
+.period-tabs button.active {
+    background: var(--admin-accent, #10b981);
+    color: #ffffff;
+    border-color: var(--admin-accent, #10b981);
+    font-weight: 500;
+}
+
+.period-tabs button strong {
+    font-weight: 600;
+}
+
+.period-tabs button span {
     font-size: 12px;
-    font-weight: 700;
-    opacity: 0.78;
+    font-weight: 400;
+    opacity: 0.85;
 }
-.quick-ranges button.never-hover-class-placeholder:not(:disabled):not(.active) {
-    border-color: var(--admin-border);
-    background: var(--admin-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 9px rgba(0, 0, 0, 0.04);
+
+.time-row-matrix-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #ffffff);
 }
-.quick-ranges button.active {
-    border-color: var(--admin-primary, #16a34a);
-    background: var(--admin-primary, #16a34a);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+.time-row-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin: 0;
+    padding: 0;
 }
-.quick-ranges button.active strong,
-.quick-ranges button.active small {
-    color: #fff;
+
+.time-row-matrix .trm-corner {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 130px;
+    width: 130px;
+    padding: 10px 14px;
+    background: var(--admin-bg-soft, #f8fafc);
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-align: left;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
 }
-.quick-ranges button:disabled {
-    opacity: 0.45;
+
+.time-row-matrix .trm-court-head {
+    min-width: 140px;
+    padding: 8px 12px;
+    background: var(--admin-bg-soft, #f8fafc);
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
+    text-align: left;
+}
+
+.time-row-matrix .trm-court-head strong {
+    display: block;
+    color: var(--admin-text, #1e293b);
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix .trm-court-head span {
+    display: block;
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix tbody tr {
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    transition: background 0.1s;
+}
+
+.time-row-matrix tbody tr:hover {
+    background: #f8fafc;
+}
+
+.time-row-matrix .trm-time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 130px;
+    width: 130px;
+    padding: 0 14px;
+    height: 44px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-muted, #475569);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-cell {
+    padding: 0;
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 44px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    font-size: 12px;
+    color: var(--admin-primary, #16a34a);
+}
+
+.time-row-matrix .trm-slot-btn:not(:disabled):hover {
+    background: var(--admin-hover, #f1f5f9);
+}
+
+.time-row-matrix .trm-slot-btn:disabled {
     cursor: not-allowed;
 }
+
+.time-row-matrix .trm-empty-hint {
+    opacity: 0;
+    color: var(--admin-primary, #16a34a);
+    font-size: 11px;
+    font-weight: 400;
+    transition: opacity 0.15s;
+}
+
+.time-row-matrix tbody tr:hover .trm-slot-btn:not(:disabled) .trm-empty-hint {
+    opacity: 0.55;
+}
+
+.time-row-matrix .trm-slot-btn.selected {
+    background: var(--admin-primary, #16a34a) !important;
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #16a34a);
+    color: #ffffff !important;
+}
+
+.time-row-matrix .trm-slot-btn.selected span {
+    color: #ffffff !important;
+}
+
+.time-row-matrix .trm-slot-btn.unlock-selected {
+    background: #f3e3e0 !important;
+    box-shadow: inset 0 0 0 2px #b97870 !important;
+    color: #991b1b !important;
+}
+
+.time-row-matrix .trm-slot-btn.booked,
+.time-row-matrix .trm-slot-btn.booked-paid    { background: #e2f0e7; color: #166534; }
+.time-row-matrix .trm-slot-btn.booked-online  { background: #e5edf3; color: #1e40af; }
+.time-row-matrix .trm-slot-btn.booked-counter { background: #ebe9f1; color: #6b21a8; }
+.time-row-matrix .trm-slot-btn.manual,
+.time-row-matrix .trm-slot-btn.locked         { background: #f1f5f9; color: #64748b; cursor: not-allowed; }
+.time-row-matrix .trm-slot-btn.unavailable    { background: #f8fafc; }
 
 /* ===== States ===== */
 .state {
     padding: 40px;
     text-align: center;
     color: #64748b;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* ===== Schedule Grid ===== */
@@ -2413,7 +2709,7 @@ export default {
     background: #f2f7ef;
     color: #334238;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .time-head {
     padding: 8px 4px;
@@ -2528,7 +2824,7 @@ export default {
 .locks-summary span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .lock-table {
     margin: 0 20px 18px;
@@ -2549,7 +2845,7 @@ export default {
     background: #f7faf8;
     color: #64748b;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .lock-table-row {
     min-height: 54px;
@@ -2586,7 +2882,7 @@ export default {
     background: #dcfce7;
     color: #166534;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .lock-status.upcoming {
     background: #eff6ff;
@@ -2633,7 +2929,7 @@ export default {
 .lock-row-head span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     white-space: nowrap;
 }
 .lock-row-head button,
@@ -2644,7 +2940,7 @@ export default {
     color: #dc2626;
     font: inherit;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .lock-chip-list {
@@ -2671,7 +2967,7 @@ export default {
 }
 .lock-chip-time {
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 .lock-chip-reason {
@@ -2679,14 +2975,14 @@ export default {
     overflow: hidden;
     color: #64748b;
     font-size: 11px;
-    font-weight: 750;
+    font-weight: 400;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .lock-chip-action {
     color: #dc2626;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .lock-chip-list button.never-hover-class-placeholder:not(:disabled) {
     border-color: #fca5a5;
@@ -2745,7 +3041,7 @@ export default {
 .sticky-bottom-info span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 .sticky-bottom-actions {
     display: flex;
@@ -2758,7 +3054,7 @@ export default {
     color: #dc2626;
     font: inherit;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
 }
 .sticky-btn-box {
@@ -2777,7 +3073,7 @@ export default {
     background: #fff8e6;
     color: #765f2d;
     font: inherit;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 .sticky-btn-submit {
@@ -2788,7 +3084,7 @@ export default {
     background: var(--admin-primary, #16a34a);
     color: #fff;
     font: inherit;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transition: all 0.15s ease;
@@ -2809,7 +3105,7 @@ export default {
     background: #a85f57;
     color: #fff;
     font: inherit;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
 }
 .sticky-btn-unlock:disabled {
@@ -2829,7 +3125,7 @@ export default {
     border-radius: 9px;
     padding: 10px 16px;
     font: inherit;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 .primary-btn {
@@ -2877,17 +3173,21 @@ export default {
     border: 1px solid #d7ead7;
     background: #fff;
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+    padding: 20px;
 }
-.conflict-modal header,
+.conflict-modal header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+}
 .conflict-modal footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 18px 20px 0;
-}
-.conflict-modal footer {
-    padding: 0 20px 18px;
+    padding: 0;
 }
 .conflict-modal h3 {
     margin: 0;
@@ -2952,14 +3252,14 @@ export default {
 .lock-detail-list dt {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .lock-detail-list dd {
     min-width: 0;
     margin: 0;
     color: var(--admin-text, #1f2f25);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .lock-detail-reason {
     display: grid;
@@ -2969,7 +3269,7 @@ export default {
 .lock-detail-reason > span {
     color: var(--admin-muted, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .lock-detail-reason p {
     margin: 0;
@@ -2981,10 +3281,10 @@ export default {
     padding: 0 20px 18px;
 }
 .conflict-help {
-    margin: 0 20px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    background: #f0fdf4;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
     color: #496355;
     font-size: 13px;
     line-height: 1.45;
@@ -2994,7 +3294,7 @@ export default {
     gap: 10px;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 20px;
+    padding: 0;
 }
 .conflict-card {
     display: grid;
@@ -3036,7 +3336,7 @@ export default {
     background: #fff;
     color: #43564a;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .conflict-actions {
     display: grid;
@@ -3049,7 +3349,7 @@ export default {
 .resolution-label {
     color: #64748b;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: uppercase;
 }
@@ -3070,7 +3370,7 @@ export default {
     color: #475569;
     font-family: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
     text-align: center;
     cursor: pointer;
@@ -3090,7 +3390,7 @@ export default {
     background: #fff;
     color: #1f2937;
     font: inherit;
-    font-weight: 750;
+    font-weight: 400;
 }
 .no-alternative {
     display: grid;
@@ -3127,7 +3427,7 @@ export default {
     color: #2f5a3a;
     font-family: inherit;
     font-size: 13px;
-    font-weight: 750;
+    font-weight: 400;
     line-height: 1.35;
     text-align: center;
     cursor: pointer;
@@ -3163,7 +3463,7 @@ export default {
     background: #f8fcf9;
     color: #607267;
     text-align: center;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* ===== Responsive ===== */
@@ -3194,15 +3494,11 @@ export default {
     .config-strip {
         grid-template-columns: 1fr;
     }
-    .config-right {
-        grid-template-columns: 1fr;
+    .config-left {
+        width: 100%;
     }
-    .config-section:nth-child(2),
-    .config-section:nth-child(n + 4),
-    .preview-details,
-    .lock-empty-preview {
-        grid-column: auto;
-        grid-row: auto;
+    .config-left :deep(.mini-cal) {
+        max-width: 100%;
     }
 
     .lock-empty-preview {

@@ -1,5 +1,5 @@
 <template>
-  <div class="posts-page">
+  <div class="cluster-profile-surface standalone">
     <!-- Floating Add Button -->
     <div class="floating-add-container">
       <button class="btn-float-add" type="button" @click="openForm()" title="Tạo bài viết mới">
@@ -8,71 +8,30 @@
       </button>
     </div>
 
-    <!-- Filters & Search -->
-    <div class="filter-toolbar card premium-card flex gap-4 sg-filter-panel" style="display: flex; gap: 16px; flex-wrap: wrap;">
-      <div class="filters" style="display: flex; gap: 16px; flex: 1; flex-wrap: wrap; align-items: flex-end;">
-        <label class="field compact" style="flex: 1; min-width: 200px;">
-          <span style="white-space: nowrap;">Tìm kiếm</span>
-          <input 
-            v-model="filters.keyword" 
-            @keyup.enter="fetchPosts(1)"
-            type="text" 
-            class="modern-input"
-            placeholder="Nhập tiêu đề tìm kiếm..." 
-          />
-        </label>
-        <label class="field compact" style="flex: 1; min-width: 200px;">
-          <span style="white-space: nowrap;">Danh mục</span>
-          <select v-model="filters.post_type" class="modern-select" @change="fetchPosts(1)" style="width: 100%; min-width: 150px;">
-            <option value="">Tất cả danh mục</option>
-            <option value="promotion">Khuyến mãi</option>
-            <option value="tournament">Giải đấu</option>
-            <option value="news">Tin tức</option>
-            <option value="notice">Thông báo</option>
-            <option value="recruitment">Tuyển dụng</option>
-          </select>
-        </label>
-        <div style="display: flex; gap: 8px; align-items: center; min-width: max-content;">
-          <button @click="resetFilters" class="btn ghost compact" type="button" style="height: 42px;">Xóa lọc</button>
-          <button @click="fetchPosts(1)" class="btn primary compact" type="button" style="height: 42px; background: #0f172a; color: white;">Tìm kiếm</button>
-        </div>
+    <!-- Top Integrated Tabs Row -->
+    <div class="posts-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="postTabsForAppTabs"
+          :model-value="filters.status"
+          @update:model-value="selectPostStatusTab"
+        />
       </div>
     </div>
 
-    <!-- Toolbar: Tabs and Sort -->
-    <div class="toolbar-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <div class="tabs-header modern-tabs">
-        <button @click="setStatusFilter('')" :class="['tab-btn pill', { active: filters.status === '' }]">Tất cả</button>
-        <button @click="setStatusFilter('published')" :class="['tab-btn pill', { active: filters.status === 'published' }]">Đã duyệt</button>
-        <button @click="setStatusFilter('pending_review')" :class="['tab-btn pill', { active: filters.status === 'pending_review' }]">Chờ duyệt</button>
-        <button @click="setStatusFilter('draft')" :class="['tab-btn pill', { active: filters.status === 'draft' }]">Bản nháp</button>
-        <button @click="setStatusFilter('rejected')" :class="['tab-btn pill', { active: filters.status === 'rejected' }]">Từ chối</button>
-        <button @click="setStatusFilter('hidden')" :class="['tab-btn pill', { active: filters.status === 'hidden' }]">Đã ẩn</button>
-        <button @click="setStatusFilter('deleted')" :class="['tab-btn pill', { active: filters.status === 'deleted' }]">Đã xóa</button>
+    <div class="profile-section-card posts-main-content">
+
+      <!-- Loading Screen -->
+      <div v-if="loading" class="table-state-card">
+        <div class="spinner-sm"></div>
+        <span>Đang tải danh sách bài viết...</span>
       </div>
 
-      <div class="sort-options modern-tabs" style="border-radius: 12px; padding: 4px; background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);">
-        <button @click="toggleSort('created_at')" :class="['tab-btn pill', { active: sorting.by === 'created_at' }]" style="font-size: 13px;">
-          Mới nhất <i v-if="sorting.by === 'created_at'" :class="sorting.order === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'"></i>
-        </button>
-        <button @click="toggleSort('view_count')" :class="['tab-btn pill', { active: sorting.by === 'view_count' }]" style="font-size: 13px;">
-          Lượt xem <i v-if="sorting.by === 'view_count'" :class="sorting.order === 'desc' ? 'fas fa-arrow-down' : 'fas fa-arrow-up'"></i>
-        </button>
+      <!-- Empty Screen -->
+      <div v-else-if="posts.length === 0" class="table-state-card">
+        <span>Chưa có bài viết nào phù hợp.</span>
+        <button @click="openForm()" class="btn primary compact" style="margin-top: 12px;" type="button">Tạo bài viết mới</button>
       </div>
-    </div>
-
-    <!-- Loading Screen -->
-    <div v-if="loading" class="state-box card premium-card sg-state-box">
-      <div class="spinner"></div>
-      <p>Đang tải danh sách bài viết...</p>
-    </div>
-
-    <!-- Empty Screen -->
-    <div v-else-if="posts.length === 0" class="state-box card premium-card empty-state sg-state-box">
-      <div class="empty-icon" style="font-size: 48px; display:flex; justify-content:center; align-items:center;">📰</div>
-      <p>Chưa có bài viết nào khớp với bộ lọc hoặc bạn chưa tạo bài viết.</p>
-      <button @click="openForm()" class="btn btn-create primary" style="margin-top: 16px;">Tạo bài viết đầu tiên</button>
-    </div>
 
     <!-- Posts Grid -->
     <transition-group v-else name="list" tag="div" class="posts-list grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
@@ -92,18 +51,18 @@
           <span :style="statusBadgeStyle(post.status)">
             {{ statusLabel(post) }}
           </span>
-          <span style="position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 800; background: rgba(15,23,42,0.85); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); color: #fff; backdrop-filter: blur(4px);">
+          <span style="position: absolute; top: 12px; left: 12px; font-size: 11px; font-weight: 400; background: rgba(15,23,42,0.85); padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); color: #fff; backdrop-filter: blur(4px);">
             {{ formatCategory(post.post_type) }}
           </span>
         </div>
 
         <div class="post-body" style="padding: 24px; flex: 1; display: flex; flex-direction: column;">
-          <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 10px; color: #0f172a; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color 0.2s;">{{ post.title }}</h3>
+          <h3 style="font-size: 18px; font-weight: 400; margin-bottom: 10px; color: #0f172a; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color 0.2s;">{{ post.title }}</h3>
           <p class="post-content" style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 20px; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.short_description || 'Không có mô tả...' }}</p>
 
-          <div class="post-meta-info" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; font-size: 13px; color: #64748b; font-weight: 600; margin-bottom: 20px; gap: 8px;">
+          <div class="post-meta-info" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; font-size: 13px; color: #64748b; font-weight: 400; margin-bottom: 20px; gap: 8px;">
             <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;"><AppIcon name="clock" size="14" style="color: #94a3b8;" /> {{ formatDate(post.created_at) }}</span>
-            <span style="display: flex; align-items: center; gap: 6px; color: #10b981; background: #ecfdf5; padding: 4px 12px; border-radius: 99px; white-space: nowrap; font-weight: 700;"><AppIcon name="eye" size="14" /> {{ post.view_count || 0 }}</span>
+            <span style="display: flex; align-items: center; gap: 6px; color: #10b981; background: #ecfdf5; padding: 4px 12px; border-radius: 99px; white-space: nowrap; font-weight: 400;"><AppIcon name="eye" size="14" /> {{ post.view_count || 0 }}</span>
           </div>
 
           <!-- Rejection Reason -->
@@ -125,13 +84,13 @@
           </div>
 
           <div class="post-footer" style="padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-size: 13px; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 13px; font-weight: 400; color: #334155; display: flex; align-items: center; gap: 10px;">
               <div style="width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; display: flex; justify-content: center; align-items: center; color: #64748b;"><AppIcon name="user" size="14" /></div>
               {{ post.author?.full_name || 'Bạn' }}
             </div>
             <div class="post-actions" style="display: flex; gap: 8px;">
               <!-- Deleted: Khôi phục -->
-              <button v-if="post.deleted_at" class="btn ghost btn-sm action-btn" type="button" @click="confirmRestore(post)" style="padding: 0; min-width: 38px; padding: 0 12px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #6ee7b7; background: #ecfdf5; transition: all 0.2s; color: #059669; gap: 6px; font-size: 13px; font-weight: 600;" title="Khôi phục bài viết">
+              <button v-if="post.deleted_at" class="btn ghost btn-sm action-btn" type="button" @click="confirmRestore(post)" style="padding: 0; min-width: 38px; padding: 0 12px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #6ee7b7; background: #ecfdf5; transition: all 0.2s; color: #059669; gap: 6px; font-size: 13px; font-weight: 400;" title="Khôi phục bài viết">
                 <AppIcon name="refresh-cw" size="14" /> Khôi phục
               </button>
               <template v-else>
@@ -166,12 +125,13 @@
       <span class="page-info">Trang {{ pagination.current_page }} / {{ pagination.last_page }}</span>
       <button class="btn ghost btn-sm" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="changePage(pagination.current_page + 1)">Sau</button>
     </div>
+    </div>
 
     <!-- MODAL TẠO / SỬA BÀI ĐĂNG (NATIVE DIALOG STYLE) -->
     <dialog id="post_form_modal" class="modal-dialog-custom" @click="handleDialogClick">
       <div class="modal medium glass-modal" @click.stop style="max-width: 900px; width: 900px; padding: 0;">
         <div class="modal-header" style="padding: 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; font-size: 20px; font-weight: 800; display: flex; align-items: center;">
+          <h3 style="margin: 0; font-size: 20px; font-weight: 400; display: flex; align-items: center;">
             <AppIcon v-if="editingPostStatus === 'pending_review'" name="eye" size="20" style="color: #3b82f6; margin-right: 8px;" />
             <AppIcon v-else-if="editingPostStatus === 'rejected'" name="edit" size="20" style="color: #f97316; margin-right: 8px;" />
             <AppIcon v-else name="edit" size="20" style="color: #10b981; margin-right: 8px;" />
@@ -215,30 +175,30 @@
               <!-- Left Form -->
               <div style="flex: 2; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
               <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 13px; font-weight: 700; color: #475569;">Tiêu đề bài viết <span class="required" style="color: #ef4444;">*</span></span>
+                <span style="font-size: 13px; font-weight: 400; color: #475569;">Tiêu đề bài viết <span class="required" style="color: #ef4444;">*</span></span>
                 <input v-model="form.title" name="title" type="text" class="modern-input" :class="{ 'is-invalid': errors.title }" placeholder="Tiêu đề ấn tượng (5-200 ký tự)" :disabled="editingPostStatus === 'pending_review'" />
-                <p class="error-msg" v-if="errors.title" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.title[0] }}</p>
+                <p class="error-msg" v-if="errors.title" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.title[0] }}</p>
               </label>
 
               <label class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 13px; font-weight: 700; color: #475569;">Mô tả ngắn <span class="required" style="color: #ef4444;">*</span></span>
+                <span style="font-size: 13px; font-weight: 400; color: #475569;">Mô tả ngắn <span class="required" style="color: #ef4444;">*</span></span>
                 <textarea v-model="form.short_description" name="short_description" :class="{ 'is-invalid': errors.short_description }" rows="2" class="modern-textarea" placeholder="Tóm tắt nội dung hấp dẫn người đọc..." :disabled="editingPostStatus === 'pending_review'"></textarea>
-                <p class="error-msg" v-if="errors.short_description" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.short_description[0] }}</p>
+                <p class="error-msg" v-if="errors.short_description" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.short_description[0] }}</p>
               </label>
 
               <div class="field" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 13px; font-weight: 700; color: #475569;">Nội dung chi tiết <span class="required" style="color: #ef4444;">*</span></span>
+                <span style="font-size: 13px; font-weight: 400; color: #475569;">Nội dung chi tiết <span class="required" style="color: #ef4444;">*</span></span>
                 <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; flex: 1; min-height: 350px;">
                   <RichTextEditor v-model="form.content" placeholder="Viết nội dung phong phú..." style="min-height: 350px;" :disabled="editingPostStatus === 'pending_review'" />
                 </div>
-                <p class="error-msg" v-if="errors.content" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.content[0] }}</p>
+                <p class="error-msg" v-if="errors.content" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.content[0] }}</p>
               </div>
             </div>
 
             <!-- Right Sidebar -->
             <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 16px;">
               <div class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh đại diện (Thumbnail)</span>
+                <span style="font-size: 13px; font-weight: 400; color: #475569;">Ảnh đại diện (Thumbnail)</span>
                 <div class="upload-zone" style="aspect-ratio: 16/10; border: 2px dashed #cbd5e1; border-radius: 12px; position: relative; cursor: pointer; overflow: hidden; background: white;" :style="editingPostStatus === 'pending_review' ? 'cursor: not-allowed; opacity: 0.8;' : ''" @click="editingPostStatus !== 'pending_review' && !thumbnailPreview && $refs.fileInputRef.click()">
                   <div v-if="thumbnailPreview" style="position: absolute; inset: 0;">
                     <img :src="thumbnailPreview" style="width: 100%; height: 100%; object-fit: cover;" />
@@ -246,16 +206,16 @@
                   </div>
                   <div v-else style="position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #94a3b8;">
                     <AppIcon name="upload" size="24" style="margin-bottom: 8px;" />
-                    <span style="font-size: 13px; font-weight: 700;">Tải ảnh lên</span>
+                    <span style="font-size: 13px; font-weight: 400;">Tải ảnh lên</span>
                   </div>
                   <input type="file" ref="fileInputRef" style="display: none;" @click.stop @change="handleFileUpload" accept="image/*" />
                 </div>
-                <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.thumbnail[0] }}</p>
+                <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.thumbnail[0] }}</p>
               </div>
 
               <div class="field" style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                  <span style="font-size: 13px; font-weight: 700; color: #475569;">Ảnh bài viết</span>
+                  <span style="font-size: 13px; font-weight: 400; color: #475569;">Ảnh bài viết</span>
                   <span style="font-size: 12px; color: #64748b;">{{ galleryImageCount }}/{{ MAX_GALLERY_IMAGES }}</span>
                 </div>
                 <input
@@ -284,26 +244,26 @@
                     <button type="button" class="icon-btn" title="Xóa ảnh" @click="removeGalleryFile(item)" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,.9); color: #fff;"><AppIcon name="trash" size="14" /></button>
                   </div>
                 </div>
-                <p class="error-msg" v-if="errors.gallery" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.gallery[0] }}</p>
+                <p class="error-msg" v-if="errors.gallery" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.gallery[0] }}</p>
               </div>
 
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
+                <span style="font-size: 11px; font-weight: 400; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
                 <CustomSelect v-model="form.venue_cluster_id" :options="clusterOptions" placeholder="-- Chọn cụm sân --" :class="{ 'is-invalid': errors.venue_cluster_id }" disabled />
-                <p class="error-msg" v-if="errors.venue_cluster_id" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.venue_cluster_id[0] }}</p>
+                <p class="error-msg" v-if="errors.venue_cluster_id" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.venue_cluster_id[0] }}</p>
               </label>
 
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8;">Danh mục <span class="required" style="color: #ef4444;">*</span></span>
+                <span style="font-size: 11px; font-weight: 400; text-transform: uppercase; color: #94a3b8;">Danh mục <span class="required" style="color: #ef4444;">*</span></span>
                 <CustomSelect v-model="form.post_type" :options="categoryOptions" placeholder="-- Chọn danh mục --" :class="{ 'is-invalid': errors.post_type }" :disabled="editingPostStatus === 'pending_review'" />
-                <p class="error-msg" v-if="errors.post_type" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 600;">{{ errors.post_type[0] }}</p>
+                <p class="error-msg" v-if="errors.post_type" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.post_type[0] }}</p>
               </label>
 
 
 
               <label class="field checkbox" v-if="editingPostStatus !== 'pending_review'" style="display: flex; flex-direction: row; align-items: center; gap: 8px; cursor: pointer; padding: 12px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 8px;">
                 <input type="checkbox" v-model="form.is_draft" style="width: 18px; height: 18px; accent-color: #10b981;" />
-                <span style="font-weight: 700; color: #1e293b; font-size: 14px;">Lưu làm bản nháp</span>
+                <span style="font-weight: 400; color: #1e293b; font-size: 14px;">Lưu làm bản nháp</span>
               </label>
             </div>
             <!-- /Form Row -->
@@ -335,7 +295,7 @@
       <div class="modal medium glass-modal" @click.stop style="max-width: 400px; padding: 0;">
         <div class="modal-body" style="padding: 32px 24px; text-align: center;">
           <div style="font-size: 48px; color: #ef4444; margin-bottom: 16px;"><i class="fas fa-exclamation-triangle"></i></div>
-          <h3 style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">Xác nhận xóa</h3>
+          <h3 style="font-size: 20px; font-weight: 400; color: #1e293b; margin-bottom: 8px;">Xác nhận xóa</h3>
           <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Bạn có chắc chắn muốn xóa bài viết này không? Hành động không thể hoàn tác.</p>
           <div style="display: flex; gap: 12px;">
             <button class="btn ghost" style="flex: 1;" @click="closeDeleteModal">Hủy</button>
@@ -350,7 +310,7 @@
       <div class="modal medium glass-modal" @click.stop style="max-width: 400px; padding: 0;">
         <div class="modal-body" style="padding: 32px 24px; text-align: center;">
           <div style="font-size: 48px; color: #059669; margin-bottom: 16px;"><i class="fas fa-undo"></i></div>
-          <h3 style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">Khôi phục bài viết</h3>
+          <h3 style="font-size: 20px; font-weight: 400; color: #1e293b; margin-bottom: 8px;">Khôi phục bài viết</h3>
           <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">Bạn có chắc chắn muốn khôi phục bài viết này không? Bài viết sẽ được chuyển về trạng thái Đã xuất bản.</p>
           <div style="display: flex; gap: 12px;">
             <button class="btn ghost" style="flex: 1;" @click="closeRestoreModal">Hủy</button>
@@ -368,8 +328,23 @@ import { api, apiFormData } from '../../services/api';
 import { useToast } from 'vue-toastification';
 import RichTextEditor from '../../components/RichTextEditor.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
 import { normalizeMediaUrl } from '../../utils/mediaUrl.js';
 import CustomSelect from '../../components/CustomSelect.vue';
+
+const postTabsForAppTabs = [
+  { key: '', value: '', label: 'Tất cả' },
+  { key: 'published', value: 'published', label: 'Đã duyệt' },
+  { key: 'pending_review', value: 'pending_review', label: 'Chờ duyệt' },
+  { key: 'draft', value: 'draft', label: 'Bản nháp' },
+  { key: 'rejected', value: 'rejected', label: 'Từ chối' },
+  { key: 'hidden', value: 'hidden', label: 'Đã ẩn' },
+  { key: 'deleted', value: 'deleted', label: 'Đã xóa' },
+];
+
+const selectPostStatusTab = (statusVal) => {
+  setStatusFilter(String(statusVal || ''));
+};
 
 const toast = useToast();
 
@@ -911,7 +886,7 @@ const statusBadgeStyle = (status) => {
     'hidden': { bg: 'rgba(239, 68, 68, 0.95)', color: 'white' }
   };
   const s = styles[status] || { bg: 'rgba(100, 116, 139, 0.95)', color: 'white' };
-  return `position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 800; padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px); background: ${s.bg}; color: ${s.color}; z-index: 10;`;
+  return `position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 400; padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); backdrop-filter: blur(4px); background: ${s.bg}; color: ${s.color}; z-index: 10;`;
 };
 
 const formatCategory = (type) => {
@@ -935,13 +910,44 @@ const formatDate = (dateString) => {
 };
 </script>
 <style scoped>
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: 0;
+}
+
+.profile-section-card.posts-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-section-card.posts-main-content .premium-card,
+.profile-section-card.posts-main-content .filter-toolbar,
+.profile-section-card.posts-main-content .post-card,
+.profile-section-card.posts-main-content .card,
+.profile-section-card.posts-main-content .state-box,
+.profile-section-card.posts-main-content .sort-options {
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .posts-page {
   display: flex;
   flex-direction: column;
   gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: inherit;
 }
 
 .page-header {
@@ -955,7 +961,7 @@ const formatDate = (dateString) => {
 
 .page-header h2 {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
   margin: 0 0 5px 0;
   letter-spacing: 0;
@@ -987,7 +993,7 @@ const formatDate = (dateString) => {
   height: 42px;
   padding: 0 20px;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 14px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -996,7 +1002,7 @@ const formatDate = (dateString) => {
 }
 
 .btn-create {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #10b981;
   color: white;
   border: none;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
@@ -1058,7 +1064,7 @@ const formatDate = (dateString) => {
   padding: 14px 20px;
   border-radius: 12px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   animation: slideDown 0.3s ease-out;
 }
 
@@ -1130,7 +1136,7 @@ const formatDate = (dateString) => {
 
 .field.compact span {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: #475569;
 }
 
@@ -1233,7 +1239,7 @@ const formatDate = (dateString) => {
 .cluster-badge {
   background: #f1f5f9;
   color: #334155;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 6px;
@@ -1249,7 +1255,7 @@ const formatDate = (dateString) => {
 
 .status-badge {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   padding: 6px 12px;
   border-radius: 99px;
   text-transform: uppercase;
@@ -1279,7 +1285,7 @@ const formatDate = (dateString) => {
 .hashtag.pill {
   background: rgba(16, 185, 129, 0.1);
   color: #059669;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 13px;
   padding: 4px 10px;
   border-radius: 6px;
@@ -1363,7 +1369,7 @@ const formatDate = (dateString) => {
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 400;
   backdrop-filter: blur(2px);
 }
 
@@ -1467,7 +1473,7 @@ const formatDate = (dateString) => {
 
 .modal-header h3 {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 400;
   color: #0f172a;
   margin: 0;
 }
@@ -1505,7 +1511,7 @@ const formatDate = (dateString) => {
 }
 .field > span {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: #1e293b;
 }
 
@@ -1532,7 +1538,7 @@ const formatDate = (dateString) => {
 /* Image Uploader */
 .image-uploader-section > span {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   color: #1e293b;
   margin-bottom: 8px;
   display: block;
@@ -1723,4 +1729,64 @@ const formatDate = (dateString) => {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
 }
 
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.posts-header-hero {
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
+  display: flex;
+  align-items: center;
+}
+
+.profile-section-card.posts-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-top: 0 !important;
+}
+
+.hero-integrated-tabs {
+  flex: 1;
+}
+
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>

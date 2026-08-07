@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <section class="system-wallet-page" :class="{ embedded }">
         <header v-if="!embedded" class="page-header">
             <div>
@@ -511,12 +511,12 @@ p {
 
 h2 {
     font-size: 24px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 p,
@@ -541,7 +541,7 @@ button {
     gap: 8px;
     min-height: 42px;
     padding: 0 16px;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -567,7 +567,7 @@ input {
 .alert {
     border-radius: 8px;
     padding: 12px 14px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .alert.error {
@@ -592,7 +592,7 @@ input {
     display: block;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -644,12 +644,12 @@ input {
 
 .finance-row span {
     color: #64756b;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .finance-row strong {
     color: #102018;
-    font-weight: 900;
+    font-weight: 400;
     text-align: right;
 }
 
@@ -673,13 +673,13 @@ input {
 .metric-card span {
     color: #64756b;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .metric-card strong {
     margin-top: 16px;
     font-size: 25px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .metric-card.primary {
@@ -715,7 +715,7 @@ input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .amount-input {
@@ -723,7 +723,7 @@ input {
     gap: 5px;
     color: #64756b;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .amount-input.note {
@@ -762,7 +762,7 @@ th {
     background: #f4faf5;
     color: #425349;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
@@ -777,7 +777,7 @@ td span {
     border-radius: 999px;
     padding: 5px 10px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .badge.in {
@@ -791,7 +791,7 @@ td span {
 }
 
 .amount {
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .amount.in {
@@ -806,7 +806,7 @@ td span {
     height: 84px;
     text-align: center;
     color: #64756b;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .pagination {

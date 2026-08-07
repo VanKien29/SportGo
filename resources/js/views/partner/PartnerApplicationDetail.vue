@@ -650,6 +650,3 @@ function dateOnly(value) {
 }
 </script>
 
-<style src="../../../css/partner/partner.css"></style>
-<style src="../../../css/partner/client-partner-shared.css"></style>
-<style scoped src="../../../css/partner/client-partner-detail.css"></style>

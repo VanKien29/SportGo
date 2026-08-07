@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <button
     class="filter-button"
     :class="{ 
@@ -96,7 +96,7 @@ export default {
   background-color: var(--admin-surface);
   color: var(--admin-text);
   font: inherit;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 14px;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(23, 34, 27, 0.05);
@@ -144,7 +144,7 @@ export default {
   background-color: var(--admin-primary);
   color: #fff;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1;
   transition: all 0.2s ease;
 }
@@ -182,7 +182,7 @@ export default {
   max-width: 0;
   opacity: 0;
   margin-left: 0;
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;

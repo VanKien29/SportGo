@@ -20,18 +20,40 @@
         <link rel="shortcut icon" href="{{ $systemFaviconUrl }}">
         <link rel="apple-touch-icon" href="{{ $systemFaviconUrl }}">
     @endif
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Leaflet Map Library -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #app:empty {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #f8fafc;
+        }
+
+        #app:empty::before {
+            content: "";
+            width: 30px;
+            height: 30px;
+            border: 3px solid #d9f5e4;
+            border-top-color: #16a34a;
+            border-radius: 50%;
+            animation: sportgo-app-spin .75s linear infinite;
+        }
+
+        @keyframes sportgo-app-spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>
         (function() {
             try {
-                const isPortal = /^\/(owner|admin|staff)(\/|$)/.test(window.location.pathname);
-                const savedTheme = localStorage.getItem(isPortal ? 'admin-theme' : 'theme') || 'system';
+                const path = window.location.pathname;
+                const storageKey = /^\/admin(\/|$)/.test(path)
+                    ? 'admin-theme'
+                    : (/^\/(owner|staff)(\/|$)/.test(path) ? 'owner-theme' : null);
+                const savedTheme = storageKey ? (localStorage.getItem(storageKey) || 'system') : 'light';
                 const resolvedTheme = savedTheme === 'system'
                     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                     : savedTheme;

@@ -19,7 +19,10 @@
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
 
-    <section v-if="loading" class="state-card">Đang tải hồ sơ...</section>
+    <section v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải hồ sơ...</p>
+    </section>
     <section v-else-if="!application" class="state-card error">Không tìm thấy hồ sơ đối tác.</section>
 
     <template v-else>
@@ -1890,7 +1893,7 @@ function dateOnly(value) {
   margin: 0 0 4px;
   color: #047857;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 400;
   letter-spacing: .1em;
   text-transform: uppercase;
 }
@@ -1915,7 +1918,7 @@ function dateOnly(value) {
 .notice,
 .state-card {
   padding: 14px 16px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .notice.success {
@@ -2001,7 +2004,7 @@ function dateOnly(value) {
   color: var(--admin-text, #0f172a);
   cursor: pointer;
   padding: 9px 10px;
-  font-weight: 750;
+  font-weight: 400;
   text-align: left;
 }
 
@@ -2027,7 +2030,7 @@ function dateOnly(value) {
   padding: 0 13px;
   background: var(--admin-surface, #fff);
   color: var(--admin-faint, #64748b);
-  font-weight: 850;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -2071,7 +2074,7 @@ function dateOnly(value) {
 .field span {
   color: var(--admin-text, #0f172a);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .field input,
@@ -2096,7 +2099,7 @@ function dateOnly(value) {
 .inline-error {
   color: #b91c1c;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .full,
@@ -2129,7 +2132,7 @@ dt {
 dd {
   margin: 0;
   color: var(--admin-text, #111827);
-  font-weight: 750;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 
@@ -2140,7 +2143,7 @@ dd {
 .card-head span {
   color: var(--admin-faint, #64748b);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .court-grid,
@@ -2244,7 +2247,7 @@ dd {
 
 .doc-row .doc-file-warning {
   color: #b91c1c;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .cluster-list {
@@ -2307,7 +2310,7 @@ dd {
   gap: 8px;
   border: 1px solid transparent;
   border-radius: 8px;
-  font-weight: 850;
+  font-weight: 400;
   cursor: pointer;
   text-decoration: none;
 }
@@ -2367,7 +2370,7 @@ dd {
   background: #fef3c7;
   color: #92400e;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .status-completed {
@@ -2505,7 +2508,7 @@ dd {
   background: transparent;
   color: #15803d;
   font: inherit;
-  font-weight: 750;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -2525,7 +2528,7 @@ dd {
   background: #fff;
   color: #64748b;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
   padding: 5px 9px;
 }
 
@@ -2594,14 +2597,14 @@ dd {
   gap: 12px;
   color: #334155;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 400;
   cursor: pointer;
 }
 
 .termination-detail-disclosure > summary small {
   color: #64748b;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .termination-detail-body {
@@ -2628,7 +2631,7 @@ dd {
   align-items: flex-start;
   color: var(--admin-text, #334155);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 @media (max-width: 980px) {

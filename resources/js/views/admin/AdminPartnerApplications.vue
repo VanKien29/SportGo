@@ -1,141 +1,140 @@
 <template>
-  <div class="partner-page">
-    <header class="partner-list-header">
-      <div>
-        <h1>Hồ sơ đối tác</h1>
-        <p>Duyệt hồ sơ, ký văn bản và theo dõi chấm dứt hợp tác tại một nơi.</p>
+  <div class="cluster-profile-surface standalone">
+    <!-- Top Integrated Tabs Row -->
+    <div class="partner-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="listTabsForAppTabs"
+          :model-value="filters.tab"
+          @update:model-value="selectListTab"
+        />
       </div>
-    </header>
-
-    <section class="partner-kpis">
-      <article v-for="card in summaryCards" :key="card.key" class="partner-kpi-card">
-        <span>{{ card.label }}</span>
-        <strong>{{ card.value }}</strong>
-        <small>{{ card.hint }}</small>
-      </article>
-    </section>
-
-    <div class="tabs">
-      <button
-        v-for="tab in listTabsUi"
-        :key="tab.value"
-        class="tab-btn"
-        :class="{ active: filters.tab === tab.value }"
-        type="button"
-        @click="selectListTab(tab.value)"
-      >
-        <span>{{ tab.label }}</span>
-        <strong>{{ listTabCount(tab.value) }}</strong>
-      </button>
     </div>
 
-    <div class="toolbar card">
-      <label class="field">
-        <span>Tìm kiếm</span>
-        <input v-model.trim="filters.search" type="search" placeholder="Mã đối tác, họ tên, điện thoại, email, cụm sân" @input="onFilterChange" />
-      </label>
-      <label class="field">
-        <span>Trạng thái</span>
-        <select v-model="filters.status" @change="loadApplications(1)">
-          <option value="">Tất cả</option>
-          <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-      </label>
-    </div>
+    <!-- Main Content Surface -->
+    <div class="profile-section-card applications-main-content">
+      <div v-if="message" class="alert success">{{ message }}</div>
+      <div v-if="error" class="alert error">{{ error }}</div>
 
-    <div v-if="message" class="notice success">{{ message }}</div>
-    <div v-if="error" class="notice error">{{ error }}</div>
-
-    <div v-if="loading" class="state-box card">
-      <div class="spinner"></div>
-      <p>Đang tải hồ sơ...</p>
-    </div>
-
-    <div v-else-if="applications.length === 0" class="state-box card">
-      <p>Không có hồ sơ phù hợp.</p>
-    </div>
-
-    <div v-else class="table-card card">
-      <div class="partner-mobile-list">
-        <article v-for="application in applications" :key="`mobile-${application.id}`" class="partner-mobile-row">
-          <div class="partner-mobile-heading">
-            <div>
-              <small>{{ application.partner_code }}</small>
-              <strong>{{ application.partner_name || '-' }}</strong>
-            </div>
-            <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
-          </div>
-          <p>{{ application.partner_phone || '-' }} · {{ application.partner_email || '-' }}</p>
-          <div class="partner-mobile-facts">
-            <span><small>Cụm sân</small><strong>{{ (application.venue_names || []).slice(0, 1).join(', ') || application.venue_name || 'Chưa có' }}</strong></span>
-            <span><small>Hợp đồng</small><strong>{{ contractStatusLabel(application.contract_status) }}</strong></span>
-          </div>
-          <button class="open-record-btn" type="button" @click="openDetail(application)">
-            Mở hồ sơ <AppIcon name="arrowRight" size="16" />
-          </button>
+      <!-- Summary Statistics Grid -->
+      <div class="summary-grid">
+        <article class="summary-item" :class="{ highlight: summaryCards.review > 0 }">
+          <span class="summary-label">Cần duyệt</span>
+          <strong class="summary-value">{{ summaryCards.review }}</strong>
+          <small class="summary-sub">Hồ sơ chờ admin xử lý</small>
+        </article>
+        <article class="summary-item">
+          <span class="summary-label">Chờ ký hợp đồng</span>
+          <strong class="summary-value">{{ summaryCards.signature }}</strong>
+          <small class="summary-sub">Chờ chủ sân hoặc SportGo ký</small>
+        </article>
+        <article class="summary-item">
+          <span class="summary-label">Đang chấm dứt</span>
+          <strong class="summary-value danger-text">{{ summaryCards.terminating }}</strong>
+          <small class="summary-sub">Yêu cầu thanh lý hợp đồng</small>
+        </article>
+        <article class="summary-item">
+          <span class="summary-label">Tổng hồ sơ</span>
+          <strong class="summary-value">{{ summaryCards.total }}</strong>
+          <small class="summary-sub">Theo bộ lọc hiện tại</small>
         </article>
       </div>
-      <div class="table-scroll partner-desktop-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Mã đối tác</th>
-              <th>Đối tác</th>
-              <th>Cụm sân</th>
-              <th>Trạng thái</th>
-              <th class="right">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="application in applications" :key="application.id">
-              <td>
-                <div class="strong">{{ application.partner_code }}</div>
-                <div class="muted">{{ application.application_count || 1 }} hồ sơ</div>
-              </td>
-              <td>
-                <div class="strong">{{ application.partner_name || '-' }}</div>
-                <div class="muted">{{ application.partner_phone || '-' }} · {{ application.partner_email || '-' }}</div>
-              </td>
-              <td>
-                <div class="strong">{{ application.managed_clusters_count || 0 }}</div>
-                <div class="muted">{{ (application.venue_names || []).slice(0, 2).join(', ') || application.venue_name || '-' }}</div>
-              </td>
-              <td>
-                <div class="status-stack">
-                  <span class="status" :class="`status-${application.partner_status || application.status}`">{{ statusLabel(application.partner_status || application.status) }}</span>
-                  <small>Hợp đồng: {{ contractStatusLabel(application.contract_status) }}</small>
-                </div>
-              </td>
-              <td class="right">
-                <button class="open-record-btn" type="button" @click="openDetail(application)">
-                  <AppIcon name="arrowRight" size="16" /> Mở hồ sơ
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+      <!-- Toolbar Search & Filter -->
+      <div class="table-toolbar">
+        <div class="search-box">
+          <input
+            v-model.trim="filters.search"
+            type="search"
+            placeholder="Tìm kiếm mã đối tác, họ tên, điện thoại, email, cụm sân..."
+            @input="onFilterChange"
+          />
+        </div>
+        <div class="filter-box">
+          <select v-model="statusFilter" class="custom-select" @change="applyStatusFilter">
+            <option v-for="option in statusFilterOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
       </div>
-      <div v-if="pagination.last_page > 1" class="pagination">
-        <button class="icon-btn" type="button" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
-          <AppIcon name="chevronLeft" size="16" />
-        </button>
-        <span>{{ pagination.current_page }} / {{ pagination.last_page }}</span>
-        <button class="icon-btn" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
-          <AppIcon name="chevronRight" size="16" />
-        </button>
+
+      <!-- Services-style Table Section -->
+      <div class="services-table-section">
+        <div v-if="loading" class="table-state-card">
+          <div class="spinner-sm"></div>
+          <span>Đang tải danh sách hồ sơ đối tác...</span>
+        </div>
+
+        <div v-else-if="applications.length === 0" class="table-state-card">
+          <span>Không tìm thấy hồ sơ đối tác nào.</span>
+        </div>
+
+        <div v-else class="services-table-wrapper">
+          <table class="services-data-table partner-table">
+            <thead>
+              <tr>
+                <th>Mã đối tác</th>
+                <th>Đối tác</th>
+                <th>Cụm sân</th>
+                <th>Trạng thái</th>
+                <th class="right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="application in applications" :key="application.id">
+                <td>
+                  <div class="cell-primary-text">{{ application.partner_code }}</div>
+                  <div class="cell-sub-text">{{ application.application_count || 1 }} hồ sơ</div>
+                </td>
+                <td>
+                  <div class="cell-primary-text">{{ application.partner_name || '-' }}</div>
+                  <div class="cell-sub-text">{{ application.partner_phone || '-' }} · {{ application.partner_email || '-' }}</div>
+                </td>
+                <td>
+                  <div class="cell-primary-text">{{ application.managed_clusters_count || 0 }} sân</div>
+                  <div class="cell-sub-text">{{ (application.venue_names || []).slice(0, 2).join(', ') || application.venue_name || '-' }}</div>
+                </td>
+                <td>
+                  <div class="status-stack">
+                    <span class="status" :class="`status-${application.partner_status || application.status}`">
+                      {{ statusLabel(application.partner_status || application.status) }}
+                    </span>
+                    <small>Hợp đồng: {{ contractStatusLabel(application.contract_status) }}</small>
+                  </div>
+                </td>
+                <td class="right">
+                  <button class="open-record-btn" type="button" @click="openDetail(application)">
+                    Mở hồ sơ <AppIcon name="arrowRight" size="14" />
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-if="pagination.last_page > 1" class="table-pagination">
+            <button class="icon-btn" type="button" :disabled="pagination.current_page <= 1" @click="loadApplications(pagination.current_page - 1)">
+              <AppIcon name="chevronLeft" size="16" />
+            </button>
+            <span>Trang {{ pagination.current_page }} / {{ pagination.last_page }}</span>
+            <button class="icon-btn" type="button" :disabled="pagination.current_page >= pagination.last_page" @click="loadApplications(pagination.current_page + 1)">
+              <AppIcon name="chevronRight" size="16" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
 import { adminPartnerApplicationService } from '../../services/adminPartnerApplications.js';
 
 export default {
   name: 'AdminPartnerApplications',
-  components: { AppIcon },
+  components: { AppIcon, AppTabs },
   data() {
     return {
       applications: [],
@@ -160,15 +159,15 @@ export default {
     };
   },
   computed: {
-    listTabsUi() {
+    listTabsForAppTabs() {
       return [
-        { value: 'all', label: 'Tất cả' },
-        { value: 'pending_review', label: 'Chờ duyệt' },
-        { value: 'pending_signature', label: 'Chờ ký hợp đồng' },
-        { value: 'active', label: 'Đang hoạt động' },
-        { value: 'terminating', label: 'Đang chấm dứt' },
-        { value: 'terminated', label: 'Đã chấm dứt' },
-        { value: 'rejected', label: 'Từ chối' },
+        { key: 'all', label: 'Tất cả' },
+        { key: 'pending_review', label: 'Chờ duyệt' },
+        { key: 'pending_signature', label: 'Chờ ký hợp đồng' },
+        { key: 'active', label: 'Đang hoạt động' },
+        { key: 'terminating', label: 'Đang chấm dứt' },
+        { key: 'terminated', label: 'Đã chấm dứt' },
+        { key: 'rejected', label: 'Từ chối' },
       ];
     },
     summaryCards() {
@@ -176,18 +175,50 @@ export default {
       const signature = this.listTabCount('pending_signature');
       const terminating = this.listTabCount('terminating');
 
-      return [
-        { key: 'total', label: 'Hồ sơ đang hiển thị', value: this.pagination.total || this.applications.length, hint: 'Theo bộ lọc hiện tại' },
-        { key: 'review', label: 'Cần duyệt', value: review, hint: 'Hồ sơ chờ admin xử lý' },
-        { key: 'signature', label: 'Chờ ký', value: signature, hint: 'Hợp đồng hoặc văn bản đang chờ ký' },
-        { key: 'terminating', label: 'Chấm dứt', value: terminating, hint: 'Hồ sơ đang thanh lý/chấm dứt' },
-      ];
+      return {
+        total: this.pagination.total || this.applications.length,
+        review: typeof review === 'number' ? review : 0,
+        signature: typeof signature === 'number' ? signature : 0,
+        terminating: typeof terminating === 'number' ? terminating : 0,
+      };
     },
   },
   mounted() {
     this.loadApplications();
   },
   methods: {
+    selectListTab(tabKey) {
+      this.filters.tab = tabKey;
+      this.filters.status = '';
+      this.statusFilter = tabKey === 'all' ? 'all' : `tab:${tabKey}`;
+      this.loadApplications(1);
+    },
+    listTabCount(tab) {
+      const currentTab = this.filters.status ? null : (this.filters.tab || 'all');
+      if (tab === currentTab) {
+        return this.pagination.total || this.applications.length;
+      }
+
+      if (currentTab !== 'all' || this.pagination.last_page > 1) {
+        return '—';
+      }
+
+      return this.applications.filter((application) => this.applicationMatchesTab(application, tab)).length;
+    },
+    applicationMatchesTab(application, tab) {
+      const status = application.partner_status || application.status;
+      const matches = {
+        all: true,
+        pending_review: ['pending', 'reviewing', 'submitted', 'need_supplement', 'pending_review'].includes(status),
+        pending_signature: ['contract_pending_owner_signature', 'contract_pending_sportgo_signature', 'pending_signature'].includes(status),
+        active: ['active', 'completed'].includes(status),
+        terminating: status === 'terminating',
+        terminated: status === 'terminated',
+        rejected: ['rejected', 'cancelled'].includes(status),
+      };
+
+      return matches[tab] ?? false;
+    },
     async loadApplications(page = 1) {
       this.loading = true;
       this.error = '';
@@ -262,164 +293,157 @@ export default {
 </script>
 
 <style scoped>
-.partner-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.partner-list-header {
+.partner-header-hero {
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0 2px;
 }
 
-.partner-list-header h1 {
-  margin: 0 0 4px;
-  color: var(--admin-text);
-  font-size: 28px;
+.hero-integrated-tabs {
+  flex: 1;
+}
+
+.profile-section-card.applications-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-top: 0 !important;
+}
+
+/* Summary Statistics Grid */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.summary-item {
+  background: #ffffff;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-item.highlight {
+  border-color: #f59e0b;
+  background: #fffbe8;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+  font-weight: 500;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--admin-text, #0f172a);
   line-height: 1.2;
 }
 
-.partner-list-header p {
-  margin: 0;
-  color: var(--admin-muted);
+.summary-value.danger-text {
+  color: #ef4444;
 }
 
-.card {
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
+.summary-sub {
+  font-size: 11px;
+  color: var(--admin-muted, #94a3b8);
 }
 
-.partner-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.partner-kpi-card {
-  display: grid;
-  gap: 4px;
-  min-height: 104px;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  background: var(--admin-surface);
-  padding: 14px;
-}
-
-.partner-kpi-card span {
-  color: var(--admin-muted);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.partner-kpi-card strong {
-  color: var(--admin-text);
-  font-size: 26px;
-  line-height: 1;
-}
-
-.partner-kpi-card small {
-  color: var(--admin-muted);
-  font-size: 12px;
-}
-
-.actions,
-.pagination {
+/* Toolbar Search & Filter */
+.table-toolbar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(220px, 300px) auto;
-  align-items: end;
   gap: 12px;
-  padding: 14px;
-}
-
-.result-count {
-  min-height: 40px;
-  display: inline-flex;
   align-items: center;
-  color: var(--admin-muted);
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
+  justify-content: space-between;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 800;
+.search-box {
+  flex: 1;
+  max-width: 480px;
 }
 
-.field.full {
-  grid-column: 1 / -1;
-}
-
-.field input,
-.field select,
-.field textarea {
+.search-box input {
   width: 100%;
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
+  height: 38px;
   padding: 0 12px;
-  color: var(--admin-text);
-  background: var(--admin-surface);
-}
-
-.field input,
-.field select {
-  height: 40px;
-}
-
-.field textarea {
-  min-height: 110px;
-  padding-top: 10px;
-  resize: vertical;
-}
-
-.notice {
-  padding: 12px 14px;
+  border: 1px solid var(--admin-border-soft, #cbd5e1);
   border-radius: 8px;
-  font-weight: 800;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
-.notice.success {
-  color: #166534;
+.search-box input:focus {
+  border-color: #10b981;
+}
+
+.filter-box {
+  min-width: 200px;
+}
+
+.custom-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--admin-border-soft, #cbd5e1);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.alert.success {
   background: #dcfce7;
+  color: #15803d;
 }
 
-.notice.error {
-  color: #991b1b;
+.alert.error {
   background: #fee2e2;
+  color: #b91c1c;
 }
 
-.state-box {
-  min-height: 220px;
+/* Table styling */
+.services-table-section {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.table-state-card {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: var(--admin-muted);
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--admin-muted, #64748b);
+  font-size: 14px;
 }
 
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #0f172a;
+.spinner-sm {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #10b981;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -428,69 +452,69 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-.table-card {
-  overflow: hidden;
-}
-
-.table-scroll {
+.services-table-wrapper {
   overflow-x: auto;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 8px;
 }
 
-.partner-mobile-list {
-  display: none;
-}
-
-table {
+.services-data-table {
   width: 100%;
-  min-width: 820px;
   border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
 }
 
-th:nth-child(1) { width: 110px; }
-th:nth-child(2) { width: 31%; }
-th:nth-child(3) { width: 20%; }
-th:nth-child(4) { width: 22%; }
-th:last-child { width: 122px; }
+.services-data-table th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
 
-th,
-td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--admin-border);
-  text-align: left;
+.services-data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
   vertical-align: middle;
 }
 
-th {
-  background: var(--admin-surface-muted);
-  color: var(--admin-muted);
-  font-size: 12px;
-  text-transform: uppercase;
+.services-data-table tr:last-child td {
+  border-bottom: none;
 }
 
-.center { text-align: center; }
-.right { text-align: right; }
-.strong { font-weight: 900; color: var(--admin-text); }
-.muted { color: var(--admin-muted); font-size: 13px; }
+.cell-primary-text {
+  font-weight: 600;
+  color: #0f172a;
+}
 
-.status {
-  display: inline-flex;
-  padding: 5px 10px;
-  border-radius: 999px;
+.cell-sub-text {
   font-size: 12px;
-  font-weight: 900;
-  background: var(--admin-border);
-  color: var(--admin-text);
+  color: #64748b;
+  margin-top: 2px;
 }
 
 .status-stack {
-  display: grid;
-  justify-items: start;
-  gap: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
 }
 
 .status-stack small {
-  color: var(--admin-muted);
   font-size: 11px;
+  color: #64748b;
+}
+
+.status {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .status-pending_review,
@@ -520,160 +544,66 @@ th {
   color: #991b1b;
 }
 
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.icon-btn {
-  background: var(--admin-surface);
-  border-color: var(--sg-border);
-  color: var(--admin-text);
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-}
-
-.icon-btn.approve { color: #15803d; }
-.icon-btn.danger { color: #dc2626; }
-
 .open-record-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 36px;
-  border: 1px solid #b8d5c0;
-  border-radius: 8px;
-  background: #fff;
-  color: #176534;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #10b981;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #059669;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 0 11px;
-  font-weight: 800;
-  white-space: nowrap;
+  transition: all 0.15s;
 }
 
 .open-record-btn:hover {
-  background: #edf8f0;
+  background: #ecfdf5;
 }
 
-.pagination {
+.table-pagination {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 13px;
+  color: #64748b;
 }
 
-@media (max-width: 900px) {
-  .partner-list-header {
-    align-items: flex-start;
-  }
-  .partner-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .field.full {
-    grid-column: auto;
-  }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
 }
 
-@media (max-width: 560px) {
-  .partner-list-header h1 {
-    font-size: 24px;
-  }
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
-  .partner-kpis {
-    grid-template-columns: 1fr;
-  }
+.right {
+  text-align: right;
+}
 
-  .table-card {
-    border: 0;
-    background: transparent;
-    overflow: visible;
+@media (max-width: 768px) {
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
-
-  .partner-desktop-table {
-    display: none;
-  }
-
-  .partner-mobile-list {
-    display: grid;
-    gap: 8px;
-  }
-
-  .partner-mobile-row {
-    display: grid;
-    gap: 10px;
-    border: 1px solid var(--admin-border);
-    border-radius: 8px;
-    background: var(--admin-surface);
-    padding: 13px;
-  }
-
-  .partner-mobile-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .partner-mobile-heading > div,
-  .partner-mobile-facts > span {
-    display: grid;
-    gap: 3px;
-    min-width: 0;
-  }
-
-  .partner-mobile-heading small,
-  .partner-mobile-facts small {
-    color: var(--admin-muted);
-    font-size: 10px;
-    text-transform: uppercase;
-  }
-
-  .partner-mobile-heading strong,
-  .partner-mobile-facts strong {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--admin-text);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .partner-mobile-heading .status {
-    flex: 0 0 auto;
-    max-width: 48%;
-    white-space: normal;
-  }
-
-  .partner-mobile-row > p {
-    margin: 0;
-    color: var(--admin-muted);
-    font-size: 12px;
-    overflow-wrap: anywhere;
-  }
-
-  .partner-mobile-facts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    border-top: 1px solid var(--admin-border);
-    padding-top: 9px;
-  }
-
-  .partner-mobile-row .open-record-btn {
-    width: 100%;
+  .search-box {
+    max-width: none;
   }
 }
 </style>

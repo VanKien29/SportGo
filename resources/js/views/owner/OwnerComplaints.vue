@@ -1,141 +1,115 @@
 <template>
-  <div class="complaints-page">
-    <div v-if="message" class="notice success">{{ message }}</div>
-    <div v-if="error" class="notice error">{{ error }}</div>
+  <div class="cluster-profile-surface standalone">
+    <div v-if="message" class="alert success">{{ message }}</div>
+    <div v-if="error" class="alert error">{{ error }}</div>
 
-    <div class="filter-toolbar card">
-      <!-- Tabs -->
-      <div class="tabs-header">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.value }"
-          type="button"
-          @click="changeTab(tab.value)"
-        >
-          <AppIcon :name="tab.icon" size="16" />
-          <span>{{ tab.label }}</span>
-        </button>
-      </div>
-
-      <!-- Filter and Search -->
-      <div class="filters-row">
-        <label class="field compact search-field">
-          <AppIcon name="search" size="16" />
-          <input
-            v-model="searchQuery"
-            type="search"
-            placeholder="Tìm theo nội dung, người gửi, mã booking..."
-            @input="onSearchInput"
-          />
-        </label>
+    <!-- Top Integrated Tabs Row matching Services & Refund Requests -->
+    <div class="complaints-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="complaintsTabsForAppTabs"
+          :model-value="activeTab"
+          @update:model-value="changeTab"
+        />
       </div>
     </div>
 
-    <!-- Loading Screen -->
-    <div v-if="loading" class="state-box card">
-      <div class="spinner"></div>
-      <p>Đang tải danh sách khiếu nại...</p>
-    </div>
+    <div class="profile-section-card complaints-main-content">
 
-    <!-- Empty Screen -->
-    <div v-else-if="complaints.length === 0" class="state-box card">
-      <AppIcon name="fileText" size="36" />
-      <p>Không tìm thấy khiếu nại nào.</p>
-    </div>
+      <!-- Services-style Table Section -->
+      <div class="services-table-section">
+        <!-- Loading Screen -->
+        <div v-if="loading" class="table-state-card">
+          <div class="spinner-sm"></div>
+          <span>Đang tải danh sách khiếu nại...</span>
+        </div>
 
-    <!-- Complaints Table -->
-    <div v-else class="table-container card">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Khách hàng</th>
-              <th>Nội dung khiếu nại</th>
-              <th>Cụm sân / Booking</th>
-              <th>Trạng thái</th>
-              <th>Ngày tạo</th>
-              <th class="center" style="width: 120px;">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="complaint in complaints" :key="complaint.id" class="complaint-row">
-              <td>
-                <div class="author-cell">
-                  <strong>{{ complaint.customer?.full_name || 'Khách hàng' }}</strong>
-                  <span class="muted small">{{ complaint.customer?.phone || 'Không có SĐT' }}</span>
-                  <span class="muted small">{{ complaint.customer?.email || '' }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="info-cell">
+        <!-- Empty Screen -->
+        <div v-else-if="complaints.length === 0" class="table-state-card">
+          <span>Không tìm thấy khiếu nại nào.</span>
+        </div>
+
+        <!-- Complaints Data Table -->
+        <div v-else class="services-table-wrapper">
+          <table class="services-data-table complaints-table">
+            <thead>
+              <tr>
+                <th>Khách hàng</th>
+                <th>Nội dung khiếu nại</th>
+                <th>Cụm sân / Booking</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th class="action-col">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="complaint in complaints" :key="complaint.id">
+                <td class="cell-name">
+                  <strong class="customer-name">{{ complaint.customer?.full_name || 'Khách hàng' }}</strong>
+                  <small class="cell-sub">{{ complaint.customer?.phone || complaint.customer?.email || 'Không có liên hệ' }}</small>
+                </td>
+                <td class="cell-desc">
                   <div class="post-title">{{ truncate(complaint.content, 60) }}</div>
-                  <div class="complaint-type">
-                    <span class="type-badge">{{ getComplaintTypeLabel(complaint.complaint_type) }}</span>
+                  <small class="cell-sub">{{ getComplaintTypeLabel(complaint.complaint_type) }}</small>
+                </td>
+                <td>
+                  <div v-if="complaint.venue_cluster" class="cluster-name">
+                    <strong>{{ complaint.venue_cluster.name }}</strong>
                   </div>
-                </div>
-              </td>
-              <td>
-                <div class="info-cell">
-                  <div v-if="complaint.venue_cluster" class="post-court">
-                    <AppIcon name="building" size="14" class="muted-icon" />
-                    <span>{{ complaint.venue_cluster.name }}</span>
+                  <small v-if="complaint.booking" class="booking-code">
+                    Booking: {{ complaint.booking.booking_code }}
+                  </small>
+                </td>
+                <td class="cell-status">
+                  <span class="status-pill" :class="getStatusClass(complaint.status)">
+                    {{ getStatusLabel(complaint.status) }}
+                  </span>
+                </td>
+                <td>
+                  <small class="cell-sub">{{ formatDate(complaint.created_at) }}</small>
+                </td>
+                <td class="action-col">
+                  <div class="table-actions">
+                    <router-link
+                      :to="{ name: 'owner-complaint-detail', params: { id: complaint.id } }"
+                      class="action-btn view-btn"
+                    >
+                      Chi tiết
+                    </router-link>
                   </div>
-                  <div v-if="complaint.booking" class="booking-link-cell mt-1">
-                    <span class="booking-code">Booking: {{ complaint.booking.booking_code }}</span>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="status-badge" :class="getStatusClass(complaint.status)">
-                  {{ getStatusLabel(complaint.status) }}
-                </span>
-              </td>
-              <td>
-                <span class="date-cell">{{ formatDate(complaint.created_at) }}</span>
-              </td>
-              <td class="center">
-                <div class="actions-cell">
-                  <router-link
-                    :to="{ name: 'owner-complaint-detail', params: { id: complaint.id } }"
-                    class="btn ghost btn-sm"
-                  >
-                    <span>Xem chi tiết</span>
-                  </router-link>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <!-- Pagination -->
-      <div class="pagination" v-if="totalPages > 1">
-        <button
-          class="btn ghost icon-only"
-          :disabled="currentPage === 1"
-          @click="loadComplaints(currentPage - 1)"
-        >
-          <AppIcon name="chevronLeft" size="16" />
-        </button>
-        <span class="page-info">Trang {{ currentPage }} / {{ totalPages }}</span>
-        <button
-          class="btn ghost icon-only"
-          :disabled="currentPage === totalPages"
-          @click="loadComplaints(currentPage + 1)"
-        >
-          <AppIcon name="chevronRight" size="16" />
-        </button>
+        <!-- Pagination -->
+        <div class="pagination" v-if="totalPages > 1">
+          <ActionIconButton
+            icon="chevronLeft"
+            label="Trang trước"
+            :disabled="currentPage === 1"
+            @click="loadComplaints(currentPage - 1)"
+          />
+          <span class="page-info">Trang {{ currentPage }} / {{ totalPages }}</span>
+          <ActionIconButton
+            icon="chevronRight"
+            label="Trang sau"
+            :disabled="currentPage === totalPages"
+            @click="loadComplaints(currentPage + 1)"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { api } from '../../services/api.js';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTabs from '../../components/common/AppTabs.vue';
+import ActionIconButton from '../../components/ActionIconButton.vue';
 
 const loading = ref(true);
 const complaints = ref([]);
@@ -145,16 +119,14 @@ const error = ref('');
 const currentPage = ref(1);
 const totalPages = ref(1);
 
-const tabs = [
-  { label: 'Tất cả', value: '', icon: 'list' },
-  { label: 'Chờ xử lý', value: 'open', icon: 'clock' },
-  { label: 'Đang xử lý', value: 'processing', icon: 'loader' },
-  { label: 'Đã giải quyết', value: 'resolved', icon: 'checkCircle' },
-  { label: 'Bị từ chối', value: 'rejected', icon: 'xCircle' },
+const complaintsTabsForAppTabs = [
+  { key: '', value: '', label: 'Tất cả' },
+  { key: 'open', value: 'open', label: 'Chờ xử lý' },
+  { key: 'processing', value: 'processing', label: 'Đang xử lý' },
+  { key: 'resolved', value: 'resolved', label: 'Đã giải quyết' },
+  { key: 'rejected', value: 'rejected', label: 'Bị từ chối' },
 ];
 const activeTab = ref('');
-
-const searchQuery = ref('');
 
 const summary = ref({
   total: 0,
@@ -175,7 +147,6 @@ const loadComplaints = async (page = 1) => {
       page,
       per_page: 15,
       status: activeTab.value,
-      keyword: searchQuery.value,
     };
     
     const validParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== '' && v !== null));
@@ -194,17 +165,9 @@ const loadComplaints = async (page = 1) => {
   }
 };
 
-const changeTab = (tab) => {
-  activeTab.value = tab;
+const changeTab = (val) => {
+  activeTab.value = String(val || '');
   loadComplaints(1);
-};
-
-let searchTimeout = null;
-const onSearchInput = () => {
-  if (searchTimeout) clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    loadComplaints(1);
-  }, 500);
 };
 
 const truncate = (text, length) => {
@@ -236,13 +199,13 @@ const getStatusLabel = (status) => {
 
 const getStatusClass = (status) => {
   const map = {
-    open: 'status-warning',
-    processing: 'status-info',
-    resolved: 'status-success',
-    rejected: 'status-danger',
-    closed: 'status-muted',
+    open: 'open',
+    processing: 'processing',
+    resolved: 'resolved',
+    rejected: 'rejected',
+    closed: 'closed',
   };
-  return map[status] || 'status-muted';
+  return map[status] || 'closed';
 };
 
 const getComplaintTypeLabel = (type) => {
@@ -255,287 +218,240 @@ const getComplaintTypeLabel = (type) => {
 </script>
 
 <style scoped>
-.complaints-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.notice {
-  padding: 12px 16px;
-  border-radius: var(--admin-radius-md);
-  font-size: 14px;
-  font-weight: 500;
-}
-.notice.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-}
-.notice.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
-.filter-toolbar {
-  display: flex;
-  flex-direction: column;
-}
-
-.tabs-header {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-}
-
-.filters-row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--admin-surface-muted);
-  border-top: 1px solid var(--admin-border);
-}
-
-.field.compact {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--admin-faint);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.search-field {
-  position: relative;
-  width: 320px;
-  max-width: 100%;
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-border);
-  border-radius: 8px;
-  padding: 0 12px;
-  height: 36px;
-  gap: 8px;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.search-field:focus-within {
-  border-color: var(--admin-blue);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring);
-}
-.search-field input {
-  flex: 1;
-  border: none;
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
   background: transparent;
-  outline: none;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--admin-text);
-  padding: 0;
-  height: 100%;
-  text-transform: none;
-}
-
-.state-box {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  color: var(--admin-muted);
   gap: 16px;
 }
 
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--admin-border);
-  border-top-color: var(--admin-primary);
+/* Single unified main surface */
+.complaints-header-hero {
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
+  display: flex;
+  align-items: center;
+}
+
+.profile-section-card.complaints-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-top: 0 !important;
+}
+
+.hero-integrated-tabs {
+  flex: 1;
+}
+
+.alert {
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.alert.success {
+  background: var(--admin-success-soft, rgba(16, 185, 129, 0.08));
+  color: var(--admin-primary, #22a653);
+}
+
+.alert.error {
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.08));
+  color: var(--admin-danger, #ef4444);
+}
+
+/* Services Table Section (matching ServicesTable.vue) */
+.services-table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* States */
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 8px;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.6s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.table-container {
-  overflow: hidden;
-}
-
-.table-scroll {
+/* Services Table Wrapper & Data Table */
+.services-table-wrapper {
   overflow-x: auto;
+  border: none;
+  border-radius: 10px;
 }
 
-table {
+.services-data-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 13px;
   text-align: left;
-  min-width: 1000px;
 }
 
-th {
-  background: var(--admin-surface-muted);
-  padding: 12px 16px;
+.services-data-table th {
+  background: var(--admin-bg-soft, #f7fbf5);
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--admin-faint);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border-bottom: 1px solid var(--admin-border);
-  white-space: nowrap;
+  padding: 12px 14px;
+  border-bottom: none;
 }
 
-td {
-  padding: 16px;
-  border-bottom: 1px solid var(--admin-border);
-  vertical-align: top;
+.services-data-table td {
+  padding: 12px 14px;
+  border-bottom: none;
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  vertical-align: middle;
 }
 
-th.right, td.right {
-  text-align: right;
+.services-data-table tbody tr {
+  transition: background-color 0.12s ease;
 }
 
-th.center, td.center {
-  text-align: center;
+.services-data-table tbody tr:hover {
+  background: var(--admin-hover, #edf7ed);
 }
 
-.complaint-row.never-hover-class-placeholder {
-  background: var(--admin-surface-muted);
+.customer-name {
+  font-weight: 400;
+  color: var(--admin-text, #101c15);
 }
 
-.author-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.author-cell strong {
-  color: var(--admin-text);
-  font-size: 14px;
-}
-.muted {
-  color: var(--admin-muted);
-}
-.small {
+.cell-sub {
+  display: block;
+  margin-top: 3px;
+  color: var(--admin-muted, #64748b);
   font-size: 12px;
-}
-
-.info-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .post-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--admin-text, #101c15);
   line-height: 1.4;
 }
 
-.type-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  background: var(--admin-surface-hover);
-  color: var(--admin-text);
-}
-
-.post-court {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--admin-text);
-}
-.muted-icon {
-  color: var(--admin-muted);
+.cluster-name strong {
+  font-weight: 400;
 }
 
 .booking-code {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--admin-primary);
-  background: rgba(59, 130, 246, 0.1);
-  padding: 2px 8px;
-  border-radius: 4px;
+  display: inline-block;
+  margin-top: 3px;
+  color: var(--admin-primary, #22a653);
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
+.status-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
 }
-.status-warning {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+
+.status-pill.open {
+  background: var(--admin-warning-soft, rgba(245, 158, 11, 0.1));
+  color: var(--admin-warning, #d97706);
 }
-.status-info {
+
+.status-pill.processing {
   background: rgba(59, 130, 246, 0.1);
   color: #2563eb;
 }
-.status-success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-}
-.status-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-.status-muted {
-  background: var(--admin-surface-muted);
-  color: var(--admin-muted);
+
+.status-pill.resolved {
+  background: var(--admin-success-soft, rgba(16, 185, 129, 0.1));
+  color: var(--admin-primary, #22a653);
 }
 
-.date-cell {
-  font-size: 13px;
-  color: var(--admin-muted);
+.status-pill.rejected {
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1));
+  color: var(--admin-danger, #ef4444);
 }
 
-.actions-cell {
+.status-pill.closed {
+  background: var(--admin-surface-muted, #f1f5f9);
+  color: var(--admin-muted, #64748b);
+}
+
+.action-col {
+  width: 1%;
+  min-width: 90px;
+  text-align: right;
+}
+
+.table-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--admin-border, #cfded1);
+  background: var(--admin-bg-soft, #f7fbf5);
+  color: var(--admin-text, #101c15);
+  font-size: 12px;
+  font-weight: 400;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.action-btn:hover {
+  background: var(--admin-hover, #edf7ed);
 }
 
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  gap: 16px;
-  border-top: 1px solid var(--admin-border);
-}
-.page-info {
-  font-size: 14px;
-  color: var(--admin-muted);
-  font-weight: 500;
-}
-.mt-1 {
-  margin-top: 4px;
+  gap: 12px;
+  padding-top: 12px;
 }
 
-@media (max-width: 768px) {
-  .tabs-header {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 8px; /* Room for scrollbar */
-  }
-  .tab-btn {
-    flex-shrink: 0;
-  }
-  .search-field {
-    width: 100%;
-    max-width: none;
-  }
+.page-info {
+  font-size: 13px;
+  color: var(--admin-muted, #64748b);
 }
 </style>

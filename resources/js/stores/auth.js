@@ -7,6 +7,8 @@ const USER_KEY = 'auth_user';
 const ROLES_KEY = 'auth_roles';
 const ROLE_GROUP_KEY = 'auth_role_group';
 const REDIRECT_KEY = 'auth_redirect_to';
+const PERMISSIONS_KEY = 'auth_permissions';
+const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const PW_SETUP_KEY = 'sportgo_needs_pw_setup';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
@@ -18,6 +20,8 @@ function normalizeAuth(payload, existingToken = null) {
     token: payload.token || existingToken,
     user,
     roles: payload.roles || [],
+    permissions: payload.permissions || [],
+    venue_staff_permissions: payload.venue_staff_permissions || {},
     role_group: roleGroup,
     role: roleGroup,
     redirect_to: payload.redirect_to || '/',
@@ -59,6 +63,8 @@ export function saveAuth(payload) {
   localStorage.setItem(ROLES_KEY, JSON.stringify(authData.roles || []));
   localStorage.setItem(ROLE_GROUP_KEY, authData.role_group || 'user');
   localStorage.setItem(REDIRECT_KEY, authData.redirect_to || '/');
+  localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(authData.permissions || []));
+  localStorage.setItem(VENUE_STAFF_PERMISSIONS_KEY, JSON.stringify(authData.venue_staff_permissions || {}));
   localStorage.removeItem(OLD_AUTH_KEY);
 
   return authData;
@@ -72,6 +78,8 @@ export function clearAuth() {
     ROLES_KEY,
     ROLE_GROUP_KEY,
     REDIRECT_KEY,
+    PERMISSIONS_KEY,
+    VENUE_STAFF_PERMISSIONS_KEY,
     SELECTED_CLUSTER_KEY,
   ].forEach((key) => localStorage.removeItem(key));
 }
@@ -91,6 +99,8 @@ export function getAuth() {
     token,
     user,
     roles,
+    permissions: readJson(PERMISSIONS_KEY, []),
+    venue_staff_permissions: readJson(VENUE_STAFF_PERMISSIONS_KEY, {}),
     role_group: roleGroup,
     redirect_to: localStorage.getItem(REDIRECT_KEY) || '/',
   });

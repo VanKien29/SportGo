@@ -1,5 +1,7 @@
 <template>
-    <section class="finance-operations">
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card finance-main-content">
+            <section class="finance-operations">
         <header class="page-header">
             <div>
                 <h2>Xử lý hoàn tiền và rút tiền</h2>
@@ -117,15 +119,6 @@
                 <AppIcon name="filter" size="16" />
             </button>
             <button
-                class="icon-only"
-                type="button"
-                title="Xóa lọc"
-                aria-label="Xóa lọc"
-                @click="resetFilters"
-            >
-                <AppIcon name="x" size="16" />
-            </button>
-            <button
                 v-if="tab === 'withdrawals' && withdrawalScope === 'owner'"
                 class="export-btn"
                 type="button"
@@ -161,7 +154,7 @@
                         <th>Owner xác nhận</th>
                         <th>Số tiền</th>
                         <th>Trạng thái</th>
-                        <th></th>
+                        <th style="text-align: right;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -458,16 +451,14 @@
                                     >{{ refundStatusLabel(refund) }}</span
                                 >
                             </td>
-                            <td class="row-actions">
-                                <button
-                                    class="icon-only"
-                                    type="button"
-                                    title="Xem chi tiết"
-                                    aria-label="Xem chi tiết"
-                                    @click="openRefundDetail(refund)"
-                                >
-                                    <AppIcon name="eye" size="16" />
-                                </button>
+                            <td style="text-align: right;">
+                                <TableActionGroup>
+                                    <ActionIconButton
+                                        icon="eye"
+                                        label="Xem chi tiết"
+                                        @click="openRefundDetail(refund)"
+                                    />
+                                </TableActionGroup>
                             </td>
                         </tr>
                     </template>
@@ -509,7 +500,7 @@
                         <th>Tài khoản nhận tiền</th>
                         <th>Số tiền yêu cầu</th>
                         <th>Trạng thái</th>
-                        <th></th>
+                        <th style="text-align: right;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -593,8 +584,8 @@
                                     formatDate(withdrawal.requested_at)
                                 }}</span>
                             </td>
-                            <td>
-                                <div class="row-actions">
+                            <td style="text-align: right;">
+                                <TableActionGroup>
                                     <button
                                         v-if="canOpenPayout(withdrawal)"
                                         class="pay-command"
@@ -606,23 +597,16 @@
                                         "
                                         @click="openPayout(withdrawal)"
                                     >
-                                        <AppIcon
-                                            name="banknote"
-                                            size="16"
-                                        />Thanh toán
+                                        <AppIcon name="banknote" size="16" />Thanh
+                                        toán
                                     </button>
-                                    <button
-                                        v-if="
-                                            withdrawal.allowed_statuses.length
-                                        "
-                                        class="icon-only"
-                                        type="button"
-                                        title="Từ chối yêu cầu"
+                                    <ActionIconButton
+                                        v-if="withdrawal.allowed_statuses.length"
+                                        icon="settings"
+                                        label="Từ chối / Xử lý yêu cầu"
                                         @click="openAction(withdrawal)"
-                                    >
-                                        <AppIcon name="settings" size="17" />
-                                    </button>
-                                </div>
+                                    />
+                                </TableActionGroup>
                             </td>
                         </tr>
                     </template>
@@ -1023,16 +1007,20 @@
                 </template>
             </section>
         </div>
-    </section>
+            </section>
+        </div>
+    </div>
 </template>
 
 <script>
+import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import TableActionGroup from "../../components/TableActionGroup.vue";
 import { adminFinanceOperationsService } from "../../services/adminFinanceOperations.js";
 
 export default {
     name: "AdminFinanceOperations",
-    components: { AppIcon },
+    components: { ActionIconButton, AppIcon, TableActionGroup },
     data() {
         return {
             tab: "refunds",
@@ -1880,7 +1868,7 @@ export default {
     background: transparent;
     padding: 10px 18px;
     color: var(--admin-muted);
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .tabs button.active {
@@ -1903,7 +1891,7 @@ export default {
     border-radius: 6px;
     background: transparent;
     color: var(--admin-muted);
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .scope-tabs button.active {
@@ -1920,14 +1908,14 @@ export default {
     margin-top: 4px;
     color: var(--admin-success-text);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .inline-warning {
     display: block;
     margin-top: 4px;
     color: var(--admin-warning);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .walk-in-note {
     display: inline-flex;
@@ -1938,7 +1926,7 @@ export default {
     background: var(--admin-success-soft);
     color: var(--admin-success-text);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .toolbar {
     flex-wrap: wrap;
@@ -1998,7 +1986,7 @@ export default {
     justify-content: center;
     gap: 7px;
     border-radius: 7px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
 }
 .primary-btn {
@@ -2073,16 +2061,18 @@ table {
 }
 th,
 td {
-    padding: 12px;
-    border-bottom: 1px solid var(--admin-border);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
     font-size: 13px;
 }
 th {
-    background: var(--admin-surface-muted);
-    color: var(--admin-text);
-    font-weight: 800;
+    background: var(--admin-surface-muted, #f8fafc);
+    color: var(--admin-muted, #64748b);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
 }
 .empty {
     padding: 28px;
@@ -2096,7 +2086,7 @@ th {
     background: var(--admin-border);
     color: var(--admin-text);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
 }
 .status-pill.pending,
@@ -2140,7 +2130,7 @@ th {
     padding: 3px 8px;
     border-radius: 6px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
 }
 .policy-badge.compliant {
@@ -2202,7 +2192,7 @@ th {
 }
 .policy-detail-grid strong {
     color: var(--admin-text);
-    font-weight: 700;
+    font-weight: 400;
 }
 .policy-violation {
     display: flex;
@@ -2213,7 +2203,7 @@ th {
     border-radius: 5px;
     background: var(--admin-danger-soft);
     color: var(--admin-danger-text);
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
 }
 
@@ -2222,7 +2212,7 @@ th {
     padding: 0;
     background: transparent;
     color: var(--admin-success-text);
-    font-weight: 800;
+    font-weight: 400;
     text-decoration: underline;
     cursor: pointer;
 }
@@ -2239,7 +2229,7 @@ th {
     background: var(--admin-surface-muted);
     color: var(--admin-muted);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .pagination {
     justify-content: flex-end;
@@ -2292,7 +2282,7 @@ th {
     gap: 6px;
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .action-modal footer {
     justify-content: flex-end;
@@ -2301,7 +2291,7 @@ th {
 .eyebrow {
     color: var(--admin-muted);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
 }
 .receipt-facts {
@@ -2398,13 +2388,13 @@ th {
 .collect-summary dt {
     color: var(--admin-muted);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .collect-summary dd {
     margin: 0;
     color: var(--admin-text);
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 .collect-summary .highlight dd {
     color: var(--admin-success-text);
@@ -2426,7 +2416,7 @@ th {
     background: var(--admin-surface);
     color: var(--admin-muted);
     font: inherit;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .method-row button.active {
@@ -2483,7 +2473,7 @@ th {
     gap: 6px;
     color: var(--admin-text);
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .bank-transfer-review input,
 .payout-note-field textarea {
@@ -2528,7 +2518,7 @@ th {
     background: var(--admin-blue-soft);
     color: var(--admin-blue);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .spinner {
     width: 16px;
@@ -2549,7 +2539,7 @@ th {
 .inline-error {
     margin: 0;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .inline-success {
     color: var(--admin-success-text);
@@ -2595,5 +2585,21 @@ pre {
     .export-btn {
         margin-left: 0;
     }
+}
+
+.profile-section-card.finance-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.table-wrap {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 </style>

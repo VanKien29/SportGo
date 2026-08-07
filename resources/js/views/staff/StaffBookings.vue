@@ -1,61 +1,14 @@
 <template>
   <div class="bookings-page">
-    <!-- Floating Add Button -->
-    <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
-      <router-link class="btn-float-add" to="/staff/counter-booking" title="Tạo booking tại quầy">
-        <AppIcon name="plus" size="20" />
-        <span class="btn-float-text">Tạo booking</span>
-      </router-link>
-    </div>
 
     <div class="top-strip">
-      <!-- Left: Calendar -->
+      <!-- Calendar -->
       <div class="top-calendar">
         <MiniCalendar
           mode="single"
           :model-value="filters.booking_date"
           @update:model-value="val => { filters.booking_date = val; loadBookings(); }"
         />
-      </div>
-
-      <!-- Right: Filters + Metrics -->
-      <div class="top-right">
-        <section class="filters">
-          <label>
-            <span>Cụm sân</span>
-            <select v-model="filters.venue_cluster_id" @change="onClusterChange">
-              <option value="">Tất cả</option>
-              <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">{{ cluster.name }}</option>
-            </select>
-          </label>
-          <label>
-            <span>Sân con</span>
-            <select v-model="filters.venue_court_id" @change="loadBookings">
-              <option value="">Tất cả</option>
-              <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
-            </select>
-          </label>
-          <label>
-            <span>Trạng thái</span>
-            <select v-model="filters.status" @change="loadBookings">
-              <option value="">Tất cả</option>
-              <option value="pending_approval">Chờ duyệt</option>
-              <option value="pending_payment">Chờ thanh toán</option>
-              <option value="confirmed">Đã xác nhận</option>
-              <option value="checked_in">Đã check-in</option>
-              <option value="completed">Hoàn thành</option>
-              <option value="cancelled">Đã hủy</option>
-              <option value="rejected">Từ chối</option>
-            </select>
-          </label>
-        </section>
-
-        <div class="metric-row">
-          <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
-            <span>{{ metric.label }}</span>
-            <strong>{{ metric.value }}</strong>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -70,10 +23,10 @@
           <p>{{ scheduleSubtitle }}</p>
         </div>
         <div class="legend">
-          <span><i class="status-confirmed"></i>Đã xác nhận</span>
-          <span><i class="status-pending"></i>Chờ xử lý</span>
-          <span><i class="status-playing"></i>Đang chơi</span>
-          <span><i class="status-lock"></i>Khóa sân</span>
+          <span class="legend-item confirmed">● Đã xác nhận</span>
+          <span class="legend-item pending">● Chờ xử lý</span>
+          <span class="legend-item playing">● Đang chơi</span>
+          <span class="legend-item lock">● Khóa sân</span>
         </div>
       </div>
 
@@ -92,117 +45,199 @@
 
       <div v-if="loading || scheduleLoading" class="state-card">Đang tải lịch sân...</div>
       <div v-else-if="scheduleError" class="state-card error-state">{{ scheduleError }}</div>
-      <div v-else-if="!timelineRows.length" class="state-card">Chưa có sân phù hợp với bộ lọc hiện tại.</div>
-      <div v-else class="timeline-layout">
-        <div class="timeline-board">
-          <div class="timeline-scroller">
-            <div class="timeline-axis" :style="{ minWidth: timelineMinWidth }">
-              <div class="axis-court">Sân / giờ</div>
-              <div class="axis-track">
-                <span
-                  v-for="tick in timelineTicks"
-                  :key="tick.value"
-                  class="axis-tick"
-                  :style="{ left: `${tick.left}%` }"
+      <div v-else-if="!visibleCourts.length" class="state-card">Chưa có sân phù hợp với bộ lọc hiện tại.</div>
+      <div v-else class="vertical-matrix-container">
+        <div class="vertical-matrix-scroller">
+          <table class="vertical-matrix-table">
+            <thead>
+              <tr>
+                <th class="sticky-time-header">Khung giờ</th>
+                <th
+                  v-for="court in visibleCourts"
+                  :key="court.id"
+                  class="sticky-court-header"
                 >
-                  {{ tick.label }}
-                </span>
-              </div>
-            </div>
-
-            <article
-              v-for="row in timelineRows"
-              :key="row.court.id"
-              class="timeline-row"
-              :style="{ minWidth: timelineMinWidth }"
-            >
-              <div class="court-meta">
-                <strong>{{ row.court.name }}</strong>
-                <span>{{ courtOptionLabel(row.court) }}</span>
-              </div>
-              <div class="timeline-track">
-                <span
-                  v-for="tick in timelineTicks"
-                  :key="`${row.court.id}-${tick.value}`"
-                  class="track-gridline"
-                  :style="{ left: `${tick.left}%` }"
-                ></span>
-                <span v-if="!row.blocks.length" class="empty-track">Trống trong khoảng này</span>
-                <button
-                  v-for="block in row.blocks"
-                  :key="block.key"
-                  type="button"
-                  class="timeline-block"
-                  :class="[block.kindClass, { active: selectedTimelineItem?.key === block.key, compact: block.compact }]"
-                  :style="block.style"
-                  :title="block.titleText"
-                  @click="selectTimelineItem(block)"
+                  <strong class="court-name-head">{{ court.name }}</strong>
+                  <span class="court-sub-head">{{ courtOptionLabel(court) }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="slot in verticalHourlySlots"
+                :key="slot.start"
+                class="matrix-row"
+              >
+                <td class="sticky-time-cell">
+                  <strong>{{ slot.label }}</strong>
+                </td>
+                <td
+                  v-for="court in visibleCourts"
+                  :key="`${court.id}-${slot.start}`"
+                  class="matrix-slot-cell"
+                  @click="onCellClick(court, slot)"
                 >
-                  <span class="block-time">{{ block.timeLabel }}</span>
-                  <strong>{{ block.title }}</strong>
-                  <small>{{ block.subtitle }}</small>
-                </button>
-              </div>
-            </article>
-          </div>
+                  <div
+                    v-if="getBlockForCourtAndSlot(court.id, slot)"
+                    class="matrix-booking-block"
+                    :class="[getBlockForCourtAndSlot(court.id, slot).kindClass, { active: selectedTimelineItem?.key === getBlockForCourtAndSlot(court.id, slot).key }]"
+                    @click.stop="selectTimelineItem(getBlockForCourtAndSlot(court.id, slot))"
+                  >
+                    <div class="block-info">
+                      <strong class="block-title">{{ getBlockForCourtAndSlot(court.id, slot).title }}</strong>
+                      <span class="block-range">{{ getBlockForCourtAndSlot(court.id, slot).timeLabel }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="matrix-empty-cell">
+                    <span class="empty-hint">+ Đặt sân</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
 
-    <!-- Slide-in Drawer (replaces fixed inspector) -->
+    <!-- Slide-in Drawer: view booking hoặc tạo booking mới tại quầy -->
     <Teleport to="body">
       <div
-        v-if="selectedTimelineItem"
+        v-if="drawerMode"
         class="drawer-backdrop"
-        @click.self="selectedTimelineItem = null"
+        @click.self="closeDrawer"
       >
         <aside class="drawer-panel">
           <div class="drawer-header">
             <div>
-              <p class="drawer-eyebrow">{{ selectedTimelineItem.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH' }}</p>
-              <h3 class="drawer-title">{{ selectedTimelineItem.title }}</h3>
-              <p class="drawer-subtitle">{{ selectedTimelineItem.timeLabel }} · {{ selectedTimelineItem.courtName }}</p>
+              <p class="drawer-eyebrow">{{ drawerMode === 'create' ? 'ĐẶT SÂN TẠI QUẦY' : (selectedTimelineItem?.type === 'booking' ? 'BOOKING' : 'KHÓA LỊCH') }}</p>
+              <h3 class="drawer-title">{{ drawerMode === 'create' ? createSlot?.court?.name : selectedTimelineItem?.title }}</h3>
+              <p class="drawer-subtitle">{{ drawerMode === 'create' ? (formatDate(filters.booking_date) + ' · ' + createSlot?.slot?.label) : (selectedTimelineItem?.timeLabel + ' · ' + selectedTimelineItem?.courtName) }}</p>
             </div>
-            <button type="button" class="drawer-close" @click="selectedTimelineItem = null">
-              <AppIcon name="x" size="18" />
-            </button>
+            <button type="button" class="drawer-close" @click="closeDrawer">Đóng</button>
           </div>
 
-          <div v-if="selectedTimelineBooking" class="drawer-chips">
-            <span class="status-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
-            <span class="payment-chip" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
-          </div>
-
-          <dl class="drawer-list">
-            <div v-for="row in selectedTimelineRows" :key="row.label">
-              <dt>{{ row.label }}</dt>
-              <dd>{{ row.value }}</dd>
+          <!-- CHẾ ĐỘ VIEW: xem chi tiết booking / khóa lịch -->
+          <template v-if="drawerMode === 'view'">
+            <div v-if="selectedTimelineBooking" class="drawer-chips">
+              <span class="status-chip" :class="selectedTimelineBooking.status">{{ statusLabel(selectedTimelineBooking.status) }}</span>
+              <span class="payment-chip" :class="paymentState(selectedTimelineBooking)">{{ paymentStateLabel(selectedTimelineBooking) }}</span>
             </div>
-          </dl>
 
-          <div v-if="selectedTimelineBooking" class="drawer-actions">
-            <ActionIconButton
-              v-if="primaryAction(selectedTimelineBooking)"
-              :icon="primaryAction(selectedTimelineBooking).icon"
-              :label="primaryAction(selectedTimelineBooking).label"
-              :variant="primaryAction(selectedTimelineBooking).variant"
-              @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
-            />
-            <button
-              v-for="action in secondaryActions(selectedTimelineBooking)"
-              :key="action.key"
-              type="button"
-              class="drawer-action"
-              :class="{ danger: action.variant === 'danger' }"
-              @click="runBookingAction(selectedTimelineBooking, action.key)"
-            >
-              <AppIcon :name="action.icon" size="16" />
-              <span>{{ action.label }}</span>
-            </button>
-          </div>
+            <dl class="drawer-list">
+              <div v-for="row in selectedTimelineRows" :key="row.label">
+                <dt>{{ row.label }}</dt>
+                <dd>{{ row.value }}</dd>
+              </div>
+            </dl>
+
+            <div v-if="selectedTimelineBooking" class="drawer-actions">
+              <button
+                v-if="primaryAction(selectedTimelineBooking)"
+                type="button"
+                class="primary-link"
+                @click="runBookingAction(selectedTimelineBooking, primaryAction(selectedTimelineBooking).key)"
+              >
+                {{ primaryAction(selectedTimelineBooking).label }}
+              </button>
+              <button
+                v-for="action in secondaryActions(selectedTimelineBooking)"
+                :key="action.key"
+                type="button"
+                class="drawer-action"
+                :class="{ danger: action.variant === 'danger' }"
+                @click="runBookingAction(selectedTimelineBooking, action.key)"
+              >
+                <span>{{ action.label }}</span>
+              </button>
+            </div>
+          </template>
+
+          <!-- CHẾ ĐỘ CREATE: tạo booking mới tại quầy -->
+          <template v-else-if="drawerMode === 'create'">
+            <dl class="drawer-list">
+              <div>
+                <dt>Sân</dt>
+                <dd>{{ createSlot?.court?.name }} · {{ createSlot?.court?.court_type?.name || '-' }}</dd>
+              </div>
+              <div>
+                <dt>Ngày</dt>
+                <dd>{{ formatDate(filters.booking_date) }}</dd>
+              </div>
+              <div>
+                <dt>Khung giờ</dt>
+                <dd>{{ createSlot?.slot?.label }}</dd>
+              </div>
+            </dl>
+
+            <div class="drawer-create-form">
+              <label class="drawer-field">
+                <span>Tên khách</span>
+                <input
+                  v-model.trim="counterForm.walk_in_name"
+                  type="text"
+                  autocomplete="name"
+                  placeholder="Nhập tên khách"
+                  maxlength="100"
+                />
+              </label>
+              <label class="drawer-field">
+                <span>Số điện thoại</span>
+                <input
+                  v-model.trim="counterForm.walk_in_phone"
+                  type="tel"
+                  autocomplete="tel"
+                  inputmode="tel"
+                  placeholder="Nhập số điện thoại"
+                  maxlength="15"
+                />
+              </label>
+
+              <div class="drawer-field">
+                <span>Thu tiền</span>
+                <div class="method-row three-col">
+                  <button type="button" :class="{ active: counterForm.collection_mode === 'cash' }" @click="counterForm.collection_mode = 'cash'">
+                    <span>Tiền mặt</span>
+                  </button>
+                  <button type="button" :class="{ active: counterForm.collection_mode === 'transfer' }" @click="counterForm.collection_mode = 'transfer'">
+                    <span>Chuyển khoản</span>
+                  </button>
+                  <button type="button" :class="{ active: counterForm.collection_mode === 'later' }" @click="counterForm.collection_mode = 'later'">
+                    <span>Thu sau</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- QR chuyển khoản sau khi tạo -->
+              <div v-if="counterQr" class="collect-qr">
+                <img :src="counterQr.qr_url" alt="Mã chuyển khoản" />
+                <div>
+                  <span>Nội dung chuyển khoản</span>
+                  <button type="button" @click="copyText(counterQr.transfer_content)">{{ counterQr.transfer_content }}</button>
+                </div>
+                <div>
+                  <span>Số tiền</span>
+                  <strong>{{ formatCurrency(counterQr.payment?.amount) }}</strong>
+                </div>
+                <small>Hệ thống sẽ tự cập nhật khi ngân hàng xác nhận.</small>
+              </div>
+            </div>
+
+            <div class="drawer-actions">
+              <button
+                type="button"
+                class="primary-link"
+                :disabled="!counterFormValid || counterSubmitting"
+                @click="submitCounterBooking"
+              >
+                {{ counterSubmitting ? 'Đang tạo...' : 'Tạo booking' }}
+              </button>
+            </div>
+          </template>
+
         </aside>
       </div>
     </Teleport>
+
 
     <Teleport to="body">
       <button
@@ -226,7 +261,6 @@
           role="menuitem"
           @click="runBookingAction(actionMenu.booking, action.key)"
         >
-          <AppIcon :name="action.icon" size="17" />
           <span>{{ action.label }}</span>
         </button>
       </div>
@@ -236,7 +270,7 @@
       <form class="modal-panel" @submit.prevent="saveChangeCourt">
         <header>
           <h2>Đổi sân thực tế</h2>
-          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeChangeCourt" />
+          <button type="button" class="ghost-btn" @click="closeChangeCourt">Đóng</button>
         </header>
         <label>
           <span>Sân mới</span>
@@ -262,7 +296,7 @@
             <h2>Thu tiền booking</h2>
             <p>{{ collectBooking.booking_code }} · {{ customerName(collectBooking) }}</p>
           </div>
-          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeCollectPayment" />
+          <button type="button" class="ghost-btn" @click="closeCollectPayment">Đóng</button>
         </header>
 
         <dl class="collect-summary">
@@ -293,11 +327,9 @@
 
         <div class="method-row">
           <button type="button" :class="{ active: collectForm.payment_method === 'cash' }" @click="collectForm.payment_method = 'cash'">
-            <AppIcon name="banknote" size="16" />
             <span>Tiền mặt</span>
           </button>
           <button type="button" :class="{ active: collectForm.payment_method === 'sepay' }" @click="collectForm.payment_method = 'sepay'">
-            <AppIcon name="creditCard" size="16" />
             <span>Chuyển khoản</span>
           </button>
         </div>
@@ -331,7 +363,7 @@
             <h2>{{ statusActionTitle() }}</h2>
             <p>{{ statusActionBooking.booking_code }} · {{ customerName(statusActionBooking) }}</p>
           </div>
-          <ActionIconButton icon="x" label="Đóng" variant="ghost" @click="closeStatusAction" />
+          <button type="button" class="ghost-btn" @click="closeStatusAction">Đóng</button>
         </header>
         <p class="status-action-warning">
           {{ statusAction === 'reject'
@@ -419,15 +451,69 @@ export default {
       statusActionReason: '',
       updatingStatus: false,
       showScrollTop: false,
+      // Counter booking drawer
+      drawerMode: null,  // null | 'view' | 'create'
+      createSlot: null,  // { court, slot }
+      counterForm: {
+        walk_in_name: '',
+        walk_in_phone: '',
+        collection_mode: 'cash',  // 'cash' | 'transfer' | 'later'
+      },
+      counterSubmitting: false,
+      counterQr: null,
       timePeriods: [
-        { key: 'business', label: 'Cả ngày', start: 360, end: 1320, range: '06:00 - 22:00' },
-        { key: 'morning', label: 'Sáng', start: 360, end: 720, range: '06:00 - 12:00' },
-        { key: 'afternoon', label: 'Chiều', start: 720, end: 1080, range: '12:00 - 18:00' },
-        { key: 'evening', label: 'Tối', start: 1080, end: 1320, range: '18:00 - 22:00' },
+        { key: 'full24h', label: 'Tất cả 24h', start: 0, end: 1440, range: '00:00 - 24:00' },
+        { key: 'business', label: 'Giờ mở cửa', start: 360, end: 1380, range: '06:00 - 23:00' },
+        { key: 'morning', label: 'Ca sáng', start: 360, end: 720, range: '06:00 - 12:00' },
+        { key: 'afternoon', label: 'Ca chiều', start: 720, end: 1080, range: '12:00 - 18:00' },
+        { key: 'evening', label: 'Ca tối', start: 1080, end: 1320, range: '18:00 - 22:00' },
+        { key: 'night', label: 'Ca đêm', start: 1320, end: 360, range: '22:00 - 06:00' },
       ],
     };
   },
   computed: {
+    visibleCourts() {
+      return this.scheduleCourts.filter((court) => {
+        if (!this.filters.venue_court_id) return true;
+        return String(court.id) === String(this.filters.venue_court_id);
+      });
+    },
+    verticalHourlySlots() {
+      const slots = [];
+      const step = 60;
+      const period = this.activePeriod;
+
+      if (period.start < period.end) {
+        for (let minutes = period.start; minutes < period.end; minutes += step) {
+          slots.push({
+            start: minutes,
+            end: minutes + step,
+            label: `${this.minutesToTime(minutes)} - ${this.minutesToTime(minutes + step)}`,
+            timeLabel: `${this.minutesToTime(minutes)} - ${this.minutesToTime(minutes + step)}`,
+          });
+        }
+      } else {
+        // Overnight range: e.g. 22:00 (1320) to 06:00 (360)
+        for (let minutes = period.start; minutes < 1440; minutes += step) {
+          const nextMin = (minutes + step) % 1440;
+          slots.push({
+            start: minutes,
+            end: minutes + step,
+            label: `${this.minutesToTime(minutes)} - ${this.minutesToTime(nextMin)}`,
+            timeLabel: `${this.minutesToTime(minutes)} - ${this.minutesToTime(nextMin)}`,
+          });
+        }
+        for (let minutes = 0; minutes < period.end; minutes += step) {
+          slots.push({
+            start: minutes,
+            end: minutes + step,
+            label: `${this.minutesToTime(minutes)} - ${this.minutesToTime(minutes + step)}`,
+            timeLabel: `${this.minutesToTime(minutes)} - ${this.minutesToTime(minutes + step)}`,
+          });
+        }
+      }
+      return slots;
+    },
     activePeriod() {
       return this.timePeriods.find((period) => period.key === this.activeTimePeriod) || this.timePeriods[0];
     },
@@ -528,6 +614,11 @@ export default {
         { label: 'Nguồn', value: booking.source === 'counter' ? 'Tại quầy' : 'Online' },
       ];
     },
+    counterFormValid() {
+      const name = this.counterForm.walk_in_name.trim();
+      const phone = this.counterForm.walk_in_phone.trim();
+      return name.length >= 2 && phone.length >= 9;
+    },
   },
   watch: {
     activeTimePeriod() {
@@ -570,6 +661,20 @@ export default {
     if (this.holdClockInterval) clearInterval(this.holdClockInterval);
   },
   methods: {
+    getBlockForCourtAndSlot(courtId, slot) {
+      return this.timelineBlocks.find((block) => {
+        if (String(block.courtId) !== String(courtId)) return false;
+        return block.start < slot.end && block.end > slot.start;
+      }) || null;
+    },
+    onCellClick(court, slot) {
+      const block = this.getBlockForCourtAndSlot(court.id, slot);
+      if (block) {
+        this.selectTimelineItem(block);
+        return;
+      }
+      this.openCreateDrawer(court, slot);
+    },
     async loadClusters() {
       const response = await venueClusterService.getClusters();
       this.clusters = response.data || [];
@@ -734,6 +839,62 @@ export default {
     },
     selectTimelineItem(block) {
       this.selectedTimelineItem = block;
+      this.drawerMode = 'view';
+      this.createSlot = null;
+      this.counterQr = null;
+    },
+    openCreateDrawer(court, slot) {
+      this.createSlot = { court, slot };
+      this.counterForm = { walk_in_name: '', walk_in_phone: '', collection_mode: 'cash' };
+      this.counterQr = null;
+      this.selectedTimelineItem = null;
+      this.drawerMode = 'create';
+    },
+    closeDrawer() {
+      this.drawerMode = null;
+      this.selectedTimelineItem = null;
+      this.createSlot = null;
+      this.counterQr = null;
+    },
+    async submitCounterBooking() {
+      if (!this.createSlot || !this.counterFormValid || this.counterSubmitting) return;
+      this.counterSubmitting = true;
+      this.error = '';
+      this.notice = '';
+      this.counterQr = null;
+
+      try {
+        const { court, slot } = this.createSlot;
+        const startTime = this.minutesToTime(slot.start) + ':00';
+        const endMins = slot.end >= 1440 ? 0 : slot.end;
+        const endTime = this.minutesToTime(endMins) + ':00';
+
+        const response = await ownerBookingService.createCounter({
+          venue_court_id: court.id,
+          walk_in_name: this.counterForm.walk_in_name,
+          walk_in_phone: this.counterForm.walk_in_phone,
+          booking_date: this.filters.booking_date,
+          start_time: startTime,
+          end_time: endTime,
+          payment_option: this.counterForm.collection_mode === 'later' ? 'no_prepay' : 'full_payment',
+          is_paid: this.counterForm.collection_mode === 'cash',
+          payment_method: this.counterForm.collection_mode === 'transfer' ? 'sepay' : 'cash',
+        });
+
+        this.notice = response.message || 'Đã tạo booking tại quầy.';
+
+        if (response.payment_qr) {
+          this.counterQr = response.payment_qr;
+        } else {
+          this.closeDrawer();
+        }
+
+        await this.loadBookings();
+      } catch (error) {
+        this.error = error.message || 'Không thể tạo booking tại quầy.';
+      } finally {
+        this.counterSubmitting = false;
+      }
     },
     refreshSelectedTimeline() {
       const blocks = this.timelineBlocks;
@@ -1065,7 +1226,7 @@ export default {
       return this.scheduleCourts.find((court) => String(court.id) === String(courtId))?.name || '-';
     },
     courtOptionLabel(court) {
-      return [court.cluster_name, court.court_type?.name].filter(Boolean).join(' · ') || court.court_type?.name || '-';
+      return court.court_type?.name || '-';
     },
     statusLabel(status) {
       return {

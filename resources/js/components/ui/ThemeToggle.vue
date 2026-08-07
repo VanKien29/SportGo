@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="theme-toggle-container" v-click-outside="closeDropdown">
     <!-- Trigger Button -->
     <button
@@ -39,10 +39,15 @@
 </template>
 
 <script>
-import { applyCustomThemeStyles } from '../../utils/theme.js';
 
 export default {
   name: 'ThemeToggle',
+  props: {
+    storageKey: {
+      type: String,
+      required: true,
+    },
+  },
   directives: {
     'click-outside': {
       beforeMount(el, binding) {
@@ -75,9 +80,8 @@ export default {
     }
   },
   created() {
-    this.activeTheme = localStorage.getItem('admin-theme') || 'system';
+    this.activeTheme = localStorage.getItem(this.storageKey) || 'system';
     this.applyTheme(this.activeTheme);
-    applyCustomThemeStyles();
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     if (this.mediaQuery.addEventListener) {
@@ -104,7 +108,7 @@ export default {
     },
     selectTheme(theme) {
       this.activeTheme = theme;
-      localStorage.setItem('admin-theme', theme);
+      localStorage.setItem(this.storageKey, theme);
       this.applyTheme(theme);
       this.closeDropdown();
       this.$emit('theme-changed', theme);
@@ -117,7 +121,6 @@ export default {
       document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
       document.documentElement.classList.toggle('light', resolvedTheme === 'light');
       document.documentElement.setAttribute('data-theme', resolvedTheme);
-      applyCustomThemeStyles();
     },
     handleSystemThemeChange() {
       if (this.activeTheme === 'system') {
@@ -187,7 +190,7 @@ export default {
   color: var(--admin-muted);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;

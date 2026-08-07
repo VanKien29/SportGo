@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="moderation-config-wrapper">
     <div class="config-head">
       <div>
@@ -315,7 +315,7 @@ input:checked + .slider:before {
 }
 .config-kicker {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #64748b;
@@ -368,7 +368,7 @@ input:checked + .slider:before {
   color: #10b981;
   background: #ecfdf5;
   border-left-color: #10b981;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .moderation-content {
@@ -392,7 +392,7 @@ input:checked + .slider:before {
   margin: 0;
   font-size: 1.1rem;
   color: #1e293b;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .score-grid {
@@ -421,7 +421,7 @@ input:checked + .slider:before {
 }
 .stat-box strong {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: 400;
   color: #0f172a;
 }
 
@@ -447,7 +447,7 @@ input:checked + .slider:before {
 }
 .config-table th {
   background: #f8fafc;
-  font-weight: 600;
+  font-weight: 400;
   color: #475569;
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -539,7 +539,7 @@ input:checked + .slider:before {
 }
 .mod-form-group label {
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 400;
   color: #475569;
   margin-bottom: 8px;
 }
@@ -618,7 +618,7 @@ input:checked + .slider:before {
   color: #475569;
   padding: 8px 12px;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 0.9rem;
   text-align: center;
   border: 1px solid #e2e8f0;
@@ -656,7 +656,7 @@ input:checked + .slider:before {
 .btn {
   padding: 10px 20px;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s;

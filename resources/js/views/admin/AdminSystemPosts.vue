@@ -1,104 +1,100 @@
 <template>
-  <div class="admin-system-posts-page">
-    <div class="page-header">
-      <h2>Quản lý Tin tức hệ thống</h2>
-      <p class="subtitle">Thêm và cập nhật các thông báo, sự kiện, hướng dẫn cho Khách hàng</p>
-    </div>
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card system-posts-main-content">
+      <section class="admin-system-posts-page">
+        <header class="page-header">
+          <div>
+            <h2>Quản lý Tin tức hệ thống</h2>
+            <p class="subtitle">Thêm và cập nhật các thông báo, sự kiện, hướng dẫn cho Khách hàng</p>
+          </div>
+        </header>
 
-    <div class="toolbar card">
-      <div class="filters">
-        <label class="field compact">
-          <span>Tìm kiếm</span>
-          <input
-            v-model="filters.keyword"
-            type="search"
-            placeholder="Tiêu đề bài viết..."
-            @input="onFilterChange"
-          />
-        </label>
-        <label class="field compact">
-          <span>Danh mục</span>
-          <select v-model="filters.category" @change="loadPosts(1)">
-            <option value="">Tất cả danh mục</option>
-            <option value="announcement">Thông báo</option>
-            <option value="guide">Hướng dẫn</option>
-            <option value="news">Tin tức</option>
-            <option value="event">Sự kiện</option>
-          </select>
-        </label>
-        <label class="field compact">
-          <span>Trạng thái</span>
-          <select v-model="filters.status" @change="loadPosts(1)">
-            <option value="">Tất cả trạng thái</option>
-            <option value="published">Đã xuất bản</option>
-            <option value="draft">Bản nháp</option>
-            <option value="hidden">Đã ẩn</option>
-          </select>
-        </label>
-      </div>
-    </div>
+        <SaaSFilterBar
+          v-model="filters.status"
+          v-model:search="filters.keyword"
+          :tabs="statusTabsUi"
+          search-id="search-system-posts"
+          search-placeholder="Tiêu đề bài viết..."
+          @update:search="onFilterChange"
+          @update:modelValue="loadPosts(1)"
+        >
+          <template #actions>
+            <select v-model="filters.category" @change="loadPosts(1)" class="filter-select">
+              <option value="">Tất cả danh mục</option>
+              <option value="announcement">Thông báo</option>
+              <option value="guide">Hướng dẫn</option>
+              <option value="news">Tin tức</option>
+              <option value="event">Sự kiện</option>
+            </select>
+            <button class="btn primary" type="button" @click="openCreateModal" style="background: var(--admin-primary); color: #fff; display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer;">
+              <AppIcon name="plus" size="16" />
+              <span>Viết bài mới</span>
+            </button>
+          </template>
+        </SaaSFilterBar>
 
-    <div v-if="loading" class="state-box card">
+    <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải bài viết...</p>
     </div>
 
-    <div v-else-if="posts.length === 0" class="state-box card">
+    <div v-else-if="posts.length === 0" class="state-box animate-fade-in">
       <p>Chưa có bài viết nào phù hợp.</p>
     </div>
 
     <div v-else class="post-table card">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Bài viết</th>
-              <th>Danh mục</th>
-              <th>Trạng thái</th>
-              <th class="center">Lượt xem</th>
-              <th>Ngày đăng</th>
-              <th class="right">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="post in posts" :key="post.id">
-              <td>
-                <div class="post-cell">
-                  <div class="post-thumb">
-                    <img v-if="post.thumbnail_path" :src="post.thumbnail_path" :alt="post.title" />
-                    <span v-else>Ảnh</span>
-                  </div>
-                  <div class="post-main">
-                    <div class="post-title">{{ post.title }}</div>
-                    <div class="post-desc muted">{{ post.short_description }}</div>
-                  </div>
-                </div>
-              </td>
-              <td>{{ getCategoryName(post.category) }}</td>
-              <td>
-                <span class="status" :class="post.status">
-                  {{ getStatusName(post.status) }}
-                </span>
-              </td>
-              <td class="center">{{ post.view_count || 0 }}</td>
-              <td>
-                <div v-if="post.published_at">{{ formatDate(post.published_at) }}</div>
-                <div v-else class="muted">-</div>
-              </td>
-              <td class="right">
-                <div class="actions">
-                  <button class="icon-btn" type="button" title="Chỉnh sửa" @click="openEditModal(post)">
-                    <AppIcon name="pencil" size="16" />
-                  </button>
-                  <button class="icon-btn danger" type="button" title="Xóa" @click="deletePost(post)">
-                    <AppIcon name="trash" size="16" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SaaSTable
+        :columns="tableColumns"
+        :data="posts"
+      >
+        <template #title="{ row }">
+          <div class="post-cell">
+            <div class="post-thumb">
+              <img v-if="row.thumbnail_path" :src="row.thumbnail_path" :alt="row.title" />
+              <span v-else>Ảnh</span>
+            </div>
+            <div class="post-main">
+              <div class="post-title">{{ row.title }}</div>
+              <div class="post-desc muted">{{ row.short_description }}</div>
+            </div>
+          </div>
+        </template>
+
+        <template #category="{ row }">
+          {{ getCategoryName(row.category) }}
+        </template>
+
+        <template #status="{ row }">
+          <span class="status" :class="row.status">
+            {{ getStatusName(row.status) }}
+          </span>
+        </template>
+
+        <template #views="{ row }">
+          {{ row.view_count || 0 }}
+        </template>
+
+        <template #published_at="{ row }">
+          <div v-if="row.published_at">{{ formatDate(row.published_at) }}</div>
+          <div v-else class="muted">-</div>
+        </template>
+
+        <template #actions="{ row }">
+          <TableActionGroup>
+            <ActionIconButton
+              icon="pencil"
+              label="Chỉnh sửa"
+              @click="openEditModal(row)"
+            />
+            <ActionIconButton
+              icon="trash"
+              label="Xóa"
+              variant="danger"
+              @click="deletePost(row)"
+            />
+          </TableActionGroup>
+        </template>
+      </SaaSTable>
 
       <div v-if="pagination.last_page > 1" class="pagination">
         <button class="icon-btn" type="button" :disabled="pagination.current_page <= 1" @click="loadPosts(pagination.current_page - 1)">
@@ -198,18 +194,24 @@
         <span class="btn-float-text">Thêm bài viết</span>
       </button>
     </div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script>
 import { api } from '../../services/api.js';
+import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import RichTextEditor from '../../components/RichTextEditor.vue';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 export default {
   name: 'AdminSystemPosts',
-  components: { AppIcon, RichTextEditor, CustomSelect },
+  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable, RichTextEditor, CustomSelect },
   data() {
     return {
       posts: [],
@@ -254,6 +256,26 @@ export default {
   },
   created() {
     this.loadPosts();
+  },
+  computed: {
+    statusTabsUi() {
+      return [
+        { value: '', label: 'Tất cả trạng thái' },
+        { value: 'published', label: 'Đã xuất bản' },
+        { value: 'draft', label: 'Bản nháp' },
+        { value: 'hidden', label: 'Đã ẩn' }
+      ];
+    },
+    tableColumns() {
+      return [
+        { key: 'title', label: 'BÀI VIẾT' },
+        { key: 'category', label: 'DANH MỤC' },
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'views', label: 'LƯỢT XEM', align: 'center' },
+        { key: 'published_at', label: 'NGÀY ĐĂNG' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' }
+      ];
+    }
   },
   methods: {
     async loadPosts(page = 1) {
@@ -400,7 +422,7 @@ export default {
 
 <style scoped>
 .admin-system-posts-page {
-  padding: 10px;
+  padding: 0;
 }
 
 .page-header {
@@ -411,7 +433,7 @@ export default {
   margin: 0 0 4px;
   color: var(--admin-text);
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .subtitle,
@@ -449,13 +471,13 @@ export default {
 .field span {
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .field-label-compact {
   color: var(--admin-faint);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -526,7 +548,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -578,7 +600,7 @@ tbody tr.never-hover-class-placeholder {
   overflow: hidden;
   color: var(--admin-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -710,7 +732,7 @@ tbody tr.never-hover-class-placeholder {
   margin: 0;
   color: var(--admin-text);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .modal-title-icon,
@@ -823,7 +845,7 @@ tbody tr.never-hover-class-placeholder {
 
 .upload-label {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .sr-only-input {
@@ -847,7 +869,7 @@ tbody tr.never-hover-class-placeholder {
   padding: 10px 20px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .btn.ghost {
@@ -907,7 +929,7 @@ tbody tr.never-hover-class-placeholder {
   box-shadow: 0 4px 12px var(--admin-primary-ring);
   cursor: pointer;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 14px 20px;
   transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
@@ -938,5 +960,23 @@ tbody tr.never-hover-class-placeholder {
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.system-posts-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.system-posts-main-content :is(.post-table, .toolbar, .card, .state-box, .admin-system-posts-page, .saas-table-container, .table-scroll) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
 }
 </style>

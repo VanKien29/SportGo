@@ -1,5 +1,5 @@
 <template>
-    <div class="detail-container sg-client-page">
+    <div class="detail-container sg-client-page sg3-booking-detail-page">
         <PublicNavbar />
 
         <main v-if="!loading" class="detail-main sg-client-shell">
@@ -29,6 +29,13 @@
                         >
                             <AppIcon name="rotateCcw" aria-hidden="true" />
                             Đặt thêm lịch
+                        </router-link>
+                        <router-link
+                            :to="{ name: 'client-complaint-create', query: { booking_id: booking.id } }"
+                            class="sg-client-button"
+                        >
+                            <AppIcon name="messageSquare" aria-hidden="true" />
+                            Gửi khiếu nại
                         </router-link>
                     </div>
                 </header>
@@ -86,6 +93,17 @@
                                     <dd>{{ bookingTypeLabel }}</dd>
                                 </div>
                             </dl>
+
+                            <div v-if="booking.items?.length" class="booking-items-list">
+                                <h3>Các khung giờ trong booking</h3>
+                                <article v-for="item in booking.items" :key="item.id" class="booking-item-row">
+                                    <div>
+                                        <strong>{{ item.venue_court?.name || "Sân" }}</strong>
+                                        <span>{{ formatTime(item.start_time) }} - {{ formatTime(item.end_time) }}</span>
+                                    </div>
+                                    <span class="badge" :class="item.status">{{ itemStatusLabel(item.status) }}</span>
+                                </article>
+                            </div>
                         </article>
 
                         <article v-if="booking.status_reason" class="status-note sg-client-card">
@@ -130,6 +148,15 @@
                                     <dd>{{ formatCurrency(booking.required_payment_amount) }}</dd>
                                 </div>
                             </dl>
+
+                            <div v-if="booking.payments?.length" class="payment-history-list">
+                                <h3>Lịch sử thanh toán</h3>
+                                <div v-for="payment in booking.payments" :key="payment.id" class="payment-history-row">
+                                    <span>{{ payment.method === "wallet" ? "Ví SportGo" : payment.method === "sepay" ? "Chuyển khoản" : payment.method }}</span>
+                                    <strong>{{ formatCurrency(payment.amount) }}</strong>
+                                    <small>{{ paymentStatusLabel(payment.status) }}</small>
+                                </div>
+                            </div>
 
                             <div v-if="booking.status === 'pending_payment'" class="sepay-box">
                                 <button
@@ -219,7 +246,7 @@
                                 type="button"
                                 class="btn-cancel-booking"
                                 :disabled="cancellingBooking"
-                                @click="showCancelBookingModal = true"
+                                @click="openCancelBookingModal"
                             >
                                 <AppIcon name="circleX" aria-hidden="true" />
                                 {{ cancellingBooking ? "Đang hủy booking..." : "Yêu cầu hủy booking" }}
@@ -269,13 +296,13 @@
         <ConfirmActionModal
             :is-open="showCancelBookingModal"
             title="Yêu cầu hủy booking?"
-            description="Booking sẽ được xử lý và hoàn tiền theo chính sách hiện hành. Hệ thống sẽ báo rõ nếu trạng thái hiện tại không cho phép hủy."
+            :description="cancelDescription"
             confirm-text="Xác nhận hủy"
             require-reason
             reason-label="Lý do hủy"
             reason-placeholder="Nêu ngắn gọn lý do để sân và SportGo hỗ trợ đúng chính sách"
             initial-reason="Khách hàng thay đổi kế hoạch"
-            :loading="cancellingBooking"
+            :loading="cancellingBooking || loadingCancelPreview"
             :error="cancelBookingError"
             @close="closeCancelBookingModal"
             @confirm="cancelBooking"
@@ -308,6 +335,8 @@ export default {
             paymentPollInterval: null,
             showCancelPaymentModal: false,
             showCancelBookingModal: false,
+            loadingCancelPreview: false,
+            cancelPreviewData: null,
         };
     },
     computed: {
@@ -388,6 +417,7 @@ export default {
             const map = {
                 full_payment: "Thanh toán hết trực tuyến",
                 deposit: "Đặt cọc giữ chỗ",
+                wallet: "Thanh toán bằng ví SportGo",
                 no_prepay: "Thanh toán trực tiếp tại sân",
             };
             return (
@@ -431,6 +461,18 @@ export default {
             const time = String(this.booking?.start_time || "").slice(0, 5);
             const startsAt = new Date(`${date}T${time}:00`);
             return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
+        },
+        cancelDescription() {
+            if (this.loadingCancelPreview) return "Đang kiểm tra chính sách hủy và số tiền dự kiến hoàn...";
+            const result = this.cancelPreviewData;
+            if (!result) return "Booking sẽ được xử lý theo chính sách hiện hành.";
+            const percent = result.refund_percent ?? result.refund_percentage;
+            const amount = result.refund_amount;
+            const parts = [];
+            if (result.summary) parts.push(result.summary);
+            if (percent !== undefined && percent !== null) parts.push(`Dự kiến hoàn ${percent}% số tiền đã thanh toán.`);
+            if (amount !== undefined && amount !== null) parts.push(`Số tiền dự kiến hoàn: ${this.formatCurrency(amount)}.`);
+            return parts.join(" ") || "Booking sẽ được xử lý theo chính sách hiện hành.";
         },
     },
     async mounted() {
@@ -557,6 +599,20 @@ export default {
             this.showCancelBookingModal = false;
             this.cancelBookingError = "";
         },
+        async openCancelBookingModal() {
+            if (!this.booking || this.loadingCancelPreview || this.cancellingBooking) return;
+            this.cancelBookingError = "";
+            this.cancelPreviewData = null;
+            this.loadingCancelPreview = true;
+            this.showCancelBookingModal = true;
+            try {
+                this.cancelPreviewData = await bookingService.previewCancellation(this.booking.id);
+            } catch (error) {
+                this.cancelBookingError = error.message || "Không thể kiểm tra chính sách hủy booking.";
+            } finally {
+                this.loadingCancelPreview = false;
+            }
+        },
         async cancelBooking(reason) {
             if (!this.booking || this.cancellingBooking) return;
 
@@ -604,8 +660,24 @@ export default {
                 maximumFractionDigits: 0,
             }).format(val || 0);
         },
+        itemStatusLabel(status) {
+            return {
+                active: "Đang giữ",
+                moved: "Đã đổi sân",
+                cancelled: "Đã hủy",
+                interrupted: "Bị gián đoạn",
+            }[status] || status || "Đang xử lý";
+        },
+        paymentStatusLabel(status) {
+            return {
+                pending: "Chờ thanh toán",
+                paid: "Đã thanh toán",
+                failed: "Thất bại",
+                refunded: "Đã hoàn tiền",
+            }[status] || status || "Đang xử lý";
+        },
     },
 };
 </script>
 
-<style scoped src="../../../../css/client-booking-detail.css"></style>
+

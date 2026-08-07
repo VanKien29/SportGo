@@ -1,17 +1,5 @@
 <template>
     <div class="venue-clusters-container">
-
-        <header class="owner-page-header">
-            <div>
-                <p class="eyebrow">Chủ sân</p>
-                <h1>Quản lý cụm sân</h1>
-                <p>Theo dõi vận hành, sân con, yêu cầu thay đổi và hồ sơ đối tác trong một màn hình.</p>
-            </div>
-            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
-                Ho so doi tac
-            </button>
-        </header>
-
         <!-- Loading State -->
         <div v-if="loading" class="loading-state card">
             <div class="spinner"></div>
@@ -31,1790 +19,459 @@
             <p>Bạn chưa sở hữu cụm sân nào trên hệ thống.</p>
         </div>
 
-        <!-- Main Grid -->
+        <!-- Main Workspace -->
         <div v-else class="clusters-workspace">
-            <!-- Cluster Detail with Tabs -->
             <div
                 v-if="selectedCluster"
                 class="cluster-detail"
                 :class="{ 'is-archived': isClusterArchived, 'is-terminating': isTerminationRestricted }"
             >
-                <section class="cluster-hero surface-card">
-                    <div class="cluster-hero-copy">
-                        <div class="cluster-hero-kicker">
-                            <span class="status-pill" :class="clusterStatusClass(selectedCluster)">
-                                {{ clusterStatusLabel(selectedCluster) }}
-                            </span>
-                            <span>{{ clusterCourtCount(selectedCluster) }} sân con</span>
-                        </div>
-                        <h1>{{ selectedCluster.name }}</h1>
-                        <p>{{ formatFullAddress(selectedCluster) }}</p>
-                        <div class="cluster-hero-actions">
-                            <button type="button" class="btn btn-primary" :disabled="isClusterLocked" @click="activeTab = 'courts'">
-                                <AppIcon name="court" size="15" />
-                                <span>Quản lý sân con</span>
-                            </button>
-                            <button type="button" class="btn btn-outline" :disabled="isClusterLocked" @click="activeTab = 'approvals'">
-                                <AppIcon name="plus" size="15" />
-                                <span>Yêu cầu quy mô</span>
-                                <span v-if="pendingApprovalCount > 0" class="inline-count">{{ pendingApprovalCount }}</span>
-                            </button>
-                            <button type="button" class="btn btn-outline" @click="$router.push({ name: 'owner-partner-profile' })">
-                                <AppIcon name="fileText" size="15" />
-                                <span>Hồ sơ đối tác</span>
-                            </button>
-                            <button
-                                v-if="selectedCluster.status !== 'pending'"
-                                type="button"
-                                class="btn btn-outline"
-                                @click="$router.push({ name: 'owner-partner-termination', params: { id: selectedCluster.id } })"
-                            >
-                                <AppIcon :name="isClusterArchived || isTerminationRestricted ? 'fileText' : 'logOut'" size="15" />
-                                <span>{{ isClusterArchived || isTerminationRestricted ? 'Xem hồ sơ chấm dứt' : 'Chấm dứt hợp tác' }}</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="cluster-hero-media" :class="{ empty: !clusterPrimaryImage(selectedCluster) }">
-                        <img
-                            v-if="clusterPrimaryImage(selectedCluster)"
-                            :src="clusterPrimaryImage(selectedCluster)"
-                            :alt="'Ảnh cụm sân ' + selectedCluster.name"
-                        />
-                        <div v-else class="cluster-media-placeholder">
-                            <AppIcon name="building" size="30" />
-                            <span>Chưa có ảnh đại diện</span>
-                        </div>
-                    </div>
-                </section>
+                <!-- Cluster Hero Banner & Quick Stats -->
+                <ClusterHeaderHero
+                    :cluster="selectedCluster"
+                    :clusters="clusters"
+                    :court-count="selectedClusterCourtCount"
+                    :pending-approval-count="pendingApprovalCount"
+                    :pending-location-count="pendingLocationCount"
+                    :pending-unlock-count="pendingUnlockCount"
+                    :is-cluster-archived="isClusterArchived"
+                    :is-cluster-locked="isClusterLocked"
+                    :is-termination-restricted="isTerminationRestricted"
+                    :is-moderation-locked="isModerationLocked"
+                    :tabs="tabs"
+                    :active-tab="activeTab"
+                    :status-class="clusterStatusClass(selectedCluster)"
+                    :status-label="clusterStatusLabel(selectedCluster)"
+                    :full-address="formatFullAddress(selectedCluster)"
+                    :primary-image="clusterPrimaryImage(selectedCluster)"
+                    @tab-change="handleTabChange"
+                    @select-cluster="selectClusterById($event)"
+                />
 
-                <section
-                    v-if="isTerminationRestricted || isClusterArchived"
-                    class="cluster-restriction-banner surface-card"
-                    :class="{ archived: isClusterArchived }"
-                >
-                    <AppIcon :name="isClusterArchived ? 'archive' : 'lock'" size="20" />
-                    <div>
-                        <strong>{{ isClusterArchived ? 'Cụm sân đã chấm dứt hợp tác' : 'Cụm sân đang trong quy trình chấm dứt' }}</strong>
-                        <p v-if="isClusterArchived">Dữ liệu và lịch sử được giữ để tra cứu; các thao tác vận hành đã khóa.</p>
-                        <p v-else>Chỉ xử lý booking, hoàn tiền, số dư và hồ sơ chấm dứt tại các màn được phép.</p>
-                    </div>
-                </section>
-
-                <section class="cluster-quick-grid" aria-label="Tổng quan cụm sân">
-                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'info'">
-                        <span class="quick-stat-label">Thông tin</span>
-                        <strong>{{ selectedCluster.phone_contact || "Chưa có SĐT" }}</strong>
-                        <small>Cấu hình tiện ích, mô tả, album ảnh</small>
-                    </button>
-                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'approvals'">
-                        <span class="quick-stat-label">Quy mô</span>
-                        <strong>{{ pendingApprovalCount }} chờ xử lý</strong>
-                        <small>Thêm, giảm hoặc điều chỉnh sân con</small>
-                    </button>
-                    <button type="button" class="quick-stat surface-card" @click="activeTab = 'location'">
-                        <span class="quick-stat-label">Vị trí</span>
-                        <strong>{{ pendingLocationCount }} chờ duyệt</strong>
-                        <small>Địa chỉ và tọa độ cụm sân</small>
-                    </button>
-                    <button v-if="isModerationLocked" type="button" class="quick-stat surface-card danger" @click="activeTab = 'unlock'">
-                        <span class="quick-stat-label">Mở khóa</span>
-                        <strong>{{ pendingUnlockCount }} yêu cầu</strong>
-                        <small>Gửi giải trình để kích hoạt lại</small>
-                    </button>
-                </section>
-
-                <!-- Tabs -->
-                <nav class="detail-tabs surface-card" aria-label="Khu vực quản lý cụm sân">
-                    <button
-                        v-for="tab in tabs"
-                        :key="tab.key"
-                        class="tab-btn"
-                        :class="{ active: activeTab === tab.key }"
-                        type="button"
-                        :aria-current="activeTab === tab.key ? 'page' : undefined"
-                        @click="activeTab = tab.key"
-                    >
-                        {{ tab.label }}
-                        <span v-if="tabBadgeCount(tab.key) > 0" class="tab-badge">
-                            {{ tabBadgeCount(tab.key) }}
-                        </span>
-                    </button>
-                </nav>
                 <fieldset class="cluster-operation-zone" :disabled="isTerminationRestricted || isClusterArchived">
-                <!-- ═══════════════════════════════════════════════════
-                     TAB 1: THÔNG TIN CHUNG
-                ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'info'" class="cluster-edit card">
+                    <!-- TAB 1: SÂN CON -->
+                    <ClusterCourtsTab
+                        v-if="activeTab === 'courts'"
+                        :courts="courts"
+                        :loading="courtsLoading"
+                        :error="courtsError"
+                        :is-cluster-locked="isClusterLocked"
+                        @edit-court="openEditCourtModal"
+                        @toggle-court-status="handleToggleCourtStatus"
+                        @open-scale-request="activeTab = 'approvals'; openScaleRequestModal('add')"
+                        @open-spatial-editor="showSpatialModal = true"
+                    />
 
-                    <div v-if="isModerationLocked" class="alert alert-danger" style="margin-bottom: 20px;">
-                        Cụm sân này đang bị khóa. Bạn không thể cập nhật cấu hình cho đến khi cụm sân được mở khóa. Vui lòng chuyển sang tab <strong>Yêu cầu mở khóa</strong> để gửi giải trình.
-                    </div>
+                    <!-- TAB 2: HỒ SƠ & CẤU HÌNH CỤM SÂN -->
+                    <ClusterGeneralInfoTab
+                        v-if="activeTab === 'info'"
+                        :cluster="selectedCluster"
+                        :form="form"
+                        :location-form="locationForm"
+                        :province-options="provinceOptions"
+                        :ward-options="wardOptions"
+                        :available-amenities="availableAmenities"
+                        :images-list="imagesList"
+                        :updating="updating"
+                        :update-success="updateSuccess"
+                        :update-error="updateError"
+                        :resolving-map="resolvingMap"
+                        :map-extract-msg="mapExtractMsg"
+                        :requesting-location="requestingLocation"
+                        :location-success="locationSuccess"
+                        :location-error="locationError"
+                        :uploading-image="uploadingImage"
+                        :is-cluster-locked="isClusterLocked"
+                        :has-pending-info-request="hasPendingInfoRequest"
+                        @submit-info="handleUpdate"
+                        @submit-location-request="handleRequestLocation"
+                        @resolve-map-url="resolveMapUrl"
+                        @province-change="onProvinceChange"
+                        @ward-change="onWardChange"
+                        @toggle-amenity="toggleAmenity"
+                        @upload-gallery-image="handleImageUpload"
+                        @delete-image="handleDeleteImage"
+                        @submit-gallery-request="handleGalleryRequest"
+                        @upload-temp-media="handleUploadTempMedia"
+                    />
 
-                    <div class="readonly-detail-container info-overview-panel">
-                        <header class="info-section-header">
-                            <div>
-                                <span class="section-eyebrow">Hồ sơ cụm sân</span>
-                                <h3>Thông tin chi tiết</h3>
-                            </div>
-                            <span class="status-pill" :class="clusterStatusClass(selectedCluster)">
-                                {{ clusterStatusLabel(selectedCluster) }}
-                            </span>
-                        </header>
-
-                        <div class="info-summary-grid">
-                            <div class="info-summary-card">
-                                <span class="info-summary-icon" aria-hidden="true">
-                                    <AppIcon name="building" size="18" />
-                                </span>
-                                <div>
-                                    <span class="info-label">Tên cụm sân</span>
-                                    <strong>{{ selectedCluster.name }}</strong>
-                                </div>
-                            </div>
-                            <div class="info-summary-card">
-                                <span class="info-summary-icon" aria-hidden="true">
-                                    <AppIcon name="messageSquare" size="18" />
-                                </span>
-                                <div>
-                                    <span class="info-label">Số điện thoại liên hệ</span>
-                                    <strong>{{ selectedCluster.phone_contact || "Chưa cập nhật" }}</strong>
-                                </div>
-                            </div>
-                        </div>
-
-                        <section class="location-readonly-box location-overview-card">
-                            <div class="location-readonly-header">
-                                <div>
-                                    <span class="section-eyebrow">Địa chỉ & bản đồ</span>
-                                    <h4 class="location-readonly-title">Vị trí hiện tại</h4>
-                                </div>
-                                <span
-                                    v-if="pendingLocationCount > 0"
-                                    class="pending-location-badge"
-                                >
-                                    Đang chờ duyệt vị trí
-                                </span>
-                            </div>
-                            <div class="location-content-grid map-only">
-                                <div class="location-map-frame">
-                                    <div
-                                        id="cluster-map"
-                                        class="map-container map-readonly"
-                                    ></div>
-                                </div>
-                            </div>
-                        </section>
-                        <!-- Tiện ích cụm sân (Amenities) -->
-                        <div class="amenities-management-section" style="margin-top: 20px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <label class="info-label" style="margin-bottom: 0;">Tiện ích cụm sân (Amenities)</label>
-                                <span class="text-muted" style="font-size: 12px; font-style: italic;">Nhấp chọn để bật/tắt tiện ích. Nhấp vào bút chì để nhập mô tả.</span>
-                            </div>
-                            
-                            <!-- Danh sách tất cả tiện ích hệ thống cung cấp -->
-                            <div class="amenities-selector-grid" v-if="availableAmenities.length > 0" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                                <div
-                                    v-for="item in availableAmenities"
-                                    :key="item"
-                                    class="amenity-select-tag"
-                                    :class="{ active: form.amenities.includes(item) }"
-                                    @click="toggleAmenity(item)"
-                                >
-                                    <span class="amenity-check-icon" v-if="form.amenities.includes(item)">
-                                        <AppIcon name="check" size="12" />
-                                    </span>
-                                    <span class="amenity-name">{{ item }}</span>
-                                    
-                                    <!-- Nút sửa mô tả chỉ hiển thị khi tiện ích được chọn -->
-                                    <button
-                                        v-if="form.amenities.includes(item)"
-                                        type="button"
-                                        class="btn-edit-amenity-desc"
-                                        @click.stop="openAmenityDescModal(item)"
-                                        :title="form.amenity_descriptions[item] ? 'Sửa mô tả (đã có mô tả)' : 'Thêm mô tả'"
-                                        :disabled="isClusterLocked"
-                                    >
-                                        <AppIcon name="pencil" size="12" />
-                                        <span v-if="form.amenity_descriptions[item]" class="has-desc-dot"></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div v-else class="text-muted" style="font-size: 13px; font-style: italic;">Không có tiện ích hệ thống nào khả dụng.</div>
-                            
-                            <!-- Nút Lưu cấu hình tiện ích -->
-                            <div class="amenities-actions" style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
-                                <button
-                                    type="button"
-                                    class="btn btn-primary"
-                                    @click="handleUpdate"
-                                    :disabled="updating || isClusterLocked"
-                                >
-                                    {{ updating ? "Đang lưu..." : "Lưu cấu hình tiện ích" }}
-                                </button>
-                                <span v-if="updateSuccess" class="text-success" style="font-size: 13.5px; font-weight: 600; color: var(--admin-primary, #000000);">Lưu cấu hình tiện ích thành công!</span>
-                                <span v-if="updateError" class="text-danger" style="font-size: 13.5px; font-weight: 600; color: #dc2626;">{{ updateError }}</span>
-                            </div>
-                        </div>
-
-                        <!-- Album ảnh (chỉ đọc) -->
-                        <div class="form-group-readonly" style="margin-top: 20px;">
-                            <label class="info-label">Hình ảnh cụm sân (Album/Gallery)</label>
-                            <div
-                                class="owner-gallery-grid"
-                                v-if="imagesList.length > 0"
-                                style="margin-top: 8px; margin-bottom: 0;"
-                            >
-                                <div
-                                    v-for="img in imagesList"
-                                    :key="img.id"
-                                    class="owner-gallery-item"
-                                >
-                                    <img
-                                        :src="imageUrl(img.file_path)"
-                                        alt="Hình ảnh cụm sân"
-                                        class="owner-gallery-img"
-                                    />
-                                </div>
-                            </div>
-                            <div v-else class="owner-gallery-empty" style="padding: 24px; border-radius: 8px; font-size: 13px; margin-top: 8px; text-align: center;">
-                                Chưa có hình ảnh nào được tải lên cho cụm sân này.
-                            </div>
-                        </div>
-
-                        <!-- Mô tả (chỉ đọc) -->
-                        <div class="form-group-readonly" style="margin-top: 20px;">
-                            <label class="info-label">Mô tả cụm sân</label>
-                            <p class="info-description-text" style="margin-top: 8px;">{{ selectedCluster.description || 'Chưa có mô tả chi tiết.' }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════
-                     TAB 2: SÂN CON
-                ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'courts'" class="courts-tab">
-                    <!-- Tab court header -->
-                    <div class="courts-header card">
-                        <div class="courts-header-left">
-                            <h3>Danh sách sân con ({{ courts.length }})</h3>
-                            <p class="subtitle">
-                                Quản lý các sân thi đấu chi tiết trong cụm sân
-                            </p>
-                        </div>
-                        <div class="courts-header-actions">
-                            <button
-                                class="btn btn-outline"
-                                @click="activeTab = 'approvals'"
-                                :disabled="isClusterLocked"
-                            >
-                                <AppIcon name="plus" size="15" />
-                                <span>Yêu cầu thêm sân mới</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div v-if="courtsLoading" class="loading-state card">
-                        <div class="spinner"></div>
-                        <p>Đang tải danh sách sân con...</p>
-                    </div>
-                    <div v-else-if="courtsError" class="error-state card">
-                        <p class="error-message">{{ courtsError }}</p>
-                    </div>
-                    <div
-                        v-else-if="courts.length === 0"
-                        class="empty-state card"
-                    >
-                        <p>Cụm sân này chưa có sân con nào.</p>
-                        <button
-                            class="btn btn-primary"
-                            @click="activeTab = 'approvals'"
-                        >
-                            Gửi yêu cầu thêm sân con
-                        </button>
-                    </div>
-                    <div v-else class="view-content-wrapper">
-                        <!-- Tabs Toggle -->
-                        <div class="layout-toggle-tabs">
-                            <button
-                                class="tab-btn"
-                                :class="{ active: courtView === 'list' }"
-                                @click="courtView = 'list'"
-                            >
-                                <span>Danh sách sân con</span>
-                            </button>
-                            <button
-                                class="tab-btn"
-                                :class="{ active: courtView === 'layout' }"
-                                @click="courtView = 'layout'"
-                            >
-                                <span>Sắp xếp sơ đồ trực quan</span>
-                            </button>
-                        </div>
-
-                        <!-- List View -->
-                        <div v-if="courtView === 'list'" class="courts-grid">
-                            <div
-                                v-for="court in courts"
-                                :key="court.id"
-                                class="court-card card"
-                            >
-                                <div class="court-header">
-                                    <h3 class="court-name">{{ court.name }}</h3>
-                                    <span
-                                        class="status-badge"
-                                        :class="court.status"
-                                        >{{ formatStatus(court.status) }}</span
-                                    >
-                                </div>
-                                <div class="court-body">
-                                    <div class="info-row">
-                                        <span class="label">Loại sân:</span>
-                                        <span class="value">{{
-                                            court.court_type?.name
-                                        }}</span>
-                                    </div>
-                                    <div class="info-row">
-                                        <span class="label">Sơ đồ:</span>
-                                        <span class="value">
-                                            <span
-                                                v-if="court.layout_x !== null"
-                                                class="badge-placed"
-                                                >Đã xếp ({{
-                                                    formatToM(court.layout_x)
-                                                }}m,
-                                                {{
-                                                    formatToM(court.layout_y)
-                                                }}m)</span
-                                            >
-                                            <span v-else class="badge-unplaced"
-                                                >Chưa xếp</span
-                                            >
-                                        </span>
-                                    </div>
-                                    <div class="info-row">
-                                        <span class="label">Thứ tự:</span>
-                                        <span class="value">{{
-                                            court.sort_order
-                                        }}</span>
-                                    </div>
-                                </div>
-                                <div class="court-actions">
-                                    <ActionIconButton
-                                        icon="pencil"
-                                        label="Sửa sân con"
-                                        @click="openEditCourtModal(court)"
-                                        :disabled="isClusterLocked"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Layout View -->
-                        <div
-                            v-else-if="courtView === 'layout'"
-                            class="layout-editor-workspace"
-                        >
-                            <div class="editor-toolbar">
-                                <div class="toolbar-left">
-
-                                    <button
-                                        class="btn btn-primary"
-                                        @click="saveLayout"
-                                        :disabled="savingLayout || isClusterLocked"
-                                    >
-                                        <span>{{
-                                            savingLayout
-                                                ? "Đang lưu..."
-                                                : "Lưu sơ đồ"
-                                        }}</span>
-                                    </button>
-                                    <button
-                                        class="btn btn-outline"
-                                        @click="autoArrange"
-                                        :disabled="isClusterLocked"
-                                    >
-                                        <span>Tự động sắp xếp</span>
-                                    </button>
-                                    <button
-                                        class="btn btn-outline btn-danger-outline"
-                                        @click="clearLayout"
-                                        :disabled="isClusterLocked"
-                                    >
-                                        <span>Xóa toàn bộ</span>
-                                    </button>
-                                </div>
-                                <div class="toolbar-right">
-                                    <span class="info-badge"
-                                        >{{ editorTool === 'select' ? 'Chế độ Chọn — Click để chọn, kéo để di chuyển' : 'Chế độ Kéo — Kéo để di chuyển canvas' }}</span
-                                    >
-                                </div>
-                            </div>
-                            <div class="editor-body">
-                                <div
-                                    class="canvas-viewport"
-                                    :class="[`tool-${editorTool}`, { panning: isPanning }]"
-                                    ref="canvasViewport"
-                                    @wheel.prevent="handleZoom"
-                                    @mousedown="startPan"
-                                    @mousemove="handleGlobalMove"
-                                    @mouseup="handleGlobalUp"
-                                    @mouseleave="handleGlobalUp"
-                                    @click="onCanvasClick"
-                                >
-
-
-                                    <div class="zoom-controls">
-                                        <button
-                                            class="btn-zoom"
-                                            @click.stop="setZoom(zoom - 0.1)"
-                                            title="Thu nhỏ"
-                                        >
-                                            -
-                                        </button>
-                                        <span class="zoom-level"
-                                            >{{ Math.round(zoom * 100) }}%</span
-                                        >
-                                        <button
-                                            class="btn-zoom"
-                                            @click.stop="setZoom(zoom + 0.1)"
-                                            title="Phóng to"
-                                        >
-                                            +
-                                        </button>
-                                        <button
-                                            class="btn-zoom fit"
-                                            @click.stop="fitView"
-                                            title="Căn giữa sơ đồ"
-                                        >
-                                            <span class="btn-icon">👁️</span> Căn
-                                            giữa
-                                        </button>
-                                        <button
-                                            class="btn-zoom reset"
-                                            @click.stop="resetView"
-                                            title="Đặt lại góc nhìn"
-                                        >
-                                            Reset
-                                        </button>
-                                    </div>
-                                    <div
-                                        class="canvas-content"
-                                        :style="{
-                                            transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-                                            transformOrigin: '0 0',
-                                        }"
-                                    >
-                                        <div class="canvas-grid-bg"></div>
-
-                                        <!-- Alignment Guidelines -->
-                                        <div
-                                            v-for="(xCoord, index) in activeGuidelines.x"
-                                            :key="'gl-x-' + index"
-                                            class="canvas-guideline vertical"
-                                            :style="{ left: xCoord + 'px' }"
-                                        ></div>
-                                        <div
-                                            v-for="(yCoord, index) in activeGuidelines.y"
-                                            :key="'gl-y-' + index"
-                                            class="canvas-guideline horizontal"
-                                            :style="{ top: yCoord + 'px' }"
-                                        ></div>
-                                        <div
-                                            v-for="court in placedCourts"
-                                            :key="court.id"
-                                            class="canvas-court-element"
-                                            :class="{
-                                                selected:
-                                                    selectedCourtId ===
-                                                    court.id,
-                                                dragging:
-                                                    draggingCourtId ===
-                                                    court.id,
-                                                resizing:
-                                                    resizingCourtId ===
-                                                    court.id,
-                                                'has-collision':
-                                                    collisions[court.id],
-                                            }"
-                                            :style="getCourtStyle(court)"
-                                            @mousedown.stop="
-                                                startDrag($event, court)
-                                            "
-                                            @click.stop="selectCourt(court)"
-                                            data-type="court"
-                                        >
-                                            <CourtVisual
-                                                :name="court.name"
-                                                :court-type-name="
-                                                    court.court_type?.name
-                                                "
-                                                status="active"
-                                                :width="
-                                                    court.layout_w ||
-                                                    getDefaultWidth(court)
-                                                "
-                                                :height="
-                                                    court.layout_h ||
-                                                    getDefaultHeight(court)
-                                                "
-                                                :rotation="
-                                                    court.layout_rotation || 0
-                                                "
-                                                :show-type="false"
-                                            />
-                                            <div
-                                                v-if="collisions[court.id]"
-                                                class="collision-badge"
-                                                title="Sân đang bị chồng lấn!"
-                                            >
-                                                Chồng lấp
-                                            </div>
-                                            <template
-                                                v-if="
-                                                    selectedCourtId === court.id
-                                                "
-                                            >
-                                                <div
-                                                    class="resize-handle tl"
-                                                    @mousedown.stop.prevent="
-                                                        startResize(
-                                                            $event,
-                                                            court,
-                                                            'tl',
-                                                        )
-                                                    "
-                                                ></div>
-                                                <div
-                                                    class="resize-handle tr"
-                                                    @mousedown.stop.prevent="
-                                                        startResize(
-                                                            $event,
-                                                            court,
-                                                            'tr',
-                                                        )
-                                                    "
-                                                ></div>
-                                                <div
-                                                    class="resize-handle bl"
-                                                    @mousedown.stop.prevent="
-                                                        startResize(
-                                                            $event,
-                                                            court,
-                                                            'bl',
-                                                        )
-                                                    "
-                                                ></div>
-                                                <div
-                                                    class="resize-handle br"
-                                                    @mousedown.stop.prevent="
-                                                        startResize(
-                                                            $event,
-                                                            court,
-                                                            'br',
-                                                        )
-                                                    "
-                                                ></div>
-                                            </template>
-                                        </div>
-                                        <div
-                                            v-for="decor in decorations"
-                                            :key="decor.id"
-                                            class="canvas-decor-element"
-                                            :class="{
-                                                selected:
-                                                    selectedDecorationId ===
-                                                    decor.id,
-                                                dragging:
-                                                    draggingDecorationId ===
-                                                    decor.id,
-                                                resizing:
-                                                    resizingDecorationId ===
-                                                    decor.id,
-                                            }"
-                                            :style="getDecorStyle(decor)"
-                                            @mousedown.stop="
-                                                startDragDecor($event, decor)
-                                            "
-                                            @click.stop="selectDecor(decor)"
-                                            data-type="decor"
-                                        >
-                                            <DecorationVisual
-                                                :type="decor.type"
-                                                :name="decor.name"
-                                                :width="decor.layout_w"
-                                                :height="decor.layout_h"
-                                                :rotation="
-                                                    decor.layout_rotation || 0
-                                                "
-                                            />
-                                            <template
-                                                v-if="
-                                                    selectedDecorationId ===
-                                                    decor.id
-                                                "
-                                            >
-                                                <div
-                                                    class="resize-handle tl"
-                                                    @mousedown.stop.prevent="
-                                                        startResizeDecor(
-                                                            $event,
-                                                            decor,
-                                                            'tl',
-                                                        )
-                                                    "
-                                                ></div>
-                                                <div
-                                                    class="resize-handle tr"
-                                                    @mousedown.stop.prevent="
-                                                        startResizeDecor(
-                                                            $event,
-                                                            decor,
-                                                            'tr',
-                                                        )
-                                                    "
-                                                ></div>
-                                                <div
-                                                    class="resize-handle bl"
-                                                    @mousedown.stop.prevent="
-                                                        startResizeDecor(
-                                                            $event,
-                                                            decor,
-                                                            'bl',
-                                                        )
-                                                    "
-                                                ></div>
-                                                <div
-                                                    class="resize-handle br"
-                                                    @mousedown.stop.prevent="
-                                                        startResizeDecor(
-                                                            $event,
-                                                            decor,
-                                                            'br',
-                                                        )
-                                                    "
-                                                ></div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="editor-sidebar">
-                                    <!-- Inspector: Sân con -->
-                                    <div
-                                        v-if="selectedCourt"
-                                        class="sidebar-section inspector-panel"
-                                    >
-                                        <h4 class="section-title">
-                                            Thông tin: {{ selectedCourt.name }}
-                                        </h4>
-                                        <div
-                                            v-if="collisions[selectedCourt.id]"
-                                            class="inspector-warning-box"
-                                        >
-                                            Sân đang chồng lấn lên sân khác!
-                                            Vui lòng dịch chuyển hoặc thay đổi
-                                            kích thước để tránh va chạm.
-                                        </div>
-                                        <div class="inspector-fields">
-                                            <div class="field-row">
-                                                <span class="label"
-                                                    >BỘ MÔN:</span
-                                                ><span class="value">{{
-                                                    selectedCourt.court_type
-                                                        ?.name
-                                                 }}</span>
-                                            </div>
-                                            <div class="field-group">
-                                                <label>Kích thước (m):</label>
-                                                <div class="input-row">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        :value="
-                                                            formatToM(
-                                                                selectedCourt.layout_w,
-                                                            )
-                                                        "
-                                                        @input="
-                                                            updateW(
-                                                                selectedCourt,
-                                                                $event.target
-                                                                    .value,
-                                                            )
-                                                        "
-                                                        placeholder="Ngang"
-                                                    />
-                                                    <span class="x">x</span>
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        :value="
-                                                            formatToM(
-                                                                selectedCourt.layout_h,
-                                                            )
-                                                        "
-                                                        @input="
-                                                            updateH(
-                                                                selectedCourt,
-                                                                $event.target
-                                                                    .value,
-                                                            )
-                                                        "
-                                                        placeholder="Dọc"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div class="field-group">
-                                                <label
-                                                    >Vị trí cách lề Trái / Trên
-                                                    (m):</label
-                                                >
-                                                <div class="input-row">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        :value="
-                                                            formatToM(
-                                                                selectedCourt.layout_x,
-                                                            )
-                                                        "
-                                                        @input="
-                                                            updateX(
-                                                                selectedCourt,
-                                                                $event.target
-                                                                    .value,
-                                                            )
-                                                        "
-                                                        placeholder="Trái (X)"
-                                                    />
-                                                    <span class="comma">,</span>
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        :value="
-                                                            formatToM(
-                                                                selectedCourt.layout_y,
-                                                            )
-                                                        "
-                                                        @input="
-                                                            updateY(
-                                                                selectedCourt,
-                                                                $event.target
-                                                                    .value,
-                                                            )
-                                                        "
-                                                        placeholder="Trên (Y)"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div class="field-group">
-                                                <label
-                                                    >Góc xoay:
-                                                    {{
-                                                        selectedCourt.layout_rotation ||
-                                                        0
-                                                    }}°</label
-                                                >
-                                                <div class="rotation-control">
-                                                    <input
-                                                        type="range"
-                                                        min="0"
-                                                        max="359"
-                                                        v-model.number="
-                                                            selectedCourt.layout_rotation
-                                                        "
-                                                        class="rotation-slider"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-outline btn-xs btn-rotate"
-                                                        @click="
-                                                            rotateSelected90
-                                                        "
-                                                    >
-                                                        Xoay +90°
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                class="btn btn-outline btn-danger-outline btn-block"
-                                                @click="
-                                                    unplaceCourt(selectedCourt)
-                                                "
-                                            >
-                                                Gỡ khỏi sơ đồ
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Inspector: Vật phẩm trang trí -->
-                                    <div
-                                        v-else-if="selectedDecoration"
-                                        class="sidebar-section inspector-panel"
-                                    >
-                                        <h4 class="section-title">
-                                            Vật phẩm: {{ selectedDecoration.name }}
-                                        </h4>
-                                        <div class="inspector-fields">
-                                            <div class="field-row">
-                                                <span class="label">LOẠI:</span>
-                                                <span class="value font-bold uppercase">{{ selectedDecoration.type }}</span>
-                                            </div>
-                                            <div class="field-group">
-                                                <label>Tên nhãn hiển thị:</label>
-                                                <input
-                                                    type="text"
-                                                    v-model="selectedDecoration.name"
-                                                    class="form-control"
-                                                    placeholder="Nhãn hiển thị..."
-                                                />
-                                            </div>
-                                            <div class="field-group">
-                                                <label>Kích thước (px):</label>
-                                                <div class="input-row">
-                                                    <input
-                                                        type="number"
-                                                        v-model.number="selectedDecoration.layout_w"
-                                                        placeholder="Rộng"
-                                                        style="width: 70px;"
-                                                    />
-                                                    <span class="x">x</span>
-                                                    <input
-                                                        type="number"
-                                                        v-model.number="selectedDecoration.layout_h"
-                                                        placeholder="Dài"
-                                                        style="width: 70px;"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div class="field-group">
-                                                <label>Vị trí X / Y (px):</label>
-                                                <div class="input-row">
-                                                    <input
-                                                        type="number"
-                                                        v-model.number="selectedDecoration.layout_x"
-                                                        placeholder="X"
-                                                        style="width: 70px;"
-                                                    />
-                                                    <span class="comma">,</span>
-                                                    <input
-                                                        type="number"
-                                                        v-model.number="selectedDecoration.layout_y"
-                                                        placeholder="Y"
-                                                        style="width: 70px;"
-                                                     />
-                                                </div>
-                                            </div>
-                                            <div class="field-group">
-                                                <label>Góc xoay: {{ selectedDecoration.layout_rotation || 0 }}°</label>
-                                                <div class="rotation-control">
-                                                    <input
-                                                        type="range"
-                                                        min="0"
-                                                        max="359"
-                                                        v-model.number="selectedDecoration.layout_rotation"
-                                                        class="rotation-slider"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-outline btn-xs btn-rotate"
-                                                        @click="rotateSelectedDecor90"
-                                                    >
-                                                        Xoay +90°
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                class="btn btn-outline btn-danger-outline btn-block"
-                                                @click="deleteDecoration(selectedDecoration)"
-                                            >
-                                                Xóa khỏi sơ đồ
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Thư viện vật phẩm trang trí -->
-                                    <div class="sidebar-section decoration-library-section">
-                                        <h4 class="section-title">Thêm vật phẩm bổ trợ</h4>
-                                        <p class="section-desc">Click để thêm các vật phẩm định vị không gian:</p>
-                                        <div class="decor-library-grid">
-                                            <button type="button" class="btn-add-decor" @click="addDecoration('entrance', 'Cửa ra vào')">
-                                                Cửa ra vào
-                                            </button>
-                                            <button type="button" class="btn-add-decor" @click="addDecoration('reception', 'Lễ tân')">
-                                                Quầy lễ tân
-                                            </button>
-                                            <button type="button" class="btn-add-decor" @click="addDecoration('restroom', 'WC')">
-                                                Nhà vệ sinh
-                                            </button>
-                                            <button type="button" class="btn-add-decor" @click="addDecoration('seating', 'Ghế chờ')">
-                                                Ghế ngồi chờ
-                                            </button>
-                                            <button type="button" class="btn-add-decor" @click="addDecoration('parking', 'Bãi đỗ xe')">
-                                                Bãi đỗ xe
-                                            </button>
-                                            <button type="button" class="btn-add-decor" @click="addDecoration('custom', 'Khác')">
-                                                Vật thể khác
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Sân chưa xếp -->
-                                    <div
-                                        class="sidebar-section unplaced-list-section"
-                                    >
-                                        <h4 class="section-title">
-                                            Sân chưa xếp ({{
-                                                unplacedCourts.length
-                                            }})
-                                        </h4>
-                                        <p class="section-desc">
-                                            Click vào sân để đưa vào bản đồ rồi
-                                            kéo thả sắp xếp:
-                                        </p>
-                                        <div class="unplaced-items">
-                                            <div
-                                                v-for="court in unplacedCourts"
-                                                :key="court.id"
-                                                class="unplaced-court-item"
-                                                @click="placeCourt(court)"
-                                            >
-                                                <div class="item-header">
-                                                    <div class="item-name">
-                                                        {{ court.name }}
-                                                    </div>
-                                                    <span class="item-add-hint"
-                                                        >Xếp sân</span
-                                                    >
-                                                </div>
-                                                <div class="item-type">
-                                                    {{ court.court_type?.name }}
-                                                </div>
-                                            </div>
-                                            <div
-                                                v-if="
-                                                    unplacedCourts.length === 0
-                                                "
-                                                class="empty-unplaced"
-                                            >
-                                                Đã xếp tất cả các sân vào sơ đồ.
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Edit Court Modal -->
-                    <div
-                        v-if="showEditCourtModal"
-                        class="modal-backdrop"
-                        @click.self="closeEditCourtModal"
-                    >
-                        <div class="modal card">
-                            <div class="modal-header">
-                                <h3>Cập nhật sân con</h3>
-                                <button
-                                    class="btn-close"
-                                    @click="closeEditCourtModal"
-                                >
-                                    <AppIcon name="x" size="18" />
-                                </button>
-                            </div>
-                            <form @submit.prevent="handleEditCourtSubmit">
-                                <div class="modal-body">
-                                    <div
-                                        v-if="editCourtError"
-                                        class="alert alert-danger"
-                                    >
-                                        {{ editCourtError }}
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit-court-name"
-                                            >Tên sân con
-                                            <span class="required"
-                                                >*</span
-                                            ></label
-                                        >
-                                        <input
-                                            id="edit-court-name"
-                                            v-model="editCourtForm.name"
-                                            type="text"
-                                            class="form-control"
-                                            required
-                                        />
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit-court-status"
-                                            >Trạng thái sân
-                                            <span class="required"
-                                                >*</span
-                                            ></label
-                                        >
-                                        <select
-                                            id="edit-court-status"
-                                            v-model="editCourtForm.status"
-                                            class="form-control"
-                                            required
-                                        >
-                                            <option value="active">
-                                                Đang hoạt động
-                                            </option>
-                                            <option value="inactive">
-                                                Tạm ngưng hoạt động
-                                            </option>
-                                            <option value="maintenance">
-                                                Bảo trì
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="edit-sort-order"
-                                            >Thứ tự hiển thị</label
-                                        >
-                                        <input
-                                            id="edit-sort-order"
-                                            v-model.number="
-                                                editCourtForm.sort_order
-                                            "
-                                            type="number"
-                                            min="0"
-                                            class="form-control"
-                                        />
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline"
-                                        @click="closeEditCourtModal"
-                                    >
-                                        Hủy
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        class="btn btn-primary"
-                                        :disabled="editCourtSubmitting"
-                                    >
-                                        {{
-                                            editCourtSubmitting
-                                                ? "Đang lưu..."
-                                                : "Lưu lại"
-                                        }}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════
-                     TAB 3: YÊU CẦU QUY MÔ
-                ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'approvals'" class="approvals-tab">
-
-                    <!-- Quy mô hiện tại -->
-                    <div class="card current-scale-card">
-                        <h4 class="card-section-title">Quy mô hiện tại</h4>
-                        <div class="scale-summary-grid">
-                            <div class="scale-stat-item">
-                                <span class="scale-stat-label">Tổng số sân con:</span>
-                                <span class="scale-stat-value">{{ courts.length }}</span>
-                            </div>
-                            <div class="scale-stat-item">
-                                <span class="scale-stat-label">Chi tiết loại sân:</span>
-                                <div class="scale-types-list" v-if="courtTypeStats.length > 0">
-                                    <span v-for="stat in courtTypeStats" :key="stat.name" class="scale-type-tag">
-                                        {{ stat.name }}: <strong>{{ stat.count }}</strong>
-                                    </span>
-                                </div>
-                                <span class="scale-stat-value-empty" v-else>Chưa có sân con</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Lịch sử yêu cầu -->
-                    <div class="card">
-                        <div class="approval-list-header">
-                            <h3 class="section-title">Lịch sử yêu cầu quy mô</h3>
-                            <div class="approval-filter-tabs">
-                                <button
-                                    class="tab-sm"
-                                    :class="{ active: approvalFilter === '' }"
-                                    @click="setApprovalFilter('')"
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'pending',
-                                    }"
-                                    @click="setApprovalFilter('pending')"
-                                >
-                                    Chờ duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'approved',
-                                    }"
-                                    @click="setApprovalFilter('approved')"
-                                >
-                                    Đã duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'rejected',
-                                    }"
-                                    @click="setApprovalFilter('rejected')"
-                                >
-                                    Từ chối
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: approvalFilter === 'cancelled',
-                                    }"
-                                    @click="setApprovalFilter('cancelled')"
-                                >
-                                    Đã hủy
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="approvalsLoading"
-                            class="loading-state"
-                            style="padding: 40px 0"
-                        >
-                            <div class="spinner"></div>
-                            <p>Đang tải...</p>
-                        </div>
-                        <div
-                            v-else-if="filteredApprovals.length === 0"
-                            class="empty-section"
-                        >
-                            Không có yêu cầu nào.
-                        </div>
-                        <div v-else class="approval-list">
-                            <div
-                                v-for="req in filteredApprovals"
-                                :key="req.id"
-                                class="approval-card"
-                                :class="`approval-${req.status}`"
-                            >
-                                <div class="approval-row">
-                                    <div class="approval-details">
-                                        <div class="approval-name fw-bold">
-                                            {{ req.name }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Loại sân:
-                                            {{ req.court_type?.name || "—" }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Gửi lúc:
-                                            {{ formatDate(req.created_at) }}
-                                        </div>
-                                        <div
-                                            v-if="
-                                                req.status_reason &&
-                                                req.status === 'rejected'
-                                            "
-                                            class="approval-reason"
-                                        >
-                                            Lý do từ chối:
-                                            {{ req.status_reason }}
-                                        </div>
-                                        <div
-                                            v-if="req.evidence_image_url"
-                                            class="approval-evidence"
-                                        >
-                                            <span class="approval-evidence-label"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Ảnh minh chứng:</span>
-                                            <a :href="req.evidence_image_url" target="_blank" class="approval-evidence-link">
-                                                <img :src="req.evidence_image_url" alt="Ảnh minh chứng" class="approval-evidence-thumb" />
-                                            </a>
-                                        </div>
-                                        <div v-if="req.supplementary_documents?.length" class="supplement-documents">
-                                            <span class="approval-evidence-label">Giấy tờ bổ sung:</span>
-                                            <button
-                                                v-for="doc in req.supplementary_documents"
-                                                :key="doc.id || doc.file_path || doc.file_name"
-                                                type="button"
-                                                class="supplement-document-link"
-                                                @click="downloadSupplementDocument(doc)"
-                                            >
-                                                {{ doc.file_name || 'Tải file' }}
-                                            </button>
-                                        </div>
-                                        <div v-if="req.generated_document" class="request-document-actions">
-                                            <span>Đơn yêu cầu:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document, req.partner_application_id)">
-                                                <AppIcon name="eye" size="14" />
-                                                {{ requestDocumentActionLabel(req.generated_document) }}
-                                            </button>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
-                                                <AppIcon name="download" size="14" />
-                                                Tải
-                                            </button>
-                                        </div>
-                                        <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
-                                            <span>Phụ lục hợp đồng:</span>
-                                            <button
-                                                type="button"
-                                                class="btn btn-sm"
-                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
-                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
-                                            >
-                                                <AppIcon name="eye" size="14" />
-                                                {{ requestDocumentActionLabel(req.appendix_document) }}
-                                            </button>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
-                                                <AppIcon name="download" size="14" />
-                                                Tải
-                                            </button>
-                                        </div>
-                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
-                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
-                                        </div>
-                                        <div
-                                            v-if="
-                                                req.reviewed_by &&
-                                                req.reviewed_at
-                                            "
-                                            class="approval-meta"
-                                        >
-                                            Xử lý bởi:
-                                            {{ req.reviewed_by?.full_name }} ·
-                                            {{ formatDate(req.reviewed_at) }}
-                                        </div>
-                                    </div>
-                                    <div class="approval-right">
-                                        <span
-                                            class="status-badge-approval"
-                                            :class="`approval-status-${req.status}`"
-                                        >
-                                            {{
-                                                approvalStatusLabel(req.status)
-                                            }}
-                                        </span>
-                                        <button
-                                            v-if="['pending_owner_signature', 'pending'].includes(req.status)"
-                                            class="btn btn-outline btn-sm"
-                                            :disabled="cancellingId === req.id"
-                                            @click="handleCancelApproval(req)"
-                                        >
-                                            {{
-                                                cancellingId === req.id
-                                                    ? "..."
-                                                    : "Hủy yêu cầu"
-                                            }}
-                                        </button>
-                                        <button
-                                            v-if="req.status === 'need_supplement'"
-                                            class="btn btn-primary btn-sm"
-                                            @click="openSupplementRequestModal('scale', req)"
-                                        >
-                                            Bổ sung giấy tờ
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════
-                     TAB 2: YÊU CẦU THAY ĐỔI THÔNG TIN SÂN
-                ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'info_requests'" class="location-tab">
-                    <!-- Lịch sử yêu cầu -->
-                    <div class="card">
-                        <div class="approval-list-header">
-                            <h3 class="section-title">
-                                Lịch sử yêu cầu thay đổi thông tin sân
-                            </h3>
-                            <div class="approval-filter-tabs">
-                                <button
-                                    class="tab-sm"
-                                    :class="{ active: infoFilter === '' }"
-                                    @click="infoFilter = ''"
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: infoFilter === 'pending',
-                                    }"
-                                    @click="infoFilter = 'pending'"
-                                >
-                                    Chờ duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: infoFilter === 'approved',
-                                    }"
-                                    @click="infoFilter = 'approved'"
-                                >
-                                    Đã duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: infoFilter === 'rejected',
-                                    }"
-                                    @click="infoFilter = 'rejected'"
-                                >
-                                    Từ chối
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: infoFilter === 'cancelled',
-                                    }"
-                                    @click="infoFilter = 'cancelled'"
-                                >
-                                    Đã hủy
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="loading"
-                            class="loading-state"
-                            style="padding: 30px 0"
-                        >
-                            <div class="spinner"></div>
-                            <p>Đang tải...</p>
-                        </div>
-                        <div
-                            v-else-if="filteredInfoRequests.length === 0"
-                            class="empty-section"
-                        >
-                            Không có yêu cầu nào.
-                        </div>
-                        <div v-else class="approval-list">
-                            <div
-                                v-for="req in filteredInfoRequests"
-                                :key="req.id"
-                                class="approval-card"
-                                :class="`approval-${req.status}`"
-                            >
-                                <div class="approval-row">
-                                    <div class="approval-details">
-                                        <div class="approval-name fw-bold">
-                                            Thay đổi thông tin cụm sân
-                                        </div>
-                                        <div class="approval-meta">
-                                            Tên mới: {{ req.new_name }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Số điện thoại mới: {{ req.new_phone_contact }}
-                                        </div>
-                                        <div class="approval-meta" v-if="req.new_description">
-                                            Mô tả mới: {{ req.new_description }}
-                                        </div>
-                                        <div class="approval-meta" v-if="req.new_images && req.new_images.length > 0">
-                                            Số lượng ảnh mới: {{ req.new_images.length }} ảnh
-                                        </div>
-                                        <div class="approval-meta">
-                                            Lý do yêu cầu: {{ req.note }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Gửi lúc: {{ formatDate(req.created_at) }}
-                                        </div>
-                                        <div
-                                            v-if="
-                                                req.status_reason &&
-                                                req.status === 'rejected'
-                                            "
-                                            class="approval-reason"
-                                        >
-                                            Lý do từ chối: {{ req.status_reason }}
-                                        </div>
-                                    </div>
-                                    <div class="approval-status-action">
-                                        <span
-                                            class="status-badge"
-                                            :class="req.status"
-                                        >
-                                            {{
-                                                req.status === "pending"
-                                                    ? "Chờ duyệt"
-                                                    : req.status === "approved"
-                                                    ? "Đã duyệt"
-                                                    : req.status === "rejected"
-                                                    ? "Từ chối"
-                                                    : "Đã hủy"
-                                            }}
-                                        </span>
-                                        <button
-                                            v-if="req.status === 'pending'"
-                                            class="btn btn-outline btn-xs"
-                                            style="margin-top: 10px;"
-                                            @click="cancelInfoRequest(req.id)"
-                                            :disabled="cancellingId === req.id"
-                                        >
-                                            {{
-                                                cancellingId === req.id
-                                                    ? "Đang hủy..."
-                                                    : "Hủy yêu cầu"
-                                            }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════
-                     TAB 4: YÊU CẦU THAY ĐỔI VỊ TRÍ
-                ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'location'" class="location-tab">
-
-                    <!-- Thông tin vị trí hiện tại -->
-                    <div class="card location-current-card">
-                        <h3 class="section-title">Vị trí hiện tại</h3>
-                        <div class="location-current-grid">
-                            <div class="location-info-row">
-                                <span class="location-label">Tỉnh/TP:</span
-                                ><span class="location-value">{{
-                                    selectedCluster.province || "—"
-                                }}</span>
-                            </div>
-                            <div class="location-info-row">
-                                <span class="location-label">Phường/Xã:</span
-                                ><span class="location-value">{{
-                                    selectedCluster.ward || "—"
-                                }}</span>
-                            </div>
-                            <div class="location-info-row">
-                                <span class="location-label">Địa chỉ:</span
-                                ><span class="location-value">{{
-                                    selectedCluster.address || "—"
-                                }}</span>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- Lịch sử yêu cầu -->
-                    <div class="card">
-                        <div class="approval-list-header">
-                            <h3 class="section-title">
-                                Lịch sử yêu cầu thay đổi vị trí
-                            </h3>
-                            <div class="approval-filter-tabs">
-                                <button
-                                    class="tab-sm"
-                                    :class="{ active: locationFilter === '' }"
-                                    @click="setLocationFilter('')"
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'pending',
-                                    }"
-                                    @click="setLocationFilter('pending')"
-                                >
-                                    Chờ duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'approved',
-                                    }"
-                                    @click="setLocationFilter('approved')"
-                                >
-                                    Đã duyệt
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'rejected',
-                                    }"
-                                    @click="setLocationFilter('rejected')"
-                                >
-                                    Từ chối
-                                </button>
-                                <button
-                                    class="tab-sm"
-                                    :class="{
-                                        active: locationFilter === 'cancelled',
-                                    }"
-                                    @click="setLocationFilter('cancelled')"
-                                >
-                                    Đã hủy
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="locationLoading"
-                            class="loading-state"
-                            style="padding: 30px 0"
-                        >
-                            <div class="spinner"></div>
-                            <p>Đang tải...</p>
-                        </div>
-                        <div
-                            v-else-if="filteredLocationRequests.length === 0"
-                            class="empty-section"
-                        >
-                            Không có yêu cầu nào.
-                        </div>
-                        <div v-else class="approval-list">
-                            <div
-                                v-for="req in filteredLocationRequests"
-                                :key="req.id"
-                                class="approval-card"
-                                :class="`approval-${req.status}`"
-                            >
-                                <div class="approval-row">
-                                    <div class="approval-details">
-                                        <div class="approval-name fw-bold">
-                                            Thay đổi vị trí
-                                        </div>
-                                        <div class="approval-meta">
-                                            Địa chỉ mới:
-                                            {{ req.new_address }},
-                                            {{ req.new_ward }},
-                                            {{ req.new_province }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Tọa độ: {{ req.new_latitude }},
-                                            {{ req.new_longitude }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Lý do: {{ req.note }}
-                                        </div>
-                                        <div class="approval-meta">
-                                            Gửi lúc:
-                                            {{ formatDate(req.created_at) }}
-                                        </div>
-                                        <div
-                                            v-if="
-                                                req.status_reason &&
-                                                req.status === 'rejected'
-                                            "
-                                            class="approval-reason"
-                                        >
-                                            Lý do từ chối:
-                                            {{ req.status_reason }}
-                                        </div>
-                                        <div v-if="req.supplementary_documents?.length" class="supplement-documents">
-                                            <span>Giấy tờ bổ sung:</span>
-                                            <button
-                                                v-for="doc in req.supplementary_documents"
-                                                :key="doc.id || doc.file_path || doc.file_name"
-                                                type="button"
-                                                class="supplement-document-link"
-                                                @click="downloadSupplementDocument(doc)"
-                                            >
-                                                {{ doc.file_name || 'Tải file' }}
-                                            </button>
-                                        </div>
-                                        <div v-if="req.generated_document" class="request-document-actions">
-                                            <span>Đơn yêu cầu:</span>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="openRequestDocument(req.generated_document, req.partner_application_id)">
-                                                <AppIcon name="eye" size="14" />
-                                                {{ requestDocumentActionLabel(req.generated_document) }}
-                                            </button>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.generated_document)">
-                                                <AppIcon name="download" size="14" />
-                                                Tải
-                                            </button>
-                                        </div>
-                                        <div v-if="req.appendix_document" class="request-document-actions appendix-actions">
-                                            <span>Phụ lục hợp đồng:</span>
-                                            <button
-                                                type="button"
-                                                class="btn btn-sm"
-                                                :class="req.appendix_document?.status === 'pending_owner_signature' ? 'btn-primary' : 'btn-outline'"
-                                                @click="openRequestDocument(req.appendix_document, req.partner_application_id)"
-                                            >
-                                                <AppIcon :name="req.appendix_document?.status === 'pending_owner_signature' ? 'pencil' : 'eye'" size="14" />
-                                                {{ requestDocumentActionLabel(req.appendix_document) }}
-                                            </button>
-                                            <button type="button" class="btn btn-outline btn-sm" @click="downloadRequestDocument(req.appendix_document)">
-                                                <AppIcon name="download" size="14" />
-                                                Tải
-                                            </button>
-                                        </div>
-                                        <div v-if="req.appendix_document?.status === 'pending_owner_signature'" class="request-sign-hint">
-                                            SportGo da ky phu luc. Bam "Ky phu luc" de hoan tat thay doi.
-                                        </div>
-                                        <div
-                                            v-if="
-                                                req.reviewed_by &&
-                                                req.reviewed_at
-                                            "
-                                            class="approval-meta"
-                                        >
-                                            Xử lý bởi:
-                                            {{ req.reviewed_by?.full_name }} ·
-                                            {{ formatDate(req.reviewed_at) }}
-                                        </div>
-                                    </div>
-                                    <div class="approval-right">
-                                        <span
-                                            class="status-badge-approval"
-                                            :class="`approval-status-${req.status}`"
-                                        >
-                                            {{
-                                                approvalStatusLabel(req.status)
-                                            }}
-                                        </span>
-                                        <button
-                                            v-if="['pending_owner_signature', 'pending'].includes(req.status)"
-                                            class="btn btn-outline btn-sm"
-                                            :disabled="
-                                                cancellingLocationId === req.id
-                                            "
-                                            @click="
-                                                handleCancelLocationRequest(req)
-                                            "
-                                        >
-                                            {{
-                                                cancellingLocationId === req.id
-                                                    ? "..."
-                                                    : "Hủy yêu cầu"
-                                            }}
-                                        </button>
-                                        <button
-                                            v-if="req.status === 'need_supplement'"
-                                            class="btn btn-primary btn-sm"
-                                            @click="openSupplementRequestModal('location', req)"
-                                        >
-                                            Bổ sung giấy tờ
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════
-                     TAB 4: YÊU CẦU MỞ KHÓA
-                ═══════════════════════════════════════════════════ -->
-                <div v-if="activeTab === 'unlock'" class="unlock-tab card">
-
-                    <!-- Banner cảnh báo khóa -->
-                    <div class="unlock-locked-banner">
-                        <div class="banner-header">
-                            <AppIcon name="lock" size="24" class="lock-icon-red" />
-                            <div class="banner-text">
-                                <h4>Cụm sân đang bị khóa</h4>
-                                <p>
-                                    Lý do: <strong>{{ selectedCluster.status_reason || 'Không có lý do chi tiết.' }}</strong>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Đang có yêu cầu pending -->
-                    <div v-if="pendingUnlockRequest" class="pending-alert-box">
-                        <div class="alert-info-title">
-                            <AppIcon name="info" size="18" />
-                            <span>Yêu cầu mở khóa của bạn đang chờ Admin xử lý.</span>
-                        </div>
-                        <div class="pending-reason-preview">
-                            <strong class="preview-label">Nội dung giải trình:</strong>
-                            <p class="preview-content">{{ pendingUnlockRequest.reason }}</p>
-                        </div>
-                        <button class="btn btn-outline btn-danger-outline" type="button" :disabled="unlockSubmitting" @click="handleCancelUnlock(pendingUnlockRequest.id)">
-                            {{ unlockSubmitting ? 'Đang hủy...' : 'Hủy yêu cầu này' }}
-                        </button>
-                    </div>
-
-                    <!-- Chưa có yêu cầu pending -->
-                    <div v-else class="new-appeal-form">
-                        <h4 class="form-section-title">Gửi yêu cầu giải trình & mở khóa</h4>
-                        <p class="form-section-desc">
-                            Hãy cung cấp thông tin giải trình chi tiết về lý do vi phạm hoặc các biện pháp khắc phục để Admin phê duyệt mở khóa cụm sân.
-                        </p>
-                        <form @submit.prevent="handleUnlockSubmit">
-                            <div class="form-group">
-                                <label class="field-label-bold">
-                                    Nội dung giải trình <span class="required">*</span>
-                                </label>
-                                <textarea
-                                    v-model.trim="unlockForm.reason"
-                                    rows="5"
-                                    maxlength="2000"
-                                    placeholder="Nhập nội dung giải trình của bạn (tối thiểu 10 ký tự)..."
-                                    class="form-control text-area-appeal"
-                                    required
-                                ></textarea>
-                                <small class="char-counter">{{ unlockForm.reason.length }}/2000 ký tự</small>
-                            </div>
-
-                            <div v-if="unlockError" class="alert alert-danger">{{ unlockError }}</div>
-                            <div v-if="unlockSuccess" class="alert alert-success">{{ unlockSuccess }}</div>
-
-                            <button class="btn btn-primary" type="submit" :disabled="unlockSubmitting || !unlockForm.reason || unlockForm.reason.length < 10">
-                                {{ unlockSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu giải trình' }}
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- Lịch sử yêu cầu -->
-                    <div class="history-section">
-                        <div class="history-header">
-                            <h4 class="history-title">Lịch sử yêu cầu mở khóa</h4>
-                        </div>
-
-                        <div v-if="loadingUnlockRequests" class="loading-state" style="padding: 30px 0; text-align: center;">
-                            <div class="spinner"></div>
-                            <p>Đang tải lịch sử...</p>
-                        </div>
-                        <div v-else-if="unlockRequests.length === 0" class="empty-state-text">
-                            Chưa có yêu cầu mở khóa nào được gửi cho cụm sân này.
-                        </div>
-                        <div v-else class="table-scroll border-rounded">
-                            <table class="unlock-history-table">
-                                <thead>
-                                    <tr>
-                                        <th class="col-code">Yêu cầu</th>
-                                        <th class="col-time">Thời gian gửi</th>
-                                        <th class="col-reason">Lý do giải trình</th>
-                                        <th class="col-status">Trạng thái</th>
-                                        <th class="col-response">Phản hồi Admin</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="req in unlockRequests" :key="req.id" class="history-row">
-                                        <td class="cell-code">Mở khóa cụm sân</td>
-                                        <td class="cell-time">{{ formatDateTime(req.created_at) }}</td>
-                                        <td class="cell-reason">{{ req.reason }}</td>
-                                        <td class="cell-status">
-                                            <span class="status-badge" :class="req.status">
-                                                {{ statusLabel(req.status) }}
-                                            </span>
-                                        </td>
-                                        <td class="cell-response">{{ req.admin_note || '-' }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                    <!-- TAB 4: TRUNG TÂM YÊU CẦU & PHÊ DUYỆT -->
+                    <ClusterRequestsCenterTab
+                        v-if="['approvals', 'info_requests', 'unlock'].includes(activeTab)"
+                        :scale-requests="approvalRequests"
+                        :info-requests="infoRequests"
+                        :location-requests="locationRequests"
+                        :unlock-requests="unlockRequests"
+                        :loading="approvalsLoading"
+                        :is-cluster-locked="isClusterLocked"
+                        :is-moderation-locked="isModerationLocked"
+                        @open-scale-request-modal="openScaleRequestModal('add')"
+                        @open-unlock-modal="openUnlockModal"
+                        @cancel-request="handleCancelRequest"
+                    />
                 </fieldset>
             </div>
         </div>
+
+        <!-- Modal: Spatial Layout Editor -->
+        <ClusterSpatialModal
+            :show="showSpatialModal"
+            :saving="savingLayout"
+            @close="showSpatialModal = false"
+            @save-layout="saveLayout"
+        >
+            <div class="layout-editor-workspace">
+                <div class="editor-toolbar">
+                    <div class="toolbar-left">
+                        <button type="button" class="btn btn-outline btn-sm" @click="autoArrange">
+                            <span>Tự động sắp xếp</span>
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" @click="exportLayoutImage">
+                            <AppIcon name="download" size="14" />
+                            <span>Xuất ảnh sơ đồ (WEBP)</span>
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm btn-danger-outline" @click="clearLayout">
+                            <span>Xóa vị trí</span>
+                        </button>
+                    </div>
+                    <div class="toolbar-right">
+                        <span class="info-badge">
+                            {{ editorTool === "select" ? "Kéo chọn và di chuyển vị trí sân con" : "Kéo để di chuyển bản đồ" }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="editor-body">
+                    <!-- Canvas area -->
+                    <div
+                        class="canvas-viewport"
+                        :class="[`tool-${editorTool}`, { panning: isPanning }]"
+                        ref="canvasViewport"
+                        @wheel.prevent="handleZoom"
+                        @mousedown="startPan"
+                        @mousemove="handleGlobalMove"
+                        @mouseup="handleGlobalUp"
+                        @mouseleave="handleGlobalUp"
+                        @click="onCanvasClick"
+                    >
+                        <!-- Zoom controls -->
+                        <div class="zoom-controls">
+                            <button type="button" class="btn-zoom" @click.stop="setZoom(zoom - 0.1)" title="Thu nhỏ">-</button>
+                            <span class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
+                            <button type="button" class="btn-zoom" @click.stop="setZoom(zoom + 0.1)" title="Phóng to">+</button>
+                            <button type="button" class="btn-zoom fit" @click.stop="fitView" title="Căn giữa">Căn giữa</button>
+                            <button type="button" class="btn-zoom reset" @click.stop="resetView" title="Đặt lại zoom">Đặt lại</button>
+                        </div>
+
+                        <div
+                            class="canvas-content"
+                            :style="{
+                                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                                transformOrigin: '0 0',
+                            }"
+                        >
+                            <!-- Grid Background inside canvas content -->
+                            <div class="canvas-grid-bg"></div>
+
+                            <!-- Alignment Guidelines -->
+                            <div
+                                v-for="(xCoord, index) in activeGuidelines.x"
+                                :key="'gl-x-' + index"
+                                class="canvas-guideline vertical"
+                                :style="{ left: xCoord + 'px' }"
+                            ></div>
+                            <div
+                                v-for="(yCoord, index) in activeGuidelines.y"
+                                :key="'gl-y-' + index"
+                                class="canvas-guideline horizontal"
+                                :style="{ top: yCoord + 'px' }"
+                            ></div>
+
+                            <!-- Placed Courts -->
+                            <div
+                                v-for="court in placedCourts"
+                                :key="court.id"
+                                class="canvas-court-element"
+                                :class="{
+                                    selected: selectedCourtId === court.id,
+                                    dragging: draggingCourtId === court.id,
+                                    resizing: resizingCourtId === court.id,
+                                    'has-collision': collisions[court.id],
+                                }"
+                                :style="getCourtStyle(court)"
+                                @mousedown.stop="startDrag($event, court)"
+                                @click.stop="selectCourt(court)"
+                                data-type="court"
+                            >
+                                <CourtVisual
+                                    :name="court.name"
+                                    :court-type-name="court.court_type?.name"
+                                    :image-url="court.image_url || court.custom_image_url || court.image"
+                                    status="active"
+                                    :width="court.layout_w || getDefaultWidth(court)"
+                                    :height="court.layout_h || getDefaultHeight(court)"
+                                    :rotation="court.layout_rotation || 0"
+                                    :show-type="false"
+                                />
+
+                                <!-- Collision Warning Badge -->
+                                <div
+                                    v-if="collisions[court.id]"
+                                    class="collision-badge"
+                                    title="Sân đang bị chồng lấn!"
+                                >
+                                    Chồng lấp
+                                </div>
+
+                                <!-- Resize Handles -->
+                                <template v-if="selectedCourtId === court.id">
+                                    <div class="resize-handle tl" @mousedown.stop.prevent="startResize($event, court, 'tl')"></div>
+                                    <div class="resize-handle tr" @mousedown.stop.prevent="startResize($event, court, 'tr')"></div>
+                                    <div class="resize-handle bl" @mousedown.stop.prevent="startResize($event, court, 'bl')"></div>
+                                    <div class="resize-handle br" @mousedown.stop.prevent="startResize($event, court, 'br')"></div>
+                                </template>
+                            </div>
+
+                            <!-- Placed Decorations -->
+                            <div
+                                v-for="decor in decorations"
+                                :key="decor.id"
+                                class="canvas-decor-element"
+                                :class="{
+                                    selected: selectedDecorationId === decor.id,
+                                    dragging: draggingDecorationId === decor.id,
+                                    resizing: resizingDecorationId === decor.id,
+                                }"
+                                :style="getDecorStyle(decor)"
+                                @mousedown.stop="startDragDecor($event, decor)"
+                                @click.stop="selectDecor(decor)"
+                                data-type="decor"
+                            >
+                                <DecorationVisual
+                                    :type="decor.type"
+                                    :name="decor.name"
+                                    :width="decor.layout_w"
+                                    :height="decor.layout_h"
+                                    :rotation="decor.layout_rotation || 0"
+                                />
+
+                                <template v-if="selectedDecorationId === decor.id">
+                                    <div class="resize-handle tl" @mousedown.stop.prevent="startResizeDecor($event, decor, 'tl')"></div>
+                                    <div class="resize-handle tr" @mousedown.stop.prevent="startResizeDecor($event, decor, 'tr')"></div>
+                                    <div class="resize-handle bl" @mousedown.stop.prevent="startResizeDecor($event, decor, 'bl')"></div>
+                                    <div class="resize-handle br" @mousedown.stop.prevent="startResizeDecor($event, decor, 'br')"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar (Unplaced + Inspector) -->
+                    <div class="editor-sidebar">
+                        <!-- Inspector Panel: Court -->
+                        <div v-if="selectedCourt" class="sidebar-section inspector-panel">
+                            <h4 class="section-title">Thông tin: {{ selectedCourt.name }}</h4>
+
+                            <div v-if="collisions[selectedCourt.id]" class="inspector-warning-box">
+                                Sân đang chồng lấn lên sân khác! Vui lòng dịch chuyển hoặc thay đổi kích thước để tránh va chạm.
+                            </div>
+
+                            <div class="inspector-fields">
+                                <div class="field-row">
+                                    <span class="label">BỘ MÔN:</span>
+                                    <span class="value">{{ selectedCourt.court_type?.name }}</span>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Kích thước (m):</label>
+                                    <div class="input-row">
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_w)"
+                                            @input="updateW(selectedCourt, $event.target.value)"
+                                            placeholder="Ngang"
+                                        />
+                                        <span class="x">x</span>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_h)"
+                                            @input="updateH(selectedCourt, $event.target.value)"
+                                            placeholder="Dọc"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Vị trí cách lề Trái / Trên (m):</label>
+                                    <div class="input-row">
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_x)"
+                                            @input="updateX(selectedCourt, $event.target.value)"
+                                            placeholder="Trái (X)"
+                                        />
+                                        <span class="comma">,</span>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            :value="formatToM(selectedCourt.layout_y)"
+                                            @input="updateY(selectedCourt, $event.target.value)"
+                                            placeholder="Trên (Y)"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Góc xoay: {{ selectedCourt.layout_rotation || 0 }}°</label>
+                                    <div class="rotation-control">
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="359"
+                                            v-model.number="selectedCourt.layout_rotation"
+                                            class="rotation-slider"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline btn-xs btn-rotate"
+                                            @click="rotateSelected90"
+                                        >
+                                            <span>Xoay +90°</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label>Ảnh mặt sân (Tùy chọn tải lên):</label>
+                                     <div class="court-image-uploader">
+                                         <div v-if="selectedCourt.image_url || selectedCourt.custom_image_url || selectedCourt.image" class="court-image-preview">
+                                             <img :src="selectedCourt.image_url || selectedCourt.custom_image_url || selectedCourt.image" alt="Ảnh sân" />
+                                             <button type="button" class="btn-remove-img" title="Xóa ảnh" @click="removeCourtImage(selectedCourt)">&times;</button>
+                                         </div>
+                                         <div v-else class="court-image-actions">
+                                             <button type="button" class="btn btn-outline btn-xs btn-block" @click="$refs.courtImageFileInput.click()">
+                                                 <AppIcon name="upload" size="14" />
+                                                 <span>Tải ảnh sân lên...</span>
+                                             </button>
+                                             <input type="file" ref="courtImageFileInput" style="display: none" accept="image/*" @change="handleCourtImageUpload($event, selectedCourt)" />
+                                         </div>
+                                     </div>
+                                 </div>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-danger-outline btn-block"
+                                    @click="unplaceCourt(selectedCourt)"
+                                >
+                                    <span>Gỡ khỏi sơ đồ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Inspector Panel: Decoration -->
+                        <div v-else-if="selectedDecoration" class="sidebar-section inspector-panel">
+                            <h4 class="section-title">Vật phẩm: {{ selectedDecoration.name }}</h4>
+                            <div class="inspector-fields">
+                                <div class="field-row">
+                                    <span class="label">LOẠI:</span>
+                                    <span class="value font-normal uppercase">{{ selectedDecoration.type }}</span>
+                                </div>
+                                <div class="field-group">
+                                    <label>Tên nhãn hiển thị:</label>
+                                    <input
+                                        type="text"
+                                        v-model="selectedDecoration.name"
+                                        class="form-control"
+                                        placeholder="Nhãn hiển thị..."
+                                    />
+                                </div>
+                                <div class="field-group">
+                                    <label>Kích thước (px):</label>
+                                    <div class="input-row">
+                                        <input type="number" v-model.number="selectedDecoration.layout_w" placeholder="Rộng" style="width: 70px" />
+                                        <span class="x">x</span>
+                                        <input type="number" v-model.number="selectedDecoration.layout_h" placeholder="Dài" style="width: 70px" />
+                                    </div>
+                                </div>
+                                <div class="field-group">
+                                    <label>Vị trí X / Y (px):</label>
+                                    <div class="input-row">
+                                        <input type="number" v-model.number="selectedDecoration.layout_x" placeholder="X" style="width: 70px" />
+                                        <span class="comma">,</span>
+                                        <input type="number" v-model.number="selectedDecoration.layout_y" placeholder="Y" style="width: 70px" />
+                                    </div>
+                                </div>
+                                <div class="field-group">
+                                    <label>Góc xoay: {{ selectedDecoration.layout_rotation || 0 }}°</label>
+                                    <div class="rotation-control">
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="359"
+                                            v-model.number="selectedDecoration.layout_rotation"
+                                            class="rotation-slider"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline btn-xs btn-rotate"
+                                            @click="rotateSelectedDecor90"
+                                        >
+                                            <span>Xoay +90°</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline btn-danger-outline btn-block"
+                                    @click="deleteDecoration(selectedDecoration)"
+                                >
+                                    <span>Xóa khỏi sơ đồ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Decoration Library Section -->
+                        <div class="sidebar-section decoration-library-section">
+                            <h4 class="section-title">Thêm vật phẩm bổ trợ</h4>
+                            <p class="section-desc">Click để thêm các vật phẩm định vị không gian:</p>
+                            <div class="decor-library-grid">
+                                <button type="button" class="btn-add-decor" @click="addDecoration('entrance', 'Cửa ra vào')">Cửa ra vào</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('reception', 'Lễ tân')">Quầy lễ tân</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('restroom', 'WC')">Nhà vệ sinh</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('seating', 'Ghế chờ')">Ghế ngồi chờ</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('parking', 'Bãi đỗ xe')">Bãi đỗ xe</button>
+                                <button type="button" class="btn-add-decor" @click="addDecoration('custom', 'Khác')">Vật thể khác</button>
+                            </div>
+                        </div>
+
+                        <!-- Unplaced list -->
+                        <div class="sidebar-section unplaced-list-section">
+                            <h4 class="section-title">Sân chưa xếp ({{ unplacedCourts.length }})</h4>
+                            <p class="section-desc">Click vào sân để đưa vào bản đồ rồi kéo thả sắp xếp:</p>
+                            <div class="unplaced-items">
+                                <div
+                                    v-for="court in unplacedCourts"
+                                    :key="court.id"
+                                    class="unplaced-court-item"
+                                    @click="placeCourt(court)"
+                                >
+                                    <div class="item-header">
+                                        <div class="item-name">{{ court.name }}</div>
+                                        <span class="item-add-hint">Xếp sân</span>
+                                    </div>
+                                    <div class="item-type">{{ court.court_type?.name }}</div>
+                                </div>
+                                <div v-if="unplacedCourts.length === 0" class="empty-unplaced">
+                                    Đã xếp tất cả các sân vào sơ đồ.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </ClusterSpatialModal>
 
         <!-- Modal: Request Amenity -->
         <div
@@ -2146,7 +803,10 @@
                             </p>
                             <div class="document-upload-grid">
                                 <label class="document-upload-card">
-                                    <span>Giấy pháp lý / ĐKKD</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Giấy pháp lý / ĐKKD</span>
+                                    <div class="upload-select-action">
+                                        {{ scaleDocumentFiles.legal?.length ? `Đã chọn ${scaleDocumentFiles.legal.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="scaleLegalInput"
                                         type="file"
@@ -2156,7 +816,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Hồ sơ mặt bằng / quy hoạch</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Hồ sơ mặt bằng / quy hoạch</span>
+                                    <div class="upload-select-action">
+                                        {{ scaleDocumentFiles.premise?.length ? `Đã chọn ${scaleDocumentFiles.premise.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="scalePremiseInput"
                                         type="file"
@@ -2166,7 +829,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Tài liệu bổ sung khác</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Tài liệu bổ sung khác</span>
+                                    <div class="upload-select-action">
+                                        {{ scaleDocumentFiles.extra?.length ? `Đã chọn ${scaleDocumentFiles.extra.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="scaleExtraInput"
                                         type="file"
@@ -2278,8 +944,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label
-                                    >Tỉnh/Thành phố mới
-                                    <span class="required">*</span></label
+                                    >Tỉnh/Thành phố mới</label
                                 >
                                 <BaseCombobox 
                                     v-model="locationForm.new_province_code"
@@ -2290,8 +955,7 @@
                             </div>
                             <div class="form-group">
                                 <label
-                                    >Phường/Xã mới
-                                    <span class="required">*</span></label
+                                    >Phường/Xã mới</label
                                 >
                                 <BaseCombobox 
                                     v-model="locationForm.new_ward_code"
@@ -2304,8 +968,7 @@
                         </div>
                         <div class="form-group">
                             <label
-                                >Địa chỉ cụ thể mới
-                                <span class="required">*</span></label
+                                >Địa chỉ cụ thể mới</label
                             >
                             <input
                                 v-model="locationForm.new_address"
@@ -2347,8 +1010,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label
-                                    >Vĩ độ (Latitude) mới
-                                    <span class="required">*</span></label
+                                    >Vĩ độ (Latitude) mới</label
                                 >
                                 <input
                                     v-model.number="locationForm.new_latitude"
@@ -2360,8 +1022,7 @@
                             </div>
                             <div class="form-group">
                                 <label
-                                    >Kinh độ (Longitude) mới
-                                    <span class="required">*</span></label
+                                    >Kinh độ (Longitude) mới</label
                                 >
                                 <input
                                     v-model.number="locationForm.new_longitude"
@@ -2385,8 +1046,7 @@
                         </div>
                         <div class="form-group">
                             <label
-                                >Lý do thay đổi vị trí
-                                <span class="required">*</span></label
+                                >Lý do thay đổi vị trí</label
                             >
                             <textarea
                                 v-model="locationForm.note"
@@ -2397,13 +1057,16 @@
                             ></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng</label>
                             <p class="map-help-text">
                                 Bắt buộc tải giấy ĐKKD/giấy cập nhật kinh doanh hoặc hình ảnh minh chứng vị trí mới.
                             </p>
                             <div class="document-upload-grid">
                                 <label class="document-upload-card">
-                                    <span>Giấy pháp lý / ĐKKD</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Giấy pháp lý / ĐKKD</span>
+                                    <div class="upload-select-action">
+                                        {{ locationDocumentFiles.legal?.length ? `Đã chọn ${locationDocumentFiles.legal.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="locationLegalInput"
                                         type="file"
@@ -2413,7 +1076,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Minh chứng vị trí / mặt bằng</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Minh chứng vị trí / mặt bằng</span>
+                                    <div class="upload-select-action">
+                                        {{ locationDocumentFiles.premise?.length ? `Đã chọn ${locationDocumentFiles.premise.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="locationPremiseInput"
                                         type="file"
@@ -2423,7 +1089,10 @@
                                     />
                                 </label>
                                 <label class="document-upload-card">
-                                    <span>Tài liệu bổ sung khác</span>
+                                    <span style="font-size: 13px; font-weight: 500; color: #475569;">Tài liệu bổ sung khác</span>
+                                    <div class="upload-select-action">
+                                        {{ locationDocumentFiles.extra?.length ? `Đã chọn ${locationDocumentFiles.extra.length}` : 'Chọn tệp' }}
+                                    </div>
                                     <input
                                         ref="locationExtraInput"
                                         type="file"
@@ -2713,7 +1382,6 @@
                         <div class="form-group">
                             <label for="cluster-edit-name">
                                 Tên cụm sân mới
-                                <span class="required">*</span>
                             </label>
                             <input
                                 id="cluster-edit-name"
@@ -2726,7 +1394,6 @@
                         <div class="form-group" style="margin-top: 16px;">
                             <label for="cluster-edit-phone">
                                 Số điện thoại liên hệ mới
-                                <span class="required">*</span>
                             </label>
                             <input
                                 id="cluster-edit-phone"
@@ -2763,7 +1430,7 @@
                                         :disabled="uploadingTempImage"
                                     />
                                     <AppIcon name="plus" size="24" style="color: #64748b; margin-bottom: 8px;" />
-                                    <span style="font-size: 13px; font-weight: 600; color: #475569;">
+                                    <span style="font-size: 13px; font-weight: 400; color: #475569;">
                                         {{ uploadingTempImage ? "Đang tải ảnh..." : "Chọn ảnh hoặc kéo thả vào đây" }}
                                     </span>
                                     <span style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Hỗ trợ JPG, PNG, WEBP tối đa 5MB</span>
@@ -2773,14 +1440,16 @@
                             <!-- Preview danh sách ảnh tạm -->
                             <div class="owner-gallery-grid" v-if="tempImages.length > 0" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px;">
                                 <div v-for="(img, idx) in tempImages" :key="idx" class="owner-gallery-item" style="position: relative; aspect-ratio: 4/3; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
-                                    <img :src="img.url" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    <img :src="imageUrl(img.file_path || img.url)" style="width: 100%; height: 100%; object-fit: cover;" />
                                     <button
                                         type="button"
                                         class="btn-delete-image"
-                                        style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer;"
+                                        style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 20px; height: 20px; display: flex !important; align-items: center !important; justify-content: center !important; color: #fff; cursor: pointer; padding: 0 !important;"
                                         @click="removeTempImage(idx)"
                                     >
-                                        &times;
+                                        <svg style="width: 10px; height: 10px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
                                     </button>
                                 </div>
                             </div>
@@ -2790,7 +1459,6 @@
                         <div class="form-group" style="margin-top: 16px;">
                             <label for="cluster-edit-note">
                                 Lý do yêu cầu chỉnh sửa
-                                <span class="required">*</span>
                             </label>
                             <textarea
                                 id="cluster-edit-note"
@@ -2911,6 +1579,7 @@
 </template>
 
 <script>
+import AppTabs from "../../components/common/AppTabs.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
@@ -2919,6 +1588,15 @@ import FloatAddButton from "../../components/FloatAddButton.vue";
 import ClusterActionFloating from "../../components/owner/ClusterActionFloating.vue";
 import PartnerFilePreviewDialog from "../../components/partner/PartnerFilePreviewDialog.vue";
 import BaseCombobox from "../../components/BaseCombobox.vue";
+
+import ClusterHeaderHero from "../../components/owner/clusters/ClusterHeaderHero.vue";
+import ClusterCourtsTab from "../../components/owner/clusters/ClusterCourtsTab.vue";
+import ClusterGeneralInfoTab from "../../components/owner/clusters/ClusterGeneralInfoTab.vue";
+import ClusterLocationTab from "../../components/owner/clusters/ClusterLocationTab.vue";
+import ClusterRequestsCenterTab from "../../components/owner/clusters/ClusterRequestsCenterTab.vue";
+import ClusterSpatialModal from "../../components/owner/clusters/ClusterSpatialModal.vue";
+import { useToast } from "vue-toastification";
+
 import { venueClusterService } from "../../services/venueClusters";
 import { amenityService } from "../../services/amenityService";
 import { courtTypeService } from "../../services/courtTypes";
@@ -2928,7 +1606,23 @@ import { venueDisplayStatus, venuePartnerState } from "../../utils/venuePartnerS
 
 export default {
     name: "OwnerVenueClusters",
-    components: { AppIcon, ActionIconButton, CourtVisual, DecorationVisual, FloatAddButton, ClusterActionFloating, PartnerFilePreviewDialog, BaseCombobox },
+    components: {
+        AppTabs,
+        AppIcon,
+        ActionIconButton,
+        CourtVisual,
+        DecorationVisual,
+        FloatAddButton,
+        ClusterActionFloating,
+        PartnerFilePreviewDialog,
+        BaseCombobox,
+        ClusterHeaderHero,
+        ClusterCourtsTab,
+        ClusterGeneralInfoTab,
+        ClusterLocationTab,
+        ClusterRequestsCenterTab,
+        ClusterSpatialModal,
+    },
     data() {
         return {
             // Cluster list
@@ -3008,6 +1702,7 @@ export default {
             editCourtForm: { name: "", status: "active", sort_order: 0 },
  
             // Layout/Canvas
+            showSpatialModal: false,
             decorations: [],
             selectedCourtId: null,
             selectedDecorationId: null,
@@ -3136,6 +1831,9 @@ export default {
         isClusterLocked() {
             return this.isModerationLocked || this.isTerminationRestricted || this.isClusterArchived;
         },
+        hasPendingInfoRequest() {
+            return (this.infoRequests || []).some(r => r.status === 'pending');
+        },
         ownerDashboardCards() {
             const active = this.clusters.filter((cluster) => cluster.status === "active").length;
             const locked = this.clusters.filter((cluster) => cluster.status === "locked").length;
@@ -3156,12 +1854,15 @@ export default {
         },
         tabs() {
             const list = [
-                { key: "courts", label: "Sân con" },
-                { key: "info", label: "Thông tin chung" },
-                { key: "info_requests", label: "Yêu cầu thông tin" },
-                { key: "approvals", label: "Yêu cầu quy mô" },
-                { key: "location", label: "Yêu cầu vị trí" },
+                { key: "info", label: "Thông tin cụm sân" },
+                { key: "courts", label: "Danh sách sân con" },
+                { key: "approvals", label: "Yêu cầu thay đổi thông tin" },
+                { key: "partner_profile", label: "Hồ sơ đối tác" },
             ];
+            if (this.selectedCluster && this.selectedCluster.status !== "pending") {
+                const termLabel = (this.isClusterArchived || this.isTerminationRestricted) ? "Hồ sơ chấm dứt" : "Chấm dứt";
+                list.push({ key: "termination", label: termLabel });
+            }
             if (this.isModerationLocked) {
                 list.push({ key: "unlock", label: "Yêu cầu mở khóa" });
             }
@@ -3479,6 +2180,74 @@ export default {
                 amenity_descriptions: descriptions,
                 description: cluster.description || "",
             };
+
+            const matchedProvince = cluster.province_code
+                ? this.provincesList.find((p) => String(p.code) === String(cluster.province_code))
+                : this.findProvinceByName(cluster.province);
+            const provinceCode = matchedProvince?.code || cluster.province_code || "";
+
+            this.locationForm = {
+                new_province_code: provinceCode,
+                new_province: cluster.province || "",
+                province_code: provinceCode,
+                province: cluster.province || "",
+                new_ward_code: cluster.ward_code || "",
+                new_ward: cluster.ward || "",
+                ward_code: cluster.ward_code || "",
+                ward: cluster.ward || "",
+                new_address: cluster.address || "",
+                address: cluster.address || "",
+                new_map_url: cluster.map_url || "",
+                map_url: cluster.map_url || "",
+                new_latitude: parseFloat(cluster.latitude || 21.0285),
+                new_longitude: parseFloat(cluster.longitude || 105.8542),
+                latitude: parseFloat(cluster.latitude || 21.0285),
+                longitude: parseFloat(cluster.longitude || 105.8542),
+            };
+
+            if (provinceCode) {
+                this.fetchWards(provinceCode).then(() => {
+                    const matchedWard = cluster.ward_code
+                        ? this.wardsList.find((w) => String(w.code) === String(cluster.ward_code))
+                        : this.findWardByName(cluster.ward);
+                    if (matchedWard) {
+                        this.locationForm.new_ward_code = matchedWard.code;
+                        this.locationForm.ward_code = matchedWard.code;
+                    }
+                });
+            }
+
+            this.fetchCourts(cluster.id);
+            this.fetchApprovals(cluster.id);
+            this.fetchInfoRequests(cluster.id);
+            this.fetchLocationRequests(cluster.id);
+            this.fetchUnlockRequests(cluster.id);
+        },
+
+        selectClusterById(id) {
+            const found = this.clusters.find((c) => String(c.id) === String(id));
+            if (found) {
+                this.selectCluster(found);
+            }
+        },
+
+        handleTabChange(key) {
+            if (key === "partner_profile") {
+                this.$router.push({ name: "owner-partner-profile" });
+                return;
+            }
+            if (key === "termination") {
+                if (this.selectedCluster) {
+                    this.$router.push({
+                        name: "owner-partner-termination",
+                        params: { id: this.selectedCluster.id },
+                    });
+                }
+                return;
+            }
+            this.activeTab = key;
+        },
+        initDecorations(cluster) {
             this.decorations = Array.isArray(cluster.layout_decorations)
                 ? JSON.parse(JSON.stringify(cluster.layout_decorations))
                 : [];
@@ -3581,29 +2350,24 @@ export default {
             this.updating = true;
             this.updateSuccess = false;
             this.updateError = null;
+            const toast = useToast();
             try {
-                const res = await venueClusterService.updateCluster(
+                const payload = {
+                    new_name: this.form.name,
+                    new_phone_contact: this.form.phone_contact,
+                    new_description: this.form.description || "",
+                    note: "Yêu cầu thay đổi thông tin chung cụm sân",
+                };
+                await venueClusterService.createInformationChangeRequest(
                     this.selectedCluster.id,
-                    this.form,
+                    payload,
                 );
                 this.updateSuccess = true;
-                const index = this.clusters.findIndex(
-                    (c) => c.id === this.selectedCluster.id,
-                );
-                if (index !== -1) {
-                    this.clusters[index] = {
-                        ...this.clusters[index],
-                        ...res.data,
-                    };
-                    this.selectedCluster = this.clusters[index];
-                    window.dispatchEvent(
-                        new CustomEvent("owner-cluster-changed", {
-                            detail: this.selectedCluster,
-                        }),
-                    );
-                }
+                toast.success("Gửi yêu cầu chỉnh sửa thông tin thành công!");
+                await this.fetchInfoRequests(this.selectedCluster.id);
             } catch (err) {
-                this.updateError = err.message || "Lỗi khi cập nhật cụm sân.";
+                this.updateError = err.message || "Lỗi khi gửi yêu cầu chỉnh sửa thông tin.";
+                toast.error(this.updateError);
             } finally {
                 this.updating = false;
             }
@@ -3793,26 +2557,69 @@ export default {
             return `/storage/${path}`;
         },
 
+        async compressImageToWebP(file, quality = 0.82, maxWidth = 1920) {
+            if (!file || !file.type.startsWith('image/')) return file;
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob(
+                            (blob) => {
+                                if (!blob) {
+                                    resolve(file);
+                                    return;
+                                }
+                                const webpFileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+                                const webpFile = new File([blob], webpFileName, {
+                                    type: 'image/webp',
+                                    lastModified: Date.now(),
+                                });
+                                resolve(webpFile);
+                            },
+                            'image/webp',
+                            quality
+                        );
+                    };
+                    img.onerror = () => resolve(file);
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => resolve(file);
+                reader.readAsDataURL(file);
+            });
+        },
+
         async handleImageUpload(e) {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
+            const rawFiles = Array.from(e.target.files);
+            if (rawFiles.length === 0) return;
             this.uploadingImage = true;
             this.updateError = null;
             try {
-                for (const file of files) {
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert(
-                            `File ${file.name} vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.`,
-                        );
-                        continue;
-                    }
+                for (const file of rawFiles) {
+                    // Tự động nén và chuyển đổi thành WebP siêu nhẹ trên trình duyệt
+                    const compressedFile = await this.compressImageToWebP(file, 0.82, 1920);
+
                     const formData = new FormData();
-                    formData.append("image", file);
+                    formData.append("image", compressedFile);
                     const res = await venueClusterService.uploadMedia(
                         this.selectedCluster.id,
                         formData,
                     );
-                    this.imagesList.push(res.data);
+                    const mediaItem = res.data?.data || res.data;
+                    if (mediaItem && (mediaItem.file_path || mediaItem.id)) {
+                        this.imagesList.push(mediaItem);
+                    }
                 }
                 this.selectedCluster.media = [...this.imagesList];
             } catch (err) {
@@ -3820,6 +2627,54 @@ export default {
             } finally {
                 this.uploadingImage = false;
                 e.target.value = "";
+            }
+        },
+
+        async uploadGalleryImage(e) {
+            await this.handleImageUpload(e);
+        },
+
+        async deleteGalleryImage(mediaId) {
+            await this.handleDeleteImage(mediaId);
+        },
+
+        async handleGalleryRequest(payload) {
+            if (!this.selectedCluster) return;
+            this.updating = true;
+            this.updateError = null;
+            try {
+                const reqData = {
+                    new_name: this.form.name || this.selectedCluster.name,
+                    new_phone_contact: this.form.phone_contact || this.selectedCluster.phone_contact || "",
+                    new_description: this.form.description || this.selectedCluster.description || "",
+                    new_images: payload.images || [],
+                    note: payload.note || "Yêu cầu thay đổi bộ sưu tập ảnh cụm sân",
+                };
+                await venueClusterService.createInformationChangeRequest(
+                    this.selectedCluster.id,
+                    reqData,
+                );
+                alert("Gửi yêu cầu cập nhật bộ sưu tập ảnh thành công! Vui lòng chờ Admin xét duyệt.");
+                await this.fetchInfoRequests(this.selectedCluster.id);
+            } catch (err) {
+                alert(err.message || "Không thể gửi yêu cầu cập nhật ảnh.");
+            } finally {
+                this.updating = false;
+            }
+        },
+
+        async handleUploadTempMedia({ formData, onSuccess }) {
+            if (!this.selectedCluster) return;
+            try {
+                const res = await venueClusterService.uploadTempMedia(
+                    this.selectedCluster.id,
+                    formData,
+                );
+                if (typeof onSuccess === 'function') {
+                    onSuccess(res.data?.data || res.data);
+                }
+            } catch (err) {
+                alert(err.message || "Tải ảnh tạm thất bại.");
             }
         },
 
@@ -3893,8 +2748,22 @@ export default {
             try {
                 const res = await api("/api/user/partner-application/provinces");
                 this.provincesList = res.data || [];
-                if (this.locationForm.new_province_code && !this.wardsList.length) {
-                    await this.fetchWards(this.locationForm.new_province_code);
+                if (this.selectedCluster) {
+                    const prov = this.selectedCluster.province_code
+                        ? this.provincesList.find((p) => String(p.code) === String(this.selectedCluster.province_code))
+                        : this.findProvinceByName(this.selectedCluster.province);
+                    if (prov) {
+                        this.locationForm.new_province_code = prov.code;
+                        this.locationForm.province_code = prov.code;
+                        await this.fetchWards(prov.code);
+                        const ward = this.selectedCluster.ward_code
+                            ? this.wardsList.find((w) => String(w.code) === String(this.selectedCluster.ward_code))
+                            : this.findWardByName(this.selectedCluster.ward);
+                        if (ward) {
+                            this.locationForm.new_ward_code = ward.code;
+                            this.locationForm.ward_code = ward.code;
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Lỗi khi tải danh mục tỉnh thành:", err);
@@ -3988,15 +2857,19 @@ export default {
         },
 
         // ── Map ──
-        async handleExtractCoordinates() {
-            if (!this.form.map_url) {
-                alert("Vui lòng nhập đường link Google Maps trước.");
+        async resolveMapUrl() {
+            const url = this.locationForm?.map_url || this.locationForm?.new_map_url || this.form?.map_url;
+            if (!url) {
+                this.mapExtractMsg = {
+                    type: "error",
+                    text: "Vui lòng nhập đường link Google Maps trước.",
+                };
                 return;
             }
             this.resolvingMap = true;
             this.mapExtractMsg = null;
             try {
-                await this.parseCoordinatesFromMapUrl(this.form.map_url);
+                await this.parseCoordinatesFromMapUrl(url);
             } catch (e) {
                 this.mapExtractMsg = {
                     type: "error",
@@ -4005,6 +2878,10 @@ export default {
             } finally {
                 this.resolvingMap = false;
             }
+        },
+
+        async handleExtractCoordinates() {
+            await this.resolveMapUrl();
         },
 
         async parseCoordinatesFromMapUrl(url) {
@@ -4017,11 +2894,19 @@ export default {
                     const res = await venueClusterService.resolveMapUrl(url);
                     const d = res.data;
                     if (d?.latitude && d?.longitude) {
-                        this.form.latitude = d.latitude;
-                        this.form.longitude = d.longitude;
+                        const lat = parseFloat(d.latitude);
+                        const lng = parseFloat(d.longitude);
+                        this.form.latitude = lat;
+                        this.form.longitude = lng;
+                        if (this.locationForm) {
+                            this.locationForm.latitude = lat;
+                            this.locationForm.longitude = lng;
+                            this.locationForm.new_latitude = lat;
+                            this.locationForm.new_longitude = lng;
+                        }
                         this.mapExtractMsg = {
                             type: "success",
-                            text: `Trích xuất thành công: Vĩ độ ${d.latitude}, Kinh độ ${d.longitude}`,
+                            text: `Trích xuất thành công: Vĩ độ ${lat}, Kinh độ ${lng}`,
                         };
                         return;
                     }
@@ -4034,29 +2919,38 @@ export default {
                     return;
                 }
             }
+
             let match = targetUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (match) {
-                this.form.latitude = parseFloat(match[1]);
-                this.form.longitude = parseFloat(match[2]);
-                this.mapExtractMsg = {
-                    type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${match[1]}, Kinh độ ${match[2]}`,
-                };
-                return;
+            if (!match) {
+                match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
             }
-            match = targetUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+            if (!match) {
+                match = targetUrl.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+            }
+            if (!match) {
+                match = targetUrl.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+            }
+
             if (match) {
-                this.form.latitude = parseFloat(match[1]);
-                this.form.longitude = parseFloat(match[2]);
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                this.form.latitude = lat;
+                this.form.longitude = lng;
+                if (this.locationForm) {
+                    this.locationForm.latitude = lat;
+                    this.locationForm.longitude = lng;
+                    this.locationForm.new_latitude = lat;
+                    this.locationForm.new_longitude = lng;
+                }
                 this.mapExtractMsg = {
                     type: "success",
-                    text: `Trích xuất thành công: Vĩ độ ${match[1]}, Kinh độ ${match[2]}`,
+                    text: `Trích xuất thành công: Vĩ độ ${lat}, Kinh độ ${lng}`,
                 };
                 return;
             }
             this.mapExtractMsg = {
                 type: "error",
-                text: "Không tìm thấy tọa độ trong link này. Hãy thử link đầy đủ từ Google Maps desktop.",
+                text: "Không tìm thấy tọa độ trong link này. Hãy thử copy link đầy đủ từ trình duyệt.",
             };
         },
 
@@ -4467,6 +3361,30 @@ export default {
             if (court)
                 court.layout_rotation =
                     ((court.layout_rotation || 0) + 90) % 360;
+        },
+
+        handleCourtImageUpload(event, court) {
+            const file = event.target.files?.[0];
+            if (!file || !court) return;
+            if (!file.type.startsWith("image/")) {
+                alert("Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP).");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imgData = e.target.result;
+                court.image_url = imgData;
+                court.custom_image_url = imgData;
+            };
+            reader.readAsDataURL(file);
+            event.target.value = "";
+        },
+
+        removeCourtImage(court) {
+            if (!court) return;
+            court.image_url = null;
+            court.custom_image_url = null;
+            court.image = null;
         },
 
         selectCourt(court) {
@@ -4892,11 +3810,141 @@ export default {
                 alert("Sơ đồ sân con và vật phẩm bổ trợ đã được lưu thành công.");
                 this.selectedCluster.layout_decorations = JSON.parse(JSON.stringify(this.decorations));
                 await this.fetchCourts(this.selectedCluster.id);
+                this.showSpatialModal = false;
             } catch (err) {
                 alert(err.message || "Lỗi khi lưu sơ đồ.");
             } finally {
                 this.savingLayout = false;
             }
+        },
+
+        exportLayoutImage() {
+            const viewport = this.$refs.canvasViewport;
+            if (!viewport) return;
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const rect = viewport.getBoundingClientRect();
+
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            ctx.scale(2, 2);
+
+            // Dark Studio Background
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, rect.width, rect.height);
+
+            // Dot grid
+            ctx.fillStyle = "#334155";
+            for (let x = 0; x < rect.width; x += 32) {
+                for (let y = 0; y < rect.height; y += 32) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Placed Courts
+            this.placedCourts.forEach((court) => {
+                const w = court.layout_w || this.getDefaultWidth(court);
+                const h = court.layout_h || this.getDefaultHeight(court);
+                const screenX = (court.layout_x || 0) * this.zoom + this.panX;
+                const screenY = (court.layout_y || 0) * this.zoom + this.panY;
+                const screenW = w * this.zoom;
+                const screenH = h * this.zoom;
+
+                ctx.save();
+                ctx.translate(screenX + screenW / 2, screenY + screenH / 2);
+                if (court.layout_rotation) {
+                    ctx.rotate(((court.layout_rotation || 0) * Math.PI) / 180);
+                }
+
+                // Sport turf color
+                const colors = {
+                    football: "#166534",
+                    badminton: "#0f766e",
+                    pickleball: "#1d4ed8",
+                    tennis: "#1e40af",
+                    basketball: "#ea580c",
+                    volleyball: "#b45309",
+                    default: "#334155",
+                };
+                const sportName = (court.court_type?.name || court.name || "").toLowerCase();
+                let key = "default";
+                if (sportName.includes("cầu lông") || sportName.includes("badminton")) key = "badminton";
+                else if (sportName.includes("pickleball")) key = "pickleball";
+                else if (sportName.includes("bóng đá") || sportName.includes("football")) key = "football";
+                else if (sportName.includes("tennis")) key = "tennis";
+                else if (sportName.includes("bóng rổ") || sportName.includes("basketball")) key = "basketball";
+
+                const courtImgSrc = court.image_url || court.custom_image_url || court.image;
+                if (courtImgSrc) {
+                    try {
+                        const img = new Image();
+                        img.src = courtImgSrc;
+                        ctx.drawImage(img, -screenW / 2, -screenH / 2, screenW, screenH);
+                    } catch (e) {}
+                } else {
+                    ctx.fillStyle = colors[key];
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(-screenW / 2, -screenH / 2, screenW, screenH, 6);
+                    } else {
+                        ctx.rect(-screenW / 2, -screenH / 2, screenW, screenH);
+                    }
+                    ctx.fill();
+                }
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Court Label
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 13px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(court.name, 0, 0);
+
+                ctx.restore();
+            });
+
+            // Placed Decor
+            (this.decorations || []).forEach((decor) => {
+                const screenX = (decor.layout_x || 0) * this.zoom + this.panX;
+                const screenY = (decor.layout_y || 0) * this.zoom + this.panY;
+                const screenW = (decor.layout_w || 100) * this.zoom;
+                const screenH = (decor.layout_h || 100) * this.zoom;
+
+                ctx.save();
+                ctx.translate(screenX + screenW / 2, screenY + screenH / 2);
+                if (decor.layout_rotation) {
+                    ctx.rotate(((decor.layout_rotation || 0) * Math.PI) / 180);
+                }
+
+                ctx.fillStyle = "rgba(30, 41, 59, 0.9)";
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(-screenW / 2, -screenH / 2, screenW, screenH, 6);
+                } else {
+                    ctx.rect(-screenW / 2, -screenH / 2, screenW, screenH);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#cbd5e1";
+                ctx.font = "11px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(decor.name || decor.type, 0, 0);
+
+                ctx.restore();
+            });
+
+            const link = document.createElement("a");
+            link.download = `so-do-mat-bang-${this.selectedCluster?.name || "san"}.webp`;
+            link.href = canvas.toDataURL("image/webp", 0.90);
+            link.click();
         },
 
         addDecoration(type, defaultName) {
@@ -6114,7 +5162,7 @@ export default {
 </script>
 
 <style scoped>
-h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
+h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     font-weight: 500 !important;
 }
 
@@ -6150,7 +5198,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     margin: 0 0 4px;
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: uppercase;
 }
@@ -6174,7 +5222,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: block;
     color: var(--admin-faint, #64748b);
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: uppercase;
 }
@@ -6206,7 +5254,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .owner-stat-card span {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
@@ -6255,7 +5303,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: var(--admin-surface-muted, #f4f8f5);
     color: var(--admin-text, #0f172a);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .clusters-list {
@@ -6308,7 +5356,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     border-radius: 8px;
     background: #16351f;
     color: #ffffff;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .cluster-info {
@@ -6321,7 +5369,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .cluster-name {
     color: var(--admin-text, #0f172a);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.3;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -6369,7 +5417,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 0;
 }
 
 .cluster-hero {
@@ -6395,7 +5443,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     gap: 8px;
     color: var(--admin-faint, #64748b);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .status-pill {
@@ -6408,7 +5456,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: #166534;
     border: 1px solid #bbf7d0;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .status-pill.status-locked,
@@ -6483,7 +5531,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     place-items: center;
     color: var(--admin-faint, #64748b);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .cluster-quick-grid {
@@ -6515,7 +5563,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .quick-stat-label {
     color: var(--admin-faint, #64748b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
@@ -6549,7 +5597,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: #16a34a;
     color: #ffffff;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 /* Tabs */
@@ -6574,7 +5622,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     background: transparent;
     color: var(--admin-muted, #475569);
     font-size: 13.5px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
     cursor: pointer;
     transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
@@ -6600,7 +5648,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     padding: 0 5px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     background: #dc2626;
     color: #ffffff;
 }
@@ -6865,8 +5913,8 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .form-actions {
     display: flex;
     justify-content: flex-end;
-    border-top: 1px solid var(--admin-border);
-    padding-top: 20px;
+    border-top: none;
+    padding-top: 0;
     margin-top: 8px;
 }
 
@@ -7119,15 +6167,16 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .layout-editor-workspace {
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 .editor-toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px;
+    padding: 10px 16px;
     background: var(--admin-surface, #ffffff);
-    border-radius: 10px;
-    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -7143,14 +6192,14 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 .info-badge {
     font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    color: var(--admin-muted, #64748b);
     font-style: italic;
 }
-/* ─── Tool Switcher (Figma-style) ─── */
+/* ─── Tool Switcher ─── */
 .tool-switcher {
     display: flex;
-    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
-    border: 1.5px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-bg, #f8fafc);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 8px;
     padding: 3px;
     gap: 2px;
@@ -7165,40 +6214,38 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: var(--admin-muted, #64748b);
     transition: all 0.15s;
 }
-.tool-btn.never-hover-class-placeholder {
-    background: var(--admin-border, #cbd5e1);
-    color: #1e293b;
-}
 .tool-btn.active {
-    background: var(--admin-surface, #ffffff);
-    color: #3b82f6;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    background: rgba(34, 166, 83, 0.12);
+    color: #22a653;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .toolbar-divider {
     width: 1px;
     height: 28px;
-    background: var(--admin-border, #cbd5e1);
+    background: var(--admin-border-soft, #e2e8f0);
     align-self: center;
     margin: 0 2px;
 }
 .editor-body {
     display: flex;
-    gap: 12px;
-    height: 600px;
-    margin-top: 12px;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+    margin-top: 14px;
 }
 .canvas-viewport {
     flex: 1;
-    background: #f0f2f5;
-    border-radius: 10px;
-    border: 1px solid var(--admin-border);
+    background: var(--admin-bg-soft, #f8fafc);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     overflow: hidden;
     position: relative;
     cursor: default;
     user-select: none;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 /* Mode: select → con trỏ chuẩn */
 .canvas-viewport.tool-select {
@@ -7227,13 +6274,13 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     pointer-events: none;
 }
 .guide-item {
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(4px);
-    padding: 4px 8px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding: 4px 10px;
     border-radius: 6px;
-    font-size: 11px;
-    color: rgba(15, 23, 42, 0.7);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    font-size: 11.5px;
+    color: var(--admin-text, #0f172a);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 .zoom-controls {
     position: absolute;
@@ -7243,41 +6290,32 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--admin-border);
-    padding: 6px 8px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding: 5px 8px;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 .btn-zoom {
     padding: 4px 10px;
-    border: 1px solid var(--admin-border, #cbd5e1);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 6px;
-    background: var(--admin-surface, #ffffff);
+    background: var(--admin-bg, #f8fafc);
+    color: var(--admin-text, #0f172a);
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.15s;
+    font-size: 12.5px;
+    font-weight: 400;
+    transition: all 0.15s ease;
 }
-.btn-zoom.never-hover-class-placeholder {
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1px solid var(--admin-border, #d8e4dc);
-    border-radius: 8px;
-    overflow: hidden;
-}
-.btn-zoom.fit,
-.btn-zoom.reset {
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+.btn-zoom:hover {
+    background: var(--admin-hover, #edf7ed);
+    border-color: #22a653;
 }
 .zoom-level {
     font-size: 12px;
     font-weight: 500;
-    color: #475569;
-    min-width: 42px;
+    color: var(--admin-text, #0f172a);
+    min-width: 44px;
     text-align: center;
 }
 .canvas-content {
@@ -7288,14 +6326,37 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 }
 .canvas-grid-bg {
     position: absolute;
-    top: -500px;
-    left: -500px;
-    width: 3000px;
-    height: 3000px;
-    background-image: radial-gradient(circle, #9ba3af 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.35;
+    top: -3000px;
+    left: -3000px;
+    width: 6000px;
+    height: 6000px;
+    background-image: radial-gradient(circle, #cbd5e1 1.5px, transparent 1.5px);
+    background-size: 32px 32px;
+    opacity: 0.8;
     pointer-events: none;
+}
+
+/* Dark mode overrides for spatial canvas */
+[data-theme="dark"] .canvas-viewport {
+    background: #090d16 !important;
+    border-color: #27272a !important;
+}
+[data-theme="dark"] .canvas-grid-bg {
+    background-image: radial-gradient(circle, #334155 1.5px, transparent 1.5px) !important;
+    opacity: 0.6 !important;
+}
+[data-theme="dark"] .editor-toolbar,
+[data-theme="dark"] .tool-switcher,
+[data-theme="dark"] .guide-item,
+[data-theme="dark"] .zoom-controls {
+    background: #18181b !important;
+    border-color: #27272a !important;
+    color: #f4f4f5 !important;
+}
+[data-theme="dark"] .btn-zoom {
+    background: #27272a !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
 }
 .canvas-guideline {
     position: absolute;
@@ -7340,7 +6401,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     width: 12px;
     height: 12px;
     background: #3b82f6;
-    border: 2px solid var(--admin-surface, #ffffff);
+    border: 2px solid #ffffff;
     border-radius: 2px;
     z-index: 10;
 }
@@ -7388,73 +6449,132 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .sidebar-section {
     background: var(--admin-surface, #ffffff);
     border-radius: 10px;
-    border: 1px solid var(--admin-border);
-    padding: 18px 20px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding: 12px 14px;
 }
 .section-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--admin-text);
-    margin: 0 0 12px 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--admin-text, #0f172a);
+    margin: 0 0 8px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
 }
 .section-desc {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
-    margin-bottom: 12px;
+    font-size: 11.5px;
+    color: var(--admin-muted, #64748b);
+    margin-bottom: 8px;
 }
 .inspector-warning-box {
     background: #fef9c3;
     border: 1px solid #fde047;
     border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 12px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    font-weight: 400;
     color: #713f12;
 }
 .inspector-fields {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 .field-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    align-items: center;
+    font-size: 11.5px;
+    padding-bottom: 4px;
+}
+.field-row .label {
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
+}
+.field-row .value {
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
 }
 .field-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 .field-group label {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(15, 23, 42, 0.6);
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--admin-muted, #64748b);
 }
 .input-row {
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.input-row input {
+.input-row input,
+.inspector-panel :is(input, select, textarea, .form-control) {
     flex: 1;
-    border: 1px solid var(--admin-border);
+    border: 1px solid var(--admin-border, #cbd5e1);
     border-radius: 6px;
-    padding: 6px 8px;
-    font-size: 13px;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    height: 30px !important;
     outline: none;
-    width: 70px;
+    font-weight: 400 !important;
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #0f172a);
+}
+.input-row input:focus,
+.inspector-panel :is(input, select, textarea, .form-control):focus {
+    border-color: #22a653 !important;
 }
 .input-row .x,
 .input-row .comma {
-    font-weight: 500;
-    color: rgba(15, 23, 42, 0.4);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--admin-muted, #94a3b8);
 }
 .rotation-control {
     display: flex;
     flex-direction: column;
     gap: 6px;
+}
+.court-image-uploader {
+    margin-top: 4px;
+}
+.court-image-preview {
+    position: relative;
+    width: 100%;
+    height: 70px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.court-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.btn-remove-img {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.85);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1;
+    transition: background 0.15s ease;
+}
+.btn-remove-img:hover {
+    background: #ef4444;
 }
 .rotation-slider {
     width: 100%;
@@ -8082,26 +7202,27 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     gap: 8px;
 }
 .btn-add-decor {
-    padding: 8px;
-    background: var(--admin-surface-muted, #f8fafc);
-    border: 1.5px solid var(--admin-border, #cbd5e1);
+    padding: 10px 8px;
+    background: var(--admin-surface-muted, #1e293b);
+    border: 1px solid var(--admin-border, #334155);
     border-radius: 8px;
-    font-size: 11px;
-    font-weight: 500;
-    color: #475569;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--admin-text, #f1f5f9);
     cursor: pointer;
     text-align: center;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
 }
-.btn-add-decor.never-hover-class-placeholder {
-    background: var(--admin-surface-muted, var(--admin-surface-muted, #f8fafc));
-    border-color: #cbd5e1;
-    color: #1e293b;
+.btn-add-decor:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    color: #60a5fa;
+    transform: translateY(-1px);
 }
 
 /* ─── Searchable Select Custom styles ─── */
@@ -8278,24 +7399,39 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .supplement-file-list button,
 .supplement-documents a,
 .supplement-document-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 0 10px;
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 28px;
+    height: 30px;
+    padding: 0 12px;
     border-radius: 999px;
-    border: 1px solid #c7d2fe;
-    background: #eef2ff;
-    color: #3730a3;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
     font-size: 12px;
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
     appearance: none;
+    transition: all 0.15s ease;
 }
 
 .supplement-file-list button {
     appearance: none;
     font-family: inherit;
+}
+
+.supplement-file-list button:hover,
+.supplement-documents a:hover,
+.supplement-document-link:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
 }
 
 .request-document-actions {
@@ -8468,23 +7604,45 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 .document-upload-card {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 8px;
-    min-height: 86px;
-    padding: 12px;
-    border: 1px dashed #b8cbbd;
+    min-height: 96px;
+    padding: 12px !important;
+    border: 1px dashed #cbd5e1;
     border-radius: 8px;
-    background: #fbfdfb;
+    background: transparent;
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
 }
 
 .document-upload-card span {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
-    color: #16351f;
+    color: #475569;
 }
 
 .document-upload-card input {
-    width: 100%;
+    display: none !important;
+}
+
+.upload-select-action {
     font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    border: 1px solid #cbd5e1;
+    padding: 4px 14px;
+    border-radius: 20px;
+    background: #ffffff;
+    display: inline-block;
+    transition: all 0.15s ease;
+}
+
+.document-upload-card:hover .upload-select-action {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #334155;
 }
 
 .scale-remove-list {
@@ -9147,7 +8305,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 18px;
     line-height: 1.25;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
 }
 
 .info-summary-grid {
@@ -9191,7 +8349,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 15px;
     line-height: 1.35;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
     overflow-wrap: anywhere;
 }
 
@@ -9216,7 +8374,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 16px;
     line-height: 1.3;
-    font-weight: 700 !important;
+    font-weight: 400 !important;
 }
 
 .location-content-grid {
@@ -9252,7 +8410,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     min-width: 0;
     color: var(--admin-faint, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .location-overview-card .location-value {
@@ -9260,7 +8418,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
     color: var(--admin-text, #0f172a);
     font-size: 13.5px;
     line-height: 1.45;
-    font-weight: 600;
+    font-weight: 400;
     overflow-wrap: anywhere;
 }
 
@@ -9589,7 +8747,7 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-bold {
 
 .cluster-restriction-banner strong {
     display: block;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .cluster-restriction-banner p {

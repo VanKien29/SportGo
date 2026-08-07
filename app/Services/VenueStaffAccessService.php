@@ -4,22 +4,30 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\VenueCourt;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class VenueStaffAccessService
 {
     public function isStaff(User $user): bool
     {
-        return $user->roles()->where('roles.name', 'venue_staff')->exists()
-            && ! $user->roles()->where('roles.name', 'venue_owner')->exists();
+        return $user->roles()->where('roles.name', 'venue_staff')->exists();
+    }
+
+    public function ownsCluster(User $user, string $clusterId): bool
+    {
+        return $user->roles()->where('roles.name', 'venue_owner')->exists()
+            && DB::table('venue_clusters')
+                ->where('id', $clusterId)
+                ->where('owner_id', $user->id)
+                ->exists();
     }
 
     /** Null means the staff member has access to every court type in the cluster. */
     public function allowedCourtTypeIds(User $user, string $clusterId): ?Collection
     {
-        if (! $this->isStaff($user)) {
+        if ($this->ownsCluster($user, $clusterId) || ! $this->isStaff($user)) {
             return null;
         }
 
@@ -43,15 +51,8 @@ class VenueStaffAccessService
 
     public function assertClusterAccess(User $user, string $clusterId): void
     {
-        if ($user->roles()->where('roles.name', 'venue_owner')->exists()) {
-            $hasOwnership = DB::table('venue_clusters')
-                ->where('id', $clusterId)
-                ->where('owner_id', $user->id)
-                ->exists();
-
-            if ($hasOwnership) {
-                return;
-            }
+        if ($this->ownsCluster($user, $clusterId)) {
+            return;
         }
 
         if (DB::table('venue_staff_assignments')
@@ -62,9 +63,7 @@ class VenueStaffAccessService
             return;
         }
 
-        throw ValidationException::withMessages([
-            'venue_cluster_id' => 'Bạn không được phân công tại cụm sân này.',
-        ]);
+        throw new AuthorizationException('Bạn không được phân công tại cụm sân này.');
     }
 
     public function assertCourtAccess(User $user, VenueCourt $court): void
@@ -73,9 +72,7 @@ class VenueStaffAccessService
         $allowed = $this->allowedCourtTypeIds($user, (string) $court->venue_cluster_id);
 
         if ($allowed !== null && ! $allowed->contains((int) $court->court_type_id)) {
-            throw ValidationException::withMessages([
-                'venue_court_id' => 'Bạn không được phân công loại sân này.',
-            ]);
+            throw new AuthorizationException('Bạn không được phân công loại sân này.');
         }
     }
 }

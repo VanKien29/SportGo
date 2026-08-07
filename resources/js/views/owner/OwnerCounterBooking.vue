@@ -3,141 +3,23 @@
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="notice" class="alert success">{{ notice }}</div>
 
-        <div v-if="!isBookingListRoute" class="tabs-and-actions">
-            <div class="tabs">
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'counter' }"
-                    @click="setActiveTab('counter')"
-                >
-                    <AppIcon name="plus" size="16" />
-                    <span>Booking tại quầy</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: activeTab === 'recurring' }"
-                    @click="setActiveTab('recurring')"
-                >
-                    <AppIcon name="calendar" size="16" />
-                    <span>Đặt lịch cố định</span>
-                </button>
+        <!-- Single Unified Surface Container -->
+        <div class="cluster-profile-surface standalone">
+            <!-- Nav Tabs integrated directly at top of card -->
+            <div v-if="!isBookingListRoute" class="hero-integrated-tabs">
+                <AppTabs
+                    :tabs="counterTabs"
+                    :model-value="activeTab"
+                    @update:model-value="setActiveTab"
+                />
             </div>
-            <!-- <SgButton
-                type="secondary"
-                size="sm"
-                :icon="true"
-                @click="refreshActiveTab"
-            >
-                <template #icon><AppIcon name="refresh" size="16" /></template>
-                {{
-                    activeTab === "bookingList"
-                        ? "Tải lại danh sách"
-                        : "Tải lại lịch"
-                }}
-            </SgButton> -->
-        </div>
-
-        <section v-if="activeTab === 'counter'" class="counter-board">
-            <div
-                class="schedule-panel"
-                :class="{ 'is-loading': counterScheduleLoading }"
-            >
-                <div class="panel-head compact">
-                    <div>
-                        <h2>{{ counterScheduleTitle }}</h2>
-                        <p>{{ currentScheduleLabel }}</p>
-                    </div>
-                </div>
-
-                <div class="filters schedule-filters counter-toolbar">
-                    <label class="schedule-filter-field cluster-field">
-                        <span>Cụm sân</span>
-                        <div class="schedule-filter-readonly">
-                            {{ selectedCluster?.name || "-" }}
-                        </div>
-                    </label>
-                    <div class="schedule-filter-field date-field">
-                        <span>Ngày chơi</span>
-                        <div class="counter-date-range">
-                            <button
-                                type="button"
-                                class="date-nav-btn"
-                                aria-label="Ngày trước"
-                                @click="shiftCounterDate(-1)"
-                            >
-                                <AppIcon name="chevronLeft" size="15" />
-                            </button>
-                            <div class="date-picker-wrap">
-                                <button
-                                    type="button"
-                                    class="date-range-trigger"
-                                    :class="{ open: counterDatePickerOpen }"
-                                    @click="
-                                        counterDatePickerOpen =
-                                            !counterDatePickerOpen
-                                    "
-                                >
-                                    <AppIcon name="calendar" size="16" />
-                                    <span>{{ counterDateRangeLabel }}</span>
-                                </button>
-                                <div
-                                    v-if="counterDatePickerOpen"
-                                    class="counter-date-popover"
-                                >
-                                    <MiniCalendar
-                                        mode="range"
-                                        :start-date="form.booking_date"
-                                        :end-date="form.booking_end_date"
-                                        :min-date="today"
-                                        @update:start-date="
-                                            handleCounterStartDateUpdate
-                                        "
-                                        @update:end-date="
-                                            handleCounterEndDateUpdate
-                                        "
-                                        @range-change="handleCounterRangeChange"
-                                    />
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                class="date-nav-btn"
-                                aria-label="Ngày sau"
-                                @click="shiftCounterDate(1)"
-                            >
-                                <AppIcon name="chevronRight" size="15" />
-                            </button>
-                            <button
-                                type="button"
-                                class="today-btn"
-                                @click="setCounterDateToday"
-                            >
-                                Hôm nay
-                            </button>
-                        </div>
-                    </div>
-                    <label class="schedule-filter-field type-field">
-                        <span>Loại sân</span>
-                        <select
-                            v-model="selectedCourtTypeId"
-                            @change="loadSchedule"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="type in courtTypeOptions"
-                                :key="type.id"
-                                :value="type.id"
-                            >
-                                {{ type.name }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
-
+            <!-- SECTION: Lịch sân trong ngày & Đặt booking tại quầy -->
+            <div v-if="activeTab === 'counter'" class="profile-section-card">
                 <p v-if="selectionError" class="selection-error">
                     {{ selectionError }}
                 </p>
 
+                <!-- Loading skeleton -->
                 <div
                     v-if="counterScheduleLoading"
                     class="schedule-loading-box"
@@ -170,110 +52,82 @@
                 <div v-else-if="scheduleError" class="state-card error-state">
                     {{ scheduleError }}
                 </div>
-                <div v-else-if="!scheduleCourts.length" class="state-card">
+                <div v-else-if="!counterScheduleLoading && !scheduleCourts.length" class="state-card">
                     Không có sân phù hợp với bộ lọc hiện tại.
                 </div>
-                <div v-else class="time-board">
-                    <div class="selected-court-strip">
-                        <div>
-                            <span>Sân đã chọn</span>
-                            <strong>{{ selectedCourtText }}</strong>
-                        </div>
-                        <div>
-                            <span>Khung giờ</span>
-                            <strong>{{
-                                hasCounterSelection
-                                    ? selectedTimeText
-                                    : "Chưa chọn"
-                            }}</strong>
-                        </div>
-                        <div>
-                            <span>Tổng tiền</span>
-                            <strong>{{
-                                formatCurrency(counterTotalAmount)
-                            }}</strong>
-                        </div>
-                    </div>
-
-                    <div class="period-row">
-                        <div class="period-tabs">
+                <div v-else>
+                    <div class="period-tabs-bar" style="margin-bottom: 10px;">
+                        <div class="period-tabs" role="tablist">
                             <button
                                 v-for="period in dynamicTimePeriods"
                                 :key="period.key"
                                 type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
+                                :class="{ active: activeTimePeriod === period.key }"
                                 @click="activeTimePeriod = period.key"
                             >
                                 <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
+                                <span>({{ period.range }})</span>
                             </button>
                         </div>
-
-                        <div class="legend">
-                            <span><i></i>Lịch trống</span>
-                            <span><i class="selected"></i>Đang chọn</span>
-                            <span
-                                ><i class="booked-paid"></i>Đã thanh toán</span
-                            >
-                            <span><i class="booked-online"></i>Đặt online</span>
-                            <span
-                                ><i class="booked-counter"></i>Chờ chuyển
-                                khoản</span
-                            >
-                            <span><i class="pay-later"></i>Thu sau</span>
-                            <span><i class="overdue"></i>Quá hạn</span>
-                            <span><i class="locked"></i>Khóa sân</span>
-                        </div>
                     </div>
 
-                    <div
-                        class="slot-matrix"
-                        role="grid"
-                        aria-label="Bảng chọn sân và khung giờ"
-                        :style="slotMatrixStyle"
-                    >
-                        <div class="matrix-head sticky-col" role="columnheader">
-                            Sân / giờ
-                        </div>
-                        <div
-                            v-for="slot in activePeriodSlots"
-                            :key="slot.start_time"
-                            class="matrix-head time-head"
-                            role="columnheader"
-                        >
-                            {{ formatTime(slot.start_time) }}
-                        </div>
-
-                        <template
-                            v-for="court in scheduleCourts"
-                            :key="court.id"
-                        >
-                            <div
-                                class="matrix-court sticky-col"
-                                role="rowheader"
-                            >
-                                <strong>{{ court.name }}</strong>
-                                <span>{{ court.court_type?.name || "-" }}</span>
-                            </div>
-                            <button
-                                v-for="slot in activePeriodSlots"
-                                :key="`${court.id}-${slot.start_time}`"
-                                type="button"
-                                class="time-slot"
-                                role="gridcell"
-                                :aria-pressed="isSlotSelected(court.id, slot)"
-                                :aria-label="slotActionTitle(court, slot)"
-                                :class="slotButtonClass(court.id, slot)"
-                                :disabled="isSlotDisabled(court.id, slot)"
-                                :title="slotActionTitle(court, slot)"
-                                @click="toggleSlot(court, slot)"
-                            ></button>
-                        </template>
+                    <!-- Transposed table: time=rows, courts=cols -->
+                    <div class="time-row-matrix-wrap">
+                        <table class="time-row-matrix" role="grid" aria-label="Bảng chọn sân và khung giờ">
+                            <thead>
+                                <tr>
+                                    <th class="trm-corner" role="columnheader">KHUNG GIỜ</th>
+                                    <th
+                                        v-for="court in scheduleCourts"
+                                        :key="court.id"
+                                        class="trm-court-head"
+                                        role="columnheader"
+                                    >
+                                        <strong>{{ court.name }}</strong>
+                                        <span>{{ court.court_type?.name || "-" }}</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="!activePeriodSlots.length">
+                                    <td :colspan="scheduleCourts.length + 1" style="text-align: center; padding: 40px 16px; color: #64748b; background: #f8fafc; font-size: 14px;">
+                                        Ca này nằm ngoài giờ hoạt động của sân ({{ currentScheduleLabel || 'sân đóng cửa' }}). Không có khung giờ chơi.
+                                    </td>
+                                </tr>
+                                <tr
+                                    v-else
+                                    v-for="slot in activePeriodSlots"
+                                    :key="slot.start_time"
+                                    role="row"
+                                >
+                                    <td class="trm-time-cell" role="rowheader">
+                                        {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}
+                                    </td>
+                                    <td
+                                        v-for="court in scheduleCourts"
+                                        :key="`${court.id}-${slot.start_time}`"
+                                        class="trm-slot-cell"
+                                        role="gridcell"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="trm-slot-btn"
+                                            :class="slotButtonClass(court.id, slot)"
+                                            :disabled="isSlotDisabled(court.id, slot)"
+                                            :aria-pressed="isSlotSelected(court.id, slot)"
+                                            :aria-label="slotActionTitle(court, slot)"
+                                            :title="slotActionTitle(court, slot)"
+                                            @click="toggleSlot(court, slot)"
+                                        >
+                                            <span v-if="isSlotSelected(court.id, slot)">+ Đặt sân</span>
+                                            <span v-else-if="!isSlotDisabled(court.id, slot)" class="trm-empty-hint">+ Đặt sân</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
 
             <div
                 v-if="hasCounterSelection || selectedOccupiedInterval"
@@ -409,8 +263,12 @@
                             >
                                 <button
                                     v-if="
-                                        selectedBusyBooking.status ===
-                                        'pending_approval'
+                                        [
+                                            'pending_approval',
+                                            'pending_payment',
+                                        ].includes(selectedBusyBooking.status) &&
+                                        selectedBusyBooking.payment_option ===
+                                            'no_prepay'
                                     "
                                     class="secondary-btn compact action-success"
                                     type="button"
@@ -665,16 +523,11 @@
                     </template>
                 </aside>
             </Teleport>
-        </section>
+        </div>
 
-        <section v-else-if="activeTab === 'recurring'" class="recurring-panel">
+        <div v-else-if="activeTab === 'recurring'" class="recurring-panel profile-section-card">
             <div class="form-card">
-                <div class="panel-head compact">
-                    <div>
-                        <h2>Lịch cố định</h2>
-                        <p>Nhóm lịch sẽ dùng cùng mã cố định để dễ theo dõi.</p>
-                    </div>
-                </div>
+
 
                 <div class="form-grid recurring-form-grid">
                     <div class="calendar-range-field">
@@ -736,12 +589,6 @@
                         </small>
                     </div>
                     <div class="recurring-form-fields">
-                        <div class="readonly-field">
-                            <span>Cụm sân</span>
-                            <strong>{{
-                                selectedCluster?.name || "Chưa chọn cụm sân"
-                            }}</strong>
-                        </div>
                         <label>
                             <span>Loại sân</span>
                             <select
@@ -842,80 +689,77 @@
                                 @blur="normalizeRecurringCount"
                             />
                         </label>
-                        <div
-                            v-if="form.recurrence_type !== 'daily'"
-                            class="recurring-date-planner recurring-date-planner--inline"
-                        >
-                            <div class="weekday-planner-head">
-                                <div>
-                                    <strong>Lịch theo từng ngày</strong>
-                                    <span
-                                        >Chọn ngày để chỉnh sân và giờ ở bảng
-                                        bên dưới.</span
-                                    >
-                                </div>
-                                <div class="weekday-planner-actions">
-                                    <button
-                                        type="button"
-                                        :disabled="
-                                            !activeRecurringDateKeys.length ||
-                                            recurringSelectedDates.length < 2
-                                        "
-                                        @click="
-                                            applyActiveDateScheduleToSelected
-                                        "
-                                    >
-                                        Áp dụng tất cả
-                                    </button>
-                                    <button
-                                        type="button"
-                                        :disabled="
-                                            !activeRecurringDateKeys.length
-                                        "
-                                        @click="clearActiveDateSchedule"
-                                    >
-                                        Xóa giờ
-                                    </button>
-                                </div>
-                            </div>
-                            <div
-                                class="recurring-date-list"
-                                :class="{
-                                    dragging: recurringDateDrag.active,
-                                }"
-                                @pointerdown="startRecurringDateDrag"
-                                @pointermove="moveRecurringDateDrag"
-                                @pointerup="finishRecurringDateDrag"
-                                @pointercancel="finishRecurringDateDrag"
-                                @click.capture="preventRecurringDateDragClick"
-                            >
-                                <button
-                                    v-for="date in recurringSelectedDates"
-                                    :key="date"
-                                    type="button"
-                                    class="recurring-date-card"
-                                    :class="{
-                                        active: recurringActiveDate === date,
-                                        complete: (
-                                            recurringDateRanges[date] || []
-                                        ).length,
-                                    }"
-                                    @click="selectRecurringDate(date)"
-                                >
-                                    <span class="recurring-date-value">{{
-                                        formatDate(date)
-                                    }}</span>
-                                    <strong>{{
-                                        recurringDateTimeText(date)
-                                    }}</strong>
-                                    <small>{{
-                                        recurringDateCourtText(date)
-                                    }}</small>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
+
+                <div
+                    v-if="form.recurrence_type !== 'daily'"
+                    class="recurring-date-planner"
+                >
+                    <div class="weekday-planner-head">
+                        <div>
+                            <strong>Lịch theo từng ngày</strong>
+                            <span
+                                >Chọn ngày để chỉnh sân và giờ ở bảng bên dưới.</span
+                            >
+                        </div>
+                        <div class="weekday-planner-actions">
+                            <button
+                                type="button"
+                                :disabled="
+                                    !activeRecurringDateKeys.length ||
+                                    recurringSelectedDates.length < 2
+                                "
+                                @click="applyActiveDateScheduleToSelected"
+                            >
+                                Áp dụng tất cả
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="!activeRecurringDateKeys.length"
+                                @click="clearActiveDateSchedule"
+                            >
+                                Xóa giờ
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        class="recurring-date-list"
+                        :class="{
+                            dragging: recurringDateDrag.active,
+                        }"
+                        @pointerdown="startRecurringDateDrag"
+                        @pointermove="moveRecurringDateDrag"
+                        @pointerup="finishRecurringDateDrag"
+                        @pointercancel="finishRecurringDateDrag"
+                        @click.capture="preventRecurringDateDragClick"
+                    >
+                        <button
+                            v-for="date in recurringSelectedDates"
+                            :key="date"
+                            type="button"
+                            class="recurring-date-card"
+                            :class="{
+                                active: recurringActiveDate === date,
+                                complete: (
+                                    recurringDateRanges[date] || []
+                                ).length,
+                            }"
+                            @click="selectRecurringDate(date)"
+                        >
+                            <span class="recurring-date-value">{{
+                                formatDate(date)
+                            }}</span>
+                            <strong>{{
+                                recurringDateTimeText(date)
+                            }}</strong>
+                            <small>{{
+                                recurringDateCourtText(date)
+                            }}</small>
+                        </button>
+                    </div>
+                </div>
+
                 <p class="recurring-helper">
                     {{ recurringHelperText }}
                 </p>
@@ -923,23 +767,6 @@
                 <section class="recurring-schedule-board">
                     <div class="section-title muted">
                         <h2>Chọn sân và khung giờ cố định</h2>
-                    </div>
-
-                    <div class="schedule-summary compact">
-                        <div>
-                            <span>Sân đã chọn</span>
-                            <strong>{{ selectedCourtText }}</strong>
-                        </div>
-                        <div>
-                            <span>Khung giờ</span>
-                            <strong>{{ recurringTimeText }}</strong>
-                        </div>
-                        <div>
-                            <span>Giá mỗi buổi</span>
-                            <strong>{{
-                                formatCurrency(recurringUnitTotal)
-                            }}</strong>
-                        </div>
                     </div>
 
                     <p v-if="selectionError" class="selection-error">
@@ -960,78 +787,71 @@
                     </div>
 
                     <div class="period-row">
-                        <div class="period-tabs">
+                        <div class="period-tabs" role="tablist">
                             <button
                                 v-for="period in dynamicTimePeriods"
                                 :key="period.key"
                                 type="button"
-                                :class="{
-                                    active: activeTimePeriod === period.key,
-                                }"
+                                :class="{ active: activeTimePeriod === period.key }"
                                 @click="activeTimePeriod = period.key"
                             >
                                 <strong>{{ period.label }}</strong>
-                                <span>{{ period.range }}</span>
+                                <span>({{ period.range }})</span>
                             </button>
-                        </div>
-
-                        <div class="legend">
-                            <span><i></i>Trống</span>
-                            <span><i class="selected"></i>Khung cố định</span>
-                            <span
-                                ><i class="booked-paid"></i>Đã thanh toán</span
-                            >
-                            <span><i class="booked-online"></i>Chờ online</span>
-                            <span><i class="booked-counter"></i>Chờ CK</span>
-                            <span><i class="pay-later"></i>Thu sau</span>
-                            <span><i class="overdue"></i>Quá hạn</span>
-                            <span><i class="locked"></i>Khóa sân</span>
                         </div>
                     </div>
 
-                    <div
-                        class="slot-matrix recurring-slot-matrix"
-                        role="grid"
-                        aria-label="Bảng chọn sân và khung giờ cố định"
-                        :style="slotMatrixStyle"
-                    >
-                        <div class="matrix-head sticky-col" role="columnheader">
-                            Sân / giờ
-                        </div>
-                        <div
-                            v-for="slot in activePeriodSlots"
-                            :key="slot.start_time"
-                            class="matrix-head time-head"
-                            role="columnheader"
-                        >
-                            {{ formatTime(slot.start_time) }}
-                        </div>
-
-                        <template
-                            v-for="court in scheduleCourts"
-                            :key="court.id"
-                        >
-                            <div
-                                class="matrix-court sticky-col"
-                                role="rowheader"
-                            >
-                                <strong>{{ court.name }}</strong>
-                                <span>{{ court.court_type?.name || "-" }}</span>
-                            </div>
-                            <button
-                                v-for="slot in activePeriodSlots"
-                                :key="`${court.id}-${slot.start_time}`"
-                                type="button"
-                                class="time-slot"
-                                role="gridcell"
-                                :aria-pressed="isSlotSelected(court.id, slot)"
-                                :aria-label="slotActionTitle(court, slot)"
-                                :class="slotButtonClass(court.id, slot)"
-                                :disabled="isSlotDisabled(court.id, slot)"
-                                :title="slotActionTitle(court, slot)"
-                                @click="toggleSlot(court, slot)"
-                            ></button>
-                        </template>
+                    <div v-if="!activePeriodSlots.length" class="state-card" style="margin-top: 10px;">
+                        Ca này nằm ngoài giờ hoạt động của sân ({{ currentScheduleLabel || 'sân đóng cửa' }}). Không có khung giờ chơi.
+                    </div>
+                    <div v-else class="time-row-matrix-wrap" style="margin-top: 10px;">
+                        <table class="time-row-matrix" role="grid" aria-label="Bảng chọn sân và khung giờ cố định">
+                            <thead>
+                                <tr>
+                                    <th class="trm-corner" role="columnheader">KHUNG GIỜ</th>
+                                    <th
+                                        v-for="court in scheduleCourts"
+                                        :key="court.id"
+                                        class="trm-court-head"
+                                        role="columnheader"
+                                    >
+                                        <strong>{{ court.name }}</strong>
+                                        <span>{{ court.court_type?.name || "-" }}</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="slot in activePeriodSlots"
+                                    :key="slot.start_time"
+                                    role="row"
+                                >
+                                    <td class="trm-time-cell" role="rowheader">
+                                        {{ formatTime(slot.start_time) }} – {{ formatTime(slot.end_time) }}
+                                    </td>
+                                    <td
+                                        v-for="court in scheduleCourts"
+                                        :key="`${court.id}-${slot.start_time}`"
+                                        class="trm-slot-cell"
+                                        role="gridcell"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="trm-slot-btn"
+                                            :class="slotButtonClass(court.id, slot)"
+                                            :disabled="isSlotDisabled(court.id, slot)"
+                                            :aria-pressed="isSlotSelected(court.id, slot)"
+                                            :aria-label="slotActionTitle(court, slot)"
+                                            :title="slotActionTitle(court, slot)"
+                                            @click="toggleSlot(court, slot)"
+                                        >
+                                            <span v-if="isSlotSelected(court.id, slot)">Khung cố định</span>
+                                            <span v-else-if="!isSlotDisabled(court.id, slot)" class="trm-empty-hint">+ Đặt sân</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
@@ -1239,118 +1059,38 @@
                     </small>
                 </div>
             </aside>
-        </section>
+        </div>
 
-        <section
-            v-else-if="activeTab === 'bookingList'"
-            class="recurring-list-panel"
-        >
-            <div class="list-toolbar">
-                <div>
-                    <h2>Danh sách booking</h2>
-                    <p>
-                        Theo dõi booking lẻ và booking cố định trong cùng một
-                        màn; lọc theo sân, ngày, trạng thái và thanh toán.
-                    </p>
-                </div>
-            </div>
-
-            <div
-                class="booking-list-mode-tabs"
-                role="tablist"
-                aria-label="Loại danh sách booking"
-            >
-                <button
-                    type="button"
-                    :class="{ active: bookingListMode === 'single' }"
-                    @click="setBookingListMode('single')"
-                >
-                    <AppIcon name="calendar" size="15" />
-                    <span>Booking lẻ</span>
-                </button>
-                <button
-                    type="button"
-                    :class="{ active: bookingListMode === 'recurring' }"
-                    @click="setBookingListMode('recurring')"
-                >
-                    <AppIcon name="fileText" size="15" />
-                    <span>Booking cố định</span>
-                </button>
-            </div>
-
-            <template v-if="bookingListMode === 'single'">
-                <div class="filters booking-list-filters">
-                    <label>
-                        <span>Sân con</span>
-                        <select
-                            v-model="bookingListFilters.venue_court_id"
-                            @change="loadBookingList"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="court in courts"
-                                :key="court.id"
-                                :value="court.id"
-                            >
-                                {{ court.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Ngày chơi</span>
-                        <input
-                            v-model="bookingListFilters.booking_date"
-                            type="date"
-                            @change="loadBookingList"
-                        />
-                    </label>
-                    <label>
-                        <span>Nguồn đặt</span>
-                        <select
-                            v-model="bookingListFilters.source"
-                            @change="loadBookingList"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="online">Online</option>
-                            <option value="counter">Tại quầy</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Trạng thái</span>
-                        <select
-                            v-model="bookingListFilters.status"
-                            @change="loadBookingList"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="pending_approval">Chờ duyệt</option>
-                            <option value="pending_payment">
-                                Chờ thanh toán
-                            </option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="checked_in">Đã check-in</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="cancelled">Đã hủy</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Tìm kiếm</span>
-                        <input
-                            v-model.trim="bookingListFilters.q"
-                            type="search"
-                            placeholder="Mã booking, khách, SĐT"
-                            @keyup.enter="loadBookingList"
-                        />
-                    </label>
-                    <button
-                        class="secondary-btn"
-                        type="button"
-                        @click="loadBookingList"
+        <template v-else-if="activeTab === 'bookingList'">
+            <!-- Part 1: Top Hero Surface for Nav Tabs (matching OwnerVenueClusters.vue) -->
+            <div class="cluster-hero-surface">
+                <div class="hero-integrated-tabs">
+                    <div
+                        class="booking-list-mode-tabs"
+                        role="tablist"
+                        aria-label="Loại danh sách booking"
                     >
-                        <AppIcon name="search" size="16" />
-                        <span>Lọc</span>
-                    </button>
+                        <button
+                            type="button"
+                            :class="{ active: bookingListMode === 'single' }"
+                            @click="setBookingListMode('single')"
+                        >
+                            <span>Booking lẻ</span>
+                        </button>
+                        <button
+                            type="button"
+                            :class="{ active: bookingListMode === 'recurring' }"
+                            @click="setBookingListMode('recurring')"
+                        >
+                            <span>Booking cố định</span>
+                        </button>
+                    </div>
                 </div>
+            </div>
 
+            <!-- Part 2: Separate Content Card below for Title & Table (matching OwnerVenueClusters.vue) -->
+            <div class="recurring-list-panel profile-section-card">
+            <template v-if="bookingListMode === 'single'">
                 <div v-if="bookingListLoading" class="table-skeleton">
                     <div v-for="row in 4" :key="row" class="table-skeleton-row">
                         <span></span>
@@ -1469,83 +1209,6 @@
             </template>
 
             <template v-else>
-                <div class="list-toolbar compact-list-toolbar">
-                    <div>
-                        <h2>Danh sách booking cố định</h2>
-                        <p>
-                            Theo dõi theo nhóm lịch, khách đặt, sân sử dụng và
-                            số tiền còn phải thu.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="filters recurring-list-filters">
-                    <label>
-                        <span>Cụm sân</span>
-                        <select
-                            v-model="selectedClusterId"
-                            @change="handleClusterChange"
-                        >
-                            <option
-                                v-for="cluster in clusters"
-                                :key="cluster.id"
-                                :value="cluster.id"
-                            >
-                                {{ cluster.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Sân con</span>
-                        <select
-                            v-model="recurringGroupFilters.venue_court_id"
-                            @change="loadRecurringGroups"
-                        >
-                            <option value="">Tất cả</option>
-                            <option
-                                v-for="court in courts"
-                                :key="court.id"
-                                :value="court.id"
-                            >
-                                {{ court.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Trạng thái</span>
-                        <select
-                            v-model="recurringGroupFilters.status"
-                            @change="loadRecurringGroups"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="pending_payment">
-                                Chờ thanh toán
-                            </option>
-                            <option value="confirmed">Đã xác nhận</option>
-                            <option value="checked_in">Đã check-in</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="cancelled">Đã hủy</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Tìm kiếm</span>
-                        <input
-                            v-model.trim="recurringGroupFilters.q"
-                            type="search"
-                            placeholder="Mã nhóm, khách, SĐT"
-                            @keyup.enter="loadRecurringGroups"
-                        />
-                    </label>
-                    <button
-                        class="secondary-btn"
-                        type="button"
-                        @click="loadRecurringGroups"
-                    >
-                        <AppIcon name="search" size="16" />
-                        <span>Lọc</span>
-                    </button>
-                </div>
-
                 <div v-if="recurringGroupsLoading" class="state-card">
                     Đang tải booking cố định...
                 </div>
@@ -1685,9 +1348,11 @@
                     </table>
                 </div>
             </template>
-        </section>
+        </div>
+    </template>
+</div>
 
-        <Teleport to="body">
+    <Teleport to="body">
             <div v-if="recurringGroupDetail" class="modal-backdrop">
                 <section class="confirm-modal recurring-detail-modal">
                     <div class="modal-head">
@@ -1831,6 +1496,16 @@
                     </div>
 
                     <div class="modal-actions">
+                        <button
+                            v-if="canApproveBooking(bookingListDetail)"
+                            class="primary-btn"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="approveBookingFromList"
+                        >
+                            <AppIcon name="check" size="15" />
+                            {{ bookingActionLoading ? "Đang xử lý..." : "Xác nhận booking" }}
+                        </button>
                         <button
                             class="secondary-btn"
                             type="button"
@@ -2245,6 +1920,7 @@
 <script>
 import AppIcon from "../../components/AppIcon.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
+import AppTabs from "../../components/common/AppTabs.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { venueClusterService } from "../../services/venueClusters.js";
 
@@ -2259,8 +1935,8 @@ function toWeekDayIndex(date) {
     return (date.getDay() + 6) % 7;
 }
 
-const BOOKING_DAY_START = 6 * 60;
-const BOOKING_DAY_END = 22 * 60;
+const BOOKING_DAY_START = 0;
+const BOOKING_DAY_END = 24 * 60;
 const SLOT_STEP_MINUTES = 30;
 const WALK_IN_NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u;
 const WALK_IN_PHONE_PATTERN = /^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/;
@@ -2290,7 +1966,7 @@ const SLOT_PERIODS = [
 
 export default {
     name: "OwnerCounterBooking",
-    components: { AppIcon, MiniCalendar },
+    components: { AppIcon, MiniCalendar, AppTabs },
     data() {
         const now = new Date();
         const today = toIsoDate(now);
@@ -2420,6 +2096,12 @@ export default {
         };
     },
     computed: {
+        counterTabs() {
+            return [
+                { key: "counter", label: "Booking tại quầy" },
+                { key: "recurring", label: "Đặt lịch cố định" },
+            ];
+        },
         isStaffRoute() {
             return this.$route.path.startsWith("/staff");
         },
@@ -2516,33 +2198,87 @@ export default {
                     : this.operatingEndMinutes,
                 open + SLOT_STEP_MINUTES,
             );
-            const raw = [
-                {
-                    key: "morning",
-                    label: "Sáng",
-                    start: open,
-                    end: Math.min(close, 12 * 60),
-                },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    start: Math.max(open, 12 * 60),
-                    end: Math.min(close, 18 * 60),
-                },
-                {
-                    key: "evening",
-                    label: "Tối",
-                    start: Math.max(open, 18 * 60),
-                    end: close,
-                },
-            ];
+            const configuredPeriods =
+                this.selectedClusterDetail?.booking_config?.custom_time_periods;
 
-            const periods = raw
-                .filter((period) => period.end > period.start)
-                .map((period) => ({
-                    ...period,
-                    range: `${this.minutesToTime(period.start)} - ${this.minutesToTime(period.end)}`,
-                }));
+            let periods = [];
+            if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
+                periods = configuredPeriods
+                    .filter((p) => p.label && p.start_time && p.end_time)
+                    .map((p, idx) => {
+                        const start = this.timeToMinutes(p.start_time);
+                        const end = this.timeToMinutes(p.end_time);
+                        return {
+                            key: `custom_${idx}`,
+                            label: p.label,
+                            start,
+                            end,
+                            range: `${this.minutesToTime(start)} - ${this.minutesToTime(end)}`,
+                        };
+                    })
+                    .filter((period) => period.end > period.start);
+            } else {
+                const raw = [
+                    {
+                        key: "late_night",
+                        label: "Khuya",
+                        start: open,
+                        end: Math.min(close, 6 * 60),
+                    },
+                    {
+                        key: "morning",
+                        label: "Sáng",
+                        start: Math.max(open, 6 * 60),
+                        end: Math.min(close, 12 * 60),
+                    },
+                    {
+                        key: "afternoon",
+                        label: "Chiều",
+                        start: Math.max(open, 12 * 60),
+                        end: Math.min(close, 18 * 60),
+                    },
+                    {
+                        key: "evening",
+                        label: "Tối",
+                        start: Math.max(open, 18 * 60),
+                        end: Math.min(close, 22 * 60),
+                    },
+                    {
+                        key: "night",
+                        label: "Đêm",
+                        start: Math.max(open, 22 * 60),
+                        end: close,
+                    },
+                ];
+
+                periods = raw
+                    .filter(
+                        (period) =>
+                            period.end > period.start &&
+                            period.start < close &&
+                            period.end > open,
+                    )
+                    .map((period) => {
+                        const clampedStart = Math.max(period.start, open);
+                        const clampedEnd = Math.min(period.end, close);
+                        return {
+                            ...period,
+                            start: clampedStart,
+                            end: clampedEnd,
+                            range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
+                        };
+                    });
+            }
+
+            if (periods.length > 1) {
+                periods.push({
+                    key: "all",
+                    label: "Cả ngày",
+                    start: open,
+                    end: close,
+                    range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                });
+            }
 
             return periods.length
                 ? periods
@@ -3305,6 +3041,12 @@ export default {
         },
     },
     watch: {
+        dynamicTimePeriods: {
+            handler() {
+                this.ensureActiveTimePeriod();
+            },
+            immediate: true,
+        },
         "form.recurring_start_date"(newDate, oldDate) {
             if (
                 this.activeTab === "recurring" &&
@@ -3835,8 +3577,15 @@ export default {
                     (period) => period.key === this.activeTimePeriod,
                 )
             ) {
+                const firstWithSlots = this.dynamicTimePeriods.find((period) => {
+                    if (period.key === "all") return false;
+                    return this.scheduleSlots.some((slot) => {
+                        const start = this.timeToMinutes(slot.start_time);
+                        return start >= period.start && start < period.end;
+                    });
+                });
                 this.activeTimePeriod =
-                    this.dynamicTimePeriods[0]?.key || "morning";
+                    firstWithSlots?.key || this.dynamicTimePeriods[0]?.key || "all";
             }
         },
         scrollSelectedBookingIntoView() {
@@ -4003,6 +3752,33 @@ export default {
         },
         closeBookingListDetail() {
             this.bookingListDetail = null;
+        },
+        canApproveBooking(booking) {
+            return Boolean(
+                booking &&
+                    ['pending_approval', 'pending_payment'].includes(booking.status) &&
+                    booking.payment_option === 'no_prepay',
+            );
+        },
+        async approveBookingFromList() {
+            const booking = this.bookingListDetail;
+            if (!this.canApproveBooking(booking) || this.bookingActionLoading) return;
+
+            this.bookingActionLoading = true;
+            this.error = '';
+            this.notice = '';
+            try {
+                const response = await ownerBookingService.updateStatus(booking.id, {
+                    action: 'confirm',
+                });
+                this.bookingListDetail = response.data || response;
+                this.notice = 'Đã xác nhận booking trả sau.';
+                await Promise.all([this.loadBookingList(), this.loadSchedule()]);
+            } catch (error) {
+                this.error = error.message || 'Không thể xác nhận booking.';
+            } finally {
+                this.bookingActionLoading = false;
+            }
         },
         slotStatus(courtId, slot) {
             if (!slot) return null;
@@ -5996,7 +5772,7 @@ export default {
     margin-top: 0px;
     color: var(--admin-text, #16231a);
     font-size: 18px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .list-toolbar p {
@@ -6031,7 +5807,7 @@ export default {
     background: transparent;
     color: #5d6d63;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -6050,14 +5826,6 @@ export default {
     align-items: end;
 }
 
-.booking-list-filters {
-    display: grid;
-    grid-template-columns:
-        minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(140px, 0.7fr)
-        minmax(160px, 0.8fr) minmax(220px, 1.2fr) auto;
-    gap: 10px;
-    align-items: end;
-}
 
 .schedule-skeleton,
 .table-skeleton {
@@ -6223,7 +5991,7 @@ export default {
     background: #f2f7ef;
     color: #526458;
     font-size: 11px;
-    font-weight: 850;
+    font-weight: 400;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -6246,7 +6014,7 @@ export default {
     margin-top: 5px;
     color: #203428;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -6276,7 +6044,7 @@ export default {
     color: #15803d;
     font-size: 11px;
     font-style: normal;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -6316,13 +6084,13 @@ export default {
 .occurrence-head strong {
     color: #16231a;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .occurrence-head span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .occurrence-list {
@@ -6364,7 +6132,7 @@ export default {
 .occurrence-list strong {
     color: #1f3326;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .occurrence-list small {
@@ -6454,7 +6222,7 @@ export default {
     background: #ecfdf5;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -6469,12 +6237,12 @@ export default {
 }
 
 .money-col {
-    text-align: right !important;
+    text-align: right;
 }
 
 .action-col {
     width: 120px;
-    text-align: right !important;
+    text-align: right;
     white-space: nowrap;
 }
 
@@ -6507,7 +6275,7 @@ export default {
 }
 
 .group-info-grid {
-    display: grid !important;
+    display: grid;
     grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.25fr) minmax(
             150px,
             0.7fr
@@ -6516,7 +6284,7 @@ export default {
 }
 
 .group-money-grid {
-    display: grid !important;
+    display: grid;
     grid-template-columns: repeat(3, minmax(95px, 1fr));
     gap: 8px;
     min-width: 330px;
@@ -6532,14 +6300,14 @@ export default {
 .recurring-group-card span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .recurring-group-card strong {
     overflow-wrap: anywhere;
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .recurring-group-card strong.paid {
@@ -6557,13 +6325,13 @@ export default {
     padding: 3px 8px;
     border-radius: 999px;
     background: #e8f7ec;
-    color: #0f7a31 !important;
-    font-weight: 850 !important;
+    color: #0f7a31;
+    font-weight: 400;
 }
 
 .group-actions {
     grid-column: 2;
-    display: flex !important;
+    display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
@@ -6695,13 +6463,13 @@ export default {
 .detail-hero span:not(.status-badge) {
     color: #607267;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .detail-hero strong {
     color: #16231a;
     font-size: 15px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .detail-hero small {
@@ -6709,13 +6477,12 @@ export default {
     font-size: 12px;
 }
 
-.schedule-panel,
 .booking-side,
 .form-card,
 .preview-box,
 .alert {
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 10px;
     background: #fff;
 }
 
@@ -6738,15 +6505,17 @@ export default {
     background: transparent;
 }
 
+.schedule-panel,
 .recurring-panel .panel-head.compact,
 .recurring-form-grid,
 .recurring-day-grid,
 .recurring-helper,
 .recurring-schedule-board,
 .recurring-payment {
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
 }
 
 .recurring-panel .panel-head.compact {
@@ -6779,14 +6548,14 @@ export default {
 .schedule-summary span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .schedule-summary strong {
     overflow-wrap: anywhere;
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .recurring-slot-matrix {
@@ -6802,7 +6571,7 @@ export default {
     margin: 0;
     color: #16231a;
     font-size: 17px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .panel-head p {
@@ -6900,10 +6669,10 @@ export default {
         );
     align-items: end;
     justify-content: space-between;
-    padding: 12px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fbfdfb;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .counter-toolbar .schedule-filter-field {
@@ -6923,7 +6692,7 @@ export default {
 .date-range-separator {
     color: var(--admin-muted, #64748b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -6939,7 +6708,7 @@ export default {
     color: #31443a;
     font: inherit;
     font-size: 13px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -6960,7 +6729,7 @@ export default {
     border-radius: 8px;
     background: #fff;
     color: #16231a;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .counter-date-range {
@@ -7064,13 +6833,13 @@ export default {
 .readonly-field span {
     color: #607267;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .readonly-field strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .booking-picker {
@@ -7111,32 +6880,32 @@ export default {
 .selection-help span {
     color: #607267;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .selection-help strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .selection-help small {
     color: #607267;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 400;
     line-height: 1.35;
 }
 
 .duration-pill span {
     color: #607267;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .duration-pill strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .duration-pill.active {
@@ -7153,7 +6922,7 @@ label span,
 .summary-list dt {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 input,
@@ -7162,14 +6931,14 @@ select {
 }
 
 input.invalid {
-    border-color: #dc2626 !important;
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08) !important;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
 }
 
 .field-error {
     color: #b91c1c;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -7180,7 +6949,7 @@ input.invalid {
     margin: 14px 0;
     color: #475b4d;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .legend span {
@@ -7189,73 +6958,55 @@ input.invalid {
     gap: 6px;
 }
 
+/* ===== Harmonized Clean SaaS Status Colors ===== */
 .legend i {
     width: 12px;
     height: 12px;
-    border: 1px solid #b9cbbb;
+    border: 1px solid #cbd5e1;
     border-radius: 3px;
-    background: #fff;
+    background: #ffffff;
 }
 
 .legend i.selected {
-    border-color: var(--admin-primary, #000000);
-    background: var(--admin-primary, #000000);
-}
-
-.day-grid label {
-    border: 1px solid #d0d7de;
-    background: #fff;
-    color: #334155;
-    border-radius: 8px;
-    padding: 8px 12px;
-    cursor: pointer;
-}
-
-.day-grid label.selected {
-    border-color: var(--admin-primary, #000000);
-    background: var(--admin-primary, #000000);
-    color: #fff;
-}
-
-.day-grid label.selected span {
-    color: #fff;
+    border-color: #059669;
+    background: #10b981;
 }
 
 .legend i.booked-paid {
-    border-color: #a7cbb4;
-    background: #e2f0e7;
+    border-color: #94a3b8;
+    background: #e2e8f0;
 }
 
 .legend i.booked-online {
-    border-color: #a9bdcc;
-    background: #e5edf3;
+    border-color: #93c5fd;
+    background: #dbeafe;
 }
 
 .legend i.booked-counter {
-    border-color: #bbb4cb;
-    background: #ebe9f1;
+    border-color: #fcd34d;
+    background: #fef3c7;
 }
 
 .legend i.pay-later {
-    border-color: #d1bd86;
-    background: #f3eddc;
+    border-color: #c084fc;
+    background: #f3e8ff;
 }
 
 .legend i.overdue {
-    border-color: #d3aaa4;
-    background: #f3e3e0;
+    border-color: #fca5a5;
+    background: #fee2e2;
 }
 
 .legend i.locked {
-    border-color: #b9c2bc;
-    background: #e9ecea;
+    border-color: #cbd5e1;
+    background: #f1f5f9;
 }
 
 .selection-error {
     margin: 0 0 12px;
     color: #991b1b;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .time-board {
@@ -7264,14 +7015,15 @@ input.invalid {
 }
 
 .selected-court-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    padding: 12px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #f7fbf5;
-    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    margin-top: 16px;
+    margin-bottom: 12px;
 }
 
 .selected-court-strip div {
@@ -7282,13 +7034,13 @@ input.invalid {
 .selected-court-strip span {
     color: #607267;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .selected-court-strip strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .tabs-and-actions {
@@ -7334,7 +7086,7 @@ input.invalid {
     background: #fff;
     color: #24362a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     text-decoration: none;
 }
 
@@ -7374,7 +7126,7 @@ input.invalid {
     background: transparent;
     color: #475b4d;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -7387,51 +7139,67 @@ input.invalid {
 .period-tabs button {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    height: 38px;
     min-height: 38px;
-    padding: 8px 12px;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
-    color: #344238;
-    font-weight: 850;
+    padding: 0 16px;
+    border-radius: var(--admin-radius, 8px);
+    border: 1px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #475569);
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+    user-select: none;
+}
+
+.period-tabs button:hover:not(.active) {
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-text, #0f172a);
 }
 
 .period-tabs button.active {
-    border-color: var(--admin-primary, #000000);
-    background: var(--admin-primary, #000000);
-    color: #fff;
+    background: var(--admin-accent, #10b981);
+    color: #ffffff;
+    border-color: var(--admin-accent, #10b981);
+    font-weight: 500;
 }
 
-.period-tabs span {
+.period-tabs button strong {
+    font-weight: 600;
+}
+
+.period-tabs button span {
     font-size: 12px;
-    font-weight: 700;
-    opacity: 0.8;
+    font-weight: 400;
+    opacity: 0.85;
 }
 
 .slot-matrix {
     display: grid;
     overflow-x: auto;
-    border: 1px solid #d9e8d9;
-    border-radius: 8px;
-    background: #fff;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .matrix-head,
 .matrix-court,
 .time-slot {
     min-height: 36px;
-    border-right: 1px solid #e4eee4;
-    border-bottom: 1px solid #e4eee4;
+    border-right: 1px solid var(--admin-border-soft, #f1f5f9);
+    border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
 }
 
 .matrix-head {
     display: grid;
     place-items: center;
-    background: #f2f7ef;
-    color: #334238;
-    font-size: 11px;
-    font-weight: 850;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 600;
 }
 
 .matrix-court {
@@ -7440,18 +7208,19 @@ input.invalid {
     gap: 2px;
     padding: 6px 10px;
     background: #fff;
+    border-right: 2px solid #e2e8f0;
 }
 
 .matrix-court strong {
-    color: #16231a;
+    color: #0f172a;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 600;
 }
 
 .matrix-court span {
-    color: #607267;
+    color: #64748b;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .sticky-col {
@@ -7467,24 +7236,20 @@ input.invalid {
 .time-slot {
     padding: 0;
     border-radius: 0;
-    background: #fff;
+    background: #ffffff;
     transition:
         background 0.16s ease,
         box-shadow 0.16s ease;
 }
 
-.time-slot.never-hover-class-placeholder:not(:disabled) {
-    background: var(--admin-hover, #f3f4f6);
-    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
-}
-
 .time-slot.selected {
-    background: var(--admin-primary, #000000);
-    box-shadow: inset 0 0 0 1px var(--admin-primary, #000000);
+    background: #10b981;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px #059669;
 }
 
 .time-slot.busy {
-    background: #eef3ee;
+    background: #f1f5f9;
 }
 
 .time-slot.unavailable {
@@ -7492,27 +7257,33 @@ input.invalid {
 }
 
 .time-slot.booked-paid {
-    background: #e2f0e7;
+    background: #e2e8f0;
+    color: #334155;
 }
 
 .time-slot.booked-online {
-    background: #e5edf3;
+    background: #dbeafe;
+    color: #1e40af;
 }
 
 .time-slot.booked-counter {
-    background: #ebe9f1;
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .time-slot.pay-later {
-    background: #f3eddc;
+    background: #f3e8ff;
+    color: #6b21a8;
 }
 
 .time-slot.overdue {
-    background: #f3e3e0;
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 .time-slot.locked {
-    background: #e9ecea;
+    background: #f1f5f9;
+    color: #64748b;
 }
 
 .time-slot.viewing {
@@ -7581,7 +7352,7 @@ input.invalid {
     border: 0;
     background: transparent;
     color: #0f7a31;
-    font-weight: 850;
+    font-weight: 400;
     text-align: right;
     cursor: pointer;
 }
@@ -7611,14 +7382,14 @@ input.invalid {
 .modal-head span {
     color: #0f7a31;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .modal-head h2 {
     margin: 4px 0 0;
     color: #16231a;
     font-size: 20px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .conflict-help {
@@ -7653,7 +7424,7 @@ input.invalid {
 .conflict-list strong {
     color: #16231a;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .conflict-list span,
@@ -7694,7 +7465,7 @@ input.invalid {
     padding: 9px 16px;
     border-radius: 8px;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.25;
     cursor: pointer;
 }
@@ -7723,7 +7494,7 @@ input.invalid {
 .confirm-reason-field span {
     color: #334155;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .confirm-reason-field textarea {
@@ -7772,7 +7543,7 @@ input.invalid {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    background: var(--admin-surface, #fff) !important;
+    background: var(--admin-surface, #fff);
     color: var(--admin-text, #101c15);
     border-left: 1px solid var(--admin-border, #cfded1);
     box-shadow: -16px 0 46px rgba(15, 23, 42, 0.16);
@@ -7873,7 +7644,7 @@ input.invalid {
     padding: 9px 14px;
     font: inherit;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -7938,13 +7709,13 @@ input.invalid {
 .counter-bottom-bar strong {
     color: #14532d;
     font-size: 14px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .counter-bottom-bar span {
     color: #475569;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .calendar-range-field {
@@ -7956,7 +7727,7 @@ input.invalid {
 .calendar-range-field > span {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 .schedule-filters .mini-cal,
@@ -7981,7 +7752,7 @@ input.invalid {
 .side-section > label > span {
     color: #526458;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .side-section > label > input {
@@ -8014,7 +7785,7 @@ input.invalid {
     padding: 9px 10px;
     border-radius: 8px;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.25;
     white-space: normal;
 }
@@ -8077,7 +7848,7 @@ input.invalid {
 .summary-list dt {
     color: #607267;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .summary-list dd {
@@ -8085,7 +7856,7 @@ input.invalid {
     max-width: none;
     margin: 0;
     color: #16231a;
-    font-weight: 800;
+    font-weight: 400;
     text-align: right;
     overflow-wrap: anywhere;
 }
@@ -8120,7 +7891,7 @@ input.invalid {
 .occupied-detail .summary-list dt {
     color: #6b7d70;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8141,7 +7912,7 @@ input.invalid {
     border: 1px solid transparent;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.15;
     white-space: nowrap;
 }
@@ -8256,7 +8027,7 @@ input.invalid {
     margin-top: 4px;
     color: #607267;
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8267,7 +8038,7 @@ input.invalid {
     background: #f7fbf5;
     color: #475b4d;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .recurring-payment {
@@ -8312,7 +8083,7 @@ input.invalid {
     padding: 10px 12px;
     background: var(--admin-surface, #fff);
     color: var(--admin-text, #101c15);
-    font-weight: 720;
+    font-weight: 400;
 }
 
 .voucher-list {
@@ -8344,21 +8115,21 @@ input.invalid {
     display: block;
     color: var(--admin-primary-dark, #15733a);
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .voucher-list small,
 .voucher-empty {
     color: var(--admin-faint, #45564a);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .voucher-list em {
     min-width: 0;
     color: var(--admin-primary-dark, #15733a);
     font-style: normal;
-    font-weight: 900;
+    font-weight: 400;
     overflow-wrap: anywhere;
 }
 
@@ -8379,7 +8150,7 @@ input.invalid {
     background: #fff;
     color: #15803d;
     font-size: 14px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8406,7 +8177,7 @@ input.invalid {
 .segmented-field > span {
     color: #223127;
     font-size: 13px;
-    font-weight: 760;
+    font-weight: 400;
 }
 
 .segmented-field > div {
@@ -8426,7 +8197,7 @@ input.invalid {
     border-radius: 8px;
     background: #fff;
     color: #344238;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .segmented-field button.active {
@@ -8629,7 +8400,7 @@ input.invalid {
     display: block;
     color: #16231a;
     font-size: 15px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .weekday-planner-head span {
@@ -8637,7 +8408,7 @@ input.invalid {
     margin-top: 2px;
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .weekday-planner-actions {
@@ -8656,7 +8427,7 @@ input.invalid {
     color: #216b34;
     font: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8710,20 +8481,20 @@ input.invalid {
     background: #e8f7ec;
     color: #15803d;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .weekday-plan-card strong {
     color: #132017;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
 }
 
 .weekday-plan-card small {
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.35;
 }
 
@@ -8741,13 +8512,13 @@ input.invalid {
 .active-weekday-note strong {
     color: #166534;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .active-weekday-note span {
     color: #557063;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .day-grid label {
@@ -8762,7 +8533,7 @@ input.invalid {
     border-radius: 999px;
     background: #fff;
     color: #425246;
-    font-weight: 900;
+    font-weight: 400;
     cursor: pointer;
     transition:
         border-color 0.16s ease,
@@ -8821,7 +8592,7 @@ input.invalid {
     display: block;
     color: #16231a;
     font-size: 15px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .month-day-head span {
@@ -8829,7 +8600,7 @@ input.invalid {
     margin-top: 2px;
     color: #64756b;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .month-day-actions {
@@ -8848,7 +8619,7 @@ input.invalid {
     color: #216b34;
     font: inherit;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
     cursor: pointer;
 }
 
@@ -8991,13 +8762,13 @@ input.invalid {
 .preview-head > span {
     color: #0f7a31;
     font-size: 12px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .preview-box strong {
     color: #16231a;
     font-size: 18px;
-    font-weight: 850;
+    font-weight: 400;
 }
 
 .preview-box span,
@@ -9052,14 +8823,14 @@ input.invalid {
 .preview-panel-head strong {
     color: #1f3326;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
     text-transform: uppercase;
 }
 
 .preview-panel-head span {
     color: #64748b;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .preview-stat-grid {
@@ -9081,13 +8852,13 @@ input.invalid {
 .preview-stat-grid span {
     color: #607267;
     font-size: 11px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .preview-stat-grid strong {
     color: #16231a;
     font-size: 18px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .preview-stat-grid .ok strong {
@@ -9111,7 +8882,7 @@ input.invalid {
     background: #fff7ed;
     color: #9a3412;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
     line-height: 1.45;
 }
 
@@ -9143,7 +8914,7 @@ input.invalid {
 .recurring-preview-list strong {
     color: #1f3326;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-preview-list small {
@@ -9159,7 +8930,7 @@ input.invalid {
     background: #eef2f7;
     color: #475569;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 .recurring-preview-list .status-available {
@@ -9194,7 +8965,7 @@ input.invalid {
     background: #e8f7ec;
     color: #216b34;
     font-size: 12px;
-    font-weight: 750;
+    font-weight: 400;
 }
 
 .primary-btn.full {
@@ -9213,7 +8984,7 @@ input.invalid {
 
 .alert {
     padding: 13px 14px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .alert.error {
@@ -9424,11 +9195,18 @@ input.invalid {
 .owner-counter-page .booking-side,
 .owner-counter-page .form-card,
 .owner-counter-page .preview-box,
-.owner-counter-page .recurring-list-panel {
-    border: 0;
-    border-radius: 0;
-    background: var(--admin-surface);
-    box-shadow: none;
+.owner-counter-page .recurring-list-panel,
+.owner-counter-page .recurring-panel {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.owner-counter-page .profile-section-card {
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    padding: 10px !important;
 }
 .owner-counter-page .schedule-filters,
 .owner-counter-page .recurring-schedule-board,
@@ -9541,7 +9319,7 @@ input.invalid {
 }
 
 .booking-side {
-    background: #fff !important;
+    background: #fff;
     color: #101c15;
     border-left: 1px solid #cfded1;
 }
@@ -9562,12 +9340,12 @@ input.invalid {
 .owner-counter-page
     .voucher-code-row
     input:not([type="checkbox"]):not([type="radio"]) {
-    background: #fff !important;
-    background-color: #fff !important;
-    background-image: none !important;
-    color: #101c15 !important;
-    -webkit-text-fill-color: #101c15 !important;
-    caret-color: #101c15 !important;
+    background: #fff;
+    background-color: #fff;
+    background-image: none;
+    color: #101c15;
+    -webkit-text-fill-color: #101c15;
+    caret-color: #101c15;
     color-scheme: light;
 }
 
@@ -9581,9 +9359,9 @@ input.invalid {
     input:not([type="checkbox"]):not([type="radio"]):disabled,
 .owner-counter-page .form-card select:disabled,
 .owner-counter-page .form-card textarea:disabled {
-    background: #f4f7f4 !important;
-    color: #66766b !important;
-    -webkit-text-fill-color: #66766b !important;
+    background: #f4f7f4;
+    color: #66766b;
+    -webkit-text-fill-color: #66766b;
 }
 
 .owner-counter-page .booking-side input::placeholder,
@@ -9591,9 +9369,9 @@ input.invalid {
 .owner-counter-page .form-card input::placeholder,
 .owner-counter-page .form-card textarea::placeholder,
 .owner-counter-page .voucher-code-row input::placeholder {
-    color: #7b8a80 !important;
-    -webkit-text-fill-color: #7b8a80 !important;
-    opacity: 1 !important;
+    color: #7b8a80;
+    -webkit-text-fill-color: #7b8a80;
+    opacity: 1;
 }
 
 .owner-counter-page
@@ -9620,13 +9398,13 @@ input.invalid {
 .owner-counter-page
     .form-card
     input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill:active {
-    background: #fff !important;
-    background-color: #fff !important;
-    background-image: none !important;
-    -webkit-text-fill-color: #101c15 !important;
-    caret-color: #101c15 !important;
-    box-shadow: 0 0 0 1000px #fff inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    background: #fff;
+    background-color: #fff;
+    background-image: none;
+    -webkit-text-fill-color: #101c15;
+    caret-color: #101c15;
+    box-shadow: 0 0 0 1000px #fff inset;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
     color-scheme: light;
     transition:
         background-color 9999s ease-out 0s,
@@ -9639,26 +9417,26 @@ input.invalid {
 .owner-counter-page
     .form-card
     input:not([type="checkbox"]):not([type="radio"]):autofill {
-    background: #fff !important;
-    background-color: #fff !important;
-    background-image: none !important;
-    color: #101c15 !important;
-    -webkit-text-fill-color: #101c15 !important;
-    box-shadow: 0 0 0 1000px #fff inset !important;
-    -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+    background: #fff;
+    background-color: #fff;
+    background-image: none;
+    color: #101c15;
+    -webkit-text-fill-color: #101c15;
+    box-shadow: 0 0 0 1000px #fff inset;
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
     color-scheme: light;
 }
 
 .payment-card {
     min-height: 54px;
     border-color: #cfded1;
-    background: #fff !important;
+    background: #fff;
     cursor: pointer;
 }
 
 .payment-card.active {
     border-color: #22a653;
-    background: #e8f7ee !important;
+    background: #e8f7ee;
     box-shadow: inset 3px 0 0 #22a653;
 }
 
@@ -9683,7 +9461,7 @@ input.invalid {
 
 .qr-modal-backdrop,
 .booking-action-modal-backdrop {
-    z-index: 10020 !important;
+    z-index: 10020;
     background: rgba(15, 23, 42, 0.58);
 }
 
@@ -9691,5 +9469,876 @@ input.invalid {
     border: 1px solid #d9e8d9;
     border-radius: 8px;
     background: #fff;
+}
+
+.owner-counter-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ===== Single Unified Surface Card ===== */
+.cluster-profile-surface.standalone {
+    display: flex;
+    flex-direction: column;
+    gap: 0 !important;
+    background: var(--admin-surface, #ffffff);
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.hero-integrated-tabs {
+    padding: 16px 24px 0 24px;
+    background: var(--admin-surface, #ffffff);
+}
+
+.profile-section-card {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.profile-section-card + .profile-section-card {
+    border-top: none;
+}
+
+.tab-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.header-inline-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.header-type-select {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: #ffffff;
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+    cursor: pointer;
+}
+
+.tab-section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--admin-text, #0f172a);
+}
+
+.section-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--admin-muted, #64748b);
+}
+
+.counter-toolbar-flat {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.counter-toolbar-flat .schedule-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.counter-toolbar-flat .schedule-filter-field > span {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
+}
+
+.counter-toolbar-flat .type-field select {
+    min-width: 160px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: #ffffff;
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+}
+
+.counter-date-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.counter-date-range .date-nav-btn {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-text, #334155);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.counter-date-range .date-nav-btn:hover {
+    background: var(--admin-hover, #f8fafc);
+    border-color: var(--admin-border, #94a3b8);
+}
+
+.counter-date-range .date-range-trigger {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-text, #0f172a);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.counter-date-range .date-range-trigger:hover {
+    background: var(--admin-hover, #f8fafc);
+    border-color: var(--admin-border, #94a3b8);
+}
+
+.counter-date-range .today-btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-text, #334155);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.counter-date-range .today-btn:hover {
+    background: var(--admin-hover, #f8fafc);
+    border-color: var(--admin-border, #94a3b8);
+}
+
+.selection-summary-inline {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--admin-hover, #f8fafc);
+    border: 1px solid var(--admin-border-soft, #f1f5f9);
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+}
+
+.summary-label {
+    color: var(--admin-muted, #64748b);
+}
+
+.summary-value {
+    color: var(--admin-text, #0f172a);
+    font-weight: 500;
+}
+
+/* ===== Modern Recurring Tab Styling ===== */
+.recurring-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.recurring-panel .form-card,
+.owner-counter-page .form-card {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+}
+
+.recurring-form-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    align-items: start;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+}
+
+.calendar-range-field,
+.recurring-form-grid .calendar-range-field {
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.recurring-form-fields {
+    flex: 1 1 320px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.recurring-date-planner {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.calendar-range-field > span {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--admin-text, #0f172a);
+}
+
+.recurring-calendar-mode {
+    display: flex;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    gap: 8px;
+}
+
+.recurring-calendar-mode button {
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    color: var(--admin-muted, #475569);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.recurring-calendar-mode button.active {
+    background: var(--admin-accent, #10b981);
+    border-color: var(--admin-accent, #10b981);
+    color: #ffffff;
+}
+
+.recurring-helper,
+.recurring-schedule-board,
+.recurring-payment,
+.recurring-form-actions {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* ===== Matrix Skeleton Shimmer Loading ===== */
+.schedule-loading-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px 0;
+    width: 100%;
+}
+
+.skeleton-matrix-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.skeleton-matrix-header {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.skeleton-matrix-header .skeleton-pill {
+    flex: 1;
+    height: 24px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-matrix-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.skeleton-court-name {
+    width: 120px;
+    height: 36px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    flex-shrink: 0;
+}
+
+.skeleton-cell {
+    flex: 1;
+    height: 36px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.recurring-form-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.recurring-form-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
+}
+
+.recurring-form-fields input[type="text"],
+.recurring-form-fields input[type="tel"],
+.recurring-form-fields input[type="number"],
+.recurring-form-fields select {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: #ffffff;
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+    transition: border-color 0.15s ease;
+}
+
+.recurring-form-fields input:focus,
+.recurring-form-fields select:focus {
+    outline: none;
+    border-color: var(--admin-accent, #10b981);
+}
+
+.recurring-date-planner {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.weekday-planner-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.weekday-planner-head strong {
+    font-size: 14px;
+    color: var(--admin-text, #0f172a);
+}
+
+.weekday-planner-head span {
+    font-size: 12.5px;
+    color: var(--admin-muted, #64748b);
+    display: block;
+}
+
+.recurring-date-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+}
+
+.recurring-date-card {
+    min-width: 140px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    background: #ffffff;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recurring-date-card.active {
+    border-color: var(--admin-accent, #10b981);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.recurring-date-card.complete {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+/* ===== Synchronized 1:1 with OwnerVenueClusters.vue ===== */
+.cluster-hero-surface {
+    background: transparent;
+    border: none;
+}
+
+.hero-integrated-tabs {
+    padding: 0;
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+.booking-list-mode-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+}
+
+.booking-list-mode-tabs button {
+    height: 38px;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border, #cbd5e1);
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #334155);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.booking-list-mode-tabs button:hover:not(.active) {
+    background: var(--admin-hover, #f1f5f9);
+    color: var(--admin-text, #0f172a);
+}
+
+.booking-list-mode-tabs button.active {
+    background: var(--admin-accent, #10b981);
+    border-color: var(--admin-accent, #10b981);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+}
+
+.booking-list-filters,
+.recurring-list-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px;
+    margin-bottom: 20px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.booking-list-filters label,
+.recurring-list-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--admin-muted, #475569);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.booking-list-filters input[type="text"],
+.booking-list-filters input[type="date"],
+.booking-list-filters input[type="search"],
+.booking-list-filters select,
+.recurring-list-filters select,
+.recurring-list-filters input {
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border-soft, #cbd5e1);
+    padding: 0 12px;
+    background: var(--admin-surface, #ffffff);
+    font-size: 13.5px;
+    color: var(--admin-text, #0f172a);
+    transition: all 0.15s ease;
+}
+
+.booking-list-filters input:focus,
+.booking-list-filters select:focus,
+.recurring-list-filters select:focus {
+    outline: none;
+    border-color: var(--admin-accent, #10b981);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.recurring-table-card {
+    border-radius: 0;
+    border: none;
+    overflow: hidden;
+    background: transparent;
+}
+
+.recurring-list-panel .state-card {
+    border: none;
+    background: transparent;
+    color: var(--admin-muted, #64748b);
+    text-align: center;
+    padding: 40px 16px;
+    box-shadow: none;
+    font-size: 14px;
+}
+
+.recurring-table-card table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.recurring-table-card th {
+    background: var(--admin-hover, #f8fafc);
+    color: var(--admin-muted, #475569);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    text-align: left;
+}
+
+.recurring-table-card td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
+    color: var(--admin-text, #0f172a);
+    vertical-align: middle;
+}
+
+.recurring-table-card tr:last-child td {
+    border-bottom: none;
+}
+
+.recurring-table-card tr:hover td {
+    background: var(--admin-hover, #f8fafc);
+}
+
+.source-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.source-pill.online {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.source-pill.counter {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.tone-emerald {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.tone-amber {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.tone-violet {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.status-badge.tone-rose {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.tone-slate {
+    background: #e2e8f0;
+    color: #334155;
+}
+/* ===== Responsive Multi-Device Optimization (Mobile & Tablet) ===== */
+@media (max-width: 768px) {
+    .cluster-hero-surface,
+    .hero-integrated-tabs {
+        padding: 12px 16px 0 16px;
+    }
+
+    .profile-section-card {
+        padding: 16px;
+    }
+
+    .recurring-table-card {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .recurring-table-card table {
+        min-width: 680px;
+    }
+}
+
+/* ===== Time-Row Matrix (transposed: time=rows, courts=cols) ===== */
+.time-row-matrix-wrap {
+    min-height: 530px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 8px;
+    background: var(--admin-surface, #fff);
+    margin: 0;
+    padding: 0;
+}
+
+.time-row-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin: 0;
+    padding: 0;
+}
+
+.time-row-matrix .trm-corner {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 110px;
+    width: 110px;
+    padding: 8px 12px;
+    background: var(--admin-bg-soft, #f8fafc);
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-align: left;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-court-head {
+    min-width: 140px;
+    padding: 8px 10px;
+    background: var(--admin-bg-soft, #f8fafc);
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-bottom: 2px solid var(--admin-border-soft, #e2e8f0);
+    text-align: left;
+}
+
+.time-row-matrix .trm-court-head strong {
+    display: block;
+    color: var(--admin-text, #1e293b);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix .trm-court-head span {
+    display: block;
+    color: var(--admin-muted, #64748b);
+    font-size: 11px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-row-matrix tbody tr {
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    transition: background 0.1s;
+}
+
+.time-row-matrix .trm-time-cell {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 110px;
+    width: 110px;
+    padding: 0 12px;
+    height: 44px;
+    background: var(--admin-surface, #fff);
+    color: var(--admin-muted, #64748b);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-right: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-cell {
+    padding: 0;
+    border-left: 1px solid var(--admin-border-soft, #e2e8f0);
+}
+
+.time-row-matrix .trm-slot-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 44px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    font-size: 12px;
+    color: var(--admin-primary, #000);
+}
+
+.time-row-matrix .trm-slot-btn:not(:disabled):hover {
+    background: var(--admin-hover, #f1f5f9);
+}
+
+.time-row-matrix .trm-slot-btn:disabled {
+    cursor: not-allowed;
+}
+
+.time-row-matrix .trm-empty-hint {
+    opacity: 0;
+    color: var(--admin-primary, #000);
+    font-size: 11px;
+    font-weight: 400;
+    transition: opacity 0.15s;
+}
+
+.time-row-matrix tbody tr:hover .trm-slot-btn:not(:disabled) .trm-empty-hint {
+    opacity: 0.45;
+}
+
+/* Slot state colors — same tokens as slot-matrix */
+.time-row-matrix .trm-slot-btn.selected {
+    background: var(--admin-primary, #000);
+    box-shadow: inset 0 0 0 1px var(--admin-primary, #000);
+}
+
+.time-row-matrix .trm-slot-btn.selected span {
+    color: #fff;
+}
+
+.time-row-matrix .trm-slot-btn.booked-paid    { background: #e2f0e7; }
+.time-row-matrix .trm-slot-btn.booked-online  { background: #e5edf3; }
+.time-row-matrix .trm-slot-btn.booked-counter { background: #ebe9f1; }
+.time-row-matrix .trm-slot-btn.pay-later      { background: #f3eddc; }
+.time-row-matrix .trm-slot-btn.overdue        { background: #f3e3e0; }
+.time-row-matrix .trm-slot-btn.locked         { background: #e9ecea; cursor: not-allowed; }
+.time-row-matrix .trm-slot-btn.viewing        { box-shadow: inset 0 0 0 2px #166534; }
+.time-row-matrix .trm-slot-btn.unavailable    { background: #f8fafc; }
+
+/* Dark mode */
+:global([data-theme="dark"]) .time-row-matrix-wrap {
+    border-color: var(--admin-border-soft);
+    background: var(--admin-surface);
+}
+:global([data-theme="dark"]) .time-row-matrix .trm-corner,
+:global([data-theme="dark"]) .time-row-matrix .trm-court-head {
+    background: var(--admin-bg-soft);
+}
+:global([data-theme="dark"]) .time-row-matrix .trm-time-cell {
+    background: var(--admin-surface);
+}
+
+/* Remove gap/padding between top tabs and section toolbar */
+.sg-shell-admin .content-area .owner-counter-page .cluster-profile-surface.standalone {
+    gap: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .hero-integrated-tabs {
+    padding-bottom: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .profile-section-card {
+    padding: 10px !important;
+    gap: 8px !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .counter-toolbar {
+    margin-bottom: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page .period-row {
+    margin: 0 !important;
+}
+
+.sg-shell-admin .content-area .owner-counter-page {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+:global(html) {
+    overflow-y: scroll !important;
+    scrollbar-gutter: stable;
 }
 </style>

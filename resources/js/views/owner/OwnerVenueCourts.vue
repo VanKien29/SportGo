@@ -28,23 +28,7 @@
         </div>
 
         <div v-else class="view-content-wrapper">
-            <!-- Tabs Toggle Bar -->
-            <div class="layout-toggle-tabs">
-                <button
-                    class="tab-btn"
-                    :class="{ active: activeView === 'list' }"
-                    @click="activeView = 'list'"
-                >
-                    <span>Danh sách sân con</span>
-                </button>
-                <button
-                    class="tab-btn"
-                    :class="{ active: activeView === 'layout' }"
-                    @click="activeView = 'layout'"
-                >
-                    <span>Sắp xếp sơ đồ trực quan</span>
-                </button>
-            </div>
+            <AppTabs v-model="activeView" :tabs="courtViewTabs" />
 
             <!-- Grid List of Courts (SaaS Table View) -->
             <div v-if="activeView === 'list'" class="courts-list-wrapper">
@@ -97,7 +81,7 @@
                         <template #name="{ row }">
                             <div class="name-col-cell" style="display: flex; align-items: center; gap: 8px;">
                                 <span class="court-order-text" style="font-family: monospace; font-size: 12px; color: var(--admin-faint);">#{{ row.sort_order }}</span>
-                                <span class="court-name-text" style="font-weight: 600; color: var(--sg-text);">{{ row.name }}</span>
+                                <span class="court-name-text" style="font-weight: 400; color: var(--sg-text);">{{ row.name }}</span>
                             </div>
                         </template>
 
@@ -110,7 +94,7 @@
 
                         <!-- Sơ đồ trực quan (Trạng thái đã xếp vị trí) -->
                         <template #spatial_status="{ row }">
-                            <span v-if="row.layout_x !== null && row.layout_y !== null" class="spatial-status placed" style="color: #16a34a; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                            <span v-if="row.layout_x !== null && row.layout_y !== null" class="spatial-status placed" style="color: #16a34a; font-size: 12.5px; font-weight: 400; display: inline-flex; align-items: center; gap: 4px;">
                                 <AppIcon name="circleCheck" size="13" />
                                 <span>Đã xếp ({{ formatToM(row.layout_x) }}m, {{ formatToM(row.layout_y) }}m)</span>
                             </span>
@@ -119,7 +103,7 @@
                                 type="button"
                                 class="btn-place-quick"
                                 @click.stop="selectAndSwitchToLayout(row)"
-                                style="background: none; border: none; padding: 0; color: #d97706; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                                style="background: none; border: none; padding: 0; color: #d97706; font-size: 12.5px; font-weight: 400; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
                             >
                                 <span>Chưa xếp &bull; Định vị</span>
                                 <AppIcon name="chevronRight" size="12" />
@@ -563,9 +547,9 @@
                                 <div class="field-row">
                                     <span class="label">LOẠI:</span>
                                     <span
-                                        class="value font-bold uppercase"
+                                        class="value font-normal uppercase"
                                         style="
-                                            font-weight: 700;
+                                            font-weight: 400;
                                             text-transform: uppercase;
                                         "
                                         >{{ selectedDecoration.type }}</span
@@ -930,6 +914,7 @@
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
+import AppTabs from "../../components/common/AppTabs.vue";
 import CourtVisual from "../../components/CourtVisual.vue";
 import DecorationVisual from "../../components/DecorationVisual.vue";
 import SaaSTable from "../../components/ui/SaaSTable.vue";
@@ -939,7 +924,7 @@ import { useToast } from "vue-toastification";
 
 export default {
     name: "OwnerVenueCourts",
-    components: { ActionIconButton, AppIcon, CourtVisual, DecorationVisual, SaaSTable },
+    components: { ActionIconButton, AppIcon, AppTabs, CourtVisual, DecorationVisual, SaaSTable },
     data() {
         return {
             clusterId:
@@ -1006,6 +991,12 @@ export default {
         };
     },
     computed: {
+        courtViewTabs() {
+            return [
+                { key: 'list', label: 'Danh sách sân con', icon: 'list' },
+                { key: 'layout', label: 'Sắp xếp sơ đồ trực quan', icon: 'grid' },
+            ];
+        },
         groupedCourts() {
             const filtered = this.courts.filter((c) => {
                 if (!this.searchQuery) return true;
@@ -2161,7 +2152,7 @@ export default {
 .btn-back {
     color: rgba(0, 0, 0, 0.6);
     text-decoration: none;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     margin-bottom: 8px;
     transition: color 0.2s ease;
@@ -2173,7 +2164,7 @@ export default {
 
 .header-left h2 {
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 400;
     color: var(--sg-text);
     margin: 0;
 }
@@ -2190,7 +2181,7 @@ export default {
     gap: 8px;
     padding: 10px 18px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -2257,70 +2248,100 @@ export default {
     box-shadow: none !important;
 }
 
-/* Filters - bê nguyên từ AdminVenueClusters */
+/* Filters */
 .avc-filters {
-    padding: 12px 0;
+    padding: 10px 0 16px 0;
 }
 .filter-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 .filter-tabs {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 4px;
+    background: var(--admin-bg, #f8fafc);
+    padding: 4px;
+    border-radius: 9px;
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
 }
 .avc-filters .filter-tabs button.tab-btn {
-    height: 38px !important;
-    min-height: 38px !important;
+    height: 32px !important;
+    min-height: 32px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 0 16px !important;
-    border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
-    background: var(--admin-surface, #ffffff) !important;
-    color: #475569 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
+    padding: 0 14px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--admin-faint, #64748b) !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
     cursor: pointer !important;
-    transition: all 0.18s !important;
+    transition: all 0.14s ease !important;
     box-sizing: border-box !important;
 }
+.avc-filters .filter-tabs button.tab-btn:hover {
+    color: var(--admin-text, #0f172a) !important;
+}
 .avc-filters .filter-tabs button.tab-btn.active {
-    background: var(--admin-primary, #18181b) !important;
-    border-color: var(--admin-primary, #18181b) !important;
-    color: var(--admin-primary-text, #fff) !important;
+    background: var(--admin-surface, #ffffff) !important;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    color: var(--admin-text, #0f172a) !important;
+    font-weight: 400 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
-.avc-filters .filter-tabs button.tab-btn:not(.active).never-hover-class-placeholder {
-    background: var(--admin-hover, #f1f5f9) !important;
-    color: var(--admin-primary-dark, #27272a) !important;
+[data-theme="dark"] .avc-filters .filter-tabs {
+    background: var(--admin-bg, #09090b);
+    border-color: var(--admin-border-soft, rgba(255, 255, 255, 0.08));
 }
-[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn {
-    border: 1px solid var(--admin-border) !important;
-    color: var(--admin-muted) !important;
+[data-theme="dark"] .avc-filters .filter-tabs button.tab-btn.active {
+    background: var(--admin-surface, #18181b) !important;
+    border-color: var(--admin-border-soft, rgba(255, 255, 255, 0.12)) !important;
+    color: #ffffff !important;
 }
 .filter-search {
     flex: 1;
-    min-width: 250px;
+    min-width: 240px;
+    max-width: 320px;
 }
 .filter-search .search-box {
-    border-color: #cbd5e1 !important;
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--admin-border-soft, #cbd5e1) !important;
+    border-radius: 8px !important;
+    background: var(--admin-surface, #ffffff) !important;
+    padding: 0 12px !important;
+    height: 38px !important;
+}
+.filter-search .search-box input {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    font-size: 13px !important;
+    color: var(--admin-text, #0f172a) !important;
+    padding-left: 8px !important;
 }
 .filter-search .search-box input::placeholder {
-    color: #64748b !important;
+    color: var(--admin-faint, #94a3b8) !important;
 }
 .filter-search .search-box svg {
-    color: #64748b !important;
+    color: var(--admin-faint, #94a3b8) !important;
+    flex-shrink: 0;
 }
 
 .status-badge {
     display: inline-flex;
     align-items: center;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     background: transparent !important;
     padding: 0 !important;
@@ -2408,7 +2429,7 @@ export default {
 
 .modal-header h3 {
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 400;
     margin: 0;
     color: var(--sg-text);
 }
@@ -2436,7 +2457,7 @@ export default {
 
 .form-group label {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -2473,7 +2494,7 @@ export default {
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     border: 1px solid #e5e7eb;
 }
 
@@ -2547,7 +2568,7 @@ export default {
 }
 
 .custom-select-trigger .child-name {
-    font-weight: 700;
+    font-weight: 400;
     color: var(--sg-text);
 }
 
@@ -2594,7 +2615,7 @@ export default {
 .custom-optgroup-label {
     padding: 10px 14px 6px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: rgba(15, 23, 42, 0.4);
@@ -2621,11 +2642,11 @@ export default {
 
 .custom-option.selected {
     background: rgba(0, 0, 0, 0.05);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .custom-option .option-text {
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .custom-option .option-details {
@@ -2637,7 +2658,7 @@ export default {
 .custom-option .check-mark {
     margin-left: auto;
     color: #000000;
-    font-weight: 900;
+    font-weight: 400;
 }
 
 /* The edit form follows the owner theme instead of mixing legacy light tokens. */
@@ -2705,7 +2726,7 @@ export default {
     border: none;
     padding: 10px 16px;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     color: rgba(15, 23, 42, 0.4);
     cursor: pointer;
     border-bottom: 3px solid transparent;
@@ -2764,7 +2785,7 @@ export default {
 
 .info-badge {
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 400;
     color: rgba(15, 23, 42, 0.5);
 }
 /* ── Tool Switcher ── */
@@ -2869,7 +2890,7 @@ export default {
     background: none;
     border: none;
     padding: 8px 12px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 16px;
     cursor: pointer;
     color: var(--sg-text);
@@ -2887,7 +2908,7 @@ export default {
 
 .zoom-level {
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     padding: 0 10px;
     color: var(--sg-text);
     min-width: 48px;
@@ -2975,7 +2996,7 @@ export default {
     padding: 3px 10px;
     border-radius: 999px;
     font-size: 10.5px;
-    font-weight: 800;
+    font-weight: 400;
     z-index: 30;
     box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
     pointer-events: none;
@@ -3038,7 +3059,7 @@ export default {
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     margin-bottom: 14px;
     line-height: 1.4;
 }
@@ -3084,91 +3105,97 @@ export default {
 }
 
 .sidebar-section {
-    background: #ffffff;
-    border: 1px solid var(--sg-border);
-    border-radius: 12px;
-    padding: 16px;
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 10px;
+    padding: 12px 14px;
 }
 
 .section-title {
-    font-size: 14px;
-    font-weight: 800;
+    font-size: 12.5px;
+    font-weight: 600;
     margin-top: 0;
-    margin-bottom: 12px;
-    color: var(--sg-text);
-    border-bottom: 1px solid var(--sg-border);
-    padding-bottom: 8px;
+    margin-bottom: 8px;
+    color: var(--admin-text, #0f172a);
+    border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+    padding-bottom: 6px;
 }
 
 .section-desc {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.5);
+    font-size: 11.5px;
+    color: var(--admin-muted, #64748b);
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 /* Inspector styles */
 .inspector-fields {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
 }
 
 .field-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
-    padding-bottom: 8px;
-    border-bottom: 1px dashed var(--sg-border);
+    align-items: center;
+    font-size: 11.5px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--admin-border-soft, #e2e8f0);
 }
 
 .field-row .label {
-    font-weight: 700;
-    color: rgba(15, 23, 42, 0.5);
+    font-weight: 500;
+    color: var(--admin-muted, #64748b);
 }
 
 .field-row .value {
-    font-weight: 700;
-    color: var(--sg-text);
+    font-weight: 500;
+    color: var(--admin-text, #0f172a);
 }
 
 .field-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .field-group label {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--sg-text);
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--admin-muted, #64748b);
 }
 
 .input-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
-.input-row input {
+.input-row input,
+.inspector-panel :is(input, select, textarea, .form-control) {
     width: 100%;
-    padding: 8px 10px;
+    height: 30px !important;
+    padding: 4px 8px !important;
     border-radius: 6px;
-    border: 1px solid var(--sg-border);
-    font-size: 13px;
+    border: 1px solid var(--admin-border, #cbd5e1);
+    font-size: 12px !important;
     outline: none;
-    font-weight: 700;
+    font-weight: 400 !important;
+    background: var(--admin-surface, #ffffff);
+    color: var(--admin-text, #0f172a);
 }
 
-.input-row input:focus {
-    border-color: #000000;
+.input-row input:focus,
+.inspector-panel :is(input, select, textarea, .form-control):focus {
+    border-color: #22a653 !important;
 }
 
 .input-row .x,
 .input-row .comma {
-    font-size: 12px;
-    font-weight: 700;
-    color: rgba(15, 23, 42, 0.3);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--admin-muted, #94a3b8);
 }
 
 .rotation-control {
@@ -3225,14 +3252,14 @@ export default {
 }
 
 .item-name {
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13.5px;
     color: var(--sg-text);
 }
 
 .item-add-hint {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     color: #000000;
     opacity: 0;
     transition: opacity 0.15s ease;
@@ -3305,7 +3332,7 @@ export default {
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 400;
     color: #475569;
     cursor: pointer;
     text-align: center;

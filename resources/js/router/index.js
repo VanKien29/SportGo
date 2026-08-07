@@ -6,16 +6,24 @@ import {
     restoreAdminAuth,
     restoreAuth,
 } from "../stores/auth.js";
+import { applyThemeModeForPath } from "../utils/themeMode.js";
+import { adminNavigationSections } from "../config/adminNavigation.js";
+import { staffNavigationSections } from "../config/staffNavigation.js";
+import {
+    canAccessAdminRoute,
+    canAccessStaffRoute,
+    firstAccessibleAdminRoute,
+    firstAccessibleStaffRoute,
+} from "../config/permissionAccess.js";
 
 import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import ForgotPassword from "../views/ForgotPassword.vue";
-import Profile from "../views/Profile.vue";
+import ClientProfile from "../views/clients/ClientProfile.vue";
 import AdminLogin from "../views/admin/AdminLogin.vue";
 import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
 import AdminLayout from "../views/admin/AdminLayout.vue";
-import AdminDashboard from "../views/admin/AdminDashboard.vue";
 import AdminProfile from "../views/admin/AdminProfile.vue";
 import AdminUsers from "../views/admin/AdminUsers.vue";
 import AdminStaffs from "../views/admin/AdminStaffs.vue";
@@ -28,7 +36,6 @@ import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
 import AdminRoles from "../views/admin/AdminRoles.vue";
 import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
-import OwnerDashboard from "../views/owner/OwnerDashboard.vue";
 import OwnerPricing from "../views/owner/OwnerPricing.vue";
 import OwnerStaff from "../views/owner/OwnerStaff.vue";
 import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
@@ -37,17 +44,21 @@ import StaffLayout from "../views/staff/StaffLayout.vue";
 import BookingForm from "../views/clients/booking/BookingForm.vue";
 import BookingDetail from "../views/clients/booking/BookingDetail.vue";
 import BookingHistory from "../views/clients/booking/BookingHistory.vue";
+import ClientWallet from "../views/clients/Wallet.vue";
 import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
 import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
 import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
 import UserProfile from '../views/clients/users/UserProfile.vue';
 import VenueList from "../views/clients/VenueList.vue";
 import VenueDetail from "../views/clients/VenueDetail.vue";
-import CommunityPostDetail from "../views/clients/NewsDetail.vue";
+import CommunityPostDetail from "../views/clients/community/CommunityDetail.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
+    { path: "/map", name: "client-map", redirect: { name: "venues", query: { view: "map" } } },
+    { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
+    { path: "/offers", name: "client-offers", component: () => import("../views/clients/Offers.vue") },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
     { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
     { path: "/login", name: "login", component: Login },
@@ -65,7 +76,7 @@ const routes = [
     {
         path: "/profile",
         name: "profile",
-        component: Profile,
+        component: ClientProfile,
         meta: { requiresAuth: true },
     },
     {
@@ -81,9 +92,9 @@ const routes = [
         meta: { requiresAuth: false, title: "Cộng đồng" },
     },
     {
-      path: '/user/:id',
-      name: 'user.profile',
-      component: UserProfile
+        path: '/user/:id',
+        name: 'user.profile',
+        component: UserProfile
     },
     {
         path: "/news/:slug",
@@ -140,6 +151,54 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: "/bookings/recurring/:groupCode",
+        name: "booking-recurring-group",
+        component: () => import("../views/clients/booking/RecurringGroupDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/wallet",
+        name: "client-wallet",
+        component: ClientWallet,
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/refunds",
+        name: "client-refunds",
+        component: () => import("../views/clients/Refunds.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/refunds/:id",
+        name: "client-refund-detail",
+        component: () => import("../views/clients/RefundDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/notifications",
+        name: "client-notifications",
+        component: () => import("../views/clients/Notifications.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/complaints",
+        name: "client-complaints",
+        component: () => import("../views/clients/Complaints.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/complaints/new",
+        name: "client-complaint-create",
+        component: () => import("../views/clients/ComplaintCreate.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: "/complaints/:id",
+        name: "client-complaint-detail",
+        component: () => import("../views/clients/ComplaintDetail.vue"),
+        meta: { requiresAuth: true },
+    },
+    {
         path: "/become-partner",
         name: "partner-registration",
         redirect: { name: "partner-application" },
@@ -170,8 +229,7 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                name: "admin-dashboard",
-                component: AdminDashboard,
+                redirect: { name: "admin-venue-clusters" },
             },
             { path: "profile", name: "admin-profile", component: AdminProfile },
             { path: "users", name: "admin-users", component: AdminUsers },
@@ -320,9 +378,7 @@ const routes = [
             },
             {
                 path: "system-profile",
-                name: "admin-system-profile",
-                component: () =>
-                    import("../views/admin/AdminSystemProfile.vue"),
+                redirect: { name: "admin-settings" },
             },
             {
                 path: "settings",
@@ -342,7 +398,7 @@ const routes = [
                 name: "admin-chat",
                 component: () => import("../views/Chat.vue"),
             },
-            { path: "", redirect: { name: "admin-dashboard" } },
+            { path: "", redirect: { name: "admin-venue-clusters" } },
         ],
     },
     {
@@ -352,8 +408,7 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                name: "owner-dashboard",
-                component: OwnerDashboard,
+                redirect: { name: "owner-venue-clusters" },
             },
             {
                 path: "venue-clusters",
@@ -458,7 +513,7 @@ const routes = [
                 name: "owner-complaint-detail",
                 component: () => import("../views/owner/OwnerComplaintDetail.vue"),
             },
-            { path: "profile", name: "owner-profile", component: Profile },
+            { path: "profile", name: "owner-profile", component: () => import("../views/owner/OwnerProfile.vue") },
             {
                 path: "partner-profile",
                 name: "owner-partner-profile",
@@ -485,7 +540,7 @@ const routes = [
                 name: "owner-refunds",
                 component: () => import("../views/owner/OwnerRefundRequests.vue"),
             },
-            { path: "", redirect: { name: "owner-dashboard" } },
+            { path: "", redirect: { name: "owner-venue-clusters" } },
         ],
     },
     {
@@ -495,8 +550,7 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                name: "staff-dashboard",
-                component: () => import("../views/staff/StaffDashboard.vue"),
+                redirect: { name: "staff-bookings" },
             },
             {
                 path: "schedules",
@@ -514,6 +568,11 @@ const routes = [
                 component: () => import("../views/staff/StaffCounterBooking.vue"),
             },
             {
+                path: "vouchers",
+                name: "staff-vouchers",
+                component: OwnerVouchers,
+            },
+            {
                 path: "settings",
                 name: "staff-settings",
                 component: () => import("../views/owner/OwnerSettings.vue"),
@@ -523,8 +582,8 @@ const routes = [
                 name: "staff-chat",
                 component: () => import("../views/Chat.vue"),
             },
-            { path: "profile", name: "staff-profile", component: Profile },
-            { path: "", redirect: { name: "staff-dashboard" } },
+            { path: "profile", name: "staff-profile", component: () => import("../views/owner/OwnerProfile.vue") },
+            { path: "", redirect: { name: "staff-bookings" } },
         ],
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },
@@ -533,9 +592,19 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes,
+    scrollBehavior(to) {
+        if (to.hash) return { el: to.hash, behavior: "smooth" };
+        return { top: 0, left: 0 };
+    },
 });
 
+if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "manual";
+}
+
 router.beforeEach(async (to, from, next) => {
+    applyThemeModeForPath(to.path);
+
     if (to.name === "google-callback") {
         const query = { ...to.query };
         if (query.token || query.code) {
@@ -558,17 +627,9 @@ router.beforeEach(async (to, from, next) => {
         if (auth?.role_group === "admin") {
             const serverAuth = await restoreAdminAuth();
             if (serverAuth?.role_group === "admin")
-                return next({ name: "admin-dashboard" });
+                return next(firstAccessibleAdminRoute(serverAuth, adminNavigationSections));
         }
         return next();
-    }
-
-    if (to.name === "profile" && auth?.role_group === "owner") {
-        return next({ name: "owner-profile" });
-    }
-
-    if (to.name === "profile" && auth?.role_group === "staff") {
-        return next({ name: "staff-profile" });
     }
 
     if (to.matched.some((route) => route.meta.requiresAuth)) {
@@ -595,19 +656,35 @@ router.beforeEach(async (to, from, next) => {
             );
         }
 
-        if (to.name === "profile" && auth.role_group === "owner") {
-            return next({ name: "owner-profile" });
-        }
-
         if (requiredRole && auth.role_group !== requiredRole) {
             if (auth.role_group === "admin")
-                return next({ name: "admin-dashboard" });
+                return next(firstAccessibleAdminRoute(auth, adminNavigationSections));
             if (auth.role_group === "owner")
                 return next({ name: "owner-dashboard" });
-            if (auth.role_group === "staff")
-                return next({ name: "staff-dashboard" });
+            if (auth.role_group === "staff") {
+                const clusterId = localStorage.getItem("selected_cluster")
+                    || Object.keys(auth.venue_staff_permissions || {})[0]
+                    || "";
+                return next(firstAccessibleStaffRoute(auth, clusterId, staffNavigationSections));
+            }
             if (requiredRole === "admin") return next({ name: "admin-login" });
             return next({ name: "home" });
+        }
+
+        if (requiredRole === "admin" && !canAccessAdminRoute(to.name, auth)) {
+            return next(firstAccessibleAdminRoute(auth, adminNavigationSections));
+        }
+
+        if (requiredRole === "staff") {
+            const clusterId = localStorage.getItem("selected_cluster")
+                || Object.keys(auth.venue_staff_permissions || {})[0]
+                || "";
+            if (clusterId && !localStorage.getItem("selected_cluster")) {
+                localStorage.setItem("selected_cluster", clusterId);
+            }
+            if (!canAccessStaffRoute(to.name, auth, clusterId)) {
+                return next(firstAccessibleStaffRoute(auth, clusterId, staffNavigationSections));
+            }
         }
     }
 
@@ -615,11 +692,15 @@ router.beforeEach(async (to, from, next) => {
         auth = await restoreAuth();
         if (!auth) return next();
         if (auth.role_group === "admin")
-            return next({ name: "admin-dashboard" });
+            return next(firstAccessibleAdminRoute(auth, adminNavigationSections));
         if (auth.role_group === "owner")
             return next({ name: "owner-dashboard" });
-        if (auth.role_group === "staff")
-            return next({ name: "staff-dashboard" });
+        if (auth.role_group === "staff") {
+            const clusterId = localStorage.getItem("selected_cluster")
+                || Object.keys(auth.venue_staff_permissions || {})[0]
+                || "";
+            return next(firstAccessibleStaffRoute(auth, clusterId, staffNavigationSections));
+        }
         return next({ name: "home" });
     }
 

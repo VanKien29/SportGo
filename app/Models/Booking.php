@@ -128,6 +128,11 @@ class Booking extends Model
         return $this->hasMany(Payment::class, 'booking_id');
     }
 
+    public function refunds()
+    {
+        return $this->hasMany(Refund::class, 'booking_id')->latest('created_at');
+    }
+
     public function slotLocks()
     {
         return $this->hasMany(SlotLock::class, 'booking_id');

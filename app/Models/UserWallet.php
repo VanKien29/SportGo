@@ -33,4 +33,14 @@ class UserWallet extends Model
     {
         return $this->hasMany(UserWithdrawalRequest::class, 'user_wallet_id');
     }
+
+    public function ledgers()
+    {
+        return $this->hasMany(UserWalletLedger::class, 'user_wallet_id')->latest('created_at');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'user_wallet_id');
+    }
 }

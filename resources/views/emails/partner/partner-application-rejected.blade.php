@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
@@ -15,7 +15,7 @@
         </div>
         <p>Nếu hệ thống cho phép nộp lại, bạn có thể chỉnh sửa thông tin và tạo hồ sơ mới sau khi đã bổ sung đầy đủ tài liệu cần thiết.</p>
         <p style="text-align:center;margin:24px 0;">
-            <a href="{{ url('/partner-application') }}" style="display:inline-block;padding:12px 24px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;">Xem hồ sơ</a>
+            <a href="{{ url('/partner-application') }}" style="display:inline-block;padding:12px 24px;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight: 400;">Xem hồ sơ</a>
         </p>
         <p>Trân trọng,<br>Đội ngũ SportGo</p>
     </div>

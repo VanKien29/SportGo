@@ -1,6 +1,7 @@
 <template>
-    <section class="settings-page">
-        <header class="page-head">
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card settings-main-content">
+            <header class="page-head">
             <div>
                 <p class="eyebrow">Phí nền tảng</p>
                 <h2>Cài đặt nhắc phí</h2>
@@ -8,7 +9,10 @@
         </header>
 
         <div v-if="toast" class="toast" :class="toastType">{{ toast }}</div>
-        <div v-if="loading" class="state">Đang tải cài đặt...</div>
+        <div v-if="loading" class="state-box animate-fade-in">
+            <div class="spinner"></div>
+            <p>Đang tải cài đặt...</p>
+        </div>
 
         <form v-else class="panel form" @submit.prevent="saveSettings">
             <label>
@@ -73,7 +77,8 @@
                 </footer>
             </div>
         </div>
-    </section>
+    </div>
+</div>
 </template>
 
 <script>
@@ -211,21 +216,22 @@ export default {
 .settings-page { display:grid; gap:16px; max-width:900px; }
 .page-head { display:flex; align-items:center; justify-content:space-between; }
 .page-head h2, .modal-head h3, p { margin:0; }
-.eyebrow { margin:0 0 4px; color:#16a34a; font-size:12px; font-weight:900; text-transform:uppercase; }
-.panel, .modal { border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
-.form { display:grid; gap:16px; padding:20px; }
-label { display:flex; flex-direction:column; gap:6px; color:#334155; font-weight:800; }
+.eyebrow { margin:0 0 4px; color:#16a34a; font-size:12px; font-weight: 400; text-transform:uppercase; }
+.panel { border:none; border-radius:0; background:transparent; padding:0; }
+.modal { border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
+.form { display:grid; gap:16px; padding:0; }
+label { display:flex; flex-direction:column; gap:6px; color:#334155; font-weight: 400; }
 input, textarea { box-sizing:border-box; width:100%; min-width:0; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font:inherit; }
-.field-meta { justify-self:end; color:#64748b; font-size:12px; font-weight:700; }
-.field-error { color:#dc2626; font-size:12px; font-weight:850; }
+.field-meta { justify-self:end; color:#64748b; font-size:12px; font-weight: 400; }
+.field-error { color:#dc2626; font-size:12px; font-weight: 400; }
 .settings-actions, .modal-head, .modal-actions, .icon-text { display:flex; align-items:center; gap:10px; }
-.settings-actions { flex-wrap:wrap; }
-.btn { border:0; border-radius:8px; padding:10px 14px; font-weight:900; cursor:pointer; }
+.settings-actions { flex-wrap:wrap; margin-top:0 !important; padding-top:0 !important; border-top:none !important; }
+.btn { border:0; border-radius:8px; padding:10px 14px; font-weight: 400; cursor:pointer; }
 .btn.primary { background:#16a34a; color:#fff; }
 .btn.secondary { background:#e2e8f0; color:#334155; }
 .btn.danger { background:#dc2626; color:#fff; }
 .btn:disabled { cursor:not-allowed; opacity:.5; }
-.toast, .state { border-radius:8px; padding:12px 14px; font-weight:800; }
+.toast, .state { border-radius:8px; padding:12px 14px; font-weight: 400; }
 .toast.success { background:#ecfdf5; color:#047857; }
 .toast.error { background:#fef2f2; color:#b91c1c; }
 .state { border:1px solid #e2e8f0; background:#fff; color:#64748b; }
@@ -239,5 +245,15 @@ input, textarea { box-sizing:border-box; width:100%; min-width:0; border:1px sol
   .settings-page, .panel, .form { width:100%; min-width:0; max-width:100%; }
   .settings-actions { display:grid; grid-template-columns:1fr; }
   .settings-actions .btn { width:100%; min-width:0; white-space:normal; }
+}
+
+.profile-section-card.settings-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

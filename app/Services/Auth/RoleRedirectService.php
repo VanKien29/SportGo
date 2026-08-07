@@ -31,6 +31,8 @@ class RoleRedirectService
     public function __construct(
         private readonly VenueMembershipService $venueMemberships,
         private readonly SystemVipService $systemVip,
+        private readonly SystemPermissionService $systemPermissions,
+        private readonly VenueStaffMenuPermissionService $venueStaffPermissions,
     ) {}
 
     public function roles(User $user): array
@@ -85,6 +87,12 @@ class RoleRedirectService
             'user' => $this->userPayload($user, $roleGroup),
             'roles' => $roles,
             'role_group' => $roleGroup,
+            'permissions' => $roleGroup === 'admin'
+                ? $this->systemPermissions->codes($user)
+                : [],
+            'venue_staff_permissions' => in_array('venue_staff', $roles, true)
+                ? $this->venueStaffPermissions->permissionMap($user)
+                : [],
             'redirect_to' => $this->redirectTo($roleGroup),
         ], fn ($value) => $value !== null);
     }

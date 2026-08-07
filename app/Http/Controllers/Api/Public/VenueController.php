@@ -31,6 +31,11 @@ class VenueController extends Controller
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'min_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
+            'amenity_id' => ['nullable', 'integer', 'exists:amenities,id'],
+            'min_courts' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'has_services' => ['nullable', 'boolean'],
+            'has_map' => ['nullable', 'boolean'],
+            'payment_option' => ['nullable', 'in:full_payment,deposit,no_prepay,wallet'],
             'sort' => ['nullable', 'in:recommended,name,price,courts,rating'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
@@ -58,7 +63,13 @@ class VenueController extends Controller
                     ->where('status', 'active')
                     ->orderBy('sort_order')
                     ->orderBy('name');
-            }])
+            }, 'amenityCatalog' => function ($query) {
+                $query->where('amenities.status', 'active')
+                    ->wherePivot('is_visible', true)
+                    ->orderBy('amenities.name');
+            }, 'services' => function ($query) {
+                $query->where('status', 'active');
+            }, 'bookingConfig'])
             ->where('status', 'active');
 
         if (! empty($validated['q'])) {
@@ -82,6 +93,34 @@ class VenueController extends Controller
 
         if (isset($validated['min_rating'])) {
             $query->where('rating_avg', '>=', $validated['min_rating']);
+        }
+
+        if (! empty($validated['amenity_id'])) {
+            $query->whereHas('amenityCatalog', function ($query) use ($validated) {
+                $query->where('amenities.id', (int) $validated['amenity_id'])
+                    ->where('amenities.status', 'active')
+                    ->where('venue_cluster_amenities.is_visible', true);
+            });
+        }
+
+        if (filter_var($validated['has_services'] ?? null, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true) {
+            $query->whereHas('services', fn ($query) => $query->where('status', 'active'));
+        }
+
+        if (filter_var($validated['has_map'] ?? null, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true) {
+            $query->whereNotNull('latitude')->whereNotNull('longitude');
+        }
+
+        if (! empty($validated['payment_option'])) {
+            $paymentOption = $validated['payment_option'];
+            $query->whereHas('bookingConfig', function ($query) use ($paymentOption) {
+                $column = match ($paymentOption) {
+                    'full_payment', 'wallet' => 'allow_full_payment',
+                    'deposit' => 'allow_deposit',
+                    'no_prepay' => 'allow_no_prepay',
+                };
+                $query->where($column, true);
+            });
         }
 
         $availabilityCourtTypeIds = null;
@@ -129,6 +168,10 @@ class VenueController extends Controller
         $clusters = $clusters
             ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster))
             ->filter(function (array $cluster) use ($validated) {
+                return empty($validated['min_courts'])
+                    || (int) $cluster['court_count'] >= (int) $validated['min_courts'];
+            })
+            ->filter(function (array $cluster) use ($validated) {
                 $price = $cluster['min_price'];
 
                 if (isset($validated['min_price']) && ($price === null || $price < (float) $validated['min_price'])) {
@@ -156,6 +199,26 @@ class VenueController extends Controller
             ->when(! empty($validated['limit']), fn (Collection $clusters) => $clusters->take((int) $validated['limit']));
 
         return response()->json(['data' => $clusters]);
+    }
+
+    public function filterOptions(): JsonResponse
+    {
+        $amenities = DB::table('amenities')
+            ->join('venue_cluster_amenities', 'venue_cluster_amenities.amenity_id', '=', 'amenities.id')
+            ->join('venue_clusters', 'venue_clusters.id', '=', 'venue_cluster_amenities.venue_cluster_id')
+            ->where('amenities.status', 'active')
+            ->where('venue_cluster_amenities.is_visible', true)
+            ->where('venue_clusters.status', 'active')
+            ->distinct()
+            ->orderBy('amenities.name')
+            ->get(['amenities.id', 'amenities.name']);
+
+        return response()->json([
+            'data' => [
+                'amenities' => $amenities,
+                'court_counts' => [1, 2, 4, 6, 8, 10],
+            ],
+        ]);
     }
 
     public function show(string $id): JsonResponse
@@ -305,9 +368,35 @@ class VenueController extends Controller
             'court_count' => $cluster->venueCourts->count(),
             'court_types' => $courtTypes,
             'min_price' => $minPrice,
+            'amenities' => $cluster->amenityCatalog
+                ->where('status', 'active')
+                ->filter(fn ($amenity) => (bool) ($amenity->pivot?->is_visible ?? true))
+                ->map(fn ($amenity) => ['id' => $amenity->id, 'name' => $amenity->name])
+                ->values(),
+            'service_count' => $cluster->services->where('status', 'active')->count(),
+            'payment_options' => $this->paymentOptions($cluster),
+            'has_map' => $cluster->latitude !== null && $cluster->longitude !== null,
             'image_path' => $this->coverImage($cluster),
             'availability_hint' => $cluster->venueCourts->isNotEmpty() ? 'available' : 'closed',
         ];
+    }
+
+    private function paymentOptions(VenueCluster $cluster): array
+    {
+        $config = $cluster->bookingConfig;
+        if (! $config) {
+            return ['full_payment', 'deposit', 'no_prepay', 'wallet'];
+        }
+
+        $options = [];
+        if ($config->allow_full_payment) {
+            $options[] = 'full_payment';
+            $options[] = 'wallet';
+        }
+        if ($config->allow_deposit) $options[] = 'deposit';
+        if ($config->allow_no_prepay) $options[] = 'no_prepay';
+
+        return $options;
     }
 
     private function operatingHoursPayload(VenueCluster $cluster): array
@@ -329,6 +418,7 @@ class VenueController extends Controller
 
         return [
             'allow_full_payment' => (bool) ($config?->allow_full_payment ?? true),
+            'allow_wallet' => (bool) ($config?->allow_full_payment ?? true),
             'allow_deposit' => (bool) ($config?->allow_deposit ?? true),
             'allow_no_prepay' => (bool) ($config?->allow_no_prepay ?? true),
             'deposit_percent' => $config?->deposit_percent !== null ? (float) $config->deposit_percent : null,

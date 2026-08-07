@@ -1,32 +1,32 @@
 <template>
-  <div class="venue-detail-page">
+  <div class="venue-detail-page sg-client-page">
     <PublicNavbar />
 
     <!-- Loading State -->
-    <div v-if="loading" class="loading-screen">
+    <div v-if="loading" class="state-screen loading-screen">
       <div class="spinner"></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="error-screen">
+    <div v-else-if="error" class="state-screen error-screen">
       <p class="error-msg">{{ error }}</p>
       <button class="btn-outline" @click="$router.back()">Quay lại</button>
     </div>
 
     <!-- Content -->
-    <template v-else-if="venue">
+    <main v-else-if="venue" class="venue-detail-main">
         <section class="hero-band">
           <div class="detail-container">
-            <router-link class="venue-back-link" :to="{ name: 'venues', query: searchQuery }">
+            <router-link class="venue-back-link !text-slate-800 !bg-white/80 hover:!bg-white !border-slate-300" :to="{ name: 'venues', query: searchQuery }">
               <AppIcon name="chevronLeft" size="16" />
               Quay lại tìm sân
             </router-link>
-            <nav class="breadcrumbs" aria-label="Duong dan">
-              <router-link :to="{ name: 'home' }">Trang chủ</router-link>
+            <nav class="breadcrumbs !text-slate-500" aria-label="Duong dan">
+              <router-link :to="{ name: 'home' }" class="!text-slate-700 hover:!text-emerald-700">Trang chủ</router-link>
               <span>/</span>
-              <router-link :to="{ name: 'venues', query: searchQuery }">Tìm sân</router-link>
+              <router-link :to="{ name: 'venues', query: searchQuery }" class="!text-slate-700 hover:!text-emerald-700">Tìm sân</router-link>
               <span>/</span>
-              <strong>{{ venue.name }}</strong>
+              <strong class="!text-slate-900">{{ venue.name }}</strong>
             </nav>
 
             <div class="hero-grid">
@@ -127,6 +127,40 @@
             </section>
 
             <section v-if="activeTab === 'courts' && courtGroups.length" class="detail-section">
+              <div class="court-layout-heading">
+                <div>
+                  <h2>Sơ đồ sân</h2>
+                  <p>Chọn sân trực tiếp trên sơ đồ để xem nhanh vị trí và loại sân.</p>
+                </div>
+                <span class="court-layout-legend"><i></i>Sân đang hoạt động</span>
+              </div>
+              <div class="court-layout-canvas" :style="layoutCanvasStyle" aria-label="Sơ đồ trực quan các sân">
+                <button
+                  v-for="court in courtLayoutItems"
+                  :key="court.id"
+                  type="button"
+                  class="court-layout-item"
+                  :style="courtLayoutStyle(court)"
+                  @click="selectLayoutCourt(court)"
+                >
+                  <strong>{{ court.shortName }}</strong>
+                  <span>{{ court.court_type?.name || "Sân thể thao" }}</span>
+                </button>
+                <div
+                  v-for="decoration in layoutDecorationItems"
+                  :key="decoration.id"
+                  class="court-layout-decoration"
+                  :style="courtLayoutStyle(decoration)"
+                >
+                  <AppIcon :name="decorationIcon(decoration.type)" :size="16" />
+                  <span>{{ decoration.name }}</span>
+                </div>
+              </div>
+              <p v-if="selectedLayoutCourt" class="court-layout-selection">
+                Đang xem: <strong>{{ selectedLayoutCourt.name }}</strong>
+                <span>{{ selectedLayoutCourt.court_type?.name || "Sân thể thao" }}</span>
+              </p>
+
               <h2>Loại sân và sân con</h2>
               <div class="court-groups">
                 <article v-for="group in courtGroups" :key="group.typeId" class="court-group">
@@ -367,7 +401,7 @@
               </div>
           </aside>
         </section>
-      </template>
+      </main>
 
     <ComplaintModal
       :is-open="showComplaintModal"
@@ -411,8 +445,27 @@ export default {
       error: "",
       gallery: [],
       activeImage: "",
+      activeTab: "overview",
+      venueTabs: [
+        { id: "overview", label: "Tổng quan", icon: "dashboard" },
+        { id: "courts", label: "Sân & bảng giá", icon: "layers" },
+        { id: "posts", label: "Bài viết", icon: "newspaper" },
+        { id: "reviews", label: "Đánh giá", icon: "star" },
+        { id: "location", label: "Vị trí", icon: "mapPin" },
+      ],
       bookDate: this.todayStr(),
       bookCourtType: '',
+      previewSchedule: {
+        time_slots: [],
+        courts: [],
+        slot_statuses: [],
+      },
+      previewLoading: false,
+      previewError: "",
+      venueRequestId: 0,
+      scheduleRequestId: 0,
+      selectedLayoutCourtId: null,
+      showComplaintModal: false,
       showReportModal: false,
       showActionMenu: false,
       reportForm: {
@@ -468,6 +521,35 @@ export default {
       });
       return Object.values(groups);
     },
+    courtLayoutItems() {
+      return (this.venue?.venue_courts || []).map((court, index) => ({
+        ...court,
+        shortName: String(court.name || `Sân ${index + 1}`).replace(/^Sân\s+/i, ""),
+        layoutIndex: index,
+      }));
+    },
+    selectedLayoutCourt() {
+      return this.courtLayoutItems.find((court) => court.id === this.selectedLayoutCourtId) || null;
+    },
+    layoutDecorationItems() {
+      return Array.isArray(this.venue?.layout_decorations)
+        ? this.venue.layout_decorations
+        : [];
+    },
+    layoutBounds() {
+      const items = [...this.courtLayoutItems, ...this.layoutDecorationItems];
+      const placedItems = items.filter((item) => item.layout_x !== null && item.layout_x !== undefined && item.layout_y !== null && item.layout_y !== undefined);
+      if (!placedItems.length) return { minX: 0, minY: 0, width: 1200, height: 700 };
+
+      const minX = Math.min(...placedItems.map((item) => Number(item.layout_x) || 0));
+      const minY = Math.min(...placedItems.map((item) => Number(item.layout_y) || 0));
+      const maxX = Math.max(...placedItems.map((item) => (Number(item.layout_x) || 0) + Math.max(80, Number(item.layout_w) || 180)));
+      const maxY = Math.max(...placedItems.map((item) => (Number(item.layout_y) || 0) + Math.max(60, Number(item.layout_h) || 110)));
+      return { minX: minX - 80, minY: minY - 80, width: Math.max(900, maxX - minX + 160), height: Math.max(560, maxY - minY + 160) };
+    },
+    layoutCanvasStyle() {
+      return { aspectRatio: `${this.layoutBounds.width} / ${this.layoutBounds.height}` };
+    },
 
     groupedServices() {
       const services = this.venue?.services || [];
@@ -503,6 +585,7 @@ export default {
       const hours = this.venue?.operating_hours || {};
       const paymentMethods = [];
       if (policy.allow_full_payment) paymentMethods.push("Thanh toán toàn bộ");
+      if (policy.allow_wallet) paymentMethods.push("Ví SportGo");
       if (policy.allow_deposit) {
         paymentMethods.push(policy.deposit_percent
           ? `Đặt cọc ${Number(policy.deposit_percent).toLocaleString("vi-VN")}%`
@@ -668,6 +751,35 @@ export default {
       this.$router.replace({ name: 'venue-detail', params: { id: this.$route.params.id }, query });
     },
 
+    courtLayoutStyle(court) {
+      const hasLayout = court.layout_x !== null && court.layout_x !== undefined
+        && court.layout_y !== null && court.layout_y !== undefined;
+      const fallbackIndex = Number(court.layoutIndex || 0);
+      const fallbackColumn = fallbackIndex % 4;
+      const fallbackRow = Math.floor(fallbackIndex / 4);
+      const fallbackX = 80 + fallbackColumn * 220;
+      const fallbackY = 80 + fallbackRow * 150;
+      const left = ((hasLayout ? Number(court.layout_x) : fallbackX) - this.layoutBounds.minX) / this.layoutBounds.width * 100;
+      const top = ((hasLayout ? Number(court.layout_y) : fallbackY) - this.layoutBounds.minY) / this.layoutBounds.height * 100;
+      const width = Math.max(8, Number(court.layout_w || 180) / this.layoutBounds.width * 100);
+      const height = Math.max(8, Number(court.layout_h || 110) / this.layoutBounds.height * 100);
+      return {
+        left: `${Math.min(94, Math.max(1, left))}%`,
+        top: `${Math.min(90, Math.max(1, top))}%`,
+        width: `${Math.min(45, Math.max(8, width))}%`,
+        height: `${Math.min(40, Math.max(8, height))}%`,
+        transform: `rotate(${Number(court.layout_rotation || 0)}deg)`,
+      };
+    },
+    decorationIcon(type) {
+      return { entrance: 'building', reception: 'building', restroom: 'settings', seating: 'users', parking: 'mapPin', custom: 'layers' }[type] || 'layers';
+    },
+    selectLayoutCourt(court) {
+      this.selectedLayoutCourtId = court.id;
+      this.bookCourtType = court.court_type_id || this.bookCourtType;
+      this.$nextTick(() => this.scrollToBooking());
+    },
+
     initials(name) {
       return String(name || "SG")
         .trim()
@@ -699,6 +811,18 @@ export default {
 
     timeLabel(value) {
       return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    shortTime(value) {
+      return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    isPreviewSlotPast(slot) {
+      if (this.bookDate !== this.todayStr()) return false;
+      const endTime = String(slot?.end_time || slot?.start_time || "");
+      if (!endTime) return false;
+      const end = new Date(`${this.bookDate}T${endTime}`);
+      return !Number.isNaN(end.getTime()) && end.getTime() <= Date.now();
     },
 
     durationLabel(minutes) {
@@ -735,6 +859,42 @@ export default {
         this.error = err.message || 'Không thể tải thông tin sân.';
       } finally {
         if (requestId === this.venueRequestId) this.loading = false;
+      }
+    },
+
+    async loadMiniSchedule() {
+      if (!this.venue?.id || !this.bookDate) return;
+
+      const requestId = ++this.scheduleRequestId;
+      this.previewLoading = true;
+      this.previewError = "";
+
+      try {
+        const response = await venueService.schedule(this.venue.id, {
+          booking_date: this.bookDate,
+          court_type_id: this.bookCourtType || undefined,
+        });
+        if (requestId !== this.scheduleRequestId) return;
+
+        const payload = response.data || response;
+        this.previewSchedule = {
+          time_slots: payload.time_slots || [],
+          courts: payload.courts || [],
+          slot_statuses: payload.slot_statuses || [],
+        };
+      } catch (error) {
+        if (requestId !== this.scheduleRequestId) return;
+        this.previewSchedule = {
+          time_slots: [],
+          courts: [],
+          slot_statuses: [],
+        };
+        this.previewError =
+          error?.message || "Không thể kiểm tra lịch trống lúc này.";
+      } finally {
+        if (requestId === this.scheduleRequestId) {
+          this.previewLoading = false;
+        }
       }
     },
 
@@ -834,7 +994,7 @@ export default {
       }
     },
 
-    goToBooking() {
+    goToBooking(slot = null) {
       if (!this.bookDate) return;
       const query = {
         venue_cluster_id: this.venue.id,
@@ -895,4 +1055,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../../css/client-venue-detail.css"></style>
+

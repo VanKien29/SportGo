@@ -55,23 +55,29 @@ class ChatController extends Controller
                 $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
             } else {
                 $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
-                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                $avatarUrl = $conversation->avatar_url ?: ($otherUser ? $otherUser->avatar_url : null);
             }
 
-            // Get last message
-            $lastMessage = Message::where('conversation_id', $conversation->id)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            // Calculate unread messages
+            // Calculate unread messages & last message considering cleared_history_at
             $myParticipant = $conversation->participants->first(function ($p) use ($userId) {
                 return $p->user_id === $userId;
             });
+            $clearedAt = $myParticipant ? $myParticipant->cleared_history_at : null;
+
+            $lastMsgQuery = Message::where('conversation_id', $conversation->id);
+            if ($clearedAt) {
+                $lastMsgQuery->where('created_at', '>', $clearedAt);
+            }
+            $lastMessage = $lastMsgQuery->orderBy('created_at', 'desc')->first();
+
             $lastReadAt = $myParticipant ? $myParticipant->last_read_at : null;
 
             $unreadQuery = Message::where('conversation_id', $conversation->id)
                 ->where('sender_id', '!=', $userId);
 
+            if ($clearedAt) {
+                $unreadQuery->where('created_at', '>', $clearedAt);
+            }
             if ($lastReadAt) {
                 $unreadQuery->where('created_at', '>', $lastReadAt);
             }
@@ -113,16 +119,20 @@ class ChatController extends Controller
     {
         $userId = $request->user()->id;
 
-        $isParticipant = ConversationParticipant::where('conversation_id', $conversationId)
+        $participant = ConversationParticipant::where('conversation_id', $conversationId)
             ->where('user_id', $userId)
-            ->exists();
+            ->first();
 
-        if (!$isParticipant) {
+        if (!$participant) {
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        $messages = Message::where('conversation_id', $conversationId)
-            ->with('sender:id,full_name,username,avatar_url,email,phone')
+        $query = Message::where('conversation_id', $conversationId);
+        if ($participant->cleared_history_at) {
+            $query->where('created_at', '>', $participant->cleared_history_at);
+        }
+
+        $messages = $query->with('sender:id,full_name,username,avatar_url,email,phone')
             ->orderBy('created_at', 'asc')
             ->limit(100)
             ->get();
@@ -704,6 +714,63 @@ class ChatController extends Controller
         $userId = $currentUser->id;
         $type = $request->input('type', 'direct');
 
+        if ($type === 'group') {
+            $name = trim($request->input('name') ?: 'Nhóm chat mới');
+            $memberIds = $request->input('user_ids', []);
+            if (!is_array($memberIds)) {
+                $memberIds = array_filter(explode(',', (string)$memberIds));
+            }
+
+            $memberIds[] = $userId;
+            $memberIds = array_values(array_unique(array_filter($memberIds)));
+
+            if (count($memberIds) < 2) {
+                return response()->json(['message' => 'Vui lòng chọn ít nhất 1 thành viên để tạo nhóm.'], 422);
+            }
+
+            $avatarUrl = null;
+            if ($request->hasFile('avatar')) {
+                $file = $request->file('avatar');
+                $filename = 'group_' . uniqid('', true) . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('groups', $filename, 'public');
+                $avatarUrl = '/storage/' . $path;
+            }
+
+            $conversation = DB::transaction(function () use ($userId, $name, $memberIds, $avatarUrl) {
+                $now = now();
+                $convData = [
+                    'type' => 'group',
+                    'created_by' => $userId,
+                    'last_message_at' => $now,
+                    'avatar_url' => $avatarUrl,
+                ];
+                if (Schema::hasColumn('conversations', 'title')) {
+                    $convData['title'] = $name;
+                }
+                $conv = Conversation::create($convData);
+
+                foreach ($memberIds as $mId) {
+                    ConversationParticipant::create([
+                        'conversation_id' => $conv->id,
+                        'user_id' => $mId,
+                        'last_read_at' => $mId === $userId ? $now : null,
+                    ]);
+                }
+
+                Message::create([
+                    'conversation_id' => $conv->id,
+                    'sender_id' => $userId,
+                    'content' => "Đã tạo nhóm chat \"{$name}\"",
+                    'is_system' => true,
+                    'created_at' => $now,
+                ]);
+
+                return $conv;
+            });
+
+            return response()->json(['id' => $conversation->id, 'message' => 'Đã tạo nhóm chat thành công.']);
+        }
+
         if ($type === 'direct') {
             $targetUserId = $request->input('user_id');
             if (!$targetUserId) {
@@ -1023,6 +1090,14 @@ class ChatController extends Controller
         ]);
         $payload = $message->toArray();
 
+        if (Schema::hasColumn('messages', 'is_recalled') && $message->is_recalled) {
+            $payload['is_recalled'] = true;
+            $payload['recalled_at'] = $message->recalled_at ? $message->recalled_at->toIso8601String() : null;
+            $payload['content'] = 'Tin nhắn đã bị thu hồi';
+            $payload['image_url'] = null;
+            $payload['reactions'] = [];
+        }
+
         if ($message->reference_type === 'booking' && $message->reference_id) {
             $booking = Booking::query()
                 ->with(['venueCourt.venueCluster', 'venueCourt.courtType', 'venueCluster', 'payments' => fn ($query) => $query->latest('created_at')])
@@ -1199,11 +1274,12 @@ class ChatController extends Controller
     }
 
     /**
-     * Delete a conversation and all its messages
+     * Delete a conversation (for self or for everyone)
      */
     public function deleteConversation(Request $request, $id)
     {
         $userId = $request->user()->id;
+        $deleteForEveryone = filter_var($request->input('delete_for_everyone', false), FILTER_VALIDATE_BOOLEAN);
 
         $participant = ConversationParticipant::where('conversation_id', $id)
             ->where('user_id', $userId)
@@ -1213,10 +1289,20 @@ class ChatController extends Controller
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        DB::transaction(function () use ($id, $userId) {
-            Message::where('conversation_id', $id)->delete();
-            ConversationParticipant::where('conversation_id', $id)->delete();
-            Conversation::where('id', $id)->delete();
+        DB::transaction(function () use ($id, $userId, $deleteForEveryone, $participant) {
+            if ($deleteForEveryone) {
+                Message::where('conversation_id', $id)->delete();
+                ConversationParticipant::where('conversation_id', $id)->delete();
+                Conversation::where('id', $id)->delete();
+            } else {
+                $participant->delete();
+
+                // If no participants left in this conversation, delete the conversation and messages
+                if (ConversationParticipant::where('conversation_id', $id)->count() === 0) {
+                    Message::where('conversation_id', $id)->delete();
+                    Conversation::where('id', $id)->delete();
+                }
+            }
 
             \App\Models\AuditLog::create([
                 'actor_id' => $userId,
@@ -1225,7 +1311,7 @@ class ChatController extends Controller
                 'module' => 'chat',
                 'entity_type' => 'conversation',
                 'entity_id' => $id,
-                'reason' => 'User deleted conversation',
+                'reason' => $deleteForEveryone ? 'User deleted conversation for everyone' : 'User deleted conversation for self',
             ]);
         });
 
@@ -1233,22 +1319,28 @@ class ChatController extends Controller
     }
 
     /**
-     * Clear all messages in a conversation
+     * Clear all messages in a conversation (for self or for everyone)
      */
     public function clearMessages(Request $request, $id)
     {
         $userId = $request->user()->id;
+        $deleteForEveryone = filter_var($request->input('delete_for_everyone', false), FILTER_VALIDATE_BOOLEAN);
 
-        $isParticipant = ConversationParticipant::where('conversation_id', $id)
+        $participant = ConversationParticipant::where('conversation_id', $id)
             ->where('user_id', $userId)
-            ->exists();
+            ->first();
 
-        if (!$isParticipant) {
+        if (!$participant) {
             return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
         }
 
-        DB::transaction(function () use ($id, $userId) {
-            Message::where('conversation_id', $id)->delete();
+        DB::transaction(function () use ($id, $userId, $deleteForEveryone, $participant) {
+            if ($deleteForEveryone) {
+                Message::where('conversation_id', $id)->delete();
+                ConversationParticipant::where('conversation_id', $id)->update(['cleared_history_at' => null]);
+            } else {
+                $participant->update(['cleared_history_at' => now()]);
+            }
 
             \App\Models\AuditLog::create([
                 'actor_id' => $userId,
@@ -1257,10 +1349,77 @@ class ChatController extends Controller
                 'module' => 'chat',
                 'entity_type' => 'conversation',
                 'entity_id' => $id,
-                'reason' => 'User cleared message history',
+                'reason' => $deleteForEveryone ? 'User cleared message history for everyone' : 'User cleared message history for self',
             ]);
         });
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Recall a message (sender only, for everyone)
+     */
+    public function recallMessage(Request $request, $messageId)
+    {
+        if (! Schema::hasColumn('messages', 'is_recalled')) {
+            return response()->json([
+                'message' => 'Chức năng thu hồi tin nhắn chưa sẵn sàng.',
+            ], 409);
+        }
+
+        $userId = $request->user()->id;
+        $message = Message::findOrFail($messageId);
+
+        if ($message->sender_id != $userId) {
+            return response()->json(['message' => 'Bạn chỉ có thể thu hồi tin nhắn do chính mình gửi.'], 403);
+        }
+
+        if ($message->is_recalled) {
+            return response()->json(['message' => 'Tin nhắn này đã được thu hồi trước đó.'], 422);
+        }
+
+        $message->update([
+            'is_recalled' => true,
+            'recalled_at' => now(),
+            'content' => 'Tin nhắn đã bị thu hồi',
+            'image_url' => null,
+            'is_pinned' => false,
+        ]);
+
+        broadcast(new \App\Events\MessageRecalled($message->conversation_id, $message->id))->toOthers();
+
+        return response()->json([
+            'message' => 'Đã thu hồi tin nhắn.',
+            'data' => $this->messagePayload($message->fresh()),
+        ]);
+    }
+
+    /**
+     * Delete a message for self (user_message_deletions)
+     */
+    public function deleteMessageForSelf(Request $request, $messageId)
+    {
+        $userId = $request->user()->id;
+        $message = Message::findOrFail($messageId);
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $message->conversation_id)
+            ->where('user_id', $userId)
+            ->exists();
+
+        if (!$isParticipant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        if (Schema::hasTable('user_message_deletions')) {
+            DB::table('user_message_deletions')->updateOrInsert(
+                ['user_id' => $userId, 'message_id' => $message->id],
+                ['created_at' => now()]
+            );
+        }
+
+        return response()->json([
+            'message' => 'Đã xóa tin nhắn ở phía bạn.',
+            'message_id' => $message->id,
+        ]);
     }
 }

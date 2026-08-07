@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <AuthLayout
     :title="titleText"
     :subtitle="subtitleText"
@@ -54,7 +54,7 @@
       </button>
 
       <div class="text-center text-sm text-zinc-400 mt-6 pt-5 border-t border-zinc-900">
-        <router-link to="/admin/login" class="font-semibold text-zinc-100 hover:underline">
+        <router-link to="/admin/login" class="font-normal text-zinc-100 hover:underline">
           Tôi nhớ mật khẩu
         </router-link>
       </div>
@@ -78,7 +78,7 @@
           maxlength="6"
           placeholder="Nhập mã OTP 6 số"
           autocomplete="one-time-code"
-          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 tracking-widest text-center font-bold"
+          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 tracking-widest text-center font-normal"
         />
       </div>
 
@@ -112,7 +112,7 @@
       </button>
 
       <div class="text-center text-sm text-zinc-400 mt-4 pt-4 border-t border-zinc-900">
-        <router-link to="/admin/login" class="font-semibold text-zinc-100 hover:underline">
+        <router-link to="/admin/login" class="font-normal text-zinc-100 hover:underline">
           Quay lại đăng nhập
         </router-link>
       </div>

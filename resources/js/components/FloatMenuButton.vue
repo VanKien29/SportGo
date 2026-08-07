@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="float-menu" @keydown.esc="closeMenu">
     <button
       type="button"
@@ -127,7 +127,7 @@ export default {
   padding: 10px 12px;
   color: #0f172a;
   background: transparent;
-  font-weight: 700;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
 }

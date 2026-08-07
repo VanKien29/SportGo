@@ -6,10 +6,6 @@
         <h2 id="venue-posts-heading">Bài đăng từ {{ venueName }}</h2>
         <p>Cập nhật lịch hoạt động, ưu đãi và thông tin mới nhất từ sân.</p>
       </div>
-      <button type="button" class="sg-client-button" :disabled="loading" @click="fetchPosts({ page: 1 })">
-        <AppIcon name="refresh" :size="16" />
-        Làm mới
-      </button>
     </header>
 
     <div v-if="loading" class="venue-post-state" aria-live="polite">
@@ -513,4 +509,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped src="../../css/components/client-venue-posts-tab.css"></style>
+

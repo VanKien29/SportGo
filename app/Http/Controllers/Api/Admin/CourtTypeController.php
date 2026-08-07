@@ -12,9 +12,8 @@ class CourtTypeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = CourtType::query()->with('parent')->withCount('children');
-        $user = $request->user();
 
-        if ($request->query('active_only') || !$user || $user->role_group !== 'admin') {
+        if ($request->boolean('active_only') || ! $request->is('api/admin/*')) {
             $query->where('is_active', true);
         }
 
@@ -58,7 +57,7 @@ class CourtTypeController extends Controller
         $courtType = CourtType::query()->findOrFail($id);
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:court_types,name,' . $id],
+            'name' => ['required', 'string', 'max:100', 'unique:court_types,name,'.$id],
             'parent_id' => ['nullable', 'exists:court_types,id'],
             'description' => ['nullable', 'string', 'max:1000'],
             'player_count' => ['required', 'integer', 'min:1'],

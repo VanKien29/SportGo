@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="complaints-page">
     <div v-if="message" class="notice success">{{ message }}</div>
     <div v-if="error" class="notice error">{{ error }}</div>
@@ -303,7 +303,7 @@ const getComplaintTypeLabel = (type) => {
   align-items: center;
   gap: 10px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-faint);
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -382,7 +382,7 @@ th {
   background: var(--admin-surface-muted);
   padding: 12px 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-faint);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -442,7 +442,7 @@ th.center, td.center {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   background: var(--admin-surface-hover);
   color: var(--admin-text);
 }
@@ -460,7 +460,7 @@ th.center, td.center {
 
 .booking-code {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-primary);
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
@@ -472,7 +472,7 @@ th.center, td.center {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 .status-warning {
   background: rgba(245, 158, 11, 0.1);

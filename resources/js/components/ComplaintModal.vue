@@ -288,4 +288,3 @@ watch(() => props.isOpen, (isOpen) => {
 onBeforeUnmount(revokePreview);
 </script>
 
-<style scoped src="../../css/components/client-complaint-modal.css"></style>

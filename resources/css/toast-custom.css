@@ -1,0 +1,272 @@
+/* ==========================================================
+   Vercel / Geist / Shadcn Style Theme Tokens (Tailwind CSS v4)
+   ========================================================== */
+@theme inline {
+  --color-context-card-border: var(--context-card-border);
+  --color-red-800: var(--ds-red-800);
+  --color-red-900: var(--ds-red-900);
+  --color-blue-700: var(--ds-blue-700);
+  --color-amber-800: var(--ds-amber-800);
+  --color-amber-850: var(--ds-amber-850);
+  --color-gray-100: var(--ds-gray-100);
+  --color-gray-400: var(--ds-gray-400);
+  --color-gray-700: var(--ds-gray-700);
+  --color-gray-1000: var(--ds-gray-1000);
+  --color-gray-1000-h: var(--ds-gray-1000-h);
+  --color-gray-alpha-200: var(--ds-gray-alpha-200);
+  --color-gray-alpha-400: var(--ds-gray-alpha-400);
+  --color-background-100: var(--ds-background-100);
+  --color-contrast-fg: var(--ds-contrast-fg);
+  --color-geist-background: var(--geist-background);
+  --shadow-focus-ring: var(--ds-focus-ring);
+  --shadow-border-small: var(--ds-shadow-border-small);
+  --shadow-menu: var(--ds-shadow-menu);
+}
+
+:root {
+  --context-card-border: hsla(0, 0%, 92%, 1);
+  --ds-contrast-fg: #ffffff;
+  --geist-background: #fff;
+  --ds-shadow-menu: var(--ds-shadow-border), 0px 1px 1px rgba(0, 0, 0, 0.02), 0px 4px 8px -4px rgba(0, 0, 0, 0.04), 0px 16px 24px -8px rgba(0, 0, 0, 0.06);
+  --ds-red-800: oklch(58.19% 0.2482 25.15);
+  --ds-red-900: oklch(54.99% 0.232 25.29);
+  --ds-blue-700: oklch(57.61% 0.2508 258.23);
+  --ds-amber-800: oklch(77.21% 0.1991 64.28);
+  --ds-amber-850: hsl(33, 96%, 42%);
+  --ds-gray-100: hsla(0, 0%, 95%, 1);
+  --ds-gray-400: hsla(0, 0%, 92%, 1);
+  --ds-gray-700: hsla(0, 0%, 56%, 1);
+  --ds-gray-1000: hsla(0, 0%, 9%, 1);
+  --ds-gray-1000-h: hsl(0, 0%, 22%);
+  --ds-gray-alpha-200: hsla(0, 0%, 0%, 0.08);
+  --ds-gray-alpha-400: hsla(0, 0%, 0%, 0.08);
+  --ds-background-100: hsla(0, 0%, 100%, 1);
+  --ds-focus-color: var(--ds-blue-700);
+  --ds-focus-ring: 0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-focus-color);
+  --ds-shadow-border: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --ds-shadow-small: 0px 2px 2px rgba(0, 0, 0, 0.04);
+  --ds-shadow-border-small: var(--ds-shadow-border), var(--ds-shadow-small);
+}
+
+.dark {
+  --context-card-border: hsla(0, 0%, 18%, 1);
+  --geist-background: #000;
+  --ds-shadow-menu: var(--ds-shadow-border), 0px 1px 1px rgba(0, 0, 0, 0.02), 0px 4px 8px -4px rgba(0, 0, 0, 0.04), 0px 16px 24px -8px rgba(0, 0, 0, 0.06);
+  --ds-red-800: oklch(58.01% 0.227 25.12);
+  --ds-red-900: oklch(69.96% 0.2136 22.03);
+  --ds-blue-700: oklch(57.61% 0.2321 258.23);
+  --ds-amber-800: oklch(77.21% 0.1991 64.28);
+  --ds-gray-100: hsla(0, 0%, 10%, 1);
+  --ds-gray-400: hsla(0, 0%, 18%, 1);
+  --ds-gray-700: hsla(0, 0%, 56%, 1);
+  --ds-gray-1000: hsla(0, 0%, 93%, 1);
+  --ds-gray-1000-h: hsl(0, 0%, 80%);
+  --ds-gray-alpha-200: hsla(0, 0%, 100%, 0.09);
+  --ds-gray-alpha-400: hsla(0, 0%, 100%, 0.14);
+  --ds-background-100: hsla(0,0%,4%, 1);
+  --ds-shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.145);
+  --ds-shadow-small: 0px 1px 2px rgba(0, 0, 0, 0.16);
+  --ds-shadow-border-small: var(--ds-shadow-border), 0px 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+/* ==========================================================
+   Vercel / Sonner / Shadcn Style Toast & Stacking Overrides
+   ========================================================== */
+
+html body div[class*="Vue-Toastification__container"],
+html body .Vue-Toastification__container,
+html body .Vue-Toastification__container.top-right,
+html body .Vue-Toastification__container.top-center,
+html body .Vue-Toastification__container.top-left,
+html body .Vue-Toastification__container.bottom-right,
+html body .Vue-Toastification__container.bottom-center,
+html body .Vue-Toastification__container.bottom-left {
+  position: fixed;
+  top: auto;
+  left: auto;
+  bottom: 24px;
+  right: 24px;
+  min-height: 0;
+  height: auto;
+  max-height: calc(100vh - 48px);
+  justify-content: flex-end;
+  z-index: 999999;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  width: auto;
+  pointer-events: auto;
+}
+
+/* Hardware-Accelerated Base Toast Card */
+html body .Vue-Toastification__toast {
+  pointer-events: auto;
+  min-height: 44px !important;
+  max-width: 380px !important;
+  width: auto !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 450;
+  line-height: 1.4;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  overflow: visible;
+  position: relative;
+
+  /* Hardware Acceleration (GPU 60fps) & Spring Transition Curve */
+  will-change: transform, opacity, margin-bottom;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 350ms cubic-bezier(0.25, 0.75, 0.6, 0.98), margin-bottom 350ms cubic-bezier(0.25, 0.75, 0.6, 0.98), opacity 280ms ease, box-shadow 280ms ease;
+  transform-origin: bottom right;
+}
+
+/* Invisible Hover Bridge Pseudo-element (Nối khoảng trống gap triệt tiêu giật/flicker) */
+html body .Vue-Toastification__toast::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  pointer-events: auto;
+  z-index: -1;
+  background: transparent;
+}
+
+/* Disable hover bridge expansion when there is only 1 toast */
+html body .Vue-Toastification__toast:only-child::before {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+/* Unified Clean Toast Types with Left Color Accents */
+html body .Vue-Toastification__toast--success {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 4px solid #10b981 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+html body .Vue-Toastification__toast--error {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 4px solid #ef4444 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+html body .Vue-Toastification__toast--info {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 4px solid #3b82f6 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+html body .Vue-Toastification__toast--warning {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-left: 4px solid #f59e0b !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+:root[data-theme="dark"] html body .Vue-Toastification__toast,
+.dark html body .Vue-Toastification__toast {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+
+/* Override Default Library Keyframe Conflicts for Smooth 60fps Enter/Leave */
+html body .Vue-Toastification__bounce-enter-active,
+html body .Vue-Toastification__bounce-leave-active,
+html body .Vue-Toastification__fade-enter-active,
+html body .Vue-Toastification__fade-leave-active,
+html body .Vue-Toastification__toast-enter-active,
+html body .Vue-Toastification__toast-leave-active {
+  animation: none;
+  transition: transform 350ms cubic-bezier(0.25, 0.75, 0.6, 0.98), opacity 280ms ease, margin-bottom 350ms cubic-bezier(0.25, 0.75, 0.6, 0.98);
+}
+
+/* Smooth Enter Transition (Thêm Toast Mượt Mà) */
+html body .Vue-Toastification__bounce-enter-from,
+html body .Vue-Toastification__fade-enter-from,
+html body .Vue-Toastification__toast--enter-from {
+  opacity: 0;
+  transform: translate3d(0, 32px, 0) scale(0.92);
+}
+
+/* Smooth Leave Transition (Xóa Toast Mượt Mà Không Giật) */
+html body .Vue-Toastification__bounce-leave-to,
+html body .Vue-Toastification__fade-leave-to,
+html body .Vue-Toastification__toast--leave-to {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0) scale(0.92);
+  margin-bottom: -46px;
+}
+
+/* Stacking Card Deck Effect (Matching Sonner at bottom-right) */
+html body .Vue-Toastification__toast:nth-last-child(1) {
+  z-index: 100;
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+}
+
+html body .Vue-Toastification__toast:nth-last-child(2) {
+  margin-bottom: -36px;
+  z-index: 90;
+  transform: translate3d(0, -8px, 0) scale(0.95);
+  opacity: 0.88;
+}
+
+html body .Vue-Toastification__toast:nth-last-child(3) {
+  margin-bottom: -36px;
+  z-index: 80;
+  transform: translate3d(0, -16px, 0) scale(0.9);
+  opacity: 0.72;
+}
+
+html body .Vue-Toastification__toast:nth-last-child(n+4) {
+  margin-bottom: -36px;
+  z-index: 70;
+  transform: translate3d(0, -22px, 0) scale(0.85);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hover to expand stacked card deck (Multiple Toasts) */
+html body div[class*="Vue-Toastification__container"]:hover .Vue-Toastification__toast,
+html body .Vue-Toastification__container:hover .Vue-Toastification__toast {
+  margin-bottom: 10px;
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+}
+
+html body div[class*="Vue-Toastification__container"]:hover .Vue-Toastification__toast:last-child,
+html body .Vue-Toastification__container:hover .Vue-Toastification__toast:last-child,
+html body div[class*="Vue-Toastification__container"]:hover .Vue-Toastification__toast:nth-last-child(1),
+html body .Vue-Toastification__container:hover .Vue-Toastification__toast:nth-last-child(1) {
+  margin-bottom: 0;
+}
+
+/* Single Toast Protection: Keep 100% static on hover with no position shift */
+html body .Vue-Toastification__toast:only-child,
+html body div[class*="Vue-Toastification__container"]:hover .Vue-Toastification__toast:only-child,
+html body .Vue-Toastification__container:hover .Vue-Toastification__toast:only-child {
+  margin-bottom: 0;
+  margin-top: 0;
+  transform: translate3d(0, 0, 0) scale(1);
+}

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
@@ -16,7 +16,7 @@
         @endif
 
         <p>Mã xác thực của bạn là:</p>
-        <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;padding:18px 24px;margin:24px 0;background:#ecfdf5;color:#15803d;border-radius:10px;">
+        <div style="font-size:32px;font-weight: 400;letter-spacing:8px;text-align:center;padding:18px 24px;margin:24px 0;background:#ecfdf5;color:#15803d;border-radius:10px;">
             {{ $otp }}
         </div>
 

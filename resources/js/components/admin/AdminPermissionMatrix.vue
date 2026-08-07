@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="matrix-wrapper">
     <div v-if="loading" class="empty-state">Đang tải cấu hình phân quyền...</div>
     <div v-else-if="error" class="alert error">{{ error }}</div>
@@ -36,11 +36,11 @@
                   </div>
                 </td>
                 <td v-for="role in roles" :key="role.id" class="toggle-cell">
-                  <label class="switch" :class="{ disabled: !role.is_configurable }">
+                  <label class="switch" :class="{ disabled: isToggleDisabled(role, perm.id) }">
                     <input
                       type="checkbox"
                       :checked="hasPermission(role, perm.id)"
-                      :disabled="!role.is_configurable || isToggling === `${role.id}-${perm.id}`"
+                      :disabled="isToggleDisabled(role, perm.id)"
                       @change="togglePermission(role, perm.id, $event.target.checked)"
                     />
                     <span class="slider round"></span>
@@ -61,6 +61,9 @@ import { adminRoleService } from '../../services/adminRoles.js';
 
 export default {
   name: 'AdminPermissionMatrix',
+  props: {
+    editable: { type: Boolean, default: false },
+  },
   data() {
     return {
       loading: true,
@@ -92,8 +95,25 @@ export default {
     hasPermission(role, permissionId) {
       return role.permission_ids && role.permission_ids.includes(permissionId);
     },
+    requiredAccessIds(permissionId) {
+      for (const group of this.permissionGroups) {
+        for (const row of group.rows || []) {
+          const accessIds = row.actions?.access?.permission_ids || [];
+          const dependentIds = Object.entries(row.actions || {})
+            .filter(([key]) => key !== 'access')
+            .flatMap(([, action]) => action.permission_ids || []);
+          if (dependentIds.map(Number).includes(Number(permissionId))) return accessIds.map(Number);
+        }
+      }
+      return [];
+    },
+    isToggleDisabled(role, permissionId) {
+      if (!this.editable || !role.is_configurable || this.isToggling === `${role.id}-${permissionId}`) return true;
+      if (this.hasPermission(role, permissionId)) return false;
+      return this.requiredAccessIds(permissionId).some((id) => !this.hasPermission(role, id));
+    },
     async togglePermission(role, permissionId, isChecked) {
-      if (!role.is_configurable) return;
+      if (this.isToggleDisabled(role, permissionId)) return;
       
       const toggleKey = `${role.id}-${permissionId}`;
       this.isToggling = toggleKey;
@@ -102,12 +122,7 @@ export default {
         const action = isChecked ? 'grant' : 'revoke';
         await adminRoleService.togglePermission(role.id, permissionId, action);
         
-        // Cập nhật state local
-        if (isChecked) {
-          role.permission_ids.push(permissionId);
-        } else {
-          role.permission_ids = role.permission_ids.filter(id => id !== permissionId);
-        }
+        await this.loadMatrix();
       } catch (err) {
         alert(err.message || 'Lỗi khi thay đổi quyền.');
         // Giao diện tự rollback do bind với computed / method
@@ -241,7 +256,7 @@ th.sticky-col {
 
 .perm-info span:first-child {
   color: #334155;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 14px;
 }
 
@@ -337,7 +352,7 @@ input:checked + .slider:before {
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 400;
   white-space: nowrap;
 }
 

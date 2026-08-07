@@ -101,6 +101,10 @@ export const ICON_REGISTRY = {
     ['circle', { cx: 12, cy: 12, r: 3 }],
     ['path', { d: 'M6 12h.01M18 12h.01' }],
   ],
+  wallet: [
+    ['path', { d: 'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z' }],
+    ['path', { d: 'M3 8h15a3 3 0 0 1 3 3v2h-5a2 2 0 0 1 0-4h5' }],
+  ],
   messageWarning: [
     ['path', { d: 'M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z' }],
     ['path', { d: 'M12 7v4M12 15h.01' }],
@@ -329,6 +333,10 @@ export const ICON_ALIASES = {
   back: 'arrow-left',
   arrowLeft: 'arrow-left',
   'shopping-bag': 'shoppingBag',
+  list: 'menu',
+  grid: 'dashboard',
+  layout: 'dashboard',
+  maximize: 'externalLink',
 };
 
 export const NAV_ICON_MAP = {

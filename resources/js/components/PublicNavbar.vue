@@ -62,63 +62,35 @@
         </router-link>
 
         <template v-if="!user">
-          <router-link to="/login" class="login-btn">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-              <polyline points="10 17 15 12 10 7"/>
-              <line x1="15" y1="12" x2="3" y2="12"/>
-            </svg>
-            Đăng nhập
-          </router-link>
-          <router-link to="/register" class="register-btn">Đăng ký</router-link>
+          <router-link to="/login" class="sg3-header__button">Đăng nhập</router-link>
         </template>
 
-        <div v-if="user" class="notification-menu" @mouseleave="scheduleNotifHide">
-          <button
-            class="notif-btn"
-            type="button"
-            aria-label="Mở thông báo"
-            :aria-expanded="showNotifDropdown"
-            @click.stop="toggleNotifDropdown"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="22" height="22">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount }}</span>
+        <div v-if="user" class="sg3-menu-wrap sg3-notifications">
+          <button type="button" class="sg3-icon-button" aria-label="Mở thông báo" :aria-expanded="showNotifDropdown" @click.stop="toggleNotifDropdown">
+            <Bell :size="19" aria-hidden="true" />
+            <span v-if="unreadCount > 0" class="sg3-notification-badge">{{ unreadCount > 99 ? "99+" : unreadCount }}</span>
           </button>
-
-          <transition name="dd">
-            <div v-if="showNotifDropdown" class="dropdown notif-dropdown" @mouseenter="cancelNotifHide" @mouseleave="scheduleNotifHide">
-              <div class="dropdown-header notif-header">
-                <span class="dd-name">Thông báo</span>
-                <button v-if="unreadCount > 0" @click="markAllAsRead" class="mark-read-btn">Đánh dấu đã đọc</button>
+          <transition name="spg-pop">
+            <section v-if="showNotifDropdown" class="sg3-popover-panel">
+              <header>
+                <div><strong>Thông báo</strong><span>{{ unreadCount ? `${unreadCount} chưa đọc` : "Bạn đã xem hết" }}</span></div>
+                <button v-if="unreadCount > 0" type="button" @click="markAllAsRead">Đọc tất cả</button>
+              </header>
+              <div class="sg3-notification-list">
+                <div v-if="notifications.length === 0" class="sg3-notification-empty"><BellOff :size="23" aria-hidden="true" /><p>Chưa có thông báo mới.</p></div>
+                <button v-for="notif in notifications" :key="notif.id" type="button" class="sg3-notification-item" :class="{ 'is-unread': !notif.is_read }" @click="markAsRead(notif)">
+                  <span class="sg3-notification-item__icon"><CalendarCheck2 :size="16" aria-hidden="true" /></span>
+                  <span class="sg3-notification-item__content"><strong>{{ notif.title }}</strong><span>{{ notif.body }}</span><time>{{ formatTime(notif.created_at) }}</time></span>
+                  <i v-if="!notif.is_read" aria-label="Chưa đọc"></i>
+                </button>
               </div>
-              <div class="dd-divider"></div>
-              <div class="notif-list">
-                <div v-if="notifications.length === 0" class="no-notif">Không có thông báo nào.</div>
-                <div v-for="notif in notifications" :key="notif.id" class="notif-item" :class="{ 'unread': !notif.is_read }" @click="markAsRead(notif)">
-                  <div class="notif-content">
-                    <div class="notif-title">{{ notif.title }}</div>
-                    <div class="notif-body">{{ notif.body }}</div>
-                    <div class="notif-time">{{ formatTime(notif.created_at) }}</div>
-                  </div>
-                  <div v-if="!notif.is_read" class="unread-dot"></div>
-                </div>
-              </div>
-            </div>
+            </section>
           </transition>
         </div>
 
-        <div v-if="user" class="user-menu" @mouseleave="scheduleHide">
-          <button
-            class="user-btn"
-            type="button"
-            aria-label="Mở menu tài khoản"
-            :aria-expanded="showDropdown"
-            @click.stop="toggleDropdown"
-          >
-            <div class="user-avatar">{{ userInitial }}</div>
+        <div v-if="user" class="sg3-menu-wrap sg3-account-menu">
+          <button type="button" class="sg3-account-trigger" aria-label="Mở không gian tài khoản" :aria-expanded="showDropdown" @click.stop="toggleDropdown">
+            <span>{{ userInitial }}</span><ChevronDown :size="15" aria-hidden="true" />
           </button>
 
           <transition name="dd">
@@ -233,24 +205,6 @@
                 Quay lại quản trị
               </button>
 
-              <button class="dd-item" @click="toggleThemeMode">
-                <svg v-if="!isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5"/>
-                  <line x1="12" y1="1" x2="12" y2="3"/>
-                  <line x1="12" y1="21" x2="12" y2="23"/>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                  <line x1="1" y1="12" x2="3" y2="12"/>
-                  <line x1="21" y1="12" x2="23" y2="12"/>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                </svg>
-                {{ isDark ? 'Chế độ sáng' : 'Chế độ tối' }}
-              </button>
-
               <button class="dd-item dd-logout" @click="handleLogout">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -311,25 +265,74 @@
     </transition>
   </nav>
 
-  <ComplaintModal 
-    :is-open="showComplaintModal" 
-    @close="showComplaintModal = false" 
-    @success="onComplaintSuccess" 
+  <ComplaintModal
+    :is-open="showComplaintModal"
+    @close="showComplaintModal = false"
+    @success="onComplaintSuccess"
   />
 </template>
 
 <script>
-import { getAuth, logout } from "../stores/auth.js";
-import { resolveSystemAsset, systemProfileState, systemName } from "../stores/systemProfile.js";
-import { notificationService } from "../services/notification.service.js";
-import ComplaintModal from "./ComplaintModal.vue";
-
+import {
+  Bell,
+  BellOff,
+  Building2,
+  CalendarCheck2,
+  CalendarDays,
+  ChevronDown,
+  CircleAlert,
+  FileUser,
+  Home,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  MapPinned,
+  Menu,
+  MessagesSquare,
+  Newspaper,
+  PhoneCall,
+  Trophy,
+  UserRound,
+  UsersRound,
+  WalletCards,
+  X,
+} from "lucide-vue-next";
 import { useToast } from "vue-toastification";
+import { notificationService } from "../services/notification.service.js";
+import { getAuth, logout } from "../stores/auth.js";
+import {
+  resolveSystemAsset,
+  systemName,
+  systemProfileState,
+} from "../stores/systemProfile.js";
+import ComplaintModal from "./ComplaintModal.vue";
 
 export default {
   name: "PublicNavbar",
   components: {
-    ComplaintModal
+    Bell,
+    BellOff,
+    Building2,
+    CalendarCheck2,
+    CalendarDays,
+    ChevronDown,
+    CircleAlert,
+    ComplaintModal,
+    FileUser,
+    Home,
+    LayoutDashboard,
+    LogIn,
+    LogOut,
+    MapPinned,
+    Menu,
+    MessagesSquare,
+    Newspaper,
+    PhoneCall,
+    Trophy,
+    UserRound,
+    UsersRound,
+    WalletCards,
+    X,
   },
   setup() {
     const toast = useToast();
@@ -339,40 +342,15 @@ export default {
     return {
       user: getAuth(),
       showDropdown: false,
-      hideTimer: null,
       showNotifDropdown: false,
-      notifHideTimer: null,
+      showMobileNav: false,
+      showComplaintModal: false,
       notifications: [],
       unreadCount: 0,
       notifPollTimer: null,
-      showComplaintModal: false,
-      showMobileNav: false,
-      isDark: document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark',
     };
   },
-  mounted() {
-    document.addEventListener('pointerdown', this.handleOutsidePointer);
-    document.addEventListener('keydown', this.handleEscape);
-    window.addEventListener('resize', this.handleViewportResize);
-    if (this.user) {
-      this.fetchNotifications();
-      this.notifPollTimer = setInterval(this.fetchNotifications, 30000); // Tự động load thông báo mỗi 30s
-    }
-  },
-  unmounted() {
-    document.removeEventListener('pointerdown', this.handleOutsidePointer);
-    document.removeEventListener('keydown', this.handleEscape);
-    window.removeEventListener('resize', this.handleViewportResize);
-    if (this.notifPollTimer) clearInterval(this.notifPollTimer);
-    if (this.hideTimer) clearTimeout(this.hideTimer);
-    if (this.notifHideTimer) clearTimeout(this.notifHideTimer);
-  },
   computed: {
-    appliedTheme() {
-      if (this.theme === 'dark') return 'dark';
-      if (this.theme === 'light') return 'light';
-      return this.isDark ? 'dark' : 'light';
-    },
     brandName() {
       return systemName();
     },
@@ -388,23 +366,50 @@ export default {
       const match = (this.brandName || "SportGo").match(/^(.*?)(go)$/i);
       return match ? match[2] : "";
     },
+    supportPhone() {
+      return systemProfileState.profile.support_phone || "1900 6789";
+    },
+    supportPhoneRaw() {
+      return String(this.supportPhone).replace(/[^\d+]/g, "") || "19006789";
+    },
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
     },
     roleLabel() {
-      const map = { admin: "Quản trị viên", owner: "Chủ sân", user: "Người dùng" };
-      return map[this.user?.role] || "";
+      const labels = {
+        admin: "Quản trị viên",
+        owner: "Chủ sân",
+        user: "Người chơi",
+      };
+      return labels[this.user?.role] || "";
+    },
+    isClientAccount() {
+      return Boolean(this.user && this.user.role !== "admin");
     },
     profileRoute() {
       if (!this.user) return "/login";
-      if (this.user.role === "owner") return "/owner/profile";
       return "/profile";
     },
   },
   watch: {
-    '$route.fullPath'() {
-      this.closeMobileNav();
+    "$route.fullPath"() {
+      this.closeAllMenus();
     },
+  },
+  mounted() {
+    document.addEventListener("pointerdown", this.handleOutsidePointer);
+    document.addEventListener("keydown", this.handleEscape);
+    window.addEventListener("resize", this.handleViewportResize);
+    if (this.user) {
+      this.fetchNotifications();
+      this.notifPollTimer = window.setInterval(this.fetchNotifications, 30000);
+    }
+  },
+  unmounted() {
+    document.removeEventListener("pointerdown", this.handleOutsidePointer);
+    document.removeEventListener("keydown", this.handleEscape);
+    window.removeEventListener("resize", this.handleViewportResize);
+    if (this.notifPollTimer) window.clearInterval(this.notifPollTimer);
   },
   methods: {
     toggleMobileNav() {
@@ -425,28 +430,9 @@ export default {
       }
     },
     handleViewportResize() {
-      if (this.$refs.mobileNavToggle && window.getComputedStyle(this.$refs.mobileNavToggle).display === 'none') {
-        this.closeMobileNav();
-      }
-    },
-    toggleThemeMode() {
-      const isCurrentlyDark = document.documentElement.classList.contains('dark') || document.documentElement.getAttribute('data-theme') === 'dark';
-      if (isCurrentlyDark) {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('theme', 'light');
-        this.isDark = false;
-      } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-        document.documentElement.setAttribute('data-theme', 'dark');
-        localStorage.setItem('theme', 'dark');
-        this.isDark = true;
-      }
+      if (window.innerWidth >= 1080) this.closeMobileNav();
     },
     toggleDropdown() {
-      this.cancelHide();
       this.showDropdown = !this.showDropdown;
       if (this.showDropdown) {
         this.showNotifDropdown = false;
@@ -464,9 +450,9 @@ export default {
       this.showDropdown = false;
       const role = this.user?.role;
       if (role === "admin") {
-        this.$router.push("/admin/dashboard");
+        this.$router.push("/admin/venue-clusters");
       } else if (role === "owner") {
-        this.$router.push("/owner/dashboard");
+        this.$router.push("/owner/venue-clusters");
       }
     },
     openComplaintModal() {
@@ -475,57 +461,38 @@ export default {
     },
     onComplaintSuccess() {
       this.showComplaintModal = false;
-      this.toast.success("Cảm ơn bạn đã gửi khiếu nại. Chúng tôi sẽ xem xét trong thời gian sớm nhất.");
+      this.toast.success(
+        "Đã gửi khiếu nại. SportGo sẽ phản hồi trong thời gian sớm nhất.",
+      );
     },
     async handleLogout() {
       await logout();
       this.user = null;
-      this.showDropdown = false;
+      this.closeAllMenus();
       this.$router.push("/login");
-    },
-    toggleNotifDropdown() {
-      this.cancelNotifHide();
-      this.showNotifDropdown = !this.showNotifDropdown;
-      if (this.showNotifDropdown) {
-        this.showDropdown = false;
-        this.closeMobileNav();
-      }
-    },
-    scheduleNotifHide() {
-      this.cancelNotifHide();
-      this.notifHideTimer = setTimeout(() => { this.showNotifDropdown = false; }, 200);
-    },
-    cancelNotifHide() {
-      if (this.notifHideTimer) clearTimeout(this.notifHideTimer);
-    },
-    handleOutsidePointer(event) {
-      if (!event.target.closest?.('.notification-menu')) this.showNotifDropdown = false;
-      if (!event.target.closest?.('.user-menu')) this.showDropdown = false;
-      if (!event.target.closest?.('.mobile-nav-toggle, .mobile-nav-panel')) this.closeMobileNav();
     },
     async fetchNotifications() {
       try {
-        const res = await notificationService.getNotifications();
-        this.notifications = res.data;
-        this.unreadCount = res.unread_count;
-      } catch (e) {
-        console.error('Failed to fetch notifications', e);
+        const response = await notificationService.getNotifications();
+        this.notifications = response.data || [];
+        this.unreadCount = response.unread_count || 0;
+      } catch (error) {
+        console.error("Failed to fetch notifications", error);
       }
     },
-    async markAsRead(notif) {
-      if (!notif.is_read) {
-        notif.is_read = true;
+    async markAsRead(notification) {
+      if (!notification.is_read) {
+        notification.is_read = true;
         this.unreadCount = Math.max(0, this.unreadCount - 1);
         try {
-          await notificationService.markAsRead(notif.id);
-        } catch (e) {
-          console.error(e);
+          await notificationService.markAsRead(notification.id);
+        } catch (error) {
+          console.error(error);
         }
       }
-      
-      // Navigation handling
-      const actionUrl = notif.data?.action_url;
-      if (typeof actionUrl === 'string' && actionUrl.startsWith('/')) {
+
+      const actionUrl = notification.action_url || notification.data?.action_url;
+      if (typeof actionUrl === "string" && actionUrl.startsWith("/")) {
         this.$router.push(actionUrl);
         this.showNotifDropdown = false;
       } else if (notif.reference_type === 'partner_application' && notif.reference_id) {
@@ -576,20 +543,24 @@ export default {
     async markAllAsRead() {
       try {
         await notificationService.markAllAsRead();
-        this.notifications.forEach(n => n.is_read = true);
+        this.notifications.forEach((notification) => {
+          notification.is_read = true;
+        });
         this.unreadCount = 0;
-      } catch (e) {
-        console.error(e);
+      } catch (error) {
+        console.error(error);
       }
     },
     formatTime(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleString('vi-VN', { 
-        hour: '2-digit', minute: '2-digit', 
-        day: '2-digit', month: '2-digit', year: 'numeric' 
+      if (!dateString) return "";
+      return new Date(dateString).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       });
-    }
+    },
   },
 };
 </script>
@@ -665,7 +636,7 @@ export default {
 .brand-text {
   color: #102015;
   font-size: 24px;
-  font-weight: 950;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
@@ -682,7 +653,7 @@ export default {
   padding: 22px 4px 20px;
   color: #1f2937;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 400;
   text-decoration: none;
   transition: color .18s ease;
   white-space: nowrap;
@@ -738,13 +709,13 @@ export default {
 .hotline strong {
   color: #111827;
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 400;
 }
 
 .hotline small {
   color: #718078;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .login-btn,
@@ -753,7 +724,7 @@ export default {
   min-height: 40px;
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -793,7 +764,7 @@ export default {
   border-radius: 50%;
   background: linear-gradient(135deg, #16a765, #04733f);
   color: #fff;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .user-avatar {
@@ -831,14 +802,14 @@ export default {
 .dd-name {
   color: #111827;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .dd-role {
   margin-top: 3px;
   color: #66756d;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 400;
 }
 
 .notification-menu {
@@ -873,7 +844,7 @@ export default {
   background: #ef4444;
   color: white;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 400;
   height: 16px;
   min-width: 16px;
   padding: 0 4px;
@@ -897,7 +868,7 @@ export default {
 .mark-read-btn {
   font-size: 12px;
   color: #0ea5e9;
-  font-weight: 600;
+  font-weight: 400;
   background: transparent;
 }
 
@@ -942,7 +913,7 @@ export default {
 }
 
 .notif-title {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13px;
   color: #0f172a;
   margin-bottom: 4px;
@@ -983,7 +954,7 @@ export default {
   padding: 12px 16px;
   color: #26332b;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 400;
   text-align: left;
   text-decoration: none;
   transition: background .18s ease, color .18s ease;

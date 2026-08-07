@@ -340,14 +340,11 @@ class RefundCancellationPolicyService
     {
         $fallbackByKey = collect($fallback ?: $this->defaultCancelRefundTiers())
             ->keyBy(fn (array $tier): string => (string) ($tier['key'] ?? $this->rangeKey($tier)));
-        $inputByKey = collect($tiers)
-            ->keyBy(fn (array $tier): string => (string) ($tier['key'] ?? $this->rangeKey($tier)));
-
         $normalized = collect($tiers)
-            ->map(function (array $tier, int $index) use ($fallbackByKey, $inputByKey): array {
+            ->map(function (array $tier, int $index) use ($fallbackByKey): array {
                 $key = (string) ($tier['key'] ?? $this->rangeKey($tier) ?: 'tier_' . $index);
                 $fallback = $fallbackByKey->get($key, $tier);
-                $input = $inputByKey->get($key, $tier);
+                $input = $tier;
                 $from = $this->nullableFloat($input['from_hours'] ?? $fallback['from_hours'] ?? 0);
                 $to = $this->nullableFloat($input['to_hours'] ?? $fallback['to_hours'] ?? null);
                 $allowCancel = array_key_exists('allow_cancel', $input)
@@ -403,38 +400,51 @@ class RefundCancellationPolicyService
         $this->assertBusinessTimeTable($normalizedVenue);
         $this->assertCancelRefundTierValues($normalizedVenue);
 
-        $systemByKey = collect($normalizedSystem)->keyBy('key');
         $errors = [];
         foreach ($normalizedVenue as $index => $venueTier) {
-            $systemTier = $systemByKey->get($venueTier['key']);
-            if (! $systemTier) {
-                $errors["tiers.{$index}.key"] = 'Sân chỉ được chỉnh các mốc do hệ thống cung cấp.';
+            $overlappingSystemTiers = collect($normalizedSystem)
+                ->filter(fn (array $systemTier): bool => $this->timeRangesOverlap($venueTier, $systemTier))
+                ->values();
+
+            if ($overlappingSystemTiers->isEmpty()) {
+                $errors["tiers.{$index}.from_hours"] = "Mốc {$venueTier['label']} không nằm trong khung thời gian của hệ thống.";
                 continue;
             }
 
-            if ((float) $venueTier['from_hours'] !== (float) $systemTier['from_hours']
-                || $this->nullableFloat($venueTier['to_hours']) !== $this->nullableFloat($systemTier['to_hours'])) {
-                $errors["tiers.{$index}.from_hours"] = "Mốc {$systemTier['label']}: sân không được đổi khoảng giờ của chính sách hệ thống.";
+            $allowCancelValues = $overlappingSystemTiers
+                ->map(fn (array $systemTier): bool => (bool) ($systemTier['allow_cancel'] ?? true))
+                ->unique();
+
+            if ($allowCancelValues->count() > 1) {
+                $errors["tiers.{$index}.to_hours"] = "Mốc {$venueTier['label']} cắt qua các khoảng có quyền hủy khác nhau của hệ thống. Hãy tách mốc tại ranh giới hệ thống.";
+            } else {
+                $systemAllowsCancel = (bool) $allowCancelValues->first();
+                if ($systemAllowsCancel !== (bool) ($venueTier['allow_cancel'] ?? true)) {
+                    $errors["tiers.{$index}.allow_cancel"] = $systemAllowsCancel
+                        ? "Mốc {$venueTier['label']}: sân không được chặn hủy khi chính sách hệ thống đang cho phép hủy."
+                        : "Mốc {$venueTier['label']}: sân không được cho hủy khi chính sách hệ thống không cho phép hủy.";
+                }
             }
 
-            if (($systemTier['allow_cancel'] ?? true) && ! ($venueTier['allow_cancel'] ?? true)) {
-                $errors["tiers.{$index}.allow_cancel"] = "Mốc {$systemTier['label']}: sân không được chặn hủy khi chính sách hệ thống đang cho phép hủy.";
+            $minimumRefundPercent = (float) $overlappingSystemTiers->max(
+                fn (array $systemTier): float => (float) ($systemTier['refund_percent'] ?? 0)
+            );
+            if ((float) $venueTier['refund_percent'] < $minimumRefundPercent) {
+                $errors["tiers.{$index}.refund_percent"] = "Mốc {$venueTier['label']}: mức hoàn của sân không được thấp hơn {$this->formatNumber($minimumRefundPercent)}% theo các khoảng hệ thống mà mốc này đi qua.";
             }
 
-            if (! ($systemTier['allow_cancel'] ?? true) && ($venueTier['allow_cancel'] ?? true)) {
-                $errors["tiers.{$index}.allow_cancel"] = "Mốc {$systemTier['label']}: sân không được cho hủy khi chính sách hệ thống không cho hủy.";
+            $requiresOwnerConfirm = $overlappingSystemTiers->contains(
+                fn (array $systemTier): bool => (bool) ($systemTier['require_owner_confirm'] ?? false)
+            );
+            if ($requiresOwnerConfirm && ! ($venueTier['require_owner_confirm'] ?? false)) {
+                $errors["tiers.{$index}.require_owner_confirm"] = "Mốc {$venueTier['label']}: sân không được bỏ bước chủ sân xác nhận hoàn tiền.";
             }
 
-            if ((float) $venueTier['refund_percent'] < (float) $systemTier['refund_percent']) {
-                $errors["tiers.{$index}.refund_percent"] = "Mốc {$systemTier['label']}: mức hoàn của sân không được thấp hơn {$systemTier['refund_percent']}% theo chính sách hệ thống.";
-            }
-
-            if (($systemTier['require_owner_confirm'] ?? false) && ! ($venueTier['require_owner_confirm'] ?? false)) {
-                $errors["tiers.{$index}.require_owner_confirm"] = "Mốc {$systemTier['label']}: sân không được bỏ bước chủ sân xác nhận hoàn tiền.";
-            }
-
-            if (($systemTier['require_admin_confirm'] ?? false) && ! ($venueTier['require_admin_confirm'] ?? false)) {
-                $errors["tiers.{$index}.require_admin_confirm"] = "Mốc {$systemTier['label']}: sân không được bỏ bước admin xác nhận hoàn tất.";
+            $requiresAdminConfirm = $overlappingSystemTiers->contains(
+                fn (array $systemTier): bool => (bool) ($systemTier['require_admin_confirm'] ?? false)
+            );
+            if ($requiresAdminConfirm && ! ($venueTier['require_admin_confirm'] ?? false)) {
+                $errors["tiers.{$index}.require_admin_confirm"] = "Mốc {$venueTier['label']}: sân không được bỏ bước admin xác nhận hoàn tất.";
             }
         }
 
@@ -456,6 +466,7 @@ class RefundCancellationPolicyService
             'system_summary' => $this->cancelRefundSummary($system),
             'venue_summary' => $venue ? $this->cancelRefundSummary($venue) : 'Sân đang dùng mặc định hệ thống.',
             'limits' => $this->cancelRefundLimits($system),
+            'venue_can_change_time_ranges' => true,
         ];
     }
 
@@ -1121,10 +1132,20 @@ class RefundCancellationPolicyService
                 'min_allowed_refund_percent' => (float) $tier['refund_percent'],
                 'require_owner_confirm' => (bool) $tier['require_owner_confirm'],
                 'require_admin_confirm' => (bool) $tier['require_admin_confirm'],
-                'summary' => "Mốc {$tier['label']}: sân phải giữ khoảng giờ này, không được hoàn thấp hơn {$tier['refund_percent']}% và không được chặn hủy nếu hệ thống cho hủy.",
+                'summary' => "Trong khoảng {$tier['label']}: chính sách sân không được hoàn thấp hơn {$tier['refund_percent']}% và phải giữ quy tắc cho hủy, xác nhận bắt buộc của hệ thống.",
             ])
             ->values()
             ->all();
+    }
+
+    private function timeRangesOverlap(array $firstTier, array $secondTier): bool
+    {
+        $firstFrom = $this->nullableFloat($firstTier['from_hours'] ?? null) ?? 0.0;
+        $firstTo = $this->nullableFloat($firstTier['to_hours'] ?? null) ?? INF;
+        $secondFrom = $this->nullableFloat($secondTier['from_hours'] ?? null) ?? 0.0;
+        $secondTo = $this->nullableFloat($secondTier['to_hours'] ?? null) ?? INF;
+
+        return max($firstFrom, $secondFrom) < min($firstTo, $secondTo);
     }
 
     private function tierConditionLabel(array $tier): string
@@ -1197,14 +1218,14 @@ class RefundCancellationPolicyService
         $from ??= 0.0;
 
         if ($from <= 0.0 && $to !== null) {
-            return 'Duoi ' . $this->hourText($to);
+            return 'Dưới ' . $this->hourText($to);
         }
 
         if ($to === null) {
-            return 'Tu ' . $this->hourText($from) . ' tro len';
+            return 'Từ ' . $this->hourText($from) . ' trở lên';
         }
 
-        return 'Tu ' . $this->hourText($from) . ' den duoi ' . $this->hourText($to);
+        return 'Từ ' . $this->hourText($from) . ' đến dưới ' . $this->hourText($to);
     }
 
     private function rangeConditionLabel(array $tier): string
@@ -1213,27 +1234,27 @@ class RefundCancellationPolicyService
         $to = $this->nullableFloat($tier['to_hours'] ?? null);
 
         if ($from <= 0.0 && $to !== null) {
-            return 'Khach huy truoc gio choi duoi ' . $this->hourText($to);
+            return 'Khách hủy trước giờ chơi dưới ' . $this->hourText($to);
         }
 
         if ($to === null) {
-            return 'Khach huy truoc gio choi tu ' . $this->hourText($from) . ' tro len';
+            return 'Khách hủy trước giờ chơi từ ' . $this->hourText($from) . ' trở lên';
         }
 
-        return 'Khach huy truoc gio choi tu ' . $this->hourText($from) . ' den duoi ' . $this->hourText($to);
+        return 'Khách hủy trước giờ chơi từ ' . $this->hourText($from) . ' đến dưới ' . $this->hourText($to);
     }
 
     private function cancelRefundResultLabel(array $tier): string
     {
         if (! (bool) ($tier['allow_cancel'] ?? true)) {
-            return 'Khong cho huy';
+            return 'Không cho hủy';
         }
 
         $refundPercent = (float) ($tier['refund_percent'] ?? 0);
 
         return $refundPercent > 0
-            ? 'Hoan ' . $this->formatNumber($refundPercent) . '% tren so tien da thanh toan'
-            : 'Cho huy nhung khong hoan';
+            ? 'Hoàn ' . $this->formatNumber($refundPercent) . '% trên số tiền đã thanh toán'
+            : 'Cho hủy nhưng không hoàn';
     }
 
     private function cancelRefundSentence(array $tier): string
@@ -1243,7 +1264,7 @@ class RefundCancellationPolicyService
 
     private function hourText(float|int $hours): string
     {
-        return $this->formatNumber((float) $hours) . ' gio';
+        return $this->formatNumber((float) $hours) . ' giờ';
     }
 
     private function numberKey(float $value): string

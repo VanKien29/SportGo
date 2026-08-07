@@ -65,20 +65,6 @@
                 <RouterLink
                     v-if="showUtilityNavigation"
                     class="nav-item"
-                    to="/"
-                    @click="$emit('navigate')"
-                >
-                    <span class="nav-item-left">
-                        <AppIcon name="eye" size="17" />
-                        <span v-if="!collapsed" class="nav-item-label"
-                            >Xem trang khách</span
-                        >
-                    </span>
-                </RouterLink>
-
-                <RouterLink
-                    v-if="showUtilityNavigation"
-                    class="nav-item"
                     :class="{
                         'nav-active': activeRouteName === 'owner-settings',
                     }"
@@ -153,19 +139,11 @@
                         <RouterLink
                             v-if="showUtilityNavigation"
                             class="rail-icon-btn"
-                            to="/"
-                            title="Xem trang khách"
-                        >
-                            <AppIcon name="eye" size="18" />
-                        </RouterLink>
-                        <RouterLink
-                            v-if="showUtilityNavigation"
-                            class="rail-icon-btn"
                             :class="{
                                 active: activeRouteName === 'owner-settings',
                             }"
                             to="/owner/settings"
-                            title="Cấu hình giao diện"
+                            title="Cài đặt hệ thống"
                         >
                             <AppIcon name="settings" size="18" />
                         </RouterLink>
@@ -224,7 +202,7 @@ export default {
         collapsed: { type: Boolean, default: false },
         userRoleLabel: { type: String, default: "" },
         workspaceLabel: { type: String, default: "Owner Console" },
-        homeUrl: { type: String, default: "/owner/dashboard" },
+        homeUrl: { type: String, default: "/owner/venue-clusters" },
         showUtilityNavigation: { type: Boolean, default: true },
     },
     emits: ["cluster-change", "navigate"],
@@ -345,7 +323,7 @@ export default {
 .owner-cluster-card span {
     color: var(--admin-faint);
     font-size: 10px;
-    font-weight: 800;
+    font-weight: 400;
     letter-spacing: 0.12em;
     text-transform: uppercase;
 }
@@ -353,13 +331,13 @@ export default {
 .owner-cluster-card strong {
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .cluster-state-label {
   color: var(--admin-muted);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .nav-disabled {
@@ -388,7 +366,7 @@ export default {
     background: var(--admin-surface);
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     padding: 8px 12px;
     display: flex;
     align-items: center;
@@ -437,7 +415,7 @@ export default {
 .custom-option {
     padding: 8px 12px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text);
     cursor: pointer;
     transition:
@@ -453,14 +431,14 @@ export default {
 .custom-option.selected {
     background: var(--admin-primary-soft);
     color: var(--admin-primary);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .owner-cluster-card p {
     margin: 0;
     color: var(--admin-danger);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.45;
 }
 </style>

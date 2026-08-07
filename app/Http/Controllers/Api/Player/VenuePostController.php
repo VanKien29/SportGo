@@ -16,7 +16,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
+
 class VenuePostController extends Controller
 {
     public function __construct(
@@ -364,51 +370,36 @@ class VenuePostController extends Controller
 
     public function comment(Request $request, string $id)
     {
-        $post = VenuePost::where('status', 'published')->findOrFail($id);
-        $user = $request->user();
-        
-        $parentId = $request->input('parent_id');
+        $communityId = $this->communityPostId($id);
+        $isCommunityPost = $communityId !== null;
+        $commentTable = $isCommunityPost ? 'community_post_comments' : 'venue_post_comments';
 
-        $commentId = DB::table('venue_post_comments')->insertGetId([
-            'venue_post_id' => $post->id,
-            'user_id' => $user->id,
-            'content' => strip_tags($request->input('content')),
-            'parent_id' => $parentId,
-            'created_at' => now(),
-            'updated_at' => now(),
+        if (! Schema::hasTable($commentTable)) {
+            return response()->json(['message' => 'Chức năng bình luận chưa sẵn sàng trên hệ thống.'], 503);
+        }
+
+        $post = $isCommunityPost
+            ? CommunityPost::where('status', 'published')->findOrFail($communityId)
+            : VenuePost::where('status', 'published')->findOrFail($id);
+        $postForeignKey = $isCommunityPost ? 'post_id' : 'venue_post_id';
+
+        $validated = $request->validate([
+            'content' => ['required', 'string', 'min:2', 'max:1000'],
+            'parent_id' => [
+                'nullable',
+                'integer',
+                Rule::exists($commentTable, 'id')->where(
+                    fn ($query) => $query->where($postForeignKey, $post->id)
+                ),
+            ],
         ]);
 
-        $post->increment('comment_count');
-        
-        $userName = $user->full_name ?: $user->username;
-
-        if ($parentId) {
-            $parentComment = DB::table('venue_post_comments')->where('id', $parentId)->first();
-            if ($parentComment && $parentComment->user_id !== $user->id) {
-                \App\Models\Notification::query()->create([
-                    'user_id' => $parentComment->user_id,
-                    'type' => 'comment_reply',
-                    'title' => 'Ai đó đã trả lời bình luận của bạn',
-                    'body' => $userName . ' đã trả lời bình luận của bạn trên cộng đồng.',
-                    'reference_type' => 'venue_posts',
-                    'reference_id' => $post->id,
-                    'data' => isset($post->slug) ? ['slug' => $post->slug] : null,
-                    'is_read' => false,
-                ]);
-            }
-        } else {
-            if ($post->author_id !== $user->id) {
-                \App\Models\Notification::query()->create([
-                    'user_id' => $post->author_id,
-                    'type' => 'post_comment',
-                    'title' => 'Ai đó đã bình luận bài viết của bạn',
-                    'body' => $userName . ' đã bình luận về bài viết của bạn trên cộng đồng.',
-                    'reference_type' => 'venue_posts',
-                    'reference_id' => $post->id,
-                    'data' => isset($post->slug) ? ['slug' => $post->slug] : null,
-                    'is_read' => false,
-                ]);
-            }
+        $content = trim(strip_tags($validated['content']));
+        if ($content === '') {
+            return response()->json([
+                'message' => 'Nội dung bình luận không được chỉ chứa khoảng trắng.',
+                'errors' => ['content' => ['Nội dung bình luận không được chỉ chứa khoảng trắng.']],
+            ], 422);
         }
 
         $commentId = DB::transaction(function () use (
@@ -455,40 +446,58 @@ class VenuePostController extends Controller
 
     public function toggleLike(Request $request, string $id)
     {
-        $post = VenuePost::where('status', 'published')->findOrFail($id);
-        $user = $request->user();
+        $communityId = $this->communityPostId($id);
+        if ($communityId !== null) {
+            return $this->toggleCommunityLike($request, $communityId);
+        }
 
-        $like = DB::table('venue_post_likes')->where('post_id', $post->id)->where('user_id', $user->id)->first();
+        if (! Schema::hasTable('venue_post_likes')) {
+            return response()->json([
+                'message' => 'Chức năng thích bài viết đang chờ hoàn tất cập nhật dữ liệu hệ thống.',
+            ], 503);
+        }
 
-        if ($like) {
-            DB::table('venue_post_likes')->where('post_id', $post->id)->where('user_id', $user->id)->delete();
-            $post->decrement('like_count');
-            return response()->json(['message' => 'Đã bỏ thích.']);
-        } else {
-            DB::table('venue_post_likes')->insert([
-                'id' => Str::uuid(),
-                'post_id' => $post->id,
-                'user_id' => $user->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $post->increment('like_count');
-            
-            if ($post->author_id !== $user->id) {
-                $userName = $user->full_name ?: $user->username;
-                \App\Models\Notification::query()->create([
-                    'user_id' => $post->author_id,
-                    'type' => 'post_like',
-                    'title' => 'Ai đó đã thích bài viết của bạn',
-                    'body' => $userName . ' đã thích bài viết của bạn trên cộng đồng.',
-                    'reference_type' => 'venue_posts',
-                    'reference_id' => $post->id,
-                    'data' => isset($post->slug) ? ['slug' => $post->slug] : null,
-                    'is_read' => false,
+        $userId = $request->user()->id;
+
+        return DB::transaction(function () use ($id, $userId) {
+            $post = VenuePost::where('status', 'published')->lockForUpdate()->findOrFail($id);
+            $likeQuery = DB::table('venue_post_likes')
+                ->where('post_id', $post->id)
+                ->where('user_id', $userId);
+            $isLiked = $likeQuery->exists();
+
+            if ($isLiked) {
+                $likeQuery->delete();
+            } else {
+                DB::table('venue_post_likes')->insert([
+                    'id' => (string) Str::uuid(),
+                    'post_id' => $post->id,
+                    'user_id' => $userId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
-            
-            return response()->json(['message' => 'Đã thích bài viết.']);
+
+            $likeCount = DB::table('venue_post_likes')->where('post_id', $post->id)->count();
+            $post->update(['like_count' => $likeCount]);
+
+            return response()->json([
+                'message' => $isLiked ? 'Đã bỏ thích.' : 'Đã thích bài viết.',
+                'data' => ['is_liked' => ! $isLiked, 'like_count' => $likeCount],
+            ]);
+        });
+    }
+
+    private function showCommunityPost(int $id)
+    {
+        $post = CommunityPost::with([
+            'media',
+            'author:id,full_name,username,avatar_url',
+            'hashtags',
+        ])->findOrFail($id);
+
+        if ($post->status !== 'published') {
+            abort(403, 'Bài viết không tồn tại hoặc chưa được xuất bản.');
         }
 
         $post->increment('view_count');
@@ -575,8 +584,7 @@ class VenuePostController extends Controller
         bool $likesAvailable,
         array $likedLookup,
         array $authorBadges = []
-    ): array
-    {
+    ): array {
         $data = $post->toArray();
         $data['feed_type'] = 'venue_post';
         $data['entity_id'] = $post->id;
@@ -592,8 +600,7 @@ class VenuePostController extends Controller
         bool $likesAvailable,
         array $likedLookup,
         array $authorBadges = []
-    ): array
-    {
+    ): array {
         $data = $post->toArray();
         $plainContent = trim(strip_tags((string) $post->content));
         $publicId = 'community-'.$post->id;

@@ -1,6 +1,7 @@
 <template>
-  <section class="admin-page">
-    <PlatformFeeSubnav v-if="isPlatformFeeScope" />
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card policies-main-content">
+      <PlatformFeeSubnav v-if="isPlatformFeeScope" />
 
     <!-- Floating Add Button -->
     <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
@@ -49,13 +50,13 @@
       <button class="icon-btn" type="button" title="Lọc danh sách" @click="loadPolicies">
         <AppIcon name="filter" size="17" />
       </button>
-      <button class="icon-btn" type="button" title="Xóa lọc" :disabled="loading" @click="resetFilters">
-        <AppIcon name="refresh" size="17" />
-      </button>
     </section>
 
     <section class="table-card">
-      <div v-if="loading" class="table-state">Đang tải danh sách chính sách...</div>
+      <div v-if="loading" class="state-box animate-fade-in">
+        <div class="spinner"></div>
+        <p>Đang tải danh sách chính sách...</p>
+      </div>
       <div v-else-if="policies.length === 0" class="table-state">Chưa có chính sách phù hợp.</div>
       <div v-else class="table-wrap">
         <table>
@@ -221,7 +222,8 @@
       type="danger"
       @confirm="archivePolicy"
     />
-  </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -514,7 +516,7 @@ th {
   background: var(--admin-surface);
   color: var(--admin-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -539,7 +541,7 @@ tbody tr.never-hover-class-placeholder {
 
 .yes-text {
   color: var(--admin-success-text);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .rule-count {
@@ -550,7 +552,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: 999px;
   background: var(--admin-surface-muted);
   color: var(--admin-muted);
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .actions-col {
@@ -602,7 +604,7 @@ tbody tr.never-hover-class-placeholder {
 
 .alert {
   border-radius: var(--admin-radius);
-  font-weight: 700;
+  font-weight: 400;
   padding: 11px 13px;
 }
 
@@ -627,7 +629,7 @@ tbody tr.never-hover-class-placeholder {
   border-radius: var(--admin-radius);
   cursor: pointer;
   font: inherit;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .btn {
@@ -767,7 +769,7 @@ label {
   flex-direction: column;
   gap: 6px;
   color: var(--admin-muted);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .check-row {
@@ -807,5 +809,15 @@ label {
   .filter-panel {
     grid-template-columns: 1fr;
   }
+}
+
+.profile-section-card.policies-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>

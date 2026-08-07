@@ -1,6 +1,22 @@
 <template>
-  <router-view :key="$route.fullPath" />
-  <SetPasswordModal v-if="showSetPasswordModal" @done="handlePasswordSetupDone" />
+  <router-view v-slot="{ Component }">
+    <Suspense timeout="0">
+      <template #default>
+        <component :is="Component" />
+      </template>
+      <template #fallback>
+        <main class="app-route-loading" aria-live="polite">
+          <span class="app-route-loading__spinner" aria-hidden="true"></span>
+          <p>Đang mở trang...</p>
+        </main>
+      </template>
+    </Suspense>
+  </router-view>
+  <ClientFooter v-if="showClientFooter" />
+  <SetPasswordModal
+    v-if="showSetPasswordModal"
+    @done="handlePasswordSetupDone"
+  />
   <PolicyAcceptanceModal
     v-else-if="requiredPolicies.length"
     :policies="requiredPolicies"
@@ -10,17 +26,21 @@
 </template>
 
 <script>
-import PolicyAcceptanceModal from './components/PolicyAcceptanceModal.vue';
-import SetPasswordModal from './components/SetPasswordModal.vue';
-import FloatingActions from './components/FloatingActions.vue';
-import { getAuth, needsPasswordSetup } from './stores/auth.js';
-import { policyService } from './services/policies.js';
-import { applyCustomThemeStyles } from './utils/theme.js';
-import { applyOwnerThemeFromStorage } from './utils/ownerTheme.js';
+import ClientFooter from "./components/ClientFooter.vue";
+import FloatingActions from "./components/FloatingActions.vue";
+import PolicyAcceptanceModal from "./components/PolicyAcceptanceModal.vue";
+import SetPasswordModal from "./components/SetPasswordModal.vue";
+import { policyService } from "./services/policies.js";
+import { getAuth, needsPasswordSetup } from "./stores/auth.js";
 
 export default {
-  name: 'App',
-  components: { PolicyAcceptanceModal, SetPasswordModal, FloatingActions },
+  name: "App",
+  components: {
+    ClientFooter,
+    FloatingActions,
+    PolicyAcceptanceModal,
+    SetPasswordModal,
+  },
   data() {
     return {
       showSetPasswordModal: false,
@@ -28,10 +48,17 @@ export default {
       checkingPolicies: false,
     };
   },
+  computed: {
+    showClientFooter() {
+      const path = this.$route.path;
+      if (/^\/(?:admin|owner|staff)(?:\/|$)/.test(path)) return false;
+      if (/^\/(?:login|register|forgot-password|chat)(?:\/|$)/.test(path)) {
+        return false;
+      }
+      return true;
+    },
+  },
   mounted() {
-    // Apply custom theme configuration globally on load/refresh
-    applyCustomThemeStyles();
-    applyOwnerThemeFromStorage();
     this.showSetPasswordModal = needsPasswordSetup();
     this.checkRequiredPolicies();
   },
@@ -45,9 +72,8 @@ export default {
     shouldCheckPolicies() {
       const auth = getAuth();
       if (!auth?.token) return false;
-      if (auth.role_group === 'admin') return false;
-      if (this.$route.path.startsWith('/admin')) return false;
-      return true;
+      if (auth.role_group === "admin") return false;
+      return !this.$route.path.startsWith("/admin");
     },
     async checkRequiredPolicies() {
       if (this.checkingPolicies) return;
@@ -57,7 +83,6 @@ export default {
       }
 
       this.checkingPolicies = true;
-
       try {
         const response = await policyService.required();
         this.requiredPolicies = response.data || response.policies || [];
@@ -92,68 +117,82 @@ export default {
   --sg-text-muted: #64748b;
   --sg-border: #e2e8f0;
   --sg-danger: #ef4444;
-  --sg-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
-  --sg-shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
-  --sg-shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.1);
+  --sg-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --sg-shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.1);
   --sg-radius: 12px;
   --sg-radius-sm: 8px;
   --sg-radius-full: 9999px;
-  --sg-transition: all .2s cubic-bezier(.4,0,.2,1);
+  --sg-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
 body {
-  font-family: var(--sportgo-font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-family: var(--sportgo-font-body, ui-sans-serif, system-ui, sans-serif);
   line-height: 1.55;
   color: var(--sg-text);
   background: var(--sg-surface);
+  font-family: var(
+    --sportgo-font-body,
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif
+  );
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.app-route-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  color: var(--sg-text-muted);
+  background: var(--sg-surface);
+}
+
+.app-route-loading p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.app-route-loading__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #d9f5e4;
+  border-top-color: var(--sg-green-dark);
+  border-radius: 50%;
+  animation: app-route-spin 0.75s linear infinite;
+}
+
+@keyframes app-route-spin {
+  to { transform: rotate(360deg); }
+}
+
 a {
-  text-decoration: none;
   color: inherit;
+  text-decoration: none;
 }
 
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: inherit;
-}
-
+button,
 input,
 select,
 textarea {
   font: inherit;
-}
-
-/* ─── Global Light Mode Overrides for Client Pages ─── */
-.light {
-  --bg-page: #f8fafc;
-  --bg-card: #ffffff;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --border-color: #e2e8f0;
-}
-
-.light body {
-  background: #f8fafc;
-  color: #1e293b;
-}
-
-.light .venue-list-page,
-.light .venue-detail-page,
-.light .booking-container,
-.light .detail-container {
-  background: #f8fafc !important;
-  color: #0f172a !important;
+  letter-spacing: 0;
 }
 
 .light .search-bar-wrapper {
@@ -396,7 +435,7 @@ textarea {
   border-bottom-color: rgba(0, 0, 0, 0.08) !important;
 }
 .light .schedule-head {
-  background: rgba(0, 0, 0, 0.02) !important;
+  background: transparent !important;
   color: rgba(0, 0, 0, 0.7) !important;
 }
 .light .schedule-court {

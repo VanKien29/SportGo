@@ -1,35 +1,45 @@
 <template>
-    <section class="page">
-        <section class="filters">
-            <input
-                v-model.trim="filters.keyword"
-                type="search"
-                placeholder="Tìm mã hoặc tên voucher"
-                @keyup.enter="load"
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card vouchers-main-content">
+            <SaaSFilterBar
+          v-model:search="filters.keyword"
+          searchPlaceholder="Tìm mã hoặc tên voucher..."
+          @update:search="load"
+        >
+          <template #actions>
+            <CustomSelect
+              v-model="filters.status"
+              :options="[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'draft', label: 'Bản nháp' },
+                { value: 'active', label: 'Đang áp dụng' },
+                { value: 'inactive', label: 'Đã tắt' },
+                { value: 'expired', label: 'Hết hạn' }
+              ]"
+              @change="load"
             />
-            <select v-model="filters.status" @change="load">
-                <option value="">Tất cả trạng thái</option>
-                <option value="draft">Bản nháp</option>
-                <option value="active">Đang áp dụng</option>
-                <option value="inactive">Đã tắt</option>
-                <option value="expired">Hết hạn</option>
-            </select>
-            <select v-model="filters.discount_type" @change="load">
-                <option value="">Tất cả loại giảm</option>
-                <option value="percent">Phần trăm</option>
-                <option value="fixed">Số tiền</option>
-            </select>
+            <CustomSelect
+              v-model="filters.discount_type"
+              :options="[
+                { value: '', label: 'Tất cả loại giảm' },
+                { value: 'percent', label: 'Phần trăm' },
+                { value: 'fixed', label: 'Số tiền' }
+              ]"
+              @change="load"
+            />
             <ActionIconButton
-                icon="filter"
-                label="Lọc danh sách"
-                @click="load"
+              icon="plus"
+              label="Tạo voucher"
+              variant="primary"
+              @click="openForm()"
             />
-        </section>
+          </template>
+        </SaaSFilterBar>
 
         <div v-if="error" class="alert error">{{ error }}</div>
         <div v-if="success" class="alert success">{{ success }}</div>
 
-        <section class="budget-card">
+        <section v-if="canViewBudget" class="budget-card">
             <div class="budget-copy">
                 <span class="eyebrow">Ngân sách khuyến mãi</span>
                 <h3>Theo dõi chi phí voucher hệ thống</h3>
@@ -37,7 +47,7 @@
             <div class="budget-metrics">
                 <article class="budget-metric">
                     <span>Đã dùng kỳ này</span>
-                    <strong>{{
+       Code             <strong>{{
                         money(
                             promotionExpenses?.voucher_total ||
                                 promotionExpenses?.total,
@@ -63,6 +73,7 @@
                     <input
                         v-model="budgetSettings.is_alert_enabled"
                         type="checkbox"
+                        :disabled="!canManageBudget"
                     />
                     <span>Bật cảnh báo</span>
                 </label>
@@ -73,17 +84,19 @@
                         type="number"
                         min="0"
                         step="1000"
+                        :disabled="!canManageBudget"
                     />
                 </label>
                 <label class="budget-field">
                     <span>Kỳ ngân sách</span>
-                    <select v-model="budgetSettings.budget_period">
+                    <select v-model="budgetSettings.budget_period" :disabled="!canManageBudget">
                         <option value="week">Tuần</option>
                         <option value="month">Tháng</option>
                         <option value="year">Năm</option>
                     </select>
                 </label>
                 <button
+                    v-if="canManageBudget"
                     class="btn primary"
                     type="submit"
                     :disabled="budgetSaving"
@@ -119,7 +132,7 @@
             </div>
         </section>
 
-        <section v-if="showHistoryPanel" class="table-card history-panel">
+        <section v-if="canViewBudget && showHistoryPanel" class="table-card history-panel">
             <div class="history-head">
                 <div>
                     <span class="eyebrow">Lịch sử sử dụng voucher</span>
@@ -172,66 +185,66 @@
             </footer>
         </section>
 
-        <section class="table-card">
-            <div v-if="loading" class="state">Đang tải voucher hệ thống...</div>
-            <div v-else-if="vouchers.length === 0" class="state">
-                Chưa có voucher hệ thống.
-            </div>
-            <table v-else>
-                <thead>
-                    <tr>
-                        <th>Mã</th>
-                        <th>Tên</th>
-                        <th>Loại giảm</th>
-                        <th>Giá trị</th>
-                        <th>Đơn tối thiểu</th>
-                        <th>Số lượng</th>
-                        <th>Đã dùng</th>
-                        <th>Hiệu lực</th>
-                        <th>Trạng thái</th>
-                        <th class="actions-col">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="voucher in vouchers" :key="voucher.id">
-                        <td>
-                            <strong>{{ voucher.code }}</strong>
-                        </td>
-                        <td>{{ voucher.name }}</td>
-                        <td>{{ voucher.type_label }}</td>
-                        <td>{{ discountText(voucher) }}</td>
-                        <td>{{ money(voucher.min_order_amount) }}</td>
-                        <td>
-                            {{ voucher.total_quantity || "Không giới hạn" }}
-                        </td>
-                        <td>{{ voucher.used_quantity }}</td>
-                        <td>
-                            {{ date(voucher.valid_from) }} -
-                            {{ date(voucher.valid_to) }}
-                        </td>
-                        <td>
-                            <span class="badge" :class="voucher.status">{{
-                                voucher.status_label
-                            }}</span>
-                        </td>
-                        <td class="actions-col">
-                            <TableActionGroup>
-                                <ActionIconButton
-                                    icon="pencil"
-                                    label="Sửa voucher"
-                                    @click="openForm(voucher)"
-                                />
-                                <ActionIconButton
-                                    icon="power"
-                                    label="Tắt voucher"
-                                    variant="danger"
-                                    @click="turnOff(voucher)"
-                                />
-                            </TableActionGroup>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <section class="table-card" style="border: none !important; box-shadow: none !important;">
+            <SaaSTable
+                :columns="tableColumns"
+                :data="vouchers"
+                :loading="loading"
+                loading-text="Đang tải voucher hệ thống..."
+                empty-text="Chưa có voucher hệ thống."
+            >
+                <template #code="{ row }">
+                    <strong>{{ row.code }}</strong>
+                </template>
+
+                <template #name="{ row }">
+                    {{ row.name }}
+                </template>
+
+                <template #discount_type="{ row }">
+                    {{ row.type_label }}
+                </template>
+
+                <template #discount_value="{ row }">
+                    {{ discountText(row) }}
+                </template>
+
+                <template #min_order_amount="{ row }">
+                    {{ money(row.min_order_amount) }}
+                </template>
+
+                <template #total_quantity="{ row }">
+                    {{ row.total_quantity || "Không giới hạn" }}
+                </template>
+
+                <template #used_quantity="{ row }">
+                    {{ row.used_quantity }}
+                </template>
+
+                <template #validity="{ row }">
+                    {{ date(row.valid_from) }} - {{ date(row.valid_to) }}
+                </template>
+
+                <template #status="{ row }">
+                    <span class="badge" :class="row.status">{{ row.status_label }}</span>
+                </template>
+
+                <template #actions="{ row }">
+                    <TableActionGroup>
+                        <ActionIconButton
+                            icon="pencil"
+                            label="Sửa voucher"
+                            @click="openForm(row)"
+                        />
+                        <ActionIconButton
+                            icon="power"
+                            label="Tắt voucher"
+                            variant="danger"
+                            @click="turnOff(row)"
+                        />
+                    </TableActionGroup>
+                </template>
+            </SaaSTable>
         </section>
 
         <div v-if="showModal" class="modal-backdrop" @click.self="closeForm">
@@ -440,6 +453,7 @@
         </div>
         <!-- Floating Add Button -->
         <div
+            v-if="canCreateVoucher"
             class="floating-add-container"
             :class="{ 'has-scroll': showScrollTop }"
         >
@@ -448,21 +462,39 @@
                 <span class="btn-float-text">Tạo voucher</span>
             </button>
         </div>
-    </section>
+    </div>
+</div>
 </template>
 
 <script>
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
+import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
+import SaaSTable from "../../components/ui/SaaSTable.vue";
+import CustomSelect from "../../components/CustomSelect.vue";
 import { adminVoucherService } from "../../services/adminVoucherService.js";
 import { adminSystemWalletService } from "../../services/adminSystemWallet.js";
+import { getAuth } from "../../stores/auth.js";
+import { hasAllAdminPermissions } from "../../config/permissionAccess.js";
 
 export default {
     name: "AdminVouchers",
-    components: { ActionIconButton, AppIcon, TableActionGroup },
+    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable, CustomSelect },
     data() {
         return {
+            tableColumns: [
+                { key: 'code', label: 'Mã' },
+                { key: 'name', label: 'Tên' },
+                { key: 'discount_type', label: 'Loại giảm' },
+                { key: 'discount_value', label: 'Giá trị' },
+                { key: 'min_order_amount', label: 'Đơn tối thiểu' },
+                { key: 'total_quantity', label: 'Số lượng' },
+                { key: 'used_quantity', label: 'Đã dùng' },
+                { key: 'validity', label: 'Hiệu lực' },
+                { key: 'status', label: 'Trạng thái' },
+                { key: 'actions', label: 'Thao tác', align: 'center', class: 'actions-col' }
+            ],
             filters: { keyword: "", status: "", discount_type: "", per_page: 50 },
             vouchers: [],
             loading: false,
@@ -491,13 +523,28 @@ export default {
     },
     mounted() {
         this.load();
-        this.loadBudget();
+        if (this.canViewBudget) this.loadBudget();
         window.addEventListener("scroll", this.handleScroll);
     },
     beforeUnmount() {
         window.removeEventListener("scroll", this.handleScroll);
     },
     computed: {
+        canCreateVoucher() {
+            return hasAllAdminPermissions(getAuth(), ["voucher.create"]);
+        },
+        canUpdateVoucher() {
+            return hasAllAdminPermissions(getAuth(), ["voucher.update"]);
+        },
+        canDeleteVoucher() {
+            return hasAllAdminPermissions(getAuth(), ["voucher.delete"]);
+        },
+        canViewBudget() {
+            return hasAllAdminPermissions(getAuth(), ["wallet.view"]);
+        },
+        canManageBudget() {
+            return hasAllAdminPermissions(getAuth(), ["reconciliation.manage"]);
+        },
         discountValueLabel() {
             return this.form.discount_type === "percent" ? "Giảm bao nhiêu %" : "Giảm bao nhiêu tiền";
         },
@@ -979,7 +1026,7 @@ export default {
     color: var(--admin-blue);
     border-radius: 10px;
     padding: 12px;
-    font-weight: 800;
+    font-weight: 400;
 }
 .table-card,
 .modal {
@@ -1009,7 +1056,7 @@ td {
 .mini-btn {
     border: 0;
     border-radius: 8px;
-    font-weight: 800;
+    font-weight: 400;
     cursor: pointer;
 }
 .btn {
@@ -1036,7 +1083,7 @@ td {
     border-radius: 999px;
     padding: 5px 9px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 400;
     background: var(--admin-border);
 }
 .badge.active {
@@ -1055,7 +1102,7 @@ td {
 .alert {
     padding: 12px;
     border-radius: 10px;
-    font-weight: 700;
+    font-weight: 400;
 }
 .error {
     background: var(--admin-danger-soft);
@@ -1096,7 +1143,7 @@ td {
 }
 .confirm-modal p {
     color: var(--admin-muted);
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.5;
 }
 .confirm-modal footer {
@@ -1112,7 +1159,7 @@ td {
 label {
     display: grid;
     gap: 6px;
-    font-weight: 800;
+    font-weight: 400;
 }
 input,
 select,
@@ -1143,7 +1190,7 @@ textarea {
 .suffix-field span {
     padding: 0 12px;
     color: var(--admin-muted);
-    font-weight: 900;
+    font-weight: 400;
     white-space: nowrap;
 }
 .modal .field-error {
@@ -1154,7 +1201,7 @@ textarea {
     background: var(--admin-danger-soft);
     color: var(--admin-danger-text) !important;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     line-height: 1.35;
     padding: 6px 8px;
 }
@@ -1172,7 +1219,7 @@ textarea {
     margin: 0;
     color: var(--admin-muted);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
 }
 footer {
     display: flex;
@@ -1193,11 +1240,11 @@ footer {
     display: grid;
     grid-template-columns: minmax(220px, 1fr) minmax(340px, 1.4fr);
     gap: 16px;
-    border: 1px solid var(--admin-border);
-    border-radius: 12px;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
     background: var(--admin-surface);
-    padding: 18px;
-    box-shadow: 0 12px 28px var(--admin-shadow-card);
+    padding: 12px 0;
 }
 
 .budget-copy {
@@ -1219,7 +1266,7 @@ footer {
 .eyebrow {
     color: var(--admin-success-text);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 400;
     letter-spacing: 0.03em;
     text-transform: uppercase;
 }
@@ -1244,7 +1291,7 @@ footer {
 .budget-toggle {
     color: var(--admin-muted);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 400;
 }
 
 .budget-metric strong {
@@ -1322,7 +1369,7 @@ footer {
     border-radius: 8px;
     background: var(--admin-surface-muted);
     padding: 10px 12px;
-    font-weight: 700;
+    font-weight: 400;
 }
 
 .budget-note.danger {
@@ -1376,7 +1423,7 @@ footer {
     display: block;
     margin-top: 4px;
     color: var(--admin-muted);
-    font-weight: 700;
+    font-weight: 400;
 }
 
 @media (max-width: 980px) {
@@ -1389,4 +1436,15 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+.profile-section-card.vouchers-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: none !important;
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 </style>
+

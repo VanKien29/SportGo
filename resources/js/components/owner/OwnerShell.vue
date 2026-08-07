@@ -73,7 +73,7 @@ export default {
         clusterLoading: { type: Boolean, default: false },
         workspaceLabel: { type: String, default: 'Owner' },
         roleLabel: { type: String, default: 'Chủ sân' },
-        homeUrl: { type: String, default: '/owner/dashboard' },
+        homeUrl: { type: String, default: '/owner/venue-clusters' },
         profileUrl: { type: String, default: '/owner/profile' },
         billingUrl: { type: String, default: '/owner/billing' },
         settingsUrl: { type: String, default: '/owner/settings' },

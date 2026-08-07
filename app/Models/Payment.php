@@ -63,4 +63,14 @@ class Payment extends Model
     {
         return $this->belongsTo(SystemBankAccount::class, 'system_bank_account_id');
     }
+
+    public function userWallet()
+    {
+        return $this->belongsTo(UserWallet::class, 'user_wallet_id');
+    }
+
+    public function userWalletLedger()
+    {
+        return $this->belongsTo(UserWalletLedger::class, 'user_wallet_ledger_id');
+    }
 }

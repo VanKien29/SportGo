@@ -47,7 +47,9 @@ use App\Http\Controllers\Api\User\PartnerApplicationController as UserPartnerApp
 use App\Http\Controllers\Api\Owner\VenueUnlockRequestController;
 use App\Http\Controllers\Api\Owner\CourtTypeRequestController;
 use App\Http\Middleware\EnsureAdminRole;
+use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureOwnerRole;
+use App\Http\Middleware\EnsureVenueStaffMenuPermission;
 use App\Http\Middleware\EnforceVenueAccessRestrictions;
 use App\Http\Controllers\Api\Admin\VenuePostController as AdminVenuePostController;
 use App\Http\Controllers\Api\Public\SystemPostController as PublicSystemPostController;
@@ -61,6 +63,7 @@ use App\Http\Controllers\Api\Public\LocationController;
 use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
 use App\Http\Controllers\Api\Public\SystemProfileController;
+use App\Http\Controllers\Api\Public\OfferController;
 use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
@@ -71,11 +74,13 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/system-profile', [SystemProfileController::class, 'show']);
+Route::get('/offers', [OfferController::class, 'index']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
 Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']);
 Route::get('/venues', [VenueController::class, 'index']);
+Route::get('/venues/filter-options', [VenueController::class, 'filterOptions']);
 Route::get('/venues/{id}', [VenueController::class, 'show']);
 Route::get('/venues/{id}/schedule', [VenueController::class, 'schedule']);
 Route::get('/venues/{clusterId}/affiliate-products', [PublicAffiliateProductController::class, 'index']);
@@ -113,7 +118,7 @@ Route::prefix('admin/auth')->group(function (): void {
     });
 });
 
-Route::middleware(['auth:sanctum', EnsureAdminRole::class])
+Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission::class])
     ->prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [AdminDashboardController::class, 'index']);
@@ -345,7 +350,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class])
         Route::post('/posts/{post}/action', [\App\Http\Controllers\Api\Admin\AdminPostController::class, 'processAction']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRestrictions::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class, EnforceVenueAccessRestrictions::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/dashboard', [OwnerDashboardController::class, 'index']);
@@ -523,7 +528,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnforceVenueAccessRes
         Route::patch('/venue-services/{id}/toggle-status', [OwnerVenueServiceController::class, 'toggleStatus']);
     });
 
-Route::middleware(['auth:sanctum', EnsureOwnerRole::class])
+Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuPermission::class])
     ->prefix('owner')
     ->group(function (): void {
         Route::get('/work-center', [\App\Http\Controllers\Api\Common\WorkCenterController::class, 'owner']);
@@ -568,7 +573,6 @@ Route::middleware('auth:sanctum')
 
         Route::post('venue-clusters/resolve-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'resolveMapUrl']);
         Route::post('venue-clusters/reverse-map', [\App\Http\Controllers\Api\Owner\VenueClusterController::class, 'reverseMap']);
-        Route::get('/court-types', [\App\Http\Controllers\Api\Admin\CourtTypeController::class, 'index']); // Read-only: Owner cần xem danh sách loại sân
         Route::get('/amenities', [\App\Http\Controllers\Api\Admin\AmenityController::class, 'index']); // Read-only: Owner cần xem danh sách tiện ích
         Route::get('/service-categories', [AdminServiceCategoryController::class, 'index']);
         Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
@@ -576,11 +580,17 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/check-availability', [\App\Http\Controllers\Api\Player\BookingController::class, 'checkAvailability']);
         Route::get('/bookings/eligible-vouchers', [\App\Http\Controllers\Api\Player\BookingController::class, 'eligibleVouchers']);
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);
+        Route::get('/bookings/recurring-groups/{groupCode}', [\App\Http\Controllers\Api\Player\BookingController::class, 'recurringGroup']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
+        Route::post('/bookings/{id}/cancel/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelPreview']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+
+        Route::get('/user/wallet', [\App\Http\Controllers\Api\Player\WalletController::class, 'show']);
+        Route::get('/refunds', [\App\Http\Controllers\Api\Player\RefundController::class, 'index']);
+        Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 
         // Player Matchmaking Posts
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
@@ -610,10 +620,13 @@ Route::middleware('auth:sanctum')
 
         // Complaints (Player)
         Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);
+        Route::get('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'index']);
+        Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'show']);
+        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'reply']);
 
         // Chat routes
         Route::prefix('chat')
-            ->middleware('throttle:60,1')
+            ->middleware([EnsureVenueStaffMenuPermission::class.':chat', 'throttle:60,1'])
             ->group(function (): void {
             Route::get('/conversations', [ChatController::class, 'getConversations']);
             Route::post('/conversations', [ChatController::class, 'startConversation']);
@@ -621,6 +634,8 @@ Route::middleware('auth:sanctum')
             Route::post('/conversations/{id}/messages', [ChatController::class, 'sendMessage']);
             Route::post('/messages/{id}/react', [ChatController::class, 'reactToMessage']);
             Route::post('/messages/{id}/pin', [ChatController::class, 'togglePinMessage']);
+            Route::post('/messages/{id}/recall', [ChatController::class, 'recallMessage']);
+            Route::delete('/messages/{id}', [ChatController::class, 'deleteMessageForSelf']);
             Route::get('/conversations/{id}/bookings', [ChatController::class, 'getEligibleBookings']);
             Route::get('/conversations/{id}/related-bookings', [ChatController::class, 'getRelatedBookings']);
             Route::post('/conversations/{id}/support-requests', [ChatController::class, 'createBookingSupportRequest']);

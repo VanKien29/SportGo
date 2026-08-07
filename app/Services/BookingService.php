@@ -17,7 +17,9 @@ use App\Models\VenueCourt;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Memberships\SystemVipService;
 use App\Services\Memberships\VenueMembershipService;
+use App\Services\Wallets\OwnerWalletService;
 use App\Services\Wallets\SystemWalletService;
+use App\Services\Wallets\UserWalletPaymentService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -27,6 +29,8 @@ use Illuminate\Validation\ValidationException;
 
 class BookingService
 {
+    private const OWNER_APPROVAL_HOLD_MINUTES = 15;
+
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
 
     private const BLOCKED_CLUSTER_STATUSES = ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'];
@@ -34,6 +38,8 @@ class BookingService
     public function __construct(
         private readonly WalkInCustomerService $walkInCustomers,
         private readonly SystemWalletService $systemWallets,
+        private readonly OwnerWalletService $ownerWallets,
+        private readonly UserWalletPaymentService $userWalletPayments,
         private readonly VenueMembershipService $venueMemberships,
         private readonly SystemVipService $systemVip,
     ) {}
@@ -176,7 +182,7 @@ class BookingService
             $allowDeposit = $config ? $config->allow_deposit : true;
             $allowNoPrepay = $config ? $config->allow_no_prepay : true;
 
-            if ($paymentOption === 'full_payment' && ! $allowFull) {
+            if (in_array($paymentOption, ['full_payment', 'wallet'], true) && ! $allowFull) {
                 throw new Exception('Hình thức thanh toán hết không được cụm sân này hỗ trợ.');
             }
             if ($paymentOption === 'deposit' && ! $allowDeposit) {
@@ -209,7 +215,7 @@ class BookingService
 
             // 6. Tính số tiền tối thiểu cần thanh toán
             $requiredPaymentAmount = 0.00;
-            if ($paymentOption === 'full_payment') {
+            if (in_array($paymentOption, ['full_payment', 'wallet'], true)) {
                 $requiredPaymentAmount = $totalPrice;
             } elseif ($paymentOption === 'deposit') {
                 $depositPercent = $config ? $config->deposit_percent : 30.00;
@@ -262,7 +268,11 @@ class BookingService
 
             $this->ensurePendingPaymentLocks($booking, $customerId);
 
-            return $booking;
+            if ($paymentOption === 'wallet') {
+                $this->completeWalletBookingPayment($booking, $customerId);
+            }
+
+            return $booking->fresh(['venueCourt.venueCluster', 'venueCourt.courtType', 'payments']);
         });
     }
 
@@ -1259,7 +1269,11 @@ class BookingService
             ? $this->createCounterPayment($booking, $actor, $isPaid, $data['payment_method'] ?? 'cash')
             : null;
 
-        if ($payment && $payment->status === 'paid') {
+        if ($source === 'online' && $booking->payment_option === 'wallet') {
+            $payment = $this->completeWalletBookingPayment($booking, $actor->id);
+        }
+
+        if ($payment && $payment->status === 'paid' && $payment->method !== 'wallet') {
             $this->recordSystemVoucherSubsidyForPayment($payment);
         } elseif (
             ! $payment
@@ -1525,6 +1539,7 @@ class BookingService
     {
         $allowed = [
             'full_payment' => $config?->allow_full_payment ?? true,
+            'wallet' => $config?->allow_full_payment ?? true,
             'deposit' => $config?->allow_deposit ?? true,
             'no_prepay' => $config?->allow_no_prepay ?? true,
         ];
@@ -1960,7 +1975,7 @@ class BookingService
 
     private function requiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
     {
-        if ($paymentOption === 'full_payment') {
+        if (in_array($paymentOption, ['full_payment', 'wallet'], true)) {
             return round($totalPrice, 2);
         }
 
@@ -1985,6 +2000,27 @@ class BookingService
         }
 
         return 'pending_payment';
+    }
+
+    private function completeWalletBookingPayment(Booking $booking, string $customerId): Payment
+    {
+        $customer = User::query()->findOrFail($customerId);
+        $payment = $this->userWalletPayments->payBooking(
+            $booking,
+            $customer,
+            (float) $booking->required_payment_amount,
+        );
+
+        $booking->forceFill(['status' => 'confirmed'])->save();
+        SlotLock::query()->where('booking_id', $booking->id)->delete();
+        $this->ownerWallets->creditBookingPayment($payment, [
+            'source' => 'user_wallet',
+            'payment_method' => 'wallet',
+        ]);
+        $this->recordSystemVoucherSubsidyForPayment($payment);
+        $this->syncVenueMembershipForSuccessfulBooking($booking);
+
+        return $payment;
     }
 
     private function bookingConfigForCluster(string $venueClusterId): ?BookingConfig

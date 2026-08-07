@@ -572,7 +572,7 @@ class AdminPolicyController extends Controller
                 'constraint_json' => ['covers_from_hours' => 0, 'covers_to_infinity' => true],
                 'allowed_override_json' => [
                     'venue_can_improve_refund_percent' => true,
-                    'venue_can_change_time_ranges' => false,
+                    'venue_can_change_time_ranges' => true,
                     'venue_can_block_system_allowed_cancel' => false,
                 ],
                 'priority' => 100,

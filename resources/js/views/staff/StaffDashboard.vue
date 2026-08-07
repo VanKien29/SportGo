@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="staff-dashboard-page">
     <p v-if="error" class="staff-alert staff-alert-error" role="alert">
       <AppIcon name="alertCircle" size="14" />
@@ -275,7 +275,27 @@ export default {
       actionLoading: false,
       error: '',
       success: '',
+      localTasks: [
+        { id: 'clean', label: 'Kiểm tra thiết bị và vệ sinh sân trước giờ chơi', done: false },
+        { id: 'handover', label: 'Bàn giao ca trực & chốt số dư két tiền mặt', done: false }
+      ],
     };
+  },
+  created() {
+    const savedTasks = localStorage.getItem('staff_daily_tasks');
+    if (savedTasks) {
+      try {
+        const parsed = JSON.parse(savedTasks);
+        this.localTasks.forEach(task => {
+          const match = parsed.find(t => t.id === task.id);
+          if (match) {
+            task.done = match.done;
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
   },
   computed: {
     hasUnreadNotifications() {
@@ -290,6 +310,10 @@ export default {
     window.removeEventListener('owner-cluster-changed', this.onClusterChanged);
   },
   methods: {
+    toggleLocalTask(task) {
+      task.done = !task.done;
+      localStorage.setItem('staff_daily_tasks', JSON.stringify(this.localTasks));
+    },
     async onClusterChanged() {
       await this.loadOverview();
     },
@@ -560,7 +584,7 @@ export default {
 
 .stat-number {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   line-height: 1;
 }
@@ -597,7 +621,7 @@ export default {
 
 .section-box-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   display: flex;
   align-items: center;
@@ -642,13 +666,13 @@ export default {
 
 .shift-badge-name strong {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
 }
 
 .shift-badge-status {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 2px 8px;
   border-radius: 12px;
   text-transform: uppercase;
@@ -676,17 +700,43 @@ export default {
 
 .shift-time-range {
   display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--admin-border-soft);
+  gap: 12px;
+}
+.todo-item:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.todo-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+}
+.todo-checkbox-styled {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-muted, #94a3b8);
+  border-radius: 4px;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
   background: var(--admin-bg-soft);
   padding: 4px 10px;
   border-radius: 6px;
 }
-
-.shift-notes {
+.todo-memo-box {
   background: var(--admin-bg-soft);
   border-radius: 8px;
   padding: 12px;
@@ -746,7 +796,7 @@ export default {
   justify-content: center;
   gap: 8px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   border-radius: var(--admin-radius);
   cursor: pointer;
   border: none;
@@ -792,7 +842,7 @@ export default {
   justify-content: center;
   color: rgb(21, 128, 61);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   background: rgba(34, 197, 94, 0.1);
   padding: 10px;
   border-radius: var(--admin-radius);
@@ -821,7 +871,7 @@ export default {
 .staff-text-link {
   color: var(--admin-primary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: none;
 }
 .staff-text-link:hover {
@@ -838,7 +888,7 @@ export default {
   border: none;
   color: var(--admin-primary);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   padding: 0;
 }
@@ -901,7 +951,7 @@ export default {
 
 .notification-title {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   margin: 0;
   white-space: nowrap;
@@ -988,7 +1038,7 @@ export default {
 
 .court-name {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--admin-text);
   margin: 0;
 }
@@ -1001,7 +1051,7 @@ export default {
 
 .court-status-badge {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -1024,7 +1074,7 @@ export default {
 .slots-label {
   font-size: 12px;
   color: var(--admin-muted);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .free-slots-list {
@@ -1037,7 +1087,7 @@ export default {
 
 .free-slot-pill {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--admin-text);
   background: var(--admin-bg-soft);
   border: 1px solid var(--admin-border-soft);

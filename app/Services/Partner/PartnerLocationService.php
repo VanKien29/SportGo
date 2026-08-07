@@ -12,7 +12,22 @@ class PartnerLocationService
     {
         return Cache::remember('partner_locations_v2_provinces', now()->addWeek(), function (): array {
             try {
-                $payload = Http::timeout(15)->get(config('services.provinces_vn.base_url') . '/api/v2/')->json();
+                if (\Illuminate\Support\Facades\DB::getSchemaBuilder()->hasTable('vn_provinces')) {
+                    $dbProvinces = \Illuminate\Support\Facades\DB::table('vn_provinces')
+                        ->orderBy('name')
+                        ->get();
+
+                    if ($dbProvinces->isNotEmpty()) {
+                        return $dbProvinces->map(fn ($p) => [
+                            'code' => (string) $p->code,
+                            'name' => (string) $p->name,
+                            'codename' => (string) ($p->codename ?? ''),
+                            'division_type' => (string) ($p->division_type ?? ''),
+                        ])->all();
+                    }
+                }
+
+                $payload = Http::timeout(15)->withoutVerifying()->get(config('services.provinces_vn.base_url') . '/api/v2/')->json();
                 $provinces = is_array($payload) ? $payload : [];
 
                 return collect($provinces)
@@ -35,7 +50,25 @@ class PartnerLocationService
     {
         return Cache::remember('partner_locations_v2_wards_' . $provinceCode, now()->addWeek(), function () use ($provinceCode): array {
             try {
+                if (\Illuminate\Support\Facades\DB::getSchemaBuilder()->hasTable('vn_wards')) {
+                    $dbWards = \Illuminate\Support\Facades\DB::table('vn_wards')
+                        ->where('province_code', (string) $provinceCode)
+                        ->orderBy('name')
+                        ->get();
+
+                    if ($dbWards->isNotEmpty()) {
+                        return $dbWards->map(fn ($w) => [
+                            'code' => (string) $w->code,
+                            'name' => (string) $w->name,
+                            'codename' => (string) ($w->codename ?? ''),
+                            'division_type' => (string) ($w->division_type ?? ''),
+                            'province_code' => (string) $w->province_code,
+                        ])->all();
+                    }
+                }
+
                 $payload = Http::timeout(15)
+                    ->withoutVerifying()
                     ->get(config('services.provinces_vn.base_url') . '/api/v2/p/' . urlencode($provinceCode), [
                         'depth' => 2,
                     ])

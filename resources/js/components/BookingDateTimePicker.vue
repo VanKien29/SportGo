@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     ref="root"
     class="booking-datetime"
@@ -381,7 +381,7 @@ export default {
   min-width: 0;
   color: #111827;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -394,7 +394,7 @@ export default {
 
 .booking-datetime__value span {
   color: #526156;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .booking-datetime__backdrop {
@@ -429,7 +429,7 @@ export default {
 .booking-datetime__header strong {
   color: #102015;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 400;
   text-transform: capitalize;
 }
 
@@ -469,7 +469,7 @@ export default {
   background: #fff;
   color: #233226;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .booking-datetime__quick button {
@@ -505,7 +505,7 @@ export default {
 .booking-datetime__weekdays span {
   color: #667568;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 400;
   text-align: center;
 }
 
@@ -520,7 +520,7 @@ export default {
   color: #17231b;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 400;
 }
 
 .booking-datetime__days button.never-hover-class-placeholder:not(:disabled) {
@@ -550,7 +550,7 @@ export default {
   margin: 0 0 8px;
   color: #233226;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .booking-datetime__times div {
@@ -581,7 +581,7 @@ export default {
   padding: 0 14px;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 900;
+  font-weight: 400;
 }
 
 .booking-datetime__secondary {

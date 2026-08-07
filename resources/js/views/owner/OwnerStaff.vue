@@ -1,5 +1,5 @@
 <template>
-  <section class="page">
+  <div class="cluster-profile-surface standalone">
     <!-- Floating Add Button -->
     <div class="floating-add-container" :class="{ 'has-scroll': showScrollTop }">
       <button class="btn-float-add" type="button" @click="openCreate" title="Thêm nhân viên">
@@ -11,37 +11,63 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="table-card">
-      <div v-if="loading" class="state">Đang tải nhân viên...</div>
-      <div v-else-if="staff.length === 0" class="state">Chưa có nhân viên sân trong cụm này.</div>
-      <table v-else>
-        <thead>
-          <tr>
-            <th>Họ tên</th>
-            <th>Tài khoản</th>
-            <th>Email/SĐT</th>
-            <th>Phạm vi quản lý</th>
-            <th>Trạng thái</th>
-            <th>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in staff" :key="item.id">
-            <td><strong>{{ item.full_name }}</strong></td>
-            <td>{{ item.username }}</td>
-            <td>{{ item.email || item.phone || '-' }}</td>
-            <td>{{ assignmentText(item.assignments) }}</td>
-            <td><span class="badge" :class="item.status">{{ statusLabel(item.status) }}</span></td>
-            <td>
-              <TableActionGroup>
-                <ActionIconButton icon="pencil" label="Sửa nhân viên" @click="openEdit(item)" />
-                <ActionIconButton icon="power" label="Tạm ngưng nhân viên" variant="danger" @click="deactivate(item)" />
-              </TableActionGroup>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    <div class="profile-section-card staff-main-content">
+      <SaaSFilterBar
+        v-if="staff.length > 0"
+        v-model="filterStatus"
+        v-model:search="searchText"
+        :tabs="statusTabsUi"
+        search-id="search-owner-staff"
+        search-placeholder="Tìm kiếm theo họ tên, username, email, số điện thoại..."
+      />
+
+      <div v-if="loading" class="table-state-card">
+        <div class="spinner-sm"></div>
+        <span>Đang tải danh sách nhân viên...</span>
+      </div>
+
+      <div v-else-if="staff.length === 0" class="table-state-card">
+        <span>Chưa có nhân viên sân trong cụm này.</span>
+      </div>
+
+      <div v-else-if="filteredStaff.length === 0" class="table-state-card">
+        <span>Không tìm thấy nhân viên nào phù hợp với điều kiện lọc.</span>
+      </div>
+
+      <div v-else class="services-table-wrapper">
+        <SaaSTable
+          :columns="tableColumns"
+          :data="filteredStaff"
+        >
+          <template #full_name="{ row }">
+            <strong>{{ row.full_name }}</strong>
+          </template>
+
+          <template #username="{ row }">
+            <code>{{ row.username }}</code>
+          </template>
+
+          <template #contact="{ row }">
+            {{ row.email || row.phone || '-' }}
+          </template>
+
+          <template #assignments="{ row }">
+            {{ assignmentText(row.assignments) }}
+          </template>
+
+          <template #status="{ row }">
+            <span class="status-pill" :class="row.status">{{ statusLabel(row.status) }}</span>
+          </template>
+
+          <template #actions="{ row }">
+            <TableActionGroup>
+              <ActionIconButton icon="pencil" label="Sửa nhân viên" @click="openEdit(row)" />
+              <ActionIconButton icon="power" label="Tạm ngưng nhân viên" variant="danger" @click="deactivate(row)" />
+            </TableActionGroup>
+          </template>
+        </SaaSTable>
+      </div>
+    </div>
 
     <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
       <form class="modal" @submit.prevent="saveStaff">
@@ -63,8 +89,8 @@
 
         <div class="scope-box">
           <span>Phạm vi làm việc</span>
-          <label class="check"><input v-model="form.scope_type" type="radio" value="all_cluster" /> Toàn bộ cụm sân</label>
-          <label class="check"><input v-model="form.scope_type" type="radio" value="court_type" /> Theo loại sân con</label>
+          <label class="check"><input v-model="form.scope_type" type="radio" value="all_cluster" @change="normalizeMenuPermissions" /> Toàn bộ cụm sân</label>
+          <label class="check"><input v-model="form.scope_type" type="radio" value="court_type" @change="normalizeMenuPermissions" /> Theo loại sân con</label>
           <div v-if="form.scope_type === 'court_type'" class="court-types">
             <label v-for="type in courtTypes" :key="type.id" class="check">
               <input v-model="form.court_type_ids" type="checkbox" :value="type.id" />
@@ -73,28 +99,62 @@
           </div>
         </div>
 
+        <div class="permission-box">
+          <div>
+            <strong>Quyền chức năng</strong>
+            <p>Chọn menu nào thì nhân viên được xem và thao tác toàn bộ chức năng trong menu đó.</p>
+          </div>
+          <div class="permission-grid">
+            <label
+              v-for="permission in permissionCatalog"
+              :key="permission.key"
+              class="permission-option"
+              :class="{ disabled: permissionDisabled(permission) }"
+            >
+              <input
+                v-model="form.menu_keys"
+                type="checkbox"
+                :value="permission.key"
+                :disabled="permissionDisabled(permission)"
+              />
+              <span>
+                <strong>{{ permission.label }}</strong>
+                <small>{{ permission.description }}</small>
+                <em v-if="permission.requires_all_cluster">Chỉ áp dụng khi phụ trách toàn bộ cụm sân</em>
+              </span>
+            </label>
+          </div>
+          <p class="owner-only-note">
+            Tài chính, số dư, tài liệu, yêu cầu thay đổi, hợp đồng/chấm dứt, cấu hình giá và khóa lịch chỉ dành cho chủ sân.
+          </p>
+        </div>
+
         <footer>
           <button class="btn secondary" type="button" @click="closeModal">Hủy</button>
           <button class="btn primary" type="submit" :disabled="saving">{{ saving ? 'Đang lưu...' : 'Lưu' }}</button>
         </footer>
       </form>
     </div>
-  </section>
+  </div>
 </template>
 
 <script>
 import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
+import AppTableCard from '../../components/common/AppTableCard.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
+import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
+import SaaSTable from '../../components/ui/SaaSTable.vue';
 import { ownerStaffService } from '../../services/ownerStaffService.js';
 
 export default {
   name: 'OwnerStaff',
-  components: { ActionIconButton, AppIcon, TableActionGroup },
+  components: { ActionIconButton, AppIcon, AppTableCard, TableActionGroup, SaaSFilterBar, SaaSTable },
   data() {
     return {
       staff: [],
       courtTypes: [],
+      permissionCatalog: [],
       loading: false,
       saving: false,
       error: '',
@@ -102,7 +162,43 @@ export default {
       showModal: false,
       form: this.emptyForm(),
       showScrollTop: false,
+      filterStatus: '',
+      searchText: '',
     };
+  },
+  computed: {
+    filteredStaff() {
+      return this.staff.filter((item) => {
+        const matchesStatus = !this.filterStatus || item.status === this.filterStatus;
+        const q = this.searchText.toLowerCase().trim();
+        const matchesSearch =
+          !q ||
+          item.full_name?.toLowerCase().includes(q) ||
+          item.username?.toLowerCase().includes(q) ||
+          item.email?.toLowerCase().includes(q) ||
+          item.phone?.toLowerCase().includes(q);
+        return matchesStatus && matchesSearch;
+      });
+    },
+    statusTabsUi() {
+      const activeCount = this.staff.filter((s) => s.status === 'active').length;
+      const inactiveCount = this.staff.filter((s) => s.status === 'inactive').length;
+      return [
+        { value: '', label: 'Tất cả', count: this.staff.length },
+        { value: 'active', label: 'Hoạt động', count: activeCount },
+        { value: 'inactive', label: 'Tạm ngưng', count: inactiveCount },
+      ];
+    },
+    tableColumns() {
+      return [
+        { key: 'full_name', label: 'HỌ TÊN' },
+        { key: 'username', label: 'TÀI KHOẢN' },
+        { key: 'contact', label: 'EMAIL / SĐT' },
+        { key: 'assignments', label: 'PHẠM VI QUẢN LÝ' },
+        { key: 'status', label: 'TRẠNG THÁI' },
+        { key: 'actions', label: 'THAO TÁC', align: 'right' },
+      ];
+    },
   },
   mounted() {
     window.addEventListener('owner-cluster-changed', this.loadStaff);
@@ -125,6 +221,7 @@ export default {
         status: 'active',
         scope_type: 'all_cluster',
         court_type_ids: [],
+        menu_keys: this.defaultMenuKeys(),
       };
     },
     async loadStaff() {
@@ -133,6 +230,7 @@ export default {
         const response = await ownerStaffService.list();
         this.staff = response.data || [];
         this.courtTypes = response.meta?.court_types || [];
+        this.permissionCatalog = response.meta?.menu_permissions || [];
       } catch (error) {
         this.error = error.message || 'Không thể tải danh sách nhân viên sân.';
       } finally {
@@ -156,6 +254,7 @@ export default {
         status: item.status,
         scope_type: courtTypeIds.length ? 'court_type' : 'all_cluster',
         court_type_ids: courtTypeIds,
+        menu_keys: [...(item.menu_permissions || [])],
       };
       this.showModal = true;
     },
@@ -193,6 +292,25 @@ export default {
         .filter(Boolean);
       return names.length ? names.join(', ') : 'Chưa có phân công';
     },
+    defaultMenuKeys() {
+      return this.permissionCatalog
+        ?.filter((permission) => permission.default)
+        .map((permission) => permission.key) || [];
+    },
+    permissionDisabled(permission) {
+      return permission.requires_all_cluster && this.form.scope_type !== 'all_cluster';
+    },
+    normalizeMenuPermissions() {
+      if (this.form.scope_type === 'all_cluster') return;
+      const restrictedKeys = this.permissionCatalog
+        .filter((permission) => permission.requires_all_cluster)
+        .map((permission) => permission.key);
+      this.form.menu_keys = this.form.menu_keys.filter((key) => !restrictedKeys.includes(key));
+    },
+    menuLabels(keys = []) {
+      const labels = new Map(this.permissionCatalog.map((permission) => [permission.key, permission.label]));
+      return keys.map((key) => labels.get(key) || key);
+    },
     statusLabel(status) {
       return { active: 'Đang hoạt động', locked: 'Đã khóa', deactivated: 'Đã vô hiệu hóa' }[status] || status;
     },
@@ -204,5 +322,201 @@ export default {
 </script>
 
 <style scoped>
-.page{display:grid;gap:16px}.table-card,.modal{background:#fff;border:1px solid #e2e8f0;border-radius:12px}.table-card{overflow:auto}table{width:100%;border-collapse:collapse;min-width:880px}th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left}.state{padding:24px;color:#64748b}.btn,.mini-btn{border:0;border-radius:8px;font-weight:800;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px;margin-right:6px;background:#f1f5f9}.primary{background:#16a34a;color:#fff}.secondary{background:#f1f5f9;color:#0f172a}.danger{background:#fee2e2;color:#b91c1c}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;background:#e2e8f0}.badge.active{background:#dcfce7;color:#166534}.badge.locked,.badge.deactivated{background:#fee2e2;color:#b91c1c}.alert{padding:12px;border-radius:10px;font-weight:700}.error{background:#fee2e2;color:#b91c1c}.success{background:#dcfce7;color:#166534}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);display:grid;place-items:center;z-index:500;padding:20px}.modal{width:min(680px,calc(100vw - 32px));padding:22px;display:grid;gap:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:6px;font-weight:800}input,select{border:1px solid #dbe3ef;border-radius:8px;padding:10px;font:inherit}.scope-box{display:grid;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:12px}.scope-box>span{font-weight:900}.check{display:flex;align-items:center;gap:8px}.check input{width:auto}.court-types{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}footer{display:flex;justify-content:flex-end;gap:10px}@media(max-width:720px){.grid,.court-types{grid-template-columns:1fr}}
+.cluster-profile-surface.standalone {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section-card.staff-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px;
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border, #e2e8f0);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.services-table-wrapper {
+  overflow-x: auto;
+  border: none;
+  border-radius: 0;
+}
+
+.services-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.services-data-table th {
+  background: var(--admin-bg-soft, #f7fbf5);
+  color: var(--admin-text, #101c15);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 12px;
+  border-bottom: none;
+}
+
+.services-data-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
+  color: var(--admin-text, #101c15);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.services-data-table tbody tr:hover {
+  background: var(--admin-hover, #edf7ed);
+}
+
+.action-col {
+  width: 1%;
+  min-width: 90px;
+  text-align: right;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.status-pill.active {
+  background: var(--admin-primary-soft, #f0fdf4);
+  color: var(--admin-primary, #22a653);
+}
+
+.status-pill.locked,
+.status-pill.deactivated {
+  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.1));
+  color: var(--admin-danger, #ef4444);
+}
+
+.table-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 36px 20px;
+  background: var(--admin-bg-soft, #f7fbf5);
+  border: 1px dashed var(--admin-border, #cfded1);
+  border-radius: 0;
+  color: var(--admin-muted, #2f3d34);
+  font-size: 13.5px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--admin-border, #cfded1);
+  border-top-color: var(--admin-primary, #22a653);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modals & Forms */
+.alert {
+  padding: 12px;
+  border-radius: 0;
+  font-weight: 400;
+}
+.error { background: #fee2e2; color: #b91c1c; }
+.success { background: #dcfce7; color: #166534; }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.56);
+  display: grid;
+  place-items: center;
+  z-index: 500;
+  padding: 20px;
+}
+
+.modal {
+  width: min(680px, calc(100vw - 32px));
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-weight: 400;
+}
+
+input, select {
+  border: 1px solid #dbe3ef;
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+}
+
+.scope-box {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.check input { width: auto; }
+.court-types { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+@media(max-width: 720px) {
+  .grid, .court-types { grid-template-columns: 1fr; }
+}
+
+.profile-section-card.staff-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.services-table-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
 </style>

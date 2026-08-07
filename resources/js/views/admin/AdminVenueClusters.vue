@@ -1,13 +1,14 @@
 <template>
-    <div class="avc-page">
-        <!-- ── Loading ── -->
-        <div v-if="loading" class="state-box card animate-fade-in">
+    <div class="cluster-profile-surface standalone">
+        <div class="profile-section-card clusters-main-content">
+            <!-- ── Loading ── -->
+        <div v-if="loading" class="state-box animate-fade-in">
             <div class="spinner"></div>
             <p>Đang tải danh sách cụm sân...</p>
         </div>
 
         <!-- ── Error ── -->
-        <div v-else-if="error" class="state-box card error-box animate-fade-in">
+        <div v-else-if="error" class="state-box error-box animate-fade-in">
             <p>{{ error }}</p>
             <button class="btn btn-outline" @click="loadClusters">
                 Thử lại
@@ -20,58 +21,23 @@
                 v-if="clusters.length > 0"
                 v-model="filterStatus"
                 v-model:search="searchText"
-                :tabs="statusTabs"
+                :tabs="statusTabsUi"
                 search-id="search-venue-cluster"
                 search-placeholder="Tìm kiếm nhanh tên sân, địa chỉ hoặc chủ sân..."
             />
 
             <!-- ── Empty State khi hệ thống không có cụm sân nào ── -->
-            <div v-if="clusters.length === 0" class="state-box card animate-fade-in">
+            <div v-if="clusters.length === 0" class="state-box animate-fade-in">
                 <p class="empty-msg">Chưa có cụm sân nào được đăng ký trên hệ thống.</p>
             </div>
 
             <!-- ── Empty State khi tìm kiếm không ra kết quả ── -->
-            <div v-else-if="filteredClusters.length === 0" class="state-box card animate-fade-in">
+            <div v-else-if="filteredClusters.length === 0" class="state-box animate-fade-in">
                 <p class="empty-msg">Không tìm thấy cụm sân nào phù hợp với điều kiện tìm kiếm.</p>
-                <button class="btn btn-outline" @click="searchText = ''; filterStatus = ''">
-                    Xóa bộ lọc
-                </button>
             </div>
 
             <!-- ── Elegant SaaS Table View ── -->
             <div v-else class="clusters-list-wrapper animate-fade-in">
-                <div class="mobile-cluster-list">
-                    <button
-                        v-for="row in filteredClusters"
-                        :key="row.id"
-                        type="button"
-                        class="mobile-cluster-row"
-                        @click="goDetail(row.id)"
-                    >
-                        <span class="mobile-cluster-heading">
-                            <strong>{{ row.name }}</strong>
-                            <span class="status-badge" :class="'state-is-' + displayClusterStatus(row)">
-                                {{ statusLabel(row) }}
-                            </span>
-                        </span>
-                        <span class="mobile-cluster-address">{{ formatFullAddress(row) }}</span>
-                        <span class="mobile-cluster-facts">
-                            <span>
-                                <small>Chủ sân</small>
-                                <strong>{{ row.owner?.full_name || 'Chưa cập nhật' }}</strong>
-                            </span>
-                            <span>
-                                <small>Quy mô</small>
-                                <strong>{{ row.court_count }} sân</strong>
-                            </span>
-                            <span>
-                                <small>Phí</small>
-                                <strong>{{ feeStatusLabel(row.fee_status) }}</strong>
-                            </span>
-                            <AppIcon name="chevronRight" size="18" />
-                        </span>
-                    </button>
-                </div>
                 <SaaSTable
                     class="desktop-cluster-table"
                     :columns="tableColumns" 
@@ -119,21 +85,10 @@
                             {{ statusLabel(row) }}
                         </span>
                     </template>
-
-                    <!-- Action Column -->
-                    <template #actions="{ row }">
-                        <div class="table-actions" @click.stop>
-                            <ActionIconButton
-                                icon="eye"
-                                label="Chi tiết"
-                                size="sm"
-                                @click="goDetail(row.id)"
-                            />
-                        </div>
-                    </template>
                 </SaaSTable>
             </div>
         </template>
+        </div>
     </div>
 </template>
 
@@ -161,8 +116,7 @@ export default {
                 { key: "owner", label: "Chủ sân" },
                 { key: "courts", label: "Số sân con", align: "center" },
                 { key: "fee_status", label: "Trạng thái phí" },
-                { key: "status", label: "Trạng thái" },
-                { key: "actions", label: "", align: "right" }
+                { key: "status", label: "Trạng thái" }
             ]
         };
     },
@@ -312,7 +266,7 @@ export default {
 }
 .empty-msg {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 400;
 }
 .spinner {
     width: 32px;
@@ -409,7 +363,7 @@ export default {
 
 .cluster-name {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #0f172a);
     transition: opacity 0.2s ease;
 }
@@ -428,7 +382,7 @@ export default {
 }
 
 .cluster-slug {
-    font-weight: 600;
+    font-weight: 400;
     flex-shrink: 0;
 }
 
@@ -448,7 +402,7 @@ export default {
     gap: 4px;
     color: var(--admin-muted, rgba(15, 23, 42, 0.6));
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
 }
 
@@ -474,7 +428,7 @@ export default {
 
 .owner-name {
     font-size: 12.5px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--admin-text, #0f172a);
     white-space: nowrap;
     overflow: hidden;
@@ -503,7 +457,7 @@ export default {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     background: transparent !important;
     padding: 0 !important;
@@ -571,7 +525,7 @@ export default {
 .btn {
     padding: 8px 16px;
     border-radius: 8px;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 13px;
     cursor: pointer;
     border: 1px solid transparent;
@@ -826,5 +780,15 @@ export default {
 [data-theme="dark"] .fee-is-cancelled,
 [data-theme="dark"] .fee-is-no_fee {
     color: #9ca3af !important;
+}
+
+.profile-section-card.clusters-main-content {
+    background: var(--admin-surface, #ffffff);
+    border: 1px solid var(--admin-border-soft, #e2e8f0);
+    border-radius: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 </style>

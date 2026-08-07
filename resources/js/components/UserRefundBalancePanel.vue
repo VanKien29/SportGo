@@ -6,10 +6,6 @@
         <h1 id="refund-balance-title">Số dư hoàn tiền</h1>
         <p>Theo dõi khoản SportGo đã hoàn và mọi biến động số dư của bạn.</p>
       </div>
-      <button type="button" class="sg-client-button" :disabled="loading" @click="loadFinance">
-        <AppIcon name="refresh" :size="17" />
-        Làm mới
-      </button>
     </header>
 
     <div v-if="loading" class="sg-client-state" aria-live="polite">
@@ -312,4 +308,4 @@ export default {
 };
 </script>
 
-<style scoped src="../../css/components/client-refund-balance.css"></style>
+

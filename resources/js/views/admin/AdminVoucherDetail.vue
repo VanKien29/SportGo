@@ -1,5 +1,7 @@
 <template>
-  <section class="page">
+  <div class="cluster-profile-surface standalone">
+    <div class="profile-section-card voucher-detail-main-content">
+      <section class="page">
     <div class="back-action-bar">
       <button class="back-link" type="button" @click="$router.push({ name: 'admin-vouchers' })">
         <AppIcon name="arrow-left" size="16" />
@@ -9,7 +11,10 @@
     </div>
 
     <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="loading" class="state">Đang tải chi tiết voucher...</div>
+    <div v-if="loading" class="state-box animate-fade-in">
+      <div class="spinner"></div>
+      <p>Đang tải chi tiết voucher...</p>
+    </div>
 
     <template v-else-if="voucher">
       <section class="summary-grid">
@@ -128,7 +133,9 @@
         </div>
       </section>
     </template>
-  </section>
+      </section>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -194,28 +201,28 @@ export default {
 .page { display: grid; gap: 16px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .back-action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.back-link { border: 0; background: transparent; color: #2563eb; font-weight: 800; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
-.eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; text-transform: uppercase; font-weight: 800; }
-.alert.error { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 10px; font-weight: 700; }
+.back-link { border: 0; background: transparent; color: #2563eb; font-weight: 400; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.eyebrow { margin: 0 0 4px; color: #16a34a; font-size: 12px; text-transform: uppercase; font-weight: 400; }
+.alert.error { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 10px; font-weight: 400; }
 .state { padding: 24px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
 .state.small { padding: 16px; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric, .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
 .metric span { color: #64748b; display: block; margin-bottom: 8px; }
 .metric strong { font-size: 22px; }
-.badge { border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 800; background: #f1f5f9; }
+.badge { border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 400; background: #f1f5f9; }
 .badge.success { background: #dcfce7; color: #166534; }
 .badge.danger { background: #fee2e2; color: #b91c1c; }
 .badge.warning { background: #fef3c7; color: #92400e; }
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #e2e8f0; }
-.tabs button { border: 0; background: transparent; padding: 11px 12px; font-weight: 800; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button { border: 0; background: transparent; padding: 11px 12px; font-weight: 400; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
 .tabs button.active { color: #16a34a; border-color: #16a34a; }
 .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .panel h3 { margin: 0 0 12px; }
 dl { display: grid; gap: 10px; margin: 0; }
 dl div { display: grid; grid-template-columns: 160px 1fr; gap: 12px; }
 dt { color: #64748b; }
-dd { margin: 0; font-weight: 700; }
+dd { margin: 0; font-weight: 400; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
 td span { display: block; color: #64748b; font-size: 12px; margin-top: 3px; }
@@ -224,10 +231,25 @@ code { background: #f8fafc; padding: 3px 6px; border-radius: 6px; color: #475569
 .timeline-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: grid; gap: 6px; }
 .timeline-item span { color: #64748b; font-size: 13px; }
 details { color: #475569; }
-summary { cursor: pointer; font-weight: 800; }
+summary { cursor: pointer; font-weight: 400; }
 pre { white-space: pre-wrap; word-break: break-word; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; }
 @media (max-width: 900px) {
   .summary-grid, .panel-grid { grid-template-columns: 1fr; }
   dl div { grid-template-columns: 1fr; }
+}
+
+.profile-section-card.voucher-detail-main-content {
+  background: var(--admin-surface, #ffffff);
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 0;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric, .panel, .state {
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 </style>
