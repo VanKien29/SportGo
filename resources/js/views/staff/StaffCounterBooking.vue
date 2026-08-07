@@ -54,6 +54,7 @@
                                 >
                                     <MiniCalendar
                                         mode="range"
+                                        :dual-month="false"
                                         :start-date="form.booking_date"
                                         :end-date="form.booking_end_date"
                                         :min-date="today"

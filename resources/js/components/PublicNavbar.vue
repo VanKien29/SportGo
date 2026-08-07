@@ -1,28 +1,5 @@
 <template>
   <header class="alb-header">
-    <!-- Top Utility Bar -->
-    <div class="alb-topbar">
-      <div class="alb-topbar__inner sg-container">
-        <div class="alb-topbar__left">
-          <a :href="`tel:${supportPhoneRaw}`" class="alb-topbar__link">
-            <span>Hotline 24/7: {{ supportPhone }}</span>
-          </a>
-          <span class="alb-topbar__link" style="cursor: default;">
-            <span>Hệ thống 500+ cụm sân thể thao toàn quốc</span>
-          </span>
-        </div>
-
-        <div class="alb-topbar__right">
-          <router-link to="/become-partner" class="alb-topbar__link">
-            <span class="alb-topbar__badge">Dành cho Chủ Sân</span>
-          </router-link>
-          <a href="#support" class="alb-topbar__link" @click.prevent="showComplaintModal = true">
-            <span>Trợ giúp & Khiếu nại</span>
-          </a>
-        </div>
-      </div>
-    </div>
-
     <!-- Main Navigation Bar -->
     <nav class="alb-navbar">
       <div class="alb-navbar__inner sg-container">
@@ -60,8 +37,19 @@
                 </header>
                 <div class="sg3-notification-list">
                   <div v-if="notifications.length === 0" class="sg3-notification-empty"><p>Chưa có thông báo mới.</p></div>
-                  <button v-for="notif in notifications" :key="notif.id" type="button" class="sg3-notification-item" :class="{ 'is-unread': !notif.is_read }" @click="markAsRead(notif)">
-                    <span class="sg3-notification-item__content"><strong>{{ notif.title }}</strong><span>{{ notif.body }}</span><time>{{ formatTime(notif.created_at) }}</time></span>
+                  <button
+                    v-for="notif in notifications"
+                    :key="notif.id"
+                    type="button"
+                    class="sg3-notification-item"
+                    :class="{ 'is-unread': !isNotifRead(notif) }"
+                    @click="markAsRead(notif)"
+                  >
+                    <span class="sg3-notification-item__content">
+                      <strong>{{ getNotifTitle(notif) }}</strong>
+                      <span>{{ getNotifBody(notif) }}</span>
+                      <time v-if="notif.created_at">{{ formatTime(notif.created_at) }}</time>
+                    </span>
                   </button>
                 </div>
               </section>
@@ -216,11 +204,25 @@ export default {
       this.showNotifDropdown = !this.showNotifDropdown;
       this.showDropdown = false;
     },
+    isNotifRead(n) {
+      if (!n) return true;
+      if (typeof n.is_read === "boolean") return n.is_read;
+      return Boolean(n.read_at);
+    },
+    getNotifTitle(n) {
+      return n?.title || n?.data?.title || "Thông báo hệ thống";
+    },
+    getNotifBody(n) {
+      return n?.content || n?.body || n?.data?.message || n?.data?.content || "Không có nội dung chi tiết.";
+    },
     async fetchNotifications() {
       try {
-        const data = await notificationService.getNotifications();
-        this.notifications = data || [];
-        this.unreadCount = this.notifications.filter((n) => !n.is_read).length;
+        const res = await notificationService.getNotifications();
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        this.notifications = list;
+        this.unreadCount = typeof res?.unread_count === "number"
+          ? res.unread_count
+          : list.filter((n) => !this.isNotifRead(n)).length;
       } catch (error) {
         // silent
       }
@@ -228,17 +230,21 @@ export default {
     async markAllAsRead() {
       try {
         await notificationService.markAllAsRead();
-        this.notifications.forEach((n) => (n.is_read = true));
+        this.notifications.forEach((n) => {
+          n.is_read = true;
+          n.read_at = new Date().toISOString();
+        });
         this.unreadCount = 0;
       } catch (error) {
         // silent
       }
     },
     async markAsRead(notif) {
-      if (!notif.is_read) {
+      if (!this.isNotifRead(notif)) {
         try {
           await notificationService.markAsRead(notif.id);
           notif.is_read = true;
+          notif.read_at = new Date().toISOString();
           this.unreadCount = Math.max(0, this.unreadCount - 1);
         } catch (e) {
           // silent
@@ -401,37 +407,155 @@ export default {
   color: #dc2626;
 }
 
-/* NOTIFICATION DROPDOWN FIXES */
-.sg3-popover-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 320px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  z-index: 1000;
-  overflow: hidden;
+/* NOTIFICATION POPPER & PANEL */
+.sg3-notifications {
+  position: relative;
 }
 
 .sg3-icon-button {
   background: transparent;
   border: none;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   position: relative;
+  transition: background 0.15s ease;
+}
+
+.sg3-icon-button:hover {
+  background: #f1f5f9;
 }
 
 .sg3-notification-badge {
-  background: #dc2626;
+  background: #ef4444;
   color: #ffffff;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.sg3-popover-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.sg3-popover-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sg3-popover-panel header div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sg3-popover-panel header strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sg3-popover-panel header span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.sg3-popover-panel header button {
+  background: transparent;
+  border: none;
+  color: #16a34a;
+  font-size: 12.5px;
   font-weight: 500;
-  padding: 1px 5px;
-  border-radius: 10px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sg3-popover-panel header button:hover {
+  text-decoration: underline;
+}
+
+.sg3-notification-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.sg3-notification-empty {
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.sg3-notification-empty p {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+.sg3-notification-item {
+  display: flex;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.sg3-notification-item:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.sg3-notification-item.is-unread {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  border-left: 3px solid #16a34a;
+}
+
+.sg3-notification-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.sg3-notification-item__content strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sg3-notification-item__content span {
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.sg3-notification-item__content time {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 </style>

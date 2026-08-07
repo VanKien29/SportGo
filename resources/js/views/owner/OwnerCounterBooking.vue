@@ -15,6 +15,115 @@
             </div>
             <!-- SECTION: Lịch sân trong ngày & Đặt booking tại quầy -->
             <div v-if="activeTab === 'counter'" class="profile-section-card">
+                <!-- Toolbar lọc ngày chơi và loại sân (Không bọc viền ngoài) -->
+                <div class="counter-schedule-toolbar" style="background: transparent; border: none; padding: 0 0 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <label style="font-size: 13.5px; font-weight: 500; color: #0f172a; white-space: nowrap;">Ngày chơi:</label>
+                        <div class="counter-date-range" style="display: flex; align-items: center; gap: 6px;">
+                            <button
+                                type="button"
+                                class="date-nav-btn"
+                                aria-label="Ngày trước"
+                                style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; cursor: pointer;"
+                                @click="shiftCounterDate(-1)"
+                            >
+                                <AppIcon name="chevronLeft" size="15" />
+                            </button>
+
+                            <div class="date-picker-wrap" style="position: relative;">
+                                <button
+                                    type="button"
+                                    class="date-range-trigger"
+                                    :class="{ open: counterDatePickerOpen }"
+                                    style="height: 36px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 13.5px; font-weight: 500; cursor: pointer;"
+                                    @click="counterDatePickerOpen = !counterDatePickerOpen"
+                                >
+                                    <AppIcon name="calendar" size="16" />
+                                    <span>{{ counterDateRangeLabel }}</span>
+                                    <AppIcon name="chevronDown" size="14" style="color: #64748b;" />
+                                </button>
+                                <div
+                                    v-if="counterDatePickerOpen"
+                                    class="counter-date-popover"
+                                    style="position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 1000;"
+                                >
+                                    <MiniCalendar
+                                        mode="range"
+                                        :dual-month="false"
+                                        :start-date="form.booking_date"
+                                        :end-date="form.booking_end_date"
+                                        :min-date="today"
+                                        @update:start-date="handleCounterStartDateUpdate"
+                                        @update:end-date="handleCounterEndDateUpdate"
+                                        @range-change="handleCounterRangeChange"
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="date-nav-btn"
+                                aria-label="Ngày sau"
+                                style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; cursor: pointer;"
+                                @click="shiftCounterDate(1)"
+                            >
+                                <AppIcon name="chevronRight" size="15" />
+                            </button>
+
+                            <button
+                                type="button"
+                                class="today-btn"
+                                style="height: 36px; padding: 0 14px; border-radius: 6px; border: 1px solid #16a34a; background: #f0fdf4; color: #16a34a; font-size: 13px; font-weight: 500; cursor: pointer;"
+                                @click="setCounterDateToday"
+                            >
+                                Hôm nay
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 10px; position: relative;">
+                        <label style="font-size: 13.5px; font-weight: 500; color: #0f172a; white-space: nowrap;">Loại sân:</label>
+                        <div class="custom-court-type-dropdown" style="position: relative;">
+                            <button
+                                type="button"
+                                class="court-type-trigger-btn"
+                                style="height: 36px; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 13.5px; font-weight: 500; cursor: pointer; min-width: 170px; outline: none;"
+                                @click="courtTypeDropdownOpen = !courtTypeDropdownOpen"
+                            >
+                                <span>{{ selectedCourtTypeName }}</span>
+                                <AppIcon name="chevronDown" size="14" style="color: #64748b;" />
+                            </button>
+
+                            <div
+                                v-if="courtTypeDropdownOpen"
+                                class="custom-dropdown-menu"
+                                style="position: absolute; top: calc(100% + 4px); right: 0; min-width: 220px; z-index: 1000; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); padding: 4px 0; max-height: 260px; overflow-y: auto;"
+                            >
+                                <div
+                                    class="dropdown-item"
+                                    :class="{ active: !selectedCourtTypeId }"
+                                    style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                    @click="selectCourtType('')"
+                                >
+                                    <span>Tất cả loại sân</span>
+                                    <AppIcon v-if="!selectedCourtTypeId" name="check" size="14" style="color: #16a34a;" />
+                                </div>
+                                <div
+                                    v-for="type in courtTypeOptions"
+                                    :key="type.id"
+                                    class="dropdown-item"
+                                    :class="{ active: String(selectedCourtTypeId) === String(type.id) }"
+                                    style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                    @click="selectCourtType(type.id)"
+                                >
+                                    <span>{{ type.name }}</span>
+                                    <AppIcon v-if="String(selectedCourtTypeId) === String(type.id)" name="check" size="14" style="color: #16a34a;" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <p v-if="selectionError" class="selection-error">
                     {{ selectionError }}
                 </p>
@@ -1982,6 +2091,7 @@ export default {
             selectedClusterDetail: null,
             selectedCourtTypeId: "",
             counterDatePickerOpen: false,
+            courtTypeDropdownOpen: false,
             scheduleSlots: [],
             scheduleCourts: [],
             scheduleSlotStatuses: [],
@@ -2586,6 +2696,13 @@ export default {
         },
         counterTotalAmount() {
             return this.selectedTotal * this.counterDateCount;
+        },
+        selectedCourtTypeName() {
+            if (!this.selectedCourtTypeId) return "Tất cả loại sân";
+            const found = (this.courtTypeOptions || []).find(
+                (t) => String(t.id) === String(this.selectedCourtTypeId),
+            );
+            return found ? found.name : "Tất cả loại sân";
         },
         recurringUnitTotal() {
             return this.activeTab === "recurring" ? this.selectedTotal : 0;
@@ -3276,6 +3393,11 @@ export default {
                 code: this.$route.query.booking_code || "",
             };
         },
+        async selectCourtType(typeId) {
+            this.selectedCourtTypeId = typeId;
+            this.courtTypeDropdownOpen = false;
+            await this.loadSchedule();
+        },
         hasRouteBookingFocus() {
             const focus = this.routeBookingFocusQuery();
             return Boolean(focus.id || focus.code);
@@ -3300,6 +3422,13 @@ export default {
         async setCounterDateToday() {
             this.form.booking_date = this.today;
             this.form.booking_end_date = this.today;
+            this.counterDatePickerOpen = false;
+            await this.handleScheduleDateChange();
+        },
+        async handleNativeDateChange(val) {
+            if (!val) return;
+            this.form.booking_date = val;
+            this.form.booking_end_date = val;
             this.counterDatePickerOpen = false;
             await this.handleScheduleDateChange();
         },
@@ -6789,15 +6918,13 @@ export default {
 
 .counter-date-popover {
     position: absolute;
-    z-index: 35;
-    top: calc(100% + 8px);
+    z-index: 1000;
+    top: calc(100% + 6px);
     left: 0;
-    width: min(300px, calc(100vw - 32px));
-    padding: 8px;
-    border: 1px solid #d9e8d9;
-    border-radius: 12px;
-    background: #fff;
-    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 :global([data-theme="dark"] .owner-counter-page .date-nav-btn),
@@ -6809,15 +6936,12 @@ export default {
 }
 
 :global([data-theme="dark"] .owner-counter-page .counter-date-popover) {
-    border-color: var(--admin-border, #164e2f);
-    background: var(--admin-surface, #0f1f17);
+    border: none !important;
+    background: transparent !important;
 }
 
-.counter-date-popover .mini-cal {
+.counter-date-popover :is(.mini-cal-card, .mini-cal) {
     max-width: 100%;
-    border: 0;
-    padding: 0;
-    box-shadow: none;
 }
 
 .readonly-field {
@@ -9582,6 +9706,28 @@ input.invalid {
     gap: 6px;
 }
 
+.custom-court-type-dropdown .court-type-trigger-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+}
+
+.custom-court-type-dropdown .court-type-trigger-btn:focus,
+.custom-court-type-dropdown .court-type-trigger-btn:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+}
+
+.custom-dropdown-menu .dropdown-item:hover {
+    background: #f1f5f9;
+    color: #16a34a;
+}
+
+.custom-dropdown-menu .dropdown-item.active {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
 .counter-date-range .date-nav-btn {
     width: 38px;
     height: 38px;
@@ -9620,6 +9766,18 @@ input.invalid {
 .counter-date-range .date-range-trigger:hover {
     background: var(--admin-hover, #f8fafc);
     border-color: var(--admin-border, #94a3b8);
+}
+
+.counter-date-range .date-range-trigger:focus,
+.counter-date-range .date-range-trigger:focus-visible,
+.counter-date-range .date-range-trigger.open,
+.counter-date-range .date-nav-btn:focus,
+.counter-date-range .date-nav-btn:focus-visible,
+.counter-date-range .today-btn:focus,
+.counter-date-range .today-btn:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
 }
 
 .counter-date-range .today-btn {

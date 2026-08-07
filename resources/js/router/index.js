@@ -83,13 +83,13 @@ const routes = [
     {
         path: "/news",
         name: "ClientNewsList",
-        component: () => import("@/views/clients/news/NewsList.vue"),
+        component: () => import("../views/clients/news/NewsList.vue"),
         meta: { requiresAuth: false, title: "Tin tức" },
     },
     {
         path: "/community",
         name: "ClientCommunityList",
-        component: () => import("@/views/clients/community/CommunityList.vue"),
+        component: () => import("../views/clients/community/CommunityList.vue"),
         meta: { requiresAuth: false, title: "Cộng đồng" },
     },
     {
@@ -100,13 +100,13 @@ const routes = [
     {
         path: "/news/:slug",
         name: "ClientNewsDetail",
-        component: () => import("@/views/clients/news/NewsDetail.vue"),
+        component: () => import("../views/clients/news/NewsDetail.vue"),
         meta: { requiresAuth: false, title: "Chi tiết tin tức" },
     },
     {
         path: "/matchmaking-posts/:id/manage",
         name: "ClientMatchmakingManage",
-        component: () => import("@/views/clients/community/MatchmakingManage.vue"),
+        component: () => import("../views/clients/community/MatchmakingManage.vue"),
         meta: { requiresAuth: true, title: "Quản lý bài giao lưu" },
     },
     {
@@ -202,8 +202,8 @@ const routes = [
     {
         path: "/become-partner",
         name: "partner-registration",
-        redirect: { name: "partner-application" },
-        meta: { requiresAuth: true },
+        component: PartnerApplicationPortal,
+        meta: { requiresAuth: false },
     },
     {
         path: "/vip-membership",

@@ -2,147 +2,49 @@
   <div class="partner-portal-page partner-client-page sg-client-page">
     <PublicNavbar />
     <main class="portal-main">
-      <!-- ───── LIST VIEW ───── -->
+      <!-- ───── LANDING PAGE VIEW ───── -->
       <template v-if="!formOpen">
-        <header class="portal-heading">
-          <div class="portal-heading-copy">
-            <p class="portal-label">SportGo Partner</p>
-            <h1 class="portal-title">Đăng ký đối tác chủ sân</h1>
-            <p class="portal-subtitle portal-subtitle--flush">Gửi hồ sơ, theo dõi tiến trình xét duyệt và ký số văn bản ngay trên nền tảng.</p>
-          </div>
-          <button v-if="canRegister" type="button" class="btn btn-primary" @click="startNewApplication">
-            <AppIcon name="plus" size="18" />
-            Đăng ký hồ sơ mới
-          </button>
-        </header>
-
-        <ol class="portal-flow" aria-label="Quy trình đăng ký đối tác">
-          <li><span>1</span><strong>Hoàn thiện hồ sơ</strong><small>Thông tin và giấy tờ</small></li>
-          <li><span>2</span><strong>Ký đơn đăng ký</strong><small>Xác thực bằng OTP</small></li>
-          <li><span>3</span><strong>SportGo xét duyệt</strong><small>Theo dõi và bổ sung</small></li>
-          <li><span>4</span><strong>Ký hợp đồng</strong><small>Kích hoạt đối tác</small></li>
-        </ol>
-
-        <section class="portal-metrics" aria-label="Tổng quan hồ sơ đối tác">
-          <article><span class="portal-metric-icon"><AppIcon name="fileText" size="16" /></span><div><strong>{{ applications.length }}</strong><span>Tổng hồ sơ</span></div></article>
-          <article><span class="portal-metric-icon is-amber"><AppIcon name="clock" size="16" /></span><div><strong>{{ reviewingCount }}</strong><span>Đang xử lý</span></div></article>
-          <article><span class="portal-metric-icon is-blue"><AppIcon name="edit" size="16" /></span><div><strong>{{ draft ? '1' : '0' }}</strong><span>Bản nháp trên máy</span></div></article>
-        </section>
-
-        <div v-if="pageError" class="portal-card application-notice application-notice--danger portal-load-error" role="alert">
-          <div>
-            <strong>Chưa thể tải trạng thái hồ sơ.</strong>
-            <span>{{ pageError }}</span>
-          </div>
-          <button type="button" class="btn btn-outline" :disabled="loading" @click="refreshApplications">
-            <AppIcon name="refresh" size="16" />
-            {{ loading ? 'Đang thử lại...' : 'Thử lại' }}
-          </button>
-        </div>
-
-        <div v-if="draft" class="draft-banner">
-          <div>
-            <p class="title">{{ draft.venue_name || 'Chưa đặt tên cụm sân' }} <span class="draft-state">— đang lưu nháp</span></p>
-            <p class="draft-time">Lưu lúc {{ formatDate(draft.saved_at) }}</p>
-          </div>
-          <div class="draft-actions">
-            <button type="button" class="btn btn-secondary draft-delete" @click="clearDraft">Xóa nháp</button>
-            <button type="button" class="btn btn-primary draft-continue" @click="continueDraft">Tiếp tục điền</button>
-          </div>
-        </div>
-
-        <div class="portal-list-heading">
-          <div><p>Hồ sơ của bạn</p><span>Chọn một hồ sơ để xem tiến trình, giấy tờ và các bước cần làm tiếp theo.</span></div>
-          <span class="portal-list-count">{{ applications.length }} hồ sơ</span>
-        </div>
-
-        <div v-if="loading" class="portal-state">
-          <p class="portal-subtitle">Đang tải hồ sơ...</p>
-        </div>
-
-        <div v-else-if="applications.length === 0 && !draft && !pageError" class="portal-card portal-state portal-state--empty">
-          <AppIcon name="fileText" size="44" />
-          <h3>Chưa có hồ sơ nào</h3>
-          <p>Bắt đầu bằng cách tạo hồ sơ đăng ký đầu tiên của bạn.</p>
-        </div>
-
-        <div v-else>
-          <article v-for="application in applications" :key="application.id" class="app-list-item">
-            <div class="application-summary">
-              <div class="application-title-row">
-                <h3>{{ application.venue_name }}</h3>
-                <span class="badge" :class="statusClass(application.status)">
-                  {{ statusLabel(application.status) }}
-                </span>
-              </div>
-              <p class="application-meta">
-                {{ application.venue_address }} • Gửi {{ formatDate(application.submitted_at) }}
-              </p>
-
-              <div v-if="application.status === 'rejected'" class="application-notice application-notice--danger">
-                <strong>Lý do từ chối:</strong> <span>{{ application.status_reason || 'SportGo chưa cung cấp lý do chi tiết.' }}</span>
-              </div>
-              <div v-if="application.status === 'need_supplement'" class="application-notice application-notice--warning">
-                <strong>Cần bổ sung hồ sơ:</strong> <span>{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</span>
-              </div>
-              <div v-if="application.status === 'contract_pending_owner_signature'" class="application-notice application-notice--success">
-                <strong>Hồ sơ đã được duyệt.</strong> <span>Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất đăng ký.</span>
-              </div>
+        <!-- User Existing Applications / Draft Notification Bar -->
+        <div v-if="draft || applications.length > 0" class="portal-user-sticky-banner">
+          <div class="portal-banner-inner">
+            <div class="portal-banner-info">
+              <AppIcon name="fileText" size="18" />
+              <span v-if="draft">Bạn đang có 1 bản nháp hồ sơ chưa gửi (Lưu lúc {{ formatDate(draft.saved_at) }})</span>
+              <span v-else>Bạn đang có <strong>{{ applications.length }}</strong> hồ sơ đối tác trên hệ thống.</span>
             </div>
-
-            <div class="app-list-actions">
-              <button
-                v-if="applicationPrimaryAction(application)"
-                type="button"
-                class="btn btn-primary"
-                :disabled="actioningApplicationId === application.id"
-                @click="runApplicationPrimaryAction(application)"
-              >
-                <AppIcon :name="applicationPrimaryAction(application).icon" size="16" />
-                {{ actioningApplicationId === application.id ? 'Đang xử lý...' : applicationPrimaryAction(application).label }}
+            <div class="portal-banner-actions">
+              <button v-if="draft" type="button" class="btn btn-sm btn-primary" @click="continueDraft">Tiếp tục điền nháp</button>
+              <button v-if="applications.length > 0" type="button" class="btn btn-sm btn-outline" @click="showApplicationsModal = true">
+                Xem hồ sơ đối tác ({{ applications.length }})
               </button>
-              <button type="button" class="btn btn-secondary action-detail" @click="openApplicationDetail(application)">
-                <AppIcon name="eye" size="16" /> Chi tiết
-              </button>
-              <details v-if="canCancel(application)" class="application-more">
-                <summary class="icon-action" title="Thao tác khác" aria-label="Thao tác khác">
-                  <AppIcon name="moreHorizontal" size="18" />
-                </summary>
-                <div class="application-more-menu">
-                  <button type="button" class="danger-menu-action" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
-                    <AppIcon name="trash" size="15" /> Hủy hồ sơ
-                  </button>
-                </div>
-              </details>
             </div>
-          </article>
+          </div>
         </div>
+
+        <!-- High-converting Partner Landing Page -->
+        <PartnerLanding @start-registration="startNewApplication" />
       </template>
 
       <!-- ───── FORM VIEW WIZARD ───── -->
       <template v-else>
-        <div class="mb-4">
-          <BackButton @click="closeForm" title="Quay lại danh sách" />
-        </div>
+        <div class="portal-form-wrapper">
+          <div class="wizard-top-header">
+            <button type="button" class="wizard-back-btn" @click="closeForm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+              <span>Quay lại</span>
+            </button>
+            <h1 class="wizard-heading-title">Thông tin đối tác và cụm sân</h1>
+            <p class="wizard-heading-sub">Hoàn thành lần lượt các nhóm thông tin bên dưới. Hồ sơ của bạn sẽ tự động được lưu nháp.</p>
+          </div>
 
-        <div class="wizard-container">
-          <header class="wizard-heading">
-            <div>
-              <p class="portal-label">Hồ sơ đăng ký</p>
-              <h1>Thông tin đối tác và cụm sân</h1>
-              <p>Hoàn thành lần lượt bốn nhóm thông tin. Bạn có thể lưu nháp để tiếp tục sau.</p>
-            </div>
-            <div class="wizard-assurance"><AppIcon name="shieldCheck" size="18" /><span>Thông tin được bảo mật và chỉ dùng cho quá trình xét duyệt đối tác.</span></div>
-            <nav class="registration-progress" aria-label="Các phần của hồ sơ">
-              <a href="#partner-step-personal"><span>1</span>Cá nhân</a>
-              <a href="#partner-step-business"><span>2</span>Kinh doanh</a>
-              <a href="#partner-step-venue"><span>3</span>Cụm sân</a>
-              <a href="#partner-step-documents"><span>4</span>Ngân hàng & file</a>
-            </nav>
-          </header>
+          <nav class="wizard-steps-nav" aria-label="Các phần của hồ sơ">
+            <a href="#partner-step-personal" class="wizard-step-link"><span>1</span>Người đăng ký</a>
+            <a href="#partner-step-business" class="wizard-step-link"><span>2</span>Kinh doanh</a>
+            <a href="#partner-step-venue" class="wizard-step-link"><span>3</span>Thông tin Cụm sân</a>
+            <a href="#partner-step-documents" class="wizard-step-link"><span>4</span>Ngân hàng & Giấy tờ</a>
+          </nav>
 
           <form class="wizard-form" novalidate @submit.prevent="submit">
-            
             <div class="wizard-body">
               <div v-if="formBanner" class="notice error mb-4 form-banner">
                 {{ formBanner }}
@@ -150,7 +52,7 @@
 
               <!-- STEP 1: Cá nhân -->
               <div id="partner-step-personal" class="step-content section-anchor">
-                <FormSection title="Thông tin người đăng ký / đại diện" :open="true">
+                <FormSection title="Thông tin người đăng ký / đại diện">
                   <div class="form-grid">
                     <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
                       <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
@@ -386,16 +288,105 @@
     </main>
 
     <FloatingActions />
-    <ConfirmActionModal
-      :is-open="Boolean(cancelTarget)"
-      title="Hủy hồ sơ đăng ký?"
-      :description="cancelTarget ? `Hồ sơ ${cancelTarget.venue_name || ''} sẽ ngừng xử lý. Các tài liệu đã nộp vẫn được lưu để tra cứu.` : ''"
-      confirm-text="Hủy hồ sơ"
-      :loading="Boolean(cancelTarget && actioningApplicationId === cancelTarget.id)"
-      :error="cancelError"
-      @close="closeCancelConfirmation"
-      @confirm="confirmCancelApplication"
-    />
+    <Teleport to="body">
+      <div v-if="showApplicationsModal" class="portal-modal-backdrop" @click.self="showApplicationsModal = false">
+        <div class="portal-modal-container">
+          <header class="portal-modal-header">
+            <div>
+              <h3>Quản lý hồ sơ đối tác của bạn</h3>
+              <p>Theo dõi tiến trình xét duyệt, bổ sung giấy tờ hoặc ký hợp đồng</p>
+            </div>
+            <button type="button" class="portal-modal-close" @click="showApplicationsModal = false">✕</button>
+          </header>
+
+          <div class="portal-modal-body">
+            <!-- Draft Item -->
+            <article v-if="draft" class="app-list-item draft-item" style="margin-bottom: 16px;">
+              <div class="application-summary">
+                <div class="application-title-row">
+                  <h3>{{ draft.venue_name || 'Chưa đặt tên cụm sân' }}</h3>
+                  <span class="badge badge-amber">Bản nháp trên máy</span>
+                </div>
+                <p class="application-meta">
+                  Lưu nháp • {{ formatDate(draft.saved_at) }}
+                </p>
+              </div>
+
+              <div class="app-list-actions">
+                <button type="button" class="btn btn-primary" @click="continueDraft(); showApplicationsModal = false;">
+                  <AppIcon name="edit" size="16" /> Tiếp tục điền
+                </button>
+                <details class="application-more">
+                  <summary class="icon-action" title="Thao tác khác" aria-label="Thao tác khác">
+                    <AppIcon name="moreHorizontal" size="18" />
+                  </summary>
+                  <div class="application-more-menu">
+                    <button type="button" class="danger-menu-action" @click="clearDraft">
+                      <AppIcon name="trash" size="15" /> Xóa nháp
+                    </button>
+                  </div>
+                </details>
+              </div>
+            </article>
+
+            <div v-if="applications.length > 0" class="applications-stack">
+              <article v-for="application in applications" :key="application.id" class="app-list-item" style="margin-bottom: 16px;">
+                <div class="application-summary">
+                  <div class="application-title-row">
+                    <h3>{{ application.venue_name }}</h3>
+                    <span class="badge" :class="statusClass(application.status)">
+                      {{ statusLabel(application.status) }}
+                    </span>
+                  </div>
+                  <p class="application-meta">
+                    {{ application.venue_address }} • Gửi {{ formatDate(application.submitted_at) }}
+                  </p>
+
+                  <div v-if="application.status === 'rejected'" class="application-notice application-notice--danger">
+                    <strong>Lý do từ chối:</strong> <span>{{ application.status_reason || 'SportGo chưa cung cấp lý do chi tiết.' }}</span>
+                  </div>
+                  <div v-if="application.status === 'need_supplement'" class="application-notice application-notice--warning">
+                    <strong>Cần bổ sung hồ sơ:</strong> <span>{{ application.status_reason || 'Vui lòng liên hệ SportGo để biết thêm chi tiết.' }}</span>
+                  </div>
+                  <div v-if="application.status === 'contract_pending_owner_signature'" class="application-notice application-notice--success">
+                    <strong>Hồ sơ đã được duyệt.</strong> <span>Hợp đồng hợp tác đã sẵn sàng. Vui lòng xem và ký hợp đồng để hoàn tất đăng ký.</span>
+                  </div>
+                </div>
+
+                <div class="app-list-actions">
+                  <button
+                    v-if="applicationPrimaryAction(application)"
+                    type="button"
+                    class="btn btn-primary"
+                    :disabled="actioningApplicationId === application.id"
+                    @click="runApplicationPrimaryAction(application); showApplicationsModal = false;"
+                  >
+                    <AppIcon :name="applicationPrimaryAction(application).icon" size="16" />
+                    {{ actioningApplicationId === application.id ? 'Đang xử lý...' : applicationPrimaryAction(application).label }}
+                  </button>
+                  <button type="button" class="btn btn-secondary action-detail" @click="openApplicationDetail(application); showApplicationsModal = false;">
+                    <AppIcon name="eye" size="16" /> Chi tiết
+                  </button>
+                  <details v-if="canCancel(application)" class="application-more">
+                    <summary class="icon-action" title="Thao tác khác" aria-label="Thao tác khác">
+                      <AppIcon name="moreHorizontal" size="18" />
+                    </summary>
+                    <div class="application-more-menu">
+                      <button type="button" class="danger-menu-action" :disabled="actioningApplicationId === application.id" @click="cancelApplication(application)">
+                        <AppIcon name="trash" size="15" /> Hủy hồ sơ
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              </article>
+            </div>
+            <div v-else-if="!draft" class="portal-empty-state" style="text-align: center; padding: 32px 0;">
+              <p>Chưa có hồ sơ nào.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -408,6 +399,7 @@ import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import PublicNavbar from '../../components/PublicNavbar.vue';
+import PartnerLanding from './PartnerLanding.vue';
 import ConfirmActionModal from '../../components/ConfirmActionModal.vue';
 import FloatingActions from '../../components/FloatingActions.vue';
 import BackButton from '../../components/BackButton.vue';
@@ -429,13 +421,11 @@ const FormSection = defineComponent({
   name: 'FormSection',
   props: {
     title: { type: String, required: true },
-    open: { type: Boolean, default: false },
   },
   setup(props, { slots, attrs }) {
-    return () => h('details', { ...attrs, class: ['portal-card', 'form-section', attrs.class], open: props.open }, [
-      h('summary', { class: 'form-section-summary' }, [
+    return () => h('div', { ...attrs, class: ['portal-card', 'form-section', attrs.class] }, [
+      h('div', { class: 'form-section-header' }, [
         h('h2', { class: 'form-section-title' }, props.title),
-        h('span', { class: 'form-section-chevron', 'aria-hidden': 'true' }, '⌄'),
       ]),
       h('div', { class: 'form-section-body' }, slots.default?.()),
     ]);
@@ -452,8 +442,7 @@ const FormField = defineComponent({
   setup(props, { slots, attrs }) {
     return () => h('div', { class: ['form-group', attrs.class] }, [
       h('label', { class: 'form-label' }, [
-        props.label,
-        props.required ? h('span', { class: 'required' }, '* ') : null,
+        h('span', { class: 'form-label-text' }, props.label),
       ]),
       slots.default?.(),
       props.error ? h('p', { class: 'error-text' }, props.error) : null,
@@ -473,6 +462,7 @@ const canRegister = ref(false);
 const pageError = ref('');
 const draft = ref(null);
 const formOpen = ref(false);
+const showApplicationsModal = ref(false);
 const fieldErrors = reactive({});
 const formBanner = ref('');
 const provinces = ref([]);
@@ -547,6 +537,14 @@ onBeforeUnmount(() => {
   clearTimeout(mapTimer.value);
   destroyMapPicker();
 });
+
+watch(() => route.name, (name) => {
+  if (name === 'partner-application') {
+    formOpen.value = true;
+  } else if (name === 'partner-registration') {
+    formOpen.value = false;
+  }
+}, { immediate: true });
 
 watch(() => form.venue_province_code, async (code, old) => {
   if (code !== old) { form.venue_ward_code = ''; wards.value = []; await loadWards(code); syncVenueAddress(); }
@@ -657,7 +655,11 @@ function startNewApplication() {
   editingApplicationId.value = '';
   editingApplicationStatus.value = '';
   resetForm(defaultForm(user));
-  formOpen.value = true;
+  if (route.name !== 'partner-application') {
+    router.push({ name: 'partner-application' });
+  } else {
+    formOpen.value = true;
+  }
 }
 
 function resetForm(next) {
@@ -690,7 +692,9 @@ function closeForm(event) {
   persistDraft(false);
   formOpen.value = false;
 
-  if (route.query.editDraft) {
+  if (route.name !== 'partner-registration') {
+    router.push({ name: 'partner-registration' });
+  } else if (route.query.editDraft) {
     const query = { ...route.query };
     delete query.editDraft;
     router.replace({ query });
@@ -1476,3 +1480,628 @@ function money(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n);
 }
 </script>
+
+<style scoped>
+.portal-user-sticky-banner {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 12px 24px;
+}
+
+.portal-banner-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.portal-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.portal-banner-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.portal-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.portal-modal-container {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.portal-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.portal-modal-header h3 {
+  font-size: 18px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.portal-modal-header p {
+  font-size: 13px;
+  font-weight: 400;
+  color: #64748b;
+  margin: 0;
+}
+
+.portal-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.portal-modal-close:hover {
+  color: #0f172a;
+}
+
+.portal-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.draft-banner {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 16px 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: none !important;
+}
+
+.draft-banner .title {
+  color: #0f172a !important;
+  font-weight: 500 !important;
+  font-size: 15px !important;
+}
+
+.draft-state {
+  color: #d97706 !important;
+  font-weight: 400 !important;
+}
+
+.draft-time {
+  margin-top: 4px !important;
+  color: #475569 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+.draft-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.draft-delete {
+  background: transparent !important;
+  border: none !important;
+  color: #dc2626 !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  padding: 6px 12px !important;
+}
+
+.draft-delete:hover {
+  text-decoration: underline !important;
+}
+
+.draft-continue {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+.draft-continue:hover {
+  background: #15803d !important;
+}
+
+/* WIZARD FORM REDESIGN */
+.portal-form-wrapper {
+  max-width: 960px;
+  margin: 32px auto 60px;
+  padding: 0 20px;
+}
+
+.wizard-top-header {
+  margin-bottom: 24px;
+}
+
+.wizard-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wizard-back-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.wizard-heading-title {
+  font-size: 24px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 12px 0 6px;
+}
+
+.wizard-heading-sub {
+  font-size: 14px;
+  font-weight: 400;
+  color: #475569;
+  margin: 0;
+}
+
+.wizard-steps-nav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.wizard-step-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #475569;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.wizard-step-link span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.wizard-step-link:hover,
+.wizard-step-link.is-active {
+  border-color: #16a34a;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.wizard-step-link.is-active span {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.form-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.form-section-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.form-section-title {
+  font-size: 17px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.form-group.full-width {
+  grid-column: span 2;
+}
+
+.form-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+  width: 100% !important;
+  margin-bottom: 6px !important;
+}
+
+.form-label-text {
+  display: inline !important;
+  width: auto !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #1e293b !important;
+}
+
+.form-label span.required,
+.required {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: max-content !important;
+  flex: 0 0 auto !important;
+  color: #dc2626 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  margin: 0 0 0 2px !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 400;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.confirmation-card {
+  margin-top: 24px !important;
+  padding: 16px 20px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.confirmation-card.has-error {
+  border-color: #fca5a5 !important;
+  background: #fef2f2 !important;
+}
+
+.confirmation-label {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+  user-select: none !important;
+}
+
+.confirmation-label input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  accent-color: #16a34a !important;
+  margin-top: 2px !important;
+  cursor: pointer !important;
+}
+
+.confirmation-label span {
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #1e293b !important;
+  line-height: 1.5 !important;
+}
+
+.confirmation-error {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  color: #dc2626 !important;
+  margin-bottom: 0 !important;
+}
+
+.wizard-footer {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-top: 24px !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+  gap: 16px !important;
+}
+
+.wizard-footer-note {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: #64748b !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+.wizard-footer-note svg {
+  color: #64748b !important;
+  flex-shrink: 0 !important;
+}
+
+.wizard-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.wizard-actions .btn-outline {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 42px !important;
+  padding: 0 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  color: #334155 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.wizard-actions .btn-outline:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.wizard-actions .btn-primary {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  height: 42px !important;
+  padding: 0 24px !important;
+  background: #16a34a !important;
+  border: 1px solid #16a34a !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 3px 0 rgba(22, 163, 74, 0.25) !important;
+}
+
+.wizard-actions .btn-primary:hover {
+  background: #15803d !important;
+  border-color: #15803d !important;
+}
+
+.wizard-actions .btn-primary:disabled {
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
+}
+
+/* MAP PICKER & BUTTONS */
+.map-picker-shell {
+  width: 100%;
+  margin-top: 8px;
+}
+
+#partner-application-map {
+  width: 100%;
+  height: 280px !important;
+  min-height: 280px !important;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+  z-index: 1;
+  background: #f1f5f9;
+}
+
+.map-coordinate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.current-location-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  padding: 8px 14px !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  margin-top: 12px !important;
+  box-shadow: none !important;
+}
+
+.current-location-button:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+.map-help {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+/* COURT CONFIG ROWS */
+.court-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.court-config-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.court-config-row .btn-danger {
+  height: 42px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.court-config-row .btn-danger:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+/* AMENITIES CHECKBOX LIST */
+.amenities-field {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.amenities-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.amenities-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.amenity-option {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 14px !important;
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  width: auto !important;
+  box-sizing: border-box !important;
+}
+
+.amenity-option:hover {
+  border-color: #16a34a !important;
+  background: #f0fdf4 !important;
+}
+
+.amenity-option.selected {
+  border-color: #16a34a !important;
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+  font-weight: 500 !important;
+}
+
+.amenity-option input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  accent-color: #16a34a !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .court-config-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -40,7 +40,7 @@
         <div class="mini-cal-months-body">
             <!-- Month 1 -->
             <div class="mini-cal-month-panel">
-                <div class="mini-cal-month-heading">
+                <div v-if="isDual" class="mini-cal-month-heading">
                     {{ month1Title }}
                 </div>
                 <div class="mini-cal-weekdays">
@@ -104,11 +104,11 @@
 </template>
 
 <script>
-const MONTH_NAMES_EN = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+const MONTH_NAMES_VI = [
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
 ];
-const WEEKDAY_LABELS_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const WEEKDAY_LABELS_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 function toIso(date) {
     const y = date.getFullYear();
@@ -136,7 +136,7 @@ export default {
         highlightStartDate: { type: String, default: '' },
         highlightEndDate: { type: String, default: '' },
         markedDates: { type: Array, default: () => [] },
-        dualMonth: { type: Boolean, default: true },
+        dualMonth: { type: Boolean, default: false },
     },
     emits: [
         'update:modelValue',
@@ -158,7 +158,7 @@ export default {
             viewYear: ref.getFullYear(),
             hoverDate: '',
             rangeSelecting: false,
-            weekDayLabels: WEEKDAY_LABELS_EN,
+            weekDayLabels: WEEKDAY_LABELS_VI,
         };
     },
     computed: {
@@ -166,15 +166,15 @@ export default {
             return this.dualMonth;
         },
         primaryMonthYearLabel() {
-            return `${MONTH_NAMES_EN[this.viewMonth]} ${this.viewYear}`;
+            return `${MONTH_NAMES_VI[this.viewMonth]} năm ${this.viewYear}`;
         },
         month1Title() {
-            return `${MONTH_NAMES_EN[this.viewMonth]} ${this.viewYear}`;
+            return `${MONTH_NAMES_VI[this.viewMonth]} năm ${this.viewYear}`;
         },
         month2Title() {
             const nextM = (this.viewMonth + 1) % 12;
             const nextY = this.viewMonth === 11 ? this.viewYear + 1 : this.viewYear;
-            return `${MONTH_NAMES_EN[nextM]} ${nextY}`;
+            return `${MONTH_NAMES_VI[nextM]} năm ${nextY}`;
         },
         todayIso() {
             return toIso(new Date());
