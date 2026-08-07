@@ -762,6 +762,7 @@
 <script>
 import { bookingService } from "../../services/bookingService.js";
 import { ownerScheduleLockService } from "../../services/ownerScheduleLocks.js";
+import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import MiniCalendar from "../../components/MiniCalendar.vue";
 
@@ -774,6 +775,7 @@ export default {
         return {
             today,
             selectedClusterId: localStorage.getItem("selected_cluster") || "",
+            selectedClusterDetail: null,
             locks: [],
             scheduleSlots: [],
             scheduleCourts: [],
@@ -995,33 +997,74 @@ export default {
                 slotEnds.length ? Math.max(...slotEnds) : 22 * 60,
                 open + 30,
             );
-            const ranges = [
-                {
-                    key: "morning",
-                    label: "Sáng",
-                    startMinutes: open,
-                    endMinutes: Math.min(close, 12 * 60),
-                },
-                {
-                    key: "afternoon",
-                    label: "Chiều",
-                    startMinutes: Math.max(open, 12 * 60),
-                    endMinutes: Math.min(close, 18 * 60),
-                },
-                {
-                    key: "evening",
-                    label: "Tối",
-                    startMinutes: Math.max(open, 18 * 60),
-                    endMinutes: close,
-                },
-            ]
-                .filter((range) => range.endMinutes > range.startMinutes)
-                .map((range) => ({
-                    ...range,
-                    start: this.minutesToTime(range.startMinutes),
-                    end: this.minutesToTime(range.endMinutes),
-                    range: `${this.minutesToTime(range.startMinutes)} - ${this.minutesToTime(range.endMinutes)}`,
+            const configuredPeriods =
+                this.selectedClusterDetail?.booking_config?.custom_time_periods;
+
+            let raw = [];
+            if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
+                raw = configuredPeriods.map((p, idx) => ({
+                    key: `custom_${idx}`,
+                    label: p.label,
+                    startMinutes: this.minutes(p.start_time),
+                    endMinutes: this.minutes(p.end_time),
                 }));
+            } else {
+                raw = [
+                    {
+                        key: "morning",
+                        label: "Sáng",
+                        startMinutes: open,
+                        endMinutes: Math.min(close, 12 * 60),
+                    },
+                    {
+                        key: "afternoon",
+                        label: "Chiều",
+                        startMinutes: Math.max(open, 12 * 60),
+                        endMinutes: Math.min(close, 18 * 60),
+                    },
+                    {
+                        key: "evening",
+                        label: "Tối",
+                        startMinutes: Math.max(open, 18 * 60),
+                        endMinutes: close,
+                    },
+                ];
+            }
+
+            const ranges = raw
+                .filter((range) => {
+                    if (range.endMinutes <= range.startMinutes) return false;
+                    const hasSlots = this.scheduleSlots.some((slot) => {
+                        const start = this.minutes(slot.start_time);
+                        return start >= range.startMinutes && start < range.endMinutes;
+                    });
+                    const overlapsOperating = range.startMinutes < close && range.endMinutes > open;
+                    return hasSlots || overlapsOperating;
+                })
+                .map((range) => {
+                    const clampedStart = Math.max(range.startMinutes, open);
+                    const clampedEnd = Math.min(range.endMinutes, close);
+                    return {
+                        ...range,
+                        startMinutes: clampedStart,
+                        endMinutes: clampedEnd,
+                        start: this.minutesToTime(clampedStart),
+                        end: this.minutesToTime(clampedEnd),
+                        range: `${this.minutesToTime(range.startMinutes)} - ${this.minutesToTime(range.endMinutes)}`,
+                    };
+                });
+
+            if (ranges.length > 1) {
+                ranges.push({
+                    key: "all",
+                    label: "Cả ngày",
+                    startMinutes: open,
+                    endMinutes: close,
+                    start: this.minutesToTime(open),
+                    end: this.minutesToTime(close),
+                    range: `${this.minutesToTime(open)} - ${this.minutesToTime(close)}`,
+                });
+            }
 
             return ranges.length
                 ? ranges
@@ -1057,6 +1100,14 @@ export default {
             return {
                 gridTemplateColumns: `minmax(150px, .9fr) repeat(${this.activePeriodSlots.length}, minmax(54px, 1fr))`,
             };
+        },
+    },
+    watch: {
+        dynamicQuickRanges: {
+            handler() {
+                this.ensureActiveTimePeriod();
+            },
+            immediate: true,
         },
     },
     async mounted() {
@@ -1127,11 +1178,22 @@ export default {
             }
 
             try {
-                await Promise.all([this.loadSchedule(), this.loadLocks()]);
+                await Promise.all([this.loadSchedule(), this.loadLocks(), this.loadClusterDetail()]);
             } catch (error) {
                 this.error = error.message || "Không thể tải lịch sân.";
             } finally {
                 this.loading = false;
+            }
+        },
+        async loadClusterDetail() {
+            if (!this.selectedClusterId) return;
+            try {
+                const response = await ownerBookingConfigService.list();
+                this.selectedClusterDetail = (response.data || []).find(
+                    (cluster) => String(cluster.id) === String(this.selectedClusterId),
+                ) || null;
+            } catch {
+                this.selectedClusterDetail = null;
             }
         },
         async loadSchedule() {
@@ -1815,6 +1877,7 @@ export default {
 .cluster-profile-surface {
     display: flex;
     flex-direction: column;
+    gap: 0 !important;
     background: var(--admin-surface, #ffffff);
     border-radius: 0;
     overflow: hidden;
@@ -1822,14 +1885,15 @@ export default {
 }
 
 .profile-section-card {
-    padding: 10px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
 }
 
 .profile-section-card + .profile-section-card {
-    border-top: none;
+    border-top: none !important;
+    margin-top: 0 !important;
 }
 
 .tab-section-header {

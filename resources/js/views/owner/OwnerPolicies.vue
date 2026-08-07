@@ -14,18 +14,18 @@
       Cụm sân đang ở trạng thái {{ currentCluster.status }}. Một số thay đổi có thể cần admin kiểm tra.
     </div>
 
-    <div class="profile-section-card policies-main-content">
-
-      <!-- Integrated AppTabs -->
-      <div class="policies-header-hero">
-        <div class="hero-integrated-tabs">
-          <AppTabs
-            :tabs="policyTabsForAppTabs"
-            :model-value="tab"
-            @update:model-value="selectPolicyTab"
-          />
-        </div>
+    <!-- Integrated AppTabs -->
+    <div class="policies-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="policyTabsForAppTabs"
+          :model-value="tab"
+          @update:model-value="selectPolicyTab"
+        />
       </div>
+    </div>
+
+    <div class="profile-section-card policies-main-content">
 
       <section v-if="tab === 'rules'" class="policy-section">
         <div class="inheritance-flow">
@@ -677,6 +677,13 @@ export default {
   gap: 16px;
 }
 
+.policies-header-hero {
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
+  display: flex;
+  align-items: center;
+}
+
 /* Single unified main surface */
 .profile-section-card.policies-main-content {
   display: flex;
@@ -684,16 +691,10 @@ export default {
   gap: 16px;
   padding: 10px;
   background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border, #e2e8f0);
+  border: none;
   border-radius: 0;
   box-shadow: none;
-}
-
-.policies-header-hero {
-  background: transparent;
-  padding: 0;
-  display: flex;
-  align-items: center;
+  margin-top: 0 !important;
 }
 
 .hero-integrated-tabs {

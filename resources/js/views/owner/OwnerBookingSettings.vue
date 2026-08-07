@@ -58,13 +58,22 @@
         <header class="section-head split">
           <div>
             <h3>Cấu hình các ca / khung giờ chơi</h3>
-            <p class="section-sub">Tùy chỉnh tên ca và khoảng giờ cho từng ca (Sáng, Chiều, Tối, Đêm, Khuya...) để chọn nhanh trên lịch.</p>
           </div>
           <div class="head-actions" style="display: flex; gap: 8px;">
             <button class="secondary-btn" type="button" @click="resetDefaultPeriods">Khôi phục mặc định</button>
             <button class="secondary-btn" type="button" @click="addCustomPeriod">+ Thêm ca</button>
           </div>
         </header>
+
+        <div v-if="periodsOutsideOperatingRange.length" class="period-warning-box" style="margin-bottom: 12px; padding: 12px 16px; background: #fffbebf5; border: 1px solid #fcd34d; border-radius: 8px; font-size: 13px; color: #92400e; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div>
+            <strong>Phát hiện {{ periodsOutsideOperatingRange.length }} ca nằm ngoài Giờ hoạt động hiện tại ({{ form.fixed_open_time }} – {{ form.fixed_close_time }})</strong>
+            <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Các ca vượt ngoài giờ mở cửa sẽ không có ô trống nào trên lịch trừ khi bạn mở rộng Giờ hoạt động của sân.</p>
+          </div>
+          <button type="button" class="secondary-btn" style="white-space: nowrap; background: #fef3c7; border-color: #f59e0b; color: #78350f; font-weight: 600;" @click="expandOperatingHoursToFitPeriods">
+            Mở rộng giờ hoạt động sân
+          </button>
+        </div>
 
         <div v-if="!form.custom_time_periods.length" class="empty-row">Đang sử dụng các ca chia tự động theo giờ mở/đóng cửa. Bấm "+ Thêm ca" hoặc "Khôi phục mặc định" để cấu hình.</div>
         <div v-else class="period-config-list">
@@ -216,39 +225,76 @@
             </small>
           </span>
         </label>
-        <div class="membership-table">
-          <div class="membership-row membership-head">
-            <span>Hạng</span>
-            <span>Tên hiển thị</span>
-            <span>Trạng thái</span>
-            <span>Voucher đi kèm</span>
-            <span>Giảm (%)</span>
-            <span>Booking lên hạng</span>
-            <span>Chi tiêu lên hạng (VNĐ)</span>
-            <span>Kỳ duy trì/ tháng</span>
-            <span>Số lượng Booking duy trì</span>
-            <span>Chi tiêu duy trì (VNĐ)</span>
-          </div>
-          <div v-for="tier in form.membership_tiers" :key="tier.tier_key" class="membership-row">
-            <strong>{{ tier.label }}</strong>
-            <input v-model.trim="tier.tier_label" type="text" maxlength="80">
-            <select v-model="tier.is_active" :disabled="tier.tier_key === 'standard'">
-              <option :value="true">Bật</option>
-              <option :value="false">Tắt</option>
-            </select>
-            <select v-model="tier.voucher_id">
-              <option :value="null">Không gắn</option>
-              <option v-for="voucher in membershipVoucherOptions" :key="voucher.id" :value="voucher.id">
-                {{ voucher.code }} - {{ voucher.name }}
-              </option>
-            </select>
-            <input v-model.trim="tier.discount_percent" type="text" inputmode="decimal">
-            <input v-model.trim="tier.min_completed_bookings" type="text" inputmode="numeric">
-            <input v-model.trim="tier.min_spend_amount" type="text" inputmode="decimal">
-            <input v-model.trim="tier.maintain_period_months" type="text" inputmode="numeric" placeholder="Trống">
-            <input v-model.trim="tier.maintain_min_bookings" type="text" inputmode="numeric" placeholder="Trống">
-            <input v-model.trim="tier.maintain_min_spend_amount" type="text" inputmode="decimal" placeholder="Trống">
-          </div>
+        <div class="membership-table-wrapper">
+          <table class="membership-grid-table">
+            <thead>
+              <tr>
+                <th class="col-tier">Hạng</th>
+                <th class="col-label">Tên hiển thị</th>
+                <th class="col-status">Trạng thái</th>
+                <th class="col-voucher">Voucher đi kèm</th>
+                <th class="col-num">Giảm (%)</th>
+                <th class="col-num">Booking lên hạng</th>
+                <th class="col-money">Chi tiêu lên hạng</th>
+                <th class="col-num">Duy trì (Tháng)</th>
+                <th class="col-num">Booking duy trì</th>
+                <th class="col-money">Chi tiêu duy trì</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="tier in form.membership_tiers" :key="tier.tier_key" :class="['tier-row', `tier-${tier.tier_key}`]">
+                <td class="col-tier">
+                  <span :class="['tier-badge', `badge-${tier.tier_key}`]">
+                    {{ tier.label }}
+                  </span>
+                </td>
+                <td class="col-label">
+                  <input v-model.trim="tier.tier_label" type="text" class="table-input" maxlength="80">
+                </td>
+                <td class="col-status">
+                  <select v-model="tier.is_active" :disabled="tier.tier_key === 'standard'" class="table-select status-select">
+                    <option :value="true">Đang bật</option>
+                    <option :value="false">Đang tắt</option>
+                  </select>
+                </td>
+                <td class="col-voucher">
+                  <select v-model="tier.voucher_id" class="table-select">
+                    <option :value="null">-- Không gắn --</option>
+                    <option v-for="voucher in membershipVoucherOptions" :key="voucher.id" :value="voucher.id">
+                      {{ voucher.code }} - {{ voucher.name }}
+                    </option>
+                  </select>
+                </td>
+                <td class="col-num">
+                  <div class="table-input-unit">
+                    <input v-model.trim="tier.discount_percent" type="text" inputmode="decimal" class="table-input">
+                    <span>%</span>
+                  </div>
+                </td>
+                <td class="col-num">
+                  <input v-model.trim="tier.min_completed_bookings" type="text" inputmode="numeric" class="table-input">
+                </td>
+                <td class="col-money">
+                  <div class="table-input-unit">
+                    <input v-model.trim="tier.min_spend_amount" type="text" inputmode="decimal" class="table-input">
+                    <span>đ</span>
+                  </div>
+                </td>
+                <td class="col-num">
+                  <input v-model.trim="tier.maintain_period_months" type="text" inputmode="numeric" class="table-input" placeholder="—">
+                </td>
+                <td class="col-num">
+                  <input v-model.trim="tier.maintain_min_bookings" type="text" inputmode="numeric" class="table-input" placeholder="—">
+                </td>
+                <td class="col-money">
+                  <div class="table-input-unit">
+                    <input v-model.trim="tier.maintain_min_spend_amount" type="text" inputmode="decimal" class="table-input" placeholder="—">
+                    <span>đ</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <div v-if="membershipValidationMessages.length" class="membership-inline-errors" role="alert">
           <span v-for="message in membershipValidationMessages" :key="message">{{ message }}</span>
@@ -470,11 +516,49 @@ export default {
 
       return [...new Set(messages)];
     },
+    periodsOutsideOperatingRange() {
+      const open = this.timeToMinutes(this.form?.fixed_open_time || '06:00');
+      const close = this.timeToMinutes(this.form?.fixed_close_time || '22:00');
+      return (this.form?.custom_time_periods || []).filter((p) => {
+        if (!p.start_time || !p.end_time) return false;
+        const start = this.timeToMinutes(p.start_time);
+        const end = this.timeToMinutes(p.end_time);
+        return start < open || end > close;
+      });
+    },
+    suggestedOperatingHoursForPeriods() {
+      if (!this.form?.custom_time_periods || !this.form.custom_time_periods.length) return null;
+      let minStart = 24 * 60;
+      let maxEnd = 0;
+      this.form.custom_time_periods.forEach((p) => {
+        if (!p.start_time || !p.end_time) return;
+        const start = this.timeToMinutes(p.start_time);
+        const end = this.timeToMinutes(p.end_time);
+        if (start < minStart) minStart = start;
+        if (end > maxEnd) maxEnd = end;
+      });
+
+      if (minStart >= maxEnd) return null;
+      return {
+        open_time: this.minutesToTime(minStart),
+        close_time: this.minutesToTime(maxEnd),
+      };
+    },
   },
   watch: {
     selectedClusterId(value) {
       if (value) localStorage.setItem('selected_cluster', value);
       this.syncForm();
+    },
+    'form.fixed_open_time'(newVal, oldVal) {
+      if (oldVal && newVal !== oldVal) {
+        this.syncPeriodsWithOperatingHours();
+      }
+    },
+    'form.fixed_close_time'(newVal, oldVal) {
+      if (oldVal && newVal !== oldVal) {
+        this.syncPeriodsWithOperatingHours();
+      }
     },
   },
   async mounted() {
@@ -529,13 +613,35 @@ export default {
         { tier_key: 'diamond', label: 'Kim cương', tier_label: 'Kim cương', is_active: true, voucher_id: null, discount_percent: 8, min_completed_bookings: 30, min_spend_amount: 5000000, maintain_period_months: null, maintain_min_bookings: null, maintain_min_spend_amount: null },
       ];
     },
+    minutesToTime(minutes) {
+      if (minutes >= 1440) return '24:00';
+      const h = String(Math.floor(minutes / 60)).padStart(2, '0');
+      const m = String(minutes % 60).padStart(2, '0');
+      return `${h}:${m}`;
+    },
     defaultCustomPeriods() {
+      const open = this.timeToMinutes(this.form?.fixed_open_time || '06:00');
+      const close = this.timeToMinutes(this.form?.fixed_close_time || '22:00');
+      const candidates = [
+        { label: 'Khuya', start: open, end: Math.min(close, 6 * 60) },
+        { label: 'Sáng', start: Math.max(open, 6 * 60), end: Math.min(close, 12 * 60) },
+        { label: 'Chiều', start: Math.max(open, 12 * 60), end: Math.min(close, 18 * 60) },
+        { label: 'Tối', start: Math.max(open, 18 * 60), end: Math.min(close, 22 * 60) },
+        { label: 'Đêm', start: Math.max(open, 22 * 60), end: close },
+      ];
+
+      const valid = candidates.filter((item) => item.end > item.start);
+      if (valid.length) {
+        return valid.map((item) => ({
+          _key: this.specialKey(),
+          label: item.label,
+          start_time: this.minutesToTime(item.start),
+          end_time: this.minutesToTime(item.end),
+        }));
+      }
+
       return [
-        { _key: this.specialKey(), label: 'Khuya', start_time: '00:00', end_time: '06:00' },
-        { _key: this.specialKey(), label: 'Sáng', start_time: '06:00', end_time: '12:00' },
-        { _key: this.specialKey(), label: 'Chiều', start_time: '12:00', end_time: '18:00' },
-        { _key: this.specialKey(), label: 'Tối', start_time: '18:00', end_time: '22:00' },
-        { _key: this.specialKey(), label: 'Đêm', start_time: '22:00', end_time: '24:00' },
+        { _key: this.specialKey(), label: 'Ca 1', start_time: this.minutesToTime(open), end_time: this.minutesToTime(close) },
       ];
     },
     defaultForm() {
@@ -579,6 +685,63 @@ export default {
     resetDefaultPeriods() {
       this.form.custom_time_periods = this.defaultCustomPeriods();
       this.notice = '';
+    },
+    expandOperatingHoursToFitPeriods() {
+      const suggested = this.suggestedOperatingHoursForPeriods;
+      if (!suggested) return;
+      const curOpen = this.timeToMinutes(this.form.fixed_open_time);
+      const curClose = this.timeToMinutes(this.form.fixed_close_time);
+      const sugOpen = this.timeToMinutes(suggested.open_time);
+      const sugClose = this.timeToMinutes(suggested.close_time);
+
+      if (sugOpen < curOpen) {
+        this.form.fixed_open_time = suggested.open_time;
+      }
+      if (sugClose > curClose) {
+        this.form.fixed_close_time = suggested.close_time;
+      }
+      const toast = useToast();
+      toast.success(`Đã mở rộng Giờ hoạt động sân thành ${this.form.fixed_open_time} – ${this.form.fixed_close_time} để phủ hết các ca chơi!`);
+    },
+    syncPeriodsWithOperatingHours() {
+      if (!this.form?.custom_time_periods || !this.form.custom_time_periods.length) return;
+      const open = this.timeToMinutes(this.form.fixed_open_time || '06:00');
+      const close = this.timeToMinutes(this.form.fixed_close_time || '22:00');
+
+      let changed = false;
+      const newPeriods = [];
+
+      this.form.custom_time_periods.forEach((p) => {
+        if (!p.start_time || !p.end_time) return;
+        const origStart = this.timeToMinutes(p.start_time);
+        const origEnd = this.timeToMinutes(p.end_time);
+
+        if (origEnd <= open || origStart >= close) {
+          changed = true;
+          return;
+        }
+
+        const newStart = Math.max(origStart, open);
+        const newEnd = Math.min(origEnd, close);
+
+        if (newStart !== origStart || newEnd !== origEnd) {
+          changed = true;
+        }
+
+        if (newEnd > newStart) {
+          newPeriods.push({
+            ...p,
+            start_time: this.minutesToTime(newStart),
+            end_time: this.minutesToTime(newEnd),
+          });
+        }
+      });
+
+      if (changed) {
+        this.form.custom_time_periods = newPeriods;
+        const toast = useToast();
+        toast.info('Đã tự động điều chỉnh lại danh sách các ca chơi cho khớp với giờ mở/đóng cửa mới của sân.');
+      }
     },
     validOperatingRange(openTime, closeTime) {
       const duration = this.timeToMinutes(closeTime) - this.timeToMinutes(openTime);
@@ -1135,30 +1298,142 @@ export default {
   font-weight: 400;
 }
 
-.membership-table {
-  display: grid;
-  gap: 8px;
-  overflow: auto;
+.membership-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 12px;
+  background: var(--admin-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-top: 14px;
 }
 
-.membership-row {
-  display: grid;
-  grid-template-columns: 110px 150px 100px minmax(180px, 1.2fr) repeat(6, minmax(110px, 1fr));
-  gap: 8px;
-  align-items: center;
-  min-width: 1280px;
+.membership-grid-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
 }
 
-.membership-row strong {
-  color: var(--admin-text, #0f172a);
-}
-
-.membership-head {
-  color: var(--admin-muted, #64748b);
+.membership-grid-table th {
+  background: #f8fafc;
+  color: #475569;
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 12px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
 }
+
+.membership-grid-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.membership-grid-table tr:last-child td {
+  border-bottom: none;
+}
+
+.membership-grid-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* Tier Badges */
+.tier-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.badge-standard {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.badge-silver {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-gold {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.badge-diamond {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+/* Table Form Controls */
+.table-input,
+.table-select {
+  width: 100%;
+  height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.table-input:focus,
+.table-select:focus {
+  border-color: #059669;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.table-input::placeholder {
+  color: #94a3b8;
+  text-align: center;
+}
+
+.table-select:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.table-input-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.table-input-unit .table-input {
+  padding-right: 22px;
+}
+
+.table-input-unit span {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+/* Column specific widths */
+.col-tier { width: 100px; }
+.col-label { width: 125px; }
+.col-status { width: 105px; }
+.col-voucher { width: 160px; }
+.col-num { width: 105px; }
+.col-money { width: 135px; }
 
 .membership-inline-errors {
   display: grid;

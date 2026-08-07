@@ -4,18 +4,19 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="notice" class="alert success">{{ notice }}</div>
 
+    <!-- Top Status Tabs Row (Header Hero outside main content card) -->
+    <div class="refund-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="statusTabsForAppTabs"
+          :model-value="filters.status"
+          @update:model-value="setStatus"
+        />
+      </div>
+    </div>
+
     <!-- Main Content Surface -->
     <div class="profile-section-card refund-main-content">
-      <!-- Top Status Tabs Row (matching ServicesHeaderHero style) -->
-      <div class="refund-header-hero">
-        <div class="hero-integrated-tabs">
-          <AppTabs
-            :tabs="statusTabsForAppTabs"
-            :model-value="filters.status"
-            @update:model-value="setStatus"
-          />
-        </div>
-      </div>
       <!-- Quick Attention Banner -->
       <div v-if="summaryStats.pending > 0" class="attention-banner">
         <span class="attention-icon">!</span>
@@ -472,8 +473,8 @@ export default {
 
 /* Header Hero Tabs Row matching ServicesHeaderHero */
 .refund-header-hero {
-  background: transparent;
-  padding: 0;
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
   display: flex;
   align-items: center;
 }
@@ -489,9 +490,10 @@ export default {
   gap: 20px;
   padding: 10px;
   background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border, #e2e8f0);
+  border: none;
   border-radius: 0;
   box-shadow: none;
+  margin-top: 0 !important;
 }
 
 .alert {
@@ -516,9 +518,10 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-radius: 8px;
-  background: var(--admin-danger-soft, rgba(239, 68, 68, 0.08));
+  background: transparent;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
   color: var(--admin-danger, #ef4444);
 }
 

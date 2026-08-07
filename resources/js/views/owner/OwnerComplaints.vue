@@ -3,17 +3,18 @@
     <div v-if="message" class="alert success">{{ message }}</div>
     <div v-if="error" class="alert error">{{ error }}</div>
 
-    <div class="profile-section-card complaints-main-content">
-      <!-- Top Integrated Tabs Row matching Services & Refund Requests -->
-      <div class="complaints-header-hero">
-        <div class="hero-integrated-tabs">
-          <AppTabs
-            :tabs="complaintsTabsForAppTabs"
-            :model-value="activeTab"
-            @update:model-value="changeTab"
-          />
-        </div>
+    <!-- Top Integrated Tabs Row matching Services & Refund Requests -->
+    <div class="complaints-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="complaintsTabsForAppTabs"
+          :model-value="activeTab"
+          @update:model-value="changeTab"
+        />
       </div>
+    </div>
+
+    <div class="profile-section-card complaints-main-content">
 
       <!-- Services-style Table Section -->
       <div class="services-table-section">
@@ -227,22 +228,23 @@ const getComplaintTypeLabel = (type) => {
 }
 
 /* Single unified main surface */
+.complaints-header-hero {
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
+  display: flex;
+  align-items: center;
+}
+
 .profile-section-card.complaints-main-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   padding: 10px;
   background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border, #e2e8f0);
+  border: none;
   border-radius: 0;
   box-shadow: none;
-}
-
-.complaints-header-hero {
-  background: transparent;
-  padding: 0;
-  display: flex;
-  align-items: center;
+  margin-top: 0 !important;
 }
 
 .hero-integrated-tabs {

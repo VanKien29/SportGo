@@ -8,17 +8,18 @@
       </button>
     </div>
 
-    <div class="profile-section-card posts-main-content">
-      <!-- Top Integrated Tabs Row -->
-      <div class="posts-header-hero">
-        <div class="hero-integrated-tabs">
-          <AppTabs
-            :tabs="postTabsForAppTabs"
-            :model-value="filters.status"
-            @update:model-value="selectPostStatusTab"
-          />
-        </div>
+    <!-- Top Integrated Tabs Row -->
+    <div class="posts-header-hero">
+      <div class="hero-integrated-tabs">
+        <AppTabs
+          :tabs="postTabsForAppTabs"
+          :model-value="filters.status"
+          @update:model-value="selectPostStatusTab"
+        />
       </div>
+    </div>
+
+    <div class="profile-section-card posts-main-content">
 
       <!-- Loading Screen -->
       <div v-if="loading" class="table-state-card">
@@ -1737,22 +1738,23 @@ const formatDate = (dateString) => {
   gap: 16px;
 }
 
+.posts-header-hero {
+  background: var(--admin-surface, #ffffff);
+  padding: 10px 10px 0 10px;
+  display: flex;
+  align-items: center;
+}
+
 .profile-section-card.posts-main-content {
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 10px;
   background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border, #e2e8f0);
+  border: none;
   border-radius: 0;
   box-shadow: none;
-}
-
-.posts-header-hero {
-  background: transparent;
-  padding: 0;
-  display: flex;
-  align-items: center;
+  margin-top: 0 !important;
 }
 
 .hero-integrated-tabs {

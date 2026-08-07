@@ -164,7 +164,18 @@
                     </div>
 
                     <div class="period-row">
-
+                        <div class="period-tabs" role="tablist">
+                            <button
+                                v-for="period in dynamicTimePeriods"
+                                :key="period.key"
+                                type="button"
+                                :class="{ active: activeTimePeriod === period.key }"
+                                @click="activeTimePeriod = period.key"
+                            >
+                                <strong>{{ period.label }}</strong>
+                                <span>({{ period.range }})</span>
+                            </button>
+                        </div>
 
                         <div class="legend">
                             <span><i></i>Lịch trống</span>
@@ -183,7 +194,11 @@
                         </div>
                     </div>
 
+                    <div v-if="!activePeriodSlots.length" class="state-card" style="margin-top: 10px;">
+                        Ca này nằm ngoài giờ hoạt động của sân ({{ currentScheduleLabel || 'sân đóng cửa' }}). Không có khung giờ chơi.
+                    </div>
                     <div
+                        v-else
                         class="slot-matrix"
                         role="grid"
                         aria-label="Bảng chọn sân và khung giờ"
@@ -780,23 +795,25 @@
                     </div>
 
                     <div class="period-row">
-
-
-                        <div class="legend">
-                            <span><i></i>Trống</span>
-                            <span><i class="selected"></i>Khung cố định</span>
-                            <span
-                                ><i class="booked-paid"></i>Đã thanh toán</span
+                        <div class="period-tabs" role="tablist">
+                            <button
+                                v-for="period in dynamicTimePeriods"
+                                :key="period.key"
+                                type="button"
+                                :class="{ active: activeTimePeriod === period.key }"
+                                @click="activeTimePeriod = period.key"
                             >
-                            <span><i class="booked-online"></i>Chờ online</span>
-                            <span><i class="booked-counter"></i>Chờ CK</span>
-                            <span><i class="pay-later"></i>Thu sau</span>
-                            <span><i class="overdue"></i>Quá hạn</span>
-                            <span><i class="locked"></i>Khóa sân</span>
+                                <strong>{{ period.label }}</strong>
+                                <span>({{ period.range }})</span>
+                            </button>
                         </div>
                     </div>
 
+                    <div v-if="!activePeriodSlots.length" class="state-card" style="margin-top: 10px;">
+                        Ca này nằm ngoài giờ hoạt động của sân ({{ currentScheduleLabel || 'sân đóng cửa' }}). Không có khung giờ chơi.
+                    </div>
                     <div
+                        v-else
                         class="slot-matrix recurring-slot-matrix"
                         role="grid"
                         aria-label="Bảng chọn sân và khung giờ cố định"
@@ -2245,16 +2262,24 @@ export default {
             const configuredPeriods =
                 this.selectedClusterDetail?.booking_config?.custom_time_periods;
 
-            let raw = [];
+            let periods = [];
             if (Array.isArray(configuredPeriods) && configuredPeriods.length > 0) {
-                raw = configuredPeriods.map((p, idx) => ({
-                    key: `custom_${idx}`,
-                    label: p.label,
-                    start: this.timeToMinutes(p.start_time),
-                    end: this.timeToMinutes(p.end_time),
-                }));
+                periods = configuredPeriods
+                    .filter((p) => p.label && p.start_time && p.end_time)
+                    .map((p, idx) => {
+                        const start = this.timeToMinutes(p.start_time);
+                        const end = this.timeToMinutes(p.end_time);
+                        return {
+                            key: `custom_${idx}`,
+                            label: p.label,
+                            start,
+                            end,
+                            range: `${this.minutesToTime(start)} - ${this.minutesToTime(end)}`,
+                        };
+                    })
+                    .filter((period) => period.end > period.start);
             } else {
-                raw = [
+                const raw = [
                     {
                         key: "late_night",
                         label: "Khuya",
@@ -2286,25 +2311,25 @@ export default {
                         end: close,
                     },
                 ];
-            }
 
-            const periods = raw
-                .filter(
-                    (period) =>
-                        period.end > period.start &&
-                        period.start < close &&
-                        period.end > open,
-                )
-                .map((period) => {
-                    const clampedStart = Math.max(period.start, open);
-                    const clampedEnd = Math.min(period.end, close);
-                    return {
-                        ...period,
-                        start: clampedStart,
-                        end: clampedEnd,
-                        range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
-                    };
-                });
+                periods = raw
+                    .filter(
+                        (period) =>
+                            period.end > period.start &&
+                            period.start < close &&
+                            period.end > open,
+                    )
+                    .map((period) => {
+                        const clampedStart = Math.max(period.start, open);
+                        const clampedEnd = Math.min(period.end, close);
+                        return {
+                            ...period,
+                            start: clampedStart,
+                            end: clampedEnd,
+                            range: `${this.minutesToTime(clampedStart)} - ${this.minutesToTime(clampedEnd)}`,
+                        };
+                    });
+            }
 
             if (periods.length > 1) {
                 periods.push({
@@ -3067,6 +3092,12 @@ export default {
         },
     },
     watch: {
+        dynamicTimePeriods: {
+            handler() {
+                this.ensureActiveTimePeriod();
+            },
+            immediate: true,
+        },
         "form.recurring_start_date"() {
             if (this.activeTab === "recurring")
                 this.handleRecurringStartDateChange();
@@ -3571,8 +3602,15 @@ export default {
                     (period) => period.key === this.activeTimePeriod,
                 )
             ) {
+                const firstWithSlots = this.dynamicTimePeriods.find((period) => {
+                    if (period.key === "all") return false;
+                    return this.scheduleSlots.some((slot) => {
+                        const start = this.timeToMinutes(slot.start_time);
+                        return start >= period.start && start < period.end;
+                    });
+                });
                 this.activeTimePeriod =
-                    this.dynamicTimePeriods[0]?.key || "morning";
+                    firstWithSlots?.key || this.dynamicTimePeriods[0]?.key || "all";
             }
         },
         scrollSelectedBookingIntoView() {
