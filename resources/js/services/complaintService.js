@@ -1,7 +1,7 @@
-import { api } from './api.js';
+import { api, apiFormData } from './api.js';
 
 export const complaintService = {
-  create(payload) { return api('/api/complaints', { method: 'POST', body: JSON.stringify(payload) }); },
+  create(payload) { return payload instanceof FormData ? apiFormData('/api/complaints', payload) : api('/api/complaints', { method: 'POST', body: JSON.stringify(payload) }); },
   list(params = {}) {
     const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== '' && value !== null && value !== undefined));
     return api(`/api/complaints${query.toString() ? `?${query}` : ''}`);

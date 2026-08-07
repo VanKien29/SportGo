@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Player;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
@@ -13,6 +14,8 @@ use App\Services\Policies\RefundCancellationPolicyService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class BookingController extends Controller
@@ -212,6 +215,7 @@ class BookingController extends Controller
                 'items.requestedVenueCourt.courtType',
                 'payments' => fn ($query) => $query->latest('created_at'),
                 'refunds',
+                'playerPost.participants',
             ])
             ->where('customer_id', auth()->id());
 
@@ -260,7 +264,8 @@ class BookingController extends Controller
                 'venueCourt.courtType',
                 'items.venueCourt.courtType',
                 'payments' => fn ($query) => $query->latest('created_at'),
-                'refunds',
+            'refunds',
+            'playerPost.participants',
             ])
             ->orderBy('booking_date')
             ->orderBy('start_time')
@@ -328,6 +333,239 @@ class BookingController extends Controller
         }
     }
 
+    public function previewRecurring(Request $request)
+    {
+        $validated = $this->validateRecurringPayload($request);
+
+        $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
+        $this->ensureRecurringCluster($validated, $court);
+
+        return response()->json([
+            'message' => 'Đã kiểm tra lịch cố định.',
+            'data' => $this->bookingService->previewRecurringConflicts($validated),
+        ]);
+    }
+
+    public function storeRecurring(Request $request)
+    {
+        $validated = $this->validateRecurringPayload($request);
+
+        $court = VenueCourt::query()->with('venueCluster')->findOrFail($validated['venue_court_id']);
+        $this->ensureRecurringCluster($validated, $court);
+
+        $preview = $this->bookingService->previewRecurringConflicts($validated);
+        if (! empty($preview['conflicts']) && empty($validated['conflict_resolution'])) {
+            return response()->json([
+                'message' => 'Một số buổi trong lịch cố định đã bị trùng. Vui lòng chọn cách xử lý.',
+                ...$preview,
+            ], 409);
+        }
+
+        $result = $this->bookingService->createRecurringBookings($validated, $request->user());
+
+        return response()->json([
+            'message' => 'Đã tạo booking cố định.',
+            'data' => $result,
+        ], 201);
+    }
+
+    public function changeCourt(Request $request, string $id)
+    {
+        $booking = Booking::query()
+            ->with(['items', 'payments', 'venueCourt', 'venueCluster'])
+            ->findOrFail($id);
+
+        $this->assertCustomerOwnsBooking($request, $booking);
+        $this->assertBookingCanBeEdited($booking);
+
+        $validated = $request->validate([
+            'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
+            'court_changed_reason' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+
+        if ($booking->items->count() !== 1) {
+            throw ValidationException::withMessages([
+                'venue_court_id' => 'Booking nhiều khung giờ cần được hỗ trợ đổi sân theo từng khung.',
+            ]);
+        }
+
+        $item = $booking->items->first();
+        $newCourt = VenueCourt::query()
+            ->where('venue_cluster_id', $booking->venue_cluster_id)
+            ->where('status', 'active')
+            ->with('courtType')
+            ->findOrFail($validated['venue_court_id']);
+
+        if (! $this->bookingService->checkAvailability(
+            $newCourt->id,
+            $booking->booking_date->toDateString(),
+            $item->start_time,
+            $item->end_time,
+            $booking->id,
+        )) {
+            throw ValidationException::withMessages([
+                'venue_court_id' => 'Sân mới đã có lịch hoặc đang được giữ trong khung giờ này.',
+            ]);
+        }
+
+        DB::transaction(function () use ($booking, $item, $newCourt, $validated, $request): void {
+            $booking->forceFill([
+                'venue_court_id' => $newCourt->id,
+                'court_changed_by' => $request->user()->id,
+                'court_changed_at' => now(),
+                'court_changed_reason' => $validated['court_changed_reason'],
+            ])->save();
+            $item->forceFill([
+                'venue_court_id' => $newCourt->id,
+                'court_changed_by' => $request->user()->id,
+                'court_changed_at' => now(),
+                'court_changed_reason' => $validated['court_changed_reason'],
+            ])->save();
+        });
+
+        return response()->json([
+            'message' => 'Đã đổi sân cho booking.',
+            'data' => $booking->fresh(['venueCluster', 'venueCourt.courtType', 'items.venueCourt.courtType']),
+        ]);
+    }
+
+    public function reschedule(Request $request, string $id)
+    {
+        $booking = Booking::query()
+            ->with(['items', 'payments', 'venueCourt', 'venueCluster'])
+            ->findOrFail($id);
+
+        $this->assertCustomerOwnsBooking($request, $booking);
+        $this->assertBookingCanBeEdited($booking);
+
+        $validated = $request->validate([
+            'booking_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'reason' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+        $this->ensureValidTimeRange($validated['start_time'], $validated['end_time']);
+
+        if ($booking->items->count() !== 1) {
+            throw ValidationException::withMessages([
+                'booking_date' => 'Booking nhiều khung giờ cần được hỗ trợ đổi lịch theo từng khung.',
+            ]);
+        }
+
+        $item = $booking->items->first();
+        $court = VenueCourt::query()
+            ->where('venue_cluster_id', $booking->venue_cluster_id)
+            ->where('status', 'active')
+            ->with('courtType')
+            ->findOrFail($validated['venue_court_id'] ?? $booking->venue_court_id);
+
+        if (! $this->bookingService->meetsMinimumAdvanceNotice(
+            (string) $booking->venue_cluster_id,
+            $validated['booking_date'],
+            $validated['start_time'],
+        )) {
+            throw ValidationException::withMessages([
+                'booking_date' => 'Khung giờ mới chưa đủ thời gian đặt trước theo cấu hình sân.',
+            ]);
+        }
+
+        if (! $this->bookingService->checkAvailability(
+            $court->id,
+            $validated['booking_date'],
+            $validated['start_time'],
+            $validated['end_time'],
+            $booking->id,
+        )) {
+            throw ValidationException::withMessages([
+                'start_time' => 'Khung giờ mới đã có lịch hoặc đang được giữ.',
+            ]);
+        }
+
+        $newOriginalAmount = $this->bookingService->calculateTotalPrice(
+            $court,
+            $validated['booking_date'],
+            $validated['start_time'],
+            $validated['end_time'],
+            'single',
+        );
+        $existingDiscount = max((float) ($booking->original_amount ?? $booking->total_price) - (float) $booking->total_price, 0);
+        $newTotal = round(max($newOriginalAmount - min($existingDiscount, $newOriginalAmount), 0), 2);
+        $requiredPayment = $this->bookingService->calculateRequiredPaymentAmount(
+            (string) $booking->venue_cluster_id,
+            $newTotal,
+            (string) $booking->payment_option,
+        );
+
+        DB::transaction(function () use ($booking, $item, $court, $validated, $newOriginalAmount, $newTotal, $requiredPayment, $request): void {
+            SlotLock::query()->where('booking_id', $booking->id)->delete();
+            Payment::query()
+                ->where('booking_id', $booking->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'failed']);
+
+            $duration = $this->timeToMinutes($validated['end_time']) - $this->timeToMinutes($validated['start_time']);
+            $booking->forceFill([
+                'booking_date' => $validated['booking_date'],
+                'start_time' => $validated['start_time'],
+                'end_time' => $validated['end_time'],
+                'duration_minutes' => $duration,
+                'venue_court_id' => $court->id,
+                'requested_venue_court_id' => $court->id,
+                'original_amount' => $newOriginalAmount,
+                'total_price' => $newTotal,
+                'final_amount' => $newTotal,
+                'required_payment_amount' => $requiredPayment,
+                'court_changed_by' => $court->id === $booking->venue_court_id ? $booking->court_changed_by : $request->user()->id,
+                'court_changed_at' => $court->id === $booking->venue_court_id ? $booking->court_changed_at : now(),
+                'court_changed_reason' => $validated['reason'],
+            ])->save();
+            $item->forceFill([
+                'venue_court_id' => $court->id,
+                'requested_venue_court_id' => $court->id,
+                'start_time' => $validated['start_time'],
+                'end_time' => $validated['end_time'],
+                'duration_minutes' => $duration,
+                'unit_price' => $duration > 0 ? round($newTotal / max($duration / 60, 0.5), 2) : 0,
+                'subtotal' => $newTotal,
+            ])->save();
+
+            $booking->refresh()->load('items');
+            $this->bookingService->ensurePendingPaymentLocks($booking, (string) $request->user()->id);
+        });
+
+        return response()->json([
+            'message' => 'Đã đổi ngày và khung giờ booking.',
+            'data' => $booking->fresh(['venueCluster', 'venueCourt.courtType', 'items.venueCourt.courtType', 'payments']),
+        ]);
+    }
+
+    public function cancelItems(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'booking_item_ids' => ['required', 'array', 'min:1'],
+            'booking_item_ids.*' => ['integer', 'distinct'],
+            'reason' => ['required', 'string', 'min:5', 'max:1000'],
+        ]);
+
+        $booking = Booking::query()->findOrFail($id);
+        if ((string) $booking->customer_id !== (string) $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền thay đổi booking này.'], 403);
+        }
+
+        $result = $this->refundCancellationPolicyService->cancelBookingItems(
+            $booking,
+            $request->user(),
+            $validated['booking_item_ids'],
+            $validated['reason'],
+        );
+
+        return response()->json([
+            'message' => 'Đã hủy các khung giờ được chọn và tạo yêu cầu hoàn theo chính sách.',
+            ...$result,
+        ]);
+    }
+
     /**
      * API xem chi tiết đơn đặt sân.
      */
@@ -347,11 +585,13 @@ class BookingController extends Controller
             'venueCourt.venueCluster',
             'venueCourt.courtType',
             'venueCluster',
+            'venueCluster.venueCourts.courtType',
             'items.venueCourt.courtType',
             'items.requestedVenueCourt.courtType',
             'payments.logs',
             'payments.userWallet',
             'refunds.statusHistories',
+            'playerPost.participants',
         ]);
 
         // Tính thời gian giữ chỗ còn lại (giây)
@@ -425,6 +665,121 @@ class BookingController extends Controller
         if ($this->timeToMinutes($endTime) <= $this->timeToMinutes($startTime)) {
             throw ValidationException::withMessages([
                 'end_time' => 'Giờ kết thúc phải lớn hơn giờ bắt đầu.',
+            ]);
+        }
+    }
+
+    private function validateRecurringPayload(Request $request): array
+    {
+        $validated = $request->validate([
+            'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
+            'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
+            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'recurring_end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:recurring_start_date'],
+            'recurrence_type' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
+            'recurrence_interval' => ['required', 'integer', 'min:1', 'max:12'],
+            'recurrence_days_of_week' => ['nullable', 'array'],
+            'recurrence_days_of_week.*' => ['integer', 'between:0,6', 'distinct'],
+            'recurrence_days_of_month' => ['nullable', 'array'],
+            'recurrence_days_of_month.*' => ['integer', 'between:1,31', 'distinct'],
+            'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
+            'time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'time_ranges.*.start_time' => ['required_with:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'time_ranges.*.end_time' => ['required_with:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'weekday_time_ranges' => ['nullable', 'array', 'max:7'],
+            'weekday_time_ranges.*.day_of_week' => ['required_with:weekday_time_ranges', 'integer', 'between:0,6', 'distinct'],
+            'weekday_time_ranges.*.time_ranges' => ['required_with:weekday_time_ranges', 'array', 'min:1', 'max:32'],
+            'weekday_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+            'weekday_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
+            'weekday_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
+            'date_time_ranges' => ['nullable', 'array', 'max:130'],
+            'payment_option' => ['required', Rule::in(['full_payment', 'no_prepay'])],
+            'venue_voucher_id' => ['nullable', 'integer', 'exists:vouchers,id'],
+            'venue_voucher_code' => ['nullable', 'string', 'max:50'],
+            'vip_voucher_id' => ['nullable', 'integer', 'exists:vouchers,id'],
+            'vip_voucher_code' => ['nullable', 'string', 'max:50'],
+            'conflict_resolution' => ['nullable', Rule::in(['abort', 'skip', 'mixed'])],
+            'conflict_overrides' => ['nullable', 'array'],
+            'conflict_overrides.*.date' => ['required_with:conflict_overrides', 'date_format:Y-m-d'],
+            'conflict_overrides.*.key' => ['nullable', 'string', 'max:120'],
+            'conflict_overrides.*.action' => ['required_with:conflict_overrides', Rule::in(['skip', 'switch'])],
+            'conflict_overrides.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
+        ]);
+
+        if ($validated['recurrence_type'] === 'weekly' && empty($validated['recurrence_days_of_week'])) {
+            throw ValidationException::withMessages([
+                'recurrence_days_of_week' => 'Vui lòng chọn ít nhất một thứ trong tuần.',
+            ]);
+        }
+
+        if ($validated['recurrence_type'] === 'monthly' && empty($validated['recurrence_days_of_month'])) {
+            throw ValidationException::withMessages([
+                'recurrence_days_of_month' => 'Vui lòng chọn ngày trong tháng.',
+            ]);
+        }
+
+        $timeRanges = $validated['time_ranges'] ?? [[
+            'venue_court_id' => $validated['venue_court_id'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
+        ]];
+        foreach ($timeRanges as $index => $range) {
+            $this->ensureValidTimeRange($range['start_time'], $range['end_time']);
+            $timeRanges[$index]['venue_court_id'] = $range['venue_court_id'] ?: $validated['venue_court_id'];
+        }
+        $validated['time_ranges'] = $timeRanges;
+        $validated['start_time'] = $timeRanges[0]['start_time'];
+        $validated['end_time'] = $timeRanges[array_key_last($timeRanges)]['end_time'];
+
+        if ($validated['recurrence_type'] === 'weekly' && empty($validated['weekday_time_ranges'])) {
+            $validated['weekday_time_ranges'] = collect($validated['recurrence_days_of_week'])
+                ->map(fn (int $day): array => [
+                    'day_of_week' => $day,
+                    'time_ranges' => $timeRanges,
+                ])
+                ->values()
+                ->all();
+        }
+
+        return [
+            ...$validated,
+            'customer_id' => $request->user()->id,
+            'source' => 'online',
+            'initial_status' => $validated['payment_option'] === 'no_prepay' ? 'pending_approval' : 'pending_payment',
+            'create_counter_payment' => false,
+            'is_paid' => false,
+        ];
+    }
+
+    private function ensureRecurringCluster(array $validated, VenueCourt $court): void
+    {
+        if ((string) $validated['venue_cluster_id'] !== (string) $court->venue_cluster_id) {
+            throw ValidationException::withMessages([
+                'venue_cluster_id' => 'Cụm sân không khớp với sân đang chọn.',
+            ]);
+        }
+    }
+
+    private function assertCustomerOwnsBooking(Request $request, Booking $booking): void
+    {
+        if ((string) $booking->customer_id !== (string) $request->user()->id) {
+            abort(403, 'Bạn không có quyền thao tác với booking này.');
+        }
+    }
+
+    private function assertBookingCanBeEdited(Booking $booking): void
+    {
+        if (! in_array($booking->status, ['pending_approval', 'pending_payment'], true)) {
+            throw ValidationException::withMessages([
+                'booking' => 'Chỉ booking đang chờ duyệt hoặc chờ thanh toán mới có thể đổi sân/đổi lịch trực tiếp.',
+            ]);
+        }
+
+        if ($booking->payments->contains(fn ($payment): bool => $payment->status === 'paid')) {
+            throw ValidationException::withMessages([
+                'booking' => 'Booking đã có thanh toán thành công. Vui lòng gửi yêu cầu hỗ trợ để đổi lịch.',
             ]);
         }
     }
@@ -505,11 +860,12 @@ class BookingController extends Controller
             'venue_court' => $booking->venueCourt,
             'items' => $booking->items->values(),
             'refunds' => $booking->refunds->values(),
+            'matchmaking' => $this->matchmakingPayload($booking->playerPost),
             'has_court_change' => $booking->items->contains(fn ($item) =>
                 $item->requested_venue_court_id && $item->requested_venue_court_id !== $item->venue_court_id
             ),
             'has_partial_cancellation' => $booking->items->contains(fn ($item) =>
-                in_array($item->status, ['cancelled', 'interrupted'], true)
+                str_starts_with((string) $item->status, 'cancelled') || in_array($item->status, ['interrupted', 'interrupted_by_emergency'], true)
             ),
         ];
     }
@@ -530,5 +886,24 @@ class BookingController extends Controller
         $startAt = Carbon::parse($bookingDate.' '.substr($booking->start_time, 0, 8));
 
         return $startAt->isFuture();
+    }
+
+    private function matchmakingPayload($post): ?array
+    {
+        if (! $post) return null;
+
+        $approved = $post->participants
+            ->where('pivot.status', 'approved')
+            ->values();
+        $total = $approved->count() + (int) $post->needed_players;
+
+        return [
+            'id' => $post->id,
+            'status' => $post->status,
+            'needed_players' => (int) $post->needed_players,
+            'approved_players' => $approved->count(),
+            'total_players' => $total,
+            'label' => sprintf('%d/%d người', $approved->count(), $total),
+        ];
     }
 }

@@ -7,6 +7,28 @@ const REDIRECT_KEY = 'auth_redirect_to';
 const PERMISSIONS_KEY = 'auth_permissions';
 const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
+const apiCache = new Map();
+const API_CACHE_TTL = 60000;
+
+export async function apiCached(path, options = {}) {
+  const { cacheTtl = API_CACHE_TTL, ...requestOptions } = options;
+  const method = String(requestOptions.method || 'GET').toUpperCase();
+  if (method !== 'GET' || cacheTtl <= 0) return api(path, requestOptions);
+
+  const key = `${method}:${path}`;
+  const cached = apiCache.get(key);
+  if (cached && Date.now() - cached.time < cacheTtl) return cached.data;
+
+  const data = await api(path, requestOptions);
+  apiCache.set(key, { data, time: Date.now() });
+  return data;
+}
+
+export function invalidateCache(pathPrefix = '') {
+  for (const key of apiCache.keys()) {
+    if (key.endsWith(pathPrefix) || key.includes(`:${pathPrefix}`)) apiCache.delete(key);
+  }
+}
 
 export function readToken() {
   const token = localStorage.getItem(TOKEN_KEY);

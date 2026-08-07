@@ -84,6 +84,10 @@
                     <AppIcon name="messageSquare" size="17" />
                     Nhắn tin
                   </button>
+                  <button type="button" class="ghost-action favorite-action" :class="{ favorite: isFavorite }" :disabled="favoriteLoading" @click="toggleFavorite">
+                    <AppIcon name="heart" size="17" />
+                    {{ isFavorite ? 'Đã lưu sân' : 'Lưu sân' }}
+                  </button>
                   <router-link class="ghost-action" :to="{ name: 'venues', query: searchQuery }">
                     <AppIcon name="search" size="17" />
                     Đổi sân
@@ -208,17 +212,27 @@
             </section>
 
             <section v-if="activeTab === 'courts' && (basePrices.length || priceSlots.length || holidayPrices.length)" class="detail-section">
-              <h2>Bảng giá</h2>
-              <div class="price-list">
-                <article v-for="price in basePrices" :key="`base-${price.id}`">
+              <div class="section-heading-row">
+                <div>
+                  <p class="section-eyebrow">Chi phí theo khung giờ</p>
+                  <h2>Bảng giá sân</h2>
+                </div>
+                <span class="section-heading-note">Đơn giá tính theo giờ</span>
+              </div>
+              <div class="price-list" role="table" aria-label="Bảng giá sân">
+                <div class="price-table-head" role="row">
+                  <span role="columnheader">Loại sân / khung giờ</span>
+                  <span role="columnheader">Đơn giá</span>
+                </div>
+                <article v-for="price in basePrices" :key="`base-${price.id}`" role="row">
                   <span>{{ price.court_type?.name || "Tất cả loại sân" }}</span>
                   <strong>{{ formatCurrency(price.price) }}/giờ</strong>
                 </article>
-                <article v-for="slot in priceSlots" :key="`slot-${slot.id}`">
+                <article v-for="slot in priceSlots" :key="`slot-${slot.id}`" role="row">
                   <span>{{ slot.court_type?.name || "Tất cả loại sân" }} · {{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
                   <strong>{{ formatCurrency(slot.price) }}/giờ</strong>
                 </article>
-                <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="holiday-price-item">
+                <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="holiday-price-item" role="row">
                   <span>
                     Giá ngày {{ formatDate(holiday.holiday_date) }} · {{ holiday.court_type?.name || "Tất cả loại sân" }}
                     <small v-if="holiday.note">{{ holiday.note }}</small>
@@ -236,6 +250,26 @@
 
             <section v-if="activeTab === 'reviews'" class="detail-section">
               <h2>Đánh giá</h2>
+              <form v-if="eligibleReviews.length" class="review-compose" @submit.prevent="submitReview">
+                <div class="review-compose-head">
+                  <div>
+                    <strong>Chia sẻ trải nghiệm của bạn</strong>
+                    <span>Chỉ booking đã hoàn tất mới có thể đánh giá.</span>
+                  </div>
+                  <select v-model="reviewForm.booking_id" class="bform-input" required>
+                    <option disabled value="">Chọn booking đã hoàn tất</option>
+                    <option v-for="booking in eligibleReviews" :key="booking.id" :value="booking.id">
+                      #{{ booking.booking_code }} · {{ formatDate(booking.booking_date) }}
+                    </option>
+                  </select>
+                </div>
+                <div class="review-rating-picker" aria-label="Chọn số sao">
+                  <button v-for="star in 5" :key="star" type="button" :class="{ active: star <= reviewForm.rating }" @click="reviewForm.rating = star">★</button>
+                </div>
+                <textarea v-model.trim="reviewForm.comment" class="bform-input" rows="4" maxlength="2000" placeholder="Điều bạn thích hoặc điều sân cần cải thiện"></textarea>
+                <p v-if="reviewError" class="error-msg">{{ reviewError }}</p>
+                <button type="submit" class="primary-action" :disabled="reviewSubmitting">{{ reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá' }}</button>
+              </form>
               <p v-if="reviews.length && reviewCount > reviews.length" class="review-preview-note">
                 Hiển thị {{ reviews.length }} đánh giá gần nhất trong tổng số {{ reviewCount }} lượt.
               </p>
@@ -264,9 +298,12 @@
                   <p>{{ fullAddress }}</p>
                 </div>
                 <a v-if="mapExternalUrl" :href="mapExternalUrl" target="_blank" rel="noopener noreferrer">
-                  Mở Google Maps
+                  Xem bản đồ
                   <AppIcon name="externalLink" size="15" />
                 </a>
+                <a v-if="directionsUrl" :href="directionsUrl" target="_blank" rel="noopener noreferrer">Chỉ đường <AppIcon name="mapPin" size="15" /></a>
+                <button type="button" class="location-action" @click="copyVenueAddress">Sao chép địa chỉ</button>
+                <button type="button" class="location-action" @click="shareVenue">Chia sẻ sân</button>
                 <a v-if="phoneUrl" :href="phoneUrl">
                   Gọi {{ venue.phone_contact }}
                 </a>
@@ -429,6 +466,8 @@ import ComplaintModal from "../../components/ComplaintModal.vue";
 import ReportModal from "../../components/ReportModal.vue";
 import VenuePostsTab from "../../components/VenuePostsTab.vue";
 import { venueService } from "../../services/venues.js";
+import { reviewService } from "../../services/reviewService.js";
+import { favoriteService } from "../../services/favoriteService.js";
 import { getAuth } from "../../stores/auth.js";
 import { useToast } from "vue-toastification";
 
@@ -474,7 +513,13 @@ export default {
       },
       isSubmittingReport: false,
       toastMessage: null,
-      toastType: 'success'
+      toastType: 'success',
+      eligibleReviews: [],
+      reviewForm: { booking_id: '', rating: 5, comment: '' },
+      reviewSubmitting: false,
+      reviewError: '',
+      isFavorite: false,
+      favoriteLoading: false,
     };
   },
   computed: {
@@ -646,6 +691,10 @@ export default {
         return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.fullAddress)}`;
       }
       return "";
+    },
+    directionsUrl() {
+      if (!this.fullAddress || this.fullAddress === "Đang cập nhật địa chỉ") return "";
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(this.fullAddress)}`;
     },
     phoneUrl() {
       const phone = String(this.venue?.phone_contact || '').replace(/[^\d+]/g, '');
@@ -854,6 +903,8 @@ export default {
         this.gallery = [...new Set(g.map(path => this.imageUrl(path)).filter(Boolean))];
         this.activeImage = this.gallery[0] || null;
         this.loadMiniSchedule();
+        this.loadEligibleReviews();
+        this.loadFavoriteStatus();
       } catch (err) {
         if (requestId !== this.venueRequestId) return;
         this.error = err.message || 'Không thể tải thông tin sân.';
@@ -895,6 +946,84 @@ export default {
         if (requestId === this.scheduleRequestId) {
           this.previewLoading = false;
         }
+      }
+    },
+
+    async loadEligibleReviews() {
+      this.eligibleReviews = [];
+      if (!getAuth() || !this.venue?.id) return;
+      try {
+        const response = await reviewService.eligible(this.venue.id);
+        this.eligibleReviews = response.data || [];
+        if (!this.reviewForm.booking_id && this.eligibleReviews[0]) {
+          this.reviewForm.booking_id = this.eligibleReviews[0].id;
+        }
+      } catch {
+        this.eligibleReviews = [];
+      }
+    },
+
+    async submitReview() {
+      if (!this.reviewForm.booking_id || this.reviewSubmitting) return;
+      this.reviewSubmitting = true;
+      this.reviewError = '';
+      try {
+        await reviewService.create(this.reviewForm);
+        this.reviewForm = { booking_id: '', rating: 5, comment: '' };
+        await this.fetchVenue();
+      } catch (error) {
+        this.reviewError = error.message || 'Không thể gửi đánh giá.';
+      } finally {
+        this.reviewSubmitting = false;
+      }
+    },
+
+    async copyVenueAddress() {
+      if (!this.fullAddress || this.fullAddress === 'Đang cập nhật địa chỉ') {
+        this.toast.info('Địa chỉ sân đang được cập nhật.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(this.fullAddress);
+        this.toast.success('Đã sao chép địa chỉ sân.');
+      } catch {
+        this.toast.error('Không thể sao chép địa chỉ trên thiết bị này.');
+      }
+    },
+
+    async shareVenue() {
+      if (!this.venue) return;
+      const shareData = { title: this.venue.name, text: `${this.venue.name} · ${this.fullAddress}`, url: window.location.href };
+      try {
+        if (navigator.share) await navigator.share(shareData);
+        else { await navigator.clipboard.writeText(window.location.href); this.toast.success('Đã sao chép liên kết sân.'); }
+      } catch (error) {
+        if (error?.name !== 'AbortError') this.toast.error('Không thể chia sẻ sân lúc này.');
+      }
+    },
+
+    async loadFavoriteStatus() {
+      this.isFavorite = false;
+      if (!getAuth() || !this.venue?.id) return;
+      try {
+        const response = await favoriteService.status(this.venue.id);
+        this.isFavorite = Boolean(response.favorited);
+      } catch {
+        this.isFavorite = false;
+      }
+    },
+
+    async toggleFavorite() {
+      if (!this.requirePlayer() || !this.venue?.id || this.favoriteLoading) return;
+      this.favoriteLoading = true;
+      try {
+        const response = await favoriteService.toggle(this.venue.id);
+        this.isFavorite = Boolean(response.favorited);
+        this.toast.success(response.message || (this.isFavorite ? 'Đã lưu sân.' : 'Đã bỏ lưu sân.'));
+      } catch (error) {
+        this.toast.error(error.message || 'Không thể cập nhật danh sách yêu thích.');
+      } finally {
+        this.favoriteLoading = false;
       }
     },
 
@@ -1054,5 +1183,3 @@ export default {
   },
 };
 </script>
-
-

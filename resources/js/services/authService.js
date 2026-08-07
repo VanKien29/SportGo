@@ -1,4 +1,4 @@
-import { api } from './api.js';
+import { api, apiFormData } from './api.js';
 
 export const authService = {
   login(login, password) {
@@ -55,6 +55,10 @@ export const authService = {
     return api(`/api/auth/me${query}`);
   },
 
+  updateProfile(formData) {
+    return apiFormData('/api/auth/profile', formData);
+  },
+
   googleExchange(code) {
     return api('/api/auth/google/exchange', {
       method: 'POST',
@@ -66,6 +70,13 @@ export const authService = {
     return api('/api/auth/set-password', {
       method: 'POST',
       body: JSON.stringify({ password, password_confirmation }),
+    });
+  },
+
+  changePassword(current_password, password, password_confirmation) {
+    return api('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, password, password_confirmation }),
     });
   },
 

@@ -16,6 +16,11 @@
         </button>
       </header>
 
+      <nav class="community-section-nav" aria-label="Khu vực cộng đồng">
+        <router-link to="/community" exact-active-class="is-active">Bảng tin</router-link>
+        <router-link to="/community/matchmaking" active-class="is-active"><AppIcon name="users" class="w-4 h-4" /> Tuyển giao lưu</router-link>
+      </nav>
+
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 items-start">
         <section class="min-w-0 space-y-6" aria-label="Bảng tin cộng đồng">
           <article v-if="canCreateCommunityPost" class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">

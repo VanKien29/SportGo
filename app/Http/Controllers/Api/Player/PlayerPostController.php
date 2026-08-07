@@ -20,7 +20,7 @@ class PlayerPostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $posts = PlayerPost::with(['author', 'booking.venueCluster'])
+        $posts = PlayerPost::with(['author', 'booking.venueCluster', 'participants'])
             ->where('status', 'open')
             ->whereHas('booking', function ($q) {
                 $q->where('status', 'confirmed')
@@ -34,7 +34,7 @@ class PlayerPostController extends Controller
             })
             ->when($request->author_id, fn ($query) => $query->where('author_id', $request->author_id))
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate((int) min(max((int) $request->input('per_page', 10), 1), 50));
 
         $userId = auth('sanctum')->id();
         $postIds = $posts->pluck('id')->toArray();
@@ -55,6 +55,9 @@ class PlayerPostController extends Controller
                 'title' => $post->title,
                 'description' => $post->description,
                 'needed_players' => $post->needed_players,
+                'approved_players' => $post->participants->where('pivot.status', 'approved')->count(),
+                'total_players' => $post->participants->where('pivot.status', 'approved')->count() + (int) $post->needed_players,
+                'booking_id' => $post->booking_id,
                 'status' => $post->status,
                 'created_at' => $post->created_at,
                 'user_status' => $participations[$post->id] ?? null,
@@ -204,6 +207,102 @@ class PlayerPostController extends Controller
     }
 
     /**
+     * Update the text of a matchmaking post while it is still active.
+     */
+    public function update(Request $request, $id): JsonResponse
+    {
+        $data = $request->validate([
+            'content' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        $post = PlayerPost::query()->findOrFail($id);
+        if ((string) $post->author_id !== (string) $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền sửa bài giao lưu này.'], 403);
+        }
+        if (! in_array($post->status, ['open', 'full'], true)) {
+            return response()->json(['message' => 'Bài giao lưu đã đóng và không thể sửa.'], 409);
+        }
+        if (! $post->booking || ! $this->isEligibleBooking($post->booking)) {
+            return response()->json(['message' => 'Booking gốc không còn hợp lệ để sửa bài.'], 409);
+        }
+
+        $post->description = trim(strip_tags($data['content']));
+        $post->save();
+
+        return response()->json(['status' => 'success', 'message' => 'Đã cập nhật bài giao lưu.', 'data' => $post]);
+    }
+
+    /**
+     * Close a post without deleting its participant history.
+     */
+    public function close(Request $request, $id): JsonResponse
+    {
+        $post = PlayerPost::with('booking')->findOrFail($id);
+        if ((string) $post->author_id !== (string) $request->user()->id) {
+            return response()->json(['message' => 'Bạn không có quyền đóng bài giao lưu này.'], 403);
+        }
+        if (! in_array($post->status, ['open', 'full'], true)) {
+            return response()->json(['message' => 'Bài giao lưu đã được đóng trước đó.'], 409);
+        }
+
+        $post->status = 'closed';
+        $post->status_reason = 'closed_by_author';
+        $post->save();
+
+        return response()->json(['status' => 'success', 'message' => 'Đã đóng bài giao lưu.']);
+    }
+
+    /**
+     * Withdraw the current user's pending/approved participation.
+     */
+    public function leave(Request $request, $id): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        DB::beginTransaction();
+        try {
+            $post = PlayerPost::with('booking.venueCluster')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $participant = DB::table('player_post_participants')
+                ->where('post_id', $post->id)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $participant || ! in_array($participant->status, ['pending', 'approved'], true)) {
+                DB::rollBack();
+                return response()->json(['message' => 'Bạn không có yêu cầu đang hoạt động trong bài này.'], 409);
+            }
+
+            $wasApproved = $participant->status === 'approved';
+            DB::table('player_post_participants')
+                ->where('post_id', $post->id)
+                ->where('user_id', $userId)
+                ->update(['status' => 'cancelled', 'responded_at' => now(), 'updated_at' => now()]);
+
+            if ($wasApproved) {
+                $post->needed_players += 1;
+                if ($post->status === 'full') $post->status = 'open';
+                $post->save();
+            }
+
+            Notification::create([
+                'user_id' => $post->author_id,
+                'type' => 'matchmaking_leave',
+                'title' => 'Có người rút khỏi kèo giao lưu',
+                'body' => ($request->user()->full_name ?? $request->user()->username ?? 'Một người chơi') . ' đã rút khỏi bài giao lưu tại ' . ($post->booking->venueCluster->name ?? 'sân') . '.',
+                'reference_type' => 'player_post',
+                'reference_id' => $post->id,
+            ]);
+
+            DB::commit();
+            return response()->json(['status' => 'success', 'message' => 'Đã rút yêu cầu tham gia.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Không thể rút khỏi bài giao lưu. Vui lòng thử lại.'], 500);
+        }
+    }
+
+    /**
      * Join a matchmaking post.
      */
     public function join(Request $request, $id): JsonResponse
@@ -234,12 +333,12 @@ class PlayerPostController extends Controller
             ], 409);
         }
 
-        $exists = DB::table('player_post_participants')
+        $existing = DB::table('player_post_participants')
             ->where('post_id', $post->id)
             ->where('user_id', $userId)
-            ->exists();
+            ->first();
 
-        if ($exists) {
+        if ($existing && $existing->status !== 'cancelled') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bạn đã gửi yêu cầu tham gia bài này rồi.',
@@ -261,13 +360,19 @@ class PlayerPostController extends Controller
                 ], 409);
             }
 
-            $inserted = DB::table('player_post_participants')->insertOrIgnore([
-                'post_id' => $post->id,
-                'user_id' => $userId,
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $inserted = $existing
+                ? DB::table('player_post_participants')->where('post_id', $post->id)->where('user_id', $userId)->update([
+                    'status' => 'pending',
+                    'responded_at' => null,
+                    'updated_at' => now(),
+                ])
+                : DB::table('player_post_participants')->insertOrIgnore([
+                    'post_id' => $post->id,
+                    'user_id' => $userId,
+                    'status' => 'pending',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
             if ($inserted === 0) {
                 DB::rollBack();
@@ -342,6 +447,8 @@ class PlayerPostController extends Controller
         return response()->json([
             'post' => [
                 'id' => $post->id,
+                'title' => $post->title,
+                'description' => $post->description,
                 'status' => $post->status,
                 'needed_players' => $post->needed_players,
                 'venue_name' => $post->booking->venueCluster->name ?? 'Sân chưa xác định',

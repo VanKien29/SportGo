@@ -1,8 +1,8 @@
-import { api } from './api';
+import { api, apiCached } from './api';
 
 export const courtTypeService = {
   getAll() {
-    return api('/api/court-types');
+    return apiCached('/api/court-types');
   },
   create(data) {
     return api('/api/admin/court-types', {
@@ -28,4 +28,3 @@ export const courtTypeService = {
     });
   },
 };
-

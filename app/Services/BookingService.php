@@ -846,6 +846,11 @@ class BookingService
         return round(max((float) $booking->total_price - $paidAmount, 0), 2);
     }
 
+    public function calculateRequiredPaymentAmount(string $venueClusterId, float $totalPrice, string $paymentOption): float
+    {
+        return $this->requiredPaymentAmount($venueClusterId, $totalPrice, $paymentOption);
+    }
+
     public function ensurePendingPaymentLocks(Booking $booking, string $lockedBy): Collection
     {
         if (! in_array($booking->status, ['pending_payment', 'pending_approval'], true)) {

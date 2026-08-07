@@ -4,6 +4,8 @@ namespace App\Services\Policies;
 
 use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\BookingItem;
+use App\Models\Notification;
 use App\Models\Payment;
 use App\Models\PolicyEvaluationLog;
 use App\Models\PolicyRule;
@@ -777,6 +779,280 @@ class RefundCancellationPolicyService
         }
 
         return null;
+    }
+
+    /**
+     * Tạo yêu cầu hoàn tiền do khách chủ động gửi từ một booking đã hủy/từ chối.
+     * Luồng này dùng cùng evaluator với hủy booking và bước duyệt của chủ sân.
+     */
+    public function requestCustomerRefund(
+        Booking $booking,
+        User $actor,
+        ?float $requestedAmount,
+        string $destination,
+        string $reason,
+    ): array {
+        return DB::transaction(function () use ($booking, $actor, $requestedAmount, $destination, $reason): array {
+            $booking = Booking::query()
+                ->with(['payments', 'venueCluster'])
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ((string) $booking->customer_id !== (string) $actor->id) {
+                throw ValidationException::withMessages([
+                    'booking_id' => 'Bạn không có quyền tạo yêu cầu hoàn cho booking này.',
+                ]);
+            }
+
+            if (! in_array($booking->status, ['cancelled', 'rejected'], true)) {
+                throw ValidationException::withMessages([
+                    'booking_id' => 'Chỉ booking đã hủy hoặc bị từ chối mới có thể tạo yêu cầu hoàn tiền.',
+                ]);
+            }
+
+            $blockingStatuses = [
+                'pending_owner_confirmation',
+                'owner_confirmed',
+                'admin_processing',
+                'processing',
+                'completed',
+                'completed_cash',
+            ];
+            if (Refund::query()
+                ->where('booking_id', $booking->id)
+                ->whereIn('status', $blockingStatuses)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'refund' => 'Booking này đã có một yêu cầu hoàn tiền đang được xử lý hoặc đã hoàn tất.',
+                ]);
+            }
+
+            $result = $this->evaluateBookingCancellation(
+                $booking,
+                $actor,
+                $booking->cancelled_at ?: now(),
+            );
+            $maximumAmount = round((float) ($result['refund_amount'] ?? 0), 2);
+
+            if ($maximumAmount <= 0) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Booking này không có khoản tiền đã thanh toán đủ điều kiện hoàn theo chính sách hiện tại.',
+                ]);
+            }
+
+            $amount = $requestedAmount === null ? $maximumAmount : round($requestedAmount, 2);
+            if ($amount <= 0 || $amount > $maximumAmount + 0.01) {
+                throw ValidationException::withMessages([
+                    'amount' => sprintf(
+                        'Số tiền yêu cầu phải lớn hơn 0 và không vượt quá %sđ theo chính sách.',
+                        number_format($maximumAmount, 0, ',', '.'),
+                    ),
+                ]);
+            }
+
+            $payments = Payment::query()
+                ->where('booking_id', $booking->id)
+                ->where('status', 'paid')
+                ->orderBy('paid_at')
+                ->lockForUpdate()
+                ->get();
+
+            if ($payments->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'booking_id' => 'Booking chưa có khoản thanh toán thành công để tạo yêu cầu hoàn tiền.',
+                ]);
+            }
+
+            $status = ($result['requires_owner_confirm'] ?? true)
+                ? 'pending_owner_confirmation'
+                : (($result['requires_admin_confirm'] ?? true) ? 'admin_processing' : 'processing');
+            $remaining = $amount;
+            $created = [];
+            $refundPercent = (float) ($result['refund_percent'] ?? 0);
+
+            foreach ($payments as $payment) {
+                if ($remaining <= 0.01) {
+                    break;
+                }
+
+                $paymentMaximum = round((float) $payment->amount * ($refundPercent / 100), 2);
+                $paymentAmount = min($paymentMaximum, $remaining);
+                if ($paymentAmount <= 0) {
+                    continue;
+                }
+
+                $created[] = $this->createRefundRow(
+                    $booking,
+                    $payment,
+                    round($paymentAmount, 2),
+                    $destination,
+                    $status,
+                    $result,
+                    $actor,
+                    $reason,
+                );
+                $remaining = round($remaining - $paymentAmount, 2);
+            }
+
+            if ($remaining > 0.01 || empty($created)) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Không thể phân bổ số tiền yêu cầu vào các khoản thanh toán của booking.',
+                ]);
+            }
+
+            if (Schema::hasTable('notifications') && $booking->venueCluster?->owner_id) {
+                $firstRefund = collect($created)->first();
+                Notification::query()->create([
+                    'user_id' => $booking->venueCluster->owner_id,
+                    'type' => 'refund_customer_requested',
+                    'title' => 'Có yêu cầu hoàn tiền mới',
+                    'body' => sprintf(
+                        'Khách hàng đã gửi yêu cầu hoàn %s cho booking %s. Vui lòng kiểm tra và xác nhận.',
+                        number_format($amount, 0, ',', '.').'đ',
+                        $booking->booking_code,
+                    ),
+                    'reference_type' => 'refund',
+                    'reference_id' => (string) ($firstRefund?->id),
+                    'data' => [
+                        'booking_id' => $booking->id,
+                        'booking_code' => $booking->booking_code,
+                        'amount' => $amount,
+                        'status' => $status,
+                    ],
+                ]);
+            }
+
+            return [
+                'booking' => $booking->fresh(['venueCluster', 'venueCourt', 'payments']),
+                'policy_result' => $result,
+                'refunds' => collect($created)->filter()->map(fn (Refund $refund): array => $refund->fresh()->toArray())->values()->all(),
+            ];
+        });
+    }
+
+    public function cancelBookingItems(Booking $booking, User $actor, array $bookingItemIds, string $reason): array
+    {
+        return DB::transaction(function () use ($booking, $actor, $bookingItemIds, $reason): array {
+            $booking = Booking::query()
+                ->with(['items', 'payments', 'venueCluster'])
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ((string) $booking->customer_id !== (string) $actor->id) {
+                throw ValidationException::withMessages([
+                    'booking_id' => 'Bạn không có quyền thay đổi booking này.',
+                ]);
+            }
+
+            if (! in_array($booking->status, ['confirmed', 'pending_approval', 'pending_payment'], true)) {
+                throw ValidationException::withMessages([
+                    'booking_id' => 'Booking hiện không còn khung giờ có thể hủy riêng.',
+                ]);
+            }
+
+            $activeItems = $booking->items
+                ->filter(fn (BookingItem $item): bool => in_array($item->status ?: 'active', ['active', 'moved'], true))
+                ->values();
+            $items = $activeItems->whereIn('id', $bookingItemIds)->values();
+
+            if ($items->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'booking_item_ids' => 'Không tìm thấy khung giờ còn hoạt động để hủy.',
+                ]);
+            }
+
+            if ($items->count() >= $activeItems->count()) {
+                throw ValidationException::withMessages([
+                    'booking_item_ids' => 'Muốn hủy toàn bộ booking, hãy dùng luồng hủy booking để áp dụng đúng chính sách.',
+                ]);
+            }
+
+            $policy = $this->evaluateBookingCancellation($booking, $actor);
+            if (! ($policy['allow_cancel'] ?? false)) {
+                throw ValidationException::withMessages([
+                    'booking_item_ids' => 'Khung giờ này đã quá thời hạn hủy theo chính sách của sân.',
+                ]);
+            }
+
+            $cancelledSubtotal = (float) $items->sum(fn (BookingItem $item): float => (float) $item->subtotal);
+            $activeSubtotal = max((float) $activeItems->sum(fn (BookingItem $item): float => (float) $item->subtotal), 0.01);
+            $refundRatio = min(1, max(0, $cancelledSubtotal / $activeSubtotal));
+            $paidAmount = (float) $booking->payments->where('status', 'paid')->sum('amount');
+            $refundAmount = $booking->payment_option === 'no_prepay'
+                ? 0.0
+                : round($paidAmount * ((float) ($policy['refund_percent'] ?? 0) / 100) * $refundRatio, 2);
+
+            BookingItem::query()
+                ->whereIn('id', $items->pluck('id')->all())
+                ->update([
+                    'status' => 'cancelled_by_customer',
+                    'status_reason' => $reason,
+                    'cancelled_by' => $actor->id,
+                    'cancelled_at' => now(),
+                ]);
+
+            SlotLock::query()->whereIn('booking_item_id', $items->pluck('id')->all())->delete();
+
+            $remainingItems = $activeItems->reject(fn (BookingItem $item): bool => $items->contains('id', $item->id));
+            $remainingSubtotal = max($activeSubtotal - $cancelledSubtotal, 0);
+            $remainingDuration = (int) $remainingItems->sum(fn (BookingItem $item): int => (int) $item->duration_minutes);
+            $remainingStart = $remainingItems->sortBy('start_time')->first()?->start_time;
+            $remainingEnd = $remainingItems->sortByDesc('end_time')->first()?->end_time;
+
+            $booking->forceFill([
+                'original_amount' => max((float) ($booking->original_amount ?? $booking->total_price) - $cancelledSubtotal, 0),
+                'total_price' => $remainingSubtotal,
+                'final_amount' => $remainingSubtotal,
+                'required_payment_amount' => min((float) $booking->required_payment_amount, $remainingSubtotal),
+                'duration_minutes' => $remainingDuration,
+                'start_time' => $remainingStart,
+                'end_time' => $remainingEnd,
+            ])->save();
+
+            $status = ($policy['requires_owner_confirm'] ?? true)
+                ? 'pending_owner_confirmation'
+                : (($policy['requires_admin_confirm'] ?? true) ? 'admin_processing' : 'processing');
+            $remainingRefund = $refundAmount;
+            $created = [];
+            $refundPercent = (float) ($policy['refund_percent'] ?? 0);
+
+            foreach ($booking->payments->where('status', 'paid') as $payment) {
+                if ($remainingRefund <= 0.01) {
+                    break;
+                }
+
+                $paymentMaximum = round((float) $payment->amount * ($refundPercent / 100) * $refundRatio, 2);
+                $existingAmount = (float) Refund::query()
+                    ->where('payment_id', $payment->id)
+                    ->whereNotIn('status', ['failed', 'rejected', 'cancelled'])
+                    ->sum('amount');
+                $amount = min(max($paymentMaximum - $existingAmount, 0), $remainingRefund);
+
+                if ($amount <= 0.01) {
+                    continue;
+                }
+
+                $created[] = $this->createRefundRow(
+                    $booking,
+                    $payment,
+                    round($amount, 2),
+                    'user_wallet',
+                    $status,
+                    [...$policy, 'refund_amount' => $refundAmount],
+                    $actor,
+                    $reason,
+                );
+                $remainingRefund = round($remainingRefund - $amount, 2);
+            }
+
+            return [
+                'booking' => $booking->fresh(['venueCluster', 'venueCourt', 'items', 'payments', 'refunds']),
+                'policy_result' => [...$policy, 'refund_amount' => $refundAmount, 'refund_ratio' => $refundRatio],
+                'refunds' => collect($created)->filter()->map(fn (Refund $refund): array => $refund->fresh()->toArray())->values()->all(),
+            ];
+        });
     }
 
     private function requiresFullRefundByCancellationReason(Booking $booking): bool

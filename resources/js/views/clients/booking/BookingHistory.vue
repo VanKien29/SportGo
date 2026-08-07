@@ -2,25 +2,30 @@
   <div class="booking-history-page sg-client-page sg3-history-page">
     <PublicNavbar />
 
-    <main class="history-main sg-client-shell">
-      <section class="history-header">
+    <main class="history-main sg3-container sg3-profile-main">
+      <section class="sg3-page-head">
         <div>
-          <nav class="breadcrumbs" aria-label="Điều hướng booking">
-            <router-link to="/venues">Tìm sân</router-link>
-            <AppIcon name="chevronRight" aria-hidden="true" />
-            <strong>Lịch sử đặt sân</strong>
+          <nav class="sg3-breadcrumbs" aria-label="Điều hướng tài khoản">
+            <router-link to="/profile">Tài khoản</router-link>
+            <span>/</span>
+            <strong>Lịch đặt</strong>
           </nav>
-          <p class="eyebrow sg-client-eyebrow">Lịch sử booking</p>
+          <p class="sg3-kicker">Lịch đặt của tôi</p>
           <h1>Lịch sử đặt sân</h1>
           <p>Theo dõi các đơn sân sắp tới, đã hoàn tất, đã hủy và đã hoàn tiền.</p>
         </div>
-        <router-link :to="{ name: 'booking-create' }" class="primary-action sg-client-button sg-client-button--primary">
+        <router-link :to="{ name: 'booking-create' }" class="sg3-button sg3-button--primary">
           <AppIcon name="plus" aria-hidden="true" />
           Đặt sân mới
         </router-link>
       </section>
 
-      <ClientAccountNav />
+      <section class="booking-overview-strip" aria-label="Tổng quan lịch đặt">
+        <article><span class="booking-overview-icon"><AppIcon name="calendar" :size="16" /></span><div><small>Đang hiển thị</small><strong>{{ bookings.length }} booking</strong></div></article>
+        <article><span class="booking-overview-icon booking-overview-icon--blue"><AppIcon name="clock" :size="16" /></span><div><small>Sắp tới</small><strong>{{ upcomingCount }} buổi</strong></div></article>
+        <article><span class="booking-overview-icon booking-overview-icon--amber"><AppIcon name="rotateCcw" :size="16" /></span><div><small>Đang hoàn / hủy</small><strong>{{ refundCount }} yêu cầu</strong></div></article>
+        <router-link class="booking-overview-help" to="/refunds"><AppIcon name="arrowRight" :size="15" /> Mở trung tâm hoàn/hủy</router-link>
+      </section>
 
       <section class="filters" aria-label="Lọc booking">
         <button
@@ -76,13 +81,13 @@
         </button>
       </form>
 
-      <section class="history-panel sg-client-card">
-        <div v-if="loading" class="state sg-client-state">
+      <section class="history-panel">
+        <div v-if="loading" class="state sg3-empty sg-client-state">
           <span class="spinner" aria-hidden="true"></span>
           Đang tải lịch sử booking...
         </div>
 
-        <div v-else-if="error" class="state error sg-client-state">
+        <div v-else-if="error" class="state error sg3-error sg-client-state">
           <AppIcon name="alert" aria-hidden="true" />
           <strong>Không tải được lịch sử đặt sân</strong>
           <span>{{ error }}</span>
@@ -92,7 +97,7 @@
           </button>
         </div>
 
-        <div v-else-if="bookings.length === 0" class="state empty sg-client-state">
+        <div v-else-if="bookings.length === 0" class="state empty sg3-empty sg-client-state">
           <AppIcon name="calendar" aria-hidden="true" />
           <strong>Chưa có booking phù hợp.</strong>
           <span>Thử đổi bộ lọc hoặc đặt sân mới để bắt đầu.</span>
@@ -103,35 +108,21 @@
         </div>
 
         <div v-else class="booking-list">
-          <article v-for="booking in bookings" :key="booking.id" class="booking-card sg-client-card">
-            <div class="booking-topline">
-              <div>
-                <span class="code">#{{ booking.booking_code }}</span>
-                <h2>{{ clusterName(booking) }}</h2>
-              </div>
-              <span class="status-badge" :class="booking.status">
-                {{ statusLabel(booking.status) }}
-              </span>
+          <article v-for="booking in bookings" :key="booking.id" class="booking-card sg3-card">
+            <header class="booking-card__header">
+              <div class="booking-card__date"><AppIcon name="calendar" :size="18" /><span><small>Ngày chơi</small><strong>{{ formatDate(booking.booking_date) }}</strong></span></div>
+              <div class="booking-card__identity"><span class="code">#{{ booking.booking_code }}</span><h2>{{ clusterName(booking) }}</h2><small>{{ courtText(booking) }}<template v-if="booking.items?.length > 1"> · {{ booking.items.length }} khung giờ/sân</template></small></div>
+              <div class="booking-card__status"><span class="status-badge" :class="booking.status">{{ statusLabel(booking.status) }}</span><span v-if="booking.matchmaking" class="booking-matchmaking-chip"><AppIcon name="users" :size="14" /> Giao lưu {{ booking.matchmaking.label }}</span></div>
+            </header>
+
+            <div class="booking-card__body">
+              <div class="booking-time-rail" aria-label="Khung giờ chơi"><div><small>Bắt đầu</small><strong>{{ formatTime(booking.start_time) }}</strong></div><span class="booking-time-rail__line"><i></i></span><div><small>Kết thúc</small><strong>{{ formatTime(booking.end_time) }}</strong></div></div>
+              <div class="booking-card__details"><div class="booking-detail-row"><span class="booking-detail-row__icon"><AppIcon name="layers" :size="15" /></span><span><small>Sân đã chọn</small><strong>{{ courtText(booking) }}</strong></span></div><div class="booking-detail-row"><span class="booking-detail-row__icon booking-detail-row__icon--blue"><AppIcon name="creditCard" :size="15" /></span><span><small>Thanh toán</small><strong>{{ paymentStatusLabel(booking.payment_status) }}</strong></span></div><div class="booking-detail-row"><span class="booking-detail-row__icon booking-detail-row__icon--muted"><AppIcon name="clock" :size="15" /></span><span><small>Thời lượng</small><strong>{{ durationLabel(booking) }}</strong></span></div></div>
             </div>
 
-            <div class="booking-meta">
-              <div>
-                <span>Sân</span>
-                <strong>{{ courtText(booking) }}</strong>
-                <small v-if="booking.items?.length > 1">{{ booking.items.length }} khung giờ/sân</small>
-              </div>
-              <div>
-                <span>Thời gian chơi</span>
-                <strong>{{ formatDate(booking.booking_date) }} · {{ formatTime(booking.start_time) }}-{{ formatTime(booking.end_time) }}</strong>
-              </div>
-              <div>
-                <span>Thành tiền</span>
-                <strong>{{ formatCurrency(booking.total_price) }}</strong>
-              </div>
-              <div>
-                <span>Thanh toán</span>
-                <strong>{{ paymentStatusLabel(booking.payment_status) }}</strong>
-              </div>
+            <div v-if="booking.matchmaking" class="booking-matchmaking-panel">
+              <div><span class="booking-matchmaking-panel__icon"><AppIcon name="users" :size="17" /></span><div><strong>Buổi này đang tuyển giao lưu</strong><small>Đã ghép {{ booking.matchmaking.approved_players }} người · còn cần {{ booking.matchmaking.needed_players }} người</small></div></div>
+              <router-link :to="`/matchmaking-posts/${booking.matchmaking.id}/manage`" class="ghost-action"><AppIcon name="arrowRight" :size="15" /> Xem danh sách</router-link>
             </div>
 
             <div v-if="booking.has_court_change || booking.has_partial_cancellation" class="booking-flags">
@@ -139,7 +130,7 @@
               <span v-if="booking.has_partial_cancellation">Có khung bị hủy/gián đoạn</span>
             </div>
 
-            <div class="booking-actions">
+            <footer class="booking-actions">
               <button type="button" class="ghost-action primary-detail" @click="selectedBooking = booking">
                 <AppIcon name="eye" aria-hidden="true" />
                 Xem nhanh
@@ -156,6 +147,10 @@
                 <AppIcon name="rotateCcw" aria-hidden="true" />
                 Đặt thêm lịch
               </router-link>
+              <button v-if="canRequestRefund(booking)" type="button" class="ghost-action refund-action" @click="openRefundRequest(booking)">
+                <AppIcon name="rotateCcw" aria-hidden="true" />
+                Yêu cầu hoàn tiền
+              </button>
               <router-link
                 v-if="booking.booking_type === 'recurring' && booking.recurring_group_code"
                 :to="{ name: 'booking-recurring-group', params: { groupCode: booking.recurring_group_code } }"
@@ -174,7 +169,7 @@
                 <AppIcon name="circleX" aria-hidden="true" />
                 {{ cancellingId === booking.id ? 'Đang hủy...' : 'Hủy booking' }}
               </button>
-            </div>
+            </footer>
           </article>
         </div>
 
@@ -191,6 +186,15 @@
         </div>
       </section>
     </main>
+
+    <RefundRequestModal
+      :is-open="Boolean(refundRequestBooking)"
+      :booking="refundRequestBooking"
+      :loading="refundRequestLoading"
+      :error="refundRequestError"
+      @close="closeRefundRequest"
+      @submit="submitRefundRequest"
+    />
 
     <ConfirmActionModal
       :is-open="Boolean(cancelTarget)"
@@ -254,14 +258,14 @@
 
 <script>
 import AppIcon from "../../../components/AppIcon.vue";
-import ClientAccountNav from "../../../components/ClientAccountNav.vue";
 import ConfirmActionModal from "../../../components/ConfirmActionModal.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
+import RefundRequestModal from "../../../components/RefundRequestModal.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
   name: "BookingHistory",
-  components: { AppIcon, ClientAccountNav, ConfirmActionModal, PublicNavbar },
+  components: { AppIcon, ConfirmActionModal, PublicNavbar, RefundRequestModal },
   data() {
     return {
       bookings: [],
@@ -279,6 +283,9 @@ export default {
       cancelTarget: null,
       cancelError: "",
       selectedBooking: null,
+      refundRequestBooking: null,
+      refundRequestLoading: false,
+      refundRequestError: "",
       statusFilters: [
         { value: "all", label: "Tất cả" },
         { value: "upcoming", label: "Sắp tới" },
@@ -304,6 +311,12 @@ export default {
     },
   },
   computed: {
+    upcomingCount() {
+      return this.bookings.filter((booking) => ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'].includes(booking.status)).length;
+    },
+    refundCount() {
+      return this.bookings.filter((booking) => booking.refunds?.length || ['cancelled', 'expired', 'rejected'].includes(booking.status)).length;
+    },
     cancelDescription() {
       if (!this.cancelTarget) return "";
       return `Booking #${this.cancelTarget.booking_code} tại ${this.clusterName(this.cancelTarget)} sẽ được hủy và hoàn tiền theo chính sách hiện hành.`;
@@ -377,6 +390,35 @@ export default {
       const booking = this.selectedBooking;
       this.selectedBooking = null;
       if (booking) this.cancelBooking(booking);
+    },
+    canRequestRefund(booking) {
+      if (!booking || !['cancelled', 'rejected'].includes(booking.status)) return false;
+      if (Number(booking.paid_amount || 0) <= 0) return false;
+      const blockingStatuses = ['pending_owner_confirmation', 'owner_confirmed', 'admin_processing', 'processing', 'completed', 'completed_cash'];
+      return !(booking.refunds || []).some((refund) => blockingStatuses.includes(refund.status));
+    },
+    openRefundRequest(booking) {
+      this.refundRequestBooking = booking;
+      this.refundRequestError = "";
+    },
+    closeRefundRequest() {
+      if (this.refundRequestLoading) return;
+      this.refundRequestBooking = null;
+      this.refundRequestError = "";
+    },
+    async submitRefundRequest(payload) {
+      if (this.refundRequestLoading) return;
+      this.refundRequestLoading = true;
+      this.refundRequestError = "";
+      try {
+        await bookingService.requestRefund(payload);
+        this.refundRequestBooking = null;
+        await this.loadBookings();
+      } catch (error) {
+        this.refundRequestError = error.message || "Không thể gửi yêu cầu hoàn tiền.";
+      } finally {
+        this.refundRequestLoading = false;
+      }
     },
     closeCancelModal() {
       if (this.cancellingId) return;
@@ -454,6 +496,16 @@ export default {
     formatTime(value) {
       return value ? String(value).slice(0, 5) : "--:--";
     },
+    durationLabel(booking) {
+      const toMinutes = (value) => {
+        const [hour, minute] = String(value || "").slice(0, 5).split(":").map(Number);
+        return Number.isFinite(hour) && Number.isFinite(minute) ? (hour * 60) + minute : null;
+      };
+      const start = toMinutes(booking.start_time);
+      const end = toMinutes(booking.end_time);
+      if (start === null || end === null || end <= start) return "Theo khung giờ";
+      return `${end - start} phút`;
+    },
     formatCurrency(value) {
       return new Intl.NumberFormat("vi-VN", {
         style: "currency",
@@ -468,7 +520,7 @@ export default {
 <style scoped>
 .booking-history-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--sg3-soft);
 }
 
 .booking-flags {
@@ -487,41 +539,9 @@ export default {
 }
 
 .history-main {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 104px 24px 56px;
+  padding-bottom: 64px;
 }
 
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  align-items: flex-end;
-  margin-bottom: 24px;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 400;
-  color: #059669;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.history-header h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 400;
-  color: #0f172a;
-}
-
-.history-header p:not(.eyebrow) {
-  margin: 8px 0 0;
-  color: #64748b;
-}
-
-.primary-action,
 .ghost-action,
 .danger-action,
 .filters button,
@@ -529,13 +549,6 @@ export default {
   border-radius: 8px;
   font-weight: 400;
   transition: .16s ease;
-}
-
-.primary-action {
-  display: inline-flex;
-  padding: 12px 18px;
-  background: #059669;
-  color: #fff;
 }
 
 .filters {
@@ -630,10 +643,10 @@ export default {
 }
 
 .history-panel {
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  border-radius: 12px;
-  padding: 18px;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
 }
 
 .state {
@@ -670,20 +683,115 @@ export default {
 }
 
 .booking-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 18px;
-  background: #fff;
+  border: 1px solid var(--sg3-line);
+  border-radius: var(--sg3-radius);
+  padding: 0;
+  overflow: hidden;
+  background: var(--sg3-panel);
+  box-shadow: var(--sg3-shadow);
 }
 
-.booking-topline,
 .booking-actions,
 .pagination {
   display: flex;
-  justify-content: space-between;
   gap: 12px;
   align-items: center;
 }
+
+.booking-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  min-height: 72px;
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--sg3-line);
+  background: var(--sg3-panel);
+}
+
+.booking-card__header {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5edf0;
+  background: #fbfefc;
+}
+
+.booking-card__date,
+.booking-detail-row,
+.booking-card__status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.booking-card__date {
+  color: #087642;
+}
+
+.booking-card__date > span,
+.booking-card__identity,
+.booking-card__status {
+  display: grid;
+  gap: 4px;
+}
+
+.booking-card__date small,
+.booking-card__identity > small,
+.booking-detail-row small,
+.booking-time-rail small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.booking-card__date strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.booking-card__identity h2 {
+  margin: 2px 0 0;
+}
+
+.booking-card__status {
+  justify-items: end;
+}
+
+.booking-card__body {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 24px;
+  padding: 20px;
+}
+
+.booking-time-rail {
+  display: grid;
+  grid-template-columns: 1fr 30px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #d9eee1;
+  border-radius: 10px;
+  background: #f4fbf6;
+}
+
+.booking-time-rail > div {
+  display: grid;
+  gap: 5px;
+}
+
+.booking-time-rail > div:last-child { text-align: right; }
+.booking-time-rail strong { color: #087642; font-size: 20px; letter-spacing: -.04em; }
+.booking-time-rail__line { position: relative; display: block; height: 2px; background: #a9dcbc; }
+.booking-time-rail__line i { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border: 2px solid #0b9b55; border-radius: 50%; background: #fff; }
+
+.booking-card__details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; align-items: center; }
+.booking-detail-row { min-width: 0; }
+.booking-detail-row > span:last-child { display: grid; min-width: 0; gap: 4px; }
+.booking-detail-row strong { overflow: hidden; color: #0f172a; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.booking-detail-row__icon { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border-radius: 9px; background: #e7f7ec; color: #087642; }
+.booking-detail-row__icon--blue { background: #eaf3ff; color: #2b69a7; }
+.booking-detail-row__icon--muted { background: #f1f5f3; color: #64748b; }
 
 .code {
   color: #64748b;
@@ -728,29 +836,6 @@ export default {
   color: #991b1b;
 }
 
-.booking-meta {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin: 18px 0;
-  padding: 16px;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.booking-meta span {
-  display: block;
-  margin-bottom: 4px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.booking-meta strong {
-  color: #0f172a;
-  font-size: 14px;
-}
-
 .ghost-action,
 .danger-action,
 .pagination button {
@@ -783,136 +868,21 @@ export default {
 }
 
 @media (max-width: 820px) {
-  .history-header,
-  .booking-topline,
   .booking-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .booking-meta {
-    grid-template-columns: 1fr 1fr;
-  }
+  .booking-card__header { grid-template-columns: 1fr auto; }
+  .booking-card__date { grid-column: 1 / -1; }
+  .booking-card__body { grid-template-columns: 1fr; }
+  .booking-card__details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) {
-  .history-main { padding-inline: 16px; }
-  .booking-meta { grid-template-columns: 1fr; }
-}
-</style>
-
-<style>
-/* Dark Mode Support for Booking History */
-.dark .booking-history-page {
-  background-color: #09090b !important;
-  color: #f8fafc !important;
-  min-height: 100vh;
-}
-
-.dark .booking-history-page .history-header h1 {
-  color: #f8fafc !important;
-}
-
-.dark .booking-history-page .history-header p {
-  color: #a1a1aa !important;
-}
-
-.dark .booking-history-page .history-header .eyebrow {
-  color: #10b981 !important;
-}
-
-.dark .filters button {
-  background: #18181b !important;
-  border-color: #27272a !important;
-  color: #a1a1aa !important;
-}
-
-.dark .filters button.active {
-  border-color: #059669 !important;
-  background: #064e3b !important;
-  color: #34d399 !important;
-}
-
-.dark .history-panel {
-  border-color: #27272a !important;
-  background: #18181b !important;
-}
-
-.dark .state {
-  color: #a1a1aa !important;
-}
-
-.dark .state.empty strong {
-  color: #f8fafc !important;
-}
-
-.dark .booking-card {
-  border-color: #27272a !important;
-  background: #09090b !important;
-}
-
-.dark .booking-card h2 {
-  color: #f8fafc !important;
-}
-
-.dark .status-badge {
-  background: #27272a !important;
-  color: #a1a1aa !important;
-}
-
-.dark .status-badge.confirmed,
-.dark .status-badge.completed,
-.dark .status-badge.checked_in {
-  background: #064e3b !important;
-  color: #34d399 !important;
-}
-
-.dark .status-badge.pending_payment,
-.dark .status-badge.pending_approval {
-  background: #78350f !important;
-  color: #fcd34d !important;
-}
-
-.dark .status-badge.cancelled,
-.dark .status-badge.expired,
-.dark .status-badge.rejected {
-  background: #7f1d1d !important;
-  color: #fca5a5 !important;
-}
-
-.dark .booking-meta {
-  background: #18181b !important;
-  border: 1px solid #27272a !important;
-}
-
-.dark .booking-meta span {
-  color: #a1a1aa !important;
-}
-
-.dark .booking-meta strong {
-  color: #e2e8f0 !important;
-}
-
-.dark .ghost-action,
-.dark .pagination button {
-  border-color: #27272a !important;
-  background: #18181b !important;
-  color: #f8fafc !important;
-}
-
-.dark .ghost-action:hover,
-.dark .pagination button:hover {
-  background: #27272a !important;
-}
-
-.dark .danger-action {
-  border-color: #7f1d1d !important;
-  color: #f87171 !important;
-  background: #18181b !important;
-}
-
-.dark .danger-action:hover {
-  background: #7f1d1d !important;
-  color: #fecaca !important;
+  .booking-card__header { grid-template-columns: 1fr; gap: 12px; }
+  .booking-card__status { justify-items: start; }
+  .booking-card__body { padding: 15px; }
+  .booking-card__details { grid-template-columns: 1fr; }
 }
 </style>

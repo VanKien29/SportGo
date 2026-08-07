@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -169,6 +170,45 @@ class AuthController extends Controller
         }
 
         return response()->json($payload);
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $data = $request->validate([
+            'full_name' => ['required', 'string', 'min:2', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'full_name.required' => 'Vui lòng nhập họ và tên.',
+            'full_name.min' => 'Họ và tên cần có ít nhất 2 ký tự.',
+            'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'avatar.image' => 'Avatar phải là một tệp hình ảnh.',
+            'avatar.max' => 'Avatar không được vượt quá 2MB.',
+        ]);
+
+        $user->full_name = trim($data['full_name']);
+        $user->phone = $data['phone'] ? trim($data['phone']) : null;
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar_url && str_starts_with($user->avatar_url, '/storage/')) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $user->avatar_url));
+            }
+
+            $user->avatar_url = Storage::disk('public')->url($request->file('avatar')->store('avatars', 'public'));
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Đã cập nhật thông tin cá nhân.',
+            'user' => $user->only([
+                'id', 'username', 'full_name', 'email', 'phone', 'status',
+                'avatar_url', 'email_verified_at',
+            ]),
+        ]);
     }
 
     public function logout(Request $request): JsonResponse

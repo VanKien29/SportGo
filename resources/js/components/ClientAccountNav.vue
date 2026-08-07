@@ -39,8 +39,8 @@ const items = [
   },
   {
     key: 'refunds',
-    label: 'Hoàn tiền',
-    description: 'Theo dõi yêu cầu hoàn',
+    label: 'Hoàn / hủy',
+    description: 'Hoàn tiền & hủy booking',
     icon: 'refresh',
     to: { name: 'client-refunds' },
   },
@@ -65,6 +65,13 @@ const items = [
     icon: 'messageSquare',
     to: { name: 'client-complaints' },
   },
+  {
+    key: 'reports',
+    label: 'Báo cáo',
+    description: 'Theo dõi phản ánh',
+    icon: 'alert',
+    to: { name: 'client-reports' },
+  },
 ];
 
 function isActive(key) {
@@ -73,9 +80,9 @@ function isActive(key) {
   if (key === 'wallet') return route.name === 'client-wallet';
   if (key === 'notifications') return route.name === 'client-notifications';
   if (key === 'complaints') return route.name === 'client-complaints' || route.name === 'client-complaint-detail';
+  if (key === 'reports') return route.name === 'client-reports' || route.name === 'client-report-detail';
   if (route.name !== 'profile') return false;
   if (key === 'refunds') return route.query.tab === 'refunds';
   return key === 'profile' && route.query.tab !== 'refunds';
 }
 </script>
-

@@ -17,49 +17,57 @@ import {
 } from "../config/permissionAccess.js";
 
 import Home from "../views/Home.vue";
-import Login from "../views/Login.vue";
-import Register from "../views/Register.vue";
-import ForgotPassword from "../views/ForgotPassword.vue";
-import ClientProfile from "../views/clients/ClientProfile.vue";
-import AdminLogin from "../views/admin/AdminLogin.vue";
-import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
-import AdminLayout from "../views/admin/AdminLayout.vue";
-import AdminProfile from "../views/admin/AdminProfile.vue";
-import AdminUsers from "../views/admin/AdminUsers.vue";
-import AdminStaffs from "../views/admin/AdminStaffs.vue";
-import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
-import AdminStaffDetail from "../views/admin/AdminStaffDetail.vue";
-import AdminVouchers from "../views/admin/AdminVouchers.vue";
-import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
-import AdminPolicies from "../views/admin/AdminPolicies.vue";
-import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
-import AdminRoles from "../views/admin/AdminRoles.vue";
-import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
-import OwnerLayout from "../views/owner/OwnerLayout.vue";
-import OwnerPricing from "../views/owner/OwnerPricing.vue";
-import OwnerStaff from "../views/owner/OwnerStaff.vue";
-import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
-import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
-import StaffLayout from "../views/staff/StaffLayout.vue";
-import BookingForm from "../views/clients/booking/BookingForm.vue";
-import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import BookingHistory from "../views/clients/booking/BookingHistory.vue";
-import ClientWallet from "../views/clients/Wallet.vue";
-import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
-import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
-import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
-import UserProfile from '../views/clients/users/UserProfile.vue';
-import VenueList from "../views/clients/VenueList.vue";
-import VenueDetail from "../views/clients/VenueDetail.vue";
-import CommunityPostDetail from "../views/clients/community/CommunityDetail.vue";
+const Login = () => import("../views/Login.vue");
+const Register = () => import("../views/Register.vue");
+const ForgotPassword = () => import("../views/ForgotPassword.vue");
+const ClientProfile = () => import("../views/clients/ClientProfile.vue");
+const AdminLogin = () => import("../views/admin/AdminLogin.vue");
+const AdminForgotPassword = () => import("../views/admin/AdminForgotPassword.vue");
+const AdminLayout = () => import("../views/admin/AdminLayout.vue");
+const AdminProfile = () => import("../views/admin/AdminProfile.vue");
+const AdminUsers = () => import("../views/admin/AdminUsers.vue");
+const AdminStaffs = () => import("../views/admin/AdminStaffs.vue");
+const AdminUserDetail = () => import("../views/admin/AdminUserDetail.vue");
+const AdminStaffDetail = () => import("../views/admin/AdminStaffDetail.vue");
+const AdminVouchers = () => import("../views/admin/AdminVouchers.vue");
+const AdminVoucherDetail = () => import("../views/admin/AdminVoucherDetail.vue");
+const AdminPolicies = () => import("../views/admin/AdminPolicies.vue");
+const AdminPolicyDetail = () => import("../views/admin/AdminPolicyDetail.vue");
+const AdminRoles = () => import("../views/admin/AdminRoles.vue");
+const AdminRoleDetail = () => import("../views/admin/AdminRoleDetail.vue");
+const OwnerLayout = () => import("../views/owner/OwnerLayout.vue");
+const OwnerPricing = () => import("../views/owner/OwnerPricing.vue");
+const OwnerStaff = () => import("../views/owner/OwnerStaff.vue");
+const OwnerVouchers = () => import("../views/owner/OwnerVouchers.vue");
+const OwnerPolicies = () => import("../views/owner/OwnerPolicies.vue");
+const StaffLayout = () => import("../views/staff/StaffLayout.vue");
+const BookingForm = () => import("../views/clients/booking/BookingForm.vue");
+const BookingDetail = () => import("../views/clients/booking/BookingDetail.vue");
+const BookingHistory = () => import("../views/clients/booking/BookingHistory.vue");
+const ClientWallet = () => import("../views/clients/Wallet.vue");
+const PartnerApplicationPortal = () => import("../views/partner/PartnerApplicationPortal.vue");
+const PartnerApplicationDetail = () => import("../views/partner/PartnerApplicationDetail.vue");
+const PartnerApplicationDocumentPage = () => import("../views/partner/PartnerApplicationDocumentPage.vue");
+const UserProfile = () => import('../views/clients/users/UserProfile.vue');
+const VenueList = () => import("../views/clients/VenueList.vue");
+const VenueDetail = () => import("../views/clients/VenueDetail.vue");
+const FavoriteVenues = () => import("../views/clients/FavoriteVenues.vue");
+const ClientReports = () => import("../views/clients/Reports.vue");
+const ClientReportDetail = () => import("../views/clients/ReportDetail.vue");
+const CommunityPostDetail = () => import("../views/clients/community/CommunityDetail.vue");
 
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/venues", name: "venues", component: VenueList },
-    { path: "/map", name: "client-map", redirect: { name: "venues", query: { view: "map" } } },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
     { path: "/offers", name: "client-offers", component: () => import("../views/clients/Offers.vue") },
     { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
+    {
+        path: "/community/matchmaking",
+        name: "client-matchmaking",
+        component: () => import("../views/clients/community/MatchmakingHub.vue"),
+        meta: { requiresAuth: false, title: "Tuyển giao lưu" },
+    },
     { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
@@ -91,6 +99,19 @@ const routes = [
         component: () => import("@/views/clients/community/CommunityList.vue"),
         meta: { requiresAuth: false, title: "Cộng đồng" },
     },
+    {
+        path: "/map",
+        name: "client-map",
+        component: () => import("@/views/clients/VenueMap.vue"),
+        meta: { requiresAuth: false, title: "Bản đồ sân" },
+    },
+    {
+        path: "/favorites/venues",
+        name: "client-favorite-venues",
+        component: FavoriteVenues,
+        meta: { requiresAuth: true, title: "Sân yêu thích" },
+    },
+    { path: "/matchmaking", redirect: { name: "client-matchmaking" } },
     {
         path: '/user/:id',
         name: 'user.profile',
@@ -197,6 +218,18 @@ const routes = [
         name: "client-complaint-detail",
         component: () => import("../views/clients/ComplaintDetail.vue"),
         meta: { requiresAuth: true },
+    },
+    {
+        path: "/reports",
+        name: "client-reports",
+        component: ClientReports,
+        meta: { requiresAuth: true, title: "Báo cáo của tôi" },
+    },
+    {
+        path: "/reports/:id",
+        name: "client-report-detail",
+        component: ClientReportDetail,
+        meta: { requiresAuth: true, title: "Chi tiết báo cáo" },
     },
     {
         path: "/become-partner",
@@ -597,6 +630,14 @@ const router = createRouter({
         return { top: 0, left: 0 };
     },
 });
+
+if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    window.requestIdleCallback(() => {
+        VenueList();
+        VenueDetail();
+        BookingForm();
+    });
+}
 
 if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
     window.history.scrollRestoration = "manual";
