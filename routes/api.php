@@ -89,6 +89,9 @@ Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostCon
 Route::get('/bookings/init', [\App\Http\Controllers\Api\Player\BookingController::class, 'initData']);
 Route::get('/bookings/schedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'schedule']);
 
+Route::get('/chat/ai-history', [\App\Http\Controllers\Api\AiChatController::class, 'history']);
+Route::post('/chat/ai-assistant', [\App\Http\Controllers\Api\AiChatController::class, 'ask']);
+
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/register/verify-otp', [AuthController::class, 'verifyRegisterOtp']);
@@ -103,6 +106,7 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
         Route::post('/set-password', [SetPasswordController::class, 'store']);
     });
@@ -589,6 +593,7 @@ Route::middleware('auth:sanctum')
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
 
         Route::get('/user/wallet', [\App\Http\Controllers\Api\Player\WalletController::class, 'show']);
+        Route::post('/user/wallet/withdraw', [\App\Http\Controllers\Api\Player\WalletController::class, 'requestWithdrawal']);
         Route::get('/refunds', [\App\Http\Controllers\Api\Player\RefundController::class, 'index']);
         Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 

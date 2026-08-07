@@ -1,369 +1,269 @@
 <template>
-  <div class="bd-container">
+  <div class="bd-page">
     <PublicNavbar />
 
-    <main v-if="!loading" class="bd-main">
-      <div v-if="booking" class="bd-content">
-        <!-- HEADER & ACTIONS BAR -->
-        <header class="bd-head">
-          <nav class="bd-breadcrumbs">
-            <router-link :to="{ name: 'booking-history' }" class="bd-back-link">
-              <AppIcon name="arrowLeft" aria-hidden="true" />
-              <span>Quay lại lịch sử đặt sân</span>
-            </router-link>
-            <span class="bd-crumb-sep">/</span>
-            <strong class="bd-code">#{{ booking.booking_code }}</strong>
-          </nav>
+    <main class="bd-main">
+      <!-- LOADING STATE -->
+      <div v-if="loading" class="bd-state">
+        <span class="bd-spinner" aria-hidden="true"></span>
+        <span>Đang đồng bộ chi tiết đơn đặt sân...</span>
+      </div>
 
-          <div class="bd-head-actions">
+      <!-- ERROR / EMPTY STATE -->
+      <div v-else-if="!booking || loadError" class="bd-state bd-state--error">
+        <strong>Không tìm thấy thông tin booking</strong>
+        <p>{{ loadError || "Đơn đặt sân này không tồn tại hoặc đã bị gỡ khỏi hệ thống." }}</p>
+        <div class="bd-actions-row">
+          <button type="button" class="bd-btn bd-btn--outline" @click="loadBooking">Thử lại</button>
+          <router-link :to="{ name: 'booking-history' }" class="bd-btn bd-btn--primary">
+            Về lịch sử đặt sân
+          </router-link>
+        </div>
+      </div>
+
+      <!-- MAIN BOOKING CONTENT (FRAMELESS & NO BADGES/PILLS) -->
+      <div v-else class="bd-content">
+        <!-- TOP BREADCRUMBS & ACTIONS -->
+        <div class="bd-top-bar">
+          <div class="bd-title-group">
+            <h1 class="bd-title">Chi tiết đơn đặt #{{ booking.booking_code }}</h1>
+          </div>
+
+          <div class="bd-actions-row">
+            <button
+              v-if="venueId"
+              type="button"
+              class="bd-btn bd-btn--primary"
+              :disabled="startingChat"
+              @click="chatWithOwner"
+            >
+              <span>{{ startingChat ? "Đang kết nối..." : "Chat hỗ trợ với sân" }}</span>
+            </button>
+
             <router-link
               v-if="venueId"
               :to="{ name: 'venue-detail', params: { id: venueId } }"
               class="bd-btn bd-btn--outline"
             >
-              <AppIcon name="mapPin" aria-hidden="true" />
-              <span>Xem sân</span>
+              Xem sân
             </router-link>
 
             <router-link
               v-if="venueId"
               :to="rebookLocation"
-              class="bd-btn bd-btn--primary"
+              class="bd-btn bd-btn--outline"
             >
-              <AppIcon name="rotateCcw" aria-hidden="true" />
-              <span>Đặt thêm lịch</span>
+              Đặt thêm lịch
             </router-link>
 
             <router-link
               :to="{ name: 'client-complaint-create', query: { booking_id: booking.id } }"
               class="bd-btn bd-btn--outline"
             >
-              <AppIcon name="messageSquare" aria-hidden="true" />
-              <span>Gửi khiếu nại</span>
+              Gửi khiếu nại
             </router-link>
           </div>
-        </header>
+        </div>
 
-        <!-- MAIN 2-COLUMN GRID -->
+        <!-- STATUS HEADER ROW (PLAIN TEXT, NO PILL BADGES) -->
+        <div class="bh-status-row">
+          <div class="bh-status-info">
+            <span class="bh-status-label">Trạng thái đơn:</span>
+            <strong class="bh-status-value" :class="booking.status">{{ statusLabel }}</strong>
+          </div>
+          <p class="bh-status-desc">{{ statusDescription }}</p>
+        </div>
+
+        <!-- 2-COLUMN DETAILS GRID -->
         <div class="bd-grid">
           <!-- LEFT COLUMN: BOOKING SESSION INFO -->
-          <section class="bd-col-main">
-            <!-- PLAY SESSION DETAILS CARD -->
-            <article class="bd-card">
-              <div class="bd-card-head">
-                <div>
-                  <span class="bd-card-eyebrow">THÔNG TIN BUỔI CHƠI</span>
-                  <h2 class="bd-card-title">Chi tiết đơn đặt #{{ booking.booking_code }}</h2>
-                </div>
-                <span class="bd-badge" :class="booking.status">{{ statusLabel }}</span>
+          <div class="bd-col-main">
+            <div class="bd-sec-head">
+              <h3>Thông tin buổi chơi</h3>
+            </div>
+
+            <div class="bd-info-list">
+              <div class="bd-info-row">
+                <span class="bd-label">Cụm sân thể thao</span>
+                <strong class="bd-val">{{ venueCluster?.name || "Cụm sân thể thao" }}</strong>
               </div>
 
-              <div class="bd-info-grid">
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Cụm sân</span>
-                  <strong class="bd-info-val">{{ venueCluster?.name || "Đang cập nhật" }}</strong>
-                </div>
-
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Địa chỉ</span>
-                  <span class="bd-info-val">{{ venueAddress }}</span>
-                </div>
-
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Sân chơi</span>
-                  <strong class="bd-info-val">{{ courtText }}</strong>
-                </div>
-
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Ngày chơi</span>
-                  <strong class="bd-info-val">{{ formatDate(booking.booking_date) }}</strong>
-                </div>
-
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Khung giờ</span>
-                  <strong class="bd-info-val">{{ formatTime(booking.start_time) }} - {{ formatTime(booking.end_time) }}</strong>
-                </div>
-
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Thời lượng</span>
-                  <span class="bd-info-val">{{ booking.duration_minutes ? booking.duration_minutes + " phút" : "-" }}</span>
-                </div>
-
-                <div class="bd-info-item">
-                  <span class="bd-info-label">Hình thức đặt</span>
-                  <span class="bd-info-val">{{ bookingTypeLabel }}</span>
-                </div>
+              <div class="bd-info-row">
+                <span class="bd-label">Địa chỉ cụm sân</span>
+                <span class="bd-val">{{ venueAddress }}</span>
               </div>
 
-              <!-- SLOTS BREAKDOWN LIST (FLAT ROWS) -->
-              <div v-if="booking.items?.length" class="bd-items-section">
-                <h3 class="bd-sub-head">Các khung giờ trong booking</h3>
-                <div class="bd-items-list">
-                  <div v-for="item in booking.items" :key="item.id" class="bd-item-row">
-                    <div class="bd-item-info">
-                      <strong>{{ item.venue_court?.name || "Sân" }}</strong>
-                      <span>{{ formatTime(item.start_time) }} - {{ formatTime(item.end_time) }}</span>
-                    </div>
-                    <span class="bd-badge-mini" :class="item.status">{{ itemStatusLabel(item.status) }}</span>
+              <div class="bd-info-row">
+                <span class="bd-label">Sân & Khung giờ</span>
+                <strong class="bd-val">{{ courtText }}</strong>
+              </div>
+
+              <div class="bd-info-row">
+                <span class="bd-label">Ngày chơi</span>
+                <strong class="bd-val">{{ formatDate(booking.booking_date) }}</strong>
+              </div>
+
+              <div class="bd-info-row">
+                <span class="bd-label">Thời gian</span>
+                <span class="bd-val">{{ formatTime(booking.start_time) }} - {{ formatTime(booking.end_time) }} ({{ booking.duration_minutes || 60 }} phút)</span>
+              </div>
+
+              <div class="bd-info-row">
+                <span class="bd-label">Hình thức đặt</span>
+                <span class="bd-val">{{ bookingTypeLabel }}</span>
+              </div>
+            </div>
+
+            <!-- SLOTS BREAKDOWN LIST -->
+            <div v-if="booking.items?.length" class="bd-slots-section">
+              <h4 class="bd-sub-title">Danh sách các khung giờ</h4>
+              <div class="bd-slots-list">
+                <div v-for="item in booking.items" :key="item.id" class="bd-slot-row">
+                  <div>
+                    <strong>{{ item.venue_court?.name || "Sân" }}</strong>
+                    <p>{{ formatTime(item.start_time) }} - {{ formatTime(item.end_time) }}</p>
                   </div>
+                  <span class="bd-slot-status" :class="item.status">{{ itemStatusLabel(item.status) }}</span>
                 </div>
               </div>
-            </article>
+            </div>
 
-            <!-- STATUS NOTE / REASON (IF REJECTED OR CANCELLED OR UPDATED) -->
-            <article v-if="booking.status_reason" class="bd-card bd-card--note">
-              <AppIcon name="alert" aria-hidden="true" />
-              <div>
-                <strong>Cập nhật từ chủ sân / hệ thống:</strong>
-                <p>{{ booking.status_reason }}</p>
-              </div>
-            </article>
-          </section>
+            <!-- REASON / NOTE IF ANY -->
+            <div v-if="booking.status_reason" class="bd-note-block">
+              <strong>Ghi chú từ hệ thống / Chủ sân:</strong>
+              <p>{{ booking.status_reason }}</p>
+            </div>
+          </div>
 
           <!-- RIGHT COLUMN: PAYMENT & ACTIONS -->
-          <aside class="bd-col-side">
-            <!-- COUNTDOWN TIMER CARD (IF PENDING PAYMENT) -->
-            <article v-if="booking.status === 'pending_payment'" class="bd-card bd-card--timer">
-              <div class="bd-timer-body">
-                <span class="bd-card-eyebrow">Giữ chỗ tạm thời</span>
-                <h3 class="bd-timer-title">Thời gian thanh toán còn lại</h3>
-                <p class="bd-timer-desc">Hoàn tất thanh toán trước khi hết giờ để giữ lịch đặt sân.</p>
-              </div>
-              <div class="bd-timer-clock">{{ formattedTimer }}</div>
-            </article>
+          <div class="bd-col-side">
+            <!-- COUNTDOWN TIMER (IF PENDING PAYMENT) -->
+            <div v-if="booking.status === 'pending_payment'" class="bd-timer-section">
+              <span class="bd-timer-label">Giữ chỗ tạm thời trong:</span>
+              <strong class="bd-timer-val">{{ formattedTimer }}</strong>
+              <p>Hoàn tất thanh toán trước khi hết giờ để giữ lịch chơi.</p>
+            </div>
 
-            <!-- PAYMENT SUMMARY CARD -->
-            <article class="bd-card">
-              <div class="bd-card-head">
+            <div class="bd-sec-head">
+              <h3>Thông tin chi phí</h3>
+            </div>
+
+            <div class="bd-price-list">
+              <div class="bd-price-row">
+                <span class="bd-label">Tổng giá trị đơn</span>
+                <strong class="bd-price-val">{{ formatCurrency(booking.total_price) }}</strong>
+              </div>
+
+              <div class="bd-price-row">
+                <span class="bd-label">Hình thức thanh toán</span>
+                <span class="bd-val">{{ paymentOptionLabel }}</span>
+              </div>
+
+              <div v-if="booking.status === 'pending_payment'" class="bd-price-row bd-price-row--req">
+                <span class="bd-label">Số tiền cần thanh toán</span>
+                <strong class="bd-price-val bd-price-val--green">{{ formatCurrency(booking.required_payment_amount) }}</strong>
+              </div>
+            </div>
+
+            <!-- PAYMENT HISTORY (IF ANY) -->
+            <div v-if="booking.payments?.length" class="bd-pay-history">
+              <h4 class="bd-sub-title">Lịch sử thanh toán</h4>
+              <div v-for="payment in booking.payments" :key="payment.id" class="bd-pay-item">
                 <div>
-                  <span class="bd-card-eyebrow">THANH TOÁN</span>
-                  <h2 class="bd-card-title">Thông tin chi phí</h2>
+                  <strong>{{ payment.method === "wallet" ? "Ví SportGo" : payment.method === "sepay" ? "Chuyển khoản QR" : payment.method }}</strong>
+                  <small>{{ paymentStatusLabel(payment.status) }}</small>
                 </div>
+                <strong class="bd-pay-amt">{{ formatCurrency(payment.amount) }}</strong>
               </div>
+            </div>
 
-              <div class="bd-price-rows">
-                <div class="bd-price-row">
-                  <span>Tổng tiền sân:</span>
-                  <strong class="bd-price-total">{{ formatCurrency(booking.total_price) }}</strong>
-                </div>
-
-                <div class="bd-price-row">
-                  <span>Hình thức thanh toán:</span>
-                  <span class="bd-price-method">{{ paymentOptionLabel }}</span>
-                </div>
-
-                <div v-if="booking.status === 'pending_payment'" class="bd-price-row bd-price-row--highlight">
-                  <span>Cần thanh toán ngay:</span>
-                  <strong class="bd-price-req">{{ formatCurrency(booking.required_payment_amount) }}</strong>
-                </div>
-              </div>
-
-              <!-- PAYMENT HISTORY (IF ANY) -->
-              <div v-if="booking.payments?.length" class="bd-payment-history">
-                <h3 class="bd-sub-head">Lịch sử thanh toán</h3>
-                <div v-for="payment in booking.payments" :key="payment.id" class="bd-pay-row">
-                  <div>
-                    <span class="bd-pay-method">
-                      {{ payment.method === "wallet" ? "Ví SportGo" : payment.method === "sepay" ? "Chuyển khoản QR" : payment.method }}
-                    </span>
-                    <small class="bd-pay-status">{{ paymentStatusLabel(payment.status) }}</small>
-                  </div>
-                  <strong class="bd-pay-amount">{{ formatCurrency(payment.amount) }}</strong>
-                </div>
-              </div>
-
-              <!-- SEPAY QR CODE PANEL (IF PENDING PAYMENT) -->
-              <div v-if="booking.status === 'pending_payment'" class="bd-sepay-area">
-                <button
-                  v-if="!sepayPayment"
-                  class="bd-btn bd-btn--primary bd-btn--full"
-                  type="button"
-                  :disabled="creatingSepay || timeLeft <= 0"
-                  @click="createSepayPayment"
-                >
-                  <AppIcon name="qrCode" aria-hidden="true" />
-                  <span>{{ creatingSepay ? "Đang tạo QR thanh toán..." : "Tạo QR thanh toán ngay" }}</span>
-                </button>
-
-                <p v-if="sepayError" class="bd-error-text">{{ sepayError }}</p>
-
-                <button
-                  v-if="!sepayPayment"
-                  class="bd-btn bd-btn--danger-link bd-btn--full"
-                  type="button"
-                  :disabled="cancellingPayment"
-                  @click="showCancelPaymentModal = true"
-                >
-                  <AppIcon name="circleX" aria-hidden="true" />
-                  <span>{{ cancellingPayment ? "Đang hủy thanh toán..." : "Hủy thanh toán" }}</span>
-                </button>
-
-                <!-- SEPAY TRANSFER DETAILS -->
-                <div v-if="sepayPayment" class="bd-sepay-details">
-                  <div class="bd-qr-box">
-                    <img :src="sepayPayment.qr_url" alt="QR thanh toán SePay" />
-                  </div>
-
-                  <div class="bd-transfer-rows">
-                    <div class="bd-transfer-row">
-                      <span>Ngân hàng:</span>
-                      <strong>
-                        {{ sepayPayment.payment_account?.bank_name
-                            || sepayPayment.payment_account?.bank_code
-                            || "SePay" }}
-                      </strong>
-                    </div>
-
-                    <div class="bd-transfer-row">
-                      <span>Số tài khoản:</span>
-                      <strong>
-                        {{ sepayPayment.payment_account?.account_number
-                            || sepayPayment.payment_account?.account_number_masked }}
-                      </strong>
-                    </div>
-
-                    <div class="bd-transfer-row">
-                      <span>Chủ tài khoản:</span>
-                      <strong>{{ sepayPayment.payment_account?.account_holder_name || "Đang cập nhật" }}</strong>
-                    </div>
-
-                    <div class="bd-transfer-row">
-                      <span>Nội dung CK:</span>
-                      <button
-                        class="bd-copy-btn"
-                        type="button"
-                        @click="copyText(sepayPayment.transfer_content)"
-                      >
-                        <code>{{ sepayPayment.transfer_content }}</code>
-                        <AppIcon name="copy" aria-hidden="true" />
-                      </button>
-                    </div>
-
-                    <div class="bd-transfer-row">
-                      <span>Số tiền:</span>
-                      <strong class="bd-price-req">{{ formatCurrency(sepayPayment.payment?.amount) }}</strong>
-                    </div>
-                  </div>
-
-                  <div class="bd-waiting-bar">
-                    <span class="bd-spinner" aria-hidden="true"></span>
-                    <span>Đang tự động xác nhận chuyển khoản...</span>
-                  </div>
-
-                  <button
-                    class="bd-btn bd-btn--danger-link bd-btn--full"
-                    type="button"
-                    :disabled="cancellingPayment"
-                    @click="showCancelPaymentModal = true"
-                  >
-                    <AppIcon name="circleX" aria-hidden="true" />
-                    <span>{{ cancellingPayment ? "Đang hủy thanh toán..." : "Hủy thanh toán" }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- CANCEL BOOKING BUTTON -->
-              <div v-if="canRequestCancellation" class="bd-cancel-booking-wrap">
-                <button
-                  type="button"
-                  class="bd-btn bd-btn--danger-link bd-btn--full"
-                  :disabled="cancellingBooking"
-                  @click="openCancelBookingModal"
-                >
-                  <AppIcon name="circleX" aria-hidden="true" />
-                  <span>{{ cancellingBooking ? "Đang xử lý hủy..." : "Yêu cầu hủy booking" }}</span>
-                </button>
-              </div>
-            </article>
-          </aside>
+            <!-- CANCELLATION ACTION BUTTON -->
+            <div v-if="canRequestCancellation" class="bd-cancel-action">
+              <button
+                type="button"
+                class="bd-btn bd-btn--danger bd-btn--full"
+                :disabled="cancellingBooking"
+                @click="openCancelBookingModal"
+              >
+                <span>{{ cancellingBooking ? "Đang xử lý hủy..." : "Yêu cầu hủy đơn & Hoàn tiền" }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+    </main>
 
-      <!-- EMPTY STATE -->
-      <section v-else class="bd-empty-state">
-        <AppIcon name="calendar" aria-hidden="true" />
-        <h2>Không tải được booking</h2>
-        <p>{{ loadError || "Không tìm thấy thông tin đơn đặt sân." }}</p>
-        <div class="bd-empty-actions">
-          <button v-if="loadError" type="button" class="bd-btn bd-btn--outline" @click="loadBooking">
-            <AppIcon name="refresh" aria-hidden="true" />
-            <span>Thử lại</span>
-          </button>
-          <router-link :to="{ name: 'booking-history' }" class="bd-btn bd-btn--outline">
-            <AppIcon name="history" aria-hidden="true" />
-            <span>Về lịch sử</span>
-          </router-link>
-          <router-link :to="{ name: 'booking-create' }" class="bd-btn bd-btn--primary">
-            <AppIcon name="plus" aria-hidden="true" />
-            <span>Đặt sân mới</span>
-          </router-link>
+    <!-- CANCELLATION MODAL -->
+    <Teleport to="body">
+      <div v-if="showCancelBookingModal" class="bd-modal-backdrop" @click.self="closeCancelBookingModal">
+        <div class="bd-modal">
+          <div class="bd-modal-head">
+            <h3>Xác nhận hủy đơn đặt sân</h3>
+            <button type="button" class="bd-modal-close" @click="closeCancelBookingModal">✕</button>
+          </div>
+
+          <div class="bd-modal-body">
+            <p class="bd-modal-desc">
+              Bạn đang yêu cầu hủy đơn <strong>#{{ booking?.booking_code }}</strong>.
+            </p>
+
+            <div class="bd-refund-preview">
+              <span>Chính sách hoàn tiền:</span>
+              <strong>{{ cancelDescription }}</strong>
+            </div>
+
+            <div class="bd-field">
+              <label for="bdCancelReason">Lý do hủy</label>
+              <select id="bdCancelReason" v-model="cancelReason">
+                <option value="Khách hàng thay đổi kế hoạch">Khách hàng thay đổi kế hoạch</option>
+                <option value="Thời tiết không thuận lợi">Thời tiết không thuận lợi</option>
+                <option value="Muốn đổi giờ chơi khác">Muốn đổi giờ chơi khác</option>
+                <option value="Lý do cá nhân khác">Lý do cá nhân khác</option>
+              </select>
+            </div>
+
+            <div v-if="cancelBookingError" class="bd-alert bd-alert--error">
+              {{ cancelBookingError }}
+            </div>
+          </div>
+
+          <div class="bd-modal-foot">
+            <button type="button" class="bd-btn bd-btn--outline" @click="closeCancelBookingModal">Hủy bỏ</button>
+            <button
+              type="button"
+              class="bd-btn bd-btn--danger"
+              :disabled="cancellingBooking"
+              @click="cancelBooking"
+            >
+              <span>{{ cancellingBooking ? "Đang xử lý..." : "Xác nhận hủy đơn" }}</span>
+            </button>
+          </div>
         </div>
-      </section>
-    </main>
-
-    <!-- LOADING STATE -->
-    <main v-else class="bd-loading-state">
-      <span class="bd-spinner bd-spinner--lg" aria-hidden="true"></span>
-      <p>Đang tải thông tin đơn đặt sân...</p>
-    </main>
-
-    <!-- CONFIRM CANCEL PAYMENT MODAL -->
-    <ConfirmActionModal
-      :is-open="showCancelPaymentModal"
-      title="Hủy thanh toán và booking?"
-      description="Sân đang được giữ cho giao dịch này. Nếu tiếp tục, thanh toán chờ sẽ bị hủy và khung giờ được giải phóng cho người khác."
-      confirm-text="Hủy thanh toán"
-      :loading="cancellingPayment"
-      :error="sepayError"
-      @close="showCancelPaymentModal = false"
-      @confirm="cancelPayment"
-    />
-
-    <!-- CONFIRM CANCEL BOOKING MODAL -->
-    <ConfirmActionModal
-      :is-open="showCancelBookingModal"
-      title="Yêu cầu hủy booking?"
-      :description="cancelDescription"
-      confirm-text="Xác nhận hủy"
-      require-reason
-      reason-label="Lý do hủy"
-      reason-placeholder="Nêu ngắn gọn lý do để sân và SportGo hỗ trợ đúng chính sách"
-      initial-reason="Khách hàng thay đổi kế hoạch"
-      :loading="cancellingBooking || loadingCancelPreview"
-      :error="cancelBookingError"
-      @close="closeCancelBookingModal"
-      @confirm="cancelBooking"
-    />
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script>
-import AppIcon from "../../../components/AppIcon.vue";
-import ConfirmActionModal from "../../../components/ConfirmActionModal.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
+import { chatService } from "../../../services/chat.service.js";
 
 export default {
   name: "BookingDetail",
-  components: { AppIcon, ConfirmActionModal, PublicNavbar },
+  components: { PublicNavbar },
   data() {
     return {
       booking: null,
       loading: true,
       loadError: "",
-      creatingSepay: false,
-      cancellingPayment: false,
       cancellingBooking: false,
-      sepayPayment: null,
-      sepayError: "",
       cancelBookingError: "",
+      startingChat: false,
       timeLeft: 0,
       timerInterval: null,
-      paymentPollInterval: null,
-      showCancelPaymentModal: false,
       showCancelBookingModal: false,
-      loadingCancelPreview: false,
-      cancelPreviewData: null,
+      cancelReason: "Khách hàng thay đổi kế hoạch",
     };
   },
   computed: {
@@ -373,44 +273,17 @@ export default {
       const seconds = totalSeconds % 60;
       return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     },
-    statusIcon() {
-      const map = {
-        confirmed: "circleCheck",
-        pending_payment: "clock",
-        pending_approval: "clock",
-        checked_in: "circleCheck",
-        completed: "circleCheck",
-        rejected: "circleX",
-        expired: "clock",
-        cancelled: "circleX",
-      };
-      return map[this.booking?.status] || "alert";
-    },
-    statusTitle() {
-      if (!this.booking) return "";
-      const map = {
-        confirmed: "Đặt sân thành công",
-        pending_payment: "Đơn chờ thanh toán",
-        pending_approval: "Chờ chủ sân duyệt",
-        checked_in: "Đã check-in",
-        completed: "Buổi chơi đã hoàn tất",
-        rejected: "Booking bị từ chối",
-        expired: "Đơn đã hết hạn",
-        cancelled: "Đơn đã bị hủy",
-      };
-      return map[this.booking.status] || "Trạng thái không xác định";
-    },
     statusDescription() {
       if (!this.booking) return "";
       const map = {
         confirmed: "Đơn của bạn đã được xác nhận. Hẹn gặp lại bạn tại sân chơi!",
         pending_payment: "Vui lòng hoàn tất thanh toán trước khi hết giờ để giữ chỗ.",
-        pending_approval: "Chủ sân đang kiểm tra thông tin cấu hình và duyệt đơn đặt của bạn.",
+        pending_approval: "Chủ sân đang duyệt đơn đặt của bạn.",
         checked_in: "Bạn đã check-in tại sân. Chúc bạn có buổi chơi hiệu quả.",
         completed: "Buổi chơi đã hoàn tất. Cảm ơn bạn đã sử dụng SportGo.",
         rejected: "Booking không được sân chấp nhận. Vui lòng chọn khung giờ khác.",
         expired: "Đơn đã quá hạn thanh toán. Sân đã được giải phóng để người khác có thể đặt.",
-        cancelled: "Đơn đặt sân này đã bị hủy bỏ bởi hệ thống hoặc người dùng.",
+        cancelled: "Đơn đặt sân này đã bị hủy bỏ.",
       };
       return map[this.booking.status] || "";
     },
@@ -419,11 +292,11 @@ export default {
       const map = {
         confirmed: "Đã xác nhận",
         pending_payment: "Chờ thanh toán",
-        pending_approval: "Chờ duyệt",
-        checked_in: "Đã check-in",
-        completed: "Hoàn tất",
+        pending_approval: "Chờ duyệt sân",
+        checked_in: "Đang chơi",
+        completed: "Hoàn thành",
         rejected: "Bị từ chối",
-        expired: "Hết hạn",
+        expired: "Đã hết hạn",
         cancelled: "Đã hủy",
       };
       return map[this.booking.status] || this.booking.status;
@@ -431,10 +304,10 @@ export default {
     paymentOptionLabel() {
       if (!this.booking) return "";
       const map = {
-        full_payment: "Thanh toán hết trực tuyến",
+        full_payment: "Thanh toán trực tuyến",
         deposit: "Đặt cọc giữ chỗ",
         wallet: "Thanh toán bằng ví SportGo",
-        no_prepay: "Thanh toán trực tiếp tại sân",
+        no_prepay: "Thanh toán tại sân",
       };
       return map[this.booking.payment_option] || this.booking.payment_option;
     },
@@ -448,7 +321,7 @@ export default {
       return this.venueCluster?.full_address || this.venueCluster?.address || "Đang cập nhật";
     },
     courtText() {
-      const courtName = this.booking?.venue_court?.name || "Sân";
+      const courtName = this.booking?.venue_court?.name || "Sân thể thao";
       const courtType = this.booking?.venue_court?.court_type?.name;
       return courtType ? `${courtName} (${courtType})` : courtName;
     },
@@ -469,16 +342,7 @@ export default {
       return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
     },
     cancelDescription() {
-      if (this.loadingCancelPreview) return "Đang kiểm tra chính sách hủy và số tiền dự kiến hoàn...";
-      const result = this.cancelPreviewData;
-      if (!result) return "Booking sẽ được xử lý theo chính sách hiện hành.";
-      const percent = result.refund_percent ?? result.refund_percentage;
-      const amount = result.refund_amount;
-      const parts = [];
-      if (result.summary) parts.push(result.summary);
-      if (percent !== undefined && percent !== null) parts.push(`Dự kiến hoàn ${percent}% số tiền đã thanh toán.`);
-      if (amount !== undefined && amount !== null) parts.push(`Số tiền dự kiến hoàn: ${this.formatCurrency(amount)}.`);
-      return parts.join(" ") || "Booking sẽ được xử lý theo chính sách hiện hành.";
+      return "Quy định hủy sân: Hoàn lại 100% số tiền vào Ví SportGo khi hủy trước giờ chơi.";
     },
   },
   async mounted() {
@@ -486,7 +350,6 @@ export default {
   },
   beforeUnmount() {
     this.clearTimer();
-    this.clearPaymentPolling();
   },
   methods: {
     async loadBooking() {
@@ -496,7 +359,7 @@ export default {
       try {
         const res = await bookingService.getBooking(id);
         this.booking = res;
-        this.timeLeft = this.normalizeTimeLeft(res.time_left_seconds);
+        this.timeLeft = Math.max(0, Math.floor(Number(res.time_left_seconds) || 0));
 
         if (this.booking.status === "pending_payment" && this.timeLeft > 0) {
           this.startTimer();
@@ -523,164 +386,87 @@ export default {
         }
       }, 1000);
     },
-    normalizeTimeLeft(value) {
-      return Math.max(0, Math.floor(Number(value) || 0));
-    },
     clearTimer() {
       if (this.timerInterval) {
         clearInterval(this.timerInterval);
         this.timerInterval = null;
       }
     },
-    async createSepayPayment() {
-      if (!this.booking || this.creatingSepay || this.timeLeft <= 0) return;
-      this.creatingSepay = true;
-      this.sepayError = "";
-
-      try {
-        const res = await bookingService.createSepayPayment(this.booking.id);
-        this.sepayPayment = res;
-        this.startPaymentPolling();
-      } catch (err) {
-        this.sepayError = err.message || "Không thể tạo thông tin thanh toán SePay.";
-      } finally {
-        this.creatingSepay = false;
-      }
-    },
-    async refreshBookingStatus() {
-      if (!this.booking) return;
-
-      try {
-        const res = await bookingService.getBooking(this.booking.id);
-        this.booking = res;
-        this.timeLeft = this.normalizeTimeLeft(res.time_left_seconds);
-
-        if (this.booking.status !== "pending_payment") {
-          this.clearPaymentPolling();
-          this.clearTimer();
-          this.sepayPayment = null;
-        }
-      } catch (err) {
-        this.sepayError = err.message || "Không thể kiểm tra trạng thái thanh toán.";
-      }
-    },
-    startPaymentPolling() {
-      this.clearPaymentPolling();
-      this.paymentPollInterval = setInterval(() => {
-        this.refreshBookingStatus();
-      }, 5000);
-    },
-    async cancelPayment() {
-      if (!this.booking || this.cancellingPayment) return;
-      this.cancellingPayment = true;
-      this.sepayError = "";
-
-      try {
-        const res = await bookingService.cancelPayment(this.booking.id);
-        this.booking = res.booking || this.booking;
-        this.timeLeft = 0;
-        this.sepayPayment = null;
-        this.showCancelPaymentModal = false;
-        this.clearTimer();
-        this.clearPaymentPolling();
-      } catch (err) {
-        this.sepayError = err.message || "Không thể hủy thanh toán.";
-      } finally {
-        this.cancellingPayment = false;
-      }
+    openCancelBookingModal() {
+      this.showCancelBookingModal = true;
+      this.cancelBookingError = "";
     },
     closeCancelBookingModal() {
-      if (this.cancellingBooking) return;
       this.showCancelBookingModal = false;
       this.cancelBookingError = "";
     },
-    async openCancelBookingModal() {
-      if (!this.booking || this.loadingCancelPreview || this.cancellingBooking) return;
-      this.cancelBookingError = "";
-      this.cancelPreviewData = null;
-      this.loadingCancelPreview = true;
-      this.showCancelBookingModal = true;
-      try {
-        this.cancelPreviewData = await bookingService.previewCancellation(this.booking.id);
-      } catch (error) {
-        this.cancelBookingError = error.message || "Không thể kiểm tra chính sách hủy booking.";
-      } finally {
-        this.loadingCancelPreview = false;
-      }
-    },
-    async cancelBooking(reason) {
-      if (!this.booking || this.cancellingBooking) return;
+    async cancelBooking() {
       this.cancellingBooking = true;
       this.cancelBookingError = "";
       try {
-        await bookingService.cancelBooking(this.booking.id, reason);
-        this.showCancelBookingModal = false;
+        await bookingService.cancelBooking(this.booking.id, this.cancelReason);
+        this.closeCancelBookingModal();
         await this.loadBooking();
-      } catch (error) {
-        this.cancelBookingError = error.message || "Không thể hủy booking này.";
+      } catch (err) {
+        this.cancelBookingError = err.message || "Không thể thực hiện hủy booking.";
       } finally {
         this.cancellingBooking = false;
       }
     },
-    clearPaymentPolling() {
-      if (this.paymentPollInterval) {
-        clearInterval(this.paymentPollInterval);
-        this.paymentPollInterval = null;
-      }
-    },
-    async copyText(text) {
-      if (!text) return;
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        this.sepayError = "Không thể sao chép nội dung chuyển khoản.";
-      }
+    itemStatusLabel(status) {
+      const map = {
+        active: "Đã giữ chỗ",
+        pending_approval: "Chờ duyệt",
+        pending_payment: "Chờ thanh toán",
+        confirmed: "Đã xác nhận",
+        checked_in: "Đang chơi",
+        completed: "Hoàn thành",
+        cancelled: "Đã hủy",
+        rejected: "Bị từ chối",
+        expired: "Đã hết hạn",
+      };
+      return map[status] || status;
     },
     formatDate(dateStr) {
-      if (!dateStr) return "";
-      const raw = String(dateStr);
-      const dateOnly = raw.includes("T") ? raw.split("T")[0] : raw;
-      const [year, month, day] = dateOnly.split("-");
-      return `${day}/${month}/${year}`;
+      if (!dateStr) return "-";
+      return new Date(dateStr).toLocaleDateString("vi-VN");
     },
-    formatTime(value) {
-      return value ? String(value).slice(0, 5) : "--:--";
+    formatTime(timeStr) {
+      if (!timeStr) return "";
+      return timeStr.substring(0, 5);
     },
     formatCurrency(val) {
-      return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-        maximumFractionDigits: 0,
-      }).format(val || 0);
+      return `${new Intl.NumberFormat("vi-VN").format(Number(val || 0))} đ`;
     },
-    itemStatusLabel(status) {
-      return (
-        {
-          active: "Đang giữ",
-          moved: "Đã đổi sân",
-          cancelled: "Đã hủy",
-          interrupted: "Bị gián đoạn",
-        }[status] || status || "Đang xử lý"
-      );
-    },
-    paymentStatusLabel(status) {
-      return (
-        {
-          pending: "Chờ thanh toán",
-          paid: "Đã thanh toán",
-          failed: "Thất bại",
-          refunded: "Đã hoàn tiền",
-        }[status] || status || "Đang xử lý"
-      );
+    async chatWithOwner() {
+      if (!this.venueId) return;
+      this.startingChat = true;
+      try {
+        const ownerId = this.venueCluster?.owner_id || this.booking?.venue_cluster?.owner_id;
+        const res = await chatService.startConversation({
+          user_id: ownerId,
+          venue_cluster_id: this.venueId,
+        });
+        if (res && res.id) {
+          this.$router.push({
+            name: "chat",
+            query: { conversation_id: res.id, booking_id: this.booking.id },
+          });
+        }
+      } catch (err) {
+        console.error("Không thể mở hội thoại chat với sân", err);
+      } finally {
+        this.startingChat = false;
+      }
     },
   },
 };
 </script>
 
 <style scoped>
-.bd-container {
+.bd-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #ffffff;
 }
 
 .bd-main {
@@ -689,68 +475,49 @@ export default {
   padding: 24px 16px 60px;
 }
 
-/* HEADER & BREADCRUMBS */
-.bd-head {
+/* TOP BAR */
+.bd-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
   gap: 16px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
-.bd-breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-}
-
 .bd-back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #475569;
+  font-size: 13px;
+  color: #15803d;
   text-decoration: none;
   font-weight: 500;
 }
 
-.bd-back-link:hover {
-  color: #0f172a;
-}
-
-.bd-crumb-sep {
-  color: #94a3b8;
-}
-
-.bd-code {
-  color: #0f172a;
+.bd-title {
+  font-size: 20px;
   font-weight: 500;
+  color: #0f172a;
+  margin: 4px 0 0;
 }
 
-.bd-head-actions {
+.bd-actions-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-/* BUTTON UTILITIES - ELEGANT & CLEAN */
 .bd-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   text-decoration: none;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
-  color: #1e293b;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
 }
 
 .bd-btn--primary {
@@ -761,545 +528,324 @@ export default {
 
 .bd-btn--outline {
   background: #ffffff;
-  color: #1e293b;
-  border-color: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 
-.bd-btn--danger-link {
-  background: transparent;
-  color: #dc2626;
-  border: none;
-  padding: 8px 0;
-  box-shadow: none;
+.bd-btn--danger {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
 }
 
 .bd-btn--full {
   width: 100%;
 }
 
-.bd-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* STATUS ROW (PLAIN TEXT ONLY) */
+.bh-status-row {
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* STATUS BANNER CARD - HARMONIOUS & ELEGANT */
-.bd-status-card {
+.bh-status-info {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  gap: 8px;
+  font-size: 14.5px;
 }
 
-.bd-status-icon {
-  font-size: 24px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #f1f5f9;
-  color: #475569;
+.bh-status-label {
+  color: #1e293b;
 }
 
-.bd-status-icon.confirmed,
-.bd-status-icon.completed,
-.bd-status-icon.checked_in {
-  background: #f0fdf4;
+.bh-status-value {
+  font-weight: 500;
   color: #15803d;
 }
 
-.bd-status-icon.pending_approval,
-.bd-status-icon.pending_payment,
-.bd-status-icon.expired {
-  background: #fffbeb;
-  color: #d97706;
-}
-
-.bd-status-icon.rejected,
-.bd-status-icon.cancelled {
-  background: #fef2f2;
+.bh-status-value.cancelled,
+.bh-status-value.rejected,
+.bh-status-value.expired {
   color: #dc2626;
 }
 
-.bd-status-body {
-  flex: 1;
+.bh-status-value.pending_payment,
+.bh-status-value.pending_approval {
+  color: #d97706;
 }
 
-.bd-status-eyebrow {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  font-weight: 500;
-  display: block;
-}
-
-.bd-status-title {
-  font-size: 17px;
-  font-weight: 500;
-  color: #0f172a;
-  margin: 2px 0;
-}
-
-.bd-status-desc {
+.bh-status-desc {
   font-size: 13px;
   color: #475569;
   margin: 0;
 }
 
-.bd-status-badge {
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 20px;
-  background: #f1f5f9;
-  color: #475569;
-  white-space: nowrap;
-}
-
-.bd-status-badge.confirmed,
-.bd-status-badge.completed,
-.bd-status-badge.checked_in {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.bd-status-badge.pending_approval,
-.bd-status-badge.pending_payment {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.bd-status-badge.rejected,
-.bd-status-badge.cancelled {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-/* MAIN 2-COLUMN GRID */
+/* 2-COLUMN GRID (FRAMELESS) */
 .bd-grid {
   display: grid;
   grid-template-columns: 1fr 340px;
-  gap: 24px;
+  gap: 40px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 850px) {
   .bd-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.bd-col-main,
-.bd-col-side {
+.bd-sec-head h3 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0 0 16px;
+}
+
+.bd-info-list,
+.bd-price-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-/* CARDS - SOFT & CLEAN (NO HARD SQUARE BORDERS) */
-.bd-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-}
-
-.bd-card--note {
-  display: flex;
   gap: 12px;
-  align-items: flex-start;
-  background: #ffffff;
-  border-color: #e2e8f0;
-  color: #334155;
 }
 
-.bd-card--note p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #475569;
-}
-
-.bd-card-head {
+.bd-info-row,
+.bd-price-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-  gap: 12px;
-}
-
-.bd-card-eyebrow {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #15803d;
-  font-weight: 500;
-  display: block;
-}
-
-.bd-card-title {
-  font-size: 16.5px;
-  font-weight: 500;
-  color: #0f172a;
-  margin: 4px 0 0;
-}
-
-.bd-badge {
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 20px;
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.bd-badge.confirmed,
-.bd-badge.completed {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.bd-badge.pending_approval,
-.bd-badge.pending_payment {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-/* INFO GRID */
-.bd-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 18px 24px;
-  margin-bottom: 20px;
-}
-
-.bd-info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.bd-info-label {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.bd-info-val {
+  gap: 16px;
   font-size: 13.5px;
+}
+
+.bd-label {
+  color: #1e293b;
+}
+
+.bd-val {
   color: #0f172a;
+}
+
+.bd-price-val {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.bd-price-val--green {
+  color: #15803d;
   font-weight: 500;
 }
 
-/* SLOTS BREAKDOWN (FLAT CLEAN ROWS - NO FLOATING BOXES) */
-.bd-items-section {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 18px;
+.bd-slots-section,
+.bd-pay-history {
+  margin-top: 24px;
 }
 
-.bd-sub-head {
-  font-size: 13px;
+.bd-sub-title {
+  font-size: 14px;
   font-weight: 500;
   color: #0f172a;
   margin: 0 0 12px;
 }
 
-.bd-items-list {
+.bd-slots-list,
+.bd-pay-history {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
-.bd-item-row {
+.bd-slot-row,
+.bd-pay-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  gap: 12px;
+  font-size: 13px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-.bd-item-row:last-child {
-  border-bottom: none;
+.bd-slot-status {
+  color: #15803d;
+  font-size: 12.5px;
 }
 
-.bd-item-info {
+.bd-slot-status.cancelled {
+  color: #dc2626;
+}
+
+.bd-note-block {
+  margin-top: 20px;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.bd-timer-section {
+  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
-.bd-item-info strong {
-  font-size: 13px;
-  color: #0f172a;
+.bd-timer-label {
+  font-size: 12.5px;
+  color: #d97706;
+}
+
+.bd-timer-val {
+  font-size: 22px;
   font-weight: 500;
+  color: #d97706;
 }
 
-.bd-item-info span {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.bd-badge-mini {
-  font-size: 11.5px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.bd-badge-mini.active {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-/* TIMER CARD */
-.bd-card--timer {
-  background: #ffffff;
-  border-color: #fde68a;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.bd-timer-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #0f172a;
-  margin: 2px 0;
-}
-
-.bd-timer-desc {
-  font-size: 12px;
+.bd-timer-section p {
+  font-size: 12.5px;
   color: #64748b;
   margin: 0;
 }
 
-.bd-timer-clock {
-  font-size: 22px;
-  font-weight: 500;
-  color: #dc2626;
-  font-family: monospace;
-  letter-spacing: 1px;
+.bd-cancel-action {
+  margin-top: 24px;
 }
 
-/* PRICE ROWS */
-.bd-price-rows {
+/* STATES & SPINNER */
+.bd-state {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.bd-price-row {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 13.5px;
-  color: #475569;
-}
-
-.bd-price-row--highlight {
-  padding-top: 10px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.bd-price-total {
-  font-size: 16px;
-  color: #0f172a;
-  font-weight: 500;
-}
-
-.bd-price-req {
-  font-size: 17px;
-  color: #15803d;
-  font-weight: 500;
-}
-
-.bd-price-method {
-  color: #0f172a;
-  font-weight: 500;
-}
-
-/* PAYMENT HISTORY */
-.bd-payment-history {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 14px;
-  margin-top: 14px;
-}
-
-.bd-pay-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12.5px;
-  padding: 6px 0;
-}
-
-.bd-pay-method {
-  color: #334155;
-}
-
-.bd-pay-status {
-  display: block;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.bd-pay-amount {
-  color: #15803d;
-  font-weight: 500;
-}
-
-/* SEPAY QR AREA */
-.bd-sepay-area {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 16px;
-  margin-top: 16px;
-}
-
-.bd-sepay-details {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.bd-qr-box {
-  display: flex;
   justify-content: center;
-  padding: 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  padding: 60px 16px;
+  text-align: center;
+  gap: 12px;
+  color: #1e293b;
 }
 
-.bd-qr-box img {
-  max-width: 170px;
-  height: auto;
-  display: block;
-}
-
-.bd-transfer-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 12.5px;
-  padding: 8px 0;
-}
-
-.bd-transfer-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.bd-transfer-row span {
-  color: #64748b;
-}
-
-.bd-transfer-row strong {
-  color: #0f172a;
-  font-weight: 500;
-}
-
-.bd-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  padding: 2px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #0f172a;
-}
-
-.bd-waiting-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #15803d;
-  background: #f0fdf4;
-  padding: 8px 12px;
-  border-radius: 4px;
-}
-
-.bd-cancel-booking-wrap {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 12px;
-  margin-top: 12px;
-}
-
-/* ERROR TEXT */
-.bd-error-text {
-  font-size: 12px;
-  color: #dc2626;
-  margin: 6px 0;
-}
-
-/* SPINNER */
 .bd-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #bbf7d0;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e2e8f0;
   border-top-color: #15803d;
   border-radius: 50%;
-  animation: bdSpin 0.7s linear infinite;
-  display: inline-block;
+  animation: spin 0.8s linear infinite;
 }
 
-.bd-spinner--lg {
-  width: 28px;
-  height: 28px;
-  border-width: 3px;
-}
-
-@keyframes bdSpin {
+@keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* EMPTY & LOADING STATES */
-.bd-empty-state,
-.bd-loading-state {
-  text-align: center;
-  padding: 60px 20px;
+/* MODAL */
+.bd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.bd-modal {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  max-width: 500px;
-  margin: 40px auto;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
 }
 
-.bd-empty-state h2 {
-  font-size: 17px;
+.bd-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 8px;
+}
+
+.bd-modal-head h3 {
+  margin: 0;
+  font-size: 16px;
   font-weight: 500;
   color: #0f172a;
-  margin: 0;
 }
 
-.bd-empty-state p {
-  font-size: 13.5px;
+.bd-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
   color: #64748b;
+  cursor: pointer;
+}
+
+.bd-modal-body {
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bd-modal-desc {
+  font-size: 13px;
+  color: #1e293b;
   margin: 0;
 }
 
-.bd-empty-actions {
+.bd-refund-preview {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  padding: 12px;
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.bd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bd-field label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.bd-field select {
+  padding: 8px 12px;
+  font-size: 13.5px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+}
+
+.bd-alert {
+  padding: 10px 14px;
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.bd-alert--error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.bd-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  margin-top: 8px;
+  padding: 8px 20px 20px;
+  background: #ffffff;
 }
 </style>

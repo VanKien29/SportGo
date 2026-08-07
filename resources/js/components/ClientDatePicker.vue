@@ -1,7 +1,7 @@
 <template>
   <div class="sg-date-wrapper" tabindex="-1" @focusout="handleFocusOut">
     <!-- Preset Pills -->
-    <div class="sg-date-presets">
+    <div v-if="showPresets" class="sg-date-presets">
       <button
         type="button"
         class="sg-preset-pill"
@@ -87,6 +87,8 @@ function toLocalDateString(d) {
 const props = defineProps({
   modelValue: { type: String, default: "" },
   min: { type: String, default: "" },
+  placeholder: { type: String, default: "Chọn ngày" },
+  showPresets: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["update:modelValue", "change"]);
@@ -106,12 +108,14 @@ const currentDateObj = computed(() => {
 });
 
 const formattedDisplayDate = computed(() => {
+  if (!props.modelValue) return props.placeholder;
   const d = currentDateObj.value;
   const daysMap = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
   const dayName = daysMap[d.getDay()];
-  const dayStr = String(d.getDate()).padStart(2, "0");
-  const monthStr = String(d.getMonth() + 1).padStart(2, "0");
-  return `${dayName}, ${dayStr}/${monthStr}/${d.getFullYear()}`;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dayName}, ${dd}/${mm}/${yyyy}`;
 });
 
 const monthYearTitle = computed(() => {
@@ -224,23 +228,24 @@ const selectPreset = (type) => {
 <style scoped>
 .sg-date-wrapper {
   position: relative;
+  display: inline-block;
   width: 100%;
   outline: none !important;
 }
 
 .sg-date-presets {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .sg-preset-pill {
   background: #ffffff;
-  border: 1.5px solid #1e293b;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
   color: #0f172a;
   cursor: pointer;
 }
@@ -249,46 +254,54 @@ const selectPreset = (type) => {
   background: #15803d;
   color: #ffffff;
   border-color: #15803d;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .sg-date-trigger {
   width: 100%;
+  min-width: 140px;
   background: #ffffff;
-  border: 1.5px solid #1e293b;
-  border-radius: 8px;
-  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .sg-date-trigger.is-open {
   border-color: #15803d;
 }
 
+.sg-date-text {
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
 .sg-date-caret {
   font-size: 10px;
-  color: #0f172a;
-  font-weight: 700;
+  color: #64748b;
 }
 
 .sg-calendar-panel {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
-  right: 0;
+  width: 280px;
+  min-width: 280px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
-  z-index: 1050;
-  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 2000;
+  padding: 14px;
 }
 
 .sg-calendar-header {

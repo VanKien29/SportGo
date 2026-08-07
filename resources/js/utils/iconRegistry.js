@@ -178,9 +178,10 @@ export const ICON_REGISTRY = {
     ['path', { d: 'M3 4h18l-7 8v6l-4 2v-8Z' }],
   ],
   refresh: [
-    ['path', { d: 'M21 12a9 9 0 0 1-15.5 6.2' }],
-    ['path', { d: 'M3 12A9 9 0 0 1 18.5 5.8' }],
-    ['path', { d: 'M3 20v-6h6M21 4v6h-6' }],
+    ['path', { d: 'M3 12a9 9 0 0 1 15-6.7L21 8' }],
+    ['path', { d: 'M21 3v5h-5' }],
+    ['path', { d: 'M21 12a9 9 0 0 1-15 6.7L3 16' }],
+    ['path', { d: 'M3 21v-5h5' }],
   ],
   plus: [
     ['path', { d: 'M12 5v14M5 12h14' }],
@@ -311,6 +312,14 @@ export const ICON_REGISTRY = {
   messageSquare: [
     ['path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }],
   ],
+  sparkles: [
+    ['path', { d: 'm12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z' }],
+    ['path', { d: 'M5 3 4 6l-3 1 3 1 1 3 1-3 3-1-3-1Z' }],
+  ],
+  bot: [
+    ['rect', { x: 4, y: 8, width: 16, height: 12, rx: 2 }],
+    ['path', { d: 'M2 14h2M20 14h2M15 13v2M9 13v2' }],
+  ],
 };
 
 export const ICON_ALIASES = {
@@ -337,6 +346,9 @@ export const ICON_ALIASES = {
   grid: 'dashboard',
   layout: 'dashboard',
   maximize: 'externalLink',
+  rotate: 'refresh',
+  rotateCw: 'refresh',
+  'refresh-cw': 'refresh',
 };
 
 export const NAV_ICON_MAP = {

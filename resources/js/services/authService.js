@@ -70,6 +70,15 @@ export const authService = {
   },
 
   logout() {
-    return api('/api/auth/logout', { method: 'POST' });
+    return api('/api/auth/logout', {
+      method: 'POST',
+    });
+  },
+
+  changePassword(payload) {
+    return api('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };

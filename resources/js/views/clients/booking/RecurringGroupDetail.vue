@@ -7,7 +7,6 @@
       <section v-else-if="error" class="sg-client-card group-state" role="alert"><AppIcon name="alert" :size="20" /><span>{{ error }}</span><button type="button" class="sg-client-button" @click="load">Thử lại</button></section>
       <template v-else>
         <section class="group-header"><div><p class="sg-client-eyebrow">Lịch cố định</p><h1>{{ groupCode }}</h1><p>{{ group.summary.cluster?.name || 'Cụm sân' }} · {{ formatDate(group.summary.start_date) }} - {{ formatDate(group.summary.end_date) }}</p></div><router-link :to="{ name: 'booking-create' }" class="sg-client-button sg-client-button--primary"><AppIcon name="plus" :size="16" /> Đặt lịch mới</router-link></section>
-        <ClientAccountNav />
         <section class="summary-grid"><div><span>Tổng buổi</span><strong>{{ group.summary.total }}</strong></div><div><span>Sắp tới</span><strong>{{ group.summary.upcoming }}</strong></div><div><span>Đã hoàn thành</span><strong>{{ group.summary.completed }}</strong></div><div><span>Đã hủy</span><strong>{{ group.summary.cancelled }}</strong></div><div><span>Đã thanh toán</span><strong>{{ money(group.summary.paid_amount) }}</strong></div></section>
         <section class="sg-client-card occurrence-panel"><header><div><p class="sg-client-eyebrow">Các buổi trong chuỗi</p><h2>Lịch theo từng ngày</h2></div><button type="button" class="sg-client-button" @click="load"><AppIcon name="refresh" :size="16" /> Làm mới</button></header><article v-for="item in group.items" :key="item.id" class="occurrence-row"><div><strong>{{ formatDate(item.booking_date) }} · {{ formatTime(item.start_time) }} - {{ formatTime(item.end_time) }}</strong><span>{{ item.court?.name || item.venue_court?.name || 'Sân đang cập nhật' }}</span><small>#{{ item.booking_code }}</small></div><span class="status-badge" :class="item.status">{{ statusLabel(item.status) }}</span><router-link :to="{ name: 'booking-detail', params: { id: item.id } }" class="sg-client-button sg-client-button--quiet">Chi tiết</router-link></article></section>
       </template>
@@ -17,13 +16,12 @@
 
 <script>
 import AppIcon from '../../../components/AppIcon.vue';
-import ClientAccountNav from '../../../components/ClientAccountNav.vue';
 import PublicNavbar from '../../../components/PublicNavbar.vue';
 import { bookingService } from '../../../services/bookingService.js';
 
 export default {
   name: 'RecurringGroupDetail',
-  components: { AppIcon, ClientAccountNav, PublicNavbar },
+  components: { AppIcon, PublicNavbar },
   data() { return { group: null, loading: true, error: '' }; },
   computed: { groupCode() { return this.$route.params.groupCode; } },
   mounted() { this.load(); },

@@ -10,8 +10,6 @@
       <PublicNavbar />
       <main class="profile-public-container sg-client-page">
         <div class="profile-account-shell" :class="{ 'profile-account-shell--wide': activeSection === 'refunds' }">
-          <ClientAccountNav />
-
           <UserRefundBalancePanel v-if="activeSection === 'refunds'" />
 
           <template v-else>
@@ -42,7 +40,6 @@
 
 <script>
 import AppIcon from '../components/AppIcon.vue';
-import ClientAccountNav from '../components/ClientAccountNav.vue';
 import PublicNavbar from '../components/PublicNavbar.vue';
 import ProfileCard from '../components/ProfileCard.vue';
 import UserRefundBalancePanel from '../components/UserRefundBalancePanel.vue';
@@ -50,7 +47,7 @@ import { getAuth } from '../stores/auth.js';
 
 export default {
   name: 'ProfileView',
-  components: { AppIcon, ClientAccountNav, PublicNavbar, ProfileCard, UserRefundBalancePanel },
+  components: { AppIcon, PublicNavbar, ProfileCard, UserRefundBalancePanel },
   data() {
     const user = getAuth();
     return {

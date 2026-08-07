@@ -99,8 +99,20 @@
                   Lịch đặt sân
                 </router-link>
 
-                <router-link v-if="isClientUser" :to="{ name: 'profile', query: { tab: 'refunds' } }" class="dd-item" @click="showDropdown = false">
-                  Số dư hoàn tiền
+                <router-link v-if="isClientUser" to="/wallet" class="dd-item" @click="showDropdown = false">
+                  Ví SportGo
+                </router-link>
+
+                <router-link v-if="isClientUser" to="/refunds" class="dd-item" @click="showDropdown = false">
+                  Yêu cầu hoàn tiền
+                </router-link>
+
+                <router-link v-if="isClientUser" to="/notifications" class="dd-item" @click="showDropdown = false">
+                  Thông báo
+                </router-link>
+
+                <router-link v-if="isClientUser" to="/complaints" class="dd-item" @click="showDropdown = false">
+                  Khiếu nại & Hỗ trợ
                 </router-link>
 
                 <router-link to="/chat" class="dd-item" @click="showDropdown = false">

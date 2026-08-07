@@ -110,5 +110,61 @@ export const chatService = {
       method: 'POST',
       body: JSON.stringify({ booking_id: bookingId })
     });
+  },
+  getGuestToken() {
+    let token = localStorage.getItem('sportgo_guest_token');
+    if (!token) {
+      token = 'guest_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+      localStorage.setItem('sportgo_guest_token', token);
+    }
+    return token;
+  },
+  async getAiHistory() {
+    try {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+      const guestToken = this.getGuestToken();
+      const headers = {
+        'Accept': 'application/json',
+        'X-Guest-Token': guestToken,
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/chat/ai-history?v=${Date.now()}`, { headers });
+      return await res.json().catch(() => ({ messages: [] }));
+    } catch (e) {
+      console.error('Lỗi getAiHistory:', e);
+      return { messages: [] };
+    }
+  },
+  async askAiAssistant(payload) {
+    try {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+      const guestToken = this.getGuestToken();
+      const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Guest-Token': guestToken,
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const fullPayload = {
+        ...payload,
+        session_token: guestToken,
+      };
+
+      const res = await fetch(`/api/chat/ai-assistant?v=${Date.now()}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(fullPayload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.session_token && data.session_token !== guestToken) {
+        localStorage.setItem('sportgo_guest_token', data.session_token);
+      }
+      return data;
+    } catch (e) {
+      console.error('Lỗi askAiAssistant:', e);
+      return { success: false, reply: null };
+    }
   }
 };
