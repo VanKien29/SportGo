@@ -14,12 +14,13 @@ app.use(Toast, {
   pauseOnHover: true,
 });
 
-// Wait for the initial route and system branding before rendering the shell.
-// This prevents the client header/footer from flashing while the real page is still resolving.
-Promise.all([
-  router.isReady(),
-  loadSystemProfile(),
-]).finally(() => {
+// Mount after the route is ready. System branding is non-critical and loads
+// after the first paint so a slow profile endpoint cannot blank the whole app.
+router.isReady().finally(() => {
   document.documentElement.classList.add('app-ready');
   app.mount('#app');
+  if (typeof performance !== 'undefined') {
+    performance.mark('sportgo:app-mounted');
+  }
+  loadSystemProfile();
 });

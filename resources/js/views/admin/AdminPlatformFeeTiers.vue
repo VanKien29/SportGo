@@ -3,6 +3,8 @@
     <div class="profile-section-card tiers-main-content">
       <section class="pf-page">
 
+        <PlatformFeeSubnav />
+
         <!-- Floating Add Button -->
         <div
             class="floating-add-container"

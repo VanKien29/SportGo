@@ -2,316 +2,210 @@
   <div class="cluster-profile-surface standalone">
     <div class="profile-section-card vip-packages-main-content">
       <section class="vip-admin-page">
-    <div v-if="error" class="alert error">{{ error }}</div>
-    <div v-if="success" class="alert success">{{ success }}</div>
+        <div v-if="error" class="vip-feedback vip-feedback-error" role="alert">{{ error }}</div>
+        <div v-if="success" class="vip-feedback vip-feedback-success" role="status">{{ success }}</div>
 
-    <section v-if="!loading && packages.length" class="package-overview" aria-label="Tổng quan các gói VIP">
-      <div class="package-overview__heading">
-        <div>
-          <span>PRICING OVERVIEW</span>
-          <h2>Gói VIP hệ thống</h2>
-          <p>Kiểm tra nhanh tên gói, giá theo chu kỳ và quyền lợi trước khi chỉnh cấu hình chi tiết.</p>
-        </div>
-        <span class="package-overview__source">Dữ liệu trực tiếp từ cấu hình hệ thống</span>
-      </div>
-      <div class="package-overview__grid">
-        <article v-for="pkg in packages" :key="`overview-${pkg.id}`" class="package-overview__card" :class="`is-${pkg.type}`">
-          <header>
-            <div>
-              <span class="package-overview__eyebrow">{{ pkg.type === 'free' ? 'Mặc định' : (pkg.is_active ? 'Đang mở bán' : 'Đã tắt') }}</span>
-              <h3>{{ pkg.label || pkg.name }}</h3>
-            </div>
-            <span class="package-overview__status" :class="{ inactive: !pkg.is_active }">{{ pkg.is_active ? 'Active' : 'Inactive' }}</span>
-          </header>
-          <div class="package-overview__price">
-            <strong>{{ pkg.type === 'free' ? 'Miễn phí' : money(pkg.monthly_price) }}</strong>
-            <span v-if="pkg.type !== 'free'">/ tháng</span>
+        <header class="vip-page-header">
+          <div class="vip-page-heading">
+            <span class="vip-eyebrow">SẢN PHẨM & DỊCH VỤ</span>
+            <h1>Gói VIP hệ thống</h1>
+            <p>Quản lý giá và quyền lợi dành cho người chơi trong cùng một màn hình.</p>
           </div>
-          <div class="package-overview__cycles">
-            <div v-for="cycle in pkg.available_cycles" :key="cycle.key">
-              <span>{{ cycleLabel(cycle) }}</span>
-              <strong>{{ money(cycle.price) }}</strong>
-            </div>
+          <div class="vip-page-actions">
+            <span class="vip-data-note">Dữ liệu trực tiếp từ hệ thống</span>
+            <button class="vip-button vip-button-secondary" type="button" :disabled="loading" @click="refreshPage">
+              <AppIcon name="refresh" size="16" />
+              <span>Làm mới</span>
+            </button>
           </div>
-          <ul>
-            <li><strong>{{ pkg.cashback_percent }}%</strong><span>cashback booking</span></li>
-            <li><strong>{{ postLimitLabel(pkg.match_post_limit_per_month) }}</strong><span>bài giao lưu</span></li>
-            <li><strong>{{ pkg.voucher_count_per_month }}</strong><span>voucher VIP/tháng</span></li>
-            <li><strong>{{ pkg.priority_complaint ? 'Ưu tiên' : 'Tiêu chuẩn' }}</strong><span>khiếu nại</span></li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <div v-if="loading" class="state-box animate-fade-in">
-      <div class="spinner"></div>
-      <p>Đang tải gói VIP...</p>
-    </div>
-    <section v-else class="package-editor">
-      <div class="package-editor__heading">
-        <div>
-          <span>CONFIGURATION</span>
-          <h2>Chỉnh sửa quyền lợi và giá</h2>
-        </div>
-        <p>Giá quý và năm được hệ thống tự tính theo giá tháng và mức giảm cố định của từng loại gói.</p>
-      </div>
-      <div class="package-grid">
-      <form v-for="pkg in packages" :key="pkg.id" class="package-card" novalidate @submit.prevent="save(pkg)">
-        <header>
-          <div>
-            <span>{{ pkg.type === 'free' ? 'Mặc định' : 'Trả phí' }}</span>
-            <h3>{{ pkg.label || pkg.name }}</h3>
-          </div>
-          <label v-if="pkg.type !== 'free'" class="toggle">
-            <input v-model="pkg.is_active" type="checkbox" :disabled="pkg.type === 'free'" />
-            Hoạt động
-          </label>
         </header>
 
-        <div class="grid">
-          <label>Tên gói<input v-model.trim="pkg.name" /></label>
-          <label>Bài giao lưu/tháng<input v-model.trim="pkg.match_post_limit_per_month" type="text" inputmode="numeric" /></label>
+        <section v-if="!loading" class="vip-summary" aria-label="Tổng quan gói VIP">
+          <article class="vip-summary-item">
+            <span class="vip-summary-label">Tổng số gói</span>
+            <span class="vip-summary-value">{{ packages.length }}</span>
+            <span class="vip-summary-note">Bao gồm gói mặc định</span>
+          </article>
+          <article class="vip-summary-item">
+            <span class="vip-summary-label">Gói đang mở bán</span>
+            <span class="vip-summary-value">{{ activePaidPackageCount }}</span>
+            <span class="vip-summary-note">Trên {{ paidPackageCount }} gói trả phí</span>
+          </article>
+          <article class="vip-summary-item">
+            <span class="vip-summary-label">Lượt voucher theo gói</span>
+            <span class="vip-summary-value">{{ voucherBenefitTotal }}</span>
+            <span class="vip-summary-note">Quyền lợi cấu hình mỗi tháng</span>
+          </article>
+          <article class="vip-summary-item vip-summary-item-accent">
+            <span class="vip-summary-label">Cập nhật giá</span>
+            <span class="vip-summary-value">Tự động</span>
+            <span class="vip-summary-note">Quý và năm tính theo giá tháng</span>
+          </article>
+        </section>
 
-          <template v-if="pkg.type !== 'free'">
-            <label>Giá 1 tháng<input :value="monthlyPriceText(pkg)" type="text" inputmode="numeric" @focus="beginMonthlyPriceEdit(pkg, $event)" @input="updateMonthlyPrice(pkg, $event)" @blur="endMonthlyPriceEdit(pkg, $event)" /></label>
-            <label>Giá 3 tháng (giảm {{ pricingDiscountLabel(pkg, 'quarterly') }}%)<input :value="money(pkg.quarterly_price)" readonly /></label>
-            <label>Giá 1 năm (giảm {{ pricingDiscountLabel(pkg, 'yearly') }}%)<input :value="money(pkg.yearly_price)" readonly /></label>
-            <label>Danh hiệu<input v-model.trim="pkg.badge_name" /></label>
-            <label>Hoàn tiền<span class="suffix-field"><input v-model.trim="pkg.cashback_percent" type="text" inputmode="decimal" /><span>%</span></span></label>
-            <label>Voucher VIP/tháng<input v-model.trim="pkg.voucher_count_per_month" type="text" inputmode="numeric" /></label>
-            <label>Giảm voucher<span class="suffix-field"><input v-model.trim="pkg.voucher_discount_percent" type="text" inputmode="decimal" /><span>%</span></span></label>
-            <label>Đơn tối thiểu<input v-model.trim="pkg.voucher_min_order_amount" type="text" inputmode="numeric" /></label>
-            <label>Trần giảm voucher hàng tháng<input v-model.trim="pkg.voucher_max_discount_amount" type="text" inputmode="numeric" /></label>
-          </template>
-        </div>
+        <section class="vip-plans-section" aria-labelledby="vip-plans-title">
+          <header class="vip-section-header">
+            <div>
+              <span class="vip-eyebrow">CẤU HÌNH GÓI</span>
+              <h2 id="vip-plans-title">Giá và quyền lợi</h2>
+            </div>
+            <p>Giá theo quý và năm được tính tự động theo mức giảm đã cấu hình cho từng loại gói.</p>
+          </header>
 
-        <label v-if="pkg.type !== 'free'" class="check">
-          <input v-model="pkg.priority_complaint" type="checkbox" :disabled="pkg.type === 'free'" />
-          Đưa khiếu nại VIP lên đầu hàng chờ
-        </label>
+          <div v-if="loading" class="vip-loading" role="status">
+            <AppIcon name="refresh" size="18" />
+            <span>Đang tải cấu hình gói VIP...</span>
+          </div>
+          <div v-else-if="!packages.length" class="vip-empty">Chưa có gói VIP để hiển thị.</div>
+          <div v-else class="vip-plan-grid">
+            <form v-for="(pkg, index) in packages" :key="pkg.id" class="vip-plan" novalidate @submit.prevent="save(pkg)">
+              <header class="vip-plan-header">
+                <div class="vip-plan-heading">
+                  <span class="vip-plan-index">{{ String(index + 1).padStart(2, '0') }}</span>
+                  <div>
+                    <span class="vip-plan-type">{{ pkg.type === 'free' ? 'GÓI MẶC ĐỊNH' : 'GÓI TRẢ PHÍ' }}</span>
+                    <h3>{{ pkg.label || pkg.name }}</h3>
+                    <p>{{ pkg.type === 'free' ? 'Nền tảng cơ bản cho mọi tài khoản.' : 'Mở rộng quyền lợi cho người chơi thường xuyên.' }}</p>
+                  </div>
+                </div>
+                <label v-if="pkg.type !== 'free'" class="vip-active-field">
+                  <input v-model="pkg.is_active" type="checkbox" />
+                  <span>{{ pkg.is_active ? 'Đang mở bán' : 'Đang tắt' }}</span>
+                </label>
+                <span v-else class="vip-plan-state">Luôn khả dụng</span>
+              </header>
 
-        <button class="btn primary" type="submit" :disabled="savingId === pkg.id">
-          {{ savingId === pkg.id ? 'Đang lưu...' : 'Lưu gói' }}
-        </button>
-      </form>
-      </div>
-    </section>
+              <div class="vip-plan-body">
+                <div class="vip-field-grid vip-field-grid-two">
+                  <label class="vip-field">
+                    <span>Tên gói</span>
+                    <input v-model.trim="pkg.name" autocomplete="off" />
+                  </label>
+                  <label class="vip-field">
+                    <span>Bài giao lưu / tháng</span>
+                    <input v-model.trim="pkg.match_post_limit_per_month" type="text" inputmode="numeric" />
+                    <small>-1 là không giới hạn</small>
+                  </label>
+                </div>
 
-    <section class="voucher-section">
-      <div class="section-head">
-        <div>
-          <span>Voucher VIP</span>
-          <h3>Voucher thủ công theo gói</h3>
-        </div>
-      </div>
+                <div v-if="pkg.type === 'free'" class="vip-free-note">
+                  <span class="vip-free-note-title">Gói nền tảng</span>
+                  <span>Không thu phí và không áp dụng quyền lợi cashback, voucher hoặc ưu tiên khiếu nại.</span>
+                </div>
 
-      <form class="voucher-form" novalidate @submit.prevent="saveVipVoucher">
-        <div class="voucher-grid">
-          <label :class="{ invalid: voucherErrors.code }">Mã voucher<input v-model.trim="vipVoucherForm.code" maxlength="50" @input="normalizeVoucherCode" /><small v-if="voucherErrors.code" class="field-error">{{ voucherErrors.code }}</small></label>
-          <label :class="{ invalid: voucherErrors.name }">Tên voucher<input v-model.trim="vipVoucherForm.name" maxlength="255" @input="validateVipVoucherField('name')" /><small v-if="voucherErrors.name" class="field-error">{{ voucherErrors.name }}</small></label>
-          <label :class="{ invalid: voucherErrors.package_type }">Gói áp dụng
-            <select v-model="vipVoucherForm.package_type" @change="validateVipVoucherField('package_type')">
-              <option v-for="pkg in availableVipPackages" :key="pkg.type" :value="pkg.type">{{ pkg.label }}</option>
-            </select>
-            <small v-if="voucherErrors.package_type" class="field-error">{{ voucherErrors.package_type }}</small>
-          </label>
-          <label :class="{ invalid: voucherErrors.discount_type }">Loại giảm
-            <select v-model="vipVoucherForm.discount_type" @change="handleVipVoucherDiscountTypeChange">
-              <option value="percent">Phần trăm</option>
-              <option value="fixed">Số tiền</option>
-            </select>
-            <small v-if="voucherErrors.discount_type" class="field-error">{{ voucherErrors.discount_type }}</small>
-          </label>
-          <label :class="{ invalid: voucherErrors.discount_value }">{{ voucherDiscountValueLabel }}
-            <input
-              v-model.trim="vipVoucherForm.discount_value"
-              type="text"
-              :inputmode="vipVoucherForm.discount_type === 'percent' ? 'decimal' : 'numeric'"
-              @input="validateVipVoucherField('discount_value')"
-              @change="normalizeVipVoucherMoneyFields"
-            />
-            <small v-if="voucherErrors.discount_value" class="field-error">{{ voucherErrors.discount_value }}</small>
-          </label>
-          <label v-if="vipVoucherForm.discount_type === 'percent'" :class="{ invalid: voucherErrors.max_discount_amount }">Giảm tối đa VNĐ<input v-model.trim="vipVoucherForm.max_discount_amount" type="text" inputmode="numeric" @input="validateVipVoucherField('max_discount_amount')" @change="normalizeVipVoucherMoneyFields" /><small v-if="voucherErrors.max_discount_amount" class="field-error">{{ voucherErrors.max_discount_amount }}</small></label>
-          <label :class="{ invalid: voucherErrors.min_order_amount }">Đơn tối thiểu<input v-model.trim="vipVoucherForm.min_order_amount" type="text" inputmode="numeric" @input="validateVipVoucherField('min_order_amount')" @change="normalizeVipVoucherMoneyFields" /><small v-if="voucherErrors.min_order_amount" class="field-error">{{ voucherErrors.min_order_amount }}</small></label>
-          <label :class="{ invalid: voucherErrors.per_user_limit }">Giới hạn mỗi khách<input v-model.trim="vipVoucherForm.per_user_limit" type="text" inputmode="numeric" @input="validateVipVoucherField('per_user_limit')" /><small v-if="voucherErrors.per_user_limit" class="field-error">{{ voucherErrors.per_user_limit }}</small></label>
-          <label :class="{ invalid: voucherErrors.valid_from }">Bắt đầu<input v-model="vipVoucherForm.valid_from" type="datetime-local" @input="validateVipVoucherField('valid_from')" /><small v-if="voucherErrors.valid_from" class="field-error">{{ voucherErrors.valid_from }}</small></label>
-          <label :class="{ invalid: voucherErrors.valid_to }">Kết thúc<input v-model="vipVoucherForm.valid_to" type="datetime-local" @input="validateVipVoucherField('valid_to')" /><small v-if="voucherErrors.valid_to" class="field-error">{{ voucherErrors.valid_to }}</small></label>
-          <label :class="{ invalid: voucherErrors.status }">Trạng thái
-            <select v-model="vipVoucherForm.status">
-              <option value="active">Đang áp dụng</option>
-              <option value="inactive">Đã tắt</option>
-            </select>
-            <small v-if="voucherErrors.status" class="field-error">{{ voucherErrors.status }}</small>
-          </label>
-        </div>
+                <template v-else>
+                  <div class="vip-subsection">
+                    <div class="vip-subsection-heading">
+                      <span>Giá theo chu kỳ</span>
+                      <small>VND</small>
+                    </div>
+                    <div class="vip-field-grid vip-field-grid-three">
+                      <label class="vip-field">
+                        <span>1 tháng</span>
+                        <input :value="monthlyPriceText(pkg)" type="text" inputmode="numeric" @focus="beginMonthlyPriceEdit(pkg, $event)" @input="updateMonthlyPrice(pkg, $event)" @blur="endMonthlyPriceEdit(pkg, $event)" />
+                      </label>
+                      <label class="vip-field">
+                        <span>3 tháng · giảm {{ pricingDiscountLabel(pkg, 'quarterly') }}%</span>
+                        <input :value="money(pkg.quarterly_price)" readonly />
+                      </label>
+                      <label class="vip-field">
+                        <span>1 năm · giảm {{ pricingDiscountLabel(pkg, 'yearly') }}%</span>
+                        <input :value="money(pkg.yearly_price)" readonly />
+                      </label>
+                    </div>
+                  </div>
 
-        <label :class="{ invalid: voucherErrors.description }">Mô tả<textarea v-model.trim="vipVoucherForm.description" maxlength="2000" rows="3"></textarea><small v-if="voucherErrors.description" class="field-error">{{ voucherErrors.description }}</small></label>
+                  <div class="vip-subsection">
+                    <div class="vip-subsection-heading">
+                      <span>Quyền lợi thành viên</span>
+                      <small>Áp dụng khi gói còn hiệu lực</small>
+                    </div>
+                    <div class="vip-field-grid vip-field-grid-two">
+                      <label class="vip-field">
+                        <span>Hoàn tiền booking</span>
+                        <span class="vip-input-suffix"><input v-model.trim="pkg.cashback_percent" type="text" inputmode="decimal" /><span>%</span></span>
+                      </label>
+                      <label class="vip-field">
+                        <span>Danh hiệu hiển thị</span>
+                        <input v-model.trim="pkg.badge_name" autocomplete="off" />
+                      </label>
+                      <label class="vip-field">
+                        <span>Voucher VIP / tháng</span>
+                        <input v-model.trim="pkg.voucher_count_per_month" type="text" inputmode="numeric" />
+                      </label>
+                      <label class="vip-field">
+                        <span>Giảm giá voucher</span>
+                        <span class="vip-input-suffix"><input v-model.trim="pkg.voucher_discount_percent" type="text" inputmode="decimal" /><span>%</span></span>
+                      </label>
+                      <label class="vip-field">
+                        <span>Đơn tối thiểu</span>
+                        <input v-model.trim="pkg.voucher_min_order_amount" type="text" inputmode="numeric" />
+                      </label>
+                      <label class="vip-field">
+                        <span>Trần giảm / tháng</span>
+                        <input v-model.trim="pkg.voucher_max_discount_amount" type="text" inputmode="numeric" />
+                      </label>
+                    </div>
+                  </div>
 
-        <div class="voucher-actions">
-          <button class="btn primary" type="submit" :disabled="voucherSaving || availableVipPackages.length === 0">
-            {{ voucherSaving ? 'Đang tạo...' : 'Tạo voucher' }}
-          </button>
-        </div>
-      </form>
+                  <label class="vip-check-field">
+                    <input v-model="pkg.priority_complaint" type="checkbox" />
+                    <span>Ưu tiên xử lý khiếu nại của thành viên gói này</span>
+                  </label>
+                </template>
+              </div>
 
-      <div class="voucher-table">
-        <div v-if="voucherLoading" class="state">Đang tải voucher VIP...</div>
-        <div v-else-if="vipPackageVouchers.length === 0" class="state">Chưa có voucher áp dụng theo gói VIP.</div>
-        <SaaSTable
-          v-else
-          :columns="tableColumns"
-          :data="vipPackageVouchers"
-        >
-          <template #code="{ row }">
-            <strong>{{ row.code }}</strong>
-          </template>
-          <template #name="{ row }">
-            {{ row.name }}
-          </template>
-          <template #package="{ row }">
-            {{ vipVoucherPackageLabel(row) }}
-          </template>
-          <template #discount="{ row }">
-            {{ discountText(row) }}
-          </template>
-          <template #min_order_amount="{ row }">
-            {{ money(row.min_order_amount) }}
-          </template>
-          <template #per_user_limit="{ row }">
-            {{ row.per_user_limit || 'Không giới hạn' }}
-          </template>
-          <template #used_quantity="{ row }">
-            {{ row.used_quantity }}
-          </template>
-          <template #valid_range="{ row }">
-            {{ date(row.valid_from) }} - {{ date(row.valid_to) }}
-          </template>
-          <template #status="{ row }">
-            <span class="badge" :class="row.status">{{ row.status_label }}</span>
-          </template>
-          <template #actions="{ row }">
-            <TableActionGroup>
-              <ActionIconButton
-                v-if="row.status !== 'inactive'"
-                icon="power"
-                label="Tắt voucher"
-                variant="danger"
-                @click="deactivateVipVoucher(row)"
-              />
-            </TableActionGroup>
-          </template>
-        </SaaSTable>
-      </div>
-    </section>
+              <footer class="vip-plan-footer">
+                <span>Thay đổi chỉ có hiệu lực sau khi lưu.</span>
+                <button class="vip-button vip-button-primary" type="submit" :disabled="savingId === pkg.id">
+                  <AppIcon name="check" size="16" />
+                  <span>{{ savingId === pkg.id ? 'Đang lưu...' : 'Lưu gói' }}</span>
+                </button>
+              </footer>
+            </form>
+          </div>
+        </section>
 
-    <div v-if="pendingDeactivateVoucher" class="modal-backdrop" @click.self="pendingDeactivateVoucher = null">
-      <div class="confirm-modal">
-        <h3>Tắt voucher VIP?</h3>
-        <p>Voucher {{ pendingDeactivateVoucher.code }} sẽ ngừng áp dụng cho các lượt sử dụng mới.</p>
-        <div class="voucher-actions">
-          <button class="btn secondary" type="button" @click="pendingDeactivateVoucher = null">Hủy</button>
-          <button class="btn primary" type="button" :disabled="voucherSaving" @click="confirmDeactivateVipVoucher">
-            {{ voucherSaving ? 'Đang xử lý...' : 'Tắt voucher' }}
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
-    </section>
   </div>
-</div>
 </template>
 
 <script>
-import ActionIconButton from '../../components/ActionIconButton.vue';
 import AppIcon from '../../components/AppIcon.vue';
-import TableActionGroup from '../../components/TableActionGroup.vue';
-import SaaSTable from '../../components/ui/SaaSTable.vue';
-import { adminVoucherService } from '../../services/adminVoucherService.js';
 import { vipMembershipService } from '../../services/vipMembershipService.js';
 
 export default {
   name: 'AdminMembershipPackages',
-  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
+  components: { AppIcon },
   data() {
     return {
       packages: [],
-      vouchers: [],
       loading: false,
-      voucherLoading: false,
-      voucherSaving: false,
       savingId: '',
       error: '',
       success: '',
-      pendingDeactivateVoucher: null,
-      voucherErrors: {},
-      vipVoucherForm: this.emptyVipVoucherForm(),
     };
   },
   mounted() {
     this.load();
-    this.loadVipVouchers();
   },
   computed: {
-    tableColumns() {
-      return [
-        { key: 'code', label: 'MÃ VOUCHER' },
-        { key: 'name', label: 'TÊN VOUCHER' },
-        { key: 'package', label: 'GÓI ÁP DỤNG' },
-        { key: 'discount', label: 'GIÁ TRỊ' },
-        { key: 'min_order_amount', label: 'ĐƠN TỐI THIỂU' },
-        { key: 'per_user_limit', label: 'MỖI KHÁCH' },
-        { key: 'used_quantity', label: 'ĐÃ DÙNG' },
-        { key: 'valid_range', label: 'HIỆU LỰC' },
-        { key: 'status', label: 'TRẠNG THÁI' },
-        { key: 'actions', label: 'THAO TÁC', align: 'right' },
-      ];
-    },
-    availableVipPackages() {
-      const packages = this.packages
+    voucherBenefitTotal() {
+      return this.packages
         .filter((pkg) => pkg.type !== 'free')
-        .map((pkg) => ({
-          type: pkg.type,
-          label: pkg.label || pkg.name,
-        }));
-
-      return packages.length
-        ? packages
-        : [
-            { type: 'saving', label: 'Tiết kiệm' },
-            { type: 'pro', label: 'Pro' },
-          ];
+        .reduce((total, pkg) => total + Math.max(Number(pkg.voucher_count_per_month) || 0, 0), 0);
     },
-    vipPackageVouchers() {
-      return this.vouchers.filter((voucher) => (voucher.scopes || [])
-        .some((scope) => scope.scope_type === 'vip_package'));
+    paidPackageCount() {
+      return this.packages.filter((pkg) => pkg.type !== 'free').length;
     },
-    voucherDiscountValueLabel() {
-      return this.vipVoucherForm.discount_type === 'percent'
-        ? 'Phần trăm giảm (%)'
-        : 'Số tiền giảm (VND)';
+    activePaidPackageCount() {
+      return this.packages.filter((pkg) => pkg.type !== 'free' && pkg.is_active).length;
     },
   },
   methods: {
-    emptyVipVoucherForm() {
-      const validFrom = new Date();
-      const validTo = new Date();
-      validTo.setMonth(validTo.getMonth() + 1);
-
-      return {
-        code: '',
-        name: '',
-        description: '',
-        package_type: 'saving',
-        discount_type: 'percent',
-        discount_value: 10,
-        max_discount_amount: null,
-        min_order_amount: 0,
-        per_user_limit: 1,
-        valid_from: this.toDatetimeLocal(validFrom),
-        valid_to: this.toDatetimeLocal(validTo),
-        status: 'active',
-      };
+    async refreshPage() {
+      await this.load();
     },
     async load() {
       this.loading = true;
@@ -321,24 +215,10 @@ export default {
         this.packages = (response.data || [])
           .map((pkg) => this.decoratePackage(pkg))
           .sort((a, b) => this.packageSortOrder(a) - this.packageSortOrder(b));
-        if (!this.availableVipPackages.some((pkg) => pkg.type === this.vipVoucherForm.package_type)) {
-          this.vipVoucherForm.package_type = this.availableVipPackages[0]?.type || 'saving';
-        }
       } catch (error) {
         this.error = error.message || 'Không thể tải gói VIP.';
       } finally {
         this.loading = false;
-      }
-    },
-    async loadVipVouchers() {
-      this.voucherLoading = true;
-      try {
-        const response = await adminVoucherService.list({ per_page: 50 });
-        this.vouchers = response.data || [];
-      } catch (error) {
-        this.error = error.message || 'Không thể tải voucher VIP.';
-      } finally {
-        this.voucherLoading = false;
       }
     },
     payload(pkg) {
@@ -543,251 +423,6 @@ export default {
         this.savingId = '';
       }
     },
-    vipVoucherPayload() {
-      const discountValue = this.vipVoucherForm.discount_type === 'percent'
-        ? this.decimalInputValue(this.vipVoucherForm.discount_value)
-        : this.vndIntegerInputValue(this.vipVoucherForm.discount_value);
-      const maxDiscount = this.vipVoucherForm.max_discount_amount === null || this.vipVoucherForm.max_discount_amount === ''
-        ? null
-        : this.vndIntegerInputValue(this.vipVoucherForm.max_discount_amount);
-      const minOrder = this.vndIntegerInputValue(this.vipVoucherForm.min_order_amount || 0);
-      const perUserLimit = this.integerInputValue(this.vipVoucherForm.per_user_limit);
-
-      return {
-        code: String(this.vipVoucherForm.code || '').trim().toUpperCase(),
-        name: String(this.vipVoucherForm.name || '').trim(),
-        description: this.vipVoucherForm.description || null,
-        discount_type: this.vipVoucherForm.discount_type,
-        discount_value: discountValue,
-        max_discount_amount: this.vipVoucherForm.discount_type === 'percent'
-          ? maxDiscount
-          : null,
-        min_order_amount: minOrder,
-        total_quantity: null,
-        per_user_limit: perUserLimit === -1
-          ? null
-          : perUserLimit,
-        valid_from: this.vipVoucherForm.valid_from,
-        valid_to: this.vipVoucherForm.valid_to,
-        status: this.vipVoucherForm.status,
-        scopes: [{
-          scope_type: 'vip_package',
-          scope_id: this.vipVoucherForm.package_type,
-        }],
-      };
-    },
-    validateVipVoucher() {
-      const errors = this.vipVoucherErrors();
-      this.voucherErrors = errors;
-
-      if (Object.keys(errors).length > 0) {
-        this.error = 'Vui lòng kiểm tra lại thông tin voucher được đánh dấu đỏ.';
-        return false;
-      }
-
-      this.error = '';
-      return true;
-    },
-    vipVoucherErrors() {
-      const errors = {};
-      const code = String(this.vipVoucherForm.code || '').trim().toUpperCase();
-      const name = String(this.vipVoucherForm.name || '').trim();
-      const description = String(this.vipVoucherForm.description || '').trim();
-      const discountValue = this.vipVoucherForm.discount_type === 'percent'
-        ? this.decimalInputValue(this.vipVoucherForm.discount_value)
-        : this.vndIntegerInputValue(this.vipVoucherForm.discount_value);
-      const maxDiscount = this.vipVoucherForm.max_discount_amount === null || this.vipVoucherForm.max_discount_amount === ''
-        ? null
-        : this.vndIntegerInputValue(this.vipVoucherForm.max_discount_amount);
-      const minOrder = this.vndIntegerInputValue(this.vipVoucherForm.min_order_amount || 0);
-      const perUserLimit = this.integerInputValue(this.vipVoucherForm.per_user_limit);
-      const validFrom = new Date(this.vipVoucherForm.valid_from).getTime();
-      const validTo = new Date(this.vipVoucherForm.valid_to).getTime();
-
-      if (!code) {
-        errors.code = 'Vui lòng nhập mã voucher.';
-      } else if (code.length < 3 || code.length > 50) {
-        errors.code = 'Mã voucher phải có từ 3 đến 50 ký tự.';
-      } else if (!/^[A-Z0-9_-]+$/.test(code)) {
-        errors.code = 'Mã voucher chỉ gồm chữ không dấu, số, dấu gạch ngang hoặc gạch dưới.';
-      }
-
-      if (!name) {
-        errors.name = 'Vui lòng nhập tên voucher.';
-      } else if (name.length < 3 || name.length > 255) {
-        errors.name = 'Tên voucher phải có từ 3 đến 255 ký tự.';
-      }
-
-      if (!this.availableVipPackages.some((pkg) => pkg.type === this.vipVoucherForm.package_type)) {
-        errors.package_type = 'Vui lòng chọn gói VIP hợp lệ.';
-      }
-
-      if (!['percent', 'fixed'].includes(this.vipVoucherForm.discount_type)) {
-        errors.discount_type = 'Loại giảm giá không hợp lệ.';
-      }
-
-      if (!Number.isFinite(discountValue) || discountValue <= 0) {
-        errors.discount_value = this.vipVoucherForm.discount_type === 'percent'
-          ? 'Phần trăm giảm phải lớn hơn 0.'
-          : 'Số tiền giảm phải lớn hơn 0.';
-      } else if (this.vipVoucherForm.discount_type === 'percent') {
-        if (discountValue > 100) {
-          errors.discount_value = 'Phần trăm giảm không được lớn hơn 100%.';
-        } else if (!this.hasAtMostTwoDecimals(this.vipVoucherForm.discount_value)) {
-          errors.discount_value = 'Phần trăm giảm chỉ được có tối đa 2 chữ số thập phân.';
-        }
-      } else if (!Number.isInteger(discountValue) || discountValue > 9999999999) {
-        errors.discount_value = 'Số tiền giảm phải là số nguyên VND hợp lệ.';
-      }
-
-      if (this.vipVoucherForm.discount_type === 'percent' && maxDiscount !== null && (!Number.isInteger(maxDiscount) || maxDiscount < 0 || maxDiscount > 9999999999)) {
-        errors.max_discount_amount = 'Trần giảm phải là số nguyên VND không âm.';
-      }
-
-      if (!Number.isInteger(minOrder) || minOrder < 0 || minOrder > 9999999999) {
-        errors.min_order_amount = 'Đơn tối thiểu phải là số nguyên VND không âm.';
-      }
-
-      if (!Number.isInteger(perUserLimit) || perUserLimit === 0 || perUserLimit < -1) {
-        errors.per_user_limit = 'Chỉ nhập -1 hoặc số nguyên từ 1 trở lên; -1 là không giới hạn.';
-      }
-
-      if (!Number.isFinite(validFrom)) {
-        errors.valid_from = 'Vui lòng chọn thời gian bắt đầu.';
-      }
-
-      if (!Number.isFinite(validTo)) {
-        errors.valid_to = 'Vui lòng chọn thời gian kết thúc.';
-      } else if (Number.isFinite(validFrom) && validTo <= validFrom) {
-        errors.valid_to = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
-      } else if (validTo <= Date.now()) {
-        errors.valid_to = 'Thời gian kết thúc phải sau thời điểm hiện tại.';
-      }
-
-      if (!['active', 'inactive'].includes(this.vipVoucherForm.status)) {
-        errors.status = 'Trạng thái voucher không hợp lệ.';
-      }
-
-      if (description.length > 2000) {
-        errors.description = 'Mô tả không được vượt quá 2.000 ký tự.';
-      }
-
-      return errors;
-    },
-    validateVipVoucherField(field) {
-      if (field === 'code') {
-        this.vipVoucherForm.code = String(this.vipVoucherForm.code || '').toUpperCase();
-      }
-
-      const errors = this.vipVoucherErrors();
-      const nextErrors = { ...this.voucherErrors };
-      if (errors[field]) nextErrors[field] = errors[field];
-      else delete nextErrors[field];
-      this.voucherErrors = nextErrors;
-    },
-    async saveVipVoucher() {
-      if (!this.validateVipVoucher()) return;
-      this.normalizeVipVoucherMoneyFields();
-
-      this.voucherSaving = true;
-      this.error = '';
-      try {
-        const response = await adminVoucherService.create(this.vipVoucherPayload());
-        this.success = response.message || 'Đã tạo voucher VIP.';
-        this.resetVipVoucherForm();
-        await this.loadVipVouchers();
-      } catch (error) {
-        const apiErrors = error.data?.errors || {};
-        this.voucherErrors = Object.fromEntries(Object.entries(apiErrors).map(([field, messages]) => {
-          const rootField = field.split('.')[0];
-          const formField = rootField === 'scopes' ? 'package_type' : rootField;
-          return [formField, messages?.[0] || String(messages)];
-        }));
-        this.error = Object.keys(this.voucherErrors).length
-          ? 'Vui lòng kiểm tra lại thông tin voucher được đánh dấu đỏ.'
-          : error.message || 'Không thể tạo voucher VIP.';
-      } finally {
-        this.voucherSaving = false;
-      }
-    },
-    resetVipVoucherForm() {
-      this.vipVoucherForm = this.emptyVipVoucherForm();
-      this.vipVoucherForm.package_type = this.availableVipPackages[0]?.type || 'saving';
-      this.voucherErrors = {};
-      this.error = '';
-    },
-    normalizeVoucherCode(event) {
-      this.vipVoucherForm.code = String(event.target.value || '').toUpperCase();
-      this.validateVipVoucherField('code');
-    },
-    handleVipVoucherDiscountTypeChange() {
-      if (this.vipVoucherForm.discount_type === 'fixed') {
-        this.vipVoucherForm.max_discount_amount = null;
-      }
-      this.validateVipVoucherField('discount_type');
-      this.validateVipVoucherField('discount_value');
-      this.validateVipVoucherField('max_discount_amount');
-    },
-    normalizeVipVoucherMoneyFields() {
-      if (this.vipVoucherForm.discount_type === 'percent') {
-        const percent = this.decimalInputValue(this.vipVoucherForm.discount_value);
-        if (Number.isFinite(percent)) {
-          this.vipVoucherForm.discount_value = Math.min(Math.max(Number(percent.toFixed(2)), 0.01), 100);
-        }
-
-        if (this.vipVoucherForm.max_discount_amount === null || this.vipVoucherForm.max_discount_amount === '') {
-          this.vipVoucherForm.max_discount_amount = null;
-        } else {
-          const maxDiscount = this.vndIntegerInputValue(this.vipVoucherForm.max_discount_amount);
-          if (Number.isInteger(maxDiscount)) this.vipVoucherForm.max_discount_amount = maxDiscount;
-        }
-      } else {
-        const discount = this.vndIntegerInputValue(this.vipVoucherForm.discount_value);
-        if (Number.isInteger(discount)) this.vipVoucherForm.discount_value = Math.max(discount, 1);
-        this.vipVoucherForm.max_discount_amount = null;
-      }
-
-      const minOrder = this.vndIntegerInputValue(this.vipVoucherForm.min_order_amount || 0);
-      if (Number.isInteger(minOrder)) this.vipVoucherForm.min_order_amount = minOrder;
-      const perUserLimit = this.integerInputValue(this.vipVoucherForm.per_user_limit);
-      if (Number.isInteger(perUserLimit)) this.vipVoucherForm.per_user_limit = perUserLimit;
-    },
-    vndIntegerInputValue(value) {
-      const normalized = String(value ?? '').trim();
-      return /^\d+$/.test(normalized) ? Number(normalized) : NaN;
-    },
-    hasAtMostTwoDecimals(value) {
-      const normalized = this.normalizedNumericText(value);
-      return /^\d+(?:\.\d{1,2})?$/.test(normalized);
-    },
-    async deactivateVipVoucher(voucher) {
-      this.pendingDeactivateVoucher = voucher;
-    },
-    async confirmDeactivateVipVoucher() {
-      if (!this.pendingDeactivateVoucher) return;
-      const voucher = this.pendingDeactivateVoucher;
-      this.voucherSaving = true;
-      try {
-        const response = await adminVoucherService.deactivate(voucher.id, 'Admin tắt voucher áp dụng theo gói VIP.');
-        this.success = response.message || 'Đã tắt voucher VIP.';
-        this.pendingDeactivateVoucher = null;
-        await this.loadVipVouchers();
-      } catch (error) {
-        this.error = error.message || 'Không thể tắt voucher VIP.';
-      } finally {
-        this.voucherSaving = false;
-      }
-    },
-    vipVoucherPackageLabel(voucher) {
-      const scope = (voucher.scopes || []).find((item) => item.scope_type === 'vip_package');
-      const matched = this.availableVipPackages.find((pkg) => pkg.type === scope?.scope_id);
-      return matched?.label || scope?.scope_id || '-';
-    },
-    discountText(voucher) {
-      return voucher.discount_type === 'percent'
-        ? `${Number(voucher.discount_value)}%`
-        : this.money(voucher.discount_value);
-    },
     cycleLabel(cycle) {
       return {
         monthly: 'Tháng',
@@ -842,6 +477,83 @@ label.invalid input,label.invalid select,label.invalid textarea{border-color:var
   box-shadow: none !important;
   padding: 0 !important;
 }
+
+/* Package page follows the shared admin rules: flat surfaces and text-first pricing. */
+.vip-admin-page,
+.vip-admin-page * {
+  font-weight: 400 !important;
+}
+
+.vip-admin-page h1,
+.vip-admin-page h2,
+.vip-admin-page h3,
+.vip-admin-page h4,
+.vip-admin-page strong,
+.vip-admin-page button {
+  font-weight: 400 !important;
+}
+
+.profile-section-card.vip-packages-main-content,
+.package-overview,
+.package-card,
+.voucher-section,
+.confirm-modal,
+.voucher-table {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-section-card.vip-packages-main-content {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.package-overview {
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.package-overview__source,
+.package-overview__status,
+.badge {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--admin-text) !important;
+  padding: 0;
+}
+
+.package-overview__card {
+  border: 0;
+  border-radius: 0;
+  background: var(--admin-surface-muted);
+  box-shadow: none;
+}
+
+.package-overview__price,
+.package-overview__card li,
+.voucher-table th,
+.voucher-table td {
+  border: 0;
+}
+
+.package-overview__cycles div,
+.suffix-field {
+  border-radius: 0;
+}
+
+.package-card,
+.voucher-section {
+  border: 1px solid var(--admin-border);
+}
+
+@media (max-width: 620px) {
+  .package-overview__grid,
+  .package-grid {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 1100px) {
   .package-overview__grid,
   .package-grid { grid-template-columns: 1fr; }
@@ -855,5 +567,532 @@ label.invalid input,label.invalid select,label.invalid textarea{border-color:var
   .grid,
   .voucher-grid { grid-template-columns: 1fr; }
   .package-overview__source { white-space: normal; }
+}
+</style>
+
+<style scoped>
+.vip-admin-page,
+.vip-admin-page * {
+  font-weight: 400;
+}
+
+.vip-admin-page {
+  display: grid;
+  gap: 26px;
+  min-width: 0;
+  color: var(--admin-text);
+}
+
+.vip-feedback {
+  padding: 12px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.vip-feedback-error {
+  border-color: var(--admin-danger);
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger-text);
+}
+
+.vip-feedback-success {
+  border-color: var(--admin-success);
+  background: var(--admin-success-soft);
+  color: var(--admin-success-text);
+}
+
+.vip-page-header,
+.vip-section-header,
+.vip-page-actions,
+.vip-plan-header,
+.vip-plan-footer,
+.vip-modal-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.vip-page-header {
+  align-items: flex-end;
+  padding: 4px 0;
+}
+
+.vip-page-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.vip-eyebrow,
+.vip-plan-type,
+.vip-form-kicker {
+  color: var(--admin-success-text);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vip-page-heading h1,
+.vip-section-header h2,
+.vip-confirm-modal h3 {
+  margin: 0;
+  color: var(--admin-text);
+  font-weight: 400;
+}
+
+.vip-page-heading h1 {
+  font-size: 30px;
+  line-height: 1.15;
+}
+
+.vip-page-heading p,
+.vip-section-header p,
+.vip-plan-heading p,
+.vip-vip-form-note,
+.vip-plan-footer > span,
+.vip-confirm-modal p {
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 1.5;
+}
+
+.vip-page-heading p {
+  max-width: 650px;
+  font-size: 13px;
+}
+
+.vip-page-actions {
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.vip-data-note,
+.vip-form-note,
+.vip-list-count {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.vip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.vip-button-primary {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+  color: var(--admin-primary-text);
+}
+
+.vip-button-secondary {
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+}
+
+.vip-button:hover:not(:disabled),
+.vip-button:focus-visible {
+  border-color: var(--admin-primary-dark);
+  outline: none;
+}
+
+.vip-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.vip-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+}
+
+.vip-summary-item {
+  display: grid;
+  gap: 5px;
+  min-height: 104px;
+  padding: 17px 18px;
+  border-left: 1px solid var(--admin-border);
+}
+
+.vip-summary-item:first-child {
+  border-left: 0;
+}
+
+.vip-summary-item-accent {
+  background: var(--admin-primary-soft);
+}
+
+.vip-summary-label,
+.vip-summary-note {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.vip-summary-value {
+  color: var(--admin-text);
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.vip-summary-note {
+  color: var(--admin-text);
+  font-size: 11px;
+}
+
+.vip-plans-section {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.vip-section-header {
+  align-items: flex-end;
+}
+
+.vip-section-header > div {
+  display: grid;
+  gap: 5px;
+}
+
+.vip-section-header h2 {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.vip-section-header p {
+  max-width: 540px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.vip-loading,
+.vip-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 118px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.vip-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.vip-plan {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface);
+}
+
+.vip-plan-header {
+  padding: 18px;
+  background: var(--admin-primary-soft);
+}
+
+.vip-plan-heading {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.vip-plan-index {
+  flex: 0 0 auto;
+  color: var(--admin-primary-dark);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.vip-plan-heading > div:last-child {
+  min-width: 0;
+}
+
+.vip-plan-heading h3 {
+  margin: 4px 0 0;
+  color: var(--admin-text);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.vip-plan-heading p {
+  margin-top: 6px;
+  color: var(--admin-text);
+  font-size: 12px;
+}
+
+.vip-active-field,
+.vip-check-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--admin-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.vip-active-field {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+.vip-active-field input,
+.vip-check-field input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--admin-primary);
+}
+
+.vip-plan-state {
+  flex: 0 0 auto;
+  color: var(--admin-success-text);
+  font-size: 12px;
+}
+
+.vip-plan-body {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 18px;
+}
+
+.vip-field-grid {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.vip-field-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vip-field-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.vip-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  color: var(--admin-text);
+  font-size: 12px;
+}
+
+.vip-field > span:first-child {
+  line-height: 1.35;
+}
+
+.vip-field input,
+.vip-field select,
+.vip-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+}
+
+.vip-field input,
+.vip-field select {
+  min-height: 40px;
+}
+
+.vip-field textarea {
+  min-height: 84px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
+.vip-field input:focus,
+.vip-field select:focus,
+.vip-field textarea:focus,
+.vip-input-suffix:focus-within {
+  border-color: var(--admin-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+.vip-field input[readonly] {
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+}
+
+.vip-field small {
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.vip-subsection {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-muted);
+}
+
+.vip-subsection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--admin-text);
+  font-size: 12px;
+}
+
+.vip-subsection-heading small {
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+
+.vip-input-suffix {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 7px;
+  background: var(--admin-surface);
+}
+
+.vip-input-suffix input {
+  min-width: 0;
+  min-height: 38px;
+  border: 0;
+  border-radius: 0;
+}
+
+.vip-input-suffix > span {
+  display: grid;
+  place-items: center;
+  border-left: 1px solid var(--admin-border);
+  color: var(--admin-text);
+}
+
+.vip-free-note {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.vip-free-note-title {
+  color: var(--admin-success-text);
+}
+
+.vip-check-field {
+  justify-content: flex-start;
+}
+
+.vip-field-invalid input,
+.vip-field-invalid select,
+.vip-field-invalid textarea {
+  border-color: var(--admin-danger);
+  background: var(--admin-danger-soft);
+}
+
+.vip-field-error {
+  color: var(--admin-danger-text) !important;
+}
+
+.vip-plan-footer {
+  align-items: center;
+  padding: 14px 18px 18px;
+  background: var(--admin-surface);
+}
+
+.vip-plan-footer > span,
+.vip-form-actions > span {
+  max-width: 210px;
+  font-size: 11px;
+}
+
+@media (max-width: 1120px) {
+  .vip-plan-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .vip-page-header,
+  .vip-section-header,
+  .vip-page-actions,
+  .vip-plan-header,
+  .vip-plan-footer,
+  .vip-modal-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vip-page-actions {
+    width: 100%;
+  }
+
+  .vip-button {
+    width: 100%;
+  }
+
+  .vip-section-header p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .vip-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vip-summary-item:nth-child(3) {
+    border-left: 0;
+  }
+
+  .vip-field-grid-two,
+  .vip-field-grid-three {
+    grid-template-columns: 1fr;
+  }
+
+  .vip-plan-footer > span {
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .vip-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .vip-summary-item,
+  .vip-summary-item:nth-child(3) {
+    border-left: 0;
+  }
 }
 </style>

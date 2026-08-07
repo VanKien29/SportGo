@@ -123,6 +123,12 @@ class AdminRoleController extends Controller
             'display_name.required' => 'Vui lòng nhập tên nhóm quyền.',
         ]);
 
+        if (strtolower(trim($data['name'])) === 'super_admin') {
+            throw ValidationException::withMessages([
+                'name' => 'Không được tạo nhóm quyền Super Admin mới.',
+            ]);
+        }
+
         $role = Role::query()->create([
             ...$data,
             'is_system' => false,
@@ -154,6 +160,12 @@ class AdminRoleController extends Controller
             'display_name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        if (strtolower(trim($data['name'])) === 'super_admin') {
+            throw ValidationException::withMessages([
+                'name' => 'Không được tạo hoặc đổi tên nhóm quyền thành Super Admin.',
+            ]);
+        }
 
         if (in_array($role->name, self::LOCKED_PERMISSION_ROLES, true)) {
             throw ValidationException::withMessages([

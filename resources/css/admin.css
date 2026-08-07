@@ -66,12 +66,12 @@
   --admin-font-size-xl: calc(var(--admin-font-size) + 4px);
   --admin-font-size-2xl: calc(var(--admin-font-size) + 6px);
   --admin-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --admin-bg-gradient: #ffffff;
+  --admin-bg-surface: #ffffff;
   --admin-topbar-bg: #ffffff;
   --admin-topbar-border: var(--admin-border-soft, #e2e8f0);
   --admin-card-bg: var(--admin-surface);
-  --admin-filter-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
-  --admin-header-gradient: #ffffff;
+  --admin-filter-surface: var(--admin-surface-muted);
+  --admin-header-surface: #ffffff;
   --admin-sidebar-shadow: 1px 0 0 rgba(255, 255, 255, 0.74);
 }
 
@@ -116,12 +116,12 @@
   --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --admin-shadow-card: 0 6px 18px rgba(0, 0, 0, 0.25);
   --admin-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.5);
-  --admin-bg-gradient: linear-gradient(180deg, #18181b, #09090b);
+  --admin-bg-surface: #09090b;
   --admin-topbar-bg: rgba(9, 9, 11, 0.82);
   --admin-topbar-border: rgba(39, 39, 42, 0.82);
   --admin-card-bg: var(--admin-surface);
-  --admin-filter-gradient: linear-gradient(180deg, rgba(24, 24, 27, 0.4), rgba(24, 24, 27, 0));
-  --admin-header-gradient: linear-gradient(135deg, rgba(24, 24, 27, 0.98), rgba(9, 9, 11, 0.86));
+  --admin-filter-surface: var(--admin-surface-muted);
+  --admin-header-surface: #18181b;
   --admin-sidebar-shadow: 1px 0 0 rgba(0, 0, 0, 0.2);
 }
 
@@ -133,8 +133,7 @@
   grid-template-columns: 272px minmax(0, 1fr);
   min-height: 100vh;
   background:
-    var(--admin-bg-gradient),
-    var(--admin-bg);
+    var(--admin-bg-surface);
   color: var(--admin-text);
   font-family: var(--admin-font);
   transition: grid-template-columns 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -197,7 +196,7 @@
   height: 38px;
   place-items: center;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
+  background: var(--admin-primary);
   color: #fff;
   font-size: var(--admin-font-size-base, 14px);
   font-weight: 400;
@@ -336,7 +335,7 @@
   place-items: center;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--admin-primary), var(--admin-blue));
+  background: var(--admin-primary);
   color: #fff;
   font-size: 13px;
   font-weight: 400;
@@ -1197,6 +1196,7 @@
 
 .sg-shell-admin .content-area :is(
   .amenities-container,
+  .categories-container,
   .admin-banners-page,
   .moderation-page,
   .page,
@@ -1225,6 +1225,20 @@
   display: grid;
   min-width: 0;
   gap: 18px;
+}
+
+/* Shared content width for the admin catalog pages. Individual views may
+   still control their internal table layout, but the page surface follows
+   the same full-width shell as the other admin modules. */
+.sg-shell-admin .content-area :is(
+  .court-types-container,
+  .amenities-container,
+  .categories-container,
+  .admin-banners-page
+) {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
 }
 
 .sg-shell-admin .content-area :is(h1, h2, h3, h4, .page-title, .section-title, .card-title, .main-title, .avcd-title) {
@@ -1588,16 +1602,9 @@
 }
 
 .sg-shell-admin .content-area select {
-  appearance: none !important;
-  padding-right: 36px !important;
-  background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%),
-    linear-gradient(135deg, currentColor 50%, transparent 50%) !important;
-  background-position:
-    calc(100% - 17px) 50%,
-    calc(100% - 11px) 50% !important;
-  background-size: 6px 6px, 6px 6px !important;
-  background-repeat: no-repeat !important;
+  appearance: auto !important;
+  padding-right: 12px !important;
+  background-image: none !important;
 }
 
 .sg-shell-admin .content-area :is(.search-field, .search-box) {
@@ -3919,7 +3926,7 @@ textarea:focus {
   gap: 20px;
 }
 .wallet-premium-card {
-  background: var(--admin-header-gradient);
+  background: var(--admin-header-surface);
   border-radius: 12px;
   padding: 20px;
   color: var(--admin-text);
@@ -3945,13 +3952,13 @@ textarea:focus {
   right: -40px;
   width: 120px;
   height: 120px;
-  background: radial-gradient(circle, rgba(128, 128, 128, 0.05) 0%, transparent 70%);
+  background: rgba(128, 128, 128, 0.05);
   border-radius: 50%;
 }
 .wallet-premium-card .card-chip {
   width: 32px;
   height: 24px;
-  background: linear-gradient(135deg, var(--admin-border), var(--admin-surface-muted));
+  background: var(--admin-surface-muted);
   border-radius: 4px;
   margin-bottom: 12px;
   position: relative;
@@ -5879,12 +5886,7 @@ input, select, textarea {
 [data-theme="dark"] .skeleton-tabs span::after,
 [data-theme="dark"] .skeleton-matrix span::after,
 [data-theme="dark"] .table-skeleton-row span::after {
-    background: linear-gradient(
-        90deg,
-        rgba(30, 41, 59, 0) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        rgba(30, 41, 59, 0) 100%
-    );
+    background: rgba(255, 255, 255, 0.05);
 }
 /* --- END OF bookings.css --- */
 
@@ -5991,12 +5993,7 @@ input, select, textarea {
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.72) 48%,
-        transparent 100%
-    );
+    background: rgba(255, 255, 255, 0.18);
     animation: skeleton-shimmer 1.35s ease-in-out infinite;
 }
 
@@ -9219,12 +9216,7 @@ input.invalid {
 [data-theme="dark"] .skeleton-tabs span::after,
 [data-theme="dark"] .skeleton-matrix span::after,
 [data-theme="dark"] .table-skeleton-row span::after {
-    background: linear-gradient(
-        90deg,
-        rgba(30, 41, 59, 0) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        rgba(30, 41, 59, 0) 100%
-    );
+    background: rgba(255, 255, 255, 0.05);
 }
 
 [data-theme="dark"] .schedule-filters,
@@ -9777,12 +9769,7 @@ input.invalid {
 [data-theme="dark"] .skeleton-tabs span::after,
 [data-theme="dark"] .skeleton-matrix span::after,
 [data-theme="dark"] .table-skeleton-row span::after {
-    background: linear-gradient(
-        90deg,
-        rgba(30, 41, 59, 0) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        rgba(30, 41, 59, 0) 100%
-    );
+    background: rgba(255, 255, 255, 0.05);
 }
 /* --- END OF counter-booking.css --- */
 
@@ -10159,7 +10146,7 @@ input.invalid {
 
   /* List items & Draft */
   .draft-banner {
-    background: linear-gradient(to right, #fef3c7, #fde68a);
+  background: var(--admin-warning-soft);
     border: 1px solid #fcd34d;
     border-radius: 16px;
     padding: 16px 24px;
@@ -11288,8 +11275,7 @@ input.invalid {
     flex: 1;
     height: 24px;
     border-radius: 6px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%) !important;
-    background-size: 200% 100% !important;
+    background: #e2e8f0 !important;
     animation: skeleton-shimmer 1.5s infinite !important;
     min-height: 0 !important;
 }
@@ -11304,8 +11290,7 @@ input.invalid {
     width: 120px;
     height: 36px;
     border-radius: 6px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%) !important;
-    background-size: 200% 100% !important;
+    background: #e2e8f0 !important;
     animation: skeleton-shimmer 1.5s infinite !important;
     flex-shrink: 0;
     min-height: 0 !important;
@@ -11315,8 +11300,7 @@ input.invalid {
     flex: 1;
     height: 36px;
     border-radius: 6px;
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%) !important;
-    background-size: 200% 100% !important;
+    background: #e2e8f0 !important;
     animation: skeleton-shimmer 1.5s infinite !important;
     min-height: 0 !important;
 }
@@ -11386,13 +11370,7 @@ input.invalid {
   display: flex;
   align-items: end;
   justify-content: center;
-  border-bottom: 1px solid var(--dash-border);
-  background: repeating-linear-gradient(
-    to top,
-    transparent 0,
-    transparent 23px,
-    var(--dash-border-soft) 24px
-  );
+  background: var(--dash-surface, var(--admin-surface));
 }
 
 .trend-column__track i {
@@ -12088,7 +12066,7 @@ input.invalid {
 
   /* List items & Draft */
   .draft-banner {
-    background: linear-gradient(to right, #fef3c7, #fde68a);
+  background: var(--admin-warning-soft);
     border: 1px solid #fcd34d;
     border-radius: 16px;
     padding: 16px 24px;
@@ -14771,4 +14749,992 @@ div[class*="-main-content"] {
   background: rgba(234, 179, 8, 0.15);
   border-color: rgba(234, 179, 8, 0.3);
   color: #fde047;
+}
+
+/* --------------------------------------------------------------------------
+   SportGo admin visual guardrails
+   These rules are intentionally scoped to the admin shell. They provide a
+   single safe baseline while legacy page styles are migrated component by
+   component; they are not a substitute for the semantic tokens above.
+   -------------------------------------------------------------------------- */
+.sg-admin-theme-scope {
+  --admin-radius: 6px;
+  --admin-radius-lg: 8px;
+  --admin-muted: #2f3d34;
+  --admin-faint: #45564a;
+}
+
+.sg-admin-theme-scope .sg-shell-admin {
+  background: var(--admin-bg-surface, var(--admin-bg)) !important;
+}
+
+.sg-admin-theme-scope :where(
+  .badge,
+  .status-badge,
+  .status-chip,
+  .status-pill,
+  .payment-chip,
+  .post-type-pill,
+  .time-pill,
+  .rank-badge,
+  .cluster-badge,
+  .nav-badge,
+  .rail-badge-dot,
+  .child-count-badge,
+  .type-badge,
+  .risk-badge,
+  .fees-count-badge,
+  .player-count-badge,
+  .staff-chip,
+  .ct-chip,
+  .email-chip,
+  .drawer-chips
+) {
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  font-weight: 400 !important;
+}
+
+.sg-admin-theme-scope :where(
+  .content-card,
+  .profile-section-card,
+  .settings-card,
+  .settings-section-block,
+  .cluster-profile-surface,
+  .admin-modal,
+  .modal,
+  .modal-header,
+  .modal-footer,
+  .table-wrapper,
+  .filter-bar,
+  .table-toolbar
+) {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+
+.sg-admin-theme-scope :where(
+  strong,
+  b,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-bold,
+  .font-semibold,
+  .font-extrabold
+) {
+  font-weight: 400 !important;
+}
+
+.sg-admin-flat-surface {
+  border-radius: 0;
+  border-top: 0;
+  border-bottom: 0;
+  box-shadow: var(--admin-shadow-card);
+}
+
+/* Final route-scoped overrides for the partner application workspace.  This
+ * block intentionally comes last because the shared admin reset contains
+ * !important rules for legacy page headers, status badges and tabs. */
+.sg-shell-admin .content-area > .partner-detail-page .page-head {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  justify-content: initial !important;
+  gap: 18px !important;
+  margin: 0 !important;
+  padding: 4px 0 2px !important;
+  background: transparent !important;
+  visibility: visible !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .page-head h2,
+.sg-shell-admin .content-area > .partner-detail-page .page-head p {
+  display: block !important;
+  visibility: visible !important;
+  margin: 0 !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .page-head h2 {
+  color: var(--admin-text) !important;
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .page-head p {
+  margin-bottom: 5px !important;
+  color: var(--admin-primary-dark) !important;
+  font-size: 11px !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .partner-summary-rail,
+.sg-shell-admin .content-area > .partner-detail-page .action-strip,
+.sg-shell-admin .content-area > .partner-detail-page .review-panel,
+.sg-shell-admin .content-area > .partner-detail-page .content-card,
+.sg-shell-admin .content-area > .partner-detail-page .info-panel {
+  border-top: 0 !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-bottom: 0 !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+  background: var(--admin-card-bg) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .partner-summary-rail {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .summary-stat + .summary-stat {
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .status,
+.sg-shell-admin .content-area > .partner-detail-page .badge,
+.sg-shell-admin .content-area > .partner-detail-page .termination-progress span {
+  height: auto !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--admin-primary-dark) !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .tabs {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  border-top: 0 !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-bottom: 0 !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+  background: var(--admin-card-bg) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .tabs button,
+.sg-shell-admin .content-area > .partner-detail-page .tabs button.active {
+  min-height: 42px !important;
+  border-top: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--admin-text) !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .tabs button:first-child {
+  border-left: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .tabs button.active {
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+@media (max-width: 900px) {
+  .sg-shell-admin .content-area > .partner-detail-page .page-head {
+    grid-template-columns: 1fr !important;
+    align-items: start !important;
+  }
+
+  .sg-shell-admin .content-area > .partner-detail-page .partner-summary-rail,
+  .sg-shell-admin .content-area > .partner-detail-page .tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Readable partner dossier layout: constrained content, clear sections and
+ * two-column facts instead of a full-width wall of text. */
+.sg-shell-admin .content-area > .partner-detail-page {
+  display: grid !important;
+  width: min(100%, 1320px) !important;
+  max-width: 1320px !important;
+  margin: 0 auto !important;
+  padding: 8px 28px 48px !important;
+  gap: 22px !important;
+  background: transparent !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .page-head {
+  min-height: 72px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .title-block {
+  min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .title-block h2 {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .action-strip {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 20px !important;
+  min-height: 82px !important;
+  padding: 20px 24px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .action-strip strong {
+  display: block !important;
+  overflow: hidden !important;
+  color: var(--admin-text) !important;
+  font-size: 17px !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .action-strip span {
+  margin-top: 6px !important;
+  color: var(--admin-muted) !important;
+  font-size: 13px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .action-buttons {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .action-buttons .btn,
+.sg-shell-admin .content-area > .partner-detail-page .review-more > summary {
+  min-height: 38px !important;
+  border-radius: 0 !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .partner-summary-rail {
+  min-height: 92px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .summary-stat {
+  display: grid !important;
+  align-content: center !important;
+  gap: 7px !important;
+  min-width: 0 !important;
+  padding: 18px 22px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .summary-stat span {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .summary-stat strong {
+  overflow: hidden !important;
+  color: var(--admin-text) !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .readonly-panel {
+  display: grid !important;
+  gap: 5px !important;
+  border-left: 3px solid var(--admin-primary) !important;
+  padding: 18px 22px !important;
+  background: var(--admin-primary-soft) !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .readonly-panel .panel-head {
+  margin: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .tabs {
+  min-height: 48px !important;
+  overflow-x: auto !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .tabs button {
+  min-width: 0 !important;
+  padding: 12px 14px !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .summary-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  gap: 16px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 22px 24px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel h3 {
+  margin: 0 0 16px !important;
+  color: var(--admin-text) !important;
+  font-size: 17px !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel dl {
+  display: grid !important;
+  grid-template-columns: minmax(120px, .38fr) minmax(0, 1fr) !important;
+  gap: 0 22px !important;
+  margin: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel dt,
+.sg-shell-admin .content-area > .partner-detail-page .info-panel dd {
+  min-width: 0 !important;
+  padding: 8px 0 !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.45 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel dt {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel dd {
+  color: var(--admin-text) !important;
+  font-size: 13px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .info-panel.wide {
+  grid-column: 1 / -1 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .content-card,
+.sg-shell-admin .content-area > .partner-detail-page .documents-grid > .content-card {
+  min-width: 0 !important;
+  padding: 22px 24px !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .cluster-list,
+.sg-shell-admin .content-area > .partner-detail-page .court-grid,
+.sg-shell-admin .content-area > .partner-detail-page .doc-list,
+.sg-shell-admin .content-area > .partner-detail-page .documents-grid {
+  min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page .cluster-row,
+.sg-shell-admin .content-area > .partner-detail-page .court-card,
+.sg-shell-admin .content-area > .partner-detail-page .doc-row,
+.sg-shell-admin .content-area > .partner-detail-page .signing-log-row,
+.sg-shell-admin .content-area > .partner-detail-page .termination-card,
+.sg-shell-admin .content-area > .partner-detail-page .settlement-box {
+  border-top: 0 !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-bottom: 0 !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-radius: 0 !important;
+  background: var(--admin-surface-muted) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+  .sg-shell-admin .content-area > .partner-detail-page {
+    width: 100% !important;
+    padding: 4px 12px 32px !important;
+  }
+
+  .sg-shell-admin .content-area > .partner-detail-page .action-strip,
+  .sg-shell-admin .content-area > .partner-detail-page .summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sg-shell-admin .content-area > .partner-detail-page .action-buttons {
+    flex-wrap: wrap !important;
+  }
+
+  .sg-shell-admin .content-area > .partner-detail-page .info-panel.wide {
+    grid-column: auto !important;
+  }
+}
+
+/* =========================================================
+   Admin workspace alignment and detail layouts
+   Keep every admin route inside the same readable content rail.
+   ========================================================= */
+.sg-shell-admin .content-area {
+  box-sizing: border-box !important;
+  padding: 24px 28px 44px !important;
+}
+
+.sg-shell-admin .content-area > :is(.admin-page, .pf-page, .admin-staff-detail, .user-detail, .partner-detail-page) {
+  width: min(100%, 1320px) !important;
+  margin-inline: auto !important;
+}
+
+.sg-shell-admin .content-area .back-btn,
+.sg-shell-admin .content-area .action-btn.back-btn,
+.sg-shell-admin .content-area .scroll-to-top-btn {
+  background: var(--admin-primary) !important;
+  color: var(--admin-primary-text, #ffffff) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .back-btn.never-hover-class-placeholder,
+.sg-shell-admin .content-area .action-btn.back-btn.never-hover-class-placeholder,
+.sg-shell-admin .content-area .scroll-to-top-btn.never-hover-class-placeholder {
+  background: var(--admin-primary-dark) !important;
+  color: var(--admin-primary-text, #ffffff) !important;
+}
+
+/* The fee ledger controls use the actual control wrapper as the grid. */
+.sg-shell-admin .content-area .admin-filter-panel {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--admin-card-bg) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  align-items: end !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .search-box {
+  grid-column: span 2 !important;
+  display: flex !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .date-filter,
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .check-row,
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > label,
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > select {
+  min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid .date-filter input,
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid select,
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid .search-box input {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Policy search keeps the icon in a fixed leading slot and never collapses. */
+.sg-shell-admin .content-area .policy-filter-panel {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 2fr) repeat(2, minmax(190px, 1fr)) 42px !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--admin-card-bg) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .policy-filter-panel .policy-search-box {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.sg-shell-admin .content-area .policy-filter-panel .policy-search-box input {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding-inline: 0 !important;
+}
+
+/* Staff detail: two balanced columns with a stable reading order. */
+.sg-shell-admin .content-area > .admin-staff-detail {
+  display: grid !important;
+  gap: 20px !important;
+  padding: 0 0 36px !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .header-section {
+  display: grid !important;
+  gap: 14px !important;
+  margin: 0 !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .title-row {
+  align-items: end !important;
+  gap: 20px !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .detail-container,
+.sg-shell-admin .content-area > .admin-staff-detail .detail-grid-layout {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .detail-grid-layout {
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) !important;
+  gap: 20px !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .panel-card {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--admin-card-bg) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .card-header {
+  padding: 20px 22px 10px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .card-body {
+  min-width: 0 !important;
+  padding: 18px 22px 24px !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .avatar-large {
+  border-radius: 0 !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .status-badge,
+.sg-shell-admin .content-area > .admin-staff-detail .role-tag,
+.sg-shell-admin .content-area > .admin-staff-detail .log-action-badge {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--admin-primary-dark) !important;
+  padding: 0 !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .logs-table {
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .logs-table th,
+.sg-shell-admin .content-area > .admin-staff-detail .logs-table td {
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
+
+/* Account detail: profile rail + content workspace, without the old empty canvas. */
+.sg-shell-admin .content-area > .user-detail {
+  display: grid !important;
+  gap: 20px !important;
+  padding: 0 0 36px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .back-action-bar {
+  min-height: 40px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-page-intro {
+  display: grid !important;
+  gap: 6px !important;
+  padding: 0 0 4px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-page-intro h2 {
+  margin: 0 !important;
+  color: var(--admin-text) !important;
+  font-size: 26px !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-page-intro p {
+  margin: 0 !important;
+  color: var(--admin-muted) !important;
+  font-weight: 400 !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-eyebrow {
+  color: var(--admin-primary-dark) !important;
+  font-size: 12px !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-layout {
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) !important;
+  gap: 20px !important;
+  min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .sidebar-panel,
+.sg-shell-admin .content-area > .user-detail .panel,
+.sg-shell-admin .content-area > .user-detail .state-card {
+  min-width: 0 !important;
+  border-right: 1px solid var(--admin-border) !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--admin-card-bg) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .sidebar-panel {
+  position: static !important;
+  align-items: stretch !important;
+  padding: 22px !important;
+  text-align: left !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .avatar {
+  width: 68px !important;
+  height: 68px !important;
+  border-radius: 0 !important;
+  align-self: flex-start !important;
+  background: var(--admin-primary) !important;
+  color: var(--admin-primary-text) !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .sidebar-stats {
+  gap: 0 !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .sidebar-stat,
+.sg-shell-admin .content-area > .user-detail .metric {
+  border-radius: 0 !important;
+  background: var(--admin-surface-muted) !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .content-panel {
+  min-width: 0 !important;
+  gap: 18px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .tabs {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .tabs button {
+  min-width: 0 !important;
+  border-radius: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background: var(--admin-card-bg) !important;
+  color: var(--admin-muted) !important;
+  white-space: normal !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .tabs button.active {
+  background: var(--admin-primary) !important;
+  color: var(--admin-primary-text) !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .info-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 22px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .info-item,
+.sg-shell-admin .content-area > .user-detail .content-card,
+.sg-shell-admin .content-area > .user-detail .timeline-item,
+.sg-shell-admin .content-area > .user-detail .list-box article {
+  border-right: 1px solid var(--admin-border) !important;
+  border-left: 1px solid var(--admin-border) !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--admin-surface-muted) !important;
+  box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .status,
+.sg-shell-admin .content-area > .user-detail .badge-report,
+.sg-shell-admin .content-area > .user-detail .badge-auto {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--admin-primary-dark) !important;
+  padding: 0 !important;
+}
+
+@media (max-width: 1100px) {
+  .sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .search-box {
+    grid-column: span 2 !important;
+  }
+
+  .sg-shell-admin .content-area .policy-filter-panel {
+    grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(150px, 1fr)) 42px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .sg-shell-admin .content-area {
+    padding: 18px 16px 32px !important;
+  }
+
+  .sg-shell-admin .content-area > .admin-staff-detail .detail-grid-layout,
+  .sg-shell-admin .content-area > .user-detail .detail-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sg-shell-admin .content-area > .user-detail .tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .sg-shell-admin .content-area .policy-filter-panel {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .sg-shell-admin .content-area .policy-filter-panel .policy-search-box {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid,
+  .sg-shell-admin .content-area .policy-filter-panel,
+  .sg-shell-admin .content-area > .user-detail .info-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .search-box,
+  .sg-shell-admin .content-area .policy-filter-panel .policy-search-box {
+    grid-column: auto !important;
+  }
+
+  .sg-shell-admin .content-area > .user-detail .tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Final admin surface normalization: one spacing system, complete borders,
+   and the same moderate radius used by the rest of the portal. */
+.sg-shell-admin .content-area {
+  padding: 15px 15px 32px !important;
+}
+
+.sg-shell-admin .content-area > :is(.admin-page, .pf-page, .admin-staff-detail, .user-detail, .partner-detail-page) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+.sg-shell-admin .content-area .back-btn,
+.sg-shell-admin .content-area .action-btn.back-btn,
+.sg-shell-admin .content-area .scroll-to-top-btn {
+  border: 1px solid var(--admin-primary) !important;
+  border-radius: var(--admin-radius, 8px) !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel,
+.sg-shell-admin .content-area .policy-filter-panel {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius-lg, 12px) !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .check-row {
+  display: flex !important;
+  align-items: center !important;
+  align-self: end !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+  gap: 8px !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius, 8px) !important;
+  background: var(--admin-surface) !important;
+  color: var(--admin-text) !important;
+  font-weight: 400 !important;
+  white-space: nowrap !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .search-box,
+.sg-shell-admin .content-area .policy-filter-panel .policy-search-box {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius, 8px) !important;
+  background: var(--admin-surface) !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > .search-box input,
+.sg-shell-admin .content-area .policy-filter-panel .policy-search-box input {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .title-row .actions {
+  display: flex !important;
+  visibility: visible !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .title-row .actions > button {
+  display: inline-flex !important;
+  visibility: visible !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius, 8px) !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .title-row .actions > .btn-action.unlock {
+  border-color: var(--admin-primary) !important;
+  background: var(--admin-primary) !important;
+  color: var(--admin-primary-text) !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .panel-card,
+.sg-shell-admin .content-area > .admin-staff-detail .lock-info-box,
+.sg-shell-admin .content-area > .user-detail .sidebar-panel,
+.sg-shell-admin .content-area > .user-detail .panel,
+.sg-shell-admin .content-area > .user-detail .state-card,
+.sg-shell-admin .content-area > .user-detail .content-card,
+.sg-shell-admin .content-area > .user-detail .timeline-item,
+.sg-shell-admin .content-area > .user-detail .list-box article,
+.sg-shell-admin .content-area > .partner-detail-page .partner-summary-rail,
+.sg-shell-admin .content-area > .partner-detail-page .action-strip,
+.sg-shell-admin .content-area > .partner-detail-page .review-panel,
+.sg-shell-admin .content-area > .partner-detail-page .content-card,
+.sg-shell-admin .content-area > .partner-detail-page .info-panel {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius-lg, 12px) !important;
+}
+
+.sg-shell-admin .content-area > .admin-staff-detail .card-header,
+.sg-shell-admin .content-area > .admin-staff-detail .card-body {
+  border: 0 !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .tabs,
+.sg-shell-admin .content-area > .partner-detail-page .tabs {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: var(--admin-radius-lg, 12px) !important;
+  overflow: hidden !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .tabs button,
+.sg-shell-admin .content-area > .partner-detail-page .tabs button {
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.sg-shell-admin .content-area > .partner-detail-page {
+  padding: 0 0 32px !important;
+}
+
+@media (max-width: 900px) {
+  .sg-shell-admin .content-area {
+    padding: 15px !important;
+  }
+
+  .sg-shell-admin .content-area > .partner-detail-page {
+    padding: 0 0 24px !important;
+  }
+}
+
+/* Final detail/search alignment. */
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > label.search-box {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > label.search-box > svg {
+  display: block !important;
+  align-self: center !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+
+.sg-shell-admin .content-area .admin-filter-panel .filter-controls.filter-grid > label.search-box > input {
+  display: block !important;
+  flex: 1 1 auto !important;
+  align-self: center !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+.sg-shell-admin .content-area :is(.back-action-bar, .breadcrumb-nav) {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 0 0 12px !important;
+}
+
+.sg-shell-admin .content-area :is(.back-action-bar, .breadcrumb-nav) > .back-btn,
+.sg-shell-admin .content-area > :is(.admin-page, .post-detail) > .back-btn {
+  margin-left: auto !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-page-intro {
+  display: none !important;
+}
+
+.sg-shell-admin .content-area > .user-detail {
+  gap: 14px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .detail-layout {
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) !important;
+  gap: 18px !important;
+}
+
+.sg-shell-admin .content-area > .user-detail .sidebar-panel,
+.sg-shell-admin .content-area > .user-detail .panel {
+  border-radius: 10px !important;
 }

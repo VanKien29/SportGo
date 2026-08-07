@@ -381,8 +381,6 @@ export default {
             if (!canvas) return;
             this.cashFlowChart?.destroy();
             const values = this.accounting?.charts?.cash_flow || [];
-            const context = canvas.getContext("2d");
-            const greenFill = this.chartGradient(context, "#16a34a", 0.18);
             this.cashFlowChart = new Chart(canvas, {
                 type: "line",
                 data: {
@@ -392,8 +390,8 @@ export default {
                             label: "Tiền vào",
                             data: values.map((item) => item.money_in),
                             borderColor: "#16a34a",
-                            backgroundColor: greenFill,
-                            fill: true,
+                            backgroundColor: "#16a34a",
+                            fill: false,
                             cubicInterpolationMode: "monotone",
                             tension: 0.22,
                             pointRadius: 0,
@@ -438,16 +436,6 @@ export default {
                 },
                 options: this.chartOptions(),
             });
-        },
-        chartGradient(context, color, opacity = 0.16) {
-            const gradient = context.createLinearGradient(0, 0, 0, 280);
-            const alpha = Math.round(opacity * 255)
-                .toString(16)
-                .padStart(2, "0");
-            gradient.addColorStop(0, `${color}${alpha}`);
-            gradient.addColorStop(0.55, `${color}0f`);
-            gradient.addColorStop(1, `${color}00`);
-            return gradient;
         },
         renderCompositionChart() {
             const canvas = this.$refs.compositionChart;

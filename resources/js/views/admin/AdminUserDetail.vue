@@ -1,6 +1,6 @@
 <template>
-  <section class="user-detail">
-    <div class="back-action-bar">
+  <section class="user-detail" :class="{ 'is-embedded': embedded }">
+    <div v-if="!embedded" class="back-action-bar">
       <BackButton to="/admin/users" />
     </div>
 
@@ -12,6 +12,23 @@
     </div>
 
     <template v-else-if="detail">
+      <section v-if="embedded" class="embedded-account-summary">
+        <div class="embedded-account-avatar">{{ initials(profile.full_name || profile.username) }}</div>
+        <div class="embedded-account-copy">
+          <strong>{{ profile.full_name || profile.username || '-' }}</strong>
+          <span>{{ profile.email || profile.phone || '-' }}</span>
+          <span>{{ profile.status_label || getAccountStatusLabel(profile.status) }}</span>
+        </div>
+        <div class="embedded-account-actions">
+          <button v-if="profile.status !== 'locked'" class="btn danger" type="button" @click="openLockModal">
+            <AppIcon name="lock" size="16" style="margin-right: 6px; vertical-align: middle;" /> Khóa tài khoản
+          </button>
+          <button v-else class="btn" type="button" @click="openUnlockModal">
+            <AppIcon name="unlock" size="16" style="margin-right: 6px; vertical-align: middle;" /> Mở khóa tài khoản
+          </button>
+        </div>
+      </section>
+
       <div class="detail-layout">
         <!-- SIDEBAR TRÁI -->
         <aside class="sidebar-panel">
@@ -514,6 +531,16 @@ const Metric = {
 export default {
   name: 'AdminUserDetail',
   components: { AppIcon, InfoItem, Metric, BackButton, PostLikesModal },
+  props: {
+    userId: {
+      type: [String, Number],
+      default: null,
+    },
+    embedded: {
+      type: Boolean,
+      default: false,
+    },
+  },
   data() {
     return {
       detail: null,
@@ -545,6 +572,8 @@ export default {
       lockLogs: [],
       lockLogsMeta: { current_page: 1, last_page: 1, total: 0 },
       lockLogsLoading: false,
+      detailSectionLoading: false,
+      loadedSections: [],
 
       tabs: [
         { value: 'overview', label: 'Tổng quan' },
@@ -560,10 +589,25 @@ export default {
     profile() {
       return this.detail?.profile || {};
     },
+    resolvedUserId() {
+      return this.userId || this.$route.params.id;
+    },
   },
   mounted() {
     this.loadDetail();
-    this.loadLockLogs(1, true);
+  },
+  watch: {
+    userId(newId, oldId) {
+      if (newId && newId !== oldId) {
+        this.detail = null;
+        this.comments = [];
+        this.posts = [];
+        this.lockLogs = [];
+        this.loadedSections = [];
+        this.activeTab = 'overview';
+        this.loadDetail();
+      }
+    },
   },
   methods: {
     async copyPostLink(postId) {
@@ -579,16 +623,18 @@ export default {
     },
     switchTab(tab) {
       this.activeTab = tab;
-      if (tab === 'comments' && this.comments.length === 0) this.loadComments(1);
-      if (tab === 'posts' && this.posts.length === 0) this.loadPosts(1);
-      if (tab === 'lock-history' && this.lockLogs.length === 0) this.loadLockLogs(1);
+      if (tab === 'comments' && !this.loadedSections.includes('comments')) this.loadComments(1);
+      if (tab === 'posts' && !this.loadedSections.includes('posts')) this.loadPosts(1);
+      if (tab === 'lock-history' && !this.loadedSections.includes('lock-history')) this.loadLockLogs(1);
+      if (tab === 'warnings' && !this.loadedSections.includes('warnings')) this.loadDetailSection('warnings');
+      if (tab === 'audit' && !this.loadedSections.includes('audit')) this.loadDetailSection('audit');
     },
 
     async loadDetail() {
       this.loading = true;
       this.error = '';
       try {
-        const response = await adminUserService.show(this.$route.params.id);
+        const response = await adminUserService.show(this.resolvedUserId);
         const data = response.data || {};
         if (!data.profile && data.user) data.profile = data.user;
         data.warning_summary = data.warning_summary || {};
@@ -601,9 +647,7 @@ export default {
         data.permission_revokes = data.permission_revokes || [];
         data.audit_logs = data.audit_logs || [];
         this.detail = data;
-        
-        this.commentsMeta.total = data.comments?.length || 0;
-        this.postsMeta.total = data.posts?.length || 0;
+        this.loadedSections = ['overview'];
       } catch (err) {
         this.error = err.message || 'Không tải được chi tiết tài khoản.';
       } finally {
@@ -614,7 +658,7 @@ export default {
     async loadComments(page = 1) {
       this.commentsLoading = true;
       try {
-        const response = await adminUserService.show(this.$route.params.id);
+        const response = await adminUserService.show(this.resolvedUserId, 'comments');
         const allComments = response.data?.comments || [];
         const perPage = 20;
         const start = (page - 1) * perPage;
@@ -624,6 +668,7 @@ export default {
           last_page: Math.ceil(allComments.length / perPage) || 1,
           total: allComments.length,
         };
+        if (page === 1) this.loadedSections.push('comments');
       } catch (err) {
         this.error = err.message || 'Không tải được bình luận.';
       } finally {
@@ -634,7 +679,7 @@ export default {
     async loadPosts(page = 1) {
       this.postsLoading = true;
       try {
-        const response = await adminUserService.show(this.$route.params.id);
+        const response = await adminUserService.show(this.resolvedUserId, 'posts');
         const allPosts = response.data?.posts || [];
         const perPage = 20;
         const start = (page - 1) * perPage;
@@ -644,6 +689,7 @@ export default {
           last_page: Math.ceil(allPosts.length / perPage) || 1,
           total: allPosts.length,
         };
+        if (page === 1) this.loadedSections.push('posts');
       } catch (err) {
         this.error = err.message || 'Không tải được bài đăng.';
       } finally {
@@ -651,12 +697,37 @@ export default {
       }
     },
 
+    async loadDetailSection(section) {
+      this.detailSectionLoading = true;
+      try {
+        const response = await adminUserService.show(this.resolvedUserId, section);
+        const sectionData = response.data || {};
+        if (section === 'warnings') {
+          this.detail = {
+            ...this.detail,
+            warning_summary: sectionData.warning_summary || this.detail.warning_summary,
+            reports_summary: sectionData.reports_summary || this.detail.reports_summary,
+            complaints_summary: sectionData.complaints_summary || this.detail.complaints_summary,
+            content_reports_summary: sectionData.content_reports_summary || this.detail.content_reports_summary,
+          };
+        } else if (section === 'audit') {
+          this.detail = { ...this.detail, audit_logs: sectionData.audit_logs || [] };
+        }
+        this.loadedSections.push(section);
+      } catch (err) {
+        this.error = err.message || 'Không tải được dữ liệu chi tiết.';
+      } finally {
+        this.detailSectionLoading = false;
+      }
+    },
+
     async loadLockLogs(page = 1, hiddenLoad = false) {
       if (!hiddenLoad) this.lockLogsLoading = true;
       try {
-        const response = await adminUserService.lockLogs(this.$route.params.id, page);
+        const response = await adminUserService.lockLogs(this.resolvedUserId, page);
         this.lockLogs = response.data || [];
         this.lockLogsMeta = response.meta || { current_page: 1, last_page: 1, total: 0 };
+        if (page === 1) this.loadedSections.push('lock-history');
       } catch (err) {
         if (!hiddenLoad) this.error = err.message || 'Không tải được lịch sử khóa.';
       } finally {
@@ -871,6 +942,35 @@ export default {
 
 <style scoped>
 .user-detail { display: grid; gap: 16px; }
+.user-detail.is-embedded { gap: 14px; }
+.embedded-account-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+}
+.embedded-account-avatar {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: #16a34a;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 17px;
+}
+.embedded-account-copy { display: grid; gap: 3px; min-width: 0; }
+.embedded-account-copy strong { font-size: 16px; font-weight: 400; color: #14532d; }
+.embedded-account-copy span { color: #166534; font-size: 13px; }
+.embedded-account-actions { display: flex; justify-content: flex-end; }
+.user-detail.is-embedded .detail-layout { grid-template-columns: minmax(0, 1fr); }
+.user-detail.is-embedded .sidebar-panel { display: none; }
+.user-detail.is-embedded .content-panel { gap: 14px; }
+.user-detail.is-embedded .panel { border-radius: 10px; }
 .page-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
 .page-head h2 { margin: 6px 0; }
 .page-head p, .muted, small { margin: 0; color: #64748b; }
@@ -1088,6 +1188,9 @@ textarea { resize: vertical; }
 .fb-no-comments { text-align: center; color: #64748b; padding: 20px 0; font-size: 15px; }
 
 @media (max-width: 900px) {
+  .embedded-account-summary { grid-template-columns: auto minmax(0, 1fr); }
+  .embedded-account-actions { grid-column: 1 / -1; justify-content: stretch; }
+  .embedded-account-actions .btn { width: 100%; }
   .detail-layout { grid-template-columns: 1fr; }
   .sidebar-panel { position: static; }
   .info-grid { grid-template-columns: 1fr; }

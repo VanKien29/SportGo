@@ -142,6 +142,7 @@ export default {
       error: '',
       message: '',
       filterTimer: null,
+      requestSeq: 0,
       statusFilter: 'all',
       filters: { tab: 'all', search: '', status: '' },
       pagination: { current_page: 1, last_page: 1, total: 0 },
@@ -186,6 +187,9 @@ export default {
   mounted() {
     this.loadApplications();
   },
+  beforeUnmount() {
+    clearTimeout(this.filterTimer);
+  },
   methods: {
     selectListTab(tabKey) {
       this.filters.tab = tabKey;
@@ -220,10 +224,12 @@ export default {
       return matches[tab] ?? false;
     },
     async loadApplications(page = 1) {
+      const requestId = ++this.requestSeq;
       this.loading = true;
       this.error = '';
       try {
         const response = await adminPartnerApplicationService.list({ ...this.filters, page });
+        if (requestId !== this.requestSeq) return;
         const paginator = response.data || {};
         this.applications = paginator.data || [];
         this.pagination = {
@@ -232,9 +238,9 @@ export default {
           total: paginator.total || this.applications.length,
         };
       } catch (err) {
-        this.error = err.message || 'Không tải được hồ sơ đối tác.';
+        if (requestId === this.requestSeq) this.error = err.message || 'Không tải được hồ sơ đối tác.';
       } finally {
-        this.loading = false;
+        if (requestId === this.requestSeq) this.loading = false;
       }
     },
     applyStatusFilter() {

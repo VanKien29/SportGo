@@ -20,48 +20,20 @@ import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import ForgotPassword from "../views/ForgotPassword.vue";
-import ClientProfile from "../views/clients/ClientProfile.vue";
 import AdminLogin from "../views/admin/AdminLogin.vue";
 import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
 import AdminLayout from "../views/admin/AdminLayout.vue";
-import AdminProfile from "../views/admin/AdminProfile.vue";
-import AdminUsers from "../views/admin/AdminUsers.vue";
-import AdminStaffs from "../views/admin/AdminStaffs.vue";
-import AdminUserDetail from "../views/admin/AdminUserDetail.vue";
-import AdminStaffDetail from "../views/admin/AdminStaffDetail.vue";
-import AdminVouchers from "../views/admin/AdminVouchers.vue";
-import AdminVoucherDetail from "../views/admin/AdminVoucherDetail.vue";
-import AdminPolicies from "../views/admin/AdminPolicies.vue";
-import AdminPolicyDetail from "../views/admin/AdminPolicyDetail.vue";
-import AdminRoles from "../views/admin/AdminRoles.vue";
-import AdminRoleDetail from "../views/admin/AdminRoleDetail.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
-import OwnerPricing from "../views/owner/OwnerPricing.vue";
-import OwnerStaff from "../views/owner/OwnerStaff.vue";
-import OwnerVouchers from "../views/owner/OwnerVouchers.vue";
-import OwnerPolicies from "../views/owner/OwnerPolicies.vue";
 import StaffLayout from "../views/staff/StaffLayout.vue";
-import BookingForm from "../views/clients/booking/BookingForm.vue";
-import BookingDetail from "../views/clients/booking/BookingDetail.vue";
-import BookingHistory from "../views/clients/booking/BookingHistory.vue";
-import ClientWallet from "../views/clients/Wallet.vue";
-import PartnerApplicationPortal from "../views/partner/PartnerApplicationPortal.vue";
-import PartnerApplicationDetail from "../views/partner/PartnerApplicationDetail.vue";
-import PartnerApplicationDocumentPage from "../views/partner/PartnerApplicationDocumentPage.vue";
-import UserProfile from '../views/clients/users/UserProfile.vue';
-import VenueList from "../views/clients/VenueList.vue";
-import VenueDetail from "../views/clients/VenueDetail.vue";
-import CommunityPostDetail from "../views/clients/community/CommunityDetail.vue";
-import ClientMapView from "../views/clients/ClientMapView.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
-    { path: "/venues", name: "venues", component: VenueList },
-    { path: "/map", name: "client-map", component: ClientMapView },
+    { path: "/venues", name: "venues", component: () => import("../views/clients/VenueList.vue") },
+    { path: "/map", name: "client-map", component: () => import("../views/clients/ClientMapView.vue") },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
     { path: "/offers", name: "client-offers", component: () => import("../views/clients/Offers.vue") },
-    { path: "/venues/:id", name: "venue-detail", component: VenueDetail },
-    { path: "/community/:slug", name: "community-post-detail", component: CommunityPostDetail },
+    { path: "/venues/:id", name: "venue-detail", component: () => import("../views/clients/VenueDetail.vue") },
+    { path: "/community/:slug", name: "community-post-detail", component: () => import("../views/clients/community/CommunityDetail.vue") },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
     {
@@ -77,7 +49,7 @@ const routes = [
     {
         path: "/profile",
         name: "profile",
-        component: ClientProfile,
+        component: () => import("../views/clients/ClientProfile.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -95,7 +67,7 @@ const routes = [
     {
         path: '/user/:id',
         name: 'user.profile',
-        component: UserProfile
+        component: () => import('../views/clients/users/UserProfile.vue')
     },
     {
         path: "/news/:slug",
@@ -118,37 +90,37 @@ const routes = [
     {
         path: "/partner-application/:id/documents/:documentId",
         name: "partner-application-document",
-        component: PartnerApplicationDocumentPage,
+        component: () => import('../views/partner/PartnerApplicationDocumentPage.vue'),
         meta: { requiresAuth: true },
     },
     {
         path: "/partner-application/:id",
         name: "partner-application-detail",
-        component: PartnerApplicationDetail,
+        component: () => import('../views/partner/PartnerApplicationDetail.vue'),
         meta: { requiresAuth: true },
     },
     {
         path: "/partner-application",
         name: "partner-application",
-        component: PartnerApplicationPortal,
+        component: () => import('../views/partner/PartnerApplicationPortal.vue'),
         meta: { requiresAuth: true },
     },
     {
         path: "/booking",
         name: "booking-create",
-        component: BookingForm,
+        component: () => import("../views/clients/booking/BookingForm.vue"),
         meta: { requiresAuth: false },
     },
     {
         path: "/booking/:id",
         name: "booking-detail",
-        component: BookingDetail,
+        component: () => import("../views/clients/booking/BookingDetail.vue"),
         meta: { requiresAuth: true },
     },
     {
         path: "/bookings",
         name: "booking-history",
-        component: BookingHistory,
+        component: () => import("../views/clients/booking/BookingHistory.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -160,7 +132,7 @@ const routes = [
     {
         path: "/wallet",
         name: "client-wallet",
-        component: ClientWallet,
+        component: () => import("../views/clients/Wallet.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -232,13 +204,27 @@ const routes = [
                 path: "dashboard",
                 redirect: { name: "admin-venue-clusters" },
             },
-            { path: "profile", name: "admin-profile", component: AdminProfile },
-            { path: "users", name: "admin-users", component: AdminUsers },
-            { path: "staffs", name: "admin-staffs", component: AdminStaffs },
-            { path: "users/:id", name: "admin-user-detail", component: AdminUserDetail, meta: { hideFloatingBack: true } },
-            { path: "staffs/:id", name: "admin-staff-detail", component: AdminStaffDetail },
-            { path: "vouchers", name: "admin-vouchers", component: AdminVouchers },
-            { path: "vouchers/:id", name: "admin-voucher-detail", component: AdminVoucherDetail, meta: { hideFloatingBack: true } },
+            { path: "profile", name: "admin-profile", component: () => import("../views/admin/AdminProfile.vue") },
+            { path: "users", name: "admin-users", component: () => import("../views/admin/AdminUsers.vue") },
+            { path: "staffs", name: "admin-staffs", component: () => import("../views/admin/AdminStaffs.vue") },
+            {
+                path: "users/:id",
+                name: "admin-user-detail",
+                redirect: (to) => ({
+                    name: "admin-users",
+                    query: { detail: to.params.id },
+                }),
+            },
+            {
+                path: "staffs/:id",
+                name: "admin-staff-detail",
+                redirect: (to) => ({
+                    name: "admin-staffs",
+                    query: { detail: to.params.id },
+                }),
+            },
+            { path: "vouchers", name: "admin-vouchers", component: () => import("../views/admin/AdminVouchers.vue") },
+            { path: "vouchers/:id", name: "admin-voucher-detail", component: () => import("../views/admin/AdminVoucherDetail.vue"), meta: { hideFloatingBack: true } },
             {
                 path: "membership-packages",
                 name: "admin-membership-packages",
@@ -292,13 +278,13 @@ const routes = [
                 name: "admin-system-posts",
                 component: () => import("../views/admin/AdminSystemPosts.vue"),
             },
-            { path: "policies", name: "admin-policies", component: AdminPolicies },
+            { path: "policies", name: "admin-policies", component: () => import("../views/admin/AdminPolicies.vue") },
             {
                 path: "platform-fee-policies",
                 name: "admin-platform-fee-policies",
-                component: AdminPolicies,
+                component: () => import("../views/admin/AdminPolicies.vue"),
             },
-            { path: "policies/:id", name: "admin-policy-detail", component: AdminPolicyDetail, meta: { hideFloatingBack: true } },
+            { path: "policies/:id", name: "admin-policy-detail", component: () => import("../views/admin/AdminPolicyDetail.vue"), meta: { hideFloatingBack: true } },
             {
                 path: "reports-complaints",
                 name: "admin-reports-complaints",
@@ -312,8 +298,8 @@ const routes = [
                 path: "complaints",
                 redirect: { name: "admin-reports-complaints", query: { tab: "complaints" } }
             },
-            { path: "roles", name: "admin-roles", component: AdminRoles },
-            { path: "roles/:id", name: "admin-role-detail", component: AdminRoleDetail, meta: { hideFloatingBack: true } },
+            { path: "roles", name: "admin-roles", component: () => import("../views/admin/AdminRoles.vue") },
+            { path: "roles/:id", name: "admin-role-detail", component: () => import("../views/admin/AdminRoleDetail.vue"), meta: { hideFloatingBack: true } },
 
             {
                 path: "court-types",
@@ -464,7 +450,7 @@ const routes = [
                 name: "owner-booking-list",
                 component: () => import("../views/owner/OwnerCounterBooking.vue"),
             },
-            { path: "pricing", name: "owner-pricing", component: OwnerPricing },
+            { path: "pricing", name: "owner-pricing", component: () => import("../views/owner/OwnerPricing.vue") },
             {
                 path: "booking-settings",
                 name: "owner-booking-settings",
@@ -490,15 +476,15 @@ const routes = [
                 name: "owner-venue-posts",
                 component: () => import("../views/owner/OwnerVenuePosts.vue"),
             },
-            { path: "staff", name: "owner-staff", component: OwnerStaff },
+            { path: "staff", name: "owner-staff", component: () => import("../views/owner/OwnerStaff.vue") },
             {
                 path: "staff-shifts",
                 name: "owner-staff-shifts",
                 component: () => import("../views/owner/OwnerStaffShifts.vue"),
             },
-            { path: "vouchers", name: "owner-vouchers", component: OwnerVouchers },
+            { path: "vouchers", name: "owner-vouchers", component: () => import("../views/owner/OwnerVouchers.vue") },
             { path: "wallet", redirect: { name: "owner-finance" } },
-            { path: "policies", name: "owner-policies", component: OwnerPolicies },
+            { path: "policies", name: "owner-policies", component: () => import("../views/owner/OwnerPolicies.vue") },
             {
                 path: "matchmaking",
                 name: "owner-matchmaking",
@@ -528,7 +514,7 @@ const routes = [
             {
                 path: "partner-documents/:id/:documentId",
                 name: "owner-partner-document",
-                component: PartnerApplicationDocumentPage,
+                component: () => import('../views/partner/PartnerApplicationDocumentPage.vue'),
                 meta: { ownerDocument: true },
             },
             {
@@ -571,7 +557,7 @@ const routes = [
             {
                 path: "vouchers",
                 name: "staff-vouchers",
-                component: OwnerVouchers,
+                component: () => import("../views/owner/OwnerVouchers.vue"),
             },
             {
                 path: "settings",

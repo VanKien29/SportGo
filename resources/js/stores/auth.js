@@ -12,6 +12,9 @@ const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const PW_SETUP_KEY = 'sportgo_needs_pw_setup';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
+let adminValidatedToken = null;
+let adminRestorePromise = null;
+
 function normalizeAuth(payload, existingToken = null) {
   const user = payload.user || {};
   const roleGroup = payload.role_group || 'user';
@@ -84,6 +87,8 @@ export function clearAuth() {
     VENUE_STAFF_PERMISSIONS_KEY,
     SELECTED_CLUSTER_KEY,
   ].forEach((key) => localStorage.removeItem(key));
+  adminValidatedToken = null;
+  adminRestorePromise = null;
 }
 
 export function getAuth() {
@@ -131,15 +136,29 @@ export async function restoreAdminAuth() {
   const currentToken = getToken();
   if (!currentToken) return null;
 
-  try {
-    const payload = await adminAuthService.me();
-    return saveAuth({ ...payload, token: currentToken });
-  } catch (err) {
-    if (shouldClearAuthForError(err)) {
-      clearAuth();
-    }
-    return null;
+  if (adminValidatedToken === currentToken) {
+    return getAuth();
   }
+
+  if (adminRestorePromise) return adminRestorePromise;
+
+  adminRestorePromise = (async () => {
+    try {
+      const payload = await adminAuthService.me();
+      const auth = saveAuth({ ...payload, token: currentToken });
+      adminValidatedToken = currentToken;
+      return auth;
+    } catch (err) {
+      if (shouldClearAuthForError(err)) {
+        clearAuth();
+      }
+      return null;
+    } finally {
+      adminRestorePromise = null;
+    }
+  })();
+
+  return adminRestorePromise;
 }
 
 export async function login(identifier, password) {

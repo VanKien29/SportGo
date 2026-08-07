@@ -10,32 +10,44 @@
             <AppIcon :name="item.icon" size="15" />
             <span>{{ item.label }}</span>
         </router-link>
+        <button class="subnav-action" type="button" @click="showSettings = true">
+            <AppIcon name="bellRing" size="15" />
+            <span>Cài đặt nhắc phí</span>
+        </button>
     </nav>
+    <PlatformFeeSettingsDialog :open="showSettings" @close="showSettings = false" @saved="handleSaved" />
 </template>
 
 <script>
 import AppIcon from "./AppIcon.vue";
+import PlatformFeeSettingsDialog from "./admin/PlatformFeeSettingsDialog.vue";
 
 export default {
     name: "PlatformFeeSubnav",
-    components: { AppIcon },
+    components: { AppIcon, PlatformFeeSettingsDialog },
+    methods: {
+        handleSaved() {
+            this.showSettings = false;
+        },
+    },
     data() {
         return {
+            showSettings: false,
             items: [
                 {
                     name: "admin-platform-fee-tiers",
                     label: "Cấu hình bậc phí",
-                    icon: "layers",
+                    icon: "layers3",
                 },
                 {
                     name: "admin-platform-fee-ledgers",
                     label: "Phí duy trì",
-                    icon: "receipt",
+                    icon: "receiptText",
                 },
                 {
                     name: "admin-platform-fee-policies",
                     label: "Chính sách áp dụng",
-                    icon: "fileText",
+                    icon: "fileSearch",
                 },
             ],
         };
@@ -48,6 +60,7 @@ export default {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    align-items: center;
 }
 
 .subnav-item {
@@ -56,9 +69,9 @@ export default {
     gap: 7px;
     min-height: 36px;
     padding: 8px 12px;
-    border: 1px solid var(--admin-border, #dbe3ea);
-    border-radius: 8px;
-    background: #fff;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: var(--admin-muted, #334155);
     font-size: 13px;
     font-weight: 400;
@@ -66,17 +79,28 @@ export default {
 }
 
 .subnav-item.never-hover-class-placeholder {
-    border-color: color-mix(in srgb, var(--admin-primary, #22a653) 35%, transparent);
     background: var(--admin-primary-soft, #f0fdf4);
     color: var(--admin-primary-dark, #166534);
 }
 
 .subnav-active,
 .subnav-active.never-hover-class-placeholder {
-    border-color: var(--admin-primary, #22a653);
-    background: var(--admin-primary, #22a653);
-    color: #fff;
-    box-shadow: 0 10px 22px color-mix(in srgb, var(--admin-primary, #22a653) 20%, transparent);
+    background: var(--admin-primary-soft, #e2f6e8);
+    color: var(--admin-primary-dark, #15733a);
+}
+
+.subnav-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    border: 0;
+    border-radius: 0;
+    padding: 8px 12px;
+    background: transparent;
+    color: var(--admin-primary-dark, #15733a);
+    font: inherit;
+    cursor: pointer;
 }
 
 @media (max-width: 720px) {

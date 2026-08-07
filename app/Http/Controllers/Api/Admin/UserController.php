@@ -315,37 +315,86 @@ class UserController extends Controller
         return response()->json(['message' => 'Lưu cấu hình thành công.']);
     }
 
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         $user = User::query()
             ->with(['roles:id,name,display_name', 'lockedBy:id,username,full_name'])
             ->findOrFail($id);
 
-        return response()->json([
-            'data' => [
-                'profile' => $this->payload($user),
-                'status_summary' => $this->statusSummary($user),
-                'role_summary' => [
-                    'roles' => $this->roleDetails($user),
-                    'primary_role_label' => $this->primaryRoleLabel($user->roles->pluck('name')->all()),
-                ],
+        $section = (string) $request->query('section', '');
+        $riskSections = ['', 'overview', 'warnings'];
+        $reportSummary = in_array($section, $riskSections, true)
+            ? $this->reportSummary($user->id)
+            : [
+                'total' => 0,
+                'reports_7_days' => 0,
+                'reports_14_days' => 0,
+                'reports_30_days' => 0,
+                'near_lock_message' => 'Chưa tải dữ liệu báo cáo.',
+                'recent' => [],
+            ];
+        $complaintSummary = in_array($section, $riskSections, true)
+            ? $this->complaintSummary($user->id)
+            : ['total' => 0, 'open_count' => 0, 'recent' => []];
+        $walletBalance = Schema::hasTable('user_wallets')
+            ? (float) (DB::table('user_wallets')->where('user_id', $user->id)->value('balance') ?? 0)
+            : 0;
+
+        $data = [
+            'profile' => $this->payload($user, [
+                'reports_count_recent' => $reportSummary['reports_14_days'],
+                'complaints_count_recent' => $complaintSummary['open_count'],
+                'warning_count' => $reportSummary['reports_14_days'] + $complaintSummary['open_count'],
+                'wallet_balance' => $walletBalance,
+            ]),
+            'status_summary' => $this->statusSummary($user),
+            'role_summary' => [
                 'roles' => $this->roleDetails($user),
-                'permission_revokes' => $this->permissionRevokes($user->id),
-                'permission_summary' => [
-                    'revoked_count' => count($this->permissionRevokes($user->id)),
-                    'revokes' => $this->permissionRevokes($user->id),
-                ],
-                'warning_summary' => $this->warningSummary($user->id),
-                'reports_summary' => $this->reportSummary($user->id),
-                'complaints_summary' => $this->complaintSummary($user->id),
-                'wallet_summary' => $this->walletSummary($user->id),
-                'booking_summary' => $this->bookingSummary($user->id),
-                'recent_bookings' => $this->bookingHistory($user->id),
-                'audit_logs' => $this->auditLogs($user->id),
-                'posts' => $this->userPosts($user->id),
-                'comments' => $this->userComments($user->id),
-                'content_reports_summary' => $this->contentReportSummary($user->id),
+                'primary_role_label' => $this->primaryRoleLabel($user->roles->pluck('name')->all()),
             ],
+            'roles' => $this->roleDetails($user),
+            'permission_revokes' => [],
+            'permission_summary' => ['revoked_count' => 0, 'revokes' => []],
+            'warning_summary' => $this->warningLevelText((int) $reportSummary['reports_14_days'], (int) $complaintSummary['open_count']) + [
+                'reports_7_days' => $reportSummary['reports_7_days'],
+                'reports_14_days' => $reportSummary['reports_14_days'],
+                'reports_30_days' => $reportSummary['reports_30_days'],
+                'complaints_open' => $complaintSummary['open_count'],
+            ],
+            'reports_summary' => $reportSummary,
+            'complaints_summary' => $complaintSummary,
+            'wallet_summary' => [
+                'balance' => $walletBalance,
+                'locked_balance' => 0,
+                'ledgers' => [],
+            ],
+            'booking_summary' => ['total' => 0, 'completed' => 0, 'cancelled' => 0, 'paid_total' => 0],
+            'recent_bookings' => [],
+            'audit_logs' => [],
+            'posts' => [],
+            'comments' => [],
+            'content_reports_summary' => [
+                'total_post_reports' => 0,
+                'total_comment_reports' => 0,
+                'recent' => [],
+            ],
+        ];
+
+        if ($section === 'comments') {
+            $data['comments'] = $this->userComments($user->id);
+        } elseif ($section === 'posts') {
+            $data['posts'] = $this->userPosts($user->id);
+        } elseif ($section === 'warnings') {
+            $data['content_reports_summary'] = $this->contentReportSummary($user->id);
+        } elseif ($section === 'audit') {
+            $data['audit_logs'] = $this->auditLogs($user->id);
+        } elseif ($section === 'bookings') {
+            $data['booking_summary'] = $this->bookingSummary($user->id);
+            $data['recent_bookings'] = $this->bookingHistory($user->id);
+        }
+
+        return response()->json([
+            'data' => $data,
         ]);
     }
 
@@ -383,6 +432,7 @@ class UserController extends Controller
         }
         return \App\Models\CommunityPostComment::query()
             ->with(['post:id,content', 'media'])
+            ->withCount('replies')
             ->where('user_id', $userId)
             ->latest('created_at')
             ->limit(100)
@@ -391,7 +441,7 @@ class UserController extends Controller
                 'id' => $comment->id,
                 'content' => $comment->content,
                 'post_content' => $comment->post?->content,
-                'replies_count' => $comment->replies()->count(),
+                'replies_count' => (int) ($comment->replies_count ?? 0),
                 'created_at' => $comment->created_at,
                 'media' => $comment->media->map(fn ($m) => [
                     'id' => $m->id,
@@ -1331,6 +1381,12 @@ class UserController extends Controller
             ->pluck('name')
             ->all();
 
+        if (in_array('super_admin', $targetRoleNames, true)) {
+            throw ValidationException::withMessages([
+                'roles' => 'Không được phép cấp vai trò Super Admin cho tài khoản mới.',
+            ]);
+        }
+
         $hasAdminRole = array_intersect($targetRoleNames, ['super_admin', 'admin']);
         if ($hasAdminRole && !in_array('super_admin', $actorRoles, true)) {
             throw ValidationException::withMessages([
@@ -1411,6 +1467,12 @@ class UserController extends Controller
             ->whereIn('id', $data['roles'])
             ->pluck('name')
             ->all();
+
+        if (in_array('super_admin', $targetNewRoleNames, true)) {
+            throw ValidationException::withMessages([
+                'roles' => 'Không được phép cấp hoặc gán lại vai trò Super Admin.',
+            ]);
+        }
 
         $hasCurrentAdmin = array_intersect($targetCurrentRoles, ['super_admin', 'admin']);
         $hasNewAdmin = array_intersect($targetNewRoleNames, ['super_admin', 'admin']);

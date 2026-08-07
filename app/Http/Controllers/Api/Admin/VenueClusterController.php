@@ -37,6 +37,38 @@ class VenueClusterController extends Controller
     // ─────────────────────────────────────────────────────────────────
     public function index(Request $request): JsonResponse
     {
+        if ($request->boolean('options')) {
+            $query = VenueCluster::query()
+                ->select(['id', 'name', 'status', 'owner_id', 'created_at'])
+                ->with('owner:id,full_name,username,email')
+                ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
+                ->when($request->filled('search'), function ($query) use ($request): void {
+                    $search = '%'.$request->input('search').'%';
+                    $query->where(function ($searchQuery) use ($search): void {
+                        $searchQuery
+                            ->where('name', 'like', $search)
+                            ->orWhere('address', 'like', $search);
+                    });
+                })
+                ->when($request->filled('owner_id'), fn ($query) => $query->where('owner_id', $request->input('owner_id')))
+                ->latest()
+                ->get()
+                ->map(fn (VenueCluster $cluster): array => [
+                    'id' => $cluster->id,
+                    'name' => $cluster->name,
+                    'status' => $cluster->status,
+                    'owner_id' => $cluster->owner_id,
+                    'owner' => $cluster->owner ? [
+                        'id' => $cluster->owner->id,
+                        'full_name' => $cluster->owner->full_name,
+                        'username' => $cluster->owner->username,
+                        'email' => $cluster->owner->email,
+                    ] : null,
+                ]);
+
+            return response()->json(['data' => $query]);
+        }
+
         $query = VenueCluster::query()
             ->with([
                 'owner:id,full_name,username,email,phone',

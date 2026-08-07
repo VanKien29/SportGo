@@ -1,6 +1,6 @@
 <template>
   <AdminShell
-    :sections="navSectionsWithBadges"
+    :sections="filteredNavigationSections"
     :title="currentTitle"
     :section-label="currentSectionLabel"
     :active-route-name="String($route.name || '')"
@@ -16,14 +16,6 @@ import {
   adminRouteTitles,
   findAdminNavigationSection,
 } from '../../config/adminNavigation.js';
-import {
-  pendingCounts,
-  startPendingCountsPoll,
-  stopPendingCountsPoll,
-  badgeLabel,
-} from '../../services/adminPendingCounts.js';
-
-import { autoApproveStore } from '../../stores/autoApprove.js';
 import { adminUiSettingsService } from '../../services/adminUiSettings.js';
 import { getAuth } from '../../stores/auth.js';
 import { hasAllAdminPermissions } from '../../config/permissionAccess.js';
@@ -55,37 +47,18 @@ export default {
     currentSectionLabel() {
       return findAdminNavigationSection(this.$route.name)?.label || 'Tổng quan';
     },
-    /**
-     * Inject badge counts vào từng nav item tương ứng.
-     * Dùng deep clone để không mutate config gốc.
-     */
-    navSectionsWithBadges() {
-      return adminNavigationSections;
-    },
   },
-  created() {
-    if (hasAllAdminPermissions(getAuth(), ['dashboard.view'])) {
-      startPendingCountsPoll(60_000);
-    }
-  },
-  beforeUnmount() {
-    stopPendingCountsPoll();
-  },
-  async mounted() {
+  mounted() {
     document.body?.classList.add('sg-admin-theme-scope');
     if (typeof applyCustomThemeStyles === 'function') {
       applyCustomThemeStyles();
     }
-    if (hasAllAdminPermissions(getAuth(), ['moderation.manage'])) {
-      autoApproveStore.init();
-    }
     if (hasAllAdminPermissions(getAuth(), ['ui_settings.view'])) {
-      await this.syncUiSettings();
+      window.requestAnimationFrame(() => this.syncUiSettings());
     }
   },
   unmounted() {
     document.body?.classList.remove('sg-admin-theme-scope');
-    autoApproveStore.stop();
   },
   methods: {
     async syncUiSettings() {
@@ -106,7 +79,7 @@ export default {
             const themePayload = {
               light: activePreset.light,
               dark: activePreset.dark,
-              radius: data.radius || '8px'
+              radius: ['0px', '4px', '6px'].includes(data.radius) ? data.radius : '4px'
             };
             localStorage.setItem('admin-custom-theme', JSON.stringify(themePayload));
           }

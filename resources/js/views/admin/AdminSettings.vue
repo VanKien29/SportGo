@@ -445,7 +445,7 @@ export default {
       saving: false,
       sidebarStyle: localStorage.getItem('admin-sidebar-style') || 'one-level',
       selectedPresetId: 'sportgo',
-      selectedRadius: '8px',
+      selectedRadius: '4px',
       selectedFontSize: '14px',
       newThemeName: '',
       activeModeTab: 'light',
@@ -456,9 +456,7 @@ export default {
       radiusOptions: [
         { label: '0px', value: '0px' },
         { label: '4px', value: '4px' },
-        { label: '8px', value: '8px' },
-        { label: '12px', value: '12px' },
-        { label: '16px', value: '16px' },
+        { label: '6px', value: '6px' },
       ],
       fontSizeOptions: [
         { label: '12px', value: '12px' },
@@ -791,6 +789,9 @@ export default {
         }
       }
     },
+    normalizeRadius(value) {
+      return ['0px', '4px', '6px'].includes(value) ? value : '4px';
+    },
     mergePresets(basePresets, incomingPresets) {
       const map = new Map();
       basePresets.forEach((preset) => map.set(preset.id, preset));
@@ -808,7 +809,7 @@ export default {
           const parsed = JSON.parse(saved);
           if (parsed.light) this.theme.light = { ...PRESETS[0].light, ...parsed.light };
           if (parsed.dark) this.theme.dark = { ...PRESETS[0].dark, ...parsed.dark };
-          if (parsed.radius) this.selectedRadius = parsed.radius;
+          if (parsed.radius) this.selectedRadius = this.normalizeRadius(parsed.radius);
           if (parsed.font_size) this.selectedFontSize = parsed.font_size;
           
           // Match preset if possible
@@ -841,7 +842,7 @@ export default {
         this.theme.light = { ...defaultPreset.light };
         this.theme.dark = { ...defaultPreset.dark };
         this.selectedPresetId = 'sportgo';
-        this.selectedRadius = '8px';
+        this.selectedRadius = '4px';
         this.selectedFontSize = '14px';
       }
     },
@@ -850,7 +851,7 @@ export default {
         const data = await adminUiSettingsService.getSettings();
         if (data) {
           this.sidebarStyle = data.sidebar_style || 'one-level';
-          this.selectedRadius = data.radius || '8px';
+          this.selectedRadius = this.normalizeRadius(data.radius || '4px');
           this.selectedFontSize = data.font_size || '14px';
           
           if (data.presets && data.presets.length > 0) {
@@ -883,7 +884,7 @@ export default {
         const payload = {
           light: this.theme.light,
           dark: this.theme.dark,
-          radius: this.selectedRadius,
+          radius: this.normalizeRadius(this.selectedRadius),
           font_size: this.selectedFontSize
         };
         localStorage.setItem('admin-custom-theme', JSON.stringify(payload));
@@ -893,7 +894,7 @@ export default {
         // Construct payload for admin theme CSS generation:
         const settingsPayload = {
           active_theme_id: this.selectedPresetId,
-          radius: this.selectedRadius,
+          radius: this.normalizeRadius(this.selectedRadius),
           font_size: this.selectedFontSize,
           presets: this.defaultPresets,
           custom_themes: this.userPresets
@@ -906,7 +907,7 @@ export default {
         const payloadDb = {
           active_theme_id: this.selectedPresetId,
           sidebar_style: this.sidebarStyle,
-          radius: this.selectedRadius,
+          radius: this.normalizeRadius(this.selectedRadius),
           font_size: this.selectedFontSize,
           presets: this.defaultPresets,
           custom_themes: this.userPresets,
@@ -1268,13 +1269,13 @@ export default {
 .sv-white-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, #ffffff, transparent);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .sv-black-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, #000000, transparent);
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .sv-cursor {
@@ -1299,17 +1300,8 @@ export default {
 .hue-slider-track {
   width: 100%;
   height: 10px;
-  border-radius: 9999px;
-  background: linear-gradient(
-    to right,
-    #ff0000,
-    #ffff00,
-    #00ff00,
-    #00ffff,
-    #0000ff,
-    #ff00ff,
-    #ff0000
-  );
+  border-radius: 4px;
+  background: var(--admin-primary, #16a34a);
   position: relative;
 }
 
@@ -1537,7 +1529,7 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.02));
+  background: var(--admin-surface-muted, #f7faf8);
   border-top: none !important;
 }
 

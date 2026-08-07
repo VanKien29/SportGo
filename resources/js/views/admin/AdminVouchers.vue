@@ -40,14 +40,21 @@
         <div v-if="success" class="alert success">{{ success }}</div>
 
         <section v-if="canViewBudget" class="budget-card">
-            <div class="budget-copy">
-                <span class="eyebrow">Ngân sách khuyến mãi</span>
-                <h3>Theo dõi chi phí voucher hệ thống</h3>
-            </div>
+            <header class="budget-card-head">
+                <div class="budget-copy">
+                    <span class="eyebrow">Ngân sách khuyến mãi</span>
+                    <h3>Theo dõi chi phí voucher hệ thống</h3>
+                    <p>Nhấn để xem chi tiết sử dụng, lịch sử trừ quỹ và điều chỉnh ngưỡng cảnh báo.</p>
+                </div>
+                <button class="btn secondary" type="button" @click="openBudgetModal">
+                    <AppIcon name="settings" size="16" />
+                    Theo dõi & chỉnh sửa
+                </button>
+            </header>
             <div class="budget-metrics">
                 <article class="budget-metric">
                     <span>Đã dùng kỳ này</span>
-       Code             <strong>{{
+                    <strong>{{
                         money(
                             promotionExpenses?.voucher_total ||
                                 promotionExpenses?.total,
@@ -68,122 +75,115 @@
                     <strong>{{ budgetUsageText }}</strong>
                 </article>
             </div>
-            <form class="budget-form" @submit.prevent="saveBudget">
-                <label class="budget-toggle">
-                    <input
-                        v-model="budgetSettings.is_alert_enabled"
-                        type="checkbox"
-                        :disabled="!canManageBudget"
-                    />
-                    <span>Bật cảnh báo</span>
-                </label>
-                <label class="budget-field">
-                    <span>Ngân sách</span>
-                    <input
-                        v-model.number="budgetSettings.promotion_budget"
-                        type="number"
-                        min="0"
-                        step="1000"
-                        :disabled="!canManageBudget"
-                    />
-                </label>
-                <label class="budget-field">
-                    <span>Kỳ ngân sách</span>
-                    <select v-model="budgetSettings.budget_period" :disabled="!canManageBudget">
-                        <option value="week">Tuần</option>
-                        <option value="month">Tháng</option>
-                        <option value="year">Năm</option>
-                    </select>
-                </label>
-                <button
-                    v-if="canManageBudget"
-                    class="btn primary"
-                    type="submit"
-                    :disabled="budgetSaving"
-                >
-                    {{ budgetSaving ? "Đang lưu..." : "Lưu ngân sách" }}
-                </button>
-            </form>
-            <div v-if="budgetLoading" class="budget-note">
-                Đang tải ngân sách khuyến mãi...
-            </div>
-            <div v-else-if="budgetError" class="budget-note danger">
-                {{ budgetError }}
-            </div>
-            <div
-                v-else
-                class="budget-note"
-                :class="{ danger: promotionBudget?.is_over_budget }"
-            >
-                {{ budgetStatusText }}
-            </div>
-            <div class="budget-actions">
-                <button
-                    class="btn secondary"
-                    type="button"
-                    @click="openHistory"
-                >
-                    {{
-                        showHistoryPanel
-                            ? "Ẩn lịch sử sử dụng voucher"
-                            : "Xem lịch sử sử dụng voucher"
-                    }}
-                </button>
-            </div>
         </section>
 
-        <section v-if="canViewBudget && showHistoryPanel" class="table-card history-panel">
-            <div class="history-head">
-                <div>
-                    <span class="eyebrow">Lịch sử sử dụng voucher</span>
-                    <h3>Voucher hệ thống đã trừ quỹ</h3>
+        <div v-if="showBudgetModal" class="modal-backdrop" @click.self="closeBudgetModal">
+            <section class="budget-modal" role="dialog" aria-modal="true" aria-labelledby="budget-modal-title">
+                <header class="budget-modal-head">
+                    <div>
+                        <span class="eyebrow">NGÂN SÁCH KHUYẾN MÃI</span>
+                        <h3 id="budget-modal-title">Theo dõi và chỉnh sửa</h3>
+                        <p>Cấu hình ngưỡng cảnh báo và kiểm tra các khoản voucher đã trừ quỹ.</p>
+                    </div>
+                    <button class="icon-btn" type="button" title="Đóng" aria-label="Đóng" @click="closeBudgetModal">
+                        <AppIcon name="x" size="18" />
+                    </button>
+                </header>
+
+                <form class="budget-form" @submit.prevent="saveBudget">
+                    <label class="budget-toggle">
+                        <input
+                            v-model="budgetSettings.is_alert_enabled"
+                            type="checkbox"
+                            :disabled="!canManageBudget"
+                        />
+                        <span>Bật cảnh báo ngân sách</span>
+                    </label>
+                    <label class="budget-field">
+                        <span>Ngân sách</span>
+                        <input
+                            v-model.number="budgetSettings.promotion_budget"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            :disabled="!canManageBudget"
+                        />
+                    </label>
+                    <label class="budget-field">
+                        <span>Kỳ ngân sách</span>
+                        <select v-model="budgetSettings.budget_period" :disabled="!canManageBudget">
+                            <option value="week">Tuần</option>
+                            <option value="month">Tháng</option>
+                            <option value="year">Năm</option>
+                        </select>
+                    </label>
+                    <button
+                        v-if="canManageBudget"
+                        class="btn primary"
+                        type="submit"
+                        :disabled="budgetSaving"
+                    >
+                        {{ budgetSaving ? "Đang lưu..." : "Lưu ngân sách" }}
+                    </button>
+                </form>
+
+                <div v-if="budgetLoading" class="budget-note">
+                    Đang tải ngân sách khuyến mãi...
                 </div>
-            </div>
-            <div v-if="budgetLoading" class="state">
-                Đang tải lịch sử voucher...
-            </div>
-            <div v-else-if="voucherLedgers.length === 0" class="state">
-                Chưa có lịch sử sử dụng voucher hệ thống.
-            </div>
-            <div v-else class="history-table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Thời gian</th>
-                            <th>Số tiền</th>
-                            <th>Số dư sau trừ</th>
-                            <th>Tham chiếu</th>
-                            <th>Mô tả</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="ledger in voucherLedgers" :key="ledger.id">
-                            <td>{{ dateTime(ledger.transacted_at) }}</td>
-                            <td>
-                                <strong>{{ money(ledger.amount) }}</strong>
-                            </td>
-                            <td>{{ money(ledger.balance_after) }}</td>
-                            <td>
-                                <strong>{{
-                                    ledger.transaction_ref || "-"
-                                }}</strong>
-                                <small>{{ ledgerReference(ledger) }}</small>
-                            </td>
-                            <td>{{ ledger.description || "-" }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <footer>
-                <button
-                    class="btn secondary"
-                    type="button"
-                    @click="closeHistory"
-                >
-                    Đóng
-                </button>
-            </footer>
-        </section>
+                <div v-else-if="budgetError" class="budget-note danger">
+                    {{ budgetError }}
+                </div>
+                <div v-else class="budget-note" :class="{ danger: promotionBudget?.is_over_budget }">
+                    {{ budgetStatusText }}
+                </div>
+
+                <div class="budget-actions">
+                    <button class="btn secondary" type="button" @click="openHistory">
+                        {{ showHistoryPanel ? "Ẩn lịch sử sử dụng voucher" : "Xem lịch sử sử dụng voucher" }}
+                    </button>
+                </div>
+
+                <section v-if="showHistoryPanel" class="history-panel">
+                    <header class="history-head">
+                        <div>
+                            <span class="eyebrow">Lịch sử sử dụng voucher</span>
+                            <h3>Voucher hệ thống đã trừ quỹ</h3>
+                        </div>
+                    </header>
+                    <div v-if="budgetLoading" class="state">Đang tải lịch sử voucher...</div>
+                    <div v-else-if="voucherLedgers.length === 0" class="state">Chưa có lịch sử sử dụng voucher hệ thống.</div>
+                    <div v-else class="history-table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Thời gian</th>
+                                    <th>Số tiền</th>
+                                    <th>Số dư sau trừ</th>
+                                    <th>Tham chiếu</th>
+                                    <th>Mô tả</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="ledger in voucherLedgers" :key="ledger.id">
+                                    <td>{{ dateTime(ledger.transacted_at) }}</td>
+                                    <td><strong>{{ money(ledger.amount) }}</strong></td>
+                                    <td>{{ money(ledger.balance_after) }}</td>
+                                    <td>
+                                        <strong>{{ ledger.transaction_ref || "-" }}</strong>
+                                        <small>{{ ledgerReference(ledger) }}</small>
+                                    </td>
+                                    <td>{{ ledger.description || "-" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <footer class="budget-modal-footer">
+                    <button class="btn secondary" type="button" @click="closeBudgetModal">Đóng</button>
+                </footer>
+            </section>
+        </div>
 
         <section class="table-card" style="border: none !important; box-shadow: none !important;">
             <SaaSTable
@@ -506,6 +506,7 @@ export default {
             validationErrors: {},
             pendingDeactivateVoucher: null,
             scopeOptions: this.emptyScopeOptions(),
+            showBudgetModal: false,
             showHistoryPanel: false,
             showScrollTop: false,
             budgetLoading: false,
@@ -692,6 +693,13 @@ export default {
             } finally {
                 this.budgetSaving = false;
             }
+        },
+        openBudgetModal() {
+            this.showBudgetModal = true;
+        },
+        closeBudgetModal() {
+            this.showBudgetModal = false;
+            this.showHistoryPanel = false;
         },
         openHistory() {
             this.showHistoryPanel = !this.showHistoryPanel;
@@ -1238,13 +1246,20 @@ footer {
 
 .budget-card {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(340px, 1.4fr);
     gap: 16px;
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     background: var(--admin-surface);
     padding: 12px 0;
+}
+
+.budget-card-head,
+.budget-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
 }
 
 .budget-copy {
@@ -1261,6 +1276,12 @@ footer {
 .budget-copy p,
 .budget-note {
     color: var(--admin-muted);
+}
+
+.budget-copy p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .eyebrow {
@@ -1305,9 +1326,8 @@ footer {
 }
 
 .budget-form {
-    grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: auto minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
+    grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
     gap: 12px;
     align-items: end;
 }
@@ -1318,45 +1338,17 @@ footer {
     gap: 8px;
     min-height: 42px;
     align-self: end;
-    border: 1px solid var(--admin-border);
-    border-radius: 999px;
-    background: var(--admin-surface-muted);
-    padding: 8px 12px 8px 8px;
+    padding: 8px 0;
     color: var(--admin-text);
     cursor: pointer;
 }
 
 .budget-toggle input {
-    display: grid;
-    width: 36px;
-    height: 20px;
-    margin: 0;
-    padding: 0;
-    appearance: none;
-    border: 0;
-    border-radius: 999px;
-    background: var(--admin-border);
-    cursor: pointer;
-    transition: background-color 180ms ease;
-}
-
-.budget-toggle input::before {
-    content: "";
     width: 16px;
     height: 16px;
-    margin: 2px;
-    border-radius: 50%;
-    background: var(--admin-surface);
-    box-shadow: 0 1px 3px var(--admin-shadow-sm);
-    transition: transform 180ms ease;
-}
-
-.budget-toggle input:checked {
-    background: var(--admin-primary);
-}
-
-.budget-toggle input:checked::before {
-    transform: translateX(16px);
+    margin: 0;
+    padding: 0;
+    accent-color: var(--admin-primary);
 }
 
 .budget-field {
@@ -1365,8 +1357,7 @@ footer {
 }
 
 .budget-note {
-    grid-column: 1 / -1;
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--admin-surface-muted);
     padding: 10px 12px;
     font-weight: 400;
@@ -1378,16 +1369,52 @@ footer {
 }
 
 .budget-actions {
-    grid-column: 1 / -1;
     display: flex;
     justify-content: flex-end;
+}
+
+.budget-modal {
+    display: grid;
+    gap: 16px;
+    width: min(980px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 20px;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius-lg);
+    background: var(--admin-surface);
+    box-shadow: var(--admin-shadow-lg);
+}
+
+.budget-modal-head h3,
+.budget-modal-head p {
+    margin: 4px 0 0;
+}
+
+.budget-modal-head h3 {
+    color: var(--admin-text);
+    font-size: 20px;
+    font-weight: 400;
+}
+
+.budget-modal-head p {
+    color: var(--admin-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.budget-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 .history-panel {
     display: grid;
     gap: 0;
-    border-color: var(--admin-border);
-    box-shadow: 0 12px 28px var(--admin-shadow-card);
+    border: 1px solid var(--admin-border);
+    border-radius: 0;
+    background: var(--admin-surface-muted);
 }
 
 .history-head {
@@ -1396,7 +1423,6 @@ footer {
     justify-content: space-between;
     gap: 12px;
     padding: 16px;
-    border-bottom: 1px solid var(--admin-border);
 }
 
 .history-head h3 {
@@ -1414,11 +1440,6 @@ footer {
     min-width: 820px;
 }
 
-.history-panel footer {
-    padding: 14px 16px;
-    border-top: 1px solid var(--admin-border);
-}
-
 .history-panel small {
     display: block;
     margin-top: 4px;
@@ -1427,7 +1448,12 @@ footer {
 }
 
 @media (max-width: 980px) {
-    .budget-card,
+    .budget-card-head,
+    .budget-modal-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
     .budget-form {
         grid-template-columns: 1fr;
     }
@@ -1447,4 +1473,3 @@ footer {
     gap: 16px;
 }
 </style>
-

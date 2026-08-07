@@ -27,8 +27,8 @@ export function getLedgersByVenue(venueClusterId) {
   return getLedgers({ venue_cluster_id: venueClusterId });
 }
 
-export async function getPlatformFeeDashboardMetrics() {
-  const ledgers = await getLedgers();
+export async function getPlatformFeeDashboardMetrics(existingLedgers = null) {
+  const ledgers = existingLedgers || await getLedgers();
   const now = new Date();
   const paidThisMonth = ledgers.filter((ledger) => {
     if (!ledger.paid_at) return false;

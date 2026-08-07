@@ -17,8 +17,9 @@ export const adminUserService = {
     return api(`/api/admin/users${query ? `?${query}` : ''}`);
   },
 
-  show(id) {
-    return api(`/api/admin/users/${id}`);
+  show(id, section = '') {
+    const query = section ? `?section=${encodeURIComponent(section)}` : '';
+    return api(`/api/admin/users/${id}${query}`);
   },
 
   get(id) {

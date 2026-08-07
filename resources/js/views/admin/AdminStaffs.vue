@@ -78,7 +78,7 @@
                 <ActionIconButton
                   icon="eye"
                   label="Xem chi tiết"
-                  @click="$router.push({ name: 'admin-staff-detail', params: { id: row.id } })"
+                  @click="openDetailModal(row)"
                 />
                 <ActionIconButton
                   icon="edit"
@@ -104,6 +104,94 @@
               </TableActionGroup>
             </template>
           </SaaSTable>
+        </div>
+
+        <!-- MODAL CHI TIẾT NHÂN SỰ -->
+        <div v-if="showDetailModal" class="modal-backdrop" @click.self="closeDetailModal">
+          <section class="modal wide detail-modal" role="dialog" aria-modal="true" aria-labelledby="staff-detail-title">
+            <header class="modal-header detail-modal-header">
+              <div>
+                <p class="detail-eyebrow">Hồ sơ nhân sự</p>
+                <h3 id="staff-detail-title">{{ detailData.user?.full_name || detailTarget?.full_name || 'Chi tiết nhân sự' }}</h3>
+                <p class="muted">Thông tin tài khoản và lịch sử tác động hệ thống.</p>
+              </div>
+              <button type="button" class="icon-btn" aria-label="Đóng" @click="closeDetailModal">×</button>
+            </header>
+
+            <div v-if="detailLoading" class="detail-modal-state">Đang tải thông tin nhân sự...</div>
+            <div v-else-if="detailError" class="alert error">{{ detailError }}</div>
+            <div v-else-if="detailData.user" class="modal-body detail-modal-body">
+              <section class="detail-identity">
+                <div class="detail-avatar">{{ getAvatar(detailData.user) }}</div>
+                <div class="detail-identity-copy">
+                  <strong>{{ detailData.user.full_name || '-' }}</strong>
+                  <span>@{{ detailData.user.username || '-' }}</span>
+                  <span>{{ detailData.user.status === 'locked' ? 'Bị khóa' : 'Hoạt động' }}</span>
+                </div>
+                <div class="detail-modal-actions">
+                  <button class="btn secondary" type="button" @click="openDetailEdit">Chỉnh sửa</button>
+                  <button
+                    v-if="detailData.user.status === 'locked'"
+                    class="btn success"
+                    type="button"
+                    :disabled="!canManageUser(detailData.user) || detailData.user.id === currentUserId"
+                    @click="openDetailUnlock"
+                  >
+                    Mở khóa
+                  </button>
+                  <button
+                    v-else
+                    class="btn danger"
+                    type="button"
+                    :disabled="!canManageUser(detailData.user) || detailData.user.id === currentUserId"
+                    @click="openDetailLock"
+                  >
+                    Khóa tài khoản
+                  </button>
+                </div>
+              </section>
+
+              <div class="detail-modal-grid">
+                <section class="detail-info-card">
+                  <h4>Thông tin cơ bản</h4>
+                  <dl class="detail-facts">
+                    <div><dt>Email</dt><dd>{{ detailData.user.email || '-' }}</dd></div>
+                    <div><dt>Số điện thoại</dt><dd>{{ detailData.user.phone || '-' }}</dd></div>
+                    <div><dt>Vai trò</dt><dd>{{ (detailData.user.roles || []).map(getRoleDisplayName).join(', ') || '-' }}</dd></div>
+                    <div><dt>Trạng thái</dt><dd>{{ detailData.user.status === 'locked' ? 'Bị khóa' : 'Hoạt động' }}</dd></div>
+                    <div v-if="detailData.user.locked_until"><dt>Khóa đến</dt><dd>{{ formatDate(detailData.user.locked_until) }}</dd></div>
+                    <div v-if="detailData.user.status_reason"><dt>Lý do khóa</dt><dd>{{ detailData.user.status_reason }}</dd></div>
+                  </dl>
+                </section>
+
+                <section class="detail-logs-panel">
+                  <div class="detail-logs-head">
+                    <div>
+                      <h4>Nhật ký hoạt động</h4>
+                      <p class="muted">Các thay đổi gần đây liên quan đến tài khoản.</p>
+                    </div>
+                    <span>{{ detailData.audit_logs.length }} bản ghi</span>
+                  </div>
+                  <div v-if="detailData.audit_logs.length" class="logs-table-wrap">
+                    <table class="logs-table">
+                      <thead>
+                        <tr><th>Thời gian</th><th>Người thực hiện</th><th>Hành động</th><th>Chi tiết</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="log in detailData.audit_logs" :key="log.id">
+                          <td>{{ formatDate(log.created_at) }}</td>
+                          <td>{{ log.actor_name || '-' }}</td>
+                          <td>{{ log.action || '-' }}</td>
+                          <td>{{ log.new_values?.status_reason || log.new_values?.roles?.join(', ') || '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p v-else class="detail-modal-state compact">Chưa có nhật ký hoạt động.</p>
+                </section>
+              </div>
+            </div>
+          </section>
         </div>
 
     <!-- MODAL THÊM MỚI / CHỈNH SỬA TÀI KHOẢN -->
@@ -369,6 +457,16 @@ export default {
       ],
       searchTimeout: null,
 
+      // Chi tiết nhân sự dạng popup
+      showDetailModal: false,
+      detailLoading: false,
+      detailError: '',
+      detailTarget: null,
+      detailData: {
+        user: null,
+        audit_logs: [],
+      },
+
       // Tạo/Sửa nhân sự
       showFormModal: false,
       isEditMode: false,
@@ -453,11 +551,14 @@ export default {
       return list;
     },
     availableRolesForForm() {
+      const roles = this.allRoles.filter(role => role.name !== 'super_admin');
+
       if (this.isSuperAdmin) {
-        return this.allRoles;
+        return roles;
       }
-      // Ẩn vai trò Admin hoặc Super Admin nếu người tạo không phải Super Admin
-      return this.allRoles.filter(role => role.name !== 'super_admin' && role.name !== 'admin');
+
+      // Ẩn vai trò Admin nếu người tạo không phải Super Admin.
+      return roles.filter(role => role.name !== 'admin');
     },
     lockUntilPreview() {
       if (this.lockForm.lock_duration === 'custom') {
@@ -474,10 +575,15 @@ export default {
       return `Khóa đến ngày: ${this.formatDate(this.resolveLockedUntil())}`;
     },
   },
-  mounted() {
+  async mounted() {
     this.initAuth();
-    this.loadUsers();
-    this.loadRoles();
+    await Promise.all([this.loadUsers(), this.loadRoles()]);
+
+    const detailId = this.$route.query.detail;
+    if (detailId) {
+      const target = this.users.find(user => String(user.id) === String(detailId));
+      if (target) await this.openDetailModal(target);
+    }
   },
   methods: {
     initAuth() {
@@ -508,6 +614,49 @@ export default {
     },
     debounceSearch() {
       // Tìm kiếm động tức thì thông qua computed filteredUsers
+    },
+    async openDetailModal(user) {
+      this.showDetailModal = true;
+      this.detailLoading = true;
+      this.detailError = '';
+      this.detailTarget = user;
+      this.detailData = { user, audit_logs: [] };
+
+      try {
+        const response = await adminUserService.get(user.id);
+        const data = response.data || {};
+        this.detailData = {
+          user: data.user || data.profile || user,
+          audit_logs: data.audit_logs || [],
+        };
+      } catch (err) {
+        this.detailError = err.message || 'Không tải được thông tin nhân sự.';
+      } finally {
+        this.detailLoading = false;
+      }
+    },
+    closeDetailModal() {
+      this.showDetailModal = false;
+      this.detailTarget = null;
+      this.detailError = '';
+    },
+    openDetailEdit() {
+      if (!this.detailData.user) return;
+      const user = this.detailData.user;
+      this.closeDetailModal();
+      this.openEditModal(user);
+    },
+    openDetailLock() {
+      if (!this.detailData.user) return;
+      const user = this.detailData.user;
+      this.closeDetailModal();
+      this.openLockModal(user);
+    },
+    openDetailUnlock() {
+      if (!this.detailData.user) return;
+      const user = this.detailData.user;
+      this.closeDetailModal();
+      this.openUnlockModal(user);
     },
     resetFilters() {
       this.filters.keyword = '';
@@ -1612,5 +1761,213 @@ tr:last-child td {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+/* Popup chi tiết nhân sự: giữ toàn bộ thông tin trong một luồng ngắn gọn. */
+.detail-modal {
+  width: min(1120px, calc(100vw - 32px)) !important;
+  max-height: calc(100vh - 32px) !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  border-radius: 12px !important;
+}
+
+.detail-modal-header {
+  padding: 22px 24px 16px !important;
+  border: 0 !important;
+  background: var(--admin-surface) !important;
+}
+
+.detail-eyebrow {
+  margin: 0 0 5px !important;
+  color: var(--admin-primary-dark) !important;
+  font-size: 12px !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+.detail-modal-header h3 {
+  margin: 0 !important;
+  color: var(--admin-text) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+}
+
+.detail-modal-body {
+  max-height: calc(100vh - 150px) !important;
+  padding: 0 24px 24px !important;
+  overflow-y: auto !important;
+}
+
+.detail-modal-state {
+  padding: 42px 24px !important;
+  color: var(--admin-muted) !important;
+  text-align: center !important;
+}
+
+.detail-modal-state.compact {
+  padding: 26px 0 !important;
+}
+
+.detail-identity {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 18px 0 22px !important;
+}
+
+.detail-avatar {
+  display: grid !important;
+  width: 58px !important;
+  height: 58px !important;
+  place-items: center !important;
+  border-radius: 10px !important;
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+  font-size: 22px !important;
+  font-weight: 400 !important;
+}
+
+.detail-identity-copy {
+  display: grid !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+
+.detail-identity-copy strong {
+  color: var(--admin-text) !important;
+  font-size: 17px !important;
+  font-weight: 400 !important;
+}
+
+.detail-identity-copy span {
+  color: var(--admin-muted) !important;
+  font-size: 13px !important;
+}
+
+.detail-modal-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.detail-modal-actions .btn {
+  border-radius: 8px !important;
+  font-weight: 400 !important;
+}
+
+.detail-modal-grid {
+  display: grid !important;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.5fr) !important;
+  gap: 16px !important;
+}
+
+.detail-info-card,
+.detail-logs-panel {
+  min-width: 0 !important;
+  padding: 18px !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 10px !important;
+  background: var(--admin-surface-muted) !important;
+}
+
+.detail-info-card h4,
+.detail-logs-panel h4 {
+  margin: 0 !important;
+  color: var(--admin-text) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+.detail-facts {
+  display: grid !important;
+  gap: 0 !important;
+  margin: 14px 0 0 !important;
+}
+
+.detail-facts div {
+  display: grid !important;
+  grid-template-columns: 110px minmax(0, 1fr) !important;
+  gap: 12px !important;
+  padding: 10px 0 !important;
+}
+
+.detail-facts dt,
+.detail-facts dd {
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.detail-facts dt {
+  color: var(--admin-muted) !important;
+  font-size: 12px !important;
+}
+
+.detail-facts dd {
+  color: var(--admin-text) !important;
+  font-size: 13px !important;
+}
+
+.detail-logs-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.detail-logs-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.detail-logs-head .muted {
+  margin: 4px 0 0 !important;
+}
+
+.detail-logs-head > span {
+  color: var(--admin-primary-dark) !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+}
+
+.detail-logs-panel .logs-table-wrap {
+  max-height: 360px !important;
+  overflow: auto !important;
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  background: var(--admin-surface) !important;
+}
+
+.detail-logs-panel .logs-table {
+  min-width: 660px !important;
+  table-layout: fixed !important;
+}
+
+.detail-logs-panel .logs-table th,
+.detail-logs-panel .logs-table td {
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+@media (max-width: 760px) {
+  .detail-identity,
+  .detail-modal-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detail-modal-actions {
+    justify-content: flex-start !important;
+  }
+
+  .detail-facts div {
+    grid-template-columns: 1fr !important;
+    gap: 3px !important;
+  }
 }
 </style>

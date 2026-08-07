@@ -10,6 +10,7 @@ export const adminVenueClusterService = {
     if (params.status) query.set('status', params.status);
     if (params.search) query.set('search', params.search);
     if (params.owner_id) query.set('owner_id', params.owner_id);
+    if (params.options) query.set('options', '1');
     const qs = query.toString();
     return api(`/api/admin/venue-clusters${qs ? `?${qs}` : ''}`);
   },

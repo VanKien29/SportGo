@@ -15,7 +15,6 @@ use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use App\Services\Partner\PartnerTerminationFlowService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -56,13 +55,7 @@ class PartnerApplicationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = PartnerApplication::query()
-            ->with([
-                'user:id,full_name,username,email,phone',
-                'reviewedBy:id,full_name,username,email',
-                'approvedVenueCluster:id,name,status',
-            ])
-            ->withCount('courts');
+        $query = PartnerApplication::query();
 
         if ($request->filled('tab')) {
             match ($request->input('tab')) {
@@ -107,23 +100,35 @@ class PartnerApplicationController extends Controller
 
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
         $page = max((int) $request->integer('page', 1), 1);
-        $partners = $query
-            ->with(['contracts', 'terminationRequests'])
+        $userPaginator = (clone $query)
+            ->select('user_id')
+            ->whereNotNull('user_id')
+            ->groupBy('user_id')
+            ->orderByRaw('MAX(COALESCE(submitted_at, created_at)) DESC')
+            ->paginate($perPage, ['user_id'], 'page', $page);
+        $userIds = collect($userPaginator->items())->pluck('user_id')->values();
+
+        $partnersByUser = PartnerApplication::query()
+            ->with([
+                'user:id,full_name,username,email,phone',
+                'reviewedBy:id,full_name,username,email',
+                'approvedVenueCluster:id,name,status',
+                'contracts',
+                'terminationRequests',
+            ])
+            ->withCount('courts')
+            ->whereIn('user_id', $userIds)
             ->orderByDesc('submitted_at')
             ->get()
             ->groupBy('user_id')
-            ->map(fn ($items) => $this->partnerRowPayload($items))
+            ->map(fn ($items) => $this->partnerRowPayload($items));
+        $partners = $userIds
+            ->map(fn ($userId) => $partnersByUser->get($userId))
+            ->filter()
             ->values();
+        $userPaginator->setCollection($partners);
 
-        $applications = new LengthAwarePaginator(
-            $partners->forPage($page, $perPage)->values(),
-            $partners->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
-
-        return response()->json(['status' => 'success', 'data' => $applications]);
+        return response()->json(['status' => 'success', 'data' => $userPaginator]);
     }
 
     private function partnerRowPayload($applications): array
@@ -217,13 +222,21 @@ class PartnerApplicationController extends Controller
         return (string) ($statuses->first() ?: 'unknown');
     }
 
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $application = PartnerApplication::with($this->partners->detailRelations())->findOrFail($id);
+        $isSummary = $request->input('view') === 'summary';
+        $relations = $isSummary
+            ? [
+                'user:id,full_name,username,email,phone,status',
+                'reviewedBy:id,full_name,username,email',
+                'approvedVenueCluster:id,name,status,address',
+            ]
+            : $this->partners->detailRelations();
+        $application = PartnerApplication::with($relations)->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
-            'data' => $this->payload($application, true),
+            'data' => $this->payload($application, ! $isSummary),
         ]);
     }
 
@@ -616,6 +629,10 @@ class PartnerApplicationController extends Controller
     private function payload(PartnerApplication $application, bool $detail = false): array
     {
         $user = $application->user;
+        $courtsCount = $application->courts_count;
+        if ($courtsCount === null && $application->relationLoaded('courts')) {
+            $courtsCount = $application->courts->count();
+        }
         $payload = [
             'id' => $application->id,
             'user_id' => $application->user_id,
@@ -668,7 +685,7 @@ class PartnerApplicationController extends Controller
             'submitted_at' => $application->submitted_at,
             'reviewed_at' => $application->reviewed_at,
             'terminated_at' => $application->terminated_at,
-            'courts_count' => $application->courts_count ?? $application->courts?->count() ?? 0,
+            'courts_count' => $courtsCount ?? 0,
             'user' => $user ? [
                 'id' => $user->id,
                 'full_name' => $user->full_name,

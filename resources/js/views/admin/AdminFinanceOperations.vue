@@ -43,7 +43,7 @@
             </button>
         </div>
 
-        <form class="toolbar" @submit.prevent="loadData(1)">
+        <form class="finance-filter-toolbar" @submit.prevent="loadData(1)">
             <label class="search-field">
                 <AppIcon name="search" size="17" />
                 <input
@@ -2601,5 +2601,54 @@ pre {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+}
+
+/* Keep this filter group compact even when the shared admin toolbar rules are active. */
+.finance-filter-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap;
+    gap: 10px !important;
+    width: 100%;
+}
+
+.finance-filter-toolbar .search-field {
+    flex: 0 1 360px;
+    min-width: 280px;
+    max-width: 360px;
+}
+
+.finance-filter-toolbar > select {
+    flex: 0 0 180px;
+    width: 180px;
+    border: 1px solid var(--admin-border);
+    border-radius: 7px;
+    padding: 9px 10px;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    font: inherit;
+}
+
+.finance-filter-toolbar .date-range-fields {
+    flex: 0 0 auto;
+}
+
+.finance-filter-toolbar .icon-only,
+.finance-filter-toolbar .export-btn {
+    flex: 0 0 auto;
+    margin-left: 0;
+}
+
+@media (max-width: 760px) {
+    .finance-filter-toolbar .search-field {
+        flex: 1 1 100%;
+        max-width: none;
+    }
+
+    .finance-filter-toolbar > select {
+        flex: 1 1 180px;
+        width: auto;
+    }
 }
 </style>
