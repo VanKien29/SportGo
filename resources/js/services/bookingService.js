@@ -121,6 +121,13 @@ export const bookingService = {
     return api('/api/user/wallet');
   },
 
+  requestWithdrawal(data) {
+    return api('/api/user/wallet/withdraw', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   listRefunds(params = {}) {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

@@ -100,6 +100,14 @@ export async function api(path, options = {}) {
 
   if (response.status === 401) {
     clearAuthStorage();
+    if (token && (!options.method || options.method.toUpperCase() === 'GET')) {
+      const retryHeaders = { ...headers };
+      delete retryHeaders.Authorization;
+      const retryResponse = await fetch(path, { ...options, headers: retryHeaders });
+      if (retryResponse.ok) {
+        return await retryResponse.json().catch(() => ({}));
+      }
+    }
     throw makeApiError(response, data, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   }
 

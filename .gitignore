@@ -28,4 +28,5 @@ Thumbs.db
 *.md
 .agents/
 .gemini/
+/scratch/
 .claude/

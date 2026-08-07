@@ -13,16 +13,62 @@
     @endphp
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $systemName }} - Đặt sân thể thao online</title>
-    <meta name="description" content="{{ $systemName }} - Nền tảng đặt sân thể thao online">
+
+    <!-- Primary On-Page SEO Meta Tags -->
+    <title>{{ $systemName }} - Nền tảng Đặt lịch & Quản lý Sân Thể Thao Trực Tuyến</title>
+    <meta name="description" content="{{ $systemName }} là ứng dụng đặt lịch sân thể thao trực tuyến hàng đầu. Tìm kiếm sân Pickleball, Cầu Lông, Bóng Đá, Tennis gần bạn và giữ chỗ nhanh chóng 24/7.">
+    <meta name="keywords" content="đặt sân thể thao, đặt lịch sân cầu lông, đặt sân pickleball, đặt sân bóng đá, thuê sân tennis, giữ chỗ sân trực tuyến, sportgo">
+    <meta name="author" content="{{ $systemName }} Platform">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#15803d">
+    <link rel="canonical" href="{{ url()->current() }}">
+
+    <!-- Open Graph / Facebook Meta Tags -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:title" content="{{ $systemName }} - Nền tảng Đặt lịch & Quản lý Sân Thể Thao Trực Tuyến">
+    <meta property="og:description" content="Tìm kiếm cụm sân gần bạn, xem ma trận giờ trống realtime và đặt chỗ nhanh chóng chỉ trong 3 bước.">
+    <meta property="og:site_name" content="{{ $systemName }}">
+
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $systemName }} - Nền tảng Đặt lịch & Quản lý Sân Thể Thao">
+    <meta name="twitter:description" content="Đặt lịch sân Pickleball, Cầu Lông, Bóng Đá & Tennis trực tuyến 24/7.">
+
     @if($systemFaviconUrl)
         <link rel="icon" href="{{ $systemFaviconUrl }}">
         <link rel="shortcut icon" href="{{ $systemFaviconUrl }}">
         <link rel="apple-touch-icon" href="{{ $systemFaviconUrl }}">
     @endif
+
     <!-- Leaflet Map Library -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Schema.org JSON-LD Structured Data for On-Page SEO -->
+    <script type="application/ld+json">
+    {
+      "{{ '@' }}context": "https://schema.org",
+      "{{ '@' }}type": "WebSite",
+      "name": "{{ $systemName }}",
+      "url": "{{ url('/') }}",
+      "potentialAction": {
+        "{{ '@' }}type": "SearchAction",
+        "target": "{{ url('/venues') }}?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "{{ '@' }}context": "https://schema.org",
+      "{{ '@' }}type": "SportsActivityLocation",
+      "name": "{{ $systemName }} Sports Platform",
+      "description": "Nền tảng đặt sân thể thao trực tuyến chuyên nghiệp tại Việt Nam.",
+      "url": "{{ url('/') }}"
+    }
+    </script>
+
     <style>
         #app:empty {
             min-height: 100vh;

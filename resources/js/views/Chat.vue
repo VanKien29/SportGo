@@ -148,15 +148,15 @@
               {{ (user?.full_name || 'U').charAt(0).toUpperCase() }}
             </div>
             <div class="flex-1 min-w-0">
-              <div class="font-medium text-sm text-zinc-200 truncate">{{ user.full_name }}</div>
-              <div class="text-xs text-zinc-500 truncate">@{{ user.username || 'user' }}</div>
+              <div class="font-medium text-sm text-[var(--admin-text,#0f172a)] truncate">{{ user.full_name }}</div>
+              <div class="text-xs text-[var(--admin-muted,#64748b)] truncate">@{{ user.username || 'user' }}</div>
             </div>
           </button>
         </div>
 
         <!-- Main Conversations List -->
         <div v-else class="flex-1 overflow-y-auto divide-y divide-zinc-800/30">
-          <div v-if="loadingConversations && conversations.length === 0" class="p-4 text-center text-xs text-zinc-500">
+          <div v-if="loadingConversations && conversations.length === 0" class="p-4 text-center text-xs text-[var(--admin-muted,#64748b)]">
             Đang tải hộp thư...
           </div>
           <div v-else-if="filteredConversations.length === 0" class="chat-empty-sidebar">
@@ -184,16 +184,16 @@
             <!-- Content -->
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-1 mb-1">
-                <div class="font-medium text-sm text-zinc-200 truncate flex-1">{{ conv.title }}</div>
-                <div class="text-[10px] text-zinc-500 shrink-0">{{ formatTime(conv.last_message?.created_at || conv.last_message_at) }}</div>
+                <div class="font-medium text-sm text-[var(--admin-text,#0f172a)] truncate flex-1">{{ conv.title }}</div>
+                <div class="text-[10px] text-[var(--admin-muted,#64748b)] shrink-0">{{ formatTime(conv.last_message?.created_at || conv.last_message_at) }}</div>
               </div>
               <div class="flex items-center justify-between gap-2">
-                <div class="text-xs text-zinc-400 truncate flex-1">
-                  <span v-if="conv.last_message?.sender_id === currentUser?.id" class="text-green-500">Bạn: </span>
+                <div class="text-xs text-[var(--admin-muted,#475569)] truncate flex-1">
+                  <span v-if="conv.last_message?.sender_id === currentUser?.id" class="text-green-600 font-medium">Bạn: </span>
                   {{ conv.last_message?.content || 'Chưa có tin nhắn' }}
                 </div>
                 <!-- Badge count -->
-                <div v-if="conv.unread_count > 0" class="h-5 min-w-5 px-1.5 bg-green-500 text-zinc-950 font-normal text-[10px] rounded-full flex items-center justify-center shrink-0">
+                <div v-if="conv.unread_count > 0" class="h-5 min-w-5 px-1.5 bg-green-600 text-white font-medium text-[10px] rounded-full flex items-center justify-center shrink-0">
                   {{ conv.unread_count }}
                 </div>
               </div>
@@ -1476,7 +1476,7 @@ export default {
       return this.$route.path.startsWith('/admin') || this.$route.path.startsWith('/owner') || this.$route.path.startsWith('/staff');
     },
     usesAdminChatTheme() {
-      return true;
+      return this.isAdmin;
     },
     canShareBooking() {
       if (!this.activeConversation || !this.currentUser) return false;
@@ -1634,10 +1634,19 @@ export default {
       chatPage.classList.remove('chat-light');
     }
 
-    // If target query parameter exists (e.g. starting chat with a user or venue)
-    const targetUserId = this.$route.query.userId;
-    const targetVenueId = this.$route.query.venueId;
-    if (targetUserId) {
+    // If target query parameter exists (e.g. starting chat with a user, venue, or specific conversation)
+    const targetConvId = this.$route.query.conversation_id || this.$route.query.conversationId;
+    const targetUserId = this.$route.query.userId || this.$route.query.user_id;
+    const targetVenueId = this.$route.query.venueId || this.$route.query.venue_id || this.$route.query.venue_cluster_id;
+
+    if (targetConvId) {
+      this.fetchConversations(true).then(() => {
+        const conv = this.conversations.find(c => String(c.id) === String(targetConvId));
+        if (conv) {
+          this.selectConversation(conv);
+        }
+      });
+    } else if (targetUserId) {
       this.startChat({ type: 'direct', user_id: targetUserId });
     } else if (targetVenueId) {
       this.startChat({ type: 'venue_contact', venue_id: targetVenueId });
@@ -1899,7 +1908,24 @@ export default {
       if (showLoader) this.loadingConversations = true;
       try {
         const response = await chatService.getConversations();
-        this.conversations = response || [];
+        const baseList = response || [];
+
+        if (!this.isAdmin) {
+          const aiConv = {
+            id: 'ai_assistant',
+            title: 'Trợ lý AI SportGo',
+            type: 'ai',
+            is_ai: true,
+            avatar_url: null,
+            last_message: {
+              content: 'Trợ lý AI tư vấn và giải đáp thắc mắc 24/7',
+              created_at: new Date().toISOString(),
+            },
+          };
+          this.conversations = [aiConv, ...baseList];
+        } else {
+          this.conversations = baseList;
+        }
 
         // If there's an active conversation, update its metadata locally
         if (this.activeConversation) {
@@ -1915,8 +1941,42 @@ export default {
       }
     },
 
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const feed = this.$el?.querySelector('.chat-messages-container') || this.$el?.querySelector('.overflow-y-auto');
+        if (feed) {
+          feed.scrollTop = feed.scrollHeight;
+          setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 50);
+          setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 200);
+        }
+      });
+    },
+
     async fetchMessages(showLoader = false) {
       if (!this.activeConversation) return;
+      if (this.activeConversation.id === 'ai_assistant') {
+        try {
+          const res = await chatService.getAiHistory();
+          if (res?.messages && Array.isArray(res.messages) && res.messages.length > 0) {
+            this.messages = res.messages;
+            this.scrollToBottom();
+            return;
+          }
+        } catch (e) {
+          console.error("Lỗi lấy lịch sử AI:", e);
+        }
+        if (this.messages.length === 0) {
+          this.messages = [
+            {
+              id: 'ai_welcome',
+              sender_id: 'ai_assistant',
+              content: 'Xin chào! Tôi là Trợ lý AI của SportGo. Bạn cần hỗ trợ tìm kiếm sân đấu, tư vấn khung giờ chơi hay giải đáp thắc mắc nào hôm nay?',
+              created_at: new Date().toISOString(),
+            },
+          ];
+        }
+        return;
+      }
       if (showLoader) this.loadingMessages = true;
       try {
         const response = await chatService.getMessages(this.activeConversation.id);
@@ -1965,9 +2025,55 @@ export default {
     },
 
     async submitMessage() {
-      if ((!this.newMessage.trim() && this.selectedImageFiles.length === 0) || !this.activeConversation) return;
-
       const content = this.newMessage.trim();
+      if (!content && this.selectedImageFiles.length === 0) return;
+
+      // Handle AI Assistant conversation
+      if (this.activeConversation?.id === 'ai_assistant') {
+        const userMsg = {
+          id: 'user_' + Date.now(),
+          sender_id: this.currentUser?.id || 'me',
+          content: content,
+          created_at: new Date().toISOString(),
+        };
+        this.messages.push(userMsg);
+        this.newMessage = '';
+        this.scrollToBottom();
+
+        this.sendingAi = true;
+        try {
+          const res = await chatService.askAiAssistant({
+            prompt: content,
+            booking_id: this.$route.query.booking_id || null,
+          });
+
+          const replyText = res?.reply || res?.data?.reply;
+          if (replyText) {
+            this.messages.push({
+              id: 'ai_' + Date.now(),
+              sender_id: 'ai_assistant',
+              content: replyText,
+              created_at: new Date().toISOString(),
+            });
+          } else if (res?.messages && Array.isArray(res.messages) && res.messages.length > 0) {
+            this.messages = res.messages;
+          }
+          this.scrollToBottom();
+        } catch (err) {
+          console.error("Lỗi AI Assistant:", err);
+          this.messages.push({
+            id: 'ai_err_' + Date.now(),
+            sender_id: 'ai_assistant',
+            content: 'Lỗi kết nối AI: ' + (err?.message || err),
+            created_at: new Date().toISOString(),
+          });
+          this.scrollToBottom();
+        } finally {
+          this.sendingAi = false;
+        }
+        return;
+      }
+
       const filesToSend = [...this.selectedImageFiles];
       const replyToId = this.replyTarget?.id || null;
 
