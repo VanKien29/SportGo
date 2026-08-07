@@ -346,12 +346,22 @@ async function toggleLike(post) {
   if (post.likes_available === false) { toast.info('Tính năng thích đang tạm thời chưa khả dụng.'); return; }
   if (likingPostIds.has(post.id)) return;
 
+  const previousLiked = Boolean(post.is_liked);
+  const previousCount = Number(post.like_count || 0);
+  const nextLiked = !previousLiked;
+
+  // Update the feed immediately. The API response below remains authoritative
+  // and will reconcile the optimistic state when it arrives.
+  post.is_liked = nextLiked;
+  post.like_count = Math.max(0, previousCount + (nextLiked ? 1 : -1));
   likingPostIds.add(post.id);
   try {
     const response = await api(`/api/venue-posts/${postKey(post)}/likes`, { method: 'POST' });
     post.is_liked = Boolean(response.data?.is_liked);
     post.like_count = Number(response.data?.like_count ?? post.like_count ?? 0);
   } catch (requestError) {
+    post.is_liked = previousLiked;
+    post.like_count = previousCount;
     toast.error(requestError.message || 'Không thể cập nhật lượt thích.');
   } finally {
     likingPostIds.delete(post.id);

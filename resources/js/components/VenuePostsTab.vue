@@ -339,12 +339,22 @@ async function toggleLike(post) {
     return;
   }
   if (likingPostId.value === post.id) return;
+
+  const previousLiked = Boolean(post.is_liked);
+  const previousCount = Number(post.like_count || 0);
+  const nextLiked = !previousLiked;
+
+  // Reflect the action immediately; reconcile with the persisted result below.
+  post.is_liked = nextLiked;
+  post.like_count = Math.max(0, previousCount + (nextLiked ? 1 : -1));
   likingPostId.value = post.id;
   try {
     const response = await api(`/api/venue-posts/${post.entity_id || post.id}/likes`, { method: 'POST' });
     post.is_liked = Boolean(response.data?.is_liked);
     post.like_count = Number(response.data?.like_count ?? post.like_count ?? 0);
   } catch (requestError) {
+    post.is_liked = previousLiked;
+    post.like_count = previousCount;
     toast.error(requestError.message || 'Không thể cập nhật lượt thích.');
   } finally {
     likingPostId.value = null;
@@ -508,5 +518,4 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleKeydown);
 });
 </script>
-
 
