@@ -34,33 +34,14 @@
         <div class="nav-links">
           <router-link to="/" class="nav-link" exact-active-class="active-link">Trang chủ</router-link>
           <router-link to="/venues" class="nav-link" active-class="active-link">Tìm sân</router-link>
-          <a href="/#sports" class="nav-link">Môn thể thao</a>
+          <router-link to="/map" class="nav-link" active-class="active-link">Bản đồ</router-link>
           <router-link to="/news" class="nav-link" active-class="active-link">Tin tức</router-link>
           <router-link to="/community" class="nav-link" active-class="active-link">Cộng đồng</router-link>
-          <router-link to="/become-partner" class="nav-link" active-class="active-link">Chủ sân</router-link>
           <a href="/#support" class="nav-link">Hỗ trợ</a>
-          <router-link
-            v-if="user && user.role === 'user'"
-            to="/bookings"
-            class="nav-link"
-            active-class="active-link"
-          >
-            Lịch đặt sân
-          </router-link>
         </div>
       </div>
 
       <div class="navbar-right">
-        <router-link to="/become-partner" class="hotline owner-entry">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01"/>
-          </svg>
-          <span>
-            <strong>Chủ sân</strong>
-            <small>Quản lý & nhận booking</small>
-          </span>
-        </router-link>
-
         <template v-if="!user">
           <router-link to="/login" class="sg3-header__button">Đăng nhập</router-link>
         </template>
@@ -90,13 +71,14 @@
 
         <div v-if="user" class="sg3-menu-wrap sg3-account-menu">
           <button type="button" class="sg3-account-trigger" aria-label="Mở không gian tài khoản" :aria-expanded="showDropdown" @click.stop="toggleDropdown">
-            <span>{{ userInitial }}</span><ChevronDown :size="15" aria-hidden="true" />
+            <img v-if="avatarUrl" :src="avatarUrl" :alt="user.fullName || 'Ảnh đại diện'" class="sg3-trigger-avatar" />
+            <span v-else>{{ userInitial }}</span><ChevronDown :size="15" aria-hidden="true" />
           </button>
 
           <transition name="dd">
             <div v-if="showDropdown" class="dropdown" @mouseenter="cancelHide" @mouseleave="scheduleHide">
               <div class="dropdown-header">
-                <div class="dd-avatar">{{ userInitial }}</div>
+                <div class="dd-avatar"><img v-if="avatarUrl" :src="avatarUrl" :alt="user.fullName || 'Ảnh đại diện'" /><template v-else>{{ userInitial }}</template></div>
                 <div class="dd-info">
                   <div class="dd-name">{{ user.fullName }}</div>
                   <div class="dd-role">{{ roleLabel }}</div>
@@ -127,7 +109,7 @@
 
               <router-link
                 v-if="user.role === 'user'"
-                :to="{ name: 'profile', query: { tab: 'refunds' } }"
+                to="/wallet"
                 class="dd-item"
                 @click="showDropdown = false"
               >
@@ -135,7 +117,17 @@
                   <rect x="2" y="5" width="20" height="14" rx="2"/>
                   <path d="M16 12h4M2 9h20"/>
                 </svg>
-                Số dư hoàn tiền
+                Ví SportGo
+              </router-link>
+
+              <router-link v-if="user.role === 'user'" to="/favorites/venues" class="dd-item" @click="showDropdown = false">
+                <Heart :size="18" aria-hidden="true" />
+                Sân yêu thích
+              </router-link>
+
+              <router-link to="/notifications" class="dd-item" @click="showDropdown = false">
+                <Bell :size="18" aria-hidden="true" />
+                Thông báo
               </router-link>
 
               <router-link to="/chat" class="dd-item" @click="showDropdown = false">
@@ -143,6 +135,18 @@
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
                 Trò chuyện
+              </router-link>
+
+              <div class="dd-divider"></div>
+
+              <router-link v-if="user.role === 'user'" to="/complaints" class="dd-item" @click="showDropdown = false">
+                <CircleAlert :size="18" aria-hidden="true" />
+                Khiếu nại của tôi
+              </router-link>
+
+              <router-link v-if="user.role === 'user'" to="/reports" class="dd-item" @click="showDropdown = false">
+                <Flag :size="18" aria-hidden="true" />
+                Báo cáo của tôi
               </router-link>
 
               <button
@@ -157,6 +161,13 @@
                 </svg>
                 Gửi khiếu nại
               </button>
+
+              <div class="dd-divider"></div>
+
+              <router-link v-if="user.role === 'user'" to="/vip-membership" class="dd-item" @click="showDropdown = false">
+                <Crown :size="18" aria-hidden="true" />
+                Thành viên VIP
+              </router-link>
 
               <router-link
                 v-if="user.role === 'user'"
@@ -232,29 +243,19 @@
         <router-link to="/venues" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
           Tìm sân
         </router-link>
-        <a href="/#sports" class="mobile-nav-link" @click="closeMobileNav">Môn thể thao</a>
+        <router-link to="/map" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
+          Bản đồ sân
+        </router-link>
         <router-link to="/news" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
           Tin tức
         </router-link>
         <router-link to="/community" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
           Cộng đồng
         </router-link>
-        <router-link to="/become-partner" class="mobile-nav-link" active-class="active-link" @click="closeMobileNav">
-          Chủ sân
-        </router-link>
         <a href="/#support" class="mobile-nav-link" @click="closeMobileNav">Hỗ trợ</a>
         <router-link
           v-if="user && user.role === 'user'"
-          to="/bookings"
-          class="mobile-nav-link"
-          active-class="active-link"
-          @click="closeMobileNav"
-        >
-          Lịch đặt sân
-        </router-link>
-        <router-link
-          v-if="user && user.role === 'user'"
-          :to="{ name: 'profile', query: { tab: 'refunds' } }"
+          to="/wallet"
           class="mobile-nav-link"
           active-class="active-link"
           @click="closeMobileNav"
@@ -281,7 +282,10 @@ import {
   CalendarDays,
   ChevronDown,
   CircleAlert,
+  Crown,
   FileUser,
+  Flag,
+  Heart,
   Home,
   LayoutDashboard,
   LogIn,
@@ -318,7 +322,10 @@ export default {
     ChevronDown,
     CircleAlert,
     ComplaintModal,
+    Crown,
     FileUser,
+    Flag,
+    Heart,
     Home,
     LayoutDashboard,
     LogIn,
@@ -375,6 +382,12 @@ export default {
     userInitial() {
       return this.user?.fullName?.charAt(0)?.toUpperCase() || "?";
     },
+    avatarUrl() {
+      const url = this.user?.avatar_url;
+      if (!url) return "";
+      if (/^https?:\/\//.test(url) || url.startsWith("/")) return url;
+      return `/storage/${url}`;
+    },
     roleLabel() {
       const labels = {
         admin: "Quản trị viên",
@@ -402,14 +415,16 @@ export default {
     window.addEventListener("resize", this.handleViewportResize);
     if (this.user) {
       this.fetchNotifications();
-      this.notifPollTimer = window.setInterval(this.fetchNotifications, 30000);
+      this.startNotifPolling();
+      document.addEventListener("visibilitychange", this.handleVisibility);
     }
   },
   unmounted() {
     document.removeEventListener("pointerdown", this.handleOutsidePointer);
     document.removeEventListener("keydown", this.handleEscape);
     window.removeEventListener("resize", this.handleViewportResize);
-    if (this.notifPollTimer) window.clearInterval(this.notifPollTimer);
+    this.stopNotifPolling();
+    document.removeEventListener("visibilitychange", this.handleVisibility);
   },
   methods: {
     toggleMobileNav() {
@@ -422,6 +437,22 @@ export default {
     closeMobileNav() {
       this.showMobileNav = false;
     },
+    closeAllMenus() {
+      this.showDropdown = false;
+      this.showNotifDropdown = false;
+      this.closeMobileNav();
+    },
+    toggleNotifDropdown() {
+      this.showNotifDropdown = !this.showNotifDropdown;
+      if (this.showNotifDropdown) {
+        this.showDropdown = false;
+        this.closeMobileNav();
+      }
+    },
+    handleOutsidePointer(event) {
+      const el = this.$el;
+      if (el && !el.contains(event.target)) this.closeAllMenus();
+    },
     handleEscape(event) {
       if (event.key === 'Escape') {
         this.closeMobileNav();
@@ -431,6 +462,23 @@ export default {
     },
     handleViewportResize() {
       if (window.innerWidth >= 1080) this.closeMobileNav();
+    },
+    startNotifPolling() {
+      this.stopNotifPolling();
+      this.notifPollTimer = window.setInterval(this.fetchNotifications, 120000);
+    },
+    stopNotifPolling() {
+      if (this.notifPollTimer) {
+        window.clearInterval(this.notifPollTimer);
+        this.notifPollTimer = null;
+      }
+    },
+    handleVisibility() {
+      if (document.hidden) this.stopNotifPolling();
+      else {
+        this.fetchNotifications();
+        this.startNotifPolling();
+      }
     },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
@@ -495,45 +543,45 @@ export default {
       if (typeof actionUrl === "string" && actionUrl.startsWith("/")) {
         this.$router.push(actionUrl);
         this.showNotifDropdown = false;
-      } else if (notif.reference_type === 'partner_application' && notif.reference_id) {
-        this.$router.push(`/partner-application/${notif.reference_id}`);
+      } else if (notification.reference_type === 'partner_application' && notification.reference_id) {
+        this.$router.push(`/partner-application/${notification.reference_id}`);
         this.showNotifDropdown = false;
-      } else if (notif.type === 'matchmaking_join_request') {
-        this.$router.push(`/matchmaking-posts/${notif.reference_id}/manage`);
+      } else if (notification.type === 'matchmaking_join_request') {
+        this.$router.push(`/matchmaking-posts/${notification.reference_id}/manage`);
         this.showNotifDropdown = false;
-      } else if (notif.type === 'matchmaking_join_approved' || notif.type === 'matchmaking_join_rejected') {
+      } else if (notification.type === 'matchmaking_join_approved' || notification.type === 'matchmaking_join_rejected') {
         this.$router.push('/community');
         this.showNotifDropdown = false;
-      } else if (notif.type === 'post_approved') {
-        if (notif.reference_type === 'venue_posts') {
-          if (notif.data && notif.data.slug) {
-            this.$router.push(`/community/${notif.data.slug}`);
+      } else if (notification.type === 'post_approved') {
+        if (notification.reference_type === 'venue_posts') {
+          if (notification.data && notification.data.slug) {
+            this.$router.push(`/community/${notification.data.slug}`);
           } else {
             this.$router.push('/owner/venue-posts');
           }
-        } else if (notif.reference_type === 'community_posts') {
+        } else if (notification.reference_type === 'community_posts') {
           this.$router.push('/community');
-        } else if (notif.reference_type === 'system_posts') {
-          if (notif.data && notif.data.slug) {
-            this.$router.push(`/news/${notif.data.slug}`);
+        } else if (notification.reference_type === 'system_posts') {
+          if (notification.data && notification.data.slug) {
+            this.$router.push(`/news/${notification.data.slug}`);
           } else {
             this.$router.push('/news');
           }
         }
-      } else if (notif.type === 'report_processed') {
-        if (notif.data && notif.data.target_type && (notif.data.target_type.includes('comment') || notif.data.target_type.includes('post'))) {
-          if (notif.data.post_slug) {
-            let url = `/community/${notif.data.post_slug}`;
-            if (notif.data.target_type.includes('comment') && notif.data.target_id) {
-              url += `?open_comment=${notif.data.target_id}`;
+      } else if (notification.type === 'report_processed') {
+        if (notification.data && notification.data.target_type && (notification.data.target_type.includes('comment') || notification.data.target_type.includes('post'))) {
+          if (notification.data.post_slug) {
+            let url = `/community/${notification.data.post_slug}`;
+            if (notification.data.target_type.includes('comment') && notification.data.target_id) {
+              url += `?open_comment=${notification.data.target_id}`;
             }
             this.$router.push(url);
           }
         }
         this.showNotifDropdown = false;
-      } else if (['post_like', 'post_comment', 'comment_reply'].includes(notif.type)) {
-        if (notif.data && notif.data.slug) {
-          this.$router.push(`/community/${notif.data.slug}`);
+      } else if (['post_like', 'post_comment', 'comment_reply'].includes(notification.type)) {
+        if (notification.data && notification.data.slug) {
+          this.$router.push(`/community/${notification.data.slug}`);
         } else {
           this.$router.push('/community');
         }

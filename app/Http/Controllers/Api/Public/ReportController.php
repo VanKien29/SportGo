@@ -24,6 +24,32 @@ class ReportController extends Controller
         'venue' => VenueCluster::class,
     ];
 
+    public function index(Request $request)
+    {
+        $reports = Report::query()
+            ->where('reporter_id', $request->user()->id)
+            ->with(['evidence', 'reviewedBy:id,username,full_name'])
+            ->latest('created_at')
+            ->paginate(12);
+
+        return response()->json([
+            'data' => $reports->getCollection()->map(fn (Report $report) => $this->clientPayload($report))->values(),
+            'current_page' => $reports->currentPage(),
+            'last_page' => $reports->lastPage(),
+            'total' => $reports->total(),
+        ]);
+    }
+
+    public function show(Request $request, string $id)
+    {
+        $report = Report::query()
+            ->where('reporter_id', $request->user()->id)
+            ->with(['evidence', 'reviewedBy:id,username,full_name'])
+            ->findOrFail($id);
+
+        return response()->json(['data' => $this->clientPayload($report)]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -91,5 +117,27 @@ class ReportController extends Controller
             'message' => 'Báo cáo của bạn đã được ghi nhận. Cảm ơn bạn đã đóng góp cho cộng đồng.',
             'data' => $report->load('evidence')
         ], 201);
+    }
+
+    private function clientPayload(Report $report): array
+    {
+        return [
+            'id' => $report->id,
+            'target_type' => array_search($report->reportable_type, self::TARGET_TYPES, true) ?: class_basename($report->reportable_type),
+            'target_id' => $report->reportable_id,
+            'reason' => $report->reason,
+            'description' => $report->description,
+            'status' => $report->status,
+            'action_taken' => $report->action_taken,
+            'action_note' => $report->action_note,
+            'reviewed_by' => $report->reviewedBy?->full_name ?? $report->reviewedBy?->username,
+            'reviewed_at' => $report->reviewed_at,
+            'created_at' => $report->created_at,
+            'evidence' => $report->evidence->map(fn ($media) => [
+                'id' => $media->id,
+                'file_name' => $media->file_name,
+                'file_path' => $media->file_path,
+            ])->values(),
+        ];
     }
 }

@@ -28,6 +28,10 @@
             <p>Duyệt người chơi phù hợp với buổi giao lưu của bạn.</p>
           </div>
           <span class="post-status" :class="`post-status--${displayPostStatus}`">{{ postStatusLabel }}</span>
+          <div class="manage-actions">
+            <button v-if="canManagePost" type="button" class="sg-client-button" @click="openEditor"><AppIcon name="pencil" size="16" /> Sửa bài</button>
+            <button v-if="canManagePost" type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="closePost"><AppIcon name="close" size="16" /> Đóng tuyển</button>
+          </div>
         </header>
 
         <section class="booking-summary" aria-label="Thông tin buổi giao lưu">
@@ -44,6 +48,18 @@
             <span><small>Còn cần</small><strong>{{ post.needed_players }} người</strong></span>
           </article>
         </section>
+
+        <form v-if="editing" class="post-editor sg-client-card" @submit.prevent="savePost">
+          <div>
+            <h2>Chỉnh sửa nội dung</h2>
+            <p>Cập nhật mô tả để người chơi hiểu rõ trình độ và nội dung giao lưu.</p>
+          </div>
+          <textarea v-model.trim="editContent" class="sg-client-input" rows="4" minlength="10" maxlength="2000" required></textarea>
+          <div class="post-editor-actions">
+            <button type="button" class="sg-client-button" @click="editing = false">Hủy</button>
+            <button type="submit" class="sg-client-button sg-client-button--primary" :disabled="savingPost">{{ savingPost ? 'Đang lưu...' : 'Lưu thay đổi' }}</button>
+          </div>
+        </form>
 
         <aside class="decision-guide" :class="{ 'decision-guide--locked': !canApprove }">
           <AppIcon :name="canApprove ? 'circleCheck' : 'alert'" size="20" />
@@ -203,22 +219,40 @@ const processingId = ref(null);
 const processingAction = ref('');
 const confirmRejectId = ref(null);
 const activeFilter = ref('all');
+const editing = ref(false);
+const editContent = ref('');
+const savingPost = ref(false);
 
-const bookingStartAt = computed(() => {
-  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+function parseBookingAt(dateValue, timeValue) {
+  const dateMatch = String(dateValue || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  const timeMatch = String(timeValue || '').match(/(\d{1,2}):(\d{2})/);
+  if (!dateMatch || !timeMatch) return null;
+  const [, year, month, day] = dateMatch;
+  const [, hour, minute] = timeMatch;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const fallbackBookingAt = computed(() => {
+  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(?:(\d{1,2}):(\d{2})\s*·\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
   if (!match) return null;
-  const [, hour, minute, day, month, year] = match;
+  const [, hour, minute, , , day, month, year] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
   return Number.isNaN(date.getTime()) ? null : date;
 });
 
+const bookingStartAt = computed(() => parseBookingAt(post.value?.booking_date, post.value?.start_time) || fallbackBookingAt.value);
+const bookingEndAt = computed(() => parseBookingAt(post.value?.booking_date, post.value?.end_time) || bookingStartAt.value);
+
 const isSessionExpired = computed(() => Boolean(
-  bookingStartAt.value && bookingStartAt.value.getTime() <= Date.now(),
+  bookingEndAt.value && bookingEndAt.value.getTime() <= Date.now(),
 ));
 
 const canApprove = computed(() => post.value?.status === 'open'
   && Number(post.value?.needed_players || 0) > 0
   && !isSessionExpired.value);
+
+const canManagePost = computed(() => ['open', 'full'].includes(post.value?.status) && !isSessionExpired.value);
 
 const displayPostStatus = computed(() => isSessionExpired.value ? 'expired' : post.value?.status);
 
@@ -243,6 +277,7 @@ const requestFilters = computed(() => [
   { value: 'pending', label: 'Chờ duyệt', count: requestCounts.value.pending },
   { value: 'approved', label: 'Đã đồng ý', count: requestCounts.value.approved },
   { value: 'rejected', label: 'Đã từ chối', count: requestCounts.value.rejected },
+  { value: 'cancelled', label: 'Đã hủy', count: requestCounts.value.cancelled },
 ]);
 
 const orderedParticipants = computed(() => {
@@ -267,7 +302,7 @@ const decisionGuideTitle = computed(() => {
 
 const decisionGuideMessage = computed(() => {
   if (isSessionExpired.value) {
-    return 'Không thể duyệt thêm người cho lịch đã kết thúc. Bạn vẫn có thể từ chối yêu cầu còn tồn để hoàn tất danh sách.';
+    return 'Các yêu cầu chờ duyệt đã được tự động hủy khi buổi giao lưu kết thúc. Bạn vẫn có thể xem lại toàn bộ lịch sử xử lý.';
   }
   return canApprove.value
     ? 'Khi đồng ý, số người còn cần sẽ giảm. Hãy kiểm tra hồ sơ trước khi xác nhận.'
@@ -312,6 +347,40 @@ async function updateParticipant(userId, action) {
   } finally {
     processingId.value = null;
     processingAction.value = '';
+  }
+}
+
+function openEditor() {
+  editContent.value = post.value?.description || '';
+  editing.value = true;
+}
+
+async function savePost() {
+  if (savingPost.value) return;
+  savingPost.value = true;
+  try {
+    await api(`/api/matchmaking-posts/${route.params.id}`, { method: 'PATCH', body: JSON.stringify({ content: editContent.value }) });
+    toast.success('Đã cập nhật bài giao lưu.');
+    editing.value = false;
+    await fetchParticipants(true);
+  } catch (requestError) {
+    toast.error(requestError.message || 'Không thể cập nhật bài giao lưu.');
+  } finally {
+    savingPost.value = false;
+  }
+}
+
+async function closePost() {
+  if (savingPost.value || !window.confirm('Đóng bài tuyển giao lưu này? Người chơi mới sẽ không thể gửi yêu cầu.')) return;
+  savingPost.value = true;
+  try {
+    await api(`/api/matchmaking-posts/${route.params.id}`, { method: 'DELETE' });
+    toast.success('Đã đóng bài giao lưu.');
+    await fetchParticipants(true);
+  } catch (requestError) {
+    toast.error(requestError.message || 'Không thể đóng bài giao lưu.');
+  } finally {
+    savingPost.value = false;
   }
 }
 
@@ -390,5 +459,3 @@ function resetAndFetch() {
 watch(() => route.params.id, resetAndFetch);
 onMounted(fetchParticipants);
 </script>
-
-

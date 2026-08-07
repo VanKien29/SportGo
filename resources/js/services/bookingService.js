@@ -53,6 +53,41 @@ export const bookingService = {
     return api(`/api/bookings/recurring-groups/${encodeURIComponent(groupCode)}`);
   },
 
+  previewRecurringBooking(data) {
+    return api('/api/bookings/recurring/preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createRecurringBooking(data) {
+    return api('/api/bookings/recurring', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  changeBookingCourt(id, data) {
+    return api(`/api/bookings/${id}/court`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  rescheduleBooking(id, data) {
+    return api(`/api/bookings/${id}/reschedule`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  cancelBookingItems(id, data) {
+    return api(`/api/bookings/${id}/cancel-items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   cancelBooking(id, reason = '') {
     return api(`/api/bookings/${id}/cancel`, {
       method: 'POST',
@@ -78,6 +113,10 @@ export const bookingService = {
     });
   },
 
+  getPaymentReceipt(id) {
+    return api(`/api/payments/${id}/receipt`);
+  },
+
   getWallet() {
     return api('/api/user/wallet');
   },
@@ -89,6 +128,13 @@ export const bookingService = {
     });
     const suffix = query.toString();
     return api(`/api/refunds${suffix ? `?${suffix}` : ''}`);
+  },
+
+  requestRefund(data) {
+    return api('/api/refunds', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   getRefund(id) {

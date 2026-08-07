@@ -336,6 +336,13 @@ async function toggleLike() {
     }
     if (isSubmittingLike.value) return;
 
+    const previousLiked = Boolean(post.value.is_liked);
+    const previousCount = Number(post.value.like_count || 0);
+    const nextLiked = !previousLiked;
+
+    // Keep the detail page responsive while the server persists the toggle.
+    post.value.is_liked = nextLiked;
+    post.value.like_count = Math.max(0, previousCount + (nextLiked ? 1 : -1));
     isSubmittingLike.value = true;
     try {
         const response = await api(`/api/venue-posts/${post.value.id}/likes`, {
@@ -345,6 +352,8 @@ async function toggleLike() {
         post.value.is_liked = Boolean(result.is_liked);
         post.value.like_count = Number(result.like_count ?? post.value.like_count ?? 0);
     } catch (requestError) {
+        post.value.is_liked = previousLiked;
+        post.value.like_count = previousCount;
         showNotice(requestError.message || "Không thể cập nhật lượt thích.");
     } finally {
         isSubmittingLike.value = false;
@@ -365,8 +374,13 @@ async function submitComment() {
             method: "POST",
             body: JSON.stringify({ content: newComment.value }),
         });
-        post.value.top_level_comments = [response.data, ...comments.value];
-        post.value.comment_count = Number(post.value.comment_count || 0) + 1;
+        const createdComment = response.data || null;
+        if (createdComment) {
+            post.value.top_level_comments = [createdComment, ...comments.value];
+        }
+        post.value.comment_count = Number(
+            createdComment?.comment_count ?? Number(post.value.comment_count || 0) + 1,
+        );
         newComment.value = "";
     } catch (requestError) {
         commentError.value = requestError.message || "Không thể gửi bình luận.";

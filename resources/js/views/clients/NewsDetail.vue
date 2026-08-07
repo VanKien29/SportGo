@@ -820,25 +820,59 @@ export default {
             }
 
             if (this.isSubmittingLike) return;
+
+            const previousLiked = this.isLiked;
+            const previousCount = Number(this.post.like_count || 0);
+            const previousLikers = Array.isArray(this.post.likers)
+                ? [...this.post.likers]
+                : [];
+            const nextLiked = !previousLiked;
+
+            // Reflect the click immediately. The response below reconciles
+            // the count and the current user's liker entry with the server.
+            this.post.likers = nextLiked
+                ? [
+                      ...previousLikers.filter(
+                          (liker) => liker.id !== this.currentUser.id,
+                      ),
+                      this.currentUser,
+                  ]
+                : previousLikers.filter(
+                      (liker) => liker.id !== this.currentUser.id,
+                  );
+            this.post.like_count = Math.max(
+                0,
+                previousCount + (nextLiked ? 1 : -1),
+            );
             this.isSubmittingLike = true;
 
             try {
-                await api(`/api/venue-posts/${this.post.id}/likes`, {
+                const response = await api(`/api/venue-posts/${this.post.id}/likes`, {
                     method: "POST",
                 });
-                // Optimistic update
-                if (this.isLiked) {
-                    this.post.likers = this.post.likers.filter(
-                        (l) => l.id !== this.currentUser.id,
-                    );
-                    this.post.like_count--;
-                } else {
-                    if (!this.post.likers) this.post.likers = [];
-                    this.post.likers.unshift(this.currentUser);
-                    this.post.like_count++;
+                const result = response.data || {};
+                if (typeof result.is_liked === "boolean") {
+                    this.post.likers = result.is_liked
+                        ? [
+                              ...this.post.likers.filter(
+                                  (liker) => liker.id !== this.currentUser.id,
+                              ),
+                              this.currentUser,
+                          ]
+                        : this.post.likers.filter(
+                              (liker) => liker.id !== this.currentUser.id,
+                          );
                 }
+                this.post.like_count = Number(
+                    result.like_count ?? this.post.like_count ?? 0,
+                );
             } catch (error) {
+                this.post.likers = previousLikers;
+                this.post.like_count = previousCount;
                 console.error("Failed to toggle like:", error);
+                this.showToastMessage(
+                    error.message || "Không thể cập nhật lượt thích.",
+                );
             } finally {
                 this.isSubmittingLike = false;
             }

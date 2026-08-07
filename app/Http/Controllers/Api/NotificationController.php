@@ -15,11 +15,25 @@ class NotificationController extends Controller
             return response()->json(['data' => [], 'unread_count' => 0]);
         }
 
+        $perPage = min(max((int) $request->input('per_page', 15), 5), 50);
         $notifications = $user->notifications()
+            ->when($request->filled('type'), function ($query) use ($request): void {
+                $type = $request->string('type')->toString();
+                $groups = ['booking', 'refund', 'matchmaking', 'complaint', 'wallet', 'report', 'membership', 'post'];
+                if (in_array($type, $groups, true)) {
+                    $query->where('type', 'like', $type . '%');
+                } else {
+                    $query->where('type', $type);
+                }
+            })
+            ->when($request->filled('search'), function ($query) use ($request): void {
+                $keyword = '%' . $request->string('search')->toString() . '%';
+                $query->where(fn ($inner) => $inner->where('title', 'like', $keyword)->orWhere('body', 'like', $keyword));
+            })
+            ->when($request->has('read') && $request->input('read') !== '', fn ($query) => $query->where('is_read', filter_var($request->input('read'), FILTER_VALIDATE_BOOLEAN)))
             ->orderByDesc('created_at')
-            ->limit(30)
-            ->get()
-            ->map(function ($notif) {
+            ->paginate($perPage)
+            ->through(function ($notif) {
                 $actionUrl = $this->targetUrl($notif);
 
                 return [
@@ -39,7 +53,10 @@ class NotificationController extends Controller
         $unreadCount = $user->notifications()->where('is_read', false)->count();
 
         return response()->json([
-            'data' => $notifications,
+            'data' => $notifications->items(),
+            'current_page' => $notifications->currentPage(),
+            'last_page' => $notifications->lastPage(),
+            'total' => $notifications->total(),
             'unread_count' => $unreadCount,
         ]);
     }

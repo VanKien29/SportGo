@@ -131,6 +131,8 @@ class VenuePostController extends Controller
             ));
         }
 
+        $likesAvailable = Schema::hasTable('community_post_likes');
+        $commentsAvailable = Schema::hasTable('community_post_comments');
         $query = CommunityPost::with([
             'media',
             'author:id,full_name,username,avatar_url',
@@ -145,9 +147,17 @@ class VenuePostController extends Controller
                 $query->where('content', 'like', '%'.trim((string) $request->keyword).'%');
             });
 
+        if ($likesAvailable) {
+            $query->withCount('likes');
+        }
+        if ($commentsAvailable) {
+            $query->withCount([
+                'comments as visible_comment_count' => fn ($commentQuery) => $commentQuery->where('status', 'visible'),
+            ]);
+        }
+
         $paginator = $query->latest()->paginate($perPage, ['*'], 'page', $page);
         $posts = $paginator->getCollection();
-        $likesAvailable = Schema::hasTable('community_post_likes');
         $likedLookup = $this->likedLookup('community_post_likes', $posts->pluck('id'), $userId);
         $authorBadges = $this->authorBadges->lookup($posts->pluck('author_id'));
         $paginator->setCollection($posts->map(
@@ -402,7 +412,7 @@ class VenuePostController extends Controller
             ], 422);
         }
 
-        $commentId = DB::transaction(function () use (
+        $commentResult = DB::transaction(function () use (
             $commentTable,
             $postForeignKey,
             $post,
@@ -427,8 +437,12 @@ class VenuePostController extends Controller
                 ->count();
             $post->update(['comment_count' => $commentCount]);
 
-            return $newCommentId;
+            return [
+                'id' => $newCommentId,
+                'comment_count' => $commentCount,
+            ];
         });
+        $commentId = $commentResult['id'];
         $commentAuthor = $request->user()->only(['id', 'full_name', 'username', 'avatar_url']);
         $commentAuthor['author_badges'] = $this->authorBadges
             ->lookup([$request->user()->id])[(string) $request->user()->id] ?? [];
@@ -439,6 +453,7 @@ class VenuePostController extends Controller
                 'id' => $commentId,
                 'content' => $content,
                 'created_at' => now()->toISOString(),
+                'comment_count' => $commentResult['comment_count'],
                 'user' => $commentAuthor,
             ],
         ]);
@@ -490,11 +505,24 @@ class VenuePostController extends Controller
 
     private function showCommunityPost(int $id)
     {
-        $post = CommunityPost::with([
+        $likesAvailable = Schema::hasTable('community_post_likes');
+        $commentsAvailable = Schema::hasTable('community_post_comments');
+        $postQuery = CommunityPost::with([
             'media',
             'author:id,full_name,username,avatar_url',
             'hashtags',
-        ])->findOrFail($id);
+        ]);
+
+        if ($likesAvailable) {
+            $postQuery->withCount('likes');
+        }
+        if ($commentsAvailable) {
+            $postQuery->withCount([
+                'comments as visible_comment_count' => fn ($commentQuery) => $commentQuery->where('status', 'visible'),
+            ]);
+        }
+
+        $post = $postQuery->findOrFail($id);
 
         if ($post->status !== 'published') {
             abort(403, 'Bài viết không tồn tại hoặc chưa được xuất bản.');
@@ -515,7 +543,6 @@ class VenuePostController extends Controller
                 ->get();
         }
 
-        $likesAvailable = Schema::hasTable('community_post_likes');
         $userId = auth('sanctum')->id();
         $likedLookup = $this->likedLookup('community_post_likes', collect([$post->id]), $userId);
         $authorBadges = $this->authorBadges->lookup([$post->author_id]);
@@ -614,6 +641,12 @@ class VenuePostController extends Controller
         $data['published_at'] = $post->created_at;
         $data['venue_cluster_id'] = null;
         $data['venue_cluster'] = null;
+        if (array_key_exists('likes_count', $data)) {
+            $data['like_count'] = (int) $data['likes_count'];
+        }
+        if (array_key_exists('visible_comment_count', $data)) {
+            $data['comment_count'] = (int) $data['visible_comment_count'];
+        }
         $data['likes_available'] = $likesAvailable;
         $data['is_liked'] = isset($likedLookup[(string) $post->id]);
         $data['author_badges'] = $authorBadges;

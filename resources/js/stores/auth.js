@@ -31,6 +31,8 @@ function normalizeAuth(payload, existingToken = null) {
     full_name: user.full_name || user.fullName,
     email: user.email,
     phone: user.phone,
+    avatar_url: user.avatar_url,
+    email_verified_at: user.email_verified_at,
     status: user.status,
     membership_tier: user.membership_tier || payload.membership_tier || null,
     venue_memberships: user.venue_memberships || payload.venue_memberships || [],

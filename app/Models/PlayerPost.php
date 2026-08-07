@@ -45,4 +45,11 @@ class PlayerPost extends Model
     {
         return $this->belongsTo(Booking::class, 'booking_id');
     }
+
+    public function participants()
+    {
+        return $this->belongsToMany(User::class, 'player_post_participants', 'post_id', 'user_id')
+            ->withPivot(['status', 'message', 'responded_at'])
+            ->withTimestamps();
+    }
 }

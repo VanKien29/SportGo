@@ -47,14 +47,21 @@ class SystemVipService
 
     public function packagePayload(MembershipPackage $package): array
     {
+        $monthlyPrice = $package->monthly_price !== null
+            ? (int) round((float) $package->monthly_price)
+            : null;
+        $prices = $monthlyPrice !== null
+            ? $this->pricesFromMonthly($package, $monthlyPrice)
+            : ['monthly_price' => null, 'quarterly_price' => null, 'yearly_price' => null];
+
         return [
             'id' => $package->id,
             'name' => $package->name,
             'type' => $package->type,
             'label' => $this->packageLabel($package->type, $package->name),
-            'monthly_price' => $package->monthly_price !== null ? (float) $package->monthly_price : null,
-            'quarterly_price' => $package->quarterly_price !== null ? (float) $package->quarterly_price : null,
-            'yearly_price' => $package->yearly_price !== null ? (float) $package->yearly_price : null,
+            'monthly_price' => $prices['monthly_price'] !== null ? (float) $prices['monthly_price'] : null,
+            'quarterly_price' => $prices['quarterly_price'] !== null ? (float) $prices['quarterly_price'] : null,
+            'yearly_price' => $prices['yearly_price'] !== null ? (float) $prices['yearly_price'] : null,
             'voucher_count_per_month' => (int) $package->voucher_count_per_month,
             'voucher_discount_percent' => (float) $package->voucher_discount_percent,
             'voucher_min_order_amount' => (float) $package->voucher_min_order_amount,
@@ -577,10 +584,15 @@ class SystemVipService
 
     private function priceForCycle(MembershipPackage $package, string $cycle): ?float
     {
+        if ($package->monthly_price === null) {
+            return null;
+        }
+
+        $prices = $this->pricesFromMonthly($package, (int) round((float) $package->monthly_price));
         $value = match ($cycle) {
-            'monthly' => $package->monthly_price,
-            'quarterly' => $package->quarterly_price,
-            'yearly' => $package->yearly_price,
+            'monthly' => $prices['monthly_price'],
+            'quarterly' => $prices['quarterly_price'],
+            'yearly' => $prices['yearly_price'],
             default => null,
         };
 
@@ -617,6 +629,18 @@ class SystemVipService
 
     private function packageLabel(?string $type, ?string $name): string
     {
+        $name = trim((string) $name);
+        $normalizedName = Str::lower(Str::ascii($name));
+        $defaultNames = [
+            'free' => ['thuong'],
+            'saving' => ['tiet kiem'],
+            'pro' => ['pro'],
+        ];
+
+        if ($name !== '' && ! in_array($normalizedName, $defaultNames[$type] ?? [], true)) {
+            return $name;
+        }
+
         return match ($type) {
             'free' => 'Thường',
             'saving' => 'Tiết kiệm',

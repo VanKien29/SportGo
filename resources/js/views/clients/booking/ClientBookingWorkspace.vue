@@ -83,6 +83,76 @@
                         </label>
                     </div>
 
+                    <section class="booking-mode-panel" aria-label="Loại lịch đặt">
+                        <div class="booking-mode-tabs">
+                            <button type="button" :class="{ active: bookingType === 'single' }" @click="toggleBookingType('single')">
+                                <AppIcon name="calendar" :size="16" aria-hidden="true" />
+                                Đặt một buổi
+                            </button>
+                            <button type="button" :class="{ active: bookingType === 'recurring' }" @click="toggleBookingType('recurring')">
+                                <AppIcon name="rotateCcw" :size="16" aria-hidden="true" />
+                                Lịch cố định
+                            </button>
+                        </div>
+                        <div v-if="bookingType === 'recurring'" class="recurring-config-panel">
+                            <div class="recurring-config-intro">
+                                <strong>Đặt cùng khung giờ theo chu kỳ</strong>
+                                <span>Hệ thống sẽ kiểm tra từng buổi và cho phép bỏ qua ngày bị trùng.</span>
+                            </div>
+                            <label>
+                                <span>Từ ngày</span>
+                                <input v-model="recurringStartDate" class="sg-client-input" type="date" :min="today" />
+                            </label>
+                            <label>
+                                <span>Đến ngày</span>
+                                <input v-model="recurringEndDate" class="sg-client-input" type="date" :min="recurringStartDate || today" />
+                            </label>
+                            <label>
+                                <span>Chu kỳ</span>
+                                <select v-model="recurrenceType" class="sg-client-input">
+                                    <option value="daily">Mỗi ngày</option>
+                                    <option value="weekly">Mỗi tuần</option>
+                                    <option value="monthly">Mỗi tháng</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Lặp mỗi</span>
+                                <select v-model.number="recurrenceInterval" class="sg-client-input">
+                                    <option v-for="interval in 12" :key="interval" :value="interval">{{ interval }} {{ recurrenceType === 'daily' ? 'ngày' : recurrenceType === 'monthly' ? 'tháng' : 'tuần' }}</option>
+                                </select>
+                            </label>
+                            <div v-if="recurrenceType === 'weekly'" class="weekday-picker">
+                                <span>Chọn thứ</span>
+                                <div>
+                                    <label v-for="day in weekdayOptions" :key="day.value" class="weekday-chip" :class="{ active: recurringDaysOfWeek.includes(day.value) }">
+                                        <input v-model="recurringDaysOfWeek" type="checkbox" :value="day.value" />
+                                        {{ day.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div v-if="recurrenceType === 'monthly'" class="weekday-picker">
+                                <span>Ngày trong tháng</span>
+                                <div>
+                                    <label v-for="day in 31" :key="day" class="weekday-chip" :class="{ active: recurringDaysOfMonth.includes(day) }">
+                                        <input v-model="recurringDaysOfMonth" type="checkbox" :value="day" />
+                                        {{ day }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div v-if="recurringConflict" class="recurring-conflict-panel" role="alert">
+                        <div>
+                            <strong>{{ recurringConflict.conflict_count }} buổi bị trùng lịch</strong>
+                            <span>Chọn bỏ qua các buổi trùng để tạo các buổi còn lại.</span>
+                        </div>
+                        <div class="recurring-conflict-actions">
+                            <button type="button" class="sg-client-button sg-client-button--primary" :disabled="submitting" @click="submit('skip')">Bỏ qua ngày trùng</button>
+                            <button type="button" class="sg-client-button" @click="recurringConflict = null">Chọn lại</button>
+                        </div>
+                    </div>
+
                     <details class="booking-guide">
                         <summary>
                             <span>
@@ -300,6 +370,22 @@ export default {
             clusterLocked: false,
             courtTypeId: "",
             bookingDate: new Date().toLocaleDateString("en-CA"),
+            bookingType: "single",
+            recurringStartDate: "",
+            recurringEndDate: "",
+            recurrenceType: "weekly",
+            recurrenceInterval: 1,
+            recurringDaysOfWeek: [],
+            recurringDaysOfMonth: [],
+            weekdayOptions: [
+                { value: 1, label: "T2" },
+                { value: 2, label: "T3" },
+                { value: 3, label: "T4" },
+                { value: 4, label: "T5" },
+                { value: 5, label: "T6" },
+                { value: 6, label: "T7" },
+                { value: 0, label: "CN" },
+            ],
             initialLoading: true,
             scheduleLoading: false,
             scheduleRequestId: 0,
@@ -326,6 +412,7 @@ export default {
             submitting: false,
             submitError: "",
             routeSelection: null,
+            recurringConflict: null,
         };
     },
     computed: {
@@ -525,7 +612,7 @@ export default {
             return 0;
         },
         paymentOptions() {
-            return [
+            const options = [
                 this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Không cần trả trước", icon: "banknote" },
                 this.config.allow_deposit !== false && { value: "deposit", label: `Đặt cọc ${this.config.deposit_percent || 30}%`, hint: "Giữ sân bằng tiền cọc", icon: "creditCard" },
                 this.config.allow_full_payment !== false && { value: "full_payment", label: "Thanh toán toàn bộ", hint: "Thanh toán online 100%", icon: "qrCode" },
@@ -537,6 +624,10 @@ export default {
                     disabled: this.walletBalance < this.total,
                 },
             ].filter(Boolean);
+
+            return this.bookingType === "recurring"
+                ? options.filter(option => ["full_payment", "no_prepay"].includes(option.value))
+                : options;
         },
         canSubmit() {
             return this.available && !this.validationError && this.paymentOption && !this.submitting;
@@ -654,6 +745,9 @@ export default {
                 this.clusterLocked = Boolean(requested);
                 const requestedDate = String(query.booking_date || query.date || this.today);
                 this.bookingDate = requestedDate >= this.today ? requestedDate : this.today;
+                this.recurringStartDate = this.bookingDate;
+                this.recurringEndDate = this.addDays(this.bookingDate, 28);
+                this.recurringDaysOfWeek = [new Date(`${this.bookingDate}T00:00:00`).getDay()];
                 this.courtTypeId = String(query.court_type_id || query.court_type || "");
                 this.routeSelection = query.venue_court_id || query.court
                     ? {
@@ -724,6 +818,11 @@ export default {
         },
         async changeDate() {
             this.clearSelection();
+            if (!this.recurringStartDate || this.bookingType === "recurring") {
+                this.recurringStartDate = this.bookingDate;
+                if (!this.recurringEndDate || this.recurringEndDate < this.bookingDate) this.recurringEndDate = this.addDays(this.bookingDate, 28);
+                if (!this.recurringDaysOfWeek.length) this.recurringDaysOfWeek = [new Date(`${this.bookingDate}T00:00:00`).getDay()];
+            }
             await this.loadSchedule();
         },
         async changeCourtType() {
@@ -939,6 +1038,49 @@ export default {
             const allowed = this.paymentOptions.map(item => item.value);
             if (!allowed.includes(this.paymentOption)) this.paymentOption = allowed[0] || "full_payment";
         },
+        toggleBookingType(type) {
+            this.bookingType = type;
+            this.recurringConflict = null;
+            if (type === "recurring") {
+                this.recurringStartDate = this.recurringStartDate || this.bookingDate;
+                this.recurringEndDate = this.recurringEndDate || this.addDays(this.recurringStartDate, 28);
+                if (!this.recurringDaysOfWeek.length) this.recurringDaysOfWeek = [new Date(`${this.recurringStartDate}T00:00:00`).getDay()];
+                this.paymentOption = ["full_payment", "no_prepay"].includes(this.paymentOption) ? this.paymentOption : "no_prepay";
+            }
+            this.ensurePaymentOption();
+        },
+        recurringPayload(conflictResolution = null) {
+            const ranges = this.selectedSlotRanges.map(range => ({
+                venue_court_id: range.venue_court_id,
+                start_time: range.start_time,
+                end_time: range.end_time,
+            }));
+            return {
+                venue_cluster_id: this.clusterId,
+                venue_court_id: ranges[0]?.venue_court_id,
+                recurring_start_date: this.recurringStartDate,
+                recurring_end_date: this.recurringEndDate,
+                recurrence_type: this.recurrenceType,
+                recurrence_interval: this.recurrenceInterval,
+                recurrence_days_of_week: this.recurrenceType === "weekly" ? this.recurringDaysOfWeek : [],
+                recurrence_days_of_month: this.recurrenceType === "monthly" ? this.recurringDaysOfMonth : [],
+                start_time: ranges[0]?.start_time,
+                end_time: ranges[ranges.length - 1]?.end_time,
+                time_ranges: ranges,
+                weekday_time_ranges: this.recurrenceType === "weekly"
+                    ? this.recurringDaysOfWeek.map(day => ({ day_of_week: day, time_ranges: ranges }))
+                    : [],
+                payment_option: this.paymentOption,
+                venue_voucher_id: this.venueVoucher?.id || null,
+                vip_voucher_id: this.vipVoucher?.id || null,
+                ...(conflictResolution ? { conflict_resolution: conflictResolution } : {}),
+            };
+        },
+        addDays(value, days) {
+            const date = new Date(`${value}T00:00:00`);
+            date.setDate(date.getDate() + days);
+            return date.toLocaleDateString("en-CA");
+        },
         async applyRouteSelection() {
             if (!this.routeSelection) return;
             const court = this.courts.find(item => String(item.id) === String(this.routeSelection.courtId));
@@ -954,11 +1096,38 @@ export default {
             this.setActivePeriodByIndex(selection[0]);
             await this.checkAvailability();
         },
-        async submit() {
+        async submit(conflictResolution = null) {
             if (!this.canSubmit) return;
             this.submitting = true;
             this.submitError = "";
             try {
+                if (this.bookingType === "recurring") {
+                    const payload = this.recurringPayload(conflictResolution);
+                    if (!payload.recurring_start_date || !payload.recurring_end_date || payload.recurring_end_date < payload.recurring_start_date) {
+                        throw new Error("Vui lòng chọn khoảng ngày hợp lệ cho lịch cố định.");
+                    }
+                    if (this.recurrenceType === "weekly" && !this.recurringDaysOfWeek.length) {
+                        throw new Error("Vui lòng chọn ít nhất một thứ trong tuần.");
+                    }
+                    if (this.recurrenceType === "monthly" && !this.recurringDaysOfMonth.length) {
+                        throw new Error("Vui lòng chọn ít nhất một ngày trong tháng.");
+                    }
+                    if (!conflictResolution) {
+                        const preview = await bookingService.previewRecurringBooking(payload);
+                        if (Number(preview.data?.conflict_count || 0) > 0) {
+                            this.recurringConflict = preview.data;
+                            return;
+                        }
+                    }
+                    const response = await bookingService.createRecurringBooking({ ...payload, conflict_resolution: conflictResolution || "abort" });
+                    const groupCode = response.data?.recurring_group_code;
+                    if (groupCode) {
+                        this.$router.push({ name: "booking-recurring-group", params: { groupCode } });
+                    } else {
+                        this.$router.push({ name: "booking-history" });
+                    }
+                    return;
+                }
                 const ranges = this.selectedSlotRanges.map(range => ({
                     venue_court_id: range.venue_court_id,
                     start_time: range.start_time,
@@ -1054,5 +1223,3 @@ export default {
     },
 };
 </script>
-
-

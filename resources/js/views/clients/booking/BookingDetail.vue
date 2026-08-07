@@ -37,6 +37,14 @@
                             <AppIcon name="messageSquare" aria-hidden="true" />
                             Gửi khiếu nại
                         </router-link>
+                        <button v-if="canRequestRefund" type="button" class="sg-client-button refund-request-link" @click="openRefundRequest">
+                            <AppIcon name="rotateCcw" aria-hidden="true" />
+                            Yêu cầu hoàn tiền
+                        </button>
+                        <button v-if="canEditSchedule" type="button" class="sg-client-button" @click="openScheduleEditor">
+                            <AppIcon name="pencil" aria-hidden="true" />
+                            Đổi lịch / đổi sân
+                        </button>
                     </div>
                 </header>
 
@@ -50,6 +58,31 @@
                         <p>{{ statusDescription }}</p>
                     </div>
                     <span class="badge" :class="booking.status">{{ statusLabel }}</span>
+                </section>
+
+                <section v-if="booking.matchmaking" class="booking-social-banner sg-client-card">
+                    <span class="booking-social-banner__icon"><AppIcon name="users" :size="21" /></span>
+                    <div><span class="eyebrow sg-client-eyebrow">Tuyển giao lưu</span><h2>Đã ghép {{ booking.matchmaking.approved_players }}/{{ booking.matchmaking.total_players }} người</h2><p>Còn cần {{ booking.matchmaking.needed_players }} người cho buổi chơi này. Bạn có thể xem và xử lý danh sách yêu cầu.</p></div>
+                    <router-link class="sg-client-button sg-client-button--primary" :to="`/matchmaking-posts/${booking.matchmaking.id}/manage`">Quản lý danh sách <AppIcon name="arrowRight" :size="15" /></router-link>
+                </section>
+
+                <section v-if="showScheduleEditor" class="schedule-edit-panel sg-client-card">
+                    <header>
+                        <div>
+                            <span class="eyebrow sg-client-eyebrow">Điều chỉnh booking</span>
+                            <h2>Đổi sân hoặc khung giờ</h2>
+                        </div>
+                        <button type="button" class="sg-client-button" @click="closeScheduleEditor">Đóng</button>
+                    </header>
+                    <div class="schedule-edit-grid">
+                        <label><span>Sân</span><select v-model="editForm.venue_court_id" class="sg-client-input"><option v-for="court in editCourtOptions" :key="court.id" :value="court.id">{{ court.name }} · {{ court.court_type?.name || 'Sân thể thao' }}</option></select></label>
+                        <label><span>Ngày chơi</span><input v-model="editForm.booking_date" class="sg-client-input" type="date" :min="today" /></label>
+                        <label><span>Bắt đầu</span><input v-model="editForm.start_time" class="sg-client-input" type="time" step="1800" /></label>
+                        <label><span>Kết thúc</span><input v-model="editForm.end_time" class="sg-client-input" type="time" step="1800" /></label>
+                        <label class="schedule-edit-reason"><span>Lý do điều chỉnh</span><textarea v-model.trim="editForm.reason" class="sg-client-input" rows="3" maxlength="1000" placeholder="Nêu lý do để lưu lại lịch sử thay đổi"></textarea></label>
+                    </div>
+                    <p v-if="editError" class="error-msg">{{ editError }}</p>
+                    <button type="button" class="sg-client-button sg-client-button--primary" :disabled="editingSchedule" @click="saveScheduleEdit">{{ editingSchedule ? 'Đang cập nhật...' : 'Lưu thay đổi' }}</button>
                 </section>
 
                 <div class="detail-grid">
@@ -95,14 +128,20 @@
                             </dl>
 
                             <div v-if="booking.items?.length" class="booking-items-list">
-                                <h3>Các khung giờ trong booking</h3>
+                                <div class="booking-items-heading"><h3>Các khung giờ trong booking</h3><span v-if="canCancelItems" class="booking-items-hint">Chọn khung muốn hủy</span></div>
                                 <article v-for="item in booking.items" :key="item.id" class="booking-item-row">
                                     <div>
+                                        <input v-if="canCancelItems" v-model="selectedCancelItemIds" type="checkbox" :value="item.id" :disabled="!['active', 'moved'].includes(item.status || 'active')" aria-label="Chọn khung giờ" />
                                         <strong>{{ item.venue_court?.name || "Sân" }}</strong>
                                         <span>{{ formatTime(item.start_time) }} - {{ formatTime(item.end_time) }}</span>
                                     </div>
                                     <span class="badge" :class="item.status">{{ itemStatusLabel(item.status) }}</span>
                                 </article>
+                                <div v-if="canCancelItems && selectedCancelItemIds.length" class="partial-cancel-box">
+                                    <textarea v-model.trim="partialCancelReason" class="sg-client-input" rows="2" maxlength="1000" placeholder="Lý do hủy các khung đã chọn"></textarea>
+                                    <p v-if="partialError" class="error-msg">{{ partialError }}</p>
+                                    <button type="button" class="sg-client-button" :disabled="partialSubmitting" @click="cancelSelectedItems">{{ partialSubmitting ? 'Đang xử lý...' : 'Hủy các khung đã chọn' }}</button>
+                                </div>
                             </div>
                         </article>
 
@@ -155,8 +194,11 @@
                                     <span>{{ payment.method === "wallet" ? "Ví SportGo" : payment.method === "sepay" ? "Chuyển khoản" : payment.method }}</span>
                                     <strong>{{ formatCurrency(payment.amount) }}</strong>
                                     <small>{{ paymentStatusLabel(payment.status) }}</small>
+                                    <button v-if="payment.status === 'paid'" type="button" class="payment-receipt-link" @click="openPaymentReceipt(payment)">Biên lai</button>
+                                    <button v-else-if="payment.status === 'failed' && booking.status === 'pending_payment'" type="button" class="payment-receipt-link" @click="createSepayPayment">Thanh toán lại</button>
                                 </div>
                             </div>
+                            <p v-if="receiptError" class="error-msg">{{ receiptError }}</p>
 
                             <div v-if="booking.status === 'pending_payment'" class="sepay-box">
                                 <button
@@ -307,6 +349,15 @@
             @close="closeCancelBookingModal"
             @confirm="cancelBooking"
         />
+
+        <RefundRequestModal
+            :is-open="showRefundRequestModal"
+            :booking="booking"
+            :loading="requestingRefund"
+            :error="refundRequestError"
+            @close="closeRefundRequest"
+            @submit="submitRefundRequest"
+        />
     </div>
 </template>
 
@@ -314,11 +365,12 @@
 import AppIcon from "../../../components/AppIcon.vue";
 import ConfirmActionModal from "../../../components/ConfirmActionModal.vue";
 import PublicNavbar from "../../../components/PublicNavbar.vue";
+import RefundRequestModal from "../../../components/RefundRequestModal.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
     name: "BookingDetail",
-    components: { AppIcon, ConfirmActionModal, PublicNavbar },
+    components: { AppIcon, ConfirmActionModal, PublicNavbar, RefundRequestModal },
     data() {
         return {
             booking: null,
@@ -337,9 +389,24 @@ export default {
             showCancelBookingModal: false,
             loadingCancelPreview: false,
             cancelPreviewData: null,
+            showRefundRequestModal: false,
+            requestingRefund: false,
+            refundRequestError: "",
+            showScheduleEditor: false,
+            editingSchedule: false,
+            editError: "",
+            editForm: { venue_court_id: "", booking_date: "", start_time: "", end_time: "", reason: "" },
+            selectedCancelItemIds: [],
+            partialCancelReason: "",
+            partialSubmitting: false,
+            partialError: "",
+            receiptError: "",
         };
     },
     computed: {
+        today() {
+            return new Date().toLocaleDateString("en-CA");
+        },
         formattedTimer() {
             const totalSeconds = Math.max(
                 0,
@@ -455,12 +522,29 @@ export default {
             if (courtTypeId) query.court_type_id = courtTypeId;
             return { name: "booking-create", query };
         },
+        editCourtOptions() {
+            return this.venueCluster?.venue_courts || [];
+        },
+        canEditSchedule() {
+            return ["pending_approval", "pending_payment"].includes(this.booking?.status)
+                && !(this.booking?.payments || []).some(payment => payment.status === "paid");
+        },
+        canCancelItems() {
+            const activeCount = (this.booking?.items || []).filter(item => ["active", "moved"].includes(item.status || "active")).length;
+            return activeCount > 1 && ["confirmed", "pending_approval", "pending_payment"].includes(this.booking?.status);
+        },
         canRequestCancellation() {
             if (!["pending_approval", "confirmed"].includes(this.booking?.status)) return false;
             const date = String(this.booking?.booking_date || "").split("T")[0];
             const time = String(this.booking?.start_time || "").slice(0, 5);
             const startsAt = new Date(`${date}T${time}:00`);
             return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
+        },
+        canRequestRefund() {
+            if (!this.booking || !['cancelled', 'rejected'].includes(this.booking.status)) return false;
+            if (Number(this.booking.paid_amount || 0) <= 0) return false;
+            const blockingStatuses = ['pending_owner_confirmation', 'owner_confirmed', 'admin_processing', 'processing', 'completed', 'completed_cash'];
+            return !(this.booking.refunds || []).some((refund) => blockingStatuses.includes(refund.status));
         },
         cancelDescription() {
             if (this.loadingCancelPreview) return "Đang kiểm tra chính sách hủy và số tiền dự kiến hoàn...";
@@ -550,6 +634,20 @@ export default {
                 this.creatingSepay = false;
             }
         },
+        async openPaymentReceipt(payment) {
+            if (!payment?.id) return;
+            this.receiptError = "";
+            try {
+                const response = await bookingService.getPaymentReceipt(payment.id);
+                if (response.receipt?.view_url) {
+                    window.open(response.receipt.view_url, "_blank", "noopener,noreferrer");
+                    return;
+                }
+                this.receiptError = "Biên lai đang được chuẩn bị.";
+            } catch (error) {
+                this.receiptError = error.message || "Không thể mở biên lai.";
+            }
+        },
         async refreshBookingStatus() {
             if (!this.booking) return;
 
@@ -628,6 +726,86 @@ export default {
                 this.cancellingBooking = false;
             }
         },
+        openRefundRequest() {
+            this.refundRequestError = "";
+            this.showRefundRequestModal = true;
+        },
+        openScheduleEditor() {
+            const item = this.booking?.items?.[0];
+            this.editForm = {
+                venue_court_id: item?.venue_court_id || this.booking?.venue_court_id || "",
+                booking_date: String(this.booking?.booking_date || "").split("T")[0],
+                start_time: String(item?.start_time || this.booking?.start_time || "").slice(0, 5),
+                end_time: String(item?.end_time || this.booking?.end_time || "").slice(0, 5),
+                reason: "Khách hàng muốn điều chỉnh lịch chơi",
+            };
+            this.editError = "";
+            this.showScheduleEditor = true;
+        },
+        closeScheduleEditor() {
+            if (this.editingSchedule) return;
+            this.showScheduleEditor = false;
+            this.editError = "";
+        },
+        async saveScheduleEdit() {
+            if (!this.booking || this.editingSchedule) return;
+            this.editingSchedule = true;
+            this.editError = "";
+            try {
+                await bookingService.rescheduleBooking(this.booking.id, {
+                    ...this.editForm,
+                    start_time: `${this.editForm.start_time}:00`,
+                    end_time: `${this.editForm.end_time}:00`,
+                });
+                this.showScheduleEditor = false;
+                await this.loadBooking();
+            } catch (error) {
+                this.editError = error.message || "Không thể đổi lịch booking.";
+            } finally {
+                this.editingSchedule = false;
+            }
+        },
+        async cancelSelectedItems() {
+            if (!this.booking || !this.selectedCancelItemIds.length || this.partialSubmitting) return;
+            if (!this.partialCancelReason || this.partialCancelReason.length < 5) {
+                this.partialError = "Vui lòng nhập lý do hủy tối thiểu 5 ký tự.";
+                return;
+            }
+            this.partialSubmitting = true;
+            this.partialError = "";
+            try {
+                await bookingService.cancelBookingItems(this.booking.id, {
+                    booking_item_ids: this.selectedCancelItemIds,
+                    reason: this.partialCancelReason,
+                });
+                this.selectedCancelItemIds = [];
+                this.partialCancelReason = "";
+                await this.loadBooking();
+            } catch (error) {
+                this.partialError = error.message || "Không thể hủy các khung đã chọn.";
+            } finally {
+                this.partialSubmitting = false;
+            }
+        },
+        closeRefundRequest() {
+            if (this.requestingRefund) return;
+            this.showRefundRequestModal = false;
+            this.refundRequestError = "";
+        },
+        async submitRefundRequest(payload) {
+            if (this.requestingRefund) return;
+            this.requestingRefund = true;
+            this.refundRequestError = "";
+            try {
+                await bookingService.requestRefund(payload);
+                this.showRefundRequestModal = false;
+                await this.loadBooking();
+            } catch (error) {
+                this.refundRequestError = error.message || "Không thể gửi yêu cầu hoàn tiền.";
+            } finally {
+                this.requestingRefund = false;
+            }
+        },
         clearPaymentPolling() {
             if (this.paymentPollInterval) {
                 clearInterval(this.paymentPollInterval);
@@ -666,6 +844,7 @@ export default {
                 moved: "Đã đổi sân",
                 cancelled: "Đã hủy",
                 interrupted: "Bị gián đoạn",
+                cancelled_by_customer: "Khách đã hủy",
             }[status] || status || "Đang xử lý";
         },
         paymentStatusLabel(status) {
@@ -679,5 +858,3 @@ export default {
     },
 };
 </script>
-
-

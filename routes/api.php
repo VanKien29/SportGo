@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\Auth\SetPasswordController;
+use App\Http\Controllers\Api\Auth\ChangePasswordController;
 use App\Http\Controllers\Api\Owner\BookingManagementController as OwnerBookingManagementController;
 use App\Http\Controllers\Api\Owner\DashboardController as OwnerDashboardController;
 use App\Http\Controllers\Api\Owner\PartnerApplicationController as OwnerPartnerApplicationController;
@@ -100,9 +101,11 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
         Route::post('/set-password', [SetPasswordController::class, 'store']);
+        Route::post('/change-password', [ChangePasswordController::class, 'store']);
     });
 });
 
@@ -582,20 +585,44 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);
         Route::get('/bookings/recurring-groups/{groupCode}', [\App\Http\Controllers\Api\Player\BookingController::class, 'recurringGroup']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
+        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'previewRecurring']);
+        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Player\BookingController::class, 'storeRecurring']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/cancel/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelPreview']);
+        Route::post('/bookings/{id}/cancel-items', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelItems']);
+        Route::patch('/bookings/{id}/court', [\App\Http\Controllers\Api\Player\BookingController::class, 'changeCourt']);
+        Route::patch('/bookings/{id}/reschedule', [\App\Http\Controllers\Api\Player\BookingController::class, 'reschedule']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
+        Route::get('/payments/{id}/receipt', [\App\Http\Controllers\Api\Player\PaymentController::class, 'receipt']);
+
+        Route::get('/favorites/venues', [\App\Http\Controllers\Api\Player\FavoriteVenueController::class, 'index']);
+        Route::get('/favorites/venues/{venueClusterId}/status', [\App\Http\Controllers\Api\Player\FavoriteVenueController::class, 'status']);
+        Route::post('/favorites/venues/{venueClusterId}/toggle', [\App\Http\Controllers\Api\Player\FavoriteVenueController::class, 'toggle']);
+
+        Route::get('/reviews/eligible', [\App\Http\Controllers\Api\Player\ReviewController::class, 'eligible']);
+        Route::post('/reviews', [\App\Http\Controllers\Api\Player\ReviewController::class, 'store']);
+        Route::patch('/reviews/{id}', [\App\Http\Controllers\Api\Player\ReviewController::class, 'update']);
+        Route::delete('/reviews/{id}', [\App\Http\Controllers\Api\Player\ReviewController::class, 'destroy']);
 
         Route::get('/user/wallet', [\App\Http\Controllers\Api\Player\WalletController::class, 'show']);
+        Route::get('/user/wallet/payout-accounts', [\App\Http\Controllers\Api\Player\WalletController::class, 'payoutAccounts']);
+        Route::post('/user/wallet/payout-accounts', [\App\Http\Controllers\Api\Player\WalletController::class, 'storePayoutAccount']);
+        Route::delete('/user/wallet/payout-accounts/{id}', [\App\Http\Controllers\Api\Player\WalletController::class, 'deletePayoutAccount']);
+        Route::post('/user/wallet/withdrawals', [\App\Http\Controllers\Api\Player\WalletController::class, 'requestWithdrawal']);
+        Route::post('/user/wallet/withdrawals/{id}/cancel', [\App\Http\Controllers\Api\Player\WalletController::class, 'cancelWithdrawal']);
+        Route::post('/refunds', [\App\Http\Controllers\Api\Player\RefundController::class, 'store']);
         Route::get('/refunds', [\App\Http\Controllers\Api\Player\RefundController::class, 'index']);
         Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 
         // Player Matchmaking Posts
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
         Route::post('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'store'])->middleware('throttle:5,1');
+        Route::patch('/matchmaking-posts/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'update']);
+        Route::delete('/matchmaking-posts/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'close']);
         Route::post('/matchmaking-posts/{id}/join', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'join']);
+        Route::post('/matchmaking-posts/{id}/leave', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'leave']);
         
         // Matchmaking Management
         Route::get('/matchmaking-posts/{id}/participants', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'participants']);
@@ -617,6 +644,8 @@ Route::middleware('auth:sanctum')
         
         // Reports
         Route::post('/reports', [PublicReportController::class, 'store']);
+        Route::get('/reports', [PublicReportController::class, 'index']);
+        Route::get('/reports/{id}', [PublicReportController::class, 'show']);
 
         // Complaints (Player)
         Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);

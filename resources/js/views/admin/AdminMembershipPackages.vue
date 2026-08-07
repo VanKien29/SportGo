@@ -5,11 +5,57 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
+    <section v-if="!loading && packages.length" class="package-overview" aria-label="Tổng quan các gói VIP">
+      <div class="package-overview__heading">
+        <div>
+          <span>PRICING OVERVIEW</span>
+          <h2>Gói VIP hệ thống</h2>
+          <p>Kiểm tra nhanh tên gói, giá theo chu kỳ và quyền lợi trước khi chỉnh cấu hình chi tiết.</p>
+        </div>
+        <span class="package-overview__source">Dữ liệu trực tiếp từ cấu hình hệ thống</span>
+      </div>
+      <div class="package-overview__grid">
+        <article v-for="pkg in packages" :key="`overview-${pkg.id}`" class="package-overview__card" :class="`is-${pkg.type}`">
+          <header>
+            <div>
+              <span class="package-overview__eyebrow">{{ pkg.type === 'free' ? 'Mặc định' : (pkg.is_active ? 'Đang mở bán' : 'Đã tắt') }}</span>
+              <h3>{{ pkg.label || pkg.name }}</h3>
+            </div>
+            <span class="package-overview__status" :class="{ inactive: !pkg.is_active }">{{ pkg.is_active ? 'Active' : 'Inactive' }}</span>
+          </header>
+          <div class="package-overview__price">
+            <strong>{{ pkg.type === 'free' ? 'Miễn phí' : money(pkg.monthly_price) }}</strong>
+            <span v-if="pkg.type !== 'free'">/ tháng</span>
+          </div>
+          <div class="package-overview__cycles">
+            <div v-for="cycle in pkg.available_cycles" :key="cycle.key">
+              <span>{{ cycleLabel(cycle) }}</span>
+              <strong>{{ money(cycle.price) }}</strong>
+            </div>
+          </div>
+          <ul>
+            <li><strong>{{ pkg.cashback_percent }}%</strong><span>cashback booking</span></li>
+            <li><strong>{{ postLimitLabel(pkg.match_post_limit_per_month) }}</strong><span>bài giao lưu</span></li>
+            <li><strong>{{ pkg.voucher_count_per_month }}</strong><span>voucher VIP/tháng</span></li>
+            <li><strong>{{ pkg.priority_complaint ? 'Ưu tiên' : 'Tiêu chuẩn' }}</strong><span>khiếu nại</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
     <div v-if="loading" class="state-box animate-fade-in">
       <div class="spinner"></div>
       <p>Đang tải gói VIP...</p>
     </div>
-    <div v-else class="package-grid">
+    <section v-else class="package-editor">
+      <div class="package-editor__heading">
+        <div>
+          <span>CONFIGURATION</span>
+          <h2>Chỉnh sửa quyền lợi và giá</h2>
+        </div>
+        <p>Giá quý và năm được hệ thống tự tính theo giá tháng và mức giảm cố định của từng loại gói.</p>
+      </div>
+      <div class="package-grid">
       <form v-for="pkg in packages" :key="pkg.id" class="package-card" novalidate @submit.prevent="save(pkg)">
         <header>
           <div>
@@ -48,7 +94,8 @@
           {{ savingId === pkg.id ? 'Đang lưu...' : 'Lưu gói' }}
         </button>
       </form>
-    </div>
+      </div>
+    </section>
 
     <section class="voucher-section">
       <div class="section-head">
@@ -741,6 +788,16 @@ export default {
         ? `${Number(voucher.discount_value)}%`
         : this.money(voucher.discount_value);
     },
+    cycleLabel(cycle) {
+      return {
+        monthly: 'Tháng',
+        quarterly: 'Quý',
+        yearly: 'Năm',
+      }[cycle.key] || cycle.label || cycle.key;
+    },
+    postLimitLabel(value) {
+      return Number(value) < 0 ? '∞' : Number(value || 0);
+    },
     money(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
     },
@@ -756,7 +813,8 @@ export default {
 </script>
 
 <style scoped>
-.vip-admin-page{display:grid;gap:16px}.alert,.state{padding:12px 14px;border-radius:10px;font-weight: 400}.alert.error{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.alert.success{background:var(--admin-success-soft);color:var(--admin-success-text)}.state{background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-muted)}.package-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.package-card,.voucher-section{display:grid;gap:14px;padding:16px;border:1px solid var(--admin-border);border-radius:12px;background:var(--admin-surface)}.package-card header,.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.package-card h3,.section-head h3{margin:3px 0 0;color:var(--admin-text)}.package-card header span,.section-head span{color:var(--admin-success-text);font-size:11px;font-weight: 400;text-transform:uppercase}.grid,.voucher-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:grid;gap:5px;color:var(--admin-muted);font-size:12px;font-weight: 400}input,select,textarea{border:1px solid var(--admin-border);border-radius:8px;padding:0 10px;font:inherit}input,select{height:38px}textarea{padding-top:10px;resize:vertical}input[readonly]{background:var(--admin-surface-muted);color:var(--admin-text);font-weight: 400}.package-note{margin:0;border-radius:8px;background:var(--admin-surface-muted);color:var(--admin-muted);font-size:12px;font-weight: 400;line-height:1.45;padding:10px 12px}.toggle,.check{display:flex;align-items:center;gap:8px}.toggle input,.check input{width:16px;height:16px}.btn,.mini-btn{border:0;border-radius:8px;font-weight: 400;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px}.primary{background:var(--admin-primary);color:var(--admin-primary-text)}.secondary{background:var(--admin-surface-muted);color:var(--admin-text)}.danger{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.primary:disabled,.mini-btn:disabled{opacity:.55;cursor:not-allowed}.voucher-form{display:grid;gap:12px}.voucher-actions{display:flex;justify-content:flex-end;gap:10px}.voucher-table{overflow:auto;border:1px solid var(--admin-border);border-radius:10px}table{width:100%;min-width:1040px;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid var(--admin-border);text-align:left;vertical-align:middle}tbody tr:last-child td{border-bottom:0}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight: 400;background:var(--admin-border)}.badge.active{background:var(--admin-success-soft);color:var(--admin-success-text)}.badge.inactive,.badge.expired{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.badge.draft{background:var(--admin-surface-muted);color:var(--admin-muted)}.actions-col{text-align:right}.modal-backdrop{position:fixed;inset:0;z-index:900;display:grid;place-items:center;background:color-mix(in srgb, var(--admin-bg) 72%, transparent);padding:20px}.confirm-modal{display:grid;gap:12px;width:min(440px,calc(100vw - 32px));border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface);padding:20px}.confirm-modal h3,.confirm-modal p{margin:0}.confirm-modal p{color:var(--admin-muted);font-weight: 400;line-height:1.5}@media(max-width:1100px){.package-grid{grid-template-columns:1fr}.grid,.voucher-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.grid,.voucher-grid{grid-template-columns:1fr}.voucher-actions{justify-content:stretch}.voucher-actions .btn{flex:1}}
+.vip-admin-page{display:grid;gap:16px}.alert,.state{padding:12px 14px;border-radius:10px;font-weight:400}.alert.error{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.alert.success{background:var(--admin-success-soft);color:var(--admin-success-text)}.state{background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-muted)}.package-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.package-card,.voucher-section{display:grid;gap:14px;padding:16px;border:1px solid var(--admin-border);border-radius:12px;background:var(--admin-surface)}.package-card header,.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.package-card h3,.section-head h3{margin:3px 0 0;color:var(--admin-text)}.package-card header span,.section-head span{color:var(--admin-success-text);font-size:11px;font-weight:400;text-transform:uppercase}.grid,.voucher-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}label{display:grid;gap:5px;color:var(--admin-muted);font-size:12px;font-weight:400}input,select,textarea{border:1px solid var(--admin-border);border-radius:8px;padding:0 10px;font:inherit}input,select{height:38px}textarea{padding-top:10px;resize:vertical}input[readonly]{background:var(--admin-surface-muted);color:var(--admin-text);font-weight:400}.package-note{margin:0;border-radius:8px;background:var(--admin-surface-muted);color:var(--admin-muted);font-size:12px;font-weight:400;line-height:1.45;padding:10px 12px}.toggle,.check{display:flex;align-items:center;gap:8px}.toggle input,.check input{width:16px;height:16px}.btn,.mini-btn{border:0;border-radius:8px;font-weight:400;cursor:pointer}.btn{padding:10px 14px}.mini-btn{padding:7px 10px}.primary{background:var(--admin-primary);color:var(--admin-primary-text)}.secondary{background:var(--admin-surface-muted);color:var(--admin-text)}.danger{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.primary:disabled,.mini-btn:disabled{opacity:.55;cursor:not-allowed}.voucher-form{display:grid;gap:12px}.voucher-actions{display:flex;justify-content:flex-end;gap:10px}.voucher-table{overflow:auto;border:1px solid var(--admin-border);border-radius:10px}table{width:100%;min-width:1040px;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid var(--admin-border);text-align:left;vertical-align:middle}tbody tr:last-child td{border-bottom:0}.badge{border-radius:999px;padding:5px 9px;font-size:12px;font-weight:400;background:var(--admin-border)}.badge.active{background:var(--admin-success-soft);color:var(--admin-success-text)}.badge.inactive,.badge.expired{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.badge.draft{background:var(--admin-surface-muted);color:var(--admin-muted)}.actions-col{text-align:right}.modal-backdrop{position:fixed;inset:0;z-index:900;display:grid;place-items:center;background:color-mix(in srgb,var(--admin-bg) 72%,transparent);padding:20px}.confirm-modal{display:grid;gap:12px;width:min(440px,calc(100vw - 32px));border:1px solid var(--admin-border);border-radius:10px;background:var(--admin-surface);padding:20px}.confirm-modal h3,.confirm-modal p{margin:0}.confirm-modal p{color:var(--admin-muted);font-weight:400;line-height:1.5}
+.package-overview{display:grid;gap:18px;padding:20px;border:1px solid var(--admin-border);border-radius:16px;background:linear-gradient(135deg,var(--admin-primary-soft),var(--admin-surface))}.package-overview__heading{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}.package-overview__heading>div{display:grid;gap:5px}.package-overview__heading span,.package-editor__heading span{color:var(--admin-success-text);font-size:11px;font-weight:800;letter-spacing:.08em}.package-overview__heading h2,.package-editor__heading h2{margin:0;color:var(--admin-text);font-size:22px}.package-overview__heading p,.package-editor__heading p{margin:0;color:var(--admin-muted);font-size:12px;line-height:1.5}.package-overview__source{padding:7px 10px;border:1px solid var(--admin-border);border-radius:999px;background:var(--admin-surface);color:var(--admin-muted)!important;font-size:11px!important;font-weight:650!important;letter-spacing:0!important}.package-overview__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.package-overview__card{display:grid;align-content:start;gap:15px;min-width:0;padding:18px;border:1px solid var(--admin-border);border-radius:14px;background:var(--admin-surface);box-shadow:0 12px 24px color-mix(in srgb,var(--admin-text) 7%,transparent)}.package-overview__card.is-saving{border-color:color-mix(in srgb,var(--admin-primary) 50%,var(--admin-border))}.package-overview__card.is-pro{border-color:color-mix(in srgb,#d97706 45%,var(--admin-border));background:color-mix(in srgb,#fff7ed 62%,var(--admin-surface))}.package-overview__card header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.package-overview__card h3{margin:3px 0 0;color:var(--admin-text);font-size:20px}.package-overview__eyebrow{color:var(--admin-success-text);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.package-overview__status{padding:5px 8px;border-radius:999px;background:var(--admin-success-soft);color:var(--admin-success-text);font-size:10px;font-weight:800}.package-overview__status.inactive{background:var(--admin-danger-soft);color:var(--admin-danger-text)}.package-overview__price{display:flex;align-items:baseline;gap:5px;padding-bottom:14px;border-bottom:1px solid var(--admin-border)}.package-overview__price strong{color:var(--admin-text);font-size:30px;letter-spacing:-.04em}.package-overview__price span{color:var(--admin-muted);font-size:12px}.package-overview__cycles{display:grid;gap:7px}.package-overview__cycles div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:9px;background:var(--admin-surface-muted)}.package-overview__cycles span{color:var(--admin-muted);font-size:11px}.package-overview__cycles strong{color:var(--admin-text);font-size:12px}.package-overview__card ul{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0;padding:0;list-style:none}.package-overview__card li{display:grid;gap:2px;padding-top:9px;border-top:1px solid var(--admin-border)}.package-overview__card li strong{color:var(--admin-text);font-size:13px}.package-overview__card li span{color:var(--admin-muted);font-size:10px}.package-editor{display:grid;gap:14px}.package-editor__heading{display:flex;align-items:end;justify-content:space-between;gap:16px}.package-editor__heading>div{display:grid;gap:5px}.package-editor__heading p{max-width:460px;text-align:right}.package-grid{align-items:stretch}.package-card{align-content:start;grid-auto-rows:max-content}.package-card>.btn{align-self:start;min-height:40px}.suffix-field{display:grid;grid-template-columns:minmax(0,1fr)38px;align-items:center;overflow:hidden;border:1px solid var(--admin-border);border-radius:8px;background:var(--admin-surface)}.suffix-field input{width:100%;min-width:0;height:36px;border:0;border-radius:0}.suffix-field span{display:grid;height:100%;place-items:center;border-left:1px solid var(--admin-border);background:var(--admin-surface-muted);color:var(--admin-muted);font-weight:400}.package-card label.invalid input,.package-card label.invalid select,.package-card label.invalid textarea{border-color:var(--admin-danger);background:var(--admin-danger-soft)}.field-error{color:var(--admin-danger);font-size:11px;font-weight:400;line-height:1.35}
 .package-grid{align-items:start}
 .package-card{align-content:start;grid-auto-rows:max-content}
 .package-card>.btn{align-self:start;min-height:40px}
@@ -776,15 +834,26 @@ label.invalid input,label.invalid select,label.invalid textarea{border-color:var
   gap: 16px;
 }
 
-.package-card,
-.voucher-section,
 .voucher-table,
 .state,
-.section-head,
-.package-card header {
+.section-head {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
+}
+@media (max-width: 1100px) {
+  .package-overview__grid,
+  .package-grid { grid-template-columns: 1fr; }
+  .package-overview__heading,
+  .package-editor__heading { align-items: flex-start; flex-direction: column; }
+  .package-editor__heading p { max-width: none; text-align: left; }
+}
+@media (max-width: 620px) {
+  .package-overview { padding: 16px; }
+  .package-overview__card ul,
+  .grid,
+  .voucher-grid { grid-template-columns: 1fr; }
+  .package-overview__source { white-space: normal; }
 }
 </style>

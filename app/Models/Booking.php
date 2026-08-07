@@ -128,6 +128,16 @@ class Booking extends Model
         return $this->hasMany(Payment::class, 'booking_id');
     }
 
+    public function playerPost()
+    {
+        return $this->hasOne(PlayerPost::class, 'booking_id');
+    }
+
+    public function review()
+    {
+        return $this->hasOne(Review::class, 'booking_id');
+    }
+
     public function refunds()
     {
         return $this->hasMany(Refund::class, 'booking_id')->latest('created_at');
