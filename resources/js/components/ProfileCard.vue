@@ -5,7 +5,7 @@
       <div class="hero-bg-decor">
         <div class="hero-circle hero-circle-1"></div>
         <div class="hero-circle hero-circle-2"></div>
-        <div class="hero-grid"></div>
+        <div class="pcard-hero-grid"></div>
       </div>
 
       <div class="hero-body">

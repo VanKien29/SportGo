@@ -1,247 +1,219 @@
 <template>
-  <div class="community-page sg-client-page">
+  <div class="min-h-screen bg-slate-50 text-slate-900 pb-20">
     <PublicNavbar />
 
-    <main class="community-container">
-      <header class="community-heading">
-        <div>
-          <span class="eyebrow">Cộng đồng SportGo</span>
-          <h1>Cùng chơi, cùng chia sẻ</h1>
-          <p>Theo dõi câu chuyện thể thao, trao đổi kinh nghiệm và tìm đồng đội cho trận đấu tiếp theo.</p>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <header class="relative flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden p-8 md:p-10 border border-slate-800 rounded-2xl bg-slate-900 shadow-xl mb-8">
+        <div class="absolute top-0 inset-x-0 h-1 bg-emerald-500"></div>
+        <div class="max-w-2xl relative z-10">
+          <span class="block mb-2 text-xs font-extrabold uppercase tracking-wide text-emerald-400">Cộng đồng SportGo</span>
+          <h1 class="text-3xl md:text-4xl font-bold text-white leading-tight">Cùng chơi, cùng chia sẻ</h1>
+          <p class="mt-3 text-slate-300 text-base md:text-lg leading-relaxed">Theo dõi câu chuyện thể thao, trao đổi kinh nghiệm và tìm đồng đội cho trận đấu tiếp theo.</p>
         </div>
-        <button v-if="!user" type="button" class="heading-login" @click="goToLogin">
+        <button v-if="!user" type="button" class="relative z-10 inline-flex min-h-[44px] items-center gap-2 px-5 text-sm font-bold text-slate-900 bg-emerald-400 border border-transparent rounded-lg hover:bg-emerald-300 hover:shadow-md transition-all whitespace-nowrap" @click="goToLogin">
           Đăng nhập để tham gia
-          <AppIcon name="chevronRight" />
+          <AppIcon name="chevronRight" class="w-4 h-4" />
         </button>
       </header>
 
-      <div class="community-layout">
-        <section class="feed-column" aria-label="Bảng tin cộng đồng">
-          <article v-if="canCreateCommunityPost" class="composer-card">
-            <div class="composer-start">
-              <span class="avatar avatar-current">{{ initial(user?.fullName) }}</span>
-              <button type="button" class="composer-prompt" @click="showCommunityModal = true">
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 items-start">
+        <section class="min-w-0 space-y-6" aria-label="Bảng tin cộng đồng">
+          <article v-if="canCreateCommunityPost" class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div class="flex items-center gap-3">
+              <span class="flex-none grid place-items-center w-10 h-10 rounded-full bg-emerald-600 text-white text-sm font-bold overflow-hidden">
+                {{ initial(user?.fullName) }}
+              </span>
+              <button type="button" class="flex-1 min-h-[44px] px-4 text-sm text-left text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:text-slate-700 hover:border-emerald-200 transition-colors" @click="showCommunityModal = true">
                 Bạn muốn chia sẻ điều gì với cộng đồng?
               </button>
             </div>
-            <div class="composer-actions">
-              <button type="button" @click="showCommunityModal = true">
-                <AppIcon name="edit" />
+            <div class="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+              <button type="button" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors" @click="showCommunityModal = true">
+                <AppIcon name="edit" class="w-4 h-4" />
                 Bài chia sẻ
               </button>
-              <button v-if="isPlayer" type="button" @click="showMeetupModal = true">
-                <AppIcon name="users" />
+              <button v-if="isPlayer" type="button" class="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors" @click="showMeetupModal = true">
+                <AppIcon name="users" class="w-4 h-4" />
                 Tìm người chơi cùng
               </button>
             </div>
           </article>
 
-          <section class="feed-toolbar" aria-label="Lọc bảng tin">
-            <div class="toolbar-title">
-              <div>
-                <span class="eyebrow">Dành cho bạn</span>
-                <h2>Bảng tin mới nhất</h2>
-              </div>
-              <button type="button" class="mobile-filter-toggle" @click="showMobileFilters = !showMobileFilters">
-                <AppIcon name="filter" />
-                Lọc bài
-              </button>
-            </div>
-            <div v-if="showMobileFilters" class="mobile-filters">
-              <form class="search-form" @submit.prevent="applyFilters">
-                <AppIcon name="search" />
-                <input v-model.trim="searchQuery" type="search" placeholder="Tìm trong cộng đồng" aria-label="Tìm trong cộng đồng" />
-                <button type="submit">Tìm</button>
-              </form>
-              <div class="category-list" aria-label="Chủ đề bài viết">
-                <button type="button" :class="{ active: !selectedCategory }" @click="setCategory('')">Tất cả</button>
-                <button
-                  v-for="category in categories"
-                  :key="category"
-                  type="button"
-                  :class="{ active: selectedCategory === category }"
-                  @click="setCategory(category)"
-                >
-                  {{ category }}
-                </button>
-                <button
-                  v-if="searchQuery || selectedCategory"
-                  type="button"
-                  class="filter-clear"
-                  @click="clearFilters"
-                >
-                  Xóa lọc
-                </button>
-              </div>
+          <section class="p-5 bg-white border-l-4 border-emerald-600 border-y border-r border-slate-200 rounded-xl shadow-sm mb-2" aria-label="Tiêu đề bảng tin">
+            <div>
+              <span class="block text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">Dành cho bạn</span>
+              <h2 class="text-lg font-bold text-slate-900">Bảng tin mới nhất</h2>
             </div>
           </section>
 
-          <div v-if="loading" class="feed-state" aria-live="polite">
-            <span class="spinner" aria-hidden="true"></span>
-            <p>Đang tải bảng tin...</p>
+          <div v-if="loading" class="grid place-items-center min-h-[250px] p-8 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white text-center" aria-live="polite">
+            <span class="w-8 h-8 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-3" aria-hidden="true"></span>
+            <p class="text-sm">Đang tải bảng tin...</p>
           </div>
-          <div v-else-if="error" class="feed-state state-error" role="alert">
-            <AppIcon name="alert" />
-            <strong>Không thể tải bảng tin</strong>
-            <p>{{ error }}</p>
-            <button type="button" @click="fetchPosts({ page: 1 })">Thử lại</button>
+          <div v-else-if="error" class="grid place-items-center min-h-[250px] p-8 text-red-600 border border-dashed border-red-300 rounded-xl bg-red-50 text-center" role="alert">
+            <AppIcon name="alert" class="w-8 h-8 mb-2" />
+            <strong class="text-red-800">Không thể tải bảng tin</strong>
+            <p class="text-sm mt-1 mb-4">{{ error }}</p>
+            <button type="button" class="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700" @click="fetchPosts({ page: 1 })">Thử lại</button>
           </div>
-          <div v-else-if="!posts.length" class="feed-state">
-            <AppIcon name="newspaper" />
-            <strong>Chưa có bài viết phù hợp</strong>
-            <p>Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.</p>
+          <div v-else-if="!posts.length" class="grid place-items-center min-h-[250px] p-8 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white text-center">
+            <AppIcon name="newspaper" class="w-8 h-8 mb-2" />
+            <strong class="text-slate-700">Chưa có bài viết phù hợp</strong>
+            <p class="text-sm mt-1">Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.</p>
           </div>
 
-          <div v-else class="post-stream">
-            <article v-for="post in posts" :key="post.id" class="post-card">
-              <header class="post-header">
-                <button type="button" class="author-button" @click="goToUser(post.author?.id)">
-                  <span class="avatar">
+          <div v-else class="space-y-4">
+            <article v-for="post in posts" :key="post.id" class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200">
+              <header class="flex items-center justify-between gap-3 p-5 pb-3">
+                <button type="button" class="flex flex-1 items-center gap-3 text-left" @click="goToUser(post.author?.id)">
+                  <span class="flex-none grid place-items-center w-10 h-10 rounded-full bg-emerald-600 text-white text-sm font-bold overflow-hidden">
                     <img
                       v-if="post.author?.avatar_url"
                       :src="assetUrl(post.author.avatar_url)"
                       :alt="post.author.full_name || post.author.username"
+                      class="w-full h-full object-cover"
                     />
                     <span v-else>{{ initial(post.author?.full_name || post.author?.username) }}</span>
                   </span>
-                  <span class="author-copy">
-                    <strong class="client-author-line">
+                  <span class="grid gap-0.5">
+                    <strong class="flex items-center gap-1.5 text-sm font-bold text-slate-900">
                       {{ post.author?.full_name || post.author?.username || 'Thành viên SportGo' }}
                       <ClientAuthorBadges :badges="post.author_badges" />
                     </strong>
-                    <small>
+                    <small class="text-xs text-slate-500">
                       {{ timeAgo(post.published_at || post.created_at) }}
                       <template v-if="post.venue_cluster?.name"> · {{ post.venue_cluster.name }}</template>
                     </small>
                   </span>
                 </button>
 
-                <div class="post-menu-wrap">
+                <div class="relative">
                   <button
                     type="button"
-                    class="icon-button"
+                    class="grid place-items-center w-8 h-8 text-slate-500 rounded-full hover:bg-slate-100 transition-colors"
                     :aria-expanded="openMenuPostId === post.id"
                     aria-label="Tùy chọn bài viết"
                     @click.stop="togglePostMenu(post.id)"
                   >
-                    <AppIcon name="moreHorizontal" />
+                    <AppIcon name="moreHorizontal" class="w-5 h-5" />
                   </button>
-                  <div v-if="openMenuPostId === post.id" class="post-menu" role="menu" @click.stop>
-                    <button type="button" role="menuitem" @click="openReport(post)">
-                      <AppIcon name="alert" />
+                  <div v-if="openMenuPostId === post.id" class="absolute z-20 top-full right-0 mt-1 w-48 p-1.5 bg-white border border-slate-200 rounded-lg shadow-lg" role="menu" @click.stop>
+                    <button type="button" class="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-md hover:bg-red-50" role="menuitem" @click="openReport(post)">
+                      <AppIcon name="alert" class="w-4 h-4" />
                       Báo cáo bài viết
                     </button>
                   </div>
                 </div>
               </header>
 
-              <div class="post-body">
-                <div v-if="post.hashtags?.length" class="post-tags">
-                  <span v-for="tag in post.hashtags.slice(0, 3)" :key="tag.id || tag.name">#{{ tag.name }}</span>
+              <div class="px-5 pb-3">
+                <div v-if="post.hashtags?.length" class="flex flex-wrap gap-2 mb-2">
+                  <span v-for="tag in post.hashtags.slice(0, 3)" :key="tag.id || tag.name" class="text-xs font-bold text-emerald-700">#{{ tag.name }}</span>
                 </div>
-                <button type="button" class="post-copy" @click="goToDetail(post.slug || post.id)">
-                  <strong v-if="post.title && !titleRepeatsContent(post)">{{ post.title }}</strong>
-                  <span>{{ plainText(post.content || post.short_description) }}</span>
+                <button type="button" class="grid gap-1 text-left w-full" @click="goToDetail(post.slug || post.id)">
+                  <strong v-if="post.title && !titleRepeatsContent(post)" class="text-base text-slate-900 font-bold leading-snug">{{ post.title }}</strong>
+                  <span class="text-sm text-slate-700 line-clamp-4 leading-relaxed">{{ plainText(post.content || post.short_description) }}</span>
                 </button>
               </div>
 
               <button
                 v-if="postMedia(post).length === 1"
                 type="button"
-                class="post-media media-single"
+                class="block w-full aspect-[16/10] bg-slate-100 overflow-hidden"
                 @click="goToDetail(post.slug || post.id)"
               >
-                <img :src="postMedia(post)[0]" :alt="post.title || 'Ảnh bài viết'" @error="handlePostImageError" />
+                <img :src="postMedia(post)[0]" :alt="post.title || 'Ảnh bài viết'" class="w-full h-full object-cover" @error="handlePostImageError" />
               </button>
               <button
                 v-else-if="postMedia(post).length > 1"
                 type="button"
-                class="post-media media-grid"
-                :class="`media-count-${Math.min(postMedia(post).length, 4)}`"
+                :class="['grid w-full bg-slate-100 overflow-hidden gap-0.5', postMedia(post).length === 2 ? 'grid-cols-2 aspect-[16/8]' : 'grid-cols-2 aspect-[16/10]']"
                 @click="goToDetail(post.slug || post.id)"
               >
-                <span v-for="(image, imageIndex) in postMedia(post).slice(0, 4)" :key="`${post.id}-${imageIndex}`">
-                  <img :src="image" :alt="`${post.title || 'Ảnh bài viết'} ${imageIndex + 1}`" @error="handlePostImageError" />
-                  <b v-if="imageIndex === 3 && postMedia(post).length > 4">+{{ postMedia(post).length - 4 }}</b>
+                <span v-for="(image, imageIndex) in postMedia(post).slice(0, 4)" :key="`${post.id}-${imageIndex}`" class="relative block w-full h-full min-h-[150px]">
+                  <img :src="image" :alt="`${post.title || 'Ảnh bài viết'} ${imageIndex + 1}`" class="w-full h-full object-cover absolute inset-0" @error="handlePostImageError" />
+                  <b v-if="imageIndex === 3 && postMedia(post).length > 4" class="absolute inset-0 grid place-items-center text-white text-2xl bg-black/60">+{{ postMedia(post).length - 4 }}</b>
                 </span>
               </button>
 
-              <div class="post-stats">
-                <span><AppIcon name="heart" /> {{ post.like_count || 0 }}</span>
-                <button type="button" @click="toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
+              <div class="flex items-center gap-4 px-5 py-3 text-xs font-medium text-slate-500 border-b border-slate-100">
+                <span class="flex items-center gap-1.5"><AppIcon name="heart" class="w-4 h-4" /> {{ post.like_count || 0 }}</span>
+                <button type="button" class="ml-auto hover:text-slate-800 transition-colors cursor-pointer" @click="toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
                 <span>{{ post.view_count || 0 }} lượt xem</span>
               </div>
 
-              <div class="post-actions">
+              <div class="grid grid-cols-3 gap-1 p-2">
                 <button
                   type="button"
-                  :class="{ active: Boolean(post.is_liked) }"
+                  :class="['inline-flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-colors cursor-pointer', post.is_liked ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700', {'opacity-50 cursor-not-allowed': likingPostIds.has(post.id) || !post.likes_available}]"
                   :disabled="likingPostIds.has(post.id) || !post.likes_available"
                   :title="post.likes_available ? '' : 'Lượt thích của bài cụm sân đang chờ cập nhật dữ liệu hệ thống'"
                   @click="toggleLike(post)"
                 >
-                  <AppIcon name="heart" />
+                  <AppIcon name="heart" class="w-4 h-4" />
                   {{ post.is_liked ? 'Đã thích' : 'Thích' }}
                 </button>
-                <button type="button" :class="{ active: commentsOpen[post.id] }" @click="toggleComments(post)">
-                  <AppIcon name="messageCircle" />
+                <button type="button" :class="['inline-flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg cursor-pointer transition-colors', commentsOpen[post.id] ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700']" @click="toggleComments(post)">
+                  <AppIcon name="messageCircle" class="w-4 h-4" />
                   Bình luận
                 </button>
-                <button type="button" @click="sharePost(post)">
-                  <AppIcon name="share" />
+                <button type="button" class="inline-flex items-center justify-center gap-2 py-2 text-sm font-semibold cursor-pointer text-slate-600 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors" @click="sharePost(post)">
+                  <AppIcon name="share" class="w-4 h-4" />
                   Chia sẻ
                 </button>
               </div>
 
-              <section v-if="commentsOpen[post.id]" class="comments-panel" aria-label="Bình luận bài viết">
-                <div v-if="detailsLoading[post.id]" class="comments-loading">
-                  <span class="spinner spinner-small" aria-hidden="true"></span>
+              <section v-if="commentsOpen[post.id]" class="p-5 bg-slate-50 border-t border-slate-100" aria-label="Bình luận bài viết">
+                <div v-if="detailsLoading[post.id]" class="flex items-center justify-center gap-2 min-h-[72px] text-xs text-slate-500">
+                  <span class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" aria-hidden="true"></span>
                   Đang tải bình luận...
                 </div>
                 <template v-else>
-                  <div v-if="post.top_level_comments?.length" class="comment-list">
-                    <article v-for="comment in visibleComments(post)" :key="comment.id" class="comment-item">
-                      <span class="avatar avatar-comment">
+                  <div v-if="post.top_level_comments?.length" class="space-y-3 mb-4">
+                    <article v-for="comment in visibleComments(post)" :key="comment.id" class="grid grid-cols-[32px_1fr] items-start gap-3">
+                      <span class="grid place-items-center w-8 h-8 rounded-full bg-emerald-600 text-white text-[10px] font-bold overflow-hidden">
                         <img
                           v-if="comment.user?.avatar_url"
                           :src="assetUrl(comment.user.avatar_url)"
                           :alt="comment.user.full_name || comment.user.username"
+                          class="w-full h-full object-cover"
                         />
                         <span v-else>{{ initial(comment.user?.full_name || comment.user?.username) }}</span>
                       </span>
                       <div>
-                        <div class="comment-bubble">
-                          <strong class="client-author-line">
+                        <div class="inline-grid gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl max-w-full">
+                          <strong class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                             {{ comment.user?.full_name || comment.user?.username || 'Thành viên SportGo' }}
                             <ClientAuthorBadges :badges="comment.user?.author_badges" />
                           </strong>
-                          <p>{{ comment.content }}</p>
+                          <p class="text-sm text-slate-700 whitespace-pre-wrap break-words">{{ comment.content }}</p>
                         </div>
-                        <div class="comment-actions">
-                          <small>{{ timeAgo(comment.created_at) }}</small>
-                          <button type="button" class="reply-button" @click="setReply(post, comment)">Trả lời</button>
+                        <div class="flex items-center gap-3 mt-1 ml-2">
+                          <small class="text-xs text-slate-500">{{ timeAgo(comment.created_at) }}</small>
+                          <button type="button" class="text-xs font-bold text-slate-500 hover:text-emerald-700 cursor-pointer" @click="setReply(post, comment)">Trả lời</button>
                         </div>
-                        <div v-if="comment.replies?.length" class="comment-replies">
-                          <article v-for="reply in comment.replies" :key="reply.id" class="comment-item reply-item">
-                            <span class="avatar avatar-comment">
+                        <div v-if="comment.replies?.length" class="mt-3 space-y-3">
+                          <article v-for="reply in comment.replies" :key="reply.id" class="grid grid-cols-[28px_1fr] items-start gap-2">
+                            <span class="grid place-items-center w-7 h-7 rounded-full bg-emerald-600 text-white text-[9px] font-bold overflow-hidden">
                               <img
                                 v-if="reply.user?.avatar_url"
                                 :src="assetUrl(reply.user.avatar_url)"
                                 :alt="reply.user.full_name || reply.user.username"
+                                class="w-full h-full object-cover"
                               />
                               <span v-else>{{ initial(reply.user?.full_name || reply.user?.username) }}</span>
                             </span>
                             <div>
-                              <div class="comment-bubble">
-                                <strong class="client-author-line">
+                              <div class="inline-grid gap-1 px-3 py-2 bg-white border border-slate-200 rounded-xl max-w-full">
+                                <strong class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                                   {{ reply.user?.full_name || reply.user?.username || 'Thành viên SportGo' }}
                                   <ClientAuthorBadges :badges="reply.user?.author_badges" />
                                 </strong>
-                                <p v-html="formatMention(reply.content)"></p>
+                                <p class="text-sm text-slate-700 whitespace-pre-wrap break-words" v-html="formatMention(reply.content)"></p>
                               </div>
-                              <div class="comment-actions">
-                                <small>{{ timeAgo(reply.created_at) }}</small>
-                                <button type="button" class="reply-button" @click="setReply(post, comment, reply)">Trả lời</button>
+                              <div class="flex items-center gap-3 mt-1 ml-2">
+                                <small class="text-xs text-slate-500">{{ timeAgo(reply.created_at) }}</small>
+                                <button type="button" class="text-xs font-bold text-slate-500 hover:text-emerald-700 cursor-pointer" @click="setReply(post, comment, reply)">Trả lời</button>
                               </div>
                             </div>
                           </article>
@@ -251,43 +223,44 @@
                     <button
                       v-if="post.top_level_comments.length > commentPreviewLimit && !showAllComments[post.id]"
                       type="button"
-                      class="show-comments-button"
+                      class="px-2 py-1 text-xs font-bold text-emerald-700 hover:underline"
                       @click="showAllComments[post.id] = true"
                     >
                       Xem thêm {{ post.top_level_comments.length - commentPreviewLimit }} bình luận
                     </button>
                   </div>
-                  <p v-else class="no-comments">Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p>
+                  <p v-else class="flex justify-center py-4 text-xs text-slate-500">Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p>
 
-                  <form v-if="user" class="comment-form-wrapper" @submit.prevent="submitComment(post)">
-                    <div v-if="replyingTo[post.id]" class="replying-indicator">
+                  <form v-if="user" class="mt-4" @submit.prevent="submitComment(post)">
+                    <div v-if="replyingTo[post.id]" class="flex items-center justify-between px-3 py-1.5 mb-2 text-xs bg-slate-200 text-slate-700 rounded-md">
                       <span>Đang trả lời <strong>{{ replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo' }}</strong></span>
-                      <button type="button" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" /></button>
+                      <button type="button" class="hover:text-red-600" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" class="w-3 h-3" /></button>
                     </div>
-                    <div class="comment-form">
-                      <span class="avatar avatar-comment">{{ initial(user.fullName) }}</span>
-                      <label>
+                    <div class="flex items-center gap-2">
+                      <span class="flex-none grid place-items-center w-8 h-8 rounded-full bg-emerald-600 text-white text-[10px] font-bold">{{ initial(user.fullName) }}</span>
+                      <label class="flex-1 min-w-0">
                         <span class="sr-only">Viết bình luận</span>
                         <input
                           :id="`comment-input-${post.id}`"
                           v-model.trim="commentDrafts[post.id]"
                           type="text"
                           maxlength="1000"
+                          class="w-full h-9 px-3 text-sm text-slate-900 bg-white border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-slate-400"
                           :placeholder="replyingTo[post.id] ? `Phản hồi ${replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo'}...` : 'Viết bình luận...'"
                           :disabled="commentSubmitting[post.id]"
                         />
                       </label>
-                    <button
-                      type="submit"
-                      class="send-comment"
-                      aria-label="Gửi bình luận"
-                      :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"
-                    >
-                        <AppIcon name="send" />
+                      <button
+                        type="submit"
+                        class="flex-none grid place-items-center w-9 h-9 text-white bg-emerald-600 hover:bg-emerald-700 rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Gửi bình luận"
+                        :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"
+                      >
+                        <AppIcon name="send" class="w-4 h-4 ml-[-2px]" />
                       </button>
                     </div>
                   </form>
-                  <button v-else type="button" class="login-to-comment" @click="goToLogin">
+                  <button v-else type="button" class="block w-full py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-center transition-colors" @click="goToLogin">
                     Đăng nhập để bình luận
                   </button>
                 </template>
@@ -297,32 +270,34 @@
             <button
               v-if="pagination.current_page < pagination.last_page"
               type="button"
-              class="load-more-button"
+              class="flex items-center justify-center w-full min-h-[44px] gap-2 px-4 py-2 mt-4 text-sm font-bold text-emerald-800 bg-white border border-emerald-200 rounded-xl shadow-sm hover:bg-emerald-50 hover:border-emerald-300 transition-all"
               :disabled="loadingMore"
               @click="loadMorePosts"
             >
-              <span v-if="loadingMore" class="spinner spinner-small" aria-hidden="true"></span>
+              <span v-if="loadingMore" class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-700 rounded-full animate-spin" aria-hidden="true"></span>
               {{ loadingMore ? 'Đang tải thêm...' : 'Xem thêm bài viết' }}
             </button>
-            <p v-else class="end-of-feed">Bạn đã xem hết các bài viết hiện có.</p>
+            <p v-else class="text-center py-4 text-sm text-slate-500">Bạn đã xem hết các bài viết hiện có.</p>
           </div>
         </section>
 
-        <aside class="community-sidebar" aria-label="Khám phá cộng đồng">
-          <section class="sidebar-card desktop-filters">
-            <h2>Khám phá</h2>
-            <form class="search-form" @submit.prevent="applyFilters">
-              <AppIcon name="search" />
-              <input v-model.trim="searchQuery" type="search" placeholder="Tìm trong cộng đồng" aria-label="Tìm trong cộng đồng" />
-              <button type="submit">Tìm</button>
+        <aside class="sticky top-24 space-y-6" aria-label="Khám phá cộng đồng">
+          <section class="hidden lg:block bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <h2 class="text-lg font-bold text-slate-900 mb-4">Khám phá</h2>
+            <form class="mb-4" @submit.prevent="applyFilters">
+              <div class="relative w-full">
+                <AppIcon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input v-model.trim="searchQuery" type="text" placeholder="Tìm trong cộng đồng" aria-label="Tìm trong cộng đồng" class="w-full h-10 !pl-10 !pr-14 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-slate-400" />
+                <button type="submit" class="absolute right-1 top-1 bottom-1 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors">Tìm</button>
+              </div>
             </form>
-            <div class="category-list" aria-label="Chủ đề bài viết">
-              <button type="button" :class="{ active: !selectedCategory }" @click="setCategory('')">Tất cả</button>
+            <div class="flex flex-wrap gap-2" aria-label="Chủ đề bài viết">
+              <button type="button" :class="['px-3 py-1 text-xs font-semibold rounded-full border transition-colors', !selectedCategory ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800']" @click="setCategory('')">Tất cả</button>
               <button
                 v-for="category in categories"
                 :key="category"
                 type="button"
-                :class="{ active: selectedCategory === category }"
+                :class="['px-3 py-1 text-xs font-semibold rounded-full border transition-colors', selectedCategory === category ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800']"
                 @click="setCategory(category)"
               >
                 {{ category }}
@@ -330,7 +305,7 @@
               <button
                 v-if="searchQuery || selectedCategory"
                 type="button"
-                class="filter-clear"
+                class="px-3 py-1 text-xs font-semibold rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
                 @click="clearFilters"
               >
                 Xóa lọc
@@ -338,65 +313,66 @@
             </div>
           </section>
 
-          <section class="sidebar-card meetup-sidebar">
-            <header class="sidebar-heading">
+          <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <header class="flex items-start justify-between mb-4">
               <div>
-                <span class="eyebrow">Ghép kèo</span>
-                <h2>Kèo sắp tới</h2>
+                <span class="block text-xs font-bold uppercase tracking-wider text-emerald-600 mb-1">Ghép kèo</span>
+                <h2 class="text-lg font-bold text-slate-900">Kèo sắp tới</h2>
               </div>
-              <button v-if="isPlayer" type="button" class="icon-button" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true">
-                <AppIcon name="plus" />
+              <button v-if="isPlayer" type="button" class="grid place-items-center w-8 h-8 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true">
+                <AppIcon name="plus" class="w-4 h-4" />
               </button>
             </header>
 
-            <div v-if="matchmakingLoading" class="meetup-loading">
-              <span class="spinner spinner-small" aria-hidden="true"></span>
+            <div v-if="matchmakingLoading" class="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+              <span class="w-4 h-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" aria-hidden="true"></span>
               Đang tải kèo...
             </div>
-            <div v-else-if="matchmakingError" class="meetup-empty meetup-empty-error" role="alert">
-              <AppIcon name="alert" />
-              <p>{{ matchmakingError }}</p>
-              <button type="button" @click="fetchMatchmakingPosts">Tải lại</button>
+            <div v-else-if="matchmakingError" class="p-4 text-center bg-red-50 border border-dashed border-red-200 rounded-lg text-red-600" role="alert">
+              <AppIcon name="alert" class="w-6 h-6 mx-auto mb-2" />
+              <p class="text-sm mb-3">{{ matchmakingError }}</p>
+              <button type="button" class="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors" @click="fetchMatchmakingPosts">Tải lại</button>
             </div>
-            <div v-else-if="matchmakingPosts.length" class="meetup-list">
-              <article v-for="post in matchmakingPosts" :key="post.id" class="meetup-card">
-                <header>
-                  <button type="button" class="meetup-author" @click="goToUser(post.author?.id)">
-                    <span class="avatar avatar-comment">
-                      <img v-if="post.author?.avatar" :src="assetUrl(post.author.avatar)" :alt="post.author.name" />
+            <div v-else-if="matchmakingPosts.length" class="space-y-3">
+              <article v-for="post in matchmakingPosts" :key="post.id" class="p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-emerald-300 transition-colors">
+                <header class="flex items-start justify-between gap-2 mb-3">
+                  <button type="button" class="flex items-center gap-2 text-left" @click="goToUser(post.author?.id)">
+                    <span class="grid place-items-center w-8 h-8 rounded-full bg-emerald-600 text-white text-xs font-bold overflow-hidden">
+                      <img v-if="post.author?.avatar" :src="assetUrl(post.author.avatar)" :alt="post.author.name" class="w-full h-full object-cover" />
                       <span v-else>{{ initial(post.author?.name) }}</span>
                     </span>
-                    <span>
-                      <strong class="client-author-line">
+                    <span class="grid gap-0.5">
+                      <strong class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                         {{ post.author?.name || 'Người chơi SportGo' }}
                         <ClientAuthorBadges :badges="post.author?.author_badges" />
                       </strong>
-                      <small>{{ timeAgo(post.created_at) }}</small>
+                      <small class="text-[10px] text-slate-500">{{ timeAgo(post.created_at) }}</small>
                     </span>
                   </button>
-                  <span class="needed-badge">Cần {{ post.needed_players }} người</span>
+                  <span class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded border border-amber-200">Cần {{ post.needed_players }}</span>
                 </header>
-                <div class="meetup-facts">
-                  <span><AppIcon name="mapPin" /> {{ post.booking?.venue_name || 'Cụm sân' }}</span>
-                  <span><AppIcon name="clock" /> {{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span>
+                <div class="space-y-1 mb-3 text-xs text-slate-600">
+                  <span class="flex items-center gap-1.5"><AppIcon name="mapPin" class="w-3.5 h-3.5 text-slate-400" /> <span class="truncate">{{ post.booking?.venue_name || 'Cụm sân' }}</span></span>
+                  <span class="flex items-center gap-1.5"><AppIcon name="clock" class="w-3.5 h-3.5 text-slate-400" /> {{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span>
                 </div>
-                <p v-if="post.description">{{ post.description }}</p>
+                <p v-if="post.description" class="text-sm text-slate-700 line-clamp-2 mb-3">{{ post.description }}</p>
                 <button
                   v-if="!isOwnPost(post)"
                   type="button"
-                  class="meetup-action"
+                  class="w-full py-2 text-sm font-bold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  :class="post.user_status ? 'bg-slate-200 text-slate-600' : 'bg-emerald-600 hover:bg-emerald-700 text-white'"
                   :disabled="joiningPostId === post.id || Boolean(post.user_status)"
                   @click="joinMatchmaking(post)"
                 >
                   {{ joinLabel(post) }}
                 </button>
-                <router-link v-else class="meetup-action" :to="`/matchmaking-posts/${post.id}/manage`">Quản lý yêu cầu</router-link>
+                <router-link v-else class="flex justify-center w-full py-2 text-sm font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors" :to="`/matchmaking-posts/${post.id}/manage`">Quản lý yêu cầu</router-link>
               </article>
             </div>
-            <div v-else class="meetup-empty">
-              <AppIcon name="users" />
-              <p>Chưa có kèo công khai sắp tới.</p>
-              <button v-if="isPlayer" type="button" @click="showMeetupModal = true">Tạo kèo đầu tiên</button>
+            <div v-else class="py-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl">
+              <AppIcon name="users" class="w-8 h-8 mx-auto mb-2 text-slate-400" />
+              <p class="text-sm text-slate-600 mb-3">Chưa có kèo công khai sắp tới.</p>
+              <button v-if="isPlayer" type="button" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors" @click="showMeetupModal = true">Tạo kèo đầu tiên</button>
             </div>
           </section>
         </aside>
@@ -423,6 +399,7 @@
     />
   </div>
 </template>
+
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
@@ -834,630 +811,3 @@ onMounted(() => {
 
 onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 </script>
-
-<style scoped>
-.news-page-container {
-  background-color: #f8fafc;
-  min-height: 100vh;
-  padding-top: 64px;
-}
-
-.news-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 20px;
-}
-
-/* Matchmaking Section */
-.matchmaking-section {
-  margin-bottom: 40px;
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-}
-
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 400;
-  color: #1e293b;
-  margin-bottom: 20px;
-}
-
-.matchmaking-scroll {
-  display: flex;
-  gap: 20px;
-  overflow-x: auto;
-  padding-bottom: 12px;
-  scrollbar-width: thin;
-}
-
-.matchmaking-scroll::-webkit-scrollbar {
-  height: 6px;
-}
-.matchmaking-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.matchmaking-card {
-  min-width: 320px;
-  flex-shrink: 0;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.matchmaking-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-  border-color: #cbd5e1;
-}
-
-.m-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.m-author {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.m-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-}
-
-.m-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.m-avatar.placeholder {
-  background: #3b82f6;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 400;
-  font-size: 1.1rem;
-}
-
-.m-name {
-  font-weight: 400;
-  font-size: 0.95rem;
-  color: #334155;
-}
-
-.m-time {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.m-card-body {
-  margin-bottom: 16px;
-}
-
-.m-info-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #475569;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
-}
-
-.m-info-row i {
-  color: #3b82f6;
-  width: 16px;
-  text-align: center;
-}
-
-.m-needed {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  margin-top: 4px;
-}
-
-.m-desc {
-  margin-top: 12px;
-  font-size: 0.9rem;
-  color: #64748b;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.m-card-footer {
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.btn-join {
-  width: 100%;
-  padding: 10px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-join:hover:not(:disabled) {
-  background: #2563eb;
-}
-
-.btn-join:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn-join.btn-joined {
-  background: #10b981; /* Green */
-}
-
-.btn-join.btn-approved {
-  background: #3b82f6; /* Blue but disabled */
-  opacity: 0.8;
-}
-
-.btn-join.btn-rejected {
-  background: #ef4444; /* Red */
-  opacity: 0.7;
-}
-
-.btn-manage {
-  width: 100%;
-  padding: 10px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-manage:hover {
-  background: #e2e8f0;
-  color: #1e293b;
-}
-
-.approved-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 12px;
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 400;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-
-.news-header {
-  margin-bottom: 40px;
-}
-
-.news-header h1 {
-  font-size: 36px;
-  font-weight: 400;
-  color: #0f172a;
-  margin-bottom: 12px;
-}
-
-.news-header p {
-  font-size: 16px;
-  color: #64748b;
-}
-
-.filters-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-@media (min-width: 768px) {
-  .filters-section {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-.search-box {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-  display: flex;
-  align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: white;
-  padding-left: 16px;
-  overflow: hidden;
-  transition: all 0.2s;
-}
-
-.search-box:focus-within {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-.search-box i {
-  color: #94a3b8;
-  font-size: 15px;
-  flex-shrink: 0;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 12px 16px;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  font-size: 15px;
-  background: transparent !important;
-  appearance: none !important;
-}
-
-.category-filters {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cat-btn {
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  color: #64748b;
-  font-size: 14px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cat-btn.never-hover-class-placeholder {
-  background: #f1f5f9;
-  color: #334155;
-}
-
-.cat-btn.active {
-  background: #10b981;
-  color: white;
-  border-color: #10b981;
-}
-
-/* Grid */
-.news-grid {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 24px;
-}
-
-@media (min-width: 768px) {
-  .news-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .news-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.news-card {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-}
-
-.news-card.never-hover-class-placeholder {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.news-card.never-hover-class-placeholder .news-image img {
-  transform: scale(1.05);
-}
-
-.news-card.never-hover-class-placeholder .news-readmore {
-  color: #10b981;
-}
-
-.news-card.never-hover-class-placeholder .news-readmore i {
-  transform: translateX(4px);
-}
-
-.news-image {
-  position: relative;
-  height: 200px;
-  overflow: hidden;
-}
-
-.news-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-}
-
-.news-badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  background: rgba(16, 185, 129, 0.9);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 400;
-  backdrop-filter: blur(4px);
-}
-
-.news-info {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.news-meta {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-  color: #94a3b8;
-  margin-bottom: 12px;
-}
-
-.news-meta i {
-  margin-right: 4px;
-}
-
-.news-title {
-  font-size: 18px;
-  font-weight: 400;
-  color: #1e293b;
-  margin-bottom: 12px;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.news-summary {
-  font-size: 14px;
-  color: #64748b;
-  line-height: 1.6;
-  margin-bottom: 24px;
-  flex: 1;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.news-readmore {
-  font-size: 14px;
-  font-weight: 400;
-  color: #334155;
-  display: flex;
-  align-items: center;
-  transition: color 0.2s;
-}
-
-.news-readmore i {
-  margin-left: 8px;
-  font-size: 12px;
-  transition: transform 0.2s;
-}
-
-/* States */
-.loading-state, .error-state, .empty-state {
-  text-align: center;
-  padding: 80px 20px;
-  color: #64748b;
-}
-
-.loading-state .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #10b981;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.error-state i, .empty-state i {
-  font-size: 48px;
-  color: #cbd5e1;
-  margin-bottom: 16px;
-}
-
-.error-state button {
-  margin-top: 16px;
-}
-
-.pagination-wrapper {
-  margin-top: 40px;
-  display: flex;
-  justify-content: center;
-}
-</style>
-
-<style>
-/* Dark Mode Support (Unscoped) */
-.dark .news-page-container {
-  background-color: #09090b !important;
-}
-.dark .news-header h1 {
-  color: #ffffff !important;
-}
-.dark .news-header p,
-.dark .news-summary {
-  color: #a1a1aa !important;
-}
-.dark .search-box {
-  background: #18181b !important;
-  border-color: #27272a !important;
-}
-.dark .search-box input {
-  background: transparent !important;
-  color: #ffffff !important;
-}
-.dark .cat-btn {
-  background: #18181b !important;
-  border-color: #27272a !important;
-  color: #a1a1aa !important;
-}
-.dark .cat-btn.never-hover-class-placeholder {
-  background: #27272a !important;
-  color: #ffffff !important;
-}
-.dark .cat-btn.active {
-  background: #10b981 !important;
-  color: white !important;
-  border-color: #10b981 !important;
-}
-.dark .news-card {
-  background: #18181b !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
-}
-.dark .news-title {
-  color: #ffffff !important;
-}
-.dark .news-readmore {
-  color: #a1a1aa !important;
-}
-.dark .news-card.never-hover-class-placeholder .news-readmore {
-  color: #10b981 !important;
-}
-.dark .loading-state, 
-.dark .error-state, 
-.dark .empty-state {
-  color: #a1a1aa !important;
-}
-.dark .loading-state .spinner {
-  border-color: #27272a !important;
-  border-top-color: #10b981 !important;
-}
-
-.floating-add-container {
-  position: fixed;
-  bottom: 40px;
-  right: 40px;
-  z-index: 99;
-}
-
-@media (max-width: 768px) {
-  .floating-add-container {
-    bottom: 24px;
-    right: 24px;
-  }
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-}
-.reply-button {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-.reply-button:hover {
-  color: #10b981;
-}
-.comment-replies {
-  margin-top: 12px;
-  padding-left: 12px;
-  border-left: 2px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.reply-item {
-  margin-top: 0;
-}
-.comment-form-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 16px;
-}
-.replying-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f8fafc;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #334155;
-}
-.replying-indicator button {
-  background: none;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding: 4px;
-}
-.replying-indicator button:hover {
-  color: #ef4444;
-}
-</style>
