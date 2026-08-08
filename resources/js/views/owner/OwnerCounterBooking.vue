@@ -698,22 +698,48 @@
                         </small>
                     </div>
                     <div class="recurring-form-fields">
-                        <label>
-                            <span>Loại sân</span>
-                            <select
-                                v-model="selectedCourtTypeId"
-                                @change="loadSchedule"
-                            >
-                                <option value="">Tất cả loại sân</option>
-                                <option
-                                    v-for="type in courtTypeOptions"
-                                    :key="type.id"
-                                    :value="type.id"
+                        <div class="custom-field-wrap" style="display: flex; flex-direction: column; gap: 6px;">
+                            <span class="field-label" style="font-size: 13.5px; font-weight: 500; color: #0f172a;">Loại sân</span>
+                            <div class="custom-court-type-dropdown" style="position: relative;">
+                                <button
+                                    type="button"
+                                    class="court-type-trigger-btn"
+                                    style="width: 100%; height: 38px; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 13.5px; font-weight: 500; cursor: pointer; outline: none;"
+                                    @click="recurringCourtTypeDropdownOpen = !recurringCourtTypeDropdownOpen"
                                 >
-                                    {{ type.name }}
-                                </option>
-                            </select>
-                        </label>
+                                    <span>{{ selectedCourtTypeName }}</span>
+                                    <AppIcon name="chevronDown" size="14" style="color: #64748b;" />
+                                </button>
+
+                                <div
+                                    v-if="recurringCourtTypeDropdownOpen"
+                                    class="custom-dropdown-menu"
+                                    style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; min-width: 200px; z-index: 1000; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); padding: 4px 0; max-height: 240px; overflow-y: auto;"
+                                >
+                                    <div
+                                        class="dropdown-item"
+                                        :class="{ active: !selectedCourtTypeId }"
+                                        style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                        @click="selectCourtType('')"
+                                    >
+                                        <span>Tất cả loại sân</span>
+                                        <AppIcon v-if="!selectedCourtTypeId" name="check" size="14" style="color: #16a34a;" />
+                                    </div>
+                                    <div
+                                        v-for="type in courtTypeOptions"
+                                        :key="type.id"
+                                        class="dropdown-item"
+                                        :class="{ active: String(selectedCourtTypeId) === String(type.id) }"
+                                        style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                        @click="selectCourtType(type.id)"
+                                    >
+                                        <span>{{ type.name }}</span>
+                                        <AppIcon v-if="String(selectedCourtTypeId) === String(type.id)" name="check" size="14" style="color: #16a34a;" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <label>
                             <span>Tên khách</span>
                             <input
@@ -741,6 +767,7 @@
                                 {{ walkInNameError }}
                             </small>
                         </label>
+
                         <label>
                             <span>Số điện thoại</span>
                             <input
@@ -769,23 +796,56 @@
                                 {{ walkInPhoneError }}
                             </small>
                         </label>
-                        <label>
-                            <span>Loại chu kỳ</span>
-                            <select v-model="form.recurrence_type">
-                                <option value="daily">Hàng ngày</option>
-                                <option value="weekly">Chu kỳ 7 ngày</option>
-                                <option value="monthly">Chu kỳ 30 ngày</option>
-                            </select>
-                        </label>
-                        <!-- <label>
-                            <span>Ngày bắt đầu</span>
-                            <input
-                                v-model="form.recurring_start_date"
-                                type="date"
-                                :min="today"
-                                @change="activateRecurringSchedulePicker"
-                            />
-                        </label> -->
+
+                        <div class="custom-field-wrap" style="display: flex; flex-direction: column; gap: 6px;">
+                            <span class="field-label" style="font-size: 13.5px; font-weight: 500; color: #0f172a;">Loại chu kỳ</span>
+                            <div class="custom-court-type-dropdown" style="position: relative;">
+                                <button
+                                    type="button"
+                                    class="court-type-trigger-btn"
+                                    style="width: 100%; height: 38px; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 13.5px; font-weight: 500; cursor: pointer; outline: none;"
+                                    @click="recurrenceTypeDropdownOpen = !recurrenceTypeDropdownOpen"
+                                >
+                                    <span>{{ recurrenceTypeName }}</span>
+                                    <AppIcon name="chevronDown" size="14" style="color: #64748b;" />
+                                </button>
+
+                                <div
+                                    v-if="recurrenceTypeDropdownOpen"
+                                    class="custom-dropdown-menu"
+                                    style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; min-width: 180px; z-index: 1000; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); padding: 4px 0;"
+                                >
+                                    <div
+                                        class="dropdown-item"
+                                        :class="{ active: form.recurrence_type === 'daily' }"
+                                        style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                        @click="selectRecurrenceType('daily')"
+                                    >
+                                        <span>Hàng ngày</span>
+                                        <AppIcon v-if="form.recurrence_type === 'daily'" name="check" size="14" style="color: #16a34a;" />
+                                    </div>
+                                    <div
+                                        class="dropdown-item"
+                                        :class="{ active: form.recurrence_type === 'weekly' }"
+                                        style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                        @click="selectRecurrenceType('weekly')"
+                                    >
+                                        <span>Chu kỳ 7 ngày</span>
+                                        <AppIcon v-if="form.recurrence_type === 'weekly'" name="check" size="14" style="color: #16a34a;" />
+                                    </div>
+                                    <div
+                                        class="dropdown-item"
+                                        :class="{ active: form.recurrence_type === 'monthly' }"
+                                        style="padding: 8px 14px; font-size: 13.5px; color: #0f172a; cursor: pointer; font-weight: 500; display: flex; align-items: center; justify-content: space-between;"
+                                        @click="selectRecurrenceType('monthly')"
+                                    >
+                                        <span>Chu kỳ 30 ngày</span>
+                                        <AppIcon v-if="form.recurrence_type === 'monthly'" name="check" size="14" style="color: #16a34a;" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <label>
                             <span>{{ recurringCountLabel }}</span>
                             <input
@@ -2092,6 +2152,8 @@ export default {
             selectedCourtTypeId: "",
             counterDatePickerOpen: false,
             courtTypeDropdownOpen: false,
+            recurringCourtTypeDropdownOpen: false,
+            recurrenceTypeDropdownOpen: false,
             scheduleSlots: [],
             scheduleCourts: [],
             scheduleSlotStatuses: [],
@@ -2703,6 +2765,15 @@ export default {
                 (t) => String(t.id) === String(this.selectedCourtTypeId),
             );
             return found ? found.name : "Tất cả loại sân";
+        },
+        recurrenceTypeName() {
+            return (
+                {
+                    daily: "Hàng ngày",
+                    weekly: "Chu kỳ 7 ngày",
+                    monthly: "Chu kỳ 30 ngày",
+                }[this.form.recurrence_type] || "Chu kỳ 7 ngày"
+            );
         },
         recurringUnitTotal() {
             return this.activeTab === "recurring" ? this.selectedTotal : 0;
@@ -3396,7 +3467,12 @@ export default {
         async selectCourtType(typeId) {
             this.selectedCourtTypeId = typeId;
             this.courtTypeDropdownOpen = false;
+            this.recurringCourtTypeDropdownOpen = false;
             await this.loadSchedule();
+        },
+        selectRecurrenceType(typeVal) {
+            this.form.recurrence_type = typeVal;
+            this.recurrenceTypeDropdownOpen = false;
         },
         hasRouteBookingFocus() {
             const focus = this.routeBookingFocusQuery();
@@ -10498,5 +10574,179 @@ input.invalid {
 :global(html) {
     overflow-y: scroll !important;
     scrollbar-gutter: stable;
+}
+
+/* Clean modern Recurring Tab layout fixes */
+.recurring-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.recurring-detail-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    margin-top: 16px;
+}
+
+.recurring-detail-box .preview-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 0 !important;
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+.recurring-detail-box .preview-head span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #16a34a;
+    background: #f0fdf4;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.recurring-detail-box .preview-head strong {
+    font-size: 14.5px;
+    font-weight: 500;
+    color: #0f172a;
+}
+
+.recurring-summary-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+    gap: 16px 24px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.recurring-summary-list div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+
+.recurring-summary-list dt {
+    font-size: 12px !important;
+    color: #64748b !important;
+    font-weight: 500 !important;
+    border: none !important;
+    text-align: center !important;
+}
+
+.recurring-summary-list dd {
+    font-size: 14px !important;
+    color: #0f172a !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+    border: none !important;
+    text-align: center !important;
+}
+
+.recurring-payment-list {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    margin-top: 10px !important;
+}
+
+.recurring-payment-list .payment-card {
+    flex: 1 !important;
+    min-width: 180px !important;
+    padding: 12px 16px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    transition: all 0.15s ease !important;
+}
+
+.recurring-payment-list .payment-card.active {
+    background: #f0fdf4 !important;
+    border-color: #16a34a !important;
+    color: #16a34a !important;
+}
+
+.recurring-collect-actions {
+    display: flex !important;
+    gap: 12px !important;
+    margin-top: 12px !important;
+}
+
+.recurring-collect-actions button {
+    flex: 1 !important;
+    height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.recurring-collect-actions button.active {
+    background: #f0fdf4 !important;
+    border-color: #16a34a !important;
+    color: #16a34a !important;
+}
+
+.recurring-form-actions {
+    margin-top: 18px !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+}
+
+.recurring-form-actions .primary-btn {
+    height: 40px !important;
+    padding: 0 24px !important;
+    border-radius: 6px !important;
+    background: #16a34a !important;
+    color: #ffffff !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: background 0.15s ease !important;
+}
+
+.recurring-form-actions .primary-btn:hover {
+    background: #15803d !important;
+}
+
+.recurring-form-actions .primary-btn:disabled {
+    background: #94a3b8 !important;
+    cursor: not-allowed !important;
 }
 </style>
