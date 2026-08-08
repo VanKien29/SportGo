@@ -1010,94 +1010,48 @@ export default {
 /* ===== BASE LAYOUT ===== */
 .cbw-page {
   min-height: 100vh;
-  background: #ffffff;
+  background: #f8faf9;
   color: #0f172a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
+  overflow-x: hidden;
 }
 
 .cbw-main {
-  max-width: 1280px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 24px 20px 60px;
-}
-
-/* ===== HEADER AREA ===== */
-.cbw-header {
-  margin-bottom: 24px;
-}
-
-.cbw-header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.cbw-breadcrumb a {
-  font-size: 13.5px;
-  color: #15803d;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.cbw-breadcrumb a:hover {
-  text-decoration: underline;
-}
-
-.cbw-history-btn {
-  font-size: 13px;
-  color: #334155;
-  text-decoration: none;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-
-.cbw-history-btn:hover {
-  background: #f8fafc;
-  color: #0f172a;
-  border-color: #94a3b8;
-}
-
-.cbw-title-area {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cbw-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-.cbw-subtitle {
-  font-size: 14px;
-  color: #475569;
-  margin: 0;
+  padding: 28px 24px 80px;
+  overflow-x: hidden;
 }
 
 /* ===== STEP PROGRESS INDICATOR ===== */
 .cbw-steps {
   display: flex;
-  gap: 24px;
-  align-items: center;
-  padding-bottom: 20px;
-  margin-bottom: 24px;
+  gap: 0;
+  align-items: stretch;
+  padding: 0;
+  margin-bottom: 28px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
 .cbw-step {
   display: flex;
   align-items: center;
   gap: 12px;
-  opacity: 0.45;
   flex: 1;
-  transition: opacity 0.2s ease;
+  padding: 14px 20px;
+  opacity: 0.42;
+  transition: opacity 0.2s ease, background 0.2s ease;
+  border-right: 1px solid #e2e8f0;
+  position: relative;
+}
+
+.cbw-step:last-child {
+  border-right: none;
 }
 
 .cbw-step.is-active,
@@ -1105,23 +1059,29 @@ export default {
   opacity: 1;
 }
 
+.cbw-step.is-active {
+  background: #f0fdf4;
+}
+
 .cbw-step-num {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #f1f5f9;
-  color: #475569;
+  color: #64748b;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
 }
 
 .cbw-step.is-active .cbw-step-num {
-  background: #15803d;
+  background: #16a34a;
   color: #ffffff;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
 }
 
 .cbw-step.is-done .cbw-step-num {
@@ -1132,17 +1092,20 @@ export default {
 .cbw-step-info {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .cbw-step-label {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: #0f172a;
+  line-height: 1.2;
 }
 
 .cbw-step-hint {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #64748b;
+  line-height: 1.3;
 }
 
 /* ===== LOADING SPINNER ===== */
@@ -1152,36 +1115,35 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 80px 0;
+  padding: 100px 0;
   color: #475569;
   font-size: 14px;
 }
 
 .cbw-spinner {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 3px solid #e2e8f0;
-  border-top-color: #15803d;
+  border-top-color: #16a34a;
   border-radius: 50%;
-  animation: cbw-spin 0.7s linear infinite;
+  animation: cbw-spin 0.75s linear infinite;
 }
 
 @keyframes cbw-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 /* ===== WORKSPACE GRID LAYOUT ===== */
 .cbw-workspace {
   display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 36px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
   align-items: start;
+  min-width: 0;
 }
 
 .cbw-workspace.is-fullwidth {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* ===== FILTERS TOOLBAR ===== */
@@ -1199,34 +1161,35 @@ export default {
 }
 
 .cbw-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: #334155;
+  color: #475569;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 
 .cbw-select,
 .cbw-input {
   font-size: 13.5px;
   color: #0f172a;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
-  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 9px 12px;
   background: #ffffff;
   outline: none;
   width: 100%;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .cbw-select:focus,
 .cbw-input:focus {
-  border-color: #15803d;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
 .cbw-select:disabled {
   background: #f8fafc;
-  color: #475569;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 
@@ -1237,55 +1200,42 @@ export default {
 }
 
 .cbw-date-btn {
-  width: 34px;
-  height: 36px;
+  width: 36px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
+  font-size: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   background: #ffffff;
-  color: #1e293b;
+  color: #374151;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s;
 }
 
 .cbw-date-btn:hover {
-  background: #f8fafc;
-}
-
-/* ===== CONFIG & PERIOD TABS ===== */
-.cbw-config-line {
-  font-size: 13px;
-  color: #475569;
-  margin-bottom: 16px;
+  background: #f0fdf4;
+  border-color: #16a34a;
+  color: #16a34a;
 }
 
 /* ===== CLEAN COMPACT TOOLBAR ===== */
 .cbw-toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
-}
-
-.cbw-select-compact {
-  font-size: 13.5px;
-  color: #0f172a;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
-  padding: 7px 12px;
-  background: #ffffff;
-  outline: none;
-  font-weight: 500;
 }
 
 .cbw-period-tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
 }
 
 .cbw-period-btn {
@@ -1293,35 +1243,41 @@ export default {
   align-items: center;
   gap: 6px;
   padding: 7px 16px;
-  font-size: 13.5px;
-  color: #1e293b;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
+  font-size: 13px;
+  color: #374151;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
   cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  font-weight: 500;
+}
+
+.cbw-period-btn:hover:not(.is-active) {
+  background: #e2e8f0;
 }
 
 .cbw-period-btn.is-active {
   color: #ffffff;
-  background: #15803d;
-  border-color: #15803d;
-  font-weight: 600;
+  background: #16a34a;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
 }
 
 .cbw-period-range {
-  font-size: 12px;
-  color: #334155;
+  font-size: 11.5px;
+  color: #6b7280;
+  font-weight: 400;
 }
 
 .cbw-period-btn.is-active .cbw-period-range {
-  color: #f0fdf4;
+  color: rgba(255,255,255,0.78);
 }
 
 /* ===== STATE MESSAGES ===== */
 .cbw-state-msg {
   text-align: center;
-  padding: 40px 16px;
-  color: #1e293b;
+  padding: 50px 16px;
+  color: #374151;
   font-size: 14px;
   font-weight: 500;
 }
@@ -1330,14 +1286,40 @@ export default {
   color: #dc2626;
 }
 
-/* ===== MATRIX TABLE (TIME-ROW FORMAT) ===== */
+/* ===== MATRIX TABLE ===== */
+.cbw-schedule-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  min-width: 0; /* Ngăn grid item tràn ra ngoài */
+  overflow: hidden;
+}
+
 .cbw-matrix-wrap {
   overflow-x: auto;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
-  margin-bottom: 16px;
-  max-height: 600px;
   overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  max-height: 560px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.cbw-matrix-wrap::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.cbw-matrix-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.cbw-matrix-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
 .cbw-matrix {
@@ -1347,13 +1329,14 @@ export default {
 }
 
 .cbw-th-corner {
-  padding: 8px 12px;
+  padding: 10px 14px;
   text-align: left;
-  font-size: 11px;
-  font-weight: 500;
-  color: #475569;
-  background: #f8fafc;
-  letter-spacing: 0.04em;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #6b7280;
+  background: #f9fafb;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   white-space: nowrap;
   min-width: 120px;
   width: 120px;
@@ -1361,116 +1344,139 @@ export default {
   top: 0;
   left: 0;
   z-index: 3;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
 }
 
 .cbw-th-court {
-  padding: 8px 14px;
-  text-align: left;
-  background: #f8fafc;
-  min-width: 160px;
+  padding: 10px 14px;
+  text-align: center;
+  background: #f9fafb;
+  min-width: 148px;
   white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 2;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
 }
 
 .cbw-th-court strong {
   display: block;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .cbw-th-court span {
   display: block;
-  font-size: 11px;
-  color: #64748b;
+  font-size: 10.5px;
+  color: #9ca3af;
   font-weight: 400;
   white-space: nowrap;
+  margin-top: 1px;
 }
 
 .cbw-td-time {
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
-  background: #ffffff;
+  padding: 0 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
   white-space: nowrap;
   position: sticky;
   left: 0;
   z-index: 1;
-  border-right: 1px solid #e2e8f0;
+  border-right: 2px solid #e5e7eb;
+  border-bottom: 1px solid #f3f4f6;
+  height: 48px;
+  vertical-align: middle;
+  letter-spacing: -0.01em;
 }
 
 .cbw-td-slot {
-  padding: 0;
+  padding: 4px;
   vertical-align: stretch;
-  border-bottom: 1px solid #e2e8f0;
-  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #f3f4f6;
+  border-right: 1px solid #f3f4f6;
 }
 
 .cbw-td-empty {
-  padding: 36px 16px;
+  padding: 40px 16px;
   text-align: center;
-  color: #1e293b;
+  color: #6b7280;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
-/* ===== SLOT BUTTONS (SINGLE CELL FIT - NO NESTED BOXES) ===== */
+/* ===== SLOT BUTTONS ===== */
 .cbw-slot-btn {
   width: 100%;
   height: 100%;
-  min-height: 44px;
+  min-height: 40px;
   background: #ffffff;
-  border: none;
-  border-radius: 0;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  gap: 4px;
+}
+
+.cbw-slot-btn:hover:not(:disabled):not(.is-selected) {
+  background: #f0fdf4;
+  border-color: #86efac;
+  transform: scale(1.02);
 }
 
 .cbw-slot-btn.is-selected {
-  background: #15803d;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  border-color: #15803d;
   color: #ffffff;
+  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.35);
 }
 
 .cbw-slot-btn.is-booked,
 .cbw-slot-btn.is-past {
-  background: #f8fafc;
+  background: #f9fafb;
+  border-color: transparent;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-locked {
   background: #fef2f2;
+  border-color: transparent;
   cursor: not-allowed;
 }
 
 .cbw-slot-label {
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
   color: #ffffff;
+  letter-spacing: 0.01em;
 }
 
 .cbw-slot-price {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+  color: #16a34a;
+  letter-spacing: -0.01em;
 }
 
 .cbw-slot-disabled-text {
-  font-size: 12px;
-  color: #475569;
+  font-size: 11px;
+  color: #9ca3af;
   font-weight: 400;
 }
 
 .cbw-slot-btn.is-locked .cbw-slot-disabled-text {
-  color: #dc2626;
+  color: #f87171;
+  font-size: 11px;
 }
 
 /* ===== SELECTION FEEDBACK BAR ===== */
@@ -1479,16 +1485,17 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 10px;
   gap: 12px;
   flex-wrap: wrap;
+  margin-top: 14px;
 }
 
 .cbw-sel-bar--error {
   background: #fef2f2;
-  border-color: #fca5a5;
+  border-color: #fecaca;
 }
 
 .cbw-sel-info {
@@ -1499,8 +1506,8 @@ export default {
 
 .cbw-sel-info strong {
   font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
+  font-weight: 600;
+  color: #15803d;
 }
 
 .cbw-sel-bar--error .cbw-sel-info strong {
@@ -1509,7 +1516,7 @@ export default {
 
 .cbw-sel-info span {
   font-size: 12.5px;
-  color: #334155;
+  color: #374151;
 }
 
 .cbw-sel-actions {
@@ -1519,53 +1526,64 @@ export default {
 
 .cbw-clear-btn {
   font-size: 12.5px;
-  color: #dc2626;
+  color: #ef4444;
   background: transparent;
-  border: none;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
   cursor: pointer;
-  padding: 4px 8px;
-  font-weight: 400;
+  padding: 5px 12px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
 }
 
 .cbw-clear-btn:hover {
-  text-decoration: underline;
+  background: #fef2f2;
 }
 
 /* ===== RIGHT SUMMARY PANEL ===== */
 .cbw-summary-panel {
-  border: 1px solid #cbd5e1;
-  border-radius: 2px;
-  padding: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px;
   background: #ffffff;
   position: sticky;
   top: 24px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
 
 .cbw-summary-header {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .cbw-summary-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: #15803d;
-  letter-spacing: 0.05em;
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #16a34a;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 3px 9px;
+  margin-bottom: 8px;
 }
 
 .cbw-summary-title {
-  font-size: 16.5px;
-  font-weight: 500;
+  font-size: 17px;
+  font-weight: 700;
   color: #0f172a;
-  margin: 4px 0 2px;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
 }
 
 .cbw-summary-sub {
-  font-size: 13px;
-  color: #64748b;
+  font-size: 12.5px;
+  color: #6b7280;
   margin: 0;
+  line-height: 1.5;
 }
 
 .cbw-divider {
@@ -1578,23 +1596,26 @@ export default {
 .cbw-facts {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
 }
 
 .cbw-fact-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13.5px;
+  font-size: 13px;
+  gap: 8px;
 }
 
 .cbw-fact-row span {
-  color: #475569;
+  color: #6b7280;
+  flex-shrink: 0;
 }
 
 .cbw-fact-row strong {
-  color: #0f172a;
-  font-weight: 500;
+  color: #111827;
+  font-weight: 600;
+  text-align: right;
 }
 
 /* ===== PRICE ROWS ===== */
@@ -1605,9 +1626,12 @@ export default {
 }
 
 .cbw-price-head {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
 }
 
 .cbw-price-row {
@@ -1615,15 +1639,23 @@ export default {
   align-items: center;
   justify-content: space-between;
   font-size: 12.5px;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f9fafb;
+  border-radius: 7px;
 }
 
 .cbw-price-row span {
-  color: #475569;
+  color: #6b7280;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
 }
 
 .cbw-price-row strong {
-  color: #0f172a;
-  font-weight: 500;
+  color: #111827;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* ===== DISCOUNT & VOUCHER ===== */
@@ -1637,12 +1669,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .cbw-discount-val {
-  color: #15803d;
-  font-weight: 500;
+  color: #16a34a;
+  font-weight: 700;
 }
 
 .cbw-voucher-btn {
@@ -1650,19 +1682,27 @@ export default {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 13px;
   font-size: 13px;
-  color: #1e293b;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  color: #374151;
+  background: #f9fafb;
+  border: 1.5px dashed #d1d5db;
+  border-radius: 9px;
   cursor: pointer;
   text-align: left;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.cbw-voucher-btn:hover {
+  border-color: #16a34a;
+  background: #f0fdf4;
 }
 
 .cbw-voucher-count {
-  font-size: 12px;
-  color: #475569;
+  font-size: 11.5px;
+  color: #9ca3af;
+  font-weight: 400;
 }
 
 .cbw-voucher-notice {
@@ -1674,25 +1714,31 @@ export default {
 .cbw-voucher-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .cbw-voucher-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  padding: 10px 13px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 9px;
   background: #ffffff;
   cursor: pointer;
   font-size: 13px;
-  color: #1e293b;
+  color: #374151;
   text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.cbw-voucher-item:hover:not(.is-active) {
+  border-color: #86efac;
+  background: #f9fafb;
 }
 
 .cbw-voucher-item.is-active {
-  border-color: #15803d;
+  border-color: #16a34a;
   background: #f0fdf4;
 }
 
@@ -1703,65 +1749,82 @@ export default {
 }
 
 .cbw-voucher-item > div strong {
-  font-weight: 500;
-  color: #0f172a;
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
 }
 
 .cbw-voucher-item > div span {
   font-size: 11.5px;
-  color: #475569;
+  color: #6b7280;
 }
 
 .cbw-voucher-item > strong {
-  color: #15803d;
+  color: #16a34a;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .cbw-voucher-empty {
   font-size: 12.5px;
-  color: #475569;
+  color: #9ca3af;
   margin: 0;
+  text-align: center;
+  padding: 8px;
 }
 
 /* ===== PAYMENT SECTION ===== */
 .cbw-payment-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cbw-payment-title {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .cbw-wallet-bal {
   font-size: 12.5px;
-  color: #475569;
+  color: #6b7280;
   margin: 0;
+  padding: 8px 12px;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
 }
 
 .cbw-wallet-bal strong {
-  color: #0f172a;
-  font-weight: 500;
+  color: #d97706;
+  font-weight: 700;
 }
 
 .cbw-payment-opts {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .cbw-payment-opt {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  gap: 11px;
+  padding: 11px 13px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
   background: #ffffff;
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.cbw-payment-opt:hover:not(.is-active):not(.is-disabled) {
+  border-color: #d1fae5;
+  background: #fafffe;
 }
 
 .cbw-payment-opt input[type="radio"] {
@@ -1769,9 +1832,10 @@ export default {
   height: 16px;
   min-width: 16px;
   min-height: 16px;
-  margin-top: 2px;
-  accent-color: #15803d;
+  margin-top: 3px;
+  accent-color: #16a34a;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .cbw-payment-opt > div {
@@ -1782,22 +1846,28 @@ export default {
 
 .cbw-payment-opt > div strong {
   font-size: 13px;
-  font-weight: 500;
-  color: #0f172a;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
 }
 
 .cbw-payment-opt > div span {
-  font-size: 12px;
-  color: #475569;
+  font-size: 11.5px;
+  color: #6b7280;
+  line-height: 1.4;
 }
 
 .cbw-payment-opt.is-active {
-  border-color: #15803d;
+  border-color: #16a34a;
   background: #f0fdf4;
 }
 
+.cbw-payment-opt.is-active > div strong {
+  color: #15803d;
+}
+
 .cbw-payment-opt.is-disabled {
-  opacity: 0.5;
+  opacity: 0.42;
   cursor: not-allowed;
 }
 
@@ -1806,72 +1876,136 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14.5px;
-  color: #0f172a;
-  margin-bottom: 6px;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 4px;
+  font-weight: 500;
 }
 
 .cbw-total-val {
-  font-size: 19px;
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 800;
   color: #15803d;
+  letter-spacing: -0.03em;
 }
 
 .cbw-required-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13.5px;
-  color: #475569;
-  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: #6b7280;
+  margin-bottom: 14px;
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 
 .cbw-required-row strong {
-  color: #0f172a;
-  font-weight: 500;
+  color: #111827;
+  font-weight: 700;
 }
 
 .cbw-submit-error {
   font-size: 12.5px;
   color: #dc2626;
   margin: 0 0 10px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
 }
 
 .cbw-submit-btn {
   width: 100%;
-  padding: 13px;
-  background: #15803d;
+  padding: 14px;
+  background: linear-gradient(135deg, #16a34a, #15803d);
   color: #ffffff;
   font-size: 14.5px;
-  font-weight: 500;
+  font-weight: 700;
   border: none;
-  border-radius: 2px;
+  border-radius: 10px;
   cursor: pointer;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.cbw-submit-btn:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 .cbw-submit-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.38;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .cbw-hold-note {
   font-size: 11.5px;
-  color: #64748b;
+  color: #9ca3af;
   margin: 10px 0 0;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.5;
+}
+
+/* ===== SKELETON LOADING ===== */
+.cbw-skel {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 16px;
+}
+
+.cbw-skel span {
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: cbw-shimmer 1.4s infinite;
+}
+
+@keyframes cbw-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ===== RESPONSIVE STYLES ===== */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .cbw-workspace {
     grid-template-columns: 1fr;
   }
   .cbw-summary-panel {
     position: static;
   }
+}
+
+@media (max-width: 640px) {
+  .cbw-main {
+    padding: 16px 14px 60px;
+  }
+  .cbw-steps {
+    border-radius: 10px;
+    flex-direction: column;
+  }
+  .cbw-step {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .cbw-step:last-child {
+    border-bottom: none;
+  }
   .cbw-filters {
     grid-template-columns: 1fr;
+  }
+  .cbw-period-tabs {
+    width: 100%;
+  }
+  .cbw-period-btn {
+    flex: 1;
+    justify-content: center;
   }
 }
 </style>

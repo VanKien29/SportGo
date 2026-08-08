@@ -2,19 +2,27 @@
   <div class="pricing-master-workspace">
 
     <!-- Toast Notifications -->
-    <Transition name="fade">
-      <div v-if="error" class="global-toast alert-error">
-        <span>{{ error }}</span>
-        <button type="button" class="toast-close-btn" @click="error = ''">✕</button>
-      </div>
-    </Transition>
+    <Teleport to="body">
+      <Transition name="toast-slide">
+        <div v-if="notice" class="toast-floating-banner toast-success">
+          <div class="toast-icon-wrap">
+            <AppIcon name="check" :size="16" />
+          </div>
+          <span class="toast-msg-text">{{ notice }}</span>
+          <button type="button" class="toast-close" @click="notice = ''">✕</button>
+        </div>
+      </Transition>
 
-    <Transition name="fade">
-      <div v-if="notice" class="global-toast alert-success">
-        <span>{{ notice }}</span>
-        <button type="button" class="toast-close-btn" @click="notice = ''">✕</button>
-      </div>
-    </Transition>
+      <Transition name="toast-slide">
+        <div v-if="error" class="toast-floating-banner toast-error">
+          <div class="toast-icon-wrap">
+            <AppIcon name="alertCircle" :size="16" />
+          </div>
+          <span class="toast-msg-text">{{ error }}</span>
+          <button type="button" class="toast-close" @click="error = ''">✕</button>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Master Unified Surface Container -->
     <div class="cluster-profile-surface standalone">
@@ -140,7 +148,9 @@ export default {
       return this.clusters.find((cluster) => String(cluster.id) === String(this.selectedClusterId)) || null;
     },
     courtTypes() {
-      return this.courtTypesByCluster[this.selectedClusterId] || [];
+      return this.courtTypesByCluster[this.selectedClusterId]
+        || this.courtTypesByCluster[Number(this.selectedClusterId)]
+        || [];
     },
     activeTabMeta() {
       return {
@@ -192,9 +202,20 @@ export default {
     },
   },
   mounted() {
+    window.addEventListener('owner-cluster-changed', this.handleClusterChange);
     this.fetchData();
   },
+  beforeUnmount() {
+    window.removeEventListener('owner-cluster-changed', this.handleClusterChange);
+  },
   methods: {
+    handleClusterChange(event) {
+      const clusterId = event?.detail?.id || localStorage.getItem('selected_cluster') || '';
+      if (clusterId && String(clusterId) !== String(this.selectedClusterId)) {
+        this.selectedClusterId = String(clusterId);
+        this.syncBasePriceDrafts();
+      }
+    },
     defaultForm() {
       return {
         court_type_id: null,
@@ -217,15 +238,22 @@ export default {
       const timeout = window.setTimeout(() => controller.abort(), 15000);
 
       try {
-        const data = await api('/api/owner/pricing-rules', { signal: controller.signal });
+        const data = await api('/api/owner/pricing', { signal: controller.signal });
         this.clusters = data.clusters || [];
         this.courtTypesByCluster = data.court_types_by_cluster || {};
         this.basePrices = data.base_prices || [];
         this.systemDefaultPrice = Number(data.system_default_price || 100000);
         this.priceSlots = data.price_slots || [];
         this.holidayPrices = data.holiday_prices || [];
-        if (!this.clusters.some((cluster) => String(cluster.id) === String(this.selectedClusterId))) {
+        
+        const savedId = localStorage.getItem('selected_cluster');
+        if (savedId && this.clusters.some((cluster) => String(cluster.id) === String(savedId))) {
+          this.selectedClusterId = String(savedId);
+        } else if (!this.clusters.some((cluster) => String(cluster.id) === String(this.selectedClusterId))) {
           this.selectedClusterId = this.clusters[0]?.id ? String(this.clusters[0].id) : '';
+        }
+        if (this.selectedClusterId) {
+          localStorage.setItem('selected_cluster', this.selectedClusterId);
         }
         this.syncBasePriceDrafts();
       } catch (error) {
@@ -475,47 +503,92 @@ export default {
   margin-top: 0 !important;
 }
 
-/* Global Toasts */
-.global-toast {
+/* Floating Toast Banner */
+.toast-floating-banner {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 12px 18px;
   border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.05);
   font-size: 13.5px;
-  font-weight: 400;
-  box-shadow: var(--admin-shadow-sm, 0 1px 2px rgba(23, 34, 27, 0.06));
+  font-weight: 500;
+  color: #0f172a;
+  min-width: 280px;
+  max-width: 420px;
 }
 
-.global-toast.alert-error {
-  background: var(--admin-danger-soft, #fef2f2);
-  border: 1px solid var(--admin-danger, #dc2626);
-  color: var(--admin-danger-text, #991b1b);
+.toast-floating-banner.toast-success {
+  border-left: 4px solid #16a34a;
 }
 
-.global-toast.alert-success {
-  background: var(--admin-success-soft, #e2f6e8);
-  border: 1px solid var(--admin-success, #22a653);
-  color: var(--admin-success-text, #15733a);
+.toast-floating-banner.toast-success .toast-icon-wrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.toast-close-btn {
-  margin-left: auto;
+.toast-floating-banner.toast-error {
+  border-left: 4px solid #dc2626;
+}
+
+.toast-floating-banner.toast-error .toast-icon-wrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toast-msg-text {
+  flex: 1;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.toast-close {
   background: transparent;
   border: none;
-  color: inherit;
-  cursor: pointer;
+  color: #94a3b8;
   font-size: 14px;
-  opacity: 0.8;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease;
 }
 
-.toast-close-btn:hover {
-  opacity: 1;
+.toast-close:hover {
+  color: #0f172a;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+.toast-slide-enter-active,
+.toast-slide-leave-active {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-slide-enter-from {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}
+
+.toast-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
 }
 
 .fade-enter-from,

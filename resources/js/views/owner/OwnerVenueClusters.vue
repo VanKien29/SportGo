@@ -498,10 +498,7 @@
                             {{ requestSuccessMsg }}
                         </div>
                         <div class="form-group">
-                            <label for="req-name"
-                                >Tên tiện ích
-                                <span class="required">*</span></label
-                            >
+                            <label for="req-name">Tên tiện ích</label>
                             <input
                                 id="req-name"
                                 v-model="requestForm.name"
@@ -583,7 +580,6 @@
                                         :key="court.local_id"
                                         class="requested-court-row"
                                     >
-                                        <div class="requested-court-index">{{ index + 1 }}</div>
                                         <div class="requested-court-fields">
                                             <div class="form-group compact">
                                                 <label>Loại sân</label>
@@ -623,7 +619,12 @@
                                     </div>
                                 </div>
                                 <div v-if="removableCourts.length" class="court-remove-list scale-remove-list">
-                                    <label v-for="court in removableCourts" :key="court.id" class="court-remove-option">
+                                    <label
+                                        v-for="court in removableCourts"
+                                        :key="court.id"
+                                        class="court-remove-option"
+                                        :class="{ active: newReqForm.removed_court_ids.includes(court.id) }"
+                                    >
                                         <input v-model="newReqForm.removed_court_ids" type="checkbox" :value="court.id" />
                                         <span>{{ court.name }} · {{ court.court_type?.name || 'Chưa phân loại' }}</span>
                                     </label>
@@ -766,7 +767,7 @@
                             ></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Ảnh minh chứng <span class="required">*</span></label>
+                            <label>Ảnh minh chứng</label>
                             <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
                                 Bắt buộc gửi ảnh chụp thực tế sân hoặc khu vực mở rộng (JPG, PNG, WebP - tối đa 5MB).
                             </p>
@@ -797,7 +798,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng <span class="required">*</span></label>
+                            <label>Giấy ĐKKD/cập nhật kinh doanh và minh chứng</label>
                             <p class="section-desc" style="margin-top:0; margin-bottom: 8px; font-size: 12.5px;">
                                 Bắt buộc tải giấy ĐKKD hoặc giấy cập nhật kinh doanh liên quan đến yêu cầu mở rộng.
                             </p>
@@ -1245,7 +1246,7 @@
                         </div>
                         
                         <div class="form-group">
-                            <label for="court-type-req-name">Tên loại sân đề xuất <span class="required">*</span></label>
+                            <label for="court-type-req-name">Tên loại sân đề xuất</label>
                             <input
                                 id="court-type-req-name"
                                 v-model="courtTypeRequestForm.name"
@@ -1257,7 +1258,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Nhóm bộ môn (Loại sân cha) <span class="required">*</span></label>
+                            <label>Nhóm bộ môn (Loại sân cha)</label>
                             <div class="custom-select-wrapper req-parent-select">
                                 <div
                                     class="custom-select-trigger"
@@ -1288,7 +1289,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="court-type-req-players">Số người chơi đề xuất <span class="required">*</span></label>
+                            <label for="court-type-req-players">Số người chơi đề xuất</label>
                             <input
                                 id="court-type-req-players"
                                 v-model.number="courtTypeRequestForm.player_count"
@@ -7492,37 +7493,72 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
     gap: 10px;
 }
 
-.change-type-options label,
-.court-remove-option {
+.change-type-options label {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     min-height: 38px;
     padding: 8px 10px;
-    border: 1px solid #d7e5da;
-    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
     background: var(--admin-surface, #ffffff);
-    color: #16351f;
-    font-weight: 400;
+    color: #0f172a;
+    font-weight: 500;
 }
 
 .court-remove-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.court-remove-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.court-remove-option:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.court-remove-option.active,
+.court-remove-option:has(input:checked) {
+    background: #f0fdf4 !important;
+    border-color: #16a34a !important;
+    color: #16a34a !important;
+}
+
+.court-remove-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #16a34a;
+    cursor: pointer;
 }
 
 .scale-adjust-board {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+    gap: 20px;
 }
 
 .scale-adjust-section {
-    border: 1px solid #d7e5da;
-    border-radius: 8px;
-    background: #fbfdfb;
-    padding: 18px;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
 }
 
 .scale-adjust-head {
@@ -7535,64 +7571,114 @@ h1, h2, h3, h4, h5, h6, strong, b, th, .fw-bold, .font-normal {
 
 .scale-adjust-head label {
     margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+}
+
+.scale-adjust-head .section-desc {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.scale-adjust-head .btn-outline {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
     font-size: 13px;
     font-weight: 500;
-    color: #16351f;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.scale-adjust-head .btn-outline:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
 }
 
 .requested-court-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .requested-court-row {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
-    gap: 10px;
-    align-items: center;
-    padding: 10px;
-    border: 1px solid #dfe9e2;
-    border-radius: 8px;
-    background: var(--admin-surface, #ffffff);
-}
-
-.requested-court-index {
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    display: inline-grid;
-    place-items: center;
-    background: #ecfdf3;
-    color: #166534;
-    font-weight: 500;
-    font-size: 12px;
+    grid-template-columns: minmax(0, 1fr) 38px;
+    gap: 12px;
+    align-items: flex-end;
+    padding: 6px 0;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .requested-court-fields {
     display: grid;
     grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1.1fr);
-    gap: 10px;
+    gap: 14px;
 }
 
 .form-group.compact {
-    margin-bottom: 0;
+    margin-bottom: 0 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group.compact label {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #0f172a;
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.form-group.compact input.form-control,
+.form-group.compact .form-select,
+.form-group.compact .combo-wrapper input {
+    height: 38px !important;
+    border-radius: 6px !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 0 12px !important;
+    background: #ffffff !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+    outline: none !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
 }
 
 .btn-icon-danger {
-    width: 32px;
-    height: 32px;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    background: var(--admin-surface, #ffffff);
-    color: #dc2626;
-    display: inline-grid;
-    place-items: center;
-    cursor: pointer;
+    width: 38px !important;
+    height: 38px !important;
+    border: 1px solid #fee2e2 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: #ef4444 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
+.btn-icon-danger:hover,
 .btn-icon-danger.never-hover-class-placeholder {
-    background: #fef2f2;
+    background: #fef2f2 !important;
+    border-color: #fca5a5 !important;
+    color: #dc2626 !important;
 }
 
 .document-upload-grid {

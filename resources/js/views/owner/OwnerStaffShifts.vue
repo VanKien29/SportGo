@@ -2047,14 +2047,14 @@ th {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--admin-text, #f4f4f5);
+  color: var(--admin-text, #0f172a);
   cursor: pointer;
   text-align: left;
 }
 
 .day-staff-shift + .day-staff-shift,
 .day-unassigned-chip + .day-unassigned-chip {
-  border-top: 1px solid var(--admin-border-soft, rgba(255,255,255,0.06));
+  border-top: 1px solid var(--admin-border-soft, #e2e8f0);
 }
 
 .day-staff-avatar,
@@ -2065,10 +2065,10 @@ th {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--admin-surface-muted, #27272a);
-  color: var(--admin-text, #f4f4f5);
+  background: #6366f1;
+  color: #ffffff;
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 600;
 }
 
 .day-staff-main {

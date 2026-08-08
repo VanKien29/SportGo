@@ -1,5 +1,13 @@
 <template>
   <div class="base-price-section">
+    <!-- Header title for section -->
+    <div class="section-header-bar">
+      <div class="title-with-badge">
+        <h3 class="section-heading">Giá chung theo loại sân</h3>
+        <span class="info-tag">Áp dụng mặc định cho tất cả khung giờ khi chưa có quy tắc giá nâng cao</span>
+      </div>
+    </div>
+
     <!-- Loading / Empty States -->
     <div v-if="isLoading" class="base-price-state-card">
       <div class="spinner-sm"></div>
@@ -12,52 +20,49 @@
       <span>Cụm sân này chưa có loại sân nào. Bạn cần thêm sân con trước khi đặt giá.</span>
     </div>
 
-    <!-- Cards Grid -->
-    <div v-else class="base-price-grid">
+    <!-- Clean Modern List -->
+    <div v-else class="base-price-list">
       <div
         v-for="type in courtTypes"
         :key="type.id"
-        class="base-price-item-card"
+        class="base-price-row-card"
         :class="{ 'is-saving': savingBasePriceId === type.id }"
       >
-        <div class="card-type-header">
-          <span class="type-title">{{ type.name }}</span>
+        <div class="card-left-info">
+          <div class="type-name-block">
+            <span class="type-title">{{ type.name }}</span>
+            <span class="type-subtitle">Giá đang áp dụng: <strong>{{ formatMoney(getDraftValue(type.id)) }} đ/giờ</strong></span>
+          </div>
         </div>
 
-        <div class="card-input-block">
-          <div class="money-input-group" :class="{ invalid: !isValidPrice(getDraftValue(type.id)) }">
+        <div class="card-right-controls">
+          <div class="currency-input-group" :class="{ invalid: !isValidPrice(getDraftValue(type.id)) }">
             <input
               type="number"
-              min="1"
-              step="1000"
+              min="0"
+              step="any"
               :value="getDraftValue(type.id)"
               :disabled="savingBasePriceId === type.id"
               placeholder="100000"
+              class="currency-num-input"
               @input="onInput(type.id, $event.target.value)"
             />
-            <span class="currency-unit">đ / giờ</span>
+            <span class="currency-unit-addon">đ / giờ</span>
           </div>
-          <span v-if="!isValidPrice(getDraftValue(type.id))" class="input-error-msg">
-            Giá phải là số lớn hơn 0
-          </span>
-          <span v-else class="formatted-preview">
-            {{ formatMoney(getDraftValue(type.id)) }} đ / giờ
-          </span>
-        </div>
 
-        <div class="card-action-block">
           <button
             type="button"
-            class="btn-save-base"
+            class="btn-save-inline"
             :disabled="savingBasePriceId === type.id || !isValidPrice(getDraftValue(type.id))"
             @click="$emit('save-base-price', type)"
           >
             <template v-if="savingBasePriceId === type.id">
               <span class="spinner-xs"></span>
-              <span>Đang lưu...</span>
+              <span>Lưu...</span>
             </template>
             <template v-else>
-              <span>Lưu giá chung</span>
+              <AppIcon name="check" :size="14" />
+              <span>Lưu giá</span>
             </template>
           </button>
         </div>
@@ -101,7 +106,38 @@ export default {
 .base-price-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--admin-border-light, #f1f5f9);
+}
+
+.section-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--admin-text, #0f172a);
+}
+
+.info-tag {
+  font-size: 12px;
+  color: var(--admin-muted, #64748b);
+  background: transparent;
+  padding: 0;
+  border: none;
 }
 
 .base-price-state-card {
@@ -109,20 +145,19 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 24px 16px;
-  background: var(--admin-bg-soft, #f7fbf5);
-  border: 1px dashed var(--admin-border, #cfded1);
-  border-radius: 8px;
-  color: var(--admin-muted, #2f3d34);
+  padding: 20px 16px;
+  background: var(--admin-bg-soft, #f8fafc);
+  border: 1px dashed var(--admin-border, #cbd5e1);
+  border-radius: 10px;
+  color: var(--admin-muted, #64748b);
   font-size: 13.5px;
-  font-weight: 400;
 }
 
 .spinner-sm {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--admin-border, #cfded1);
-  border-top-color: var(--admin-primary, #22a653);
+  border: 2px solid var(--admin-border, #cbd5e1);
+  border-top-color: var(--admin-primary, #16a34a);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -140,130 +175,168 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-.base-price-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+.base-price-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.base-price-row-card {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--admin-border-light, #f1f5f9);
+  border-radius: 0;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
 
-.base-price-item-card {
-  background: var(--admin-bg-soft, #f7fbf5);
-  border: 1px solid var(--admin-border-soft, #e3ece4);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+.base-price-row-card:last-child {
+  border-bottom: none;
 }
 
-.base-price-item-card:hover {
-  border-color: var(--admin-border, #cfded1);
-}
-
-.base-price-item-card.is-saving {
-  opacity: 0.85;
+.base-price-row-card.is-saving {
+  opacity: 0.75;
   pointer-events: none;
 }
 
-.card-type-header {
+.card-left-info {
   display: flex;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.type-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .type-title {
   font-size: 14px;
-  font-weight: 400;
-  color: var(--admin-text, #101c15);
-}
-
-.card-input-block {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.money-input-group {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--admin-border, #cfded1);
-  border-radius: 8px;
-  background: var(--admin-surface, #ffffff);
+  font-weight: 600;
+  color: var(--admin-text, #0f172a);
+  white-space: nowrap;
   overflow: hidden;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  text-overflow: ellipsis;
 }
 
-.money-input-group:focus-within {
-  border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.22));
-}
-
-.money-input-group.invalid {
-  border-color: var(--admin-danger, #dc2626);
-}
-
-.money-input-group input {
-  flex: 1;
-  height: 38px;
-  padding: 0 10px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--admin-text, #101c15);
-  outline: none;
-}
-
-.currency-unit {
-  padding: 0 10px;
+.type-subtitle {
   font-size: 12px;
-  font-weight: 400;
-  color: var(--admin-faint, #45564a);
-  background: var(--admin-bg, #eef6f0);
-  height: 38px;
+  color: var(--admin-muted, #64748b);
+}
+
+.type-subtitle strong {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.card-right-controls {
   display: flex;
   align-items: center;
-  border-left: 1px solid var(--admin-border-soft, #e3ece4);
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.input-error-msg {
-  font-size: 11.5px;
-  color: var(--admin-text, #101c15);
-  font-weight: 400;
+/* Standalone Input Addon Box */
+.currency-input-group {
+  display: flex;
+  align-items: center;
+  width: 175px;
+  height: 36px;
+  border: none !important;
+  border-radius: 8px;
+  background: var(--admin-bg-soft, #f8fafc);
+  overflow: hidden;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
-.formatted-preview {
-  font-size: 11.5px;
-  color: var(--admin-muted, #2f3d34);
-  font-weight: 400;
+.currency-input-group:focus-within {
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
 }
 
-.card-action-block {
-  margin-top: 2px;
+.currency-input-group.invalid {
+  box-shadow: 0 0 0 1px #dc2626;
 }
 
-.btn-save-base {
-  width: 100%;
-  height: 34px;
-  border-radius: 7px;
+.currency-num-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px 0 10px;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--admin-text, #0f172a);
+  text-align: right;
+  -moz-appearance: textfield;
+}
+
+.currency-num-input::-webkit-outer-spin-button,
+.currency-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.currency-unit-addon {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 10px 0 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--admin-muted, #64748b);
+  background: transparent !important;
+  border: none !important;
+  border-left: none !important;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn-save-inline {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
   border: none;
-  background: var(--admin-primary, #22a653);
-  color: var(--admin-primary-text, #ffffff);
-  font-size: 12.5px;
-  font-weight: 400;
-  display: flex;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   cursor: pointer;
+  white-space: nowrap;
   transition: background-color 0.15s ease;
 }
 
-.btn-save-base:hover:not(:disabled) {
-  background: var(--admin-primary-dark, #15733a);
+.btn-save-inline:hover:not(:disabled) {
+  background: #15803d;
 }
 
-.btn-save-base:disabled {
-  opacity: 0.55;
+.btn-save-inline:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .base-price-row-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .card-right-controls {
+    justify-content: flex-end;
+  }
 }
 </style>

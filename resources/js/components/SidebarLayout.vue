@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="layout">
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <nav class="sidebar-nav">
@@ -362,7 +362,7 @@ export default {
 .content-area {
   flex: 1;
   min-width: 0;
-  padding: 24px;
+  padding: 0 !important;
 }
 
 .overlay {
@@ -406,7 +406,7 @@ export default {
   }
 
   .content-area {
-    padding: 16px;
+    padding: 0 !important;
   }
 }
 </style>

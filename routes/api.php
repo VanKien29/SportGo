@@ -450,6 +450,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/venue-policies/notices', [OwnerVenuePolicyController::class, 'storeNotice']);
         Route::put('/venue-policies/notices/{id}', [OwnerVenuePolicyController::class, 'updateNotice']);
         Route::get('/pricing', [OwnerPricingController::class, 'index']);
+        Route::get('/pricing-rules', [OwnerPricingController::class, 'index']);
         Route::patch('/booking-configs/{venueClusterId}/duration', [OwnerPricingController::class, 'updateDuration']);
         Route::put('/base-prices/{courtTypeId}', [OwnerPricingController::class, 'updateBasePrice']);
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
@@ -601,8 +602,11 @@ Route::middleware('auth:sanctum')
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
         Route::post('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'store'])->middleware('throttle:5,1');
         Route::post('/matchmaking-posts/{id}/join', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'join']);
-        
+        Route::post('/matchmaking-posts/{id}/leave', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'leave']);
+
         // Matchmaking Management
+        Route::patch('/matchmaking-posts/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'update']);
+        Route::delete('/matchmaking-posts/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'close']);
         Route::get('/matchmaking-posts/{id}/participants', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'participants']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/approve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'approveParticipant']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);

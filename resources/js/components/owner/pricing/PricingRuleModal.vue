@@ -18,45 +18,67 @@
             <span>{{ errorMessage }}</span>
           </div>
 
-          <!-- Section 1: Target Court & Booking Type -->
+          <!-- Section 1: Target Court & Booking Type (Custom Dropdowns) -->
           <div class="form-grid">
-            <label class="field-group">
-              <span class="field-label">
-                Loại sân <span class="required">*</span>
-              </span>
-              <select
-                :value="form.court_type_id"
-                required
-                @change="updateFormField('court_type_id', Number($event.target.value))"
-              >
-                <option v-for="t in courtTypes" :key="t.id" :value="t.id">
-                  {{ t.name }}
-                </option>
-              </select>
-            </label>
+            <div class="field-group">
+              <span class="field-label">Loại sân</span>
+              <div class="custom-select-wrap" ref="courtTypeSelect">
+                <button
+                  type="button"
+                  class="custom-select-trigger"
+                  :class="{ open: courtTypeOpen }"
+                  @click.stop="toggleCourtTypeDropdown"
+                >
+                  <span class="trigger-text">{{ selectedCourtTypeName }}</span>
+                  <AppIcon name="chevronDown" :size="14" class="arrow" :class="{ open: courtTypeOpen }" />
+                </button>
+                <div v-if="courtTypeOpen" class="custom-select-menu">
+                  <div
+                    v-for="t in courtTypes"
+                    :key="t.id"
+                    class="custom-select-option"
+                    :class="{ active: String(form.court_type_id) === String(t.id) }"
+                    @click="selectCourtType(t.id)"
+                  >
+                    <span>{{ t.name }}</span>
+                    <AppIcon v-if="String(form.court_type_id) === String(t.id)" name="check" :size="14" />
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <label class="field-group">
-              <span class="field-label">
-                Loại booking <span class="required">*</span>
-              </span>
-              <select
-                :value="form.booking_type"
-                required
-                @change="updateFormField('booking_type', $event.target.value)"
-              >
-                <option value="all">Dùng chung (Tất cả)</option>
-                <option value="single">Đặt lẻ</option>
-                <option value="recurring">Đặt cố định</option>
-              </select>
-            </label>
+            <div class="field-group">
+              <span class="field-label">Loại booking</span>
+              <div class="custom-select-wrap" ref="bookingTypeSelect">
+                <button
+                  type="button"
+                  class="custom-select-trigger"
+                  :class="{ open: bookingTypeOpen }"
+                  @click.stop="toggleBookingTypeDropdown"
+                >
+                  <span class="trigger-text">{{ selectedBookingTypeLabel }}</span>
+                  <AppIcon name="chevronDown" :size="14" class="arrow" :class="{ open: bookingTypeOpen }" />
+                </button>
+                <div v-if="bookingTypeOpen" class="custom-select-menu">
+                  <div
+                    v-for="opt in bookingTypeOptions"
+                    :key="opt.value"
+                    class="custom-select-option"
+                    :class="{ active: form.booking_type === opt.value }"
+                    @click="selectBookingType(opt.value)"
+                  >
+                    <span>{{ opt.label }}</span>
+                    <AppIcon v-if="form.booking_type === opt.value" name="check" :size="14" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Section 2: Application Days OR Date -->
           <template v-if="activeTab === 'weekly'">
             <div class="field-group">
-              <span class="field-label">
-                Ngày áp dụng trong tuần <span class="required">*</span>
-              </span>
+              <span class="field-label">Ngày áp dụng trong tuần</span>
               <div class="day-checkbox-grid">
                 <button
                   v-for="d in days"
@@ -74,13 +96,12 @@
 
           <template v-else>
             <label class="field-group">
-              <span class="field-label">
-                Ngày áp dụng cụ thể <span class="required">*</span>
-              </span>
+              <span class="field-label">Ngày áp dụng cụ thể</span>
               <input
                 type="date"
                 :value="form.holiday_date"
                 required
+                class="form-control-input"
                 @input="updateFormField('holiday_date', $event.target.value)"
               />
             </label>
@@ -89,25 +110,23 @@
           <!-- Section 3: Time Range -->
           <div class="form-grid">
             <label class="field-group">
-              <span class="field-label">
-                Giờ bắt đầu <span class="required">*</span>
-              </span>
+              <span class="field-label">Giờ bắt đầu</span>
               <input
                 type="time"
                 :value="form.start_time"
                 required
+                class="form-control-input"
                 @input="updateFormField('start_time', $event.target.value)"
               />
             </label>
 
             <label class="field-group">
-              <span class="field-label">
-                Giờ kết thúc <span class="required">*</span>
-              </span>
+              <span class="field-label">Giờ kết thúc</span>
               <input
                 type="time"
                 :value="form.end_time"
                 required
+                class="form-control-input"
                 @input="updateFormField('end_time', $event.target.value)"
               />
             </label>
@@ -116,35 +135,30 @@
           <!-- Section 4: Price & Notes -->
           <div class="form-grid" :class="{ 'full-width-price': activeTab === 'weekly' }">
             <label class="field-group">
-              <span class="field-label">
-                Giá / giờ (VNĐ) <span class="required">*</span>
-              </span>
-              <div class="money-input-wrap">
+              <span class="field-label">Giá / giờ (VNĐ)</span>
+              <div class="modal-money-group">
                 <input
                   type="number"
-                  min="1"
-                  step="1000"
+                  min="0"
+                  step="any"
                   :value="form.price"
                   required
                   placeholder="150000"
+                  class="modal-money-input"
                   @input="updateFormField('price', Number($event.target.value))"
                 />
-                <span class="money-suffix">đ / giờ</span>
+                <span class="modal-money-suffix">đ / giờ</span>
               </div>
-              <span v-if="form.price > 0" class="price-formatted-hint">
-                = {{ formatMoney(form.price) }} VNĐ
-              </span>
             </label>
 
             <label v-if="activeTab !== 'weekly'" class="field-group">
-              <span class="field-label">
-                Ghi chú tên dịp / sự kiện
-              </span>
+              <span class="field-label">Ghi chú tên dịp / sự kiện</span>
               <input
                 type="text"
                 maxlength="255"
                 :value="form.note"
                 :placeholder="activeTabMeta.notePlaceholder"
+                class="form-control-input"
                 @input="updateFormField('note', $event.target.value)"
               />
             </label>
@@ -155,6 +169,7 @@
             <input
               type="checkbox"
               :checked="form.is_active"
+              class="switch-checkbox"
               @change="updateFormField('is_active', $event.target.checked)"
             />
             <div class="switch-card-text">
@@ -171,7 +186,7 @@
             <button type="submit" class="btn-submit-primary" :disabled="isSavingPrice">
               <template v-if="isSavingPrice">
                 <span class="spinner-xs"></span>
-                <span>Đang lưu cấu hình...</span>
+                <span>Đang lưu...</span>
               </template>
               <template v-else>
                 <span>{{ editingRow ? 'Cập nhật quy tắc' : 'Lưu quy tắc mới' }}</span>
@@ -199,24 +214,73 @@ export default {
     errorMessage: { type: String, default: '' },
   },
   emits: ['close', 'save-price', 'update:form'],
+  data() {
+    return {
+      courtTypeOpen: false,
+      bookingTypeOpen: false,
+      bookingTypeOptions: [
+        { value: 'all', label: 'Dùng chung (Tất cả)' },
+        { value: 'single', label: 'Đặt lẻ' },
+        { value: 'recurring', label: 'Đặt cố định' },
+      ],
+    };
+  },
+  computed: {
+    selectedCourtTypeName() {
+      const found = this.courtTypes.find((t) => String(t.id) === String(this.form.court_type_id));
+      return found ? found.name : (this.courtTypes[0]?.name || 'Chọn loại sân...');
+    },
+    selectedBookingTypeLabel() {
+      const found = this.bookingTypeOptions.find((opt) => opt.value === this.form.booking_type);
+      return found ? found.label : 'Dùng chung (Tất cả)';
+    },
+  },
+  mounted() {
+    document.addEventListener('click', this.handleDocumentClick);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleDocumentClick);
+  },
   methods: {
-    updateFormField(key, val) {
-      this.$emit('update:form', { ...this.form, [key]: val });
+    handleDocumentClick(e) {
+      if (this.$refs.courtTypeSelect && !this.$refs.courtTypeSelect.contains(e.target)) {
+        this.courtTypeOpen = false;
+      }
+      if (this.$refs.bookingTypeSelect && !this.$refs.bookingTypeSelect.contains(e.target)) {
+        this.bookingTypeOpen = false;
+      }
+    },
+    toggleCourtTypeDropdown() {
+      this.courtTypeOpen = !this.courtTypeOpen;
+      this.bookingTypeOpen = false;
+    },
+    toggleBookingTypeDropdown() {
+      this.bookingTypeOpen = !this.bookingTypeOpen;
+      this.courtTypeOpen = false;
+    },
+    selectCourtType(id) {
+      this.updateFormField('court_type_id', Number(id));
+      this.courtTypeOpen = false;
+    },
+    selectBookingType(val) {
+      this.updateFormField('booking_type', val);
+      this.bookingTypeOpen = false;
+    },
+    updateFormField(field, val) {
+      this.$emit('update:form', {
+        ...this.form,
+        [field]: val,
+      });
     },
     toggleDay(dayVal) {
-      const currentDays = [...(this.form.apply_to_days || [])];
-      const idx = currentDays.indexOf(dayVal);
-      if (idx > -1) {
-        currentDays.splice(idx, 1);
+      const days = [...(this.form.apply_to_days || [])];
+      const idx = days.indexOf(dayVal);
+      if (idx >= 0) {
+        days.splice(idx, 1);
       } else {
-        currentDays.push(dayVal);
+        days.push(dayVal);
       }
-      this.updateFormField('apply_to_days', currentDays);
-    },
-    formatMoney(val) {
-      const num = Number(val);
-      if (!Number.isFinite(num) || num <= 0) return '0';
-      return new Intl.NumberFormat('vi-VN').format(num);
+      this.updateFormField('apply_to_days', days);
     },
   },
 };
@@ -227,8 +291,8 @@ export default {
   position: fixed;
   inset: 0;
   z-index: 999;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,42 +300,29 @@ export default {
 }
 
 .pricing-edit-modal {
-  background: var(--admin-surface, #ffffff);
+  background: #ffffff;
   border-radius: 14px;
-  max-width: 580px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   width: 100%;
-  box-shadow: var(--admin-shadow-lg, 0 24px 70px rgba(23, 34, 27, 0.16));
-  border: 1px solid var(--admin-border-soft, #e3ece4);
-  overflow: hidden;
-  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  max-width: 580px;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 0 20px;
-  background: transparent;
-  border-top: none !important;
-  border-bottom: none !important;
-}
-
-.head-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .modal-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--admin-text, #101c15);
+  color: #0f172a;
 }
 
 .close-icon-btn {
@@ -280,7 +331,7 @@ export default {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  color: var(--admin-faint, #45564a);
+  color: #64748b;
   font-size: 16px;
   display: flex;
   align-items: center;
@@ -290,17 +341,17 @@ export default {
 }
 
 .close-icon-btn:hover {
-  background: var(--admin-hover, #edf7ed);
-  color: var(--admin-text, #101c15);
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .modal-form-body {
-  padding: 16px 20px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  max-height: calc(85vh - 80px);
-  overflow-y: auto;
+  max-height: calc(85vh - 70px);
+  overflow-y: visible;
 }
 
 .alert.error-alert {
@@ -308,9 +359,9 @@ export default {
   align-items: center;
   padding: 10px 14px;
   border-radius: 8px;
-  background: var(--admin-danger-soft, #fef2f2);
-  border: 1px solid var(--admin-danger, #dc2626);
-  color: var(--admin-danger-text, #991b1b);
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
   font-size: 13px;
   font-weight: 500;
 }
@@ -329,31 +380,21 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  position: relative;
 }
 
 .field-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--admin-text, #101c15);
+  color: #0f172a;
 }
 
-.required {
-  color: var(--admin-danger, #dc2626);
-}
-
-.field-group input[type="text"],
-.field-group input[type="number"],
-.field-group input[type="date"],
-.field-group input[type="time"],
-.field-group select {
-  height: 40px;
+.form-control-input {
+  height: 38px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border, #cfded1);
-  background: var(--admin-surface, #ffffff);
-  color: var(--admin-text, #101c15);
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
   padding: 0 12px;
   font-size: 13.5px;
   font-weight: 500;
@@ -361,10 +402,97 @@ export default {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.field-group input:focus,
-.field-group select:focus {
-  border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.22));
+.form-control-input:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+/* Custom Vue Dropdown */
+.custom-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-select-trigger:hover {
+  border-color: #94a3b8;
+}
+
+.custom-select-trigger.open {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.trigger-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-select-trigger .arrow {
+  transition: transform 0.2s ease;
+  color: #64748b;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.custom-select-trigger .arrow.open {
+  transform: rotate(180deg);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.custom-select-option:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.custom-select-option.active {
+  background: #f0fdf4;
+  color: #16a34a;
+  font-weight: 600;
 }
 
 .day-checkbox-grid {
@@ -376,11 +504,11 @@ export default {
 .day-pill-btn {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border, #cfded1);
-  background: var(--admin-surface, #ffffff);
-  color: var(--admin-text, #101c15);
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -388,55 +516,66 @@ export default {
 }
 
 .day-pill-btn:hover {
-  background: var(--admin-hover, #edf7ed);
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .day-pill-btn.selected {
-  background: var(--admin-primary, #22a653);
-  border-color: var(--admin-primary, #22a653);
-  color: var(--admin-primary-text, #ffffff);
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
 }
 
-.money-input-wrap {
+/* Modal Money Addon Container */
+.modal-money-group {
   display: flex;
   align-items: center;
-  border: 1px solid var(--admin-border, #cfded1);
+  height: 38px;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  background: var(--admin-surface, #ffffff);
+  background: #ffffff;
   overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.money-input-wrap:focus-within {
-  border-color: var(--admin-primary, #22a653);
-  box-shadow: 0 0 0 3px var(--admin-primary-ring, rgba(34, 166, 83, 0.22));
+.modal-money-group:focus-within {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
 }
 
-.money-input-wrap input {
+.modal-money-input {
   flex: 1;
-  border: none;
-  height: 40px;
-  outline: none;
-  padding: 0 12px;
+  min-width: 0;
+  height: 100%;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  padding: 0 8px 0 12px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  color: #0f172a;
+  text-align: right;
+  -moz-appearance: textfield;
 }
 
-.money-suffix {
-  padding: 0 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--admin-faint, #45564a);
-  background: var(--admin-bg, #eef6f0);
-  height: 40px;
+.modal-money-input::-webkit-outer-spin-button,
+.modal-money-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.modal-money-suffix {
   display: flex;
   align-items: center;
-  border-left: 1px solid var(--admin-border-soft, #e3ece4);
-}
-
-.price-formatted-hint {
-  font-size: 12px;
-  color: var(--admin-primary-dark, #15733a);
-  font-weight: 600;
+  height: 100%;
+  padding: 0 12px 0 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  background: #f8fafc;
+  border-left: 1px solid #e2e8f0;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .active-switch-card {
@@ -444,29 +583,30 @@ export default {
   align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--admin-bg-soft, #f7fbf5);
-  border: 1px solid var(--admin-border-soft, #e3ece4);
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   cursor: pointer;
 }
 
-.active-switch-card input[type="checkbox"] {
+.switch-checkbox {
   width: 18px;
   height: 18px;
   margin-top: 2px;
-  accent-color: var(--admin-primary, #22a653);
+  accent-color: #16a34a;
+  cursor: pointer;
 }
 
 .switch-card-text strong {
   display: block;
   font-size: 13px;
-  color: var(--admin-text, #101c15);
+  color: #0f172a;
 }
 
 .switch-card-text p {
   margin: 2px 0 0 0;
   font-size: 12px;
-  color: var(--admin-muted, #2f3d34);
+  color: #64748b;
 }
 
 .modal-actions {
@@ -475,25 +615,26 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 4px;
-  padding-top: 4px;
-  border-top: none !important;
-  border-bottom: none !important;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .btn-cancel {
   height: 38px;
   padding: 0 16px;
   border-radius: 8px;
-  border: 1px solid var(--admin-border, #cfded1);
-  background: var(--admin-surface, #ffffff);
-  color: var(--admin-text, #101c15);
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .btn-cancel:hover {
-  background: var(--admin-hover, #edf7ed);
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 .btn-submit-primary {
@@ -501,17 +642,19 @@ export default {
   padding: 0 18px;
   border-radius: 8px;
   border: none;
-  background: var(--admin-primary, #22a653);
-  color: var(--admin-primary-text, #ffffff);
+  background: #16a34a;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
   display: flex;
   align-items: center;
+  gap: 6px;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .btn-submit-primary:hover:not(:disabled) {
-  background: var(--admin-primary-dark, #15733a);
+  background: #15803d;
 }
 
 .btn-submit-primary:disabled {

@@ -593,7 +593,7 @@
 .sg-shell-admin .content-area {
     flex: 1;
     min-width: 0;
-    padding: 0;
+    padding: 0 !important;
 }
 
 .sg-shell-admin .content-area .hero-integrated-tabs,
@@ -7688,36 +7688,66 @@ textarea {
     background: var(--admin-bg-soft, #f8fafc);
 }
 
-.recurring-detail-modal .confirm-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
-    gap: 8px;
-    align-content: start;
-    max-height: none;
-    overflow: visible;
+.confirm-modal.booking-detail-modal,
+.confirm-modal.recurring-detail-modal,
+.booking-detail-modal,
+.recurring-detail-modal {
+    max-height: calc(100vh - 48px) !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
 }
 
-.recurring-detail-modal .confirm-summary div {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    gap: 4px;
-    min-width: 0;
-    padding: 10px;
-    border: 1px solid #e1ece1;
-    border-radius: 8px;
-    background: var(--admin-surface, #ffffff);
+.recurring-detail-modal .confirm-summary,
+.booking-detail-modal .confirm-summary {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    margin: 8px 0 !important;
+}
+
+.recurring-detail-modal .confirm-summary div,
+.booking-detail-modal .confirm-summary div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    padding: 5px 0 !important;
+    border: none !important;
+    border-bottom: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.recurring-detail-modal .confirm-summary div:last-child,
+.booking-detail-modal .confirm-summary div:last-child {
+    border-bottom: none !important;
 }
 
 .recurring-detail-modal .confirm-summary dt,
-.recurring-detail-modal .confirm-summary dd {
-    text-align: left;
+.booking-detail-modal .confirm-summary dt {
+    color: var(--admin-muted, #64748b) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
 }
 
-.recurring-detail-modal .confirm-summary dd {
-    overflow-wrap: break-word;
-    word-break: normal;
-    white-space: normal;
+.recurring-detail-modal .confirm-summary dd,
+.booking-detail-modal .confirm-summary dd {
+    color: var(--admin-text, #0f172a) !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    text-align: right !important;
+    margin: 0 !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+    white-space: normal !important;
 }
 
 .recurring-detail-modal .modal-actions {
@@ -9054,8 +9084,8 @@ input.invalid {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 0 0 8px;
-    border-bottom: 1px solid #edf3ea;
+    padding: 4px 0;
+    border-bottom: none !important;
     background: transparent;
 }
 
@@ -17090,7 +17120,7 @@ div[class*="-main-content"] {
 /* Final admin surface normalization: one spacing system, complete borders,
    and the same moderate radius used by the rest of the portal. */
 .sg-shell-admin .content-area {
-    padding: 15px 15px 32px !important;
+    padding: 0 !important;
 }
 
 .sg-shell-admin
@@ -17241,7 +17271,7 @@ div[class*="-main-content"] {
 
 @media (max-width: 900px) {
     .sg-shell-admin .content-area {
-        padding: 15px !important;
+        padding: 0 !important;
     }
 
     .sg-shell-admin .content-area > .partner-detail-page {
@@ -17321,4 +17351,34 @@ div[class*="-main-content"] {
 .sg-shell-admin .content-area > .user-detail .sidebar-panel,
 .sg-shell-admin .content-area > .user-detail .panel {
     border-radius: 10px !important;
+}
+
+/* Remove box-shadow from floating circular action buttons */
+.scroll-to-top-btn,
+.btn-floating,
+.cluster-action-floating button {
+    box-shadow: none !important;
+}
+
+/* Hide all required asterisks across forms */
+span.required,
+.required {
+    display: none !important;
+}
+
+/* Remove modal header and status strip border lines */
+.confirm-modal .modal-head,
+.booking-detail-modal .modal-head,
+.recurring-detail-modal .modal-head {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+}
+
+.confirm-modal .booking-status-strip,
+.booking-detail-modal .booking-status-strip,
+.recurring-detail-modal .booking-status-strip,
+.booking-status-strip {
+    border-bottom: none !important;
+    border-top: none !important;
+    padding: 4px 0 !important;
 }
