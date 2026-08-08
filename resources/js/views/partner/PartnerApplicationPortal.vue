@@ -442,7 +442,12 @@ const FormField = defineComponent({
   setup(props, { slots, attrs }) {
     return () => h('div', { class: ['form-group', attrs.class] }, [
       h('label', { class: 'form-label' }, [
-        h('span', { class: 'form-label-text' }, props.label),
+        h('span', { class: 'form-label-text' }, [
+          props.label,
+          props.required
+            ? h('span', { class: 'required', 'aria-hidden': 'true' }, ' *')
+            : null,
+        ]),
       ]),
       slots.default?.(),
       props.error ? h('p', { class: 'error-text' }, props.error) : null,

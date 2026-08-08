@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\User;
 use App\Services\Admin\AdminAuditService;
 use App\Services\Auth\SystemPermissionCatalog;
 use App\Services\Auth\SystemPermissionService;
@@ -20,7 +21,9 @@ class AdminRoleController extends Controller
 {
     private const FIXED_CLIENT_ROLES = ['user', 'venue_owner', 'venue_staff'];
 
-    private const LOCKED_PERMISSION_ROLES = ['super_admin'];
+    private const FULL_ACCESS_ROLE = 'super_admin';
+
+    private const LOCKED_PERMISSION_ROLES = [self::FULL_ACCESS_ROLE];
 
     public function __construct(
         private readonly AdminAuditService $audit,
@@ -33,7 +36,7 @@ class AdminRoleController extends Controller
 
         $roles = Role::query()
             ->withCount(['permissions', 'users'])
-            ->whereNotIn('name', self::FIXED_CLIENT_ROLES)
+            ->whereNotIn('name', [...self::FIXED_CLIENT_ROLES, self::FULL_ACCESS_ROLE])
             ->when($request->filled('keyword'), function ($query) use ($request): void {
                 $keyword = '%' . $request->query('keyword') . '%';
                 $query->where(function ($inner) use ($keyword): void {
@@ -59,7 +62,7 @@ class AdminRoleController extends Controller
             ->count();
 
         return response()->json([
-            'data' => $roles->map(fn (Role $role): array => $this->rolePayload($role))->values(),
+            'data' => $roles->map(fn (Role $role): array => $this->rolePayload($role, $request->user()))->values(),
             'summary' => [
                 'total' => $roles->count(),
                 'system' => $roles->where('is_system', true)->count(),
@@ -98,7 +101,7 @@ class AdminRoleController extends Controller
 
         return response()->json([
             'data' => [
-                'role' => $this->rolePayload($role),
+                'role' => $this->rolePayload($role, $request->user()),
                 'permissions' => $role->permissions
                     ->map(fn (Permission $permission): array => $this->permissionPayload($permission))
                     ->values(),
@@ -140,7 +143,7 @@ class AdminRoleController extends Controller
 
         return response()->json([
             'message' => 'Đã tạo nhóm quyền hệ thống.',
-            'data' => $this->rolePayload($role),
+            'data' => $this->rolePayload($role, $request->user()),
         ], 201);
     }
 
@@ -149,6 +152,13 @@ class AdminRoleController extends Controller
         $this->authorizePermission($request, 'role.update');
 
         $role = Role::query()->findOrFail($id);
+
+        if (! $this->canEditRole($role, $request->user())) {
+            throw ValidationException::withMessages([
+                'role' => 'Nhóm quyền này chỉ được Super Admin quản lý.',
+            ]);
+        }
+
         $data = $request->validate([
             'name' => [
                 'required',
@@ -192,7 +202,7 @@ class AdminRoleController extends Controller
 
         return response()->json([
             'message' => 'Đã cập nhật nhóm quyền.',
-            'data' => $this->rolePayload($role->fresh()->loadCount(['permissions', 'users'])),
+            'data' => $this->rolePayload($role->fresh()->loadCount(['permissions', 'users']), $request->user()),
         ]);
     }
 
@@ -241,18 +251,17 @@ class AdminRoleController extends Controller
 
         $roles = Role::query()
             ->with('permissions:id')
-            ->whereNotIn('name', self::FIXED_CLIENT_ROLES)
+            ->whereNotIn('name', [...self::FIXED_CLIENT_ROLES, self::FULL_ACCESS_ROLE])
             ->orderByDesc('is_system')
             ->orderBy('display_name')
             ->get()
-            ->map(function ($role) {
+            ->map(function ($role) use ($request) {
                 return [
                     'id' => $role->id,
                     'name' => $role->name,
                     'display_name' => $role->display_name,
                     'is_system' => (bool) $role->is_system,
-                    'is_configurable' => ! in_array($role->name, self::LOCKED_PERMISSION_ROLES, true)
-                        && ! in_array($role->name, self::FIXED_CLIENT_ROLES, true),
+                    'is_configurable' => $this->canEditPermissions($role, $request->user()),
                     'permission_ids' => $role->permissions->pluck('id')->values()->all(),
                 ];
             });
@@ -271,7 +280,7 @@ class AdminRoleController extends Controller
 
         $role = Role::query()->with('permissions')->findOrFail($id);
 
-        if (! $this->canEditPermissions($role)) {
+        if (! $this->canEditPermissions($role, $request->user())) {
             throw ValidationException::withMessages([
                 'permission_ids' => 'Nhóm quyền này bị khóa chỉnh sửa quyền.',
             ]);
@@ -319,7 +328,7 @@ class AdminRoleController extends Controller
         return response()->json([
             'message' => 'Đã cập nhật quyền cho nhóm.',
             'data' => [
-                'role' => $this->rolePayload($freshRole),
+                'role' => $this->rolePayload($freshRole, $request->user()),
                 'permissions' => $newPermissions,
             ],
         ]);
@@ -331,7 +340,7 @@ class AdminRoleController extends Controller
 
         $role = Role::query()->with('permissions')->findOrFail($id);
 
-        if (! $this->canEditPermissions($role)) {
+        if (! $this->canEditPermissions($role, $request->user())) {
             throw ValidationException::withMessages([
                 'permission_id' => 'Nhóm quyền này bị khóa chỉnh sửa quyền.',
             ]);
@@ -394,7 +403,7 @@ class AdminRoleController extends Controller
         return response()->json([
             'message' => $action === 'grant' ? 'Đã cấp quyền cho nhóm.' : 'Đã thu hồi quyền khỏi nhóm.',
             'data' => [
-                'role' => $this->rolePayload($freshRole),
+                'role' => $this->rolePayload($freshRole, $request->user()),
                 'permissions' => $newPermissions,
             ],
         ]);
@@ -413,7 +422,7 @@ class AdminRoleController extends Controller
         return response()->json(['data' => $users]);
     }
 
-    private function rolePayload(Role $role): array
+    private function rolePayload(Role $role, ?User $actor = null): array
     {
         return [
             'id' => $role->id,
@@ -421,13 +430,15 @@ class AdminRoleController extends Controller
             'display_name' => $role->display_name,
             'description' => $role->description,
             'is_system' => (bool) $role->is_system,
-            'display_scope' => in_array($role->name, self::FIXED_CLIENT_ROLES, true)
-                ? 'Vai trò nghiệp vụ cố định'
-                : 'Nhóm quyền nhân sự hệ thống',
-            'is_configurable' => ! in_array($role->name, self::LOCKED_PERMISSION_ROLES, true)
-                && ! in_array($role->name, self::FIXED_CLIENT_ROLES, true),
+            'display_scope' => $role->name === self::FULL_ACCESS_ROLE
+                ? 'Toàn quyền hệ thống'
+                : (in_array($role->name, self::FIXED_CLIENT_ROLES, true)
+                    ? 'Vai trò nghiệp vụ cố định'
+                    : 'Nhóm quyền nhân sự hệ thống'),
+            'is_configurable' => $this->canEditPermissions($role, $actor),
+            'can_edit_role' => $this->canEditRole($role, $actor),
             'can_delete' => ! $role->is_system && (int) ($role->users_count ?? 0) === 0,
-            'can_edit_permissions' => $this->canEditPermissions($role),
+            'can_edit_permissions' => $this->canEditPermissions($role, $actor),
             'permissions_count' => (int) ($role->permissions_count ?? $role->permissions?->count() ?? 0),
             'users_count' => (int) ($role->users_count ?? 0),
             'created_at' => $role->created_at,
@@ -466,10 +477,25 @@ class AdminRoleController extends Controller
         ];
     }
 
-    private function canEditPermissions(Role $role): bool
+    private function canEditRole(Role $role, ?User $actor = null): bool
     {
-        return ! in_array($role->name, self::LOCKED_PERMISSION_ROLES, true)
-            && ! in_array($role->name, self::FIXED_CLIENT_ROLES, true);
+        if (in_array($role->name, [...self::LOCKED_PERMISSION_ROLES, ...self::FIXED_CLIENT_ROLES], true)) {
+            return false;
+        }
+
+        return $role->name !== 'admin'
+            || ($actor !== null && $this->systemPermissions->isSuperAdmin($actor));
+    }
+
+    private function canEditPermissions(Role $role, ?User $actor = null): bool
+    {
+        if (in_array($role->name, self::FIXED_CLIENT_ROLES, true)
+            || $role->name === self::FULL_ACCESS_ROLE) {
+            return false;
+        }
+
+        return $role->name !== 'admin'
+            || ($actor !== null && $this->systemPermissions->isSuperAdmin($actor));
     }
 
     private function permissionMeta(string $code): array

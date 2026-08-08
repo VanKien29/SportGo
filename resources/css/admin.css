@@ -1295,7 +1295,7 @@
         .card-title,
         .main-title,
         .avcd-title
-    ) {
+    ):not(.docx *) {
     color: var(--admin-text) !important;
     font-weight: 500 !important;
     letter-spacing: 0 !important;
@@ -1321,7 +1321,7 @@
         .meta-item span,
         dt,
         small
-    ) {
+    ):not(.docx *) {
     letter-spacing: 0 !important;
 }
 
@@ -1340,7 +1340,7 @@
         .mini-item,
         .receipt-facts,
         .card-content
-    ) {
+    ):not(.docx *) {
     color: var(--admin-text) !important;
 }
 
@@ -1719,7 +1719,7 @@
 
 .sg-shell-admin
     .content-area
-    :is(table, .data-table, .simple-table, .avc-table) {
+    :is(table, .data-table, .simple-table, .avc-table):not(.docx *) {
     width: 100% !important;
     min-width: 1060px;
     border-collapse: separate !important;
@@ -1730,7 +1730,7 @@
 
 .sg-shell-admin
     .content-area
-    :is(th, .data-table th, .simple-table th, .avc-table th) {
+    :is(th, .data-table th, .simple-table th, .avc-table th):not(.docx *) {
     border-bottom: 1px solid var(--admin-border) !important;
     background: var(--admin-surface, #ffffff) !important;
     color: var(--admin-muted) !important;
@@ -1743,7 +1743,7 @@
 
 .sg-shell-admin
     .content-area
-    :is(td, .data-table td, .simple-table td, .avc-table td) {
+    :is(td, .data-table td, .simple-table td, .avc-table td):not(.docx *) {
     border-bottom: 1px solid var(--admin-border-soft) !important;
     color: var(--admin-text) !important;
     font-weight: 400 !important;
@@ -1760,7 +1760,7 @@
         .simple-table td,
         .avc-table th,
         .avc-table td
-    ) {
+    ):not(.docx *) {
     padding: 14px 16px !important;
     vertical-align: middle !important;
 }
@@ -1786,7 +1786,7 @@
         .row-actions,
         .payout-actions,
         .actions-wrapper
-    ) {
+    ):not(.docx *) {
     white-space: nowrap !important;
 }
 
@@ -5755,21 +5755,21 @@ textarea:focus {
     overflow: auto;
 }
 
-table {
+table:not(.docx table) {
     width: 100%;
     min-width: 980px;
     border-collapse: collapse;
 }
 
-th,
-td {
+th:not(.docx th),
+td:not(.docx td) {
     padding: 13px 16px;
     border-bottom: 1px solid var(--admin-border);
     text-align: left;
     vertical-align: middle;
 }
 
-th {
+th:not(.docx th) {
     background: var(--admin-surface-muted);
     color: var(--admin-faint);
     font-size: 10px;
@@ -5778,7 +5778,7 @@ th {
     text-transform: uppercase;
 }
 
-td {
+td:not(.docx td) {
     color: var(--admin-muted);
     font-size: 13px;
 }
@@ -5787,16 +5787,16 @@ tbody tr.never-hover-class-placeholder {
     background: var(--admin-hover);
 }
 
-tbody tr:last-child td {
+tbody tr:last-child td:not(.docx td) {
     border-bottom: 0;
 }
 
-td strong,
-td small {
+td:not(.docx td) strong,
+td:not(.docx td) small {
     display: block;
 }
 
-td small {
+td:not(.docx td) small {
     max-width: 240px;
     margin-top: 4px;
     color: var(--admin-faint);
@@ -16287,7 +16287,7 @@ div[class*="-main-content"] {
         .font-bold,
         .font-semibold,
         .font-extrabold
-    ) {
+    ):not(.docx *) {
     font-weight: 400 !important;
 }
 

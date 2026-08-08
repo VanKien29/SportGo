@@ -136,13 +136,6 @@ export const adminNavigationSections = [
         activeNames: ['admin-service-categories'],
         permissionCodes: ['service_category.view'],
       },
-      {
-        label: 'Banner',
-        icon: 'image',
-        to: '/admin/banners',
-        activeNames: ['admin-banners'],
-        permissionCodes: ['banner.view'],
-      },
     ],
   },
   {

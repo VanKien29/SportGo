@@ -58,7 +58,7 @@
         </template>
 
         <template #content="{ row }">
-          <div class="content-preview">{{ row.content }}</div>
+          <div class="content-preview">{{ getContentText(row) }}</div>
         </template>
 
         <template #hashtags="{ row }">
@@ -186,7 +186,7 @@
             <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 400; color: #0f172a;">
               {{ activeItem.title }}
             </h5>
-            <p class="fb-post-text">{{ activeItem.content }}</p>
+            <p class="fb-post-text">{{ getContentText(activeItem) }}</p>
 
             <div v-if="activeItem.media && activeItem.media.length" class="fb-media-container">
               <img v-for="m in activeItem.media" :key="m.id" :src="m.file_path || m.url" style="cursor: pointer;" @click="openLightbox(m.file_path || m.url)" />
@@ -892,7 +892,16 @@ export default {
       return item?.author || {};
     },
     getContentText(item) {
-      return item?.content || '';
+      return this.plainTextFromHtml(item?.content || item?.short_description || '');
+    },
+    plainTextFromHtml(value) {
+      if (!value) return '';
+      const html = String(value);
+      if (typeof DOMParser === 'undefined') {
+        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      return (parsed.body.textContent || '').replace(/\s+/g, ' ').trim();
     },
     getContentMedia(item) {
       return item?.media || [];

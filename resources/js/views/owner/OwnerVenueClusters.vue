@@ -102,7 +102,7 @@
                         :info-requests="infoRequests"
                         :location-requests="locationRequests"
                         :unlock-requests="unlockRequests"
-                        :loading="approvalsLoading"
+                        :loading="approvalsLoading || locationLoading"
                         :is-cluster-locked="isClusterLocked"
                         :is-moderation-locked="isModerationLocked"
                         @open-scale-request-modal="openScaleRequestModal('add')"
@@ -2480,6 +2480,14 @@ export default {
             } finally {
                 this.cancellingId = null;
             }
+        },
+
+        async handleCancelRequest(request) {
+            if (request?.request_type === "location") {
+                await this.handleCancelLocationRequest(request);
+                return;
+            }
+            await this.cancelInfoRequest(request?.id);
         },
 
         async fetchUnlockRequests(clusterId) {

@@ -4,7 +4,11 @@ export const venueClusterService = {
   // Venue Clusters (Owner)
   getClusters(params = {}) {
     const query = new URLSearchParams(params).toString();
-    return api(`/api/owner/venue-clusters${query ? `?${query}` : ''}`);
+    return api(`/api/owner/venue-clusters${query ? `?${query}` : ''}`, {
+      cache: 'no-store',
+      dedupe: false,
+      timeoutMs: 8000,
+    });
   },
   getClusterDetails(id) {
     return api(`/api/owner/venue-clusters/${id}`);
@@ -104,7 +108,11 @@ export const venueClusterService = {
   // Venue Location Change Requests (Owner gửi yêu cầu thay đổi vị trí)
   getLocationChangeRequests(clusterId, status = null) {
     const qs = status ? `?status=${status}` : '';
-    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests${qs}`);
+    return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests${qs}`, {
+      cache: 'no-store',
+      dedupe: false,
+      timeoutMs: 8000,
+    });
   },
   createLocationChangeRequest(clusterId, data) {
     return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests`, {

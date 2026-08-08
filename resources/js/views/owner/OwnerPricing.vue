@@ -217,7 +217,7 @@ export default {
       const timeout = window.setTimeout(() => controller.abort(), 15000);
 
       try {
-        const data = await api('/api/owner/pricing-rules', { signal: controller.signal });
+        const data = await api('/api/owner/pricing', { signal: controller.signal });
         this.clusters = data.clusters || [];
         this.courtTypesByCluster = data.court_types_by_cluster || {};
         this.basePrices = data.base_prices || [];

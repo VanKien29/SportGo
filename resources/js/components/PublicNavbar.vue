@@ -149,6 +149,9 @@ export default {
       notifications: [],
       unreadCount: 0,
       notifTimer: null,
+      notificationLoadTimer: null,
+      notificationsLoading: false,
+      notificationsLoaded: false,
     };
   },
   computed: {
@@ -187,12 +190,17 @@ export default {
   mounted() {
     document.addEventListener("pointerdown", this.handleOutside);
     if (this.user) {
-      this.fetchNotifications();
-      this.notifTimer = setInterval(this.fetchNotifications, 30000);
+      // Notifications are secondary UI. Let the page render first and only
+      // start polling if the user stays on the current screen.
+      this.notificationLoadTimer = setTimeout(() => {
+        this.fetchNotifications();
+        this.notifTimer = setInterval(this.fetchNotifications, 30000);
+      }, 300);
     }
   },
   beforeUnmount() {
     document.removeEventListener("pointerdown", this.handleOutside);
+    if (this.notificationLoadTimer) clearTimeout(this.notificationLoadTimer);
     if (this.notifTimer) clearInterval(this.notifTimer);
   },
   methods: {
@@ -203,6 +211,9 @@ export default {
     toggleNotifDropdown() {
       this.showNotifDropdown = !this.showNotifDropdown;
       this.showDropdown = false;
+      if (this.showNotifDropdown && this.user && !this.notificationsLoaded) {
+        this.fetchNotifications();
+      }
     },
     isNotifRead(n) {
       if (!n) return true;
@@ -216,6 +227,8 @@ export default {
       return n?.content || n?.body || n?.data?.message || n?.data?.content || "Không có nội dung chi tiết.";
     },
     async fetchNotifications() {
+      if (this.notificationsLoading) return;
+      this.notificationsLoading = true;
       try {
         const res = await notificationService.getNotifications();
         const list = Array.isArray(res) ? res : (res?.data || []);
@@ -225,6 +238,9 @@ export default {
           : list.filter((n) => !this.isNotifRead(n)).length;
       } catch (error) {
         // silent
+      } finally {
+        this.notificationsLoaded = true;
+        this.notificationsLoading = false;
       }
     },
     async markAllAsRead() {

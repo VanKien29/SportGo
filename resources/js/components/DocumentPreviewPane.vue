@@ -172,18 +172,18 @@ function updateDocumentScale() {
   const page = container?.querySelector('section.docx');
   if (!pane || !container || !page) return;
 
+  const wrapper = container.querySelector('.docx-wrapper');
+  wrapper?.style.setProperty('width', '100%', 'important');
+  wrapper?.style.setProperty('min-width', '100%', 'important');
+  wrapper?.style.setProperty('box-sizing', 'border-box', 'important');
+  wrapper?.style.setProperty('align-items', 'center', 'important');
+
+  // Keep the page dimensions supplied by docx-preview. Replacing them with
+  // scrollWidth makes overflowing paragraphs redefine the page width and
+  // shifts/crops the document inside the preview pane.
+  page.style.setProperty('margin-left', 'auto', 'important');
+  page.style.setProperty('margin-right', 'auto', 'important');
   container.style.setProperty('--document-scale', '1');
-  page.style.removeProperty('width');
-  page.style.removeProperty('min-width');
-  const paneStyle = window.getComputedStyle(pane);
-  const horizontalPadding = parseFloat(paneStyle.paddingLeft || 0) + parseFloat(paneStyle.paddingRight || 0);
-  const availableWidth = Math.max(0, pane.clientWidth - horizontalPadding);
-  const naturalPageWidth = page.offsetWidth || page.getBoundingClientRect().width;
-  const pageWidth = Math.max(naturalPageWidth, page.scrollWidth || 0);
-  page.style.setProperty('width', `${pageWidth}px`, 'important');
-  page.style.setProperty('min-width', `${pageWidth}px`, 'important');
-  const scale = pageWidth > 0 ? Math.min(1, availableWidth / pageWidth) : 1;
-  container.style.setProperty('--document-scale', Math.max(0.25, scale).toFixed(4));
 }
 
 function downloadDocument() {
@@ -198,4 +198,3 @@ onUnmounted(() => {
   cleanup();
 });
 </script>
-

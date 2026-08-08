@@ -57,6 +57,11 @@
           <span>Đang tải chính sách sân...</span>
         </div>
 
+        <div v-else-if="error" class="table-state-card policy-load-error">
+          <span>{{ error }}</span>
+          <button class="btn secondary" type="button" @click="retryLoad">Tải lại</button>
+        </div>
+
         <article v-for="policy in cancelRefundPolicies" :key="policy.id" class="policy-card refund-card">
           <div class="card-head">
             <div>
@@ -105,7 +110,7 @@
           </footer>
         </article>
 
-        <div v-if="!loading && cancelRefundPolicies.length === 0" class="table-state-card">
+        <div v-if="!loading && !error && cancelRefundPolicies.length === 0" class="table-state-card">
           <span>Chưa có chính sách hủy & hoàn nào đang active và cho phép sân cấu hình riêng.</span>
         </div>
       </section>
@@ -117,17 +122,28 @@
             <p>Nội dung này chỉ để khách đọc, không tác động tự động đến hủy, hoàn tiền hoặc booking.</p>
           </div>
         </div>
-        <div v-if="customerNotices.length === 0" class="table-state-card">
+        <div v-if="loading" class="table-state-card">
+          <div class="spinner-sm"></div>
+          <span>Đang tải quy định hiển thị...</span>
+        </div>
+        <div v-else-if="error" class="table-state-card policy-load-error">
+          <span>{{ error }}</span>
+          <button class="btn secondary" type="button" @click="retryLoad">Tải lại</button>
+        </div>
+        <div v-else-if="customerNotices.length === 0" class="table-state-card">
           <span>Chưa có nội quy hiển thị cho khách.</span>
         </div>
-        <article v-for="notice in customerNotices" :key="notice.id" class="notice-card">
-          <div>
-            <strong>{{ notice.title }}</strong>
-            <p>{{ notice.content }}</p>
-          </div>
-          <span class="status-pill" :class="notice.status">{{ notice.status_label }}</span>
-          <ActionIconButton icon="pencil" label="Sửa quy định" @click="openNotice(notice)" />
-        </article>
+        <template v-else>
+          <article v-for="notice in customerNotices" :key="notice.id" class="notice-card">
+            <div>
+              <strong>{{ notice.title }}</strong>
+              <p>{{ notice.content }}</p>
+              <small v-if="notice.read_only" class="cell-sub">Nội dung kế thừa từ chính sách hệ thống, chỉ đọc.</small>
+            </div>
+            <span class="status-pill" :class="notice.status">{{ notice.status_label }}</span>
+            <ActionIconButton v-if="!notice.read_only" icon="pencil" label="Sửa quy định" @click="openNotice(notice)" />
+          </article>
+        </template>
       </section>
     </div>
 
@@ -238,7 +254,8 @@ export default {
   data() {
     return {
       tab: 'rules',
-      loading: false,
+      // Start in a pending state so an empty response is never shown before the bootstrap request runs.
+      loading: true,
       saving: false,
       error: '',
       success: '',
@@ -287,7 +304,7 @@ export default {
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleExternalClusterChange);
     window.addEventListener('scroll', this.handleScroll);
-    this.loadClusters();
+    await this.loadClusters();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleExternalClusterChange);
@@ -301,11 +318,22 @@ export default {
       return { id: null, title: '', content: '', status: 'active' };
     },
     async loadClusters() {
-      const initialClusterId = this.selectedClusterId;
-      const initialLoad = initialClusterId ? this.load() : null;
       try {
-        const response = await venueClusterService.getClusters();
-        this.clusters = response.data || [];
+        const response = await venueClusterService.getClusters({ compact: 1 });
+        const payload = response?.data?.data && Array.isArray(response.data.data)
+          ? response.data.data
+          : (Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []));
+        this.clusters = payload;
+
+        if (!this.clusters.length) {
+          this.currentCluster = null;
+          this.systemPolicies = [];
+          this.venueRules = [];
+          this.customerNotices = [];
+          this.error = 'Chưa có cụm sân để tải chính sách sân.';
+          return;
+        }
+
         const hasSelectedCluster = this.clusters.some(
           (cluster) => String(cluster.id) === String(this.selectedClusterId),
         );
@@ -313,17 +341,22 @@ export default {
           this.selectedClusterId = this.clusters[0].id;
           localStorage.setItem('selected_cluster', this.selectedClusterId);
         }
-        if (!initialLoad || String(initialClusterId) !== String(this.selectedClusterId)) {
-          await this.load();
-        } else {
-          await initialLoad;
-        }
+        await this.load();
       } catch (error) {
         this.error = error.message || 'Không tải được danh sách cụm sân.';
+        this.currentCluster = null;
+        this.systemPolicies = [];
+        this.venueRules = [];
+        this.customerNotices = [];
+      } finally {
+        this.loading = false;
       }
     },
     async load() {
-      if (!this.selectedClusterId) return;
+      if (!this.selectedClusterId) {
+        this.loading = false;
+        return;
+      }
       const requestId = ++this.loadRequestId;
       const clusterId = this.selectedClusterId;
       this.loading = true;
@@ -332,11 +365,13 @@ export default {
         localStorage.setItem('selected_cluster', clusterId);
         const response = await ownerPolicyService.list(clusterId);
         if (requestId !== this.loadRequestId) return;
-        const data = response.data || {};
+        const data = response?.data?.data && !Array.isArray(response.data.data)
+          ? response.data.data
+          : (response?.data || response || {});
         this.currentCluster = data.venue_cluster || this.clusters.find((cluster) => String(cluster.id) === String(clusterId)) || null;
         this.systemPolicies = data.system_policies || [];
         this.venueRules = data.venue_rules || [];
-        this.customerNotices = data.customer_notices || [];
+        this.customerNotices = data.effective_customer_notices || data.customer_notices || [];
       } catch (error) {
         if (requestId !== this.loadRequestId) return;
         this.error = error.message || 'Không thể tải chính sách sân.';
@@ -346,17 +381,26 @@ export default {
         }
       }
     },
+    async retryLoad() {
+      this.error = '';
+      if (this.selectedClusterId) {
+        await this.load();
+        return;
+      }
+
+      this.loading = true;
+      await this.loadClusters();
+    },
     async changeCluster() {
       localStorage.setItem('selected_cluster', this.selectedClusterId);
       window.dispatchEvent(new CustomEvent('owner-cluster-changed', { detail: { id: this.selectedClusterId } }));
       await this.load();
     },
-    handleExternalClusterChange(event) {
+    async handleExternalClusterChange(event) {
       const id = event?.detail?.id || localStorage.getItem('selected_cluster') || this.selectedClusterId;
-      if (id && id !== this.selectedClusterId) {
-        this.selectedClusterId = id;
-      }
-      this.load();
+      if (!id || String(id) === String(this.selectedClusterId)) return;
+      this.selectedClusterId = id;
+      await this.load();
     },
     canEditCancelRefund(policy) {
       return Boolean(policy.cancel_refund_configuration?.base_rule_id);

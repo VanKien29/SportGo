@@ -158,6 +158,8 @@ async function loadDocument() {
   try {
     const token = readToken();
     const response = await fetch(props.document.download_url, {
+      cache: 'no-store',
+      credentials: 'same-origin',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     if (currentLoad !== loadSequence) return;
@@ -216,9 +218,6 @@ function cleanup() {
   }
   fileType.value = null;
   if (docxContainer.value) {
-    const page = docxContainer.value.querySelector('section.docx');
-    page?.style.removeProperty('width');
-    page?.style.removeProperty('min-width');
     docxContainer.value.innerHTML = '';
     docxContainer.value.style.removeProperty('--document-scale');
   }
@@ -265,18 +264,12 @@ function updateDocumentScale() {
   const section = container?.querySelector('section.docx');
   if (!container || !scrollArea || !section) return;
 
+  const wrapper = container.querySelector('.docx-wrapper');
+  wrapper?.style.setProperty('width', '100%', 'important');
+  wrapper?.style.setProperty('min-width', '100%', 'important');
+  wrapper?.style.setProperty('box-sizing', 'border-box', 'important');
+  wrapper?.style.setProperty('align-items', 'center', 'important');
   container.style.setProperty('--document-scale', '1');
-  section.style.removeProperty('width');
-  section.style.removeProperty('min-width');
-  const areaStyle = window.getComputedStyle(scrollArea);
-  const horizontalPadding = parseFloat(areaStyle.paddingLeft || 0) + parseFloat(areaStyle.paddingRight || 0);
-  const availableWidth = Math.max(0, scrollArea.clientWidth - horizontalPadding);
-  const pageWidth = section.offsetWidth || section.getBoundingClientRect().width;
-  const documentWidth = Math.max(pageWidth, section.scrollWidth || 0);
-  section.style.setProperty('width', `${documentWidth}px`, 'important');
-  section.style.setProperty('min-width', `${documentWidth}px`, 'important');
-  const scale = documentWidth > 0 ? Math.min(1, availableWidth / documentWidth) : 1;
-  container.style.setProperty('--document-scale', Math.max(0.25, scale).toFixed(4));
 }
 
 onMounted(() => window.addEventListener('resize', scheduleDocumentScale));
@@ -300,5 +293,3 @@ function formatDate(dateString) {
   return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 </script>
-
-

@@ -513,6 +513,7 @@ class PartnerApplicationService
             if ($hasSportgoSignature) {
                 if ($contract->venue_cluster_id) {
                     VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
+                        'owner_id' => $owner->id,
                         'status' => 'active',
                         'status_reason' => null,
                     ]);
@@ -570,6 +571,7 @@ class PartnerApplicationService
             if ($hasOwnerSignature) {
                 if ($contract->venue_cluster_id) {
                     VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
+                        'owner_id' => $contract->owner_id,
                         'status' => 'active',
                         'status_reason' => null,
                     ]);

@@ -249,6 +249,16 @@
                   <span class="sg-policy-val">{{ policy.value }}</span>
                 </article>
               </div>
+              <div v-if="policyNotices.length" class="sg-policy-notices">
+                <div class="sg-policy-notices-head">
+                  <strong>Thông tin áp dụng</strong>
+                  <span>{{ policyNoticeSourceLabel }}</span>
+                </div>
+                <article v-for="notice in policyNotices" :key="notice.id" class="sg-policy-notice">
+                  <strong>{{ notice.title }}</strong>
+                  <p>{{ notice.content }}</p>
+                </article>
+              </div>
             </div>
           </template>
 
@@ -530,13 +540,19 @@ export default {
     basePrices() { return this.venue?.base_prices || []; },
     priceSlots() { return this.venue?.price_slots || []; },
     holidayPrices() { return this.venue?.holiday_prices || []; },
+    policyNotices() { return this.venue?.policies?.display_notices || []; },
+    policyNoticeSourceLabel() {
+      return this.venue?.policies?.display_notice_source_label || 'Theo chính sách hệ thống';
+    },
     policies() {
       const policy = this.venue?.policies || {};
       const hours = this.venue?.operating_hours || {};
+      const cancellationRefund = policy.cancellation_refund || {};
       return [
         { label: "Giờ mở cửa", value: hours.fixed_open_time && hours.fixed_close_time ? `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}` : "Theo lịch ngày" },
         { label: "Đặt trước", value: this.durationLabel(policy.min_advance_booking_minutes) },
-        { label: "Hoàn tiền", value: policy.cancel_before_hours != null ? `Trước ${policy.cancel_before_hours}h · ${Number(policy.refund_percent || 0)}%` : "Theo CS hiện hành" }
+        { label: "Hủy & hoàn tiền", value: cancellationRefund.effective_summary || (policy.cancel_before_hours != null ? `Trước ${policy.cancel_before_hours}h · ${Number(policy.refund_percent || 0)}%` : "Theo chính sách hệ thống") },
+        { label: "Nguồn chính sách hủy", value: cancellationRefund.source_label || "Theo chính sách hệ thống" }
       ];
     },
     reviews() { return this.venue?.reviews || []; },
@@ -1626,6 +1642,52 @@ export default {
   font-weight: 400;
 }
 
+.sg-policy-notices {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sg-policy-notices-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.sg-policy-notices-head span {
+  color: #15803d;
+  font-size: 11px;
+}
+
+.sg-policy-notice {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-left: 3px solid #16a34a;
+  border-radius: 6px;
+}
+
+.sg-policy-notice + .sg-policy-notice {
+  margin-top: 8px;
+}
+
+.sg-policy-notice strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.sg-policy-notice p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
 /* Reviews List */
 .sg-review-preview-note {
   font-size: 12px;
@@ -2043,5 +2105,3 @@ export default {
   }
 }
 </style>
-
-

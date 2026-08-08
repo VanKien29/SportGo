@@ -55,7 +55,7 @@
         </section>
 
         <section v-if="signingLogs.length" class="panel">
-          <h3>Nhật ký ký số / OTP</h3>
+          <h3>Nhật ký chữ ký</h3>
           <div class="otp-log-list">
             <article v-for="log in signingLogs" :key="log.id || log.otp_reference" class="otp-log-item">
               <div class="otp-log-head">
@@ -65,9 +65,9 @@
               <dl class="otp-log-grid">
                 <dt>Mã tham chiếu</dt>
                 <dd>{{ log.otp_reference || '-' }}</dd>
-                <dt>Gửi OTP</dt>
+                <dt>Gửi yêu cầu</dt>
                 <dd>{{ formatDate(log.otp_sent_at) }}</dd>
-                <dt>Xác thực OTP</dt>
+                <dt>Xác minh chữ ký</dt>
                 <dd>{{ formatDate(log.otp_verified_at) }}</dd>
                 <dt>Lần nhập</dt>
                 <dd>{{ log.attempt_count ?? '-' }}</dd>
@@ -84,20 +84,20 @@
 
         <section v-if="canSign" class="panel sign-panel">
           <h3>Ký đại diện SportGo</h3>
-          <p>Kiểm tra toàn bộ nội dung, ký tên và xác thực OTP gửi đến email tài khoản admin trước khi chuyển văn bản cho chủ sân.</p>
+          <p>Kiểm tra toàn bộ nội dung, ký tên và lưu bằng tài khoản admin đang đăng nhập trước khi chuyển văn bản cho chủ sân.</p>
 
           <div class="sign-steps" aria-label="Các bước ký văn bản">
             <span class="done">1. Kiểm tra file</span>
             <span :class="{ done: !signatureEmpty }">2. Ký tên</span>
-            <span :class="{ done: otpSent }">3. Xác thực OTP</span>
+            <span :class="{ done: !signatureEmpty && confirmed }">3. Xác nhận</span>
           </div>
 
           <label class="confirm-line">
-            <input v-model="confirmed" type="checkbox" :disabled="otpSent || saving" />
+            <input v-model="confirmed" type="checkbox" :disabled="saving" />
             <span>{{ confirmationText }}</span>
           </label>
 
-          <div class="canvas-wrap" :class="{ locked: otpSent }">
+          <div class="canvas-wrap">
             <canvas
               ref="canvas"
               width="440"
@@ -110,59 +110,18 @@
             <span v-if="signatureEmpty">Ký vào đây</span>
           </div>
 
-          <div v-if="otpSent" class="otp-box" role="group" aria-labelledby="admin-sign-otp-label">
-            <label id="admin-sign-otp-label" for="admin-sign-otp">Mã OTP gồm 6 chữ số</label>
-            <input
-              id="admin-sign-otp"
-              v-model="otp"
-              type="text"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-              pattern="[0-9]*"
-              maxlength="6"
-              placeholder="Nhập 6 số OTP"
-              :aria-invalid="Boolean(otpError)"
-              aria-describedby="admin-sign-otp-help admin-sign-otp-error"
-              @input="normalizeOtpInput"
-              @keydown.enter.prevent="verifySignatureOtp"
-            />
-            <small id="admin-sign-otp-help">
-              OTP hết hạn lúc {{ formatDate(otpExpiresAt) }}. Mỗi lần gửi lại sẽ vô hiệu mã cũ.
-            </small>
-            <p v-if="otpError" id="admin-sign-otp-error" class="field-error" role="alert">{{ otpError }}</p>
-          </div>
-          <p v-else-if="otpError" id="admin-sign-otp-error" class="field-error" role="alert">{{ otpError }}</p>
+          <p v-if="signError" class="field-error" role="alert">{{ signError }}</p>
 
           <div class="sign-actions">
             <button class="btn ghost" type="button" :disabled="saving" @click="clearSignature">Ký lại</button>
             <button
-              v-if="otpSent"
-              class="btn ghost"
-              type="button"
-              :disabled="saving"
-              @click="requestSignatureOtp"
-            >
-              Gửi lại OTP
-            </button>
-            <button
-              v-if="!otpSent"
               class="btn primary"
               type="button"
               :disabled="signatureEmpty || !confirmed || saving"
-              @click="requestSignatureOtp"
-            >
-              <AppIcon name="send" size="16" />
-              {{ saving ? 'Đang gửi OTP...' : 'Gửi OTP xác thực' }}
-            </button>
-            <button
-              v-else
-              class="btn primary"
-              type="button"
-              :disabled="otp.length !== 6 || saving"
-              @click="verifySignatureOtp"
+              @click="submitSignature"
             >
               <AppIcon name="check" size="16" />
-              {{ saving ? 'Đang xác thực...' : 'Xác thực và ký' }}
+              {{ saving ? 'Đang lưu chữ ký...' : 'Xác nhận và ký' }}
             </button>
           </div>
         </section>
@@ -196,15 +155,19 @@ const canvas = ref(null);
 const drawing = ref(false);
 const signatureEmpty = ref(true);
 const confirmed = ref(false);
-const otpSent = ref(false);
-const otp = ref('');
-const signingRequestId = ref('');
-const otpExpiresAt = ref(null);
-const otpError = ref('');
+const signError = ref('');
 
 const isGeneratedDocument = computed(() => document.value?.source !== 'uploaded');
 const isPartnerContract = computed(() => document.value?.document_type === 'partner_contract');
 const isTwoPartyDocument = computed(() => ['partner_contract', 'venue_scale_appendix', 'venue_location_appendix'].includes(document.value?.document_type));
+const partnerContractId = computed(() => (
+  document.value?.partner_contract_id
+  || application.value?.contracts?.find((contract) => (
+    String(contract.generated_document_id || '') === String(document.value?.id || '')
+    || String(contract.generatedDocument?.id || '') === String(document.value?.id || '')
+  ))?.id
+  || null
+));
 const documentTitle = computed(() => document.value?.title || documentTypeLabel(document.value?.document_type));
 const documentKindLabel = computed(() => isGeneratedDocument.value ? documentTypeLabel(document.value?.document_type) : uploadedTypeLabel(document.value?.document_type));
 const signingLogs = computed(() => document.value?.signing_requests || []);
@@ -247,7 +210,7 @@ async function loadData() {
   loading.value = true;
   error.value = '';
   message.value = '';
-  resetOtpState();
+  resetSigningState();
   confirmed.value = false;
 
   try {
@@ -315,7 +278,7 @@ function pointerPosition(event) {
 }
 
 function startDraw(event) {
-  if (!canvas.value || otpSent.value) return;
+  if (!canvas.value) return;
   drawing.value = true;
   signatureEmpty.value = false;
   const context = canvas.value.getContext('2d');
@@ -325,7 +288,7 @@ function startDraw(event) {
 }
 
 function draw(event) {
-  if (!drawing.value || !canvas.value || otpSent.value) return;
+  if (!drawing.value || !canvas.value) return;
   const context = canvas.value.getContext('2d');
   const point = pointerPosition(event);
   context.lineTo(point.x, point.y);
@@ -339,20 +302,11 @@ function stopDraw() {
 function clearSignature() {
   prepareCanvas();
   confirmed.value = false;
-  resetOtpState();
+  resetSigningState();
 }
 
-function resetOtpState() {
-  otpSent.value = false;
-  otp.value = '';
-  signingRequestId.value = '';
-  otpExpiresAt.value = null;
-  otpError.value = '';
-}
-
-function normalizeOtpInput(event) {
-  otp.value = String(event.target?.value || '').replace(/\D/g, '').slice(0, 6);
-  otpError.value = '';
+function resetSigningState() {
+  signError.value = '';
 }
 
 async function downloadCurrentDocument() {
@@ -369,72 +323,34 @@ async function downloadCurrentDocument() {
   }
 }
 
-async function requestSignatureOtp() {
+async function submitSignature() {
   if (!canvas.value || !document.value) return;
 
   if (!document.value.download_url) {
-    otpError.value = 'File văn bản không còn tồn tại. Vui lòng tạo lại file trước khi ký.';
+    signError.value = 'File văn bản không còn tồn tại. Vui lòng tạo lại file trước khi ký.';
     return;
   }
 
   saving.value = true;
   error.value = '';
   message.value = '';
-  otpError.value = '';
+  signError.value = '';
 
   try {
-    const response = await adminPartnerApplicationService.requestSignDocumentOtp(application.value.id, {
-      contract_id: isPartnerContract.value ? document.value.partner_contract_id : undefined,
-      document_id: document.value.id,
+    const payload = {
       signature_image: canvas.value.toDataURL('image/png'),
-      confirmed: confirmed.value,
-      confirmation_text: confirmationText.value,
-    });
-    signingRequestId.value = response.data?.signing_request_id || '';
-    otpExpiresAt.value = response.data?.expires_at || null;
-
-    if (!signingRequestId.value) {
-      throw new Error('Hệ thống không trả về mã giao dịch ký. Vui lòng thử lại.');
+    };
+    if (isPartnerContract.value) {
+      payload.contract_id = partnerContractId.value;
+    } else {
+      payload.document_id = document.value.id;
     }
 
-    otpSent.value = true;
-    otp.value = '';
-    message.value = response.message || 'OTP đã được gửi đến email tài khoản admin.';
-    await nextTick();
-    globalThis.document?.getElementById('admin-sign-otp')?.focus();
-  } catch (err) {
-    otpError.value = err.message || 'Không gửi được OTP ký văn bản.';
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function verifySignatureOtp() {
-  if (!signingRequestId.value) {
-    otpError.value = 'Không tìm thấy giao dịch ký. Vui lòng gửi lại OTP.';
-    return;
-  }
-
-  if (otp.value.length !== 6) {
-    otpError.value = 'Vui lòng nhập đủ 6 chữ số OTP.';
-    return;
-  }
-
-  saving.value = true;
-  error.value = '';
-  message.value = '';
-  otpError.value = '';
-
-  try {
-    const response = await adminPartnerApplicationService.verifySignDocumentOtp(application.value.id, {
-      signing_request_id: signingRequestId.value,
-      otp: otp.value,
-    });
-    const successMessage = response.message || 'SportGo đã ký văn bản bằng OTP.';
+    const response = await adminPartnerApplicationService.signDocument(application.value.id, payload);
+    message.value = response.message || 'SportGo đã ký văn bản.';
     await loadData();
-    message.value = successMessage;
   } catch (err) {
-    otpError.value = err.message || 'Không xác thực được OTP ký văn bản.';
+    signError.value = err.message || 'Không thể lưu chữ ký văn bản.';
   } finally {
     saving.value = false;
   }

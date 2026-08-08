@@ -470,7 +470,6 @@ function applyFilters() {
       ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
     },
   });
-  fetchPosts({ page: 1 });
 }
 
 function setCategory(category) {

@@ -589,6 +589,22 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
     window.history.scrollRestoration = "manual";
 }
 
+function authContextForRoute(route) {
+    if (!route?.matched?.some((record) => record.meta.requiresAuth)) {
+        return null;
+    }
+
+    return route.matched.find((record) => record.meta.role)?.meta.role || "user";
+}
+
+function entersNewAuthContext(to, from) {
+    const targetContext = authContextForRoute(to);
+    if (!targetContext) return false;
+
+    const sourceContext = authContextForRoute(from);
+    return sourceContext !== targetContext;
+}
+
 router.beforeEach(async (to, from, next) => {
     applyThemeModeForPath(to.path);
 
@@ -631,9 +647,14 @@ router.beforeEach(async (to, from, next) => {
             );
         }
 
-        auth = requiredRole === "admin"
-            ? await restoreAdminAuth()
-            : await restoreAuth();
+        // Validate when entering an authenticated area or switching roles. Internal
+        // navigation inside the same client/owner shell keeps the local auth state
+        // and does not wait for another /me request on every menu click.
+        if (entersNewAuthContext(to, from)) {
+            auth = requiredRole === "admin"
+                ? await restoreAdminAuth()
+                : await restoreAuth();
+        }
 
         if (!auth) {
             return next(

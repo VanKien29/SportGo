@@ -862,9 +862,15 @@
                 </div>
 
                 <div
-                    v-if="form.recurrence_type !== 'daily'"
-                    class="recurring-date-planner"
+                    class="recurring-planner-workspace"
+                    :class="{
+                        'has-date-planner': form.recurrence_type !== 'daily',
+                    }"
                 >
+                    <div
+                        v-if="form.recurrence_type !== 'daily'"
+                        class="recurring-date-planner"
+                    >
                     <div class="weekday-planner-head">
                         <div>
                             <strong>Lịch theo từng ngày</strong>
@@ -927,13 +933,13 @@
                             }}</small>
                         </button>
                     </div>
-                </div>
+                    </div>
 
-                <p class="recurring-helper">
-                    {{ recurringHelperText }}
-                </p>
+                    <p class="recurring-helper">
+                        {{ recurringHelperText }}
+                    </p>
 
-                <section class="recurring-schedule-board">
+                    <section class="recurring-schedule-board">
                     <div class="section-title muted">
                         <h2>Chọn sân và khung giờ cố định</h2>
                     </div>
@@ -1022,7 +1028,8 @@
                             </tbody>
                         </table>
                     </div>
-                </section>
+                    </section>
+                </div>
 
                 <section class="recurring-payment">
                     <div class="section-title muted">
@@ -1666,16 +1673,6 @@
 
                     <div class="modal-actions">
                         <button
-                            v-if="canApproveBooking(bookingListDetail)"
-                            class="primary-btn"
-                            type="button"
-                            :disabled="bookingActionLoading"
-                            @click="approveBookingFromList"
-                        >
-                            <AppIcon name="check" size="15" />
-                            {{ bookingActionLoading ? "Đang xử lý..." : "Xác nhận booking" }}
-                        </button>
-                        <button
                             class="secondary-btn"
                             type="button"
                             @click="closeRecurringGroupDetail"
@@ -1774,6 +1771,16 @@
                     </dl>
 
                     <div class="modal-actions">
+                        <button
+                            v-if="canApproveBooking(bookingListDetail)"
+                            class="primary-btn"
+                            type="button"
+                            :disabled="bookingActionLoading"
+                            @click="approveBookingFromList"
+                        >
+                            <AppIcon name="check" size="15" />
+                            {{ bookingActionLoading ? "Đang xử lý..." : "Duyệt booking" }}
+                        </button>
                         <button
                             class="secondary-btn"
                             type="button"
@@ -3579,7 +3586,7 @@ export default {
             }
 
             try {
-                const response = await venueClusterService.getClusters();
+                const response = await venueClusterService.getClusters({ compact: 1 });
                 this.clusters = response.data || [];
                 const preferredCluster = this.clusters.find(
                     (cluster) =>
@@ -3959,11 +3966,17 @@ export default {
             this.bookingListDetail = null;
         },
         canApproveBooking(booking) {
-            return Boolean(
-                booking &&
-                    ['pending_approval', 'pending_payment'].includes(booking.status) &&
-                    booking.payment_option === 'no_prepay',
-            );
+            if (!booking) return false;
+            if (booking.status === 'pending_approval') {
+                return booking.payment_option !== 'deposit'
+                    || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0);
+            }
+            if (booking.status !== 'pending_payment') return false;
+            if (booking.payment_option === 'no_prepay') return true;
+
+            return booking.payment_option === 'deposit'
+                && (Number(booking.required_payment_amount || 0) <= 0
+                    || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0));
         },
         async approveBookingFromList() {
             const booking = this.bookingListDetail;
@@ -3977,7 +3990,7 @@ export default {
                     action: 'confirm',
                 });
                 this.bookingListDetail = response.data || response;
-                this.notice = 'Đã xác nhận booking trả sau.';
+                this.notice = 'Đã duyệt booking.';
                 await Promise.all([this.loadBookingList(), this.loadSchedule()]);
             } catch (error) {
                 this.error = error.message || 'Không thể xác nhận booking.';

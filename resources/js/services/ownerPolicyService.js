@@ -19,7 +19,11 @@ export const ownerPolicyService = {
       ? `/api/owner/venue-policies?venue_cluster_id=${encodeURIComponent(clusterId)}`
       : withCluster('/api/owner/venue-policies');
 
-    return api(path);
+    return api(path, {
+      cache: 'no-store',
+      dedupe: false,
+      timeoutMs: 8000,
+    });
   },
   saveRule(payload) {
     return api('/api/owner/venue-policies/rules', {

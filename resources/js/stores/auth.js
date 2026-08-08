@@ -14,6 +14,7 @@ const SELECTED_CLUSTER_KEY = 'selected_cluster';
 
 let adminValidatedToken = null;
 let adminRestorePromise = null;
+let authRestorePromise = null;
 
 function normalizeAuth(payload, existingToken = null) {
   const user = payload.user || {};
@@ -89,6 +90,7 @@ export function clearAuth() {
   ].forEach((key) => localStorage.removeItem(key));
   adminValidatedToken = null;
   adminRestorePromise = null;
+  authRestorePromise = null;
 }
 
 export function getAuth() {
@@ -121,15 +123,25 @@ export async function restoreAuth() {
   const currentToken = getToken();
   if (!currentToken) return null;
 
-  try {
-    const payload = await authService.me();
-    return saveAuth({ ...payload, token: currentToken });
-  } catch (err) {
-    if (shouldClearAuthForError(err)) {
-      clearAuth();
+  // Deduplicate only concurrent validation requests. This is not response caching:
+  // every completed validation is discarded and a later full app entry validates again.
+  if (authRestorePromise) return authRestorePromise;
+
+  authRestorePromise = (async () => {
+    try {
+      const payload = await authService.me();
+      return saveAuth({ ...payload, token: currentToken });
+    } catch (err) {
+      if (shouldClearAuthForError(err)) {
+        clearAuth();
+      }
+      return null;
+    } finally {
+      authRestorePromise = null;
     }
-    return null;
-  }
+  })();
+
+  return authRestorePromise;
 }
 
 export async function restoreAdminAuth() {

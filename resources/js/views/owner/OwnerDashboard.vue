@@ -591,7 +591,7 @@ export default {
     async resolveSelectedCluster(clusterId) {
       if (!clusterId || this.selectedCluster?.id) return;
       try {
-        const response = await venueClusterService.getClusters();
+        const response = await venueClusterService.getClusters({ compact: 1 });
         const clusters = response.data || [];
         this.selectedCluster = clusters.find((cluster) => String(cluster.id) === String(clusterId)) || null;
       } catch {

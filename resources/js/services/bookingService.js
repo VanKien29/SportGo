@@ -41,7 +41,11 @@ export const bookingService = {
     });
 
     const suffix = query.toString();
-    return api(`/api/bookings${suffix ? `?${suffix}` : ''}`);
+    return api(`/api/bookings${suffix ? `?${suffix}` : ''}`, {
+      cache: 'no-store',
+      dedupe: false,
+      timeoutMs: 8000,
+    });
   },
 
   // Lấy chi tiết đơn đặt sân

@@ -571,7 +571,7 @@ export default {
   },
   methods: {
     async loadClusters() {
-      const response = await venueClusterService.getClusters();
+      const response = await venueClusterService.getClusters({ compact: 1 });
       this.clusters = response.data || [];
     },
     async onClusterChange() {
@@ -765,8 +765,8 @@ export default {
       }
     },
     primaryAction(booking) {
-      if (booking.status === 'pending_approval') {
-        return { key: 'confirm', label: 'Xác nhận booking', icon: 'check', variant: 'success' };
+      if (this.canApproveBooking(booking)) {
+        return { key: 'confirm', label: 'Duyệt booking', icon: 'check', variant: 'success' };
       }
       if (booking.status === 'confirmed') {
         return { key: 'check_in', label: 'Check-in', icon: 'clock', variant: 'success' };
@@ -782,6 +782,17 @@ export default {
       }
       return null;
     },
+    canApproveBooking(booking) {
+      if (booking?.status === 'pending_approval') {
+        return booking.payment_option !== 'deposit'
+          || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0);
+      }
+      if (booking?.status !== 'pending_payment') return false;
+      if (booking.payment_option === 'no_prepay') return true;
+      return booking.payment_option === 'deposit'
+        && (Number(booking.required_payment_amount || 0) <= 0
+          || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0));
+    },
     secondaryActions(booking) {
       const primaryKey = this.primaryAction(booking)?.key;
       const actions = [];
@@ -792,7 +803,7 @@ export default {
       if (this.canChangeCourt(booking)) {
         actions.push({ key: 'change_court', label: 'Đổi sân', icon: 'pencil', variant: 'secondary' });
       }
-      if (booking.status === 'pending_approval') {
+      if (booking.status === 'pending_approval' || this.canApproveBooking(booking)) {
         actions.push({ key: 'reject', label: 'Từ chối booking', icon: 'x', variant: 'danger' });
       }
       if (['pending_approval', 'pending_payment', 'confirmed'].includes(booking.status)) {

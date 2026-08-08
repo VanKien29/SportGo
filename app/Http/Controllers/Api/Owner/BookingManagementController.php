@@ -423,11 +423,23 @@ class BookingManagementController extends Controller
         ]);
 
         // Một số booking trả sau được tạo trước khi trạng thái chờ duyệt được chuẩn hóa
-        // và còn nằm ở pending_payment. Cho phép owner xử lý chúng như pending_approval.
+        // và còn nằm ở pending_payment. Booking cọc chỉ được duyệt sau khi đã
+        // nhận đủ khoản cọc bắt buộc.
         $isPayLater = $booking->payment_option === 'no_prepay';
+        $isDeposit = $booking->payment_option === 'deposit';
+        $paidAmount = (float) $booking->payments
+            ->where('status', 'paid')
+            ->sum('amount');
+        $depositPaid = $isDeposit
+            && ((float) $booking->required_payment_amount <= 0
+                || $paidAmount + 0.01 >= (float) $booking->required_payment_amount);
         $allowedActions = match ($booking->status) {
-            'pending_approval' => ['confirm', 'reject', 'cancel'],
-            'pending_payment' => $isPayLater ? ['confirm', 'reject', 'cancel'] : ['cancel'],
+            'pending_approval' => ($isDeposit && ! $depositPaid)
+                ? ['cancel']
+                : ['confirm', 'reject', 'cancel'],
+            'pending_payment' => ($isPayLater || $depositPaid)
+                ? ['confirm', 'reject', 'cancel']
+                : ['cancel'],
             'confirmed' => ['check_in', 'cancel'],
             'checked_in' => ['complete'],
             default => [],
@@ -435,7 +447,9 @@ class BookingManagementController extends Controller
 
         if (! in_array($validated['action'], $allowedActions, true)) {
             throw ValidationException::withMessages([
-                'action' => 'Thao tác không hợp lệ với trạng thái hiện tại của booking.',
+                'action' => $validated['action'] === 'confirm' && $isDeposit && ! $depositPaid
+                    ? 'Booking đặt cọc chưa thanh toán đủ tiền cọc nên chưa thể duyệt.'
+                    : 'Thao tác không hợp lệ với trạng thái hiện tại của booking.',
             ]);
         }
 
@@ -499,7 +513,7 @@ class BookingManagementController extends Controller
             'cancelled_at' => in_array($status, ['cancelled', 'rejected'], true) ? now() : $booking->cancelled_at,
         ]);
 
-        if ($validated['action'] === 'confirm' && $isPayLater) {
+        if ($validated['action'] === 'confirm' && ($isPayLater || $isDeposit)) {
             // Lock auto chỉ có nhiệm vụ chờ owner duyệt; sau khi duyệt booking
             // phải được giữ bởi trạng thái booking thay vì một lock tạm.
             SlotLock::query()

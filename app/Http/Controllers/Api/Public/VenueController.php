@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Models\HolidayPrice;
 use App\Models\PriceSlot;
+use App\Models\SystemPolicy;
 use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
+use App\Models\VenuePolicyRule;
 use App\Services\BookingService;
+use App\Services\Policies\RefundCancellationPolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,7 +21,10 @@ use Illuminate\Validation\ValidationException;
 
 class VenueController extends Controller
 {
-    public function __construct(private readonly BookingService $bookingService)
+    public function __construct(
+        private readonly BookingService $bookingService,
+        private readonly RefundCancellationPolicyService $refundPolicies,
+    )
     {
     }
 
@@ -490,6 +496,101 @@ class VenueController extends Controller
     {
         $config = $cluster->bookingConfig;
 
+        $now = now();
+        $systemVenuePolicy = SystemPolicy::query()
+            ->where('policy_type', 'venue_policy')
+            ->where('status', 'active')
+            ->where('is_active', true)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_from')->orWhere('effective_from', '<=', $now);
+            })
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_to')->orWhere('effective_to', '>=', $now);
+            })
+            ->orderByDesc('priority')
+            ->orderByDesc('version')
+            ->first();
+
+        $systemVenuePayload = $systemVenuePolicy ? [
+            'id' => $systemVenuePolicy->id,
+            'title' => $systemVenuePolicy->title,
+            'content' => $systemVenuePolicy->content,
+            'policy_type' => $systemVenuePolicy->policy_type,
+            'version' => $systemVenuePolicy->version,
+            'source' => 'system',
+            'source_label' => 'Chính sách hệ thống',
+            'status' => 'system_default',
+        ] : null;
+
+        $venueNotices = VenuePolicyRule::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('rule_type', 'customer_notice')
+            ->where('status', 'active')
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_from')->orWhere('effective_from', '<=', $now);
+            })
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_to')->orWhere('effective_to', '>=', $now);
+            })
+            ->latest()
+            ->get()
+            ->map(fn (VenuePolicyRule $rule): array => [
+                'id' => $rule->id,
+                'title' => $rule->rule_name,
+                'content' => $rule->result_json['content'] ?? null,
+                'status' => $rule->status,
+                'source' => 'venue',
+                'source_label' => 'Chính sách riêng của sân',
+            ])
+            ->values()
+            ->all();
+
+        // Customer-facing notices inherit the system venue policy when the owner
+        // has not published an active notice for this cluster.
+        $effectiveNotices = $venueNotices ?: ($systemVenuePayload ? [$systemVenuePayload] : []);
+
+        $systemCancellationPolicy = SystemPolicy::query()
+            ->with(['rules' => fn ($query) => $query->where('is_active', true)->orderByDesc('priority')])
+            ->where('policy_type', 'booking_cancellation')
+            ->where('status', 'active')
+            ->where('is_active', true)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_from')->orWhere('effective_from', '<=', $now);
+            })
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_to')->orWhere('effective_to', '>=', $now);
+            })
+            ->orderByDesc('priority')
+            ->orderByDesc('version')
+            ->first();
+        $systemCancellationRule = $systemCancellationPolicy
+            ? $systemCancellationPolicy->rules->firstWhere('rule_type', RefundCancellationPolicyService::CANCELLATION_RULE_TYPE)
+            : null;
+        $venueCancellationRule = $systemCancellationRule
+            ? VenuePolicyRule::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('base_policy_rule_id', $systemCancellationRule->id)
+                ->where('rule_type', RefundCancellationPolicyService::CANCELLATION_RULE_TYPE)
+                ->where('status', 'active')
+                ->where(function ($query) use ($now): void {
+                    $query->whereNull('effective_from')->orWhere('effective_from', '<=', $now);
+                })
+                ->where(function ($query) use ($now): void {
+                    $query->whereNull('effective_to')->orWhere('effective_to', '>=', $now);
+                })
+                ->latest()
+                ->first()
+            : null;
+        $systemCancellationTiers = $systemCancellationRule
+            ? $this->refundPolicies->cancelRefundTiersFromRule($systemCancellationRule)
+            : [];
+        $effectiveCancellationTiers = $venueCancellationRule
+            ? $this->refundPolicies->cancelRefundTiersFromVenueRule($venueCancellationRule, $systemCancellationTiers)
+            : $systemCancellationTiers;
+        $effectiveCancellationSummary = $effectiveCancellationTiers
+            ? $this->refundPolicies->cancelRefundSummary($effectiveCancellationTiers)
+            : null;
+
         return [
             'allow_full_payment' => (bool) ($config?->allow_full_payment ?? true),
             'allow_wallet' => (bool) ($config?->allow_full_payment ?? true),
@@ -500,6 +601,26 @@ class VenueController extends Controller
             'refund_percent' => $config?->refund_percent,
             'min_advance_booking_minutes' => $config?->min_advance_booking_minutes,
             'slot_hold_minutes' => $config?->slot_hold_minutes,
+            'display_notices' => $effectiveNotices,
+            'display_notice_source' => $venueNotices ? 'venue' : 'system',
+            'display_notice_source_label' => $venueNotices
+                ? 'Đang áp dụng chính sách riêng của sân'
+                : 'Đang hiển thị chính sách hệ thống',
+            'system_venue_policy' => $systemVenuePayload,
+            'cancellation_refund' => [
+                'source' => $venueCancellationRule ? 'venue' : 'system',
+                'source_label' => $venueCancellationRule
+                    ? 'Đang áp dụng chính sách riêng của sân'
+                    : 'Đang kế thừa chính sách hệ thống',
+                'system_policy' => $systemCancellationPolicy ? [
+                    'id' => $systemCancellationPolicy->id,
+                    'title' => $systemCancellationPolicy->title,
+                    'version' => $systemCancellationPolicy->version,
+                ] : null,
+                'venue_rule_id' => $venueCancellationRule?->id,
+                'effective_summary' => $effectiveCancellationSummary,
+                'effective_tiers' => $effectiveCancellationTiers,
+            ],
         ];
     }
 

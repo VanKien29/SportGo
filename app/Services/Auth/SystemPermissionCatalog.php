@@ -362,7 +362,7 @@ class SystemPermissionCatalog
 
         return [
             'super_admin' => $all,
-            'admin' => array_values(array_diff($all, ['staff.create'])),
+            'admin' => $all,
             'system_staff' => array_merge($common, [
                 'user.view', 'content.view', 'moderation.view', 'report.view', 'complaint.view',
                 'booking.view', 'venue.view', 'court.view', 'policy.view',
