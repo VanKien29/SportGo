@@ -6596,36 +6596,54 @@ export default {
     background: #f7fbf5;
 }
 
-.recurring-detail-modal .confirm-summary {
-    display: grid;
-    grid-template-columns: repeat(
-        auto-fit,
-        minmax(min(210px, 100%), 1fr)
-    );
-    gap: 8px;
-    align-content: start;
-    max-height: none;
-    overflow: visible;
+.recurring-detail-modal .confirm-summary,
+.booking-detail-modal .confirm-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    margin: 8px 0;
 }
 
-.recurring-detail-modal .confirm-summary div {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    gap: 4px;
-    min-width: 0;
-    padding: 10px;
-    border: 1px solid #e1ece1;
-    border-radius: 8px;
-    background: #fff;
+.recurring-detail-modal .confirm-summary div,
+.booking-detail-modal .confirm-summary div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 5px 0;
+    border: none;
+    border-bottom: none;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.recurring-detail-modal .confirm-summary div:last-child,
+.booking-detail-modal .confirm-summary div:last-child {
+    border-bottom: none;
 }
 
 .recurring-detail-modal .confirm-summary dt,
-.recurring-detail-modal .confirm-summary dd {
+.booking-detail-modal .confirm-summary dt {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
     text-align: left;
+    white-space: nowrap;
+    margin: 0;
 }
 
-.recurring-detail-modal .confirm-summary dd {
+.recurring-detail-modal .confirm-summary dd,
+.booking-detail-modal .confirm-summary dd {
+    color: #0f172a;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: right;
+    margin: 0;
     overflow-wrap: break-word;
     word-break: normal;
     white-space: normal;
@@ -7588,8 +7606,8 @@ input.invalid {
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #d9e8d9;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .modal-head span {
@@ -8078,8 +8096,8 @@ input.invalid {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 0 0 8px;
-    border-bottom: 1px solid #edf3ea;
+    padding: 4px 0;
+    border-bottom: none;
     background: transparent;
 }
 

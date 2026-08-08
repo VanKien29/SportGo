@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="cluster-action-floating" :class="{ 'has-scroll-top': hasScrollTop }" v-if="!isLocked">
     <button 
       class="btn-floating" 
@@ -112,16 +112,16 @@ export default {
   background-color: var(--admin-floating-bg, #1f2937);
   color: var(--admin-floating-fg, #ffffff);
   border: 1px solid var(--admin-floating-border, rgba(255, 255, 255, 0.14));
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: none !important;
   cursor: pointer;
-  transition: background-color 120ms ease-out, transform 80ms ease-out, box-shadow 120ms ease-out;
+  transition: background-color 120ms ease-out, transform 80ms ease-out;
 }
 
 .btn-floating.never-hover-class-placeholder,
 .btn-floating.is-open {
   transform: translateY(-2px);
   background-color: var(--admin-floating-hover, #111827);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  box-shadow: none !important;
 }
 
 .btn-floating:active {
