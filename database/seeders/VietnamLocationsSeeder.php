@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\VnProvince;
 use App\Models\VnWard;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,8 +20,10 @@ class VietnamLocationsSeeder extends Seeder
         $now = now();
         $baseUrl = config('services.provinces_vn.base_url', 'https://provinces.open-api.vn');
 
+        Cache::forget('partner_locations_v2_provinces');
+
         try {
-            // Lấy dữ liệu Tỉnh/Thành phố và Phường/Xã từ API trực tuyến
+            // Lấy dữ liệu Tỉnh/Thành phố và Phường/Xã từ API
             $provincesRes = Http::timeout(25)->withoutVerifying()->get("{$baseUrl}/api/v2/");
             $wardsRes = Http::timeout(35)->withoutVerifying()->get("{$baseUrl}/api/v2/w/");
 
@@ -30,11 +33,10 @@ class VietnamLocationsSeeder extends Seeder
 
                 if (! empty($provincesData)) {
                     Schema::disableForeignKeyConstraints();
-                    VnWard::query()->delete();
-                    VnProvince::query()->delete();
+                    VnWard::query()->truncate();
+                    VnProvince::query()->truncate();
                     Schema::enableForeignKeyConstraints();
 
-                    // 1. Seed danh sách Tỉnh/Thành phố
                     $provinceRecords = collect($provincesData)->map(fn ($p) => [
                         'code' => (string) ($p['code'] ?? ''),
                         'name' => (string) ($p['name'] ?? ''),
@@ -49,7 +51,6 @@ class VietnamLocationsSeeder extends Seeder
                         VnProvince::query()->insert($chunk);
                     }
 
-                    // 2. Seed danh sách Phường/Xã
                     $wardRecords = collect($wardsData)->map(fn ($w) => [
                         'code' => (string) ($w['code'] ?? ''),
                         'name' => (string) ($w['name'] ?? ''),
@@ -65,7 +66,6 @@ class VietnamLocationsSeeder extends Seeder
                     }
 
                     $this->command?->info('Đã seed thành công ' . count($provinceRecords) . ' Tỉnh/Thành phố và ' . count($wardRecords) . ' Phường/Xã từ API!');
-                    return;
                 }
             }
         } catch (\Throwable $e) {
@@ -73,3 +73,4 @@ class VietnamLocationsSeeder extends Seeder
         }
     }
 }
+    

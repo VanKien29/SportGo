@@ -26,8 +26,14 @@ class VenueController extends Controller
     {
         $validated = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
-            'court_type_id' => ['nullable', 'integer', 'exists:court_types,id'],
+            'court_type_id' => ['nullable', 'string', 'max:50'],
             'area' => ['nullable', 'string', 'max:100'],
+            'province_code' => ['nullable', 'string', 'max:50'],
+            'province_name' => ['nullable', 'string', 'max:100'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'ward_code' => ['nullable', 'string', 'max:50'],
+            'ward_name' => ['nullable', 'string', 'max:100'],
+            'ward' => ['nullable', 'string', 'max:100'],
             'min_price' => ['nullable', 'numeric', 'min:0'],
             'max_price' => ['nullable', 'numeric', 'min:0'],
             'min_rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
@@ -91,6 +97,66 @@ class VenueController extends Controller
             });
         }
 
+        if (! empty($validated['province_code']) || ! empty($validated['province_name']) || ! empty($validated['province'])) {
+            $pCode = (string) ($validated['province_code'] ?? '');
+            $pName = $validated['province_name'] ?? $validated['province'] ?? '';
+            $dbName = $pCode ? DB::table('vn_provinces')->where('code', $pCode)->value('name') : null;
+
+            $query->where(function ($q) use ($pCode, $pName, $dbName) {
+                $matched = false;
+                if ($pCode) {
+                    $q->where('province_code', $pCode);
+                    $matched = true;
+                }
+                $namesToMatch = array_filter([$pName, $dbName]);
+                foreach ($namesToMatch as $name) {
+                    $clean = trim(preg_replace('/^(Tỉnh|Thành phố|TP\.)\s+/ui', '', $name));
+                    if ($matched) {
+                        $q->orWhere('province', 'like', "%{$name}%")
+                          ->orWhere('province', 'like', "%{$clean}%")
+                          ->orWhere('address', 'like', "%{$clean}%");
+                    } else {
+                        $q->where(function ($sub) use ($name, $clean) {
+                            $sub->where('province', 'like', "%{$name}%")
+                                ->orWhere('province', 'like', "%{$clean}%")
+                                ->orWhere('address', 'like', "%{$clean}%");
+                        });
+                        $matched = true;
+                    }
+                }
+            });
+        }
+
+        if (! empty($validated['ward_code']) || ! empty($validated['ward_name']) || ! empty($validated['ward'])) {
+            $wCode = (string) ($validated['ward_code'] ?? '');
+            $wName = $validated['ward_name'] ?? $validated['ward'] ?? '';
+            $dbWardName = $wCode ? DB::table('vn_wards')->where('code', $wCode)->value('name') : null;
+
+            $query->where(function ($q) use ($wCode, $wName, $dbWardName) {
+                $matched = false;
+                if ($wCode) {
+                    $q->where('ward_code', $wCode);
+                    $matched = true;
+                }
+                $namesToMatch = array_filter([$wName, $dbWardName]);
+                foreach ($namesToMatch as $name) {
+                    $clean = trim(preg_replace('/^(Phường|Xã|Thị trấn)\s+/ui', '', $name));
+                    if ($matched) {
+                        $q->orWhere('ward', 'like', "%{$name}%")
+                          ->orWhere('ward', 'like', "%{$clean}%")
+                          ->orWhere('address', 'like', "%{$clean}%");
+                    } else {
+                        $q->where(function ($sub) use ($name, $clean) {
+                            $sub->where('ward', 'like', "%{$name}%")
+                                ->orWhere('ward', 'like', "%{$clean}%")
+                                ->orWhere('address', 'like', "%{$clean}%");
+                        });
+                        $matched = true;
+                    }
+                }
+            });
+        }
+
         if (isset($validated['min_rating'])) {
             $query->where('rating_avg', '>=', $validated['min_rating']);
         }
@@ -125,13 +191,21 @@ class VenueController extends Controller
 
         $availabilityCourtTypeIds = null;
         if (! empty($validated['court_type_id'])) {
-            $courtTypeId = (int) $validated['court_type_id'];
-            $courtTypeIds = $this->courtTypeSelfAndDescendants($courtTypeId);
-            $availabilityCourtTypeIds = $courtTypeIds;
+            $courtTypeVal = $validated['court_type_id'];
+            if (is_numeric($courtTypeVal)) {
+                $courtTypeId = (int) $courtTypeVal;
+            } else {
+                $ct = DB::table('court_types')->where('code', $courtTypeVal)->orWhere('name', 'like', "%{$courtTypeVal}%")->first();
+                $courtTypeId = $ct ? $ct->id : 0;
+            }
+            if ($courtTypeId > 0) {
+                $courtTypeIds = $this->courtTypeSelfAndDescendants($courtTypeId);
+                $availabilityCourtTypeIds = $courtTypeIds;
 
-            $query->whereHas('venueCourts', function ($query) use ($courtTypeIds) {
-                $query->whereIn('court_type_id', $courtTypeIds)->where('status', 'active');
-            });
+                $query->whereHas('venueCourts', function ($query) use ($courtTypeIds) {
+                    $query->whereIn('court_type_id', $courtTypeIds)->where('status', 'active');
+                });
+            }
         }
 
         $clusters = $query

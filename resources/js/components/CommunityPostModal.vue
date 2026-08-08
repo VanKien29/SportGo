@@ -9,10 +9,6 @@
         aria-describedby="community-composer-description"
       >
         <header class="modal-header">
-          <div>
-            <span class="modal-kicker">Cộng đồng SportGo</span>
-            <h2 id="community-composer-title">Tạo bài chia sẻ</h2>
-          </div>
           <button type="button" class="icon-button" aria-label="Đóng cửa sổ tạo bài" @click="close">
             <AppIcon name="x" />
           </button>
@@ -234,4 +230,369 @@ onBeforeUnmount(() => {
   revokePreview();
 });
 </script>
+
+<style scoped>
+/* ─── MODAL OVERLAY ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* ─── MODAL CONTAINER ─── */
+.composer-modal {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  color: #0f172a;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ─── HEADER ─── */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.modal-kicker {
+  display: block;
+  font-size: 12px;
+  color: #16a34a;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.icon-button:hover {
+  background: #f8fafc;
+}
+
+/* ─── FORM & AUTHOR ─── */
+.composer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.author-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.author-row strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.visibility-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #1e293b;
+  font-weight: 400;
+}
+
+.composer-description {
+  font-size: 13.5px;
+  color: #1e293b;
+  font-weight: 400;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── CONTENT FIELD ─── */
+.content-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.content-field span {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.content-field small {
+  color: #dc2626;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.content-field textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 400;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  background: #ffffff;
+}
+
+.content-field textarea:focus {
+  border-color: #16a34a;
+}
+
+.content-field small.invalid {
+  color: #dc2626;
+}
+
+/* ─── IMAGE PREVIEW ─── */
+.image-preview {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 240px;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.remove-image {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── TOPIC FIELDSET ─── */
+.topic-fieldset {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0;
+}
+
+.topic-fieldset legend {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topic-fieldset legend small {
+  color: #1e293b;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.topic-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.topic-list button {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.topic-list button:hover:not(:disabled) {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+.topic-list button.active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.topic-list button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── ATTACHMENT ─── */
+.attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.attachment-row strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.attachment-row small {
+  font-size: 12px;
+  color: #1e293b;
+  font-weight: 400;
+}
+
+.image-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.image-picker input {
+  display: none;
+}
+
+.image-picker:hover {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+/* ─── ERROR ─── */
+.form-error {
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* ─── ACTIONS ─── */
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cancel-button {
+  padding: 9px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.submit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.submit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: cm-spin 0.75s linear infinite;
+}
+
+@keyframes cm-spin { to { transform: rotate(360deg); } }
+</style>
 

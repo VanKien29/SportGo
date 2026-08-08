@@ -111,16 +111,20 @@ const onBlur = () => {
   position: relative;
   width: 100%;
 }
+.combo-wrapper input::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
 .combo-list {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--admin-surface, #18181b);
-  color: var(--admin-text, #f4f4f5);
-  border: 1px solid var(--admin-border, #3f3f46);
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   max-height: 220px;
   overflow-y: auto;
   z-index: 100;
@@ -134,7 +138,7 @@ const onBlur = () => {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: var(--admin-text, #f4f4f5);
+  color: #0f172a;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -143,13 +147,13 @@ const onBlur = () => {
 }
 .combo-item:hover,
 .combo-item.active {
-  background: var(--admin-hover, rgba(255, 255, 255, 0.08));
-  color: var(--admin-text, #f4f4f5);
+  background: #f1f5f9;
+  color: #16a34a;
 }
 .combo-empty {
   padding: 10px 12px;
   font-size: 13px;
-  color: var(--admin-faint, #94a3b8);
+  color: #64748b;
   margin: 0;
 }
 </style>

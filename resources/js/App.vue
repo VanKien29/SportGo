@@ -1,8 +1,8 @@
 <template>
-  <router-view v-slot="{ Component }">
+  <router-view v-slot="{ Component, route }">
     <Suspense timeout="0">
       <template #default>
-        <component :is="Component" />
+        <component :is="Component" :key="route.fullPath" />
       </template>
       <template #fallback>
         <main class="app-route-loading" aria-live="polite">
