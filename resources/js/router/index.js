@@ -174,7 +174,7 @@ const routes = [
     {
         path: "/become-partner",
         name: "partner-registration",
-        component: PartnerApplicationPortal,
+        component: () => import("../views/partner/PartnerApplicationPortal.vue"),
         meta: { requiresAuth: false },
     },
     {
