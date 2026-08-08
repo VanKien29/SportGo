@@ -138,18 +138,7 @@ class VenueClusterController extends Controller
             curl_close($ch);
 
             // Tìm tọa độ từ URL sau khi redirect
-            // 1. Dạng @lat,lng
-            if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
-                return response()->json([
-                    'data' => [
-                        'latitude' => (float)$matches[1],
-                        'longitude' => (float)$matches[2],
-                        'final_url' => $finalUrl,
-                    ]
-                ]);
-            }
-
-            // 2. Dạng !3dlat!4dlng
+            // 1. Dạng !3dlat!4dlng (tọa độ ghim địa điểm chính xác)
             if (preg_match('/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
                     'data' => [
@@ -160,8 +149,19 @@ class VenueClusterController extends Controller
                 ]);
             }
 
-            // 3. Dạng q=lat,lng
+            // 2. Dạng q=lat,lng
             if (preg_match('/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
+                return response()->json([
+                    'data' => [
+                        'latitude' => (float)$matches[1],
+                        'longitude' => (float)$matches[2],
+                        'final_url' => $finalUrl,
+                    ]
+                ]);
+            }
+
+            // 3. Dạng @lat,lng (tọa độ tâm camera viewport)
+            if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $finalUrl, $matches)) {
                 return response()->json([
                     'data' => [
                         'latitude' => (float)$matches[1],

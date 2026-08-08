@@ -129,11 +129,18 @@
                     </FormField>
                     <FormField class="full-width" label="Link Google Maps (Bắt buộc để lấy tọa độ)" required :error="mapError || fieldErrors.venue_map_url">
                       <input v-model.trim="form.venue_map_url" :class="inputClass(mapError || fieldErrors.venue_map_url)" placeholder="Dán link Google Maps có tọa độ" @input="onMapUrlInput" />
-                      <div v-if="mapSuggestion" class="map-suggestion">
-                        <p>{{ mapSuggestion.message }}</p>
-                        <button v-if="mapSuggestion.province_code || mapSuggestion.ward_code" type="button" class="btn btn-secondary btn-compact" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
+                      <div v-if="mapSuggestion" class="map-suggestion-card">
+                        <p class="map-suggestion-text">{{ mapSuggestion.message }}</p>
+                        <button
+                          v-if="mapSuggestion.province_code || mapSuggestion.ward_code"
+                          type="button"
+                          class="btn-apply-suggestion"
+                          @click="applyMapSuggestion"
+                        >
+                          Cập nhật theo Google Maps
+                        </button>
                       </div>
-                      <p v-else-if="mapStatus" class="map-status">{{ mapStatus }}</p>
+                      <p v-else-if="mapStatus" class="map-status-text">{{ mapStatus }}</p>
                     </FormField>
                     <FormField class="full-width" label="Chọn vị trí trên bản đồ" required :error="fieldErrors.venue_coordinates">
                       <div class="map-picker-shell">
@@ -147,11 +154,11 @@
                             <span>Kinh độ</span>
                             <input v-model.trim="form.venue_longitude" :class="inputClass(fieldErrors.venue_longitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_longitude')" />
                           </label>
+                          <button type="button" class="btn btn-secondary btn-sm current-location-button" @click="getCurrentLocation">
+                            <AppIcon name="mapPin" size="16" />
+                            Lấy vị trí hiện tại
+                          </button>
                         </div>
-                        <button type="button" class="btn btn-secondary btn-sm current-location-button" @click="getCurrentLocation">
-                          <AppIcon name="mapPin" size="16" />
-                          Lấy vị trí hiện tại
-                        </button>
                         <p class="map-help">Click trên bản đồ hoặc kéo marker để chọn tọa độ cụm sân. Link Google Maps nếu có tọa độ sẽ tự đặt marker.</p>
                       </div>
                     </FormField>
@@ -535,11 +542,12 @@ onMounted(async () => {
     toast.error(formBanner.value);
   }
   await openDraftFromRoute();
+  await nextTick();
+  initMapPicker();
 });
 
 onBeforeUnmount(() => {
-  clearTimeout(bankTimer.value);
-  clearTimeout(mapTimer.value);
+  if (mapTimer.value) clearTimeout(mapTimer.value);
   destroyMapPicker();
 });
 
@@ -562,7 +570,7 @@ watch(formOpen, async (open) => {
     return;
   }
   destroyMapPicker();
-});
+}, { immediate: true });
 watch(() => [form.venue_latitude, form.venue_longitude], updateMapPickerMarker);
 watch(() => route.query.editDraft, async () => {
   if (route.name === 'partner-application') {
@@ -964,11 +972,18 @@ function syncVenueAddress() {
 }
 
 function initMapPicker() {
-  if (mapInstance.value) return;
   const container = document.getElementById('partner-application-map');
   if (!container) return;
   const lat = validLatitude(form.venue_latitude) ? Number(form.venue_latitude) : 21.0285;
   const lng = validLongitude(form.venue_longitude) ? Number(form.venue_longitude) : 105.8542;
+
+  if (mapInstance.value) {
+    if (mapMarker.value) mapMarker.value.setLatLng([lat, lng]);
+    mapInstance.value.setView([lat, lng], 15);
+    setTimeout(() => mapInstance.value?.invalidateSize(), 150);
+    return;
+  }
+
   const DefaultIcon = L.icon({
     iconUrl: markerIcon,
     shadowUrl: markerShadow,
@@ -1038,14 +1053,18 @@ function googleMapsPointUrl(lat, lng) {
 }
 
 function updateMapPickerMarker() {
-  if (!mapInstance.value || !mapMarker.value) return;
   if (!validLatitude(form.venue_latitude) || !validLongitude(form.venue_longitude)) return;
+  if (!mapInstance.value || !mapMarker.value) {
+    initMapPicker();
+    return;
+  }
   const lat = Number(form.venue_latitude);
   const lng = Number(form.venue_longitude);
   const current = mapMarker.value.getLatLng();
   if (Math.abs(current.lat - lat) < 0.000001 && Math.abs(current.lng - lng) < 0.000001) return;
   mapMarker.value.setLatLng([lat, lng]);
   mapInstance.value.setView([lat, lng], mapInstance.value.getZoom() || 15);
+  setTimeout(() => mapInstance.value?.invalidateSize(), 150);
 }
 
 function validLatitude(value) {
@@ -1078,7 +1097,7 @@ async function resolveMapUrl() {
       form.venue_map_url = resolved.final_url || urlToResolve;
       form.venue_latitude = Number(resolved.latitude).toFixed(7);
       form.venue_longitude = Number(resolved.longitude).toFixed(7);
-      await compareResolvedAddress(resolved, { overwriteStreet: false, applyLocation: false });
+      await compareResolvedAddress(resolved, { overwriteStreet: true, applyLocation: false });
       return;
     }
   } catch (e) { console.error('Lỗi phân giải map:', e); }
@@ -1087,13 +1106,21 @@ async function resolveMapUrl() {
   if (coords) {
     form.venue_latitude = Number(coords.latitude).toFixed(7);
     form.venue_longitude = Number(coords.longitude).toFixed(7);
-    await reverseCoordinates(form.venue_latitude, form.venue_longitude, { overwriteStreet: false, applyLocation: false });
+    await reverseCoordinates(form.venue_latitude, form.venue_longitude, { overwriteStreet: true, applyLocation: false });
   }
 }
 
 function extractCoordinates(url) {
   const d = decodeURIComponent(url || '');
-  for (const p of [/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/, /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/, /[?&](?:q|ll|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/, /[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/]) {
+  for (const p of [
+    /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+    /!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+    /[?&](?:q|ll|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+    /place\/[^\/@]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /dir\/[^\/@]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+    /[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+    /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/,
+  ]) {
     const m = d.match(p); if (m) return { latitude: Number(m[1]), longitude: Number(m[2]) };
   }
   return null;
@@ -1110,24 +1137,35 @@ async function reverseCoordinates(latitude, longitude, options = {}) {
     await compareResolvedAddress(r.data || {}, options);
   } catch (e) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: '', ward_code: '', message: 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
+    mapSuggestion.value = { province_code: '', ward_code: '', street_address: '', message: 'Không xác minh được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
   } finally {
     mapReverseBusy.value = false;
   }
 }
 
 function streetFromAddress(address) {
-  return String(address || '').split(',').map((part) => part.trim()).filter(Boolean)[0] || '';
+  const parts = String(address || '').split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0) return '';
+  return parts[0] || '';
 }
 
 async function compareResolvedAddress(resolved, options = {}) {
   const rp = resolved.province_code || '', rw = resolved.ward_code || '';
+  const resolvedStreet = streetFromAddress(resolved.address);
   const pc = rp && rp !== form.venue_province_code, wc = rw && rw !== form.venue_ward_code;
-  if (resolved.address && (options.overwriteStreet || !form.street_address)) form.street_address = streetFromAddress(resolved.address);
+  
+  if (resolvedStreet && (options.overwriteStreet || !form.street_address)) {
+    form.street_address = resolvedStreet;
+  }
 
   if (!rp || !rw) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
+    mapSuggestion.value = {
+      province_code: rp,
+      ward_code: rw,
+      street_address: resolvedStreet,
+      message: 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.'
+    };
     return;
   }
   
@@ -1135,11 +1173,13 @@ async function compareResolvedAddress(resolved, options = {}) {
     form.venue_province_code = rp;
     await loadWards(rp);
     if (rw) form.venue_ward_code = rw;
+    if (resolvedStreet) form.street_address = resolvedStreet;
     syncVenueAddress();
     mapStatus.value = 'Đã cập nhật địa chỉ theo tọa độ trên bản đồ.';
     return;
   }
   if (!pc && !wc) {
+    if (resolvedStreet && (options.overwriteStreet || !form.street_address)) form.street_address = resolvedStreet;
     syncVenueAddress();
     if (!form.venue_province_code) mapStatus.value = 'Đã lấy tọa độ và địa chỉ đường. Vui lòng chọn Tỉnh/Thành phố.';
     else mapStatus.value = 'Vị trí bản đồ khớp với địa chỉ đã chọn.';
@@ -1147,14 +1187,29 @@ async function compareResolvedAddress(resolved, options = {}) {
   }
   const cur = [wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name, provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name].filter(Boolean).join(', ') || 'chưa chọn';
   const res = [resolved.ward, resolved.province].filter(Boolean).join(', ') || resolved.address || 'vị trí Google Maps';
-  mapSuggestion.value = { province_code: rp, ward_code: rw, message: `Vị trí trên Google Maps thuộc ${res} — khác với địa chỉ bạn đã chọn (${cur}).` };
+  mapSuggestion.value = {
+    province_code: rp,
+    ward_code: rw,
+    street_address: resolvedStreet,
+    message: `Vị trí trên Google Maps thuộc ${res} — khác với địa chỉ bạn đã chọn (${cur}).`
+  };
 }
 
 async function applyMapSuggestion() {
   if (!mapSuggestion.value) return;
-  if (mapSuggestion.value.province_code) { form.venue_province_code = mapSuggestion.value.province_code; await loadWards(form.venue_province_code); }
-  if (mapSuggestion.value.ward_code) form.venue_ward_code = mapSuggestion.value.ward_code;
-  mapSuggestion.value = null; mapStatus.value = 'Đã cập nhật địa chỉ theo Google Maps.'; syncVenueAddress();
+  if (mapSuggestion.value.province_code) {
+    form.venue_province_code = mapSuggestion.value.province_code;
+    await loadWards(form.venue_province_code);
+  }
+  if (mapSuggestion.value.ward_code) {
+    form.venue_ward_code = mapSuggestion.value.ward_code;
+  }
+  if (mapSuggestion.value.street_address) {
+    form.street_address = mapSuggestion.value.street_address;
+  }
+  mapSuggestion.value = null;
+  mapStatus.value = 'Đã cập nhật địa chỉ theo Google Maps.';
+  syncVenueAddress();
 }
 
 // ─── Courts ───────────────────────────────────────────────────────────────────
@@ -1751,9 +1806,13 @@ function money(value) {
 }
 
 .form-section-header {
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 16px;
+  padding-bottom: 0;
+  border-bottom: none !important;
+}
+
+.form-section-body {
+  border-top: none !important;
 }
 
 .form-section-title {
@@ -1761,6 +1820,7 @@ function money(value) {
   font-weight: 500;
   color: #0f172a;
   margin: 0;
+  border-bottom: none !important;
 }
 
 .form-grid {
@@ -1961,6 +2021,56 @@ function money(value) {
   cursor: not-allowed !important;
 }
 
+/* MAP SUGGESTION & STATUS BANNER CARDS - SIMPLE & CLEAN */
+.map-suggestion-card {
+  margin-top: 8px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-suggestion-text {
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.btn-apply-suggestion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  background: #ffffff;
+  border: 1px solid #16a34a;
+  border-radius: 6px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.15s ease;
+}
+
+.btn-apply-suggestion:hover {
+  background: #f0fdf4;
+  border-color: #15803d;
+  color: #15803d;
+}
+
+.map-status-text {
+  margin-top: 8px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 400;
+}
+
 /* MAP PICKER & BUTTONS */
 .map-picker-shell {
   width: 100%;
@@ -1980,8 +2090,9 @@ function money(value) {
 
 .map-coordinate-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr auto;
   gap: 16px;
+  align-items: flex-end;
   margin-top: 12px;
 }
 
@@ -1989,16 +2100,18 @@ function money(value) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 42px;
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
-  border-radius: 6px !important;
-  padding: 8px 14px !important;
+  border-radius: 8px !important;
+  padding: 0 16px !important;
   color: #0f172a !important;
-  font-size: 13px !important;
+  font-size: 13.5px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
-  margin-top: 12px !important;
+  margin-top: 0 !important;
   box-shadow: none !important;
+  white-space: nowrap;
 }
 
 .current-location-button:hover {
@@ -2025,6 +2138,10 @@ function money(value) {
   grid-template-columns: 1fr 1fr auto;
   gap: 16px;
   align-items: flex-end;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
 }
 
 .court-config-row .btn-danger {

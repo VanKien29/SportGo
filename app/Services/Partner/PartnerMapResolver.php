@@ -3,6 +3,7 @@
 namespace App\Services\Partner;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PartnerMapResolver
 {
@@ -56,9 +57,10 @@ class PartnerMapResolver
     {
         if (! function_exists('curl_init')) {
             try {
-                $response = \Illuminate\Support\Facades\Http::timeout(15)
+                $response = Http::timeout(15)
+                    ->withoutVerifying()
                     ->withOptions(['allow_redirects' => ['max' => 10]])
-                    ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+                    ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
                     ->get($url);
 
                 return $response->effectiveUri()?->__toString() ?? $url;
@@ -73,7 +75,7 @@ class PartnerMapResolver
         curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         curl_setopt($ch, CURLOPT_NOBODY, false);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 
@@ -99,13 +101,14 @@ class PartnerMapResolver
     {
         $decoded = urldecode($url);
         $patterns = [
-            '/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
             '/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
-            '/[?&](?:q|ll|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
-            '/[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
-            '/place\/[^\/]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
-            '/dir\/[^\/]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
+            '/!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
             '/data=.*!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
+            '/[?&](?:q|ll|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
+            '/place\/[^\/@]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
+            '/dir\/[^\/@]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
+            '/[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
+            '/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
         ];
 
         foreach ($patterns as $pattern) {
@@ -128,34 +131,74 @@ class PartnerMapResolver
 
     private function reverseGeocode(float $latitude, float $longitude): array
     {
+        // Provider 1: Nominatim OpenStreetMap
         try {
-            $payload = Http::timeout(10)
-                ->withHeaders(['User-Agent' => 'SportGo/1.0 (+https://sportgo.local)'])
+            $response = Http::timeout(10)
+                ->withoutVerifying()
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept-Language' => 'vi-VN,vi;q=0.9',
+                    'Referer' => 'https://sportgo.vn/',
+                ])
                 ->get('https://nominatim.openstreetmap.org/reverse', [
                     'format' => 'jsonv2',
                     'lat' => $latitude,
                     'lon' => $longitude,
                     'addressdetails' => 1,
                     'accept-language' => 'vi',
-                    'zoom' => 18,
-                ])
-                ->json();
+                    'email' => 'contact@sportgo.vn',
+                ]);
 
-            $address = $payload['address'] ?? [];
+            if ($response->successful()) {
+                $payload = $response->json();
+                $address = $payload['address'] ?? [];
+                $displayName = $payload['display_name'] ?? null;
 
-            return [
-                'address' => $payload['display_name'] ?? null,
-                'province' => $address['city'] ?? $address['state'] ?? $address['province'] ?? null,
-                'ward' => $address['quarter']
-                    ?? $address['suburb']
-                    ?? $address['neighbourhood']
-                    ?? $address['village']
-                    ?? $address['town']
-                    ?? $address['municipality']
-                    ?? null,
-            ];
-        } catch (\Throwable) {
-            return [];
+                if ($displayName) {
+                    return [
+                        'address' => $displayName,
+                        'province' => $address['city'] ?? $address['state'] ?? $address['province'] ?? null,
+                        'ward' => $address['quarter']
+                            ?? $address['suburb']
+                            ?? $address['neighbourhood']
+                            ?? $address['village']
+                            ?? $address['town']
+                            ?? $address['municipality']
+                            ?? $address['city_district']
+                            ?? null,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Nominatim reverse geocode failed: ' . $e->getMessage());
         }
+
+        // Provider 2 Fallback: BigDataCloud
+        try {
+            $response = Http::timeout(10)
+                ->withoutVerifying()
+                ->get('https://api.bigdatacloud.net/data/reverse-geocode-client', [
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'localityLanguage' => 'vi',
+                ]);
+
+            if ($response->successful()) {
+                $payload = $response->json();
+                $admin = $payload['localityInfo']['administrative'] ?? [];
+                $names = array_column($admin, 'name');
+                $addressStr = implode(', ', array_reverse($names));
+
+                return [
+                    'address' => $addressStr ?: null,
+                    'province' => $payload['principalSubdivision'] ?? null,
+                    'ward' => $payload['locality'] ?? $payload['city'] ?? null,
+                ];
+            }
+        } catch (\Throwable $e) {
+            Log::warning('BigDataCloud reverse geocode failed: ' . $e->getMessage());
+        }
+
+        return [];
     }
 }

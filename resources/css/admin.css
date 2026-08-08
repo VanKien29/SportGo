@@ -11582,7 +11582,7 @@ input.invalid {
 }
 
 .form-section-body {
-    border-top: 1px solid var(--border-color);
+    border-top: none !important;
     padding: 18px;
 }
 
@@ -13579,7 +13579,7 @@ input.invalid {
 }
 
 .form-section-body {
-    border-top: 1px solid var(--border-color);
+    border-top: none !important;
     padding: 18px;
 }
 
@@ -15359,10 +15359,10 @@ input.invalid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     gap: var(--sg-client-space-3);
     align-items: end;
-    border: 1px solid var(--sg-client-border);
+    border: none !important;
     border-radius: var(--sg-client-radius-md);
-    padding: var(--sg-client-space-4);
-    background: var(--sg-client-surface-muted);
+    padding: 0 !important;
+    background: transparent !important;
 }
 
 .partner-portal-page .btn-danger {

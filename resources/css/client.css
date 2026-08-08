@@ -723,12 +723,12 @@ body {
   font-weight: 500;
 }
 
-/* Footer Section (Borderless Top & Bottom) */
+/* Footer Section (Clean Light Theme) */
 .alb-footer {
-  background: #0f172a;
-  color: #ffffff;
+  background: #f8fafc;
+  color: #0f172a;
   padding-top: 56px;
-  border-top: none !important;
+  border-top: 1px solid #e2e8f0;
   border-bottom: none !important;
 }
 
@@ -742,7 +742,7 @@ body {
 .alb-footer-col h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #4ade80;
+  color: #15803d;
   text-transform: uppercase;
   margin-bottom: 14px;
 }
@@ -755,17 +755,22 @@ body {
 }
 
 .alb-footer-links a {
-  color: #ffffff;
+  color: #475569;
   text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.alb-footer-links a:hover {
+  color: #15803d;
 }
 
 .alb-footer-bottom {
-  background: #070a12;
-  border-top: none !important;
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
   border-bottom: none !important;
   padding: 16px 0;
   font-size: 13px;
-  color: #ffffff;
+  color: #64748b;
 }
 
 /* Responsive */

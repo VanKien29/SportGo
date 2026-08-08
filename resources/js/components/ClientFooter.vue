@@ -7,10 +7,10 @@
           <img v-if="brandLogo" :src="brandLogo" :alt="brandName" style="max-height: 44px; object-fit: contain;" />
           <div v-else style="width: 40px; height: 40px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px;">SG</div>
         </div>
-        <p style="font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px; max-width: 320px;">
+        <p style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 20px; max-width: 320px;">
           Nền tảng chuyên biệt cho kết nối & đặt lịch trực tuyến các cụm sân Pickleball, Cầu Lông, Tennis, Bóng Đá hàng đầu Việt Nam.
         </p>
-        <div style="font-size: 13.5px; color: #94a3b8; display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 13.5px; color: #64748b; display: flex; flex-direction: column; gap: 8px;">
           <span>Hotline hỗ trợ: 1900 6789 (24/7)</span>
           <span>Email: support@sportgo.vn</span>
           <span>Trụ sở chính: Hà Nội & TP. Hồ Chí Minh</span>
