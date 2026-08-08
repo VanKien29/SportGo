@@ -61,6 +61,12 @@ class VenueCourtsTableSeeder extends Seeder
             ['green-sport-tay-ho', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball TH2', 2, null, null, null, null, 0],
             ['green-sport-tay-ho', 'Tennis (Sân tiêu chuẩn)', 'Sân tennis TH3', 3, null, null, null, null, 0],
             ['green-sport-tay-ho', 'Bóng Đá (Sân 7)', 'Sân bóng đá TH4', 4, null, null, null, null, 0],
+            ['diamond-sport-thanh-xuan', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông TX1', 1, null, null, null, null, 0],
+            ['diamond-sport-thanh-xuan', 'Tennis (Sân tiêu chuẩn)', 'Sân tennis TX2', 2, null, null, null, null, 0],
+            ['star-arena-nam-tu-liem', 'Bóng Đá (Sân 7)', 'Sân bóng đá NTL1', 1, null, null, null, null, 0],
+            ['star-arena-nam-tu-liem', 'Bóng rổ (Sân tiêu chuẩn)', 'Sân bóng rổ NTL2', 2, null, null, null, null, 0],
+            ['elite-sport-hoan-kiem', 'Pickleball (Sân tiêu chuẩn)', 'Sân pickleball HK1', 1, null, null, null, null, 0],
+            ['elite-sport-hoan-kiem', 'Cầu lông (Sân tiêu chuẩn)', 'Sân cầu lông HK2', 2, null, null, null, null, 0],
         ];
 
         foreach ($courts as [$clusterSlug, $courtTypeName, $courtName, $sortOrder, $x, $y, $w, $h, $rot]) {

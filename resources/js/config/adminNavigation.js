@@ -4,7 +4,7 @@ export const adminNavigationSections = [
     items: [
       {
         label: 'Cụm sân',
-        icon: 'building',
+        icon: 'building2',
         to: '/admin/venue-clusters',
         activeNames: [
           'admin-venue-clusters',
@@ -15,7 +15,7 @@ export const adminNavigationSections = [
       },
       {
         label: 'Phí nền tảng',
-        icon: 'layers',
+        icon: 'layers3',
         to: '/admin/platform-fee-tiers',
         activeNames: [
           'admin-platform-fee-tiers',
@@ -26,15 +26,8 @@ export const adminNavigationSections = [
         permissionCodes: ['platform_fee.view'],
       },
       {
-        label: 'Cài đặt nhắc phí',
-        icon: 'bell',
-        to: '/admin/settings/platform-fee',
-        activeNames: ['admin-platform-fee-settings'],
-        permissionCodes: ['platform_fee.view'],
-      },
-      {
         label: 'Hồ sơ đối tác',
-        icon: 'fileText',
+        icon: 'fileCheck',
         to: '/admin/partner-applications',
         activeNames: [
           'admin-partner-applications',
@@ -44,6 +37,20 @@ export const adminNavigationSections = [
         ],
         permissionCodes: ['partner.view'],
       },
+      {
+        label: 'Loại sân',
+        icon: 'grid2x2',
+        to: '/admin/court-types',
+        activeNames: ['admin-court-types'],
+        permissionCodes: ['court_type.view'],
+      },
+      {
+        label: 'Tiện ích',
+        icon: 'accessibility',
+        to: '/admin/amenities',
+        activeNames: ['admin-amenities'],
+        permissionCodes: ['amenity.view'],
+      },
     ],
   },
   {
@@ -51,14 +58,14 @@ export const adminNavigationSections = [
     items: [
       {
         label: 'Nhân sự',
-        icon: 'users',
+        icon: 'userRoundCog',
         to: '/admin/staffs',
         activeNames: ['admin-staffs', 'admin-staff-detail'],
         permissionCodes: ['staff.view'],
       },
       {
         label: 'Tài khoản',
-        icon: 'users',
+        icon: 'userRound',
         to: '/admin/users',
         activeNames: ['admin-users', 'admin-user-detail'],
         permissionCodes: ['user.view'],
@@ -77,28 +84,28 @@ export const adminNavigationSections = [
     items: [
       {
         label: 'Thanh toán booking',
-        icon: 'creditCard',
+        icon: 'receiptText',
         to: '/admin/payments',
         activeNames: ['admin-payments'],
         permissionCodes: ['payment.view'],
       },
       {
         label: 'Hoàn tiền & rút tiền',
-        icon: 'banknote',
+        icon: 'walletCards',
         to: '/admin/finance-operations',
         activeNames: ['admin-finance-operations'],
         permissionCodes: ['refund.view', 'withdrawal.view', 'wallet.view'],
       },
       {
         label: 'Voucher hệ thống',
-        icon: 'tag',
+        icon: 'ticket',
         to: '/admin/vouchers',
         activeNames: ['admin-vouchers', 'admin-voucher-detail'],
         permissionCodes: ['voucher.view'],
       },
       {
         label: 'Gói VIP hệ thống',
-        icon: 'star',
+        icon: 'crown',
         to: '/admin/membership-packages',
         activeNames: ['admin-membership-packages'],
         permissionCodes: ['membership.view'],
@@ -110,31 +117,17 @@ export const adminNavigationSections = [
     items: [
       {
         label: 'Tin tức hệ thống',
-        icon: 'fileText',
+        icon: 'newspaper',
         to: '/admin/system-posts',
         activeNames: ['admin-system-posts'],
         permissionCodes: ['system_post.view'],
       },
       {
         label: 'Chính sách',
-        icon: 'fileText',
+        icon: 'fileSearch',
         to: '/admin/policies',
         activeNames: ['admin-policies', 'admin-policy-detail'],
         permissionCodes: ['policy.view'],
-      },
-      {
-        label: 'Loại sân',
-        icon: 'layers',
-        to: '/admin/court-types',
-        activeNames: ['admin-court-types'],
-        permissionCodes: ['court_type.view'],
-      },
-      {
-        label: 'Tiện ích',
-        icon: 'star',
-        to: '/admin/amenities',
-        activeNames: ['admin-amenities'],
-        permissionCodes: ['amenity.view'],
       },
       {
         label: 'Danh mục dịch vụ',
@@ -157,7 +150,7 @@ export const adminNavigationSections = [
     items: [
       {
         label: 'Kiểm duyệt bài viết',
-        icon: 'eye',
+        icon: 'shieldAlert',
         to: '/admin/moderation',
         activeNames: ['admin-moderation'],
         permissionCodes: ['moderation.view', 'content.view'],

@@ -389,15 +389,16 @@
           <div class="cgi-modal-body">
             <!-- Nút chọn thêm ảnh mới -->
             <div style="margin-bottom: 16px;">
-              <label class="form-label font-medium" style="display:block; margin-bottom: 6px;">Thêm ảnh mới vào bộ sưu tập đề xuất</label>
+              <label class="form-label font-medium" style="display: block; margin-bottom: 6px; color: #0f172a;">Thêm ảnh mới vào bộ sưu tập đề xuất</label>
               <button
                 type="button"
                 class="btn btn-outline text-sm"
                 :disabled="uploadingTempImage"
+                style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; color: #0f172a; font-size: 13px; font-weight: 500; cursor: pointer;"
                 @click="$refs.galleryTempInput.click()"
               >
                 <AppIcon name="plus" size="14" />
-                <span>{{ uploadingTempImage ? 'Đang nén & tải ảnh...' : '+ Chọn ảnh mới (Auto WebP)' }}</span>
+                <span>{{ uploadingTempImage ? 'Đang nén & tải ảnh...' : 'Chọn ảnh mới (Auto WebP)' }}</span>
               </button>
               <input
                 ref="galleryTempInput"
@@ -411,7 +412,7 @@
 
             <!-- Danh sách ảnh bộ sưu tập đề xuất -->
             <div style="margin-bottom: 16px;">
-              <label class="form-label font-medium" style="display:block; margin-bottom: 6px;">
+              <label class="form-label font-medium" style="display: block; margin-bottom: 6px; color: #0f172a;">
                 Danh sách ảnh đề xuất ({{ proposedImages.length }} ảnh)
               </label>
               <div v-if="proposedImages.length > 0" class="owner-gallery-grid" style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));">
@@ -428,29 +429,33 @@
                   <span v-if="img.isTemp" class="amenity-status-tag status-on" style="position: absolute; bottom: 4px; left: 4px; font-size: 10px; padding: 2px 6px;">Mới</span>
                 </div>
               </div>
-              <div v-else class="text-muted text-sm text-italic py-3">
+              <div v-else style="color: #1e293b; font-size: 13.5px; font-weight: 400; padding: 8px 0;">
                 Chưa có ảnh nào trong bộ sưu tập đề xuất.
               </div>
             </div>
 
             <!-- Lý do gửi Admin -->
             <div class="form-group mb-0">
-              <label class="form-label font-medium">Lý do thay đổi hình ảnh <span class="text-danger">*</span></label>
+              <label class="form-label font-medium" style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px; color: #0f172a;">
+                Lý do thay đổi hình ảnh
+                <span style="color: #dc2626; font-weight: 500;">*</span>
+              </label>
               <textarea
                 v-model="galleryRequestNote"
                 class="form-control"
                 rows="3"
+                style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; color: #0f172a; font-weight: 400; background: #ffffff; outline: none;"
                 placeholder="Nhập lý do cập nhật hình ảnh bộ sưu tập (ví dụ: Bổ sung hình ảnh sân mới sửa sang...)"
                 required
               ></textarea>
             </div>
           </div>
 
-          <div class="cgi-modal-footer">
+          <div class="cgi-modal-footer" style="padding: 16px 20px 20px;">
             <button
               type="button"
               class="btn btn-outline"
-              style="background-color: transparent !important; background: transparent !important; color: var(--admin-text, #475569) !important; border: 1px solid var(--admin-border, #cbd5e1) !important; box-shadow: none !important; transform: none !important;"
+              style="padding: 8px 18px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; color: #0f172a; font-size: 13.5px; font-weight: 500; cursor: pointer;"
               @click="showGalleryModal = false"
             >
               Hủy
@@ -458,7 +463,8 @@
             <button
               type="button"
               class="btn btn-primary"
-              style="background-color: #22a653 !important; background: #22a653 !important; color: #ffffff !important; border: 1px solid #22a653 !important; box-shadow: none !important; transform: none !important;"
+              style="padding: 8px 20px; border: none; border-radius: 6px; background: #16a34a; color: #ffffff; font-size: 13.5px; font-weight: 500; cursor: pointer;"
+              :style="{ opacity: (submittingGalleryRequest || uploadingTempImage || !galleryRequestNote.trim()) ? 0.5 : 1 }"
               :disabled="submittingGalleryRequest || uploadingTempImage || !galleryRequestNote.trim()"
               @click="submitGalleryRequest"
             >

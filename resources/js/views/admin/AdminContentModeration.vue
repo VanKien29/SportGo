@@ -577,6 +577,10 @@ export default {
   mounted() {
     this.loadData();
     this.fetchAutoApproveConfig();
+    if (this.autoApproveStore.isEnabled) this.autoApproveStore.start();
+  },
+  beforeUnmount() {
+    this.autoApproveStore.stop();
   },
   methods: {
     onStatusTabChange(val) {

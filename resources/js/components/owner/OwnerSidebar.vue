@@ -306,7 +306,7 @@ export default {
     padding: 12px;
     border: 1px solid var(--admin-border-soft);
     border-radius: var(--admin-radius-lg);
-    background: var(--admin-header-gradient);
+    background: var(--admin-header-surface);
     box-shadow: var(--admin-shadow-sm);
 }
 

@@ -339,6 +339,10 @@ export default {
       this.saving = true;
       this.modalError = '';
       try {
+        if (this.form.name.toLowerCase() === 'super_admin') {
+          throw new Error('Không được tạo hoặc đổi tên nhóm quyền thành Super Admin.');
+        }
+
         const response = this.editingRole
           ? await adminRoleService.update(this.editingRole.id, this.form)
           : await adminRoleService.create(this.form);

@@ -50,30 +50,30 @@ export async function sendPlatformFeeReminderEmail(ledger, reminderType, options
 }
 
 export async function processPlatformFeeReminders(today = new Date()) {
-  const results = [];
   const [ledgers, settings] = await Promise.all([
     getLedgers(),
     api('/api/admin/platform-fee-settings'),
   ]);
   const leadDays = Number(settings.default_due_days || 7);
 
-  for (const ledger of ledgers) {
-    let freshLedger = ledger;
-    if (ledger.status === 'pending' && diffDays(ledger.due_date, today) < 0) {
-      freshLedger = await markLedgerOverdue(ledger.id, 'Tự động chuyển quá hạn theo ngày đến hạn.');
-    }
+  const overdueLedgers = ledgers.filter((ledger) =>
+    ledger.status === 'pending' && diffDays(ledger.due_date, today) < 0);
+  const overdueEntries = await Promise.all(overdueLedgers.map(async (ledger) => [
+    ledger.id,
+    await markLedgerOverdue(ledger.id, 'Tự động chuyển quá hạn theo ngày đến hạn.'),
+  ]));
+  const freshById = new Map(overdueEntries);
 
+  const candidates = ledgers.flatMap((ledger) => {
+    const freshLedger = freshById.get(ledger.id) || ledger;
     const type = getReminderTypeForDate(freshLedger, today, leadDays);
-    if (!type) continue;
+    return type && shouldSendPlatformFeeReminder(freshLedger, type)
+      ? [{ ledger: freshLedger, type }]
+      : [];
+  });
 
-    if (!shouldSendPlatformFeeReminder(freshLedger, type)) {
-      continue;
-    }
-
-    results.push(await sendPlatformFeeReminderEmail(freshLedger, type));
-  }
-
-  return results;
+  return Promise.all(candidates.map(({ ledger, type }) =>
+    sendPlatformFeeReminderEmail(ledger, type)));
 }
 
 export function getEmailLogsByLedgerId(ledgerId) {

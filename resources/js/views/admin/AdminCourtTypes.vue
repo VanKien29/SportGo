@@ -42,116 +42,110 @@
                 </button>
             </div>
 
-            <!-- Views Content Wrapper -->
-            <div v-else class="views-content-wrapper animate-fade-in">
-                <!-- Grouped Court Types List -->
-                <div class="grouped-court-types-list">
-                    <div
-                        v-for="parent in filteredMainParentTypes"
-                        :key="parent.id"
-                        class="court-type-group"
-                    >
-                        <!-- Group Header (Môn thể thao Cha) -->
-                        <div class="group-header">
-                            <div class="group-header-left">
-                                <span class="group-title">{{ parent.name.toUpperCase() }}</span>
-                                <span class="group-divider"></span>
-                                <span class="group-count">{{ getChildren(parent.id).length }} loại sân</span>
-                            </div>
-                            <div class="group-header-right">
-                                <ActionIconButton
-                                    icon="plus"
-                                    label="Thêm loại sân con"
-                                    size="sm"
-                                    @click="openCreateChildModal(parent.id)"
-                                />
-                                <ActionIconButton
-                                    icon="pencil"
-                                    label="Sửa bộ môn"
-                                    size="sm"
-                                    @click="openEditModal(parent)"
-                                />
-                                <ActionIconButton
-                                    icon="trash"
-                                    label="Xóa bộ môn"
-                                    variant="danger"
-                                    size="sm"
-                                    @click="confirmDelete(parent)"
-                                />
-                            </div>
+            <!-- Accordion categories -->
+            <div v-else class="court-type-categories animate-fade-in">
+                <section
+                    v-for="parent in filteredMainParentTypes"
+                    :key="parent.id"
+                    class="court-type-category"
+                >
+                    <header class="category-header">
+                        <button
+                            class="category-toggle"
+                            type="button"
+                            :aria-expanded="isCategoryExpanded(parent.id)"
+                            @click="toggleCategory(parent.id)"
+                        >
+                            <span class="category-icon"><AppIcon name="building2" size="17" /></span>
+                            <span class="category-heading">
+                                <strong>{{ parent.name }}</strong>
+                                <span>{{ getChildren(parent.id).length }} loại sân · {{ parent.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}</span>
+                            </span>
+                            <AppIcon
+                                name="chevronDown"
+                                size="17"
+                                class="category-chevron"
+                                :class="{ expanded: isCategoryExpanded(parent.id) }"
+                            />
+                        </button>
+                        <div class="category-actions">
+                            <ActionIconButton
+                                icon="plus"
+                                label="Thêm loại sân con"
+                                size="sm"
+                                @click="openCreateChildModal(parent.id)"
+                            />
+                            <ActionIconButton
+                                icon="pencil"
+                                label="Sửa bộ môn"
+                                size="sm"
+                                @click="openEditModal(parent)"
+                            />
+                            <ActionIconButton
+                                icon="trash"
+                                label="Xóa bộ môn"
+                                variant="danger"
+                                size="sm"
+                                @click="confirmDelete(parent)"
+                            />
                         </div>
+                    </header>
 
-                        <!-- Group Items (Loại sân con dạng SaaSTable) -->
-                        <div class="group-items">
-                            <SaaSTable 
-                                v-if="getFilteredChildren(parent.id).length > 0"
-                                :columns="tableColumns" 
-                                :data="getFilteredChildren(parent.id)"
-                            >
-                                <!-- Tên loại sân con -->
-                                <template #name="{ row }">
-                                    <div class="name-col-cell">
-                                        <span class="court-type-name-text">{{ row.name }}</span>
-                                        <span class="court-type-desc-text" v-if="row.description">{{ row.description }}</span>
-                                    </div>
-                                </template>
-
-                                <!-- Số người chơi -->
-                                <template #player_count="{ row }">
-                                    <div class="player-col-cell">
-                                        <AppIcon name="users" size="12" />
-                                        <span>{{ row.player_count }} người chơi</span>
-                                    </div>
-                                </template>
-
-                                <!-- Kích thước quy chuẩn -->
-                                <template #size="{ row }">
-                                    <div class="size-col-cell" v-if="row.default_layout_w && row.default_layout_h">
-                                        <AppIcon name="layers" size="13" />
-                                        <span>{{ formatToM(row.default_layout_w) }}m x {{ formatToM(row.default_layout_h) }}m</span>
-                                    </div>
-                                    <span v-else class="size-empty">—</span>
-                                </template>
-
-                                <!-- Trạng thái -->
-                                <template #is_active="{ row }">
-                                    <span class="status-badge" :class="row.is_active && parent.is_active ? 'status-is-active' : 'status-is-inactive'">
-                                        {{ row.is_active && parent.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}
+                    <div v-if="isCategoryExpanded(parent.id)" class="category-body">
+                        <div v-if="getVisibleChildren(parent).length" class="child-list">
+                            <div class="child-list-head" aria-hidden="true">
+                                <span>Tên loại sân</span>
+                                <span>Số người chơi</span>
+                                <span>Kích thước chuẩn</span>
+                                <span>Trạng thái</span>
+                                <span></span>
+                            </div>
+                            <div v-for="child in getVisibleChildren(parent)" :key="child.id" class="child-row">
+                                <div class="child-name-cell">
+                                    <span class="child-marker"><AppIcon name="layers" size="15" /></span>
+                                    <span>
+                                        <strong>{{ child.name }}</strong>
+                                        <small v-if="child.description">{{ child.description }}</small>
                                     </span>
-                                </template>
-
-                                <!-- Actions -->
-                                <template #actions="{ row }">
-                                    <TableActionGroup>
-                                        <ActionIconButton
-                                            icon="pencil"
-                                            label="Sửa loại sân"
-                                            size="sm"
-                                            @click="openEditModal(row)"
-                                        />
-                                        <ActionIconButton
-                                            icon="trash"
-                                            label="Xóa loại sân"
-                                            variant="danger"
-                                            size="sm"
-                                            @click="confirmDelete(row)"
-                                        />
-                                    </TableActionGroup>
-                                </template>
-                            </SaaSTable>
-
-                            <!-- Empty Children State -->
-                            <div v-else class="empty-children-row">
-                                Chưa có loại sân con nào thuộc bộ môn này. Click nút "+" ở tiêu đề nhóm để thêm.
+                                </div>
+                                <span>{{ child.player_count || '—' }} người</span>
+                                <span v-if="child.default_layout_w && child.default_layout_h">
+                                    {{ formatToM(child.default_layout_w) }}m × {{ formatToM(child.default_layout_h) }}m
+                                </span>
+                                <span v-else>—</span>
+                                <span :class="child.is_active && parent.is_active ? 'status-active-text' : 'status-inactive-text'">
+                                    {{ child.is_active && parent.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}
+                                </span>
+                                <TableActionGroup>
+                                    <ActionIconButton
+                                        icon="pencil"
+                                        label="Sửa loại sân"
+                                        size="sm"
+                                        @click="openEditModal(child)"
+                                    />
+                                    <ActionIconButton
+                                        icon="trash"
+                                        label="Xóa loại sân"
+                                        variant="danger"
+                                        size="sm"
+                                        @click="confirmDelete(child)"
+                                    />
+                                </TableActionGroup>
                             </div>
                         </div>
+                        <div v-else class="category-empty">
+                            <span>Chưa có loại sân trong danh mục này.</span>
+                            <button type="button" class="category-add-link" @click="openCreateChildModal(parent.id)">
+                                <AppIcon name="plus" size="15" />
+                                <span>Thêm loại sân</span>
+                            </button>
+                        </div>
                     </div>
+                </section>
 
-                    <!-- Empty Search State -->
-                    <div v-if="filteredMainParentTypes.length === 0" class="empty-search-state">
-                        <AppIcon name="alert" size="20" />
-                        <span>Không tìm thấy bộ môn hoặc loại sân nào phù hợp.</span>
-                    </div>
+                <div v-if="filteredMainParentTypes.length === 0" class="table-empty-state">
+                    <AppIcon name="search" size="19" />
+                    <span>Không tìm thấy môn thể thao hoặc loại sân phù hợp.</span>
                 </div>
             </div>
         </template>
@@ -337,22 +331,14 @@
 import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
-import SaaSTable from "../../components/ui/SaaSTable.vue";
 import { courtTypeService } from "../../services/courtTypes";
 
 export default {
     name: "AdminCourtTypes",
-    components: { ActionIconButton, AppIcon, TableActionGroup, SaaSTable },
+    components: { ActionIconButton, AppIcon, TableActionGroup },
     data() {
         return {
             courtTypes: [],
-            tableColumns: [
-                { key: "name", label: "Loại sân con" },
-                { key: "player_count", label: "Số người chơi" },
-                { key: "size", label: "Kích thước quy chuẩn" },
-                { key: "is_active", label: "Trạng thái" },
-                { key: "actions", label: "THAO TÁC", align: "right" }
-            ],
             searchQuery: "",
             loading: true,
             error: null,
@@ -361,6 +347,7 @@ export default {
             submitting: false,
             modalError: null,
             dropdownOpen: false, // điều khiển custom select dropdown
+            expandedCategories: {},
             form: {
                 name: "",
                 parent_id: null,
@@ -425,6 +412,30 @@ export default {
                 child.name.toLowerCase().includes(q) || 
                 (child.description && child.description.toLowerCase().includes(q))
             );
+        },
+        getVisibleChildren(parent) {
+            const query = this.searchQuery.trim().toLowerCase();
+            if (!query) return this.getChildren(parent.id);
+
+            const parentMatches = [parent.name, parent.description]
+                .filter(Boolean)
+                .some((value) => value.toLowerCase().includes(query));
+
+            return parentMatches
+                ? this.getChildren(parent.id)
+                : this.getFilteredChildren(parent.id);
+        },
+        isCategoryExpanded(id) {
+            if (this.searchQuery.trim()) return true;
+            return Object.prototype.hasOwnProperty.call(this.expandedCategories, id)
+                ? this.expandedCategories[id]
+                : false;
+        },
+        toggleCategory(id) {
+            this.expandedCategories = {
+                ...this.expandedCategories,
+                [id]: !this.isCategoryExpanded(id),
+            };
         },
         formatToM(val) {
             if (val === null || val === undefined) return 0;
@@ -1304,5 +1315,350 @@ export default {
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
+}
+
+.court-types-container {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 16px;
+}
+
+.profile-section-card.court-types-main-content {
+  padding: 0;
+}
+
+.court-type-table-shell,
+.court-type-table-wrap {
+  width: 100%;
+  min-width: 0;
+}
+
+.court-type-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.court-type-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+}
+
+.court-type-table th,
+.court-type-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--admin-border-soft);
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.court-type-table th {
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.court-type-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.court-type-table tbody tr.is-parent-row td {
+  background: var(--admin-surface-muted);
+}
+
+.court-type-name-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.court-type-name-cell > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--admin-primary-dark);
+}
+
+.court-type-name-cell > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.court-type-name-cell strong {
+  color: var(--admin-text);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.court-type-name-cell span {
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.court-type-name-cell.is-parent strong {
+  color: var(--admin-primary-dark);
+}
+
+.status-active-text {
+  color: var(--admin-success-text);
+}
+
+.status-inactive-text {
+  color: var(--admin-danger-text);
+}
+
+.court-type-table .actions-col {
+  width: 140px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 120px;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.court-type-categories {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.court-type-category {
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background: var(--admin-surface);
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--admin-surface-muted);
+}
+
+.category-toggle {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--admin-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.category-toggle:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 3px;
+}
+
+.category-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--admin-primary-dark);
+}
+
+.category-heading {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.category-heading strong {
+  overflow: hidden;
+  color: var(--admin-text);
+  font-size: 15px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-heading span {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.category-chevron {
+  flex: 0 0 auto;
+  color: var(--admin-muted);
+  transition: transform 150ms ease;
+}
+
+.category-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.category-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.category-body {
+  padding: 12px 14px 14px;
+}
+
+.child-list {
+  display: grid;
+  gap: 4px;
+}
+
+.child-list-head,
+.child-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(110px, 1fr) minmax(150px, 1.2fr) minmax(120px, 1fr) 140px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.child-list-head {
+  padding: 2px 10px 7px;
+  color: var(--admin-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.child-row {
+  min-height: 54px;
+  padding: 9px 10px;
+  background: var(--admin-surface-muted);
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.child-name-cell {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 9px;
+}
+
+.child-marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--admin-primary-dark);
+}
+
+.child-name-cell > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.child-name-cell strong {
+  overflow: hidden;
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.child-name-cell small {
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.child-row > .table-action-group {
+  justify-self: end;
+}
+
+.category-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 10px;
+  background: var(--admin-surface-muted);
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.category-add-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--admin-primary-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+@media (max-width: 840px) {
+  .child-list-head {
+    display: none;
+  }
+
+  .child-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 12px;
+  }
+
+  .child-row > span:nth-child(2),
+  .child-row > span:nth-child(3),
+  .child-row > span:nth-child(4) {
+    grid-column: 1;
+    font-size: 12px;
+  }
+
+  .child-action-menu {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+  }
+}
+
+@media (max-width: 560px) {
+  .category-header {
+    align-items: flex-start;
+  }
+
+  .category-actions {
+    gap: 4px;
+  }
+
+  .category-empty {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

@@ -6,6 +6,7 @@ export const autoApproveStore = reactive({
   intervalId: null,
   isProcessing: false,
   lastActionTime: Date.now(),
+  visibilityHandler: null,
   
   async toggle() {
     this.isEnabled = !this.isEnabled;
@@ -30,51 +31,54 @@ export const autoApproveStore = reactive({
   
   start() {
     if (this.intervalId) return;
-    
+
+    this.visibilityHandler = () => {
+      if (document.visibilityState === 'visible' && this.isEnabled && !this.intervalId) {
+        this.start();
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+
     this.intervalId = setInterval(async () => {
-      if (!this.isEnabled || this.isProcessing) return;
-      
+      if (!this.isEnabled || this.isProcessing || document.visibilityState !== 'visible') return;
+
       this.isProcessing = true;
       try {
         const allTypes = ['community_posts', 'venue_posts', 'system_posts'];
-        let targetItem = null;
-        let targetType = null;
-        
-        for (const type of allTypes) {
+        const queues = await Promise.all(allTypes.map(async (type) => {
           try {
-            const response = await adminModerationService.getQueue({
-              type: type,
-              status: 'pending',
-              page: 1,
-            });
+            const response = await adminModerationService.getQueue({ type, status: 'pending', page: 1 });
             const list = response.data?.data || [];
-            const found = list.find(item => ['pending', 'pending_review', 'draft'].includes(item.status));
-            if (found) {
-              targetItem = found;
-              targetType = type;
-              break;
-            }
+            return { type, item: list.find(item => ['pending', 'pending_review', 'draft'].includes(item.status)) };
           } catch (err) {
             console.error(`Lỗi quét tự động duyệt cho tab ${type}:`, err);
+            return { type, item: null };
           }
-        }
-        
+        }));
+        const target = queues.find(({ item }) => item);
+        const targetItem = target?.item || null;
+        const targetType = target?.type || null;
+
         if (targetItem) {
           await adminModerationService.approvePost(targetType, targetItem.id);
-          this.lastActionTime = Date.now(); // Signal that an action occurred
+          this.lastActionTime = Date.now();
         }
       } catch (err) {
         console.error('Duyệt tự động bài viết thất bại:', err);
       } finally {
         this.isProcessing = false;
       }
-    }, 5000);
+    }, 30000);
   },
   
   stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
     }
   },
   

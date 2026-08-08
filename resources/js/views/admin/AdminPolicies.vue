@@ -14,8 +14,8 @@
     <div v-if="error" class="alert error">{{ error }}</div>
     <div v-if="success" class="alert success">{{ success }}</div>
 
-    <section class="filter-panel">
-      <label class="search-box">
+    <section class="policy-filter-panel" :class="{ 'is-platform-fee': isPlatformFeeScope }">
+      <label class="policy-search-box">
         <AppIcon name="search" size="18" />
         <input
           v-model.trim="filters.keyword"
@@ -47,8 +47,9 @@
         <option value="0">Không yêu cầu</option>
       </select>
 
-      <button class="icon-btn" type="button" title="Lọc danh sách" @click="loadPolicies">
+      <button class="btn primary filter-submit" type="button" title="Lọc danh sách" @click="loadPolicies">
         <AppIcon name="filter" size="17" />
+        <span>Lọc danh sách</span>
       </button>
     </section>
 
@@ -432,7 +433,6 @@ p {
   margin: 0;
 }
 
-.filter-panel,
 .table-card,
 .modal {
   border: 1px solid var(--admin-border);
@@ -441,26 +441,31 @@ p {
   box-shadow: var(--admin-shadow-card);
 }
 
-.filter-panel {
+.policy-filter-panel {
   display: grid;
-  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(145px, 1fr)) 40px 40px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
   align-items: center;
-  padding: 14px;
+  min-width: 0;
 }
 
-.search-box {
+.policy-filter-panel.is-platform-fee {
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto;
+}
+
+.policy-search-box {
   display: flex;
+  min-height: 40px;
   min-width: 0;
   align-items: center;
   gap: 10px;
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
-  color: var(--admin-faint);
+  color: var(--admin-muted);
   padding: 0 12px;
 }
 
-.search-box input {
+.policy-search-box input {
   border: 0;
   padding-left: 0;
 }
@@ -477,16 +482,28 @@ textarea {
   padding: 10px 12px;
 }
 
+.policy-filter-panel select {
+  min-height: 40px;
+  min-width: 0;
+}
+
+.policy-filter-panel > .filter-submit {
+  min-height: 40px;
+  padding: 0 14px;
+  justify-self: end;
+  white-space: nowrap;
+}
+
 input:focus,
 select:focus,
 textarea:focus,
-.search-box:focus-within {
+.policy-search-box:focus-within {
   border-color: var(--admin-primary);
   box-shadow: 0 0 0 3px var(--admin-primary-ring);
   outline: none;
 }
 
-.search-box:focus-within input {
+.policy-search-box:focus-within input {
   box-shadow: none;
 }
 
@@ -796,26 +813,34 @@ label {
     grid-template-columns: 1fr;
   }
 
-  .filter-panel {
+  .policy-filter-panel {
     grid-template-columns: 1fr 1fr;
   }
 
-  .search-box {
+.policy-filter-panel.is-platform-fee {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .policy-search-box {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 560px) {
-  .filter-panel {
+  .policy-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .policy-filter-panel.is-platform-fee {
     grid-template-columns: 1fr;
   }
 }
 
 .profile-section-card.policies-main-content {
   background: var(--admin-surface, #ffffff);
-  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border: 0;
   border-radius: 0;
-  padding: 10px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;

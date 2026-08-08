@@ -2433,16 +2433,16 @@ export default {
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 .fees-stat-total { border-color: var(--admin-border, #e0e7ff); }
-.fees-stat-total::after { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+.fees-stat-total::after { background: #6366f1; }
 .fees-stat-total .fees-stat-icon { background: var(--admin-primary-soft, #eef2ff); color: var(--admin-primary, #6366f1); }
 .fees-stat-paid  { border-color: var(--admin-border, #bbf7d0); }
-.fees-stat-paid::after  { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.fees-stat-paid::after  { background: #22c55e; }
 .fees-stat-paid  .fees-stat-icon { background: var(--admin-primary-soft, #dcfce7); color: var(--admin-primary, #16a34a); }
 .fees-stat-pending { border-color: var(--admin-border, #fed7aa); }
-.fees-stat-pending::after { background: linear-gradient(90deg, #f97316, #ea580c); }
+.fees-stat-pending::after { background: #f97316; }
 .fees-stat-pending .fees-stat-icon { background: var(--admin-warning-soft, #ffedd5); color: var(--admin-warning, #ea580c); }
 .fees-stat-overdue { border-color: var(--admin-border, #fecaca); }
-.fees-stat-overdue::after { background: linear-gradient(90deg, #f87171, #dc2626); }
+.fees-stat-overdue::after { background: #f87171; }
 .fees-stat-overdue .fees-stat-icon { background: var(--admin-danger-soft, #fee2e2); color: var(--admin-danger, #dc2626); }
 
 .fees-stat-icon {
@@ -2512,7 +2512,7 @@ export default {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  background: #0f172a;
   color: #fff;
   display: flex;
   align-items: center;
@@ -2574,10 +2574,10 @@ export default {
 }
 .fee-row:last-child { border-bottom: none; }
 .fee-row.never-hover-class-placeholder { background: #fafbfc; }
-.fee-row-overdue { background: linear-gradient(to right, #fff5f5, #fff); }
-.fee-row-overdue.never-hover-class-placeholder { background: linear-gradient(to right, #fef0f0, #fafbfc); }
-.fee-row-paid { background: linear-gradient(to right, #f0fdf4, #fff); }
-.fee-row-paid.never-hover-class-placeholder { background: linear-gradient(to right, #e8fdf0, #fafbfc); }
+.fee-row-overdue { background: #fff5f5; }
+.fee-row-overdue.never-hover-class-placeholder { background: #fef0f0; }
+.fee-row-paid { background: #f0fdf4; }
+.fee-row-paid.never-hover-class-placeholder { background: #e8fdf0; }
 
 /* Column: Gói */
 .fee-col-pkg {
@@ -2689,9 +2689,9 @@ export default {
   border-radius: 99px;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.fee-progress-full    { background: linear-gradient(90deg, #22c55e, #16a34a); }
-.fee-progress-partial { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
-.fee-progress-overdue { background: linear-gradient(90deg, #f87171, #dc2626); }
+.fee-progress-full    { background: #22c55e; }
+.fee-progress-partial { background: #fbbf24; }
+.fee-progress-overdue { background: #f87171; }
 .fee-progress-pct {
   font-size: 10.5px;
   color: rgba(15, 23, 42, 0.4);

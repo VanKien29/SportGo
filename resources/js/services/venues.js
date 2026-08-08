@@ -17,6 +17,10 @@ export const venueService = {
     return api(`/api/venues${query ? `?${query}` : ''}`);
   },
 
+  getVenues(params = {}) {
+    return this.list(params);
+  },
+
   filterOptions() {
     return apiCached('/api/venues/filter-options');
   },

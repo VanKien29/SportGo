@@ -39,7 +39,36 @@ class PlatformFeeLedgerController extends Controller
         ]);
 
         $query = VenuePlatformFeeLedger::query()
-            ->with(['venueCluster.owner', 'tier', 'internalReceipt', 'emailLogs'])
+            ->select([
+                'id',
+                'venue_cluster_id',
+                'creation_source',
+                'tier_id',
+                'tier_name_snapshot',
+                'tier_min_courts_snapshot',
+                'tier_max_courts_snapshot',
+                'court_count',
+                'billing_cycle',
+                'period_months',
+                'period_start',
+                'period_end',
+                'due_date',
+                'price_per_court_month',
+                'discount_percent',
+                'pricing_snapshotted_at',
+                'amount_due',
+                'amount_paid',
+                'payment_code',
+                'payment_reject_reason',
+                'status',
+                'paid_at',
+            ])
+            ->with([
+                'venueCluster:id,name,status,owner_id',
+                'venueCluster.owner:id,username,full_name,email,phone',
+                'tier:id,name,min_courts,max_courts,price_per_court_month,annual_discount_percent',
+                'emailLogs:id,ledger_id,type,status,sent_at,error_reason',
+            ])
             ->when($data['venue_cluster_id'] ?? null, fn ($query, string $id) => $query->where('venue_cluster_id', $id))
             ->when($data['owner_id'] ?? null, fn ($query, string $id) => $query->whereHas('venueCluster', fn ($venueQuery) => $venueQuery->where('owner_id', $id)))
             ->when($data['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
@@ -99,7 +128,7 @@ class PlatformFeeLedgerController extends Controller
             ->orderByDesc('paid_at')
             ->orderByDesc('period_start')
             ->get()
-            ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger));
+            ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger, false));
 
         return response()->json($ledgers);
     }
@@ -572,7 +601,7 @@ class PlatformFeeLedgerController extends Controller
         }
     }
 
-    private function ledgerPayload(VenuePlatformFeeLedger $ledger): array
+    private function ledgerPayload(VenuePlatformFeeLedger $ledger, bool $includeDetails = true): array
     {
         $baseAmount = round((float) $ledger->price_per_court_month * (int) $ledger->court_count * (int) $ledger->period_months, 2);
         $amountDue = (float) $ledger->amount_due;
@@ -625,10 +654,18 @@ class PlatformFeeLedgerController extends Controller
             'status' => $ledger->status,
             'paid_at' => $ledger->paid_at?->toISOString(),
             'cancelled_reason' => $ledger->payment_reject_reason,
-                'email_logs' => $ledger->emailLogs
-                    ? $ledger->emailLogs->map(fn (PlatformFeeEmailLog $log): array => $this->emailLogPayload($log))->values()
-                    : [],
-            'receipt' => $ledger->internalReceipt ? [
+            'email_logs' => $ledger->emailLogs
+                ? $ledger->emailLogs->map(fn (PlatformFeeEmailLog $log): array => $includeDetails
+                    ? $this->emailLogPayload($log)
+                    : [
+                        'id' => $log->id,
+                        'type' => $log->type,
+                        'status' => $log->status,
+                        'sent_at' => $log->sent_at?->toISOString(),
+                        'error_reason' => $log->error_reason,
+                    ])->values()
+                : [],
+            'receipt' => $includeDetails && $ledger->internalReceipt ? [
                 'id' => $ledger->internalReceipt->id,
                 'code' => $ledger->internalReceipt->receipt_code ?? $ledger->internalReceipt->code ?? $ledger->internalReceipt->id,
                 'amount' => (float) ($ledger->internalReceipt->amount ?? $amountPaid),

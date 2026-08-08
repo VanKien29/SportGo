@@ -16,8 +16,8 @@ export const adminPartnerApplicationService = {
     return api(`/api/admin/partner-profiles${query(params)}`);
   },
 
-  show(id) {
-    return api(`/api/admin/partner-profiles/${id}`);
+  show(id, params = {}) {
+    return api(`/api/admin/partner-profiles/${id}${query(params)}`);
   },
 
   approve(id, payload) {

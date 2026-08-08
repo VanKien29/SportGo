@@ -14,19 +14,22 @@
               Giải pháp chuyên biệt cho Pickleball, Cầu Lông, Tennis & Bóng Đá. Tìm cụm sân gần bạn, xem sơ đồ giờ trống và giữ chỗ tức thì.
             </p>
 
-            <div class="alb-hero-badges">
-              <span class="alb-hero-badge-item">Chuyên biệt cho sân thể thao</span>
-              <span class="alb-hero-badge-item">Tăng tỷ lệ lấp đầy giờ trống</span>
-              <span class="alb-hero-badge-item">Đặt lịch trực quan 24/7</span>
-              <span class="alb-hero-badge-item">500+ Chủ sân tin dùng</span>
+            <div class="alb-hero-actions">
+              <router-link class="hero-btn primary" to="/venues">
+                <AppIcon name="calendar" :size="16" />
+                Tìm sân đặt ngay
+              </router-link>
+              <router-link class="hero-btn secondary" to="/become-partner">
+                Dành cho chủ sân
+              </router-link>
             </div>
           </div>
 
-          <div style="text-align: center;">
+          <div class="alb-hero__media">
             <img
-              :src="'/images/home/sportgo-home-hero-v2.webp'"
-              alt="SportGo Platform Showcase"
-              style="width: 100%; max-width: 480px; border-radius: 4px; border: 1px solid #334155;"
+              :src="'/images/home/hero_illustration.png'"
+              alt="SportGo Sports Platform Illustration"
+              class="hero-illustration-img"
             />
           </div>
         </div>
@@ -224,10 +227,6 @@
             <article v-for="venue in topVenues" :key="venue.id" class="alb-venue-card">
               <div class="alb-venue-card__thumb">
                 <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" />
-                <span class="alb-venue-card__badge">{{ venue.court_types?.[0]?.name || "Sân Thể Thao" }}</span>
-                <div class="alb-venue-card__rating">
-                  <span>{{ ratingLabel(venue) }} sao</span>
-                </div>
               </div>
 
               <div class="alb-venue-card__body">
@@ -282,6 +281,7 @@
 <script>
 import PublicNavbar from "../components/PublicNavbar.vue";
 import PillSearchBar from "../components/PillSearchBar.vue";
+import AppIcon from "../components/AppIcon.vue";
 import { api } from "../services/api.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
 
@@ -297,6 +297,7 @@ export default {
   components: {
     PublicNavbar,
     PillSearchBar,
+    AppIcon,
   },
   data() {
     return {

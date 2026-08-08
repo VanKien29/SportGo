@@ -84,9 +84,9 @@
 
             <template #actions="{ row }">
               <TableActionGroup>
-                <RouterLink class="icon-btn" :to="{ name: 'admin-user-detail', params: { id: row.id } }" title="Xem chi tiết" aria-label="Xem chi tiết">
+                <button class="icon-btn" type="button" title="Xem chi tiết" aria-label="Xem chi tiết" @click="openDetailModal(row)">
                   <AppIcon name="eye" size="17" />
-                </RouterLink>
+                </button>
                 <ActionIconButton
                   v-if="row.status === 'locked'"
                   icon="unlock"
@@ -113,6 +113,24 @@
         <ActionIconButton icon="chevronRight" label="Trang sau" :disabled="meta.current_page >= meta.last_page || loading" @click="goPage(meta.current_page + 1)" />
       </div>
     </footer>
+
+    <div v-if="showDetailModal" class="modal-backdrop account-detail-backdrop" @click.self="closeDetailModal">
+      <section class="modal account-detail-modal" role="dialog" aria-modal="true" aria-label="Chi tiết tài khoản">
+        <div class="account-detail-modal-tools">
+          <button class="account-detail-close" type="button" aria-label="Đóng chi tiết tài khoản" @click="closeDetailModal">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="account-detail-modal-body">
+          <AdminUserDetail
+            v-if="detailTarget"
+            :key="detailTarget.id"
+            :user-id="detailTarget.id"
+            embedded
+          />
+        </div>
+      </section>
+    </div>
 
     <div v-if="actionTarget" class="modal-backdrop" @click.self="closeActionModal">
       <form class="modal" @submit.prevent="submitAccountAction">
@@ -234,12 +252,13 @@ import AppIcon from '../../components/AppIcon.vue';
 import TableActionGroup from '../../components/TableActionGroup.vue';
 import SaaSFilterBar from '../../components/ui/SaaSFilterBar.vue';
 import SaaSTable from '../../components/ui/SaaSTable.vue';
+import AdminUserDetail from './AdminUserDetail.vue';
 import { adminUserService } from '../../services/adminUserService.js';
 import { getAccountStatusLabel } from '../../utils/labelMaps.js';
 
 export default {
   name: 'AdminUsers',
-  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable },
+  components: { ActionIconButton, AppIcon, TableActionGroup, SaaSFilterBar, SaaSTable, AdminUserDetail },
   computed: {
     statusTabsUi() {
       return this.tabs.map((t) => ({ value: t.value, label: t.label }));
@@ -291,7 +310,6 @@ export default {
         { value: 'pending_verify', label: 'Chờ xác thực' },
       ],
       roleOptions: [
-        { value: 'super_admin', label: 'Super admin' },
         { value: 'admin', label: 'Quản trị viên' },
         { value: 'system_staff', label: 'Nhân viên hệ thống' },
         { value: 'venue_owner', label: 'Chủ sân' },
@@ -306,10 +324,16 @@ export default {
       policyConfig: null,
       policyLoading: false,
       policySaving: false,
+      showDetailModal: false,
+      detailTarget: null,
     };
   },
-  mounted() {
-    this.loadUsers();
+  async mounted() {
+    await this.loadUsers();
+    const detailId = this.$route.query.detail;
+    if (detailId) {
+      this.openDetailModal(this.users.find((user) => String(user.id) === String(detailId)) || { id: detailId });
+    }
   },
   beforeUnmount() {
     clearTimeout(this.searchTimer);
@@ -354,6 +378,20 @@ export default {
         this.error = error.message || 'Không tải được danh sách tài khoản.';
       } finally {
         this.loading = false;
+      }
+    },
+    openDetailModal(user) {
+      if (!user?.id) return;
+      this.detailTarget = user;
+      this.showDetailModal = true;
+    },
+    closeDetailModal() {
+      this.showDetailModal = false;
+      this.detailTarget = null;
+      if (this.$route.query.detail) {
+        const query = { ...this.$route.query };
+        delete query.detail;
+        this.$router.replace({ name: 'admin-users', query });
       }
     },
     openLockModal(user) {
@@ -702,6 +740,72 @@ td:first-child {
   padding: 22px;
   display: grid;
   gap: 16px;
+}
+
+.account-detail-backdrop {
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.account-detail-modal {
+  width: min(1240px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  background: var(--admin-surface, #fff);
+}
+
+.account-detail-modal-tools {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 12px 0;
+  flex: 0 0 auto;
+}
+
+.account-detail-close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--admin-border, #cbd5e1);
+  border-radius: 8px;
+  background: var(--admin-surface, #fff);
+  color: var(--admin-text, #0f172a);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.account-detail-modal-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 16px;
+}
+
+.account-detail-modal .user-detail {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.account-detail-modal .user-detail .back-action-bar {
+  display: none;
+}
+
+.account-detail-modal .user-detail .detail-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.account-detail-modal .user-detail .sidebar-panel {
+  display: none;
+}
+
+.account-detail-modal .user-detail .content-panel {
+  gap: 14px;
 }
 
 .policy-modal {

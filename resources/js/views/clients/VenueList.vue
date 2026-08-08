@@ -38,8 +38,8 @@
               <!-- Search text -->
               <div>
                 <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Từ khóa / Tên sân</label>
-                <div class="alb-search-input-wrap" style="background: #ffffff; border: 1.5px solid #1e293b; border-radius: 8px; padding: 4px 10px;">
-                  <input v-model.trim="filters.q" type="search" placeholder="Ví dụ: Cầu lông Ba Đình..." style="width: 100%; border: none !important; outline: none !important; font-size: 14px; font-weight: 400; color: #0f172a; background: transparent;" @keyup.enter="applyFilters" />
+                <div class="alb-search-input-wrap">
+                  <input v-model.trim="filters.q" type="text" placeholder="Ví dụ: Cầu lông Ba Đình..." @keyup.enter="applyFilters" />
                 </div>
               </div>
 
@@ -87,17 +87,28 @@
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 4px;">
               <span style="font-size: 15px; font-weight: 500; color: #111827;">Hiển thị {{ venues.length }} kết quả</span>
-              <div style="display: flex; gap: 12px; align-items: center;">
-                <select v-model="filters.sort" style="background: #ffffff; border: 1.5px solid #1e293b; padding: 6px 12px; border-radius: 6px; font-size: 13.5px; color: #111827; font-weight: 400;" @change="applyFilters">
-                  <option value="recommended">Gợi ý phù hợp</option>
-                  <option value="price">Giá thấp trước</option>
-                  <option value="rating">Đánh giá cao</option>
-                </select>
+              <div style="min-width: 175px;">
+                <ClientCombobox
+                  v-model="filters.sort"
+                  :options="sortOptions"
+                  placeholder="Sắp xếp"
+                  @change="applyFilters"
+                />
               </div>
             </div>
 
-            <div v-if="loading" style="text-align: center; padding: 60px 0; color: #374151;">
-              Đang tải danh sách sân...
+            <div v-if="loading" class="alb-venue-grid">
+              <div v-for="n in 6" :key="n" class="alb-venue-card sg-skeleton-card">
+                <div class="alb-venue-card__thumb sg-skeleton-box"></div>
+                <div class="alb-venue-card__body">
+                  <div class="sg-skeleton-box" style="height: 18px; width: 75%; margin-bottom: 8px; border-radius: 4px;"></div>
+                  <div class="sg-skeleton-box" style="height: 14px; width: 90%; margin-bottom: 16px; border-radius: 4px;"></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+                    <div class="sg-skeleton-box" style="height: 16px; width: 40%; border-radius: 4px;"></div>
+                    <div class="sg-skeleton-box" style="height: 28px; width: 90px; border-radius: 6px;"></div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div v-else-if="venues.length === 0" class="sg-empty-state-wrapper">
@@ -119,10 +130,6 @@
               <article v-for="venue in venues" :key="venue.id" class="alb-venue-card">
                 <div class="alb-venue-card__thumb">
                   <img :src="venueImage(venue)" :alt="venue.name" loading="lazy" />
-                  <span class="alb-venue-card__badge">{{ venue.court_types?.[0]?.name || "Sân Thể Thao" }}</span>
-                  <div class="alb-venue-card__rating">
-                    <span>{{ formatRating(venue) }} sao</span>
-                  </div>
                 </div>
 
                 <div class="alb-venue-card__body">
@@ -225,6 +232,13 @@ export default {
         ...this.courtTypes.map((c) => ({ value: String(c.id), label: c.name })),
       ];
     },
+    sortOptions() {
+      return [
+        { value: "recommended", label: "Gợi ý phù hợp" },
+        { value: "price", label: "Giá thấp trước" },
+        { value: "rating", label: "Đánh giá cao" },
+      ];
+    },
   },
   mounted() {
     this.loadProvinces();
@@ -297,7 +311,7 @@ export default {
     async loadVenues() {
       this.loading = true;
       try {
-        const res = await venueService.getVenues(this.filters);
+        const res = await venueService.list(this.filters);
         this.venues = res.data || res || [];
       } catch (e) {
         this.venues = [];

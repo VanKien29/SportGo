@@ -982,7 +982,7 @@ th {
 /* Wallet credit — formula display */
 .wallet-credit-section {
     margin-top: 16px;
-    background: linear-gradient(135deg, var(--admin-success-soft), var(--admin-success-soft));
+    background: var(--admin-success-soft);
     border: 1px solid var(--admin-success-soft);
     border-radius: 10px;
     padding: 14px 16px;

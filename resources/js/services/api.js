@@ -9,6 +9,56 @@ const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 const apiCache = new Map();
 const API_CACHE_TTL = 60000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
+
+async function fetchWithTimeout(path, options = {}) {
+  const {
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    signal: externalSignal,
+    ...fetchOptions
+  } = options;
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId = null;
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
+
+  const abortFromCaller = () => controller.abort(externalSignal.reason);
+  if (externalSignal) {
+    if (externalSignal.aborted) abortFromCaller();
+    else externalSignal.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
+  if (timeoutMs > 0) {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+  }
+
+  try {
+    return await fetch(path, { ...fetchOptions, signal: controller.signal });
+  } catch (error) {
+    if (timedOut) {
+      const timeoutError = new Error('Kết nối quá lâu. Vui lòng thử lại.');
+      timeoutError.status = 408;
+      timeoutError.code = 'REQUEST_TIMEOUT';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', abortFromCaller);
+    if (typeof performance !== 'undefined' && typeof performance.measure === 'function') {
+      const duration = performance.now() - startedAt;
+      if (duration > 800) {
+        performance.measure(`sportgo:api:${String(path).replace(/[^a-z0-9]+/gi, '-').slice(0, 80)}`, {
+          start: startedAt,
+          duration,
+        });
+      }
+    }
+  }
+}
 
 export async function apiCached(path, options = {}) {
   const { cacheTtl = API_CACHE_TTL, ...requestOptions } = options;
@@ -95,7 +145,7 @@ export async function api(path, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetchWithTimeout(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
 
   if (response.status === 401) {
@@ -103,7 +153,7 @@ export async function api(path, options = {}) {
     if (token && (!options.method || options.method.toUpperCase() === 'GET')) {
       const retryHeaders = { ...headers };
       delete retryHeaders.Authorization;
-      const retryResponse = await fetch(path, { ...options, headers: retryHeaders });
+      const retryResponse = await fetchWithTimeout(path, { ...options, headers: retryHeaders });
       if (retryResponse.ok) {
         return await retryResponse.json().catch(() => ({}));
       }
@@ -132,7 +182,7 @@ export async function apiFormData(path, formData, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(path, {
+  const response = await fetchWithTimeout(path, {
     method: options.method || 'POST',
     ...options,
     headers,
@@ -174,7 +224,7 @@ export async function apiDownload(path, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetchWithTimeout(path, { ...options, headers });
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));

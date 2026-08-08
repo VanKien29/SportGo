@@ -1,6 +1,6 @@
 <template>
-  <div class="admin-filter-panel" :class="panelClass">
-    <div class="filter-controls">
+  <div class="admin-filter-panel">
+    <div class="filter-controls" :class="panelClass">
       <slot></slot>
     </div>
 

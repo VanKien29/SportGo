@@ -28,7 +28,7 @@
           @click="$emit('navigate')"
         >
           <span class="nav-item-left">
-            <AppIcon name="messageSquare" size="17" />
+            <AppIcon name="messageCircle" size="17" />
             <span v-if="!collapsed" class="nav-item-label">Hộp thư hỗ trợ</span>
           </span>
         </RouterLink>
@@ -84,7 +84,7 @@
               to="/admin/chat"
               title="Hộp thư hỗ trợ"
             >
-              <AppIcon name="messageSquare" size="18" />
+              <AppIcon name="messageCircle" size="18" />
             </RouterLink>
             <RouterLink
               class="rail-icon-btn"
@@ -179,20 +179,6 @@ export default {
       );
       return idx >= 0 ? idx : 0;
     },
-    // Tổng badge của một section (dùng cho rail icon dot)
-    sectionTotalBadge() {
-      return (sec) => {
-        let total = 0;
-        for (const item of sec.items) {
-          if (item.badge) {
-            const n = parseInt(item.badge);
-            if (!isNaN(n)) total += n;
-            else if (item.badge === '99+') total += 1;
-          }
-        }
-        return total > 0;
-      };
-    },
   },
   created() {
     window.addEventListener('sidebar-style-changed', this.loadSidebarStyle);
@@ -216,11 +202,11 @@ export default {
     getSectionIcon(label) {
       const iconMap = {
         'Tổng quan': 'dashboard',
-        'Vận hành sân': 'building',
-        'Người dùng & quyền': 'users',
-        'Tài chính': 'creditCard',
+        'Vận hành sân': 'building2',
+        'Người dùng & quyền': 'userRoundCog',
+        'Tài chính': 'walletCards',
         'Nội dung & cấu hình': 'settings',
-        'Kiểm duyệt & hỗ trợ': 'eye'
+        'Kiểm duyệt & hỗ trợ': 'shieldAlert'
       };
       return iconMap[label] || 'alert';
     },
