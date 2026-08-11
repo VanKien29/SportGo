@@ -34,7 +34,7 @@
         <h4>TÍNH NĂNG & DỊCH VỤ</h4>
         <div class="alb-footer-links">
           <router-link to="/become-partner">Dành Cho Chủ Sân</router-link>
-          <router-link to="/bookings">Lịch Đặt Của Tôi</router-link>
+          <router-link to="/about">Giới Thiệu SportGo</router-link>
           <router-link to="/offers">Ưu Đãi & Khuyến Mãi</router-link>
           <router-link to="/news">Tin Tức & Kinh Nghiệm</router-link>
           <router-link to="/community">Cộng Đồng Ghép Đội</router-link>

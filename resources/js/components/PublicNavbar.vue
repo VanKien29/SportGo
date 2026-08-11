@@ -16,6 +16,7 @@
           <router-link to="/news" class="alb-nav-link" active-class="active-link">Tin tức</router-link>
           <router-link to="/community" class="alb-nav-link" active-class="active-link">Cộng đồng</router-link>
           <router-link to="/offers" class="alb-nav-link" active-class="active-link">Ưu đãi</router-link>
+          <router-link to="/about" class="alb-nav-link" active-class="active-link">Về chúng tôi</router-link>
           <router-link to="/become-partner" class="alb-btn-owner">
             <span>Đăng ký Chủ sân</span>
           </router-link>
