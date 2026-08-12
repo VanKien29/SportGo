@@ -1,275 +1,210 @@
 <template>
-  <div class="sga-app">
+  <div class="sg-visual-about">
     <PublicNavbar />
 
-    <!-- SECTION 1: PARALLAX HERO -->
-    <section class="sga-hero" ref="heroSection">
-      <div class="sga-hero__parallax-bg" ref="heroBg"></div>
-      <div class="sga-hero__overlay"></div>
-      <div class="sga-hero__content" ref="heroContent">
-        <span class="sga-eyebrow">Về SportGo</span>
-        <h1 class="sga-hero__headline">
-          Nơi Thể Thao<br /><em>Kết Nối Con Người</em>
-        </h1>
-        <p class="sga-hero__sub">
-          Chúng tôi xây dựng nền tảng công nghệ kết nối người yêu thể thao với những cụm sân chất lượng — nhanh, minh bạch và đáng tin cậy.
-        </p>
-        <div class="sga-hero__scroll-hint">
-          <span>Cuộn xuống để khám phá</span>
-          <div class="sga-scroll-arrow"><span></span><span></span><span></span></div>
-        </div>
-      </div>
-      <div class="sga-hero__chips" ref="heroChips">
-        <div class="sga-chip">
-          <span class="sga-chip__val">500<sup>+</sup></span>
-          <span class="sga-chip__lbl">Cụm sân đối tác</span>
-        </div>
-        <div class="sga-chip">
-          <span class="sga-chip__val">100K<sup>+</sup></span>
-          <span class="sga-chip__lbl">Lượt đặt thành công</span>
-        </div>
-        <div class="sga-chip">
-          <span class="sga-chip__val">6</span>
-          <span class="sga-chip__lbl">Bộ môn thể thao</span>
-        </div>
-      </div>
-    </section>
+    <!-- ───── 1. PARALLAX HERO SECTION ───── -->
+    <section class="sg-psec sg-psec--hero" ref="psecHero">
+      <div
+        class="sg-psec__bg"
+        :style="{ transform: `translate3d(0, ${scrollY * 0.38}px, 0)` }"
+      ></div>
+      <div class="sg-psec__overlay"></div>
 
-    <!-- SECTION 2: MISSION -->
-    <section class="sga-mission">
-      <div class="sg-container sga-mission__inner">
-        <div class="sga-mission__text">
-          <span class="sga-eyebrow sga-eyebrow--dark">Sứ Mệnh</span>
-          <h2 class="sga-heading">
-            Xây dựng hệ sinh thái thể thao<br />thực sự dành cho mọi người
-          </h2>
-          <p class="sga-body">
-            Trước khi có SportGo, việc tìm và đặt sân thể thao đầy trở ngại — gọi điện thủ công, thiếu thông tin giờ trống, thanh toán cồng kềnh. Chúng tôi thay đổi điều đó.
+      <div class="sg-container sg-psec__hero-grid">
+        <div class="sg-psec__hero-text">
+          <h1 class="sg-psec__title-huge">
+            Kỷ Nguyên<br />
+            <span class="sg-emerald-glow">Thể Thao Số</span>
+          </h1>
+          <p class="sg-psec__lead-short">
+            Kết nối hàng ngàn thảm đấu & đam mê vận động trên toàn Việt Nam.
           </p>
-          <p class="sga-body">
-            SportGo tạo ra một cầu nối minh bạch, tức thì giữa người chơi và chủ sân — trao quyền cho cả hai phía để thể thao trở thành lối sống.
+        </div>
+
+        <div class="sg-psec__hero-media">
+          <img
+            :src="'/images/about_hero_3d.png'"
+            alt="SportGo Isometric Stadium 3D"
+            class="sg-psec__3d-float"
+            :style="{ transform: `translate3d(0, ${scrollY * -0.12}px, 0)` }"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- ───── 2. PARALLAX STORY: NGƯỜI CHƠI (IMAGE-RICH 3 STEPS) ───── -->
+    <section class="sg-psec sg-psec--light" ref="psecPlayer">
+      <div class="sg-container">
+        <div class="sg-psec__header text-center">
+          <h2 class="sg-psec__title">Giữ Sân Tức Thời</h2>
+          <p class="sg-psec__desc">
+            Tìm thảm đấu ưng ý, chọn giờ trống thời gian thực và nhận mã QR check-in trong 60 giây.
           </p>
-          <div class="sga-mission__tags">
-            <span class="sga-tag">Minh bạch</span>
-            <span class="sga-tag">Tức thì</span>
-            <span class="sga-tag">Đáng tin cậy</span>
-            <span class="sga-tag">Kết nối</span>
-          </div>
         </div>
-        <div class="sga-mission__visual">
-          <img :src="'/images/about_mission_3d.png'" alt="Sứ mệnh SportGo" class="sga-mission__img" />
-          <div class="sga-float-badge sga-float-badge--1">
-            <span class="sga-float-badge__num">99.8%</span>
-            <span class="sga-float-badge__txt">Hài lòng</span>
+
+        <!-- 3 Step Visual Collage with Parallax Offsets -->
+        <div class="sg-step-collage">
+          <div class="sg-step-card" :style="{ transform: `translate3d(0, ${(scrollY - playerOffset) * 0.06}px, 0)` }">
+            <img :src="'/images/home/step1_search_3d.png'" alt="Tìm kiếm sân 3D" class="sg-step-img" />
+            <h3 class="sg-step-title">01. Tìm Kiếm</h3>
+            <p class="sg-step-text">Tra cứu cụm sân gần bạn theo thời gian thực.</p>
           </div>
-          <div class="sga-float-badge sga-float-badge--2">
-            <span class="sga-float-badge__num">24/7</span>
-            <span class="sga-float-badge__txt">Hỗ trợ</span>
+
+          <div class="sg-step-card" :style="{ transform: `translate3d(0, ${(scrollY - playerOffset) * -0.08}px, 0)` }">
+            <img :src="'/images/home/step2_pay_3d.png'" alt="Thanh toán QR 3D" class="sg-step-img" />
+            <h3 class="sg-step-title">02. Giữ Chỗ</h3>
+            <p class="sg-step-text">Xác nhận cọc tức thì qua mã QR tự động.</p>
+          </div>
+
+          <div class="sg-step-card" :style="{ transform: `translate3d(0, ${(scrollY - playerOffset) * 0.05}px, 0)` }">
+            <img :src="'/images/home/step3_ticket_3d.png'" alt="Vé check-in 3D" class="sg-step-img" />
+            <h3 class="sg-step-title">03. Vào Sân</h3>
+            <p class="sg-step-text">Quét mã vé điện tử check-in trực tiếp tại thảm.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- SECTION 3: PARALLAX QUOTE BAND -->
-    <section class="sga-parallax-band" ref="bandSection">
-      <div class="sga-parallax-band__bg" ref="bandBg"></div>
-      <div class="sga-parallax-band__overlay"></div>
-      <blockquote class="sga-parallax-band__quote" ref="bandQuote">
-        <p>"Mọi trận đấu đều bắt đầu từ một sân chơi tốt.<br />Chúng tôi ở đây để bạn luôn có điều đó."</p>
-        <footer>— Đội ngũ SportGo</footer>
-      </blockquote>
+    <!-- ───── 3. PARALLAX STORY: CHỦ SÂN ───── -->
+    <section class="sg-psec sg-psec--mint" ref="psecOwner">
+      <div class="sg-container sg-psec__owner-grid">
+        <div class="sg-psec__owner-media">
+          <img
+            :src="'/images/home/owner_solution_3d.png'"
+            alt="Quản lý chủ sân 3D"
+            class="sg-psec__3d-float"
+            :style="{ transform: `translate3d(0, ${(scrollY - ownerOffset) * -0.1}px, 0)` }"
+          />
+        </div>
+
+        <div class="sg-psec__owner-text">
+          <h2 class="sg-psec__title">Quản Trị Tự Động</h2>
+          <p class="sg-psec__desc">
+            Tự động hóa lịch đặt, kiểm soát tiền cọc QR và tối ưu 100% công suất khai thác cụm sân 24/7.
+          </p>
+        </div>
+      </div>
     </section>
 
-    <!-- SECTION 4: VALUES -->
-    <section class="sga-values">
+    <!-- ───── 4. QUOTE BANNER WITH FULL PARALLAX BACKDROP ───── -->
+    <section class="sg-psec sg-psec--quote" ref="psecQuote">
+      <div
+        class="sg-quote-bg"
+        :style="{ transform: `translate3d(0, ${(scrollY - quoteOffset) * 0.3}px, 0) scale(1.1)` }"
+      ></div>
+      <div class="sg-quote-overlay"></div>
+
+      <div class="sg-container text-center sg-quote-inner">
+        <blockquote class="sg-quote-text">
+          "Tôn vinh từng khoảnh khắc thi đấu thăng hoa."
+        </blockquote>
+      </div>
+    </section>
+
+    <!-- ───── 5. BỐN GIÁ TRỊ CỐT LÕI (MINIMALIST TYPOGRAPHY) ───── -->
+    <section class="sg-psec sg-psec--light">
       <div class="sg-container">
-        <header class="sga-values__header">
-          <span class="sga-eyebrow sga-eyebrow--dark">Giá Trị Cốt Lõi</span>
-          <h2 class="sga-heading">Những điều chúng tôi<br />luôn giữ vững</h2>
-        </header>
-        <div class="sga-values__grid">
-          <div
-            v-for="(value, i) in coreValues"
-            :key="value.title"
-            class="sga-value-item"
-            :style="{ '--item-index': i }"
-          >
-            <div class="sga-value-item__icon-wrap">
-              <span class="sga-value-item__icon">{{ value.icon }}</span>
-            </div>
-            <h3 class="sga-value-item__title">{{ value.title }}</h3>
-            <p class="sga-value-item__desc">{{ value.desc }}</p>
+        <div class="sg-psec__header text-center">
+          <h2 class="sg-psec__title">Bốn Giá Trị Cốt Lõi</h2>
+        </div>
+
+        <div class="sg-values-grid">
+          <div class="sg-value-item">
+            <span class="sg-value-num">01</span>
+            <h3 class="sg-value-heading">Tốc Độ Tức Thời</h3>
+            <p class="sg-value-body">Hoàn tất giữ chỗ & nhận vé trong chưa đầy 60 giây.</p>
+          </div>
+
+          <div class="sg-value-item">
+            <span class="sg-value-num">02</span>
+            <h3 class="sg-value-heading">Minh Bạch Tuyệt Đối</h3>
+            <p class="sg-value-body">Niêm yết công khai bảng giá & sơ đồ giờ trống realtime.</p>
+          </div>
+
+          <div class="sg-value-item">
+            <span class="sg-value-num">03</span>
+            <h3 class="sg-value-heading">Kết Nối Đa Chiều</h3>
+            <p class="sg-value-body">Gắn kết người chơi cá nhân, nhóm ghép đội & cụm sân.</p>
+          </div>
+
+          <div class="sg-value-item">
+            <span class="sg-value-num">04</span>
+            <h3 class="sg-value-heading">An Toàn Bảo Mật</h3>
+            <p class="sg-value-body">Thanh toán ngân hàng bảo mật & hỗ trợ đồng hành 24/7.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- SECTION 5: PARALLAX COURT STATS -->
-    <section class="sga-parallax-court" ref="courtSection">
-      <div class="sga-parallax-court__bg" ref="courtBg"></div>
-      <div class="sga-parallax-court__overlay"></div>
-      <div class="sga-parallax-court__content">
-        <div class="sga-stat-row">
-          <div class="sga-stat-box" v-for="stat in stats" :key="stat.val">
-            <span class="sga-stat-box__val">{{ stat.val }}</span>
-            <span class="sga-stat-box__lbl">{{ stat.lbl }}</span>
-          </div>
+    <!-- ───── 6. FINALE CTA ───── -->
+    <section class="sg-psec sg-psec--cta">
+      <div class="sg-container text-center">
+        <h2 class="sg-psec__title sg-psec__title--cta">Sẵn Sàng Trải Nghiệm?</h2>
+        <div class="sg-cta-btns">
+          <router-link to="/venues" class="sg-pbtn sg-pbtn--primary">
+            Tìm Sân Đặt Ngay
+          </router-link>
+          <router-link to="/become-partner" class="sg-pbtn sg-pbtn--outline">
+            Dành Cho Chủ Sân
+          </router-link>
         </div>
       </div>
     </section>
-
-    <!-- SECTION 6: TIMELINE -->
-    <section class="sga-timeline">
-      <div class="sg-container">
-        <header class="sga-timeline__header">
-          <span class="sga-eyebrow sga-eyebrow--dark">Hành Trình</span>
-          <h2 class="sga-heading">Câu chuyện xây dựng<br />SportGo</h2>
-        </header>
-        <div class="sga-timeline__track">
-          <div class="sga-timeline__line"></div>
-          <div
-            v-for="(event, i) in timeline"
-            :key="event.year"
-            class="sga-timeline__event"
-            :class="i % 2 === 0 ? 'sga-timeline__event--left' : 'sga-timeline__event--right'"
-          >
-            <div class="sga-timeline__dot">
-              <span class="sga-timeline__year">{{ event.year }}</span>
-            </div>
-            <div class="sga-timeline__card">
-              <span class="sga-timeline__emoji">{{ event.icon }}</span>
-              <h3 class="sga-timeline__card-title">{{ event.title }}</h3>
-              <p class="sga-timeline__card-desc">{{ event.desc }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- SECTION 7: CTA FINAL -->
-    <section class="sga-cta">
-      <div class="sga-cta__bg-shape sga-cta__bg-shape--1"></div>
-      <div class="sga-cta__bg-shape sga-cta__bg-shape--2"></div>
-      <div class="sg-container sga-cta__inner">
-        <h2 class="sga-cta__headline">Sẵn sàng trải nghiệm<br />SportGo hôm nay?</h2>
-        <p class="sga-cta__sub">Hàng trăm cụm sân chất lượng đang chờ bạn khám phá. Đặt lịch trong 60 giây.</p>
-        <div class="sga-cta__actions">
-          <router-link to="/venues" class="sga-cta-btn sga-cta-btn--primary">Tìm sân ngay</router-link>
-          <router-link to="/become-partner" class="sga-cta-btn sga-cta-btn--outline">Đăng ký chủ sân</router-link>
-        </div>
-      </div>
-    </section>
-
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../components/PublicNavbar.vue";
-import ClientFooter from "../components/ClientFooter.vue";
 
 export default {
   name: "AboutView",
-  components: { PublicNavbar, ClientFooter },
+  components: { PublicNavbar },
+
   data() {
     return {
       ticking: false,
       scrollY: 0,
-      coreValues: [
-        { icon: "⚡", title: "Tốc độ", desc: "Đặt sân trong vài giây. Xác nhận tức thì. Không chờ đợi, không gọi điện." },
-        { icon: "🔍", title: "Minh bạch", desc: "Giá hiển thị rõ ràng. Sơ đồ giờ trống theo thời gian thực. Không phát sinh ẩn." },
-        { icon: "🤝", title: "Kết nối", desc: "Nối liền người chơi và chủ sân trong một hệ sinh thái dùng chung, hai chiều lợi ích." },
-        { icon: "🛡️", title: "Tin cậy", desc: "Thanh toán bảo mật, lịch sử rõ ràng, hỗ trợ 24/7 khi cần — chúng tôi luôn ở đây." },
-        { icon: "🌱", title: "Phát triển", desc: "Không ngừng lắng nghe cộng đồng để cải tiến nền tảng, thêm tính năng mới mỗi tháng." },
-        { icon: "🏆", title: "Chất lượng", desc: "Mỗi cụm sân đối tác đều qua kiểm duyệt tiêu chuẩn chất lượng trước khi lên hệ thống." },
-      ],
-      stats: [
-        { val: "500+", lbl: "Cụm sân đối tác" },
-        { val: "100K+", lbl: "Lượt đặt thành công" },
-        { val: "99.8%", lbl: "Khách hài lòng" },
-        { val: "24/7", lbl: "Hỗ trợ kỹ thuật" },
-      ],
-      timeline: [
-        { year: "2022", icon: "💡", title: "Ý tưởng hình thành", desc: "Nhóm sáng lập nhận ra người chơi thể thao luôn gặp khó khăn khi tìm và đặt sân — quy trình quá thủ công, thiếu minh bạch." },
-        { year: "2023", icon: "🔨", title: "Xây dựng sản phẩm đầu tiên", desc: "Phiên bản MVP ra đời với tính năng xem giờ trống và đặt cọc qua QR. Thử nghiệm tại Hà Nội với 20 cụm sân đầu tiên." },
-        { year: "2024", icon: "🚀", title: "Mở rộng toàn quốc", desc: "Chạm mốc 100 cụm sân đối tác, ra mắt ứng dụng di động và hệ thống quản lý doanh thu tích hợp cho chủ sân." },
-        { year: "2025", icon: "🌐", title: "Hệ sinh thái thể thao", desc: "Tích hợp thêm ghép đội, cộng đồng thể thao và hệ thống cho thuê vợt — SportGo trở thành nền tảng toàn diện nhất Việt Nam." },
-      ],
+      playerOffset: 0,
+      ownerOffset: 0,
+      quoteOffset: 0,
     };
   },
+
   mounted() {
     this.$nextTick(() => {
-      this.initParallax();
-      this.initScrollReveal();
+      this.calculateOffsets();
+      this.onScroll();
       window.addEventListener("scroll", this.onScroll, { passive: true });
+      window.addEventListener("resize", this.calculateOffsets, { passive: true });
     });
   },
+
   beforeUnmount() {
     window.removeEventListener("scroll", this.onScroll);
+    window.removeEventListener("resize", this.calculateOffsets);
   },
+
   methods: {
+    calculateOffsets() {
+      const sy = window.scrollY || 0;
+      if (this.$refs.psecPlayer) {
+        this.playerOffset = this.$refs.psecPlayer.getBoundingClientRect().top + sy;
+      }
+      if (this.$refs.psecOwner) {
+        this.ownerOffset = this.$refs.psecOwner.getBoundingClientRect().top + sy;
+      }
+      if (this.$refs.psecQuote) {
+        this.quoteOffset = this.$refs.psecQuote.getBoundingClientRect().top + sy;
+      }
+    },
+
     onScroll() {
       this.scrollY = window.scrollY || 0;
       if (!this.ticking) {
         window.requestAnimationFrame(() => {
-          this.updateParallax();
           this.ticking = false;
         });
         this.ticking = true;
-      }
-    },
-    initParallax() {
-      this.updateParallax();
-    },
-    updateParallax() {
-      const sy = this.scrollY;
-      if (this.$refs.heroBg) {
-        this.$refs.heroBg.style.transform = `translateY(${sy * 0.45}px) scale(1.08)`;
-      }
-      if (this.$refs.heroContent) {
-        this.$refs.heroContent.style.transform = `translateY(${sy * 0.18}px)`;
-        this.$refs.heroContent.style.opacity = String(Math.max(0, 1 - sy / 600));
-      }
-      if (this.$refs.heroChips) {
-        this.$refs.heroChips.style.transform = `translateY(${sy * 0.12}px)`;
-        this.$refs.heroChips.style.opacity = String(Math.max(0, 1 - sy / 500));
-      }
-      if (this.$refs.bandSection && this.$refs.bandBg) {
-        const br = this.$refs.bandSection.getBoundingClientRect();
-        const off = sy + br.top + this.$refs.bandSection.offsetHeight / 2 - window.innerHeight / 2;
-        this.$refs.bandBg.style.transform = `translateY(${off * 0.35}px) scale(1.1)`;
-      }
-      if (this.$refs.bandQuote && this.$refs.bandSection) {
-        const br = this.$refs.bandSection.getBoundingClientRect();
-        const progress = 1 - br.top / window.innerHeight;
-        const cl = Math.min(Math.max(progress, 0), 1);
-        this.$refs.bandQuote.style.transform = `translateY(${(0.5 - cl) * 40}px)`;
-        this.$refs.bandQuote.style.opacity = String(Math.min(1, cl * 2));
-      }
-      if (this.$refs.courtSection && this.$refs.courtBg) {
-        const cr = this.$refs.courtSection.getBoundingClientRect();
-        const off2 = sy + cr.top + this.$refs.courtSection.offsetHeight / 2 - window.innerHeight / 2;
-        this.$refs.courtBg.style.transform = `translateY(${off2 * 0.3}px) scale(1.1)`;
-      }
-    },
-    initScrollReveal() {
-      if (typeof IntersectionObserver === "undefined") return;
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("sga-revealed");
-              observer.unobserve(entry.target);
-            }
-          });
-        },
-        { threshold: 0.12, rootMargin: "0px 0px -50px 0px" }
-      );
-      if (this.$el && this.$el.querySelectorAll) {
-        const targets = this.$el.querySelectorAll(
-          ".sga-mission__text, .sga-mission__visual, .sga-values__header, .sga-value-item, .sga-timeline__header, .sga-timeline__event, .sga-cta__inner"
-        );
-        targets.forEach((el) => observer.observe(el));
       }
     },
   },
@@ -277,235 +212,336 @@ export default {
 </script>
 
 <style scoped>
-.sga-app {
-  font-family: var(--sg-font-main, ui-sans-serif, system-ui, sans-serif);
+/* =========================================================================
+   PURE PARALLAX VISUAL STORYTELLING SYSTEM
+   - Ultra-low text density
+   - ZERO Taglines, ZERO Divider Lines
+   - ZERO Cards, ZERO Boxes, ZERO Borders
+   - Image-Rich 3D Parallax Offsets
+   - High Contrast Crisp Light Theme (#f8fafc, #f0fdf4)
+   ========================================================================= */
+
+.sg-visual-about {
+  font-family: var(--sg-font-main, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  background: #f8fafc;
   color: #0f172a;
   overflow-x: hidden;
 }
-.sga-eyebrow {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #4ade80;
-  margin-bottom: 14px;
-}
-.sga-eyebrow--dark { color: #15803d; }
-.sga-heading {
-  font-size: clamp(28px, 4vw, 44px);
-  font-weight: 400;
-  line-height: 1.22;
-  color: #0f172a;
-  margin: 0 0 20px;
-}
-.sga-body {
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 1.7;
-  color: #334155;
-  margin-bottom: 16px;
-}
-.sga-tag {
-  display: inline-block;
-  font-size: 13px;
-  font-weight: 400;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
-  border-radius: 100px;
-  padding: 4px 14px;
-  margin: 4px 4px 0 0;
+
+/* ───── SECTION BASE ───── */
+.sg-psec {
+  padding: 100px 0;
+  position: relative;
 }
 
-/* HERO */
-.sga-hero {
-  position: relative;
-  height: 100vh;
-  min-height: 640px;
-  max-height: 900px;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  padding-bottom: 80px;
+.sg-psec--light {
+  background: #f8fafc;
 }
-.sga-hero__parallax-bg {
+.sg-psec--mint {
+  background: #f0fdf4;
+}
+.sg-psec--cta {
+  padding: 120px 0;
+  background: #ecfdf5;
+}
+
+/* ───── 1. PARALLAX HERO ───── */
+.sg-psec--hero {
+  position: relative;
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 120px 0 80px;
+}
+
+.sg-psec__bg {
   position: absolute;
-  inset: -10% 0;
+  inset: -20% 0;
   background-image: url('/images/about_hero.png');
   background-size: cover;
-  background-position: center top;
+  background-position: center;
   will-change: transform;
-  transform-origin: center top;
 }
-.sga-hero__overlay {
+
+.sg-psec__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(2,6,23,0.55) 0%, rgba(2,6,23,0.3) 40%, rgba(2,6,23,0.75) 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(248, 250, 252, 0.75) 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  );
 }
-.sga-hero__content {
+
+.sg-psec__hero-grid {
   position: relative;
   z-index: 2;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 40px;
-  width: 100%;
-  will-change: transform, opacity;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 60px;
+  align-items: center;
 }
-.sga-hero__headline {
-  font-size: clamp(36px, 6vw, 80px);
-  font-weight: 300;
+
+.sg-psec__title-huge {
+  font-size: clamp(44px, 6.5vw, 80px);
+  font-weight: 400;
   line-height: 1.1;
-  color: #ffffff;
-  margin: 0 0 24px;
+  color: #0f172a;
+  margin: 0 0 20px;
   letter-spacing: -0.02em;
 }
-.sga-hero__headline em { font-style: normal; color: #4ade80; }
-.sga-hero__sub {
+
+.sg-emerald-glow {
+  color: #15803d;
+}
+
+.sg-psec__lead-short {
+  font-size: clamp(18px, 2.2vw, 22px);
+  font-weight: 400;
+  line-height: 1.6;
+  color: #334155;
+  margin: 0;
+  max-width: 580px;
+}
+
+.sg-psec__hero-media {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sg-psec__3d-float {
+  width: 100%;
+  max-width: 460px;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 40px rgba(21, 128, 61, 0.15));
+  will-change: transform;
+}
+
+/* ───── 2. STEP COLLAGE (IMAGE RICH) ───── */
+.sg-psec__header {
+  margin-bottom: 70px;
+}
+
+.sg-psec__title {
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 400;
+  line-height: 1.2;
+  color: #0f172a;
+  margin: 0 0 16px;
+}
+.sg-psec__title--cta {
+  margin-bottom: 36px;
+}
+
+.sg-psec__desc {
   font-size: 18px;
   font-weight: 400;
-  color: rgba(255,255,255,0.82);
-  max-width: 560px;
   line-height: 1.65;
-  margin: 0 0 40px;
+  color: #334155;
+  max-width: 620px;
+  margin: 0 auto;
 }
-.sga-hero__scroll-hint {
-  display: flex;
-  flex-direction: column;
+
+.sg-step-collage {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
   align-items: flex-start;
-  gap: 10px;
-  color: rgba(255,255,255,0.6);
-  font-size: 13px;
+  margin-top: 40px;
 }
-.sga-scroll-arrow { display: flex; flex-direction: column; gap: 3px; }
-.sga-scroll-arrow span {
-  display: block;
-  width: 18px;
-  height: 2px;
-  background: rgba(255,255,255,0.4);
-  border-radius: 2px;
-  animation: scrollPulse 1.8s ease-in-out infinite;
+
+.sg-step-card {
+  text-align: center;
+  will-change: transform;
 }
-.sga-scroll-arrow span:nth-child(2) { animation-delay: 0.15s; width: 12px; }
-.sga-scroll-arrow span:nth-child(3) { animation-delay: 0.3s; width: 7px; }
-@keyframes scrollPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-.sga-hero__chips {
-  position: absolute;
-  bottom: 80px;
-  right: 60px;
-  z-index: 3;
+
+.sg-step-img {
+  width: 100%;
+  max-width: 260px;
+  height: 220px;
+  object-fit: contain;
+  margin: 0 auto 20px;
+  filter: drop-shadow(0 15px 30px rgba(15, 23, 42, 0.1));
+}
+
+.sg-step-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+
+.sg-step-text {
+  font-size: 15px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ───── 3. OWNER SECTION ───── */
+.sg-psec__owner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: center;
+}
+
+.sg-psec__owner-media {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  will-change: transform, opacity;
+  justify-content: center;
+  align-items: center;
 }
-.sga-chip {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.18);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 12px;
-  padding: 12px 20px;
-  text-align: right;
-  min-width: 150px;
+
+.sg-psec__owner-text {
+  max-width: 520px;
 }
-.sga-chip__val { display: block; font-size: 24px; font-weight: 300; color: #ffffff; line-height: 1; margin-bottom: 4px; }
-.sga-chip__val sup { font-size: 14px; }
-.sga-chip__lbl { font-size: 12px; color: rgba(255,255,255,0.65); }
+.sg-psec__owner-text .sg-psec__desc {
+  margin: 0;
+  text-align: left;
+}
 
-/* MISSION */
-.sga-mission { padding: 96px 0; background: #ffffff; }
-.sga-mission__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
-.sga-mission__text { opacity: 0; transform: translateX(-40px); transition: opacity 0.8s ease, transform 0.8s ease; }
-.sga-mission__text.sga-revealed { opacity: 1; transform: translateX(0); }
-.sga-mission__visual { position: relative; opacity: 0; transform: translateX(40px); transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s; }
-.sga-mission__visual.sga-revealed { opacity: 1; transform: translateX(0); }
-.sga-mission__img { width: 100%; max-width: 460px; object-fit: contain; filter: drop-shadow(0 20px 40px rgba(15,23,42,0.12)); display: block; margin: 0 auto; }
-.sga-float-badge { position: absolute; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 16px; box-shadow: 0 8px 24px rgba(15,23,42,0.08); display: flex; flex-direction: column; gap: 2px; animation: floatBadge 3s ease-in-out infinite; }
-.sga-float-badge--1 { top: 20px; right: -10px; }
-.sga-float-badge--2 { bottom: 40px; left: -10px; animation-delay: 1.5s; }
-@keyframes floatBadge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-.sga-float-badge__num { font-size: 20px; font-weight: 400; color: #15803d; line-height: 1; }
-.sga-float-badge__txt { font-size: 12px; color: #64748b; }
+/* ───── 4. PARALLAX QUOTE BANNER ───── */
+.sg-psec--quote {
+  position: relative;
+  height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
 
-/* PARALLAX QUOTE BAND */
-.sga-parallax-band { position: relative; height: 420px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-.sga-parallax-band__bg { position: absolute; inset: -15% 0; background-image: url('/images/home/sportgo-home-hero-v2.webp'); background-size: cover; background-position: center; will-change: transform; }
-.sga-parallax-band__overlay { position: absolute; inset: 0; background: rgba(5,46,22,0.82); }
-.sga-parallax-band__quote { position: relative; z-index: 2; text-align: center; max-width: 700px; padding: 0 40px; margin: 0; opacity: 0; will-change: transform, opacity; }
-.sga-parallax-band__quote p { font-size: clamp(20px, 3vw, 32px); font-weight: 300; color: #ffffff; line-height: 1.5; margin-bottom: 20px; font-style: italic; }
-.sga-parallax-band__quote footer { font-size: 14px; color: #4ade80; font-weight: 500; }
+.sg-quote-bg {
+  position: absolute;
+  inset: -20% 0;
+  background-image: url('/images/home/sportgo-home-hero-v2.webp');
+  background-size: cover;
+  background-position: center;
+  will-change: transform;
+}
 
-/* VALUES */
-.sga-values { padding: 96px 0; background: #f8fafc; }
-.sga-values__header { text-align: center; margin-bottom: 56px; opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
-.sga-values__header.sga-revealed { opacity: 1; transform: translateY(0); }
-.sga-values__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
-.sga-value-item { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px 28px; opacity: 0; transform: translateY(40px); transition: opacity 0.6s ease calc(var(--item-index, 0) * 0.1s), transform 0.6s ease calc(var(--item-index, 0) * 0.1s), box-shadow 0.25s ease, border-color 0.25s ease; }
-.sga-value-item.sga-revealed { opacity: 1; transform: translateY(0); }
-.sga-value-item:hover { border-color: #bbf7d0; box-shadow: 0 8px 30px rgba(21,128,61,0.06); }
-.sga-value-item__icon-wrap { margin-bottom: 16px; }
-.sga-value-item__icon { font-size: 32px; display: block; line-height: 1; }
-.sga-value-item__title { font-size: 18px; font-weight: 500; color: #0f172a; margin: 0 0 10px; }
-.sga-value-item__desc { font-size: 14px; color: #475569; line-height: 1.65; margin: 0; font-weight: 400; }
+.sg-quote-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(220, 252, 231, 0.92);
+}
 
-/* PARALLAX COURT STATS */
-.sga-parallax-court { position: relative; height: 360px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-.sga-parallax-court__bg { position: absolute; inset: -15% 0; background-image: url('/images/home/anhbia2.webp'); background-size: cover; background-position: center; will-change: transform; }
-.sga-parallax-court__overlay { position: absolute; inset: 0; background: rgba(2,10,30,0.75); }
-.sga-parallax-court__content { position: relative; z-index: 2; width: 100%; max-width: 1200px; padding: 0 40px; }
-.sga-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; text-align: center; }
-.sga-stat-box__val { display: block; font-size: clamp(32px, 5vw, 56px); font-weight: 300; color: #4ade80; line-height: 1; margin-bottom: 8px; }
-.sga-stat-box__lbl { font-size: 14px; color: rgba(255,255,255,0.75); font-weight: 400; }
+.sg-quote-inner {
+  position: relative;
+  z-index: 2;
+}
 
-/* TIMELINE */
-.sga-timeline { padding: 96px 0; background: #ffffff; }
-.sga-timeline__header { text-align: center; margin-bottom: 64px; opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
-.sga-timeline__header.sga-revealed { opacity: 1; transform: translateY(0); }
-.sga-timeline__track { position: relative; max-width: 900px; margin: 0 auto; }
-.sga-timeline__line { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #e2e8f0; transform: translateX(-50%); }
-.sga-timeline__event { display: flex; align-items: flex-start; gap: 40px; margin-bottom: 56px; opacity: 0; transition: opacity 0.7s ease, transform 0.7s ease; }
-.sga-timeline__event--left { flex-direction: row; transform: translateX(-40px); }
-.sga-timeline__event--right { flex-direction: row-reverse; transform: translateX(40px); }
-.sga-timeline__event.sga-revealed { opacity: 1; transform: translateX(0); }
-.sga-timeline__dot { position: relative; width: 60px; height: 60px; background: #f0fdf4; border: 2px solid #86efac; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 2; margin-top: 6px; }
-.sga-timeline__year { font-size: 13px; font-weight: 500; color: #15803d; }
-.sga-timeline__card { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px 28px; max-width: 380px; transition: box-shadow 0.25s ease; }
-.sga-timeline__card:hover { box-shadow: 0 8px 28px rgba(15,23,42,0.06); }
-.sga-timeline__emoji { font-size: 28px; display: block; margin-bottom: 10px; }
-.sga-timeline__card-title { font-size: 18px; font-weight: 500; color: #0f172a; margin: 0 0 10px; }
-.sga-timeline__card-desc { font-size: 14px; color: #475569; line-height: 1.65; margin: 0; }
+.sg-quote-text {
+  font-size: clamp(24px, 3.8vw, 42px);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.4;
+  color: #064e3b;
+  margin: 0;
+}
 
-/* CTA */
-.sga-cta { position: relative; padding: 96px 0; background: #0f172a; overflow: hidden; }
-.sga-cta__bg-shape { position: absolute; border-radius: 50%; opacity: 0.06; }
-.sga-cta__bg-shape--1 { width: 600px; height: 600px; background: #4ade80; top: -200px; right: -100px; }
-.sga-cta__bg-shape--2 { width: 400px; height: 400px; background: #22d3ee; bottom: -150px; left: -80px; }
-.sga-cta__inner { position: relative; z-index: 2; text-align: center; opacity: 0; transform: translateY(30px); transition: opacity 0.8s ease, transform 0.8s ease; }
-.sga-cta__inner.sga-revealed { opacity: 1; transform: translateY(0); }
-.sga-cta__headline { font-size: clamp(28px, 4vw, 48px); font-weight: 300; color: #ffffff; margin: 0 0 20px; line-height: 1.2; }
-.sga-cta__sub { font-size: 17px; color: rgba(255,255,255,0.65); max-width: 500px; margin: 0 auto 40px; line-height: 1.65; }
-.sga-cta__actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-.sga-cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 500; text-decoration: none; transition: all 0.2s ease; }
-.sga-cta-btn--primary { background: #15803d; color: #ffffff; }
-.sga-cta-btn--primary:hover { background: #166534; transform: translateY(-2px); }
-.sga-cta-btn--outline { background: transparent; color: #ffffff; border: 1px solid rgba(255,255,255,0.3); }
-.sga-cta-btn--outline:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.6); }
+/* ───── 5. VALUES GRID (NO LINES, NO CARDS) ───── */
+.sg-values-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 56px 80px;
+  margin-top: 30px;
+}
 
-/* RESPONSIVE */
+.sg-value-item {
+  position: relative;
+}
+
+.sg-value-num {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  color: #15803d;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.sg-value-heading {
+  font-size: 22px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+
+.sg-value-body {
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: #334155;
+  margin: 0;
+}
+
+/* ───── 6. CTA BUTTONS ───── */
+.sg-cta-btns {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sg-pbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 40px;
+  border-radius: 6px;
+  font-size: 15.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.sg-pbtn--primary {
+  background: #15803d;
+  color: #ffffff;
+}
+.sg-pbtn--primary:hover {
+  background: #166534;
+  transform: translateY(-2px);
+}
+
+.sg-pbtn--outline {
+  background: transparent;
+  color: #15803d;
+  border: 1.5px solid #15803d;
+}
+.sg-pbtn--outline:hover {
+  background: rgba(21, 128, 61, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ───── RESPONSIVE BREAKPOINTS ───── */
 @media (max-width: 1024px) {
-  .sga-mission__inner { grid-template-columns: 1fr; gap: 48px; }
-  .sga-values__grid { grid-template-columns: repeat(2, 1fr); }
-  .sga-hero__chips { right: 24px; bottom: 120px; }
-  .sga-timeline__event--left, .sga-timeline__event--right { flex-direction: column; align-items: center; text-align: center; }
-  .sga-timeline__line { display: none; }
-  .sga-timeline__card { max-width: 100%; }
+  .sg-psec__hero-grid,
+  .sg-psec__owner-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+  .sg-step-collage {
+    grid-template-columns: 1fr;
+    gap: 56px;
+  }
+  .sg-values-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
 }
+
 @media (max-width: 640px) {
-  .sga-hero__content { padding: 0 24px; }
-  .sga-hero__chips { display: none; }
-  .sga-values__grid { grid-template-columns: 1fr; }
-  .sga-stat-row { grid-template-columns: repeat(2, 1fr); }
-  .sga-cta__actions { flex-direction: column; align-items: center; }
+  .sg-psec {
+    padding: 70px 0;
+  }
+  .sg-cta-btns {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sg-pbtn {
+    width: 100%;
+  }
 }
 </style>

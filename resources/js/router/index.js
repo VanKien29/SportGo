@@ -18,6 +18,8 @@ import {
 
 import Home from "../views/Home.vue";
 import About from "../views/About.vue";
+import Contact from "../views/Contact.vue";
+import Policies from "../views/Policies.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import ForgotPassword from "../views/ForgotPassword.vue";
@@ -30,6 +32,10 @@ import StaffLayout from "../views/staff/StaffLayout.vue";
 const routes = [
     { path: "/", name: "home", component: Home },
     { path: "/about", name: "about", component: About, meta: { title: "Về SportGo" } },
+    { path: "/contact", name: "contact", component: Contact, meta: { title: "Liên Hệ - SportGo" } },
+    { path: "/policies", name: "policies", component: Policies, meta: { title: "Chính Sách & Điều Khoản - SportGo" } },
+    { path: "/chat", name: "client-chat", component: () => import("../views/clients/ClientChat.vue"), meta: { title: "Hộp Thư Tin Nhắn - SportGo" } },
+    { path: "/messages", name: "client-messages", component: () => import("../views/clients/ClientChat.vue"), meta: { title: "Hộp Thư Tin Nhắn - SportGo" } },
     { path: "/venues", name: "venues", component: () => import("../views/clients/VenueList.vue") },
     { path: "/map", name: "client-map", component: () => import("../views/clients/ClientMapView.vue") },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
