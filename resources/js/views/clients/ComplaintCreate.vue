@@ -27,30 +27,36 @@
             <div class="cpc-form-col">
               <form class="cpc-form-flat" @submit.prevent="submit">
                 <div class="cpc-field">
-                  <label class="cpc-label">Loại khiếu nại <b>*</b></label>
-                  <select v-model="form.complaint_type" class="cpc-input">
-                    <option value="venue">Vấn đề tại cụm sân</option>
-                    <option value="system">Vấn đề hệ thống / Ví tiền</option>
+                  <label class="cpc-label">Booking đang hoạt động <b>*</b></label>
+                  <select v-model="form.booking_id" class="cpc-input" required @change="selectBooking">
+                    <option value="" disabled>
+                      {{ bookingLoading ? 'Đang tải booking đủ điều kiện...' : 'Chọn booking đang chơi tại sân' }}
+                    </option>
+                    <option v-for="item in eligibleBookings" :key="item.id" :value="String(item.id)">
+                      {{ bookingOptionLabel(item) }}
+                    </option>
                   </select>
+                  <small v-if="!bookingLoading && !eligibleBookings.length" class="cpc-help-text">
+                    Chỉ có thể gửi khiếu nại trong thời gian booking đang hoạt động tại sân.
+                  </small>
                 </div>
 
-                <div v-if="bookingLoading" class="cpc-context-note">Đang lấy thông tin lịch đặt sân...</div>
-                <div v-else-if="booking" class="cpc-context-note">
+                <div v-if="booking" class="cpc-context-note">
                   <strong>Booking liên quan: #{{ booking.booking_code }}</strong>
-                  <span>Cụm sân: {{ booking.venueCluster?.name || booking.venue_cluster?.name || 'SportGo Venue' }}</span>
+                  <span>{{ booking.start_time }} - {{ booking.end_time }} · {{ booking.minutes_remaining }} phút còn lại trong cửa sổ tiếp nhận</span>
                 </div>
                 <p v-if="bookingError" class="cpc-field-error">{{ bookingError }}</p>
 
-                <div v-if="form.complaint_type === 'venue'" class="cpc-field">
+                <div class="cpc-field">
                   <label class="cpc-label">Cụm sân liên quan</label>
                   <input
-                    :value="booking?.venueCluster?.name || booking?.venue_cluster?.name || ''"
+                    :value="booking?.venue_cluster?.name || booking?.venueCluster?.name || ''"
                     type="text"
-                    placeholder="Tự động điền từ booking đã chọn"
+                    placeholder="Chọn booking để tự động điền"
                     readonly
                     class="cpc-input is-readonly"
                   />
-                  <small class="cpc-help-text">Tạo khiếu nại từ đơn đặt sân để tự động điền cụm sân.</small>
+                  <small class="cpc-help-text">Thông tin sân được lấy trực tiếp từ booking và không thể chỉnh sửa.</small>
                 </div>
 
                 <div class="cpc-field">
@@ -67,7 +73,7 @@
 
                 <!-- MULTI-IMAGE EVIDENCE UPLOAD -->
                 <div class="cpc-field">
-                  <label class="cpc-label">Ảnh minh chứng <small>(Tối đa 5 ảnh · JPG, PNG, WebP, max 5MB/ảnh)</small></label>
+                  <label class="cpc-label">Ảnh minh chứng <small>(Tối đa 5 ảnh · 5MB/ảnh · tổng 20MB)</small></label>
                   <input
                     ref="evidenceInput"
                     type="file"
@@ -85,6 +91,13 @@
                 </div>
 
                 <p v-if="error" class="cpc-field-error">{{ error }}</p>
+                <router-link
+                  v-if="duplicateComplaintId"
+                  class="cpc-existing-link"
+                  :to="{ name: 'client-complaint-detail', params: { id: duplicateComplaintId } }"
+                >
+                  Mở khiếu nại hiện tại để bổ sung bằng chứng
+                </router-link>
 
                 <div class="cpc-form-actions">
                   <button type="button" class="w2-btn w2-btn--outline" @click="$router.back()">Hủy</button>
@@ -101,16 +114,16 @@
                 <h3 class="cpc-guide-title">Hướng dẫn gửi khiếu nại</h3>
                 <ol class="cpc-guide-list">
                   <li>
-                    <strong>1. Chọn đúng đơn đặt sân</strong>
-                    <span>Gửi từ booking liên quan để xác định cụm sân và thời gian chơi.</span>
+                    <strong>1. Chọn booking đang hoạt động</strong>
+                    <span>Chỉ booking đang trong khung giờ sử dụng sân mới được tiếp nhận.</span>
                   </li>
                   <li>
                     <strong>2. Mô tả vấn đề rõ ràng</strong>
                     <span>Cung cấp chi tiết sự cố, mốc thời gian và yêu cầu xử lý.</span>
                   </li>
                   <li>
-                    <strong>3. Đính kèm ảnh minh chứng</strong>
-                    <span>Chọn tối đa 5 ảnh chụp mặt sân, chuyển khoản hoặc tin nhắn trao đổi.</span>
+                    <strong>3. Bổ sung bằng chứng khi cần</strong>
+                    <span>Nếu đã có khiếu nại trùng booking, hãy mở yêu cầu cũ để bổ sung nội dung hoặc ảnh.</span>
                   </li>
                 </ol>
                 <router-link to="/bookings" class="w2-btn w2-btn--outline cpc-guide-btn">
@@ -129,7 +142,6 @@
 import AppIcon from '../../components/AppIcon.vue';
 import PublicNavbar from '../../components/PublicNavbar.vue';
 import ClientAccountNav from '../../components/ClientAccountNav.vue';
-import { bookingService } from '../../services/bookingService.js';
 import { complaintService } from '../../services/complaintService.js';
 
 export default {
@@ -138,15 +150,17 @@ export default {
   data() {
     return {
       form: {
-        complaint_type: this.$route.query.booking_id ? 'venue' : 'system',
+        complaint_type: 'venue',
         booking_id: this.$route.query.booking_id || '',
         venue_cluster_id: '',
         content: ''
       },
       booking: null,
+      eligibleBookings: [],
       bookingLoading: false,
       bookingError: '',
       error: '',
+      duplicateComplaintId: null,
       submitting: false,
       evidenceFiles: [],
       evidencePreviews: []
@@ -156,29 +170,47 @@ export default {
     isValid() {
       return (
         this.form.content.length >= 10 &&
-        (this.form.complaint_type === 'system' || Boolean(this.form.booking_id && this.form.venue_cluster_id))
+        Boolean(this.form.booking_id && this.form.venue_cluster_id)
       );
     }
   },
   mounted() {
-    if (this.form.booking_id) this.loadBooking();
+    this.loadEligibleBookings();
   },
   methods: {
-    async loadBooking() {
+    async loadEligibleBookings() {
       this.bookingLoading = true;
       this.bookingError = '';
       try {
-        this.booking = await bookingService.getBooking(this.form.booking_id);
-        this.form.venue_cluster_id =
-          this.booking.venue_cluster_id ||
-          this.booking.venueCluster?.id ||
-          this.booking.venue_court?.venue_cluster_id ||
-          '';
+        const response = await complaintService.eligibleBookings();
+        this.eligibleBookings = response.data || [];
+        const requestedId = String(this.form.booking_id || '');
+        const selected = this.eligibleBookings.find((item) => String(item.id) === requestedId)
+          || this.eligibleBookings[0];
+        if (selected) {
+          this.form.booking_id = String(selected.id);
+          this.selectBooking();
+        } else if (requestedId) {
+          this.form.booking_id = '';
+          this.bookingError = 'Booking không còn trong thời gian tiếp nhận khiếu nại.';
+        }
       } catch (error) {
-        this.bookingError = error.message || 'Không tải được thông tin booking.';
+        this.bookingError = error.message || 'Không tải được booking đang hoạt động.';
       } finally {
         this.bookingLoading = false;
       }
+    },
+    selectBooking() {
+      const selected = this.eligibleBookings.find((item) => String(item.id) === String(this.form.booking_id));
+      this.booking = selected || null;
+      this.form.venue_cluster_id = selected?.venue_cluster_id || selected?.venue_cluster?.id || '';
+    },
+    bookingOptionLabel(booking) {
+      const date = booking.booking_date
+        ? new Date(`${booking.booking_date}T00:00:00`).toLocaleDateString('vi-VN')
+        : 'Chưa rõ ngày';
+      const cluster = booking.venue_cluster?.name || booking.venueCluster?.name || 'Cụm sân';
+      return `${date} · ${booking.start_time || '--'} - ${booking.end_time || '--'} · ${cluster} · ${booking.booking_code || booking.id}`;
     },
     selectEvidences(event) {
       const files = Array.from(event.target.files || []);
@@ -194,6 +226,12 @@ export default {
           this.error = `Ảnh ${file.name} vượt quá dung lượng 5MB.`;
           return;
         }
+      }
+
+      const totalSize = [...this.evidenceFiles, ...files].reduce((sum, file) => sum + file.size, 0);
+      if (totalSize > 20 * 1024 * 1024) {
+        this.error = 'Tổng dung lượng ảnh minh chứng không được vượt quá 20MB.';
+        return;
       }
 
       this.error = '';
@@ -218,12 +256,13 @@ export default {
     },
     async submit() {
       this.error = '';
+      this.duplicateComplaintId = null;
       if (this.form.content.length < 10) {
         this.error = 'Nội dung cần ít nhất 10 ký tự.';
         return;
       }
-      if (this.form.complaint_type === 'venue' && !this.form.venue_cluster_id) {
-        this.error = 'Cần chọn booking có cụm sân liên quan.';
+      if (!this.form.booking_id || !this.form.venue_cluster_id) {
+        this.error = 'Cần chọn booking đang hoạt động tại sân.';
         return;
       }
       this.submitting = true;
@@ -237,7 +276,12 @@ export default {
         this.evidenceFiles.forEach((file) => {
           payload.append('evidence_images[]', file);
         });
-        const response = await complaintService.create(payload);
+        const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const response = await complaintService.create(payload, {
+          headers: { 'Idempotency-Key': idempotencyKey }
+        });
         const id = response.data?.id || response.data?.complaint?.id;
         if (id) {
           this.$router.replace({ name: 'client-complaint-detail', params: { id } });
@@ -245,7 +289,10 @@ export default {
           this.$router.replace({ name: 'client-complaints' });
         }
       } catch (error) {
-        this.error = error.message || 'Không thể gửi khiếu nại.';
+        this.duplicateComplaintId = error?.data?.existing_complaint_id || null;
+        this.error = this.duplicateComplaintId
+          ? `${error.message || 'Booking đã có khiếu nại.'} Mã khiếu nại: #${this.duplicateComplaintId}.`
+          : (error.message || 'Không thể gửi khiếu nại.');
       } finally {
         this.submitting = false;
       }
@@ -462,6 +509,12 @@ export default {
   color: #dc2626;
   font-size: 13px;
   margin: 0;
+}
+
+.cpc-existing-link {
+  color: #166534;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .cpc-form-actions {

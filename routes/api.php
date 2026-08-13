@@ -629,10 +629,11 @@ Route::middleware('auth:sanctum')
         Route::post('/reports', [PublicReportController::class, 'store']);
 
         // Complaints (Player)
-        Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);
+        Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store'])->middleware('throttle:5,10');
         Route::get('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'index']);
+        Route::get('/complaints/eligible-bookings', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'eligibleBookings']);
         Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'show']);
-        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'reply']);
+        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'reply'])->middleware('throttle:10,1');
 
         // Chat routes
         Route::prefix('chat')

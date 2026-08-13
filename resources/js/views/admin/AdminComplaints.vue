@@ -76,6 +76,10 @@
               </span>
             </template>
 
+            <template #sla="{ row }">
+              <span class="sla-cell" :class="slaClass(row)">{{ slaLabel(row) }}</span>
+            </template>
+
             <template #created_at="{ row }">
               <span class="date-cell">{{ formatDateTime(row.created_at) }}</span>
             </template>
@@ -111,9 +115,12 @@
                 </p>
               </div>
             </div>
-            <span class="status-badge" :style="selected.status === 'resolved' ? 'background: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 16px;' : (selected.status === 'processing' ? 'background: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 16px;' : 'background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 16px;')">
-              {{ statusLabel(selected.status) }}
-            </span>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+              <span class="status-badge" :style="selected.status === 'resolved' ? 'background: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 16px;' : (selected.status === 'processing' ? 'background: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 16px;' : 'background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 16px;')">
+                {{ statusLabel(selected.status) }}
+              </span>
+              <small :class="slaClass(selected)">{{ slaLabel(selected) }}</small>
+            </div>
           </div>
 
           <div class="detail-content" style="display: flex; gap: 24px; align-items: flex-start;">
@@ -357,6 +364,7 @@ export default {
                 { key: 'content', label: 'NỘI DUNG KHIẾU NẠI' },
                 { key: 'target', label: 'CỤM SÂN / BOOKING' },
                 { key: 'status', label: 'TRẠNG THÁI' },
+                { key: 'sla', label: 'SLA' },
                 { key: 'created_at', label: 'NGÀY TẠO' },
                 { key: 'actions', label: 'THAO TÁC', align: 'right' }
             ];
@@ -662,6 +670,18 @@ export default {
         formatDateTime(value) {
             return value ? new Date(value).toLocaleString("vi-VN") : "-";
         },
+        slaLabel(row) {
+            if (!row?.resolution_due_at || this.isTerminalStatus(row.status)) return 'Đã chốt';
+            const due = new Date(row.resolution_due_at);
+            const diff = due.getTime() - Date.now();
+            if (diff < 0) return 'Quá hạn xử lý';
+            const hours = Math.max(1, Math.ceil(diff / 3600000));
+            return hours < 24 ? `Còn ${hours} giờ` : `Còn ${Math.ceil(hours / 24)} ngày`;
+        },
+        slaClass(row) {
+            if (!row?.resolution_due_at || this.isTerminalStatus(row.status)) return 'sla-done';
+            return new Date(row.resolution_due_at).getTime() < Date.now() ? 'sla-overdue' : 'sla-on-time';
+        },
         formatFileSize(value) {
             return value
                 ? `${Math.max(1, Math.round(value / 1024))} KB`
@@ -682,6 +702,17 @@ export default {
   flex-direction: column;
   gap: 20px;
 }
+
+.sla-cell {
+  display: inline-flex;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sla-on-time { color: #166534; }
+.sla-overdue { color: #b91c1c; }
+.sla-done { color: #64748b; }
 
 .notice {
   padding: 12px 16px;

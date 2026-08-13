@@ -22,48 +22,23 @@
         </p>
 
         <form class="complaint-form" @submit.prevent="submit">
-          <fieldset class="type-list">
-            <legend>Vấn đề liên quan</legend>
-            <label class="type-option" :class="{ selected: form.complaint_type === 'system' }">
-              <input v-model="form.complaint_type" type="radio" value="system" required />
-              <span>
-                <strong>Hệ thống SportGo</strong>
-                <small>Tài khoản, thanh toán hoặc lỗi sử dụng hệ thống.</small>
-              </span>
-            </label>
-            <label class="type-option" :class="{ selected: form.complaint_type === 'venue' }">
-              <input v-model="form.complaint_type" type="radio" value="venue" required />
-              <span>
-                <strong>Sân hoặc đơn vị vận hành</strong>
-                <small>Chất lượng dịch vụ, nhân viên hoặc thông tin lịch sân.</small>
-              </span>
-            </label>
-          </fieldset>
+          <p class="modal-description">Khiếu nại dịch vụ chỉ được gửi từ booking đang hoạt động tại sân.</p>
 
-          <template v-if="form.complaint_type === 'venue'">
+          <template>
             <label class="field-block">
-              <span>Lịch đặt sân liên quan <small>Không bắt buộc</small></span>
+              <span>Lịch đặt sân liên quan <small>Bắt buộc</small></span>
               <select v-model="form.booking_id" class="field-control" @change="onBookingChange">
-                <option value="">Không gắn với lịch đặt cụ thể</option>
+                <option value="" disabled>Chọn booking đang hoạt động</option>
                 <option v-for="booking in recentBookings" :key="booking.id" :value="booking.id">
                   {{ bookingOptionLabel(booking) }}
                 </option>
               </select>
             </label>
 
-            <label v-if="!form.booking_id" class="field-block">
-              <span>Cụm sân <small>Bắt buộc</small></span>
-              <select v-model="form.venue_cluster_id" class="field-control" required>
-                <option value="" disabled>Chọn cụm sân cần khiếu nại</option>
-                <option v-for="cluster in availableVenueClusters" :key="cluster.id" :value="cluster.id">
-                  {{ cluster.name }}
-                </option>
-              </select>
-              <small v-if="bookingsLoading" class="field-hint">Đang tải các sân từ lịch đặt gần đây...</small>
-              <small v-else-if="!availableVenueClusters.length" class="field-hint">
-                Chưa có cụm sân phù hợp trong lịch đặt của bạn.
-              </small>
-            </label>
+            <small v-if="bookingsLoading" class="field-hint">Đang tải booking đủ điều kiện...</small>
+            <small v-else-if="!recentBookings.length" class="field-hint">
+              Hiện chưa có booking trong thời gian tiếp nhận khiếu nại.
+            </small>
           </template>
 
           <label class="field-block">
@@ -127,7 +102,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success']);
 const form = reactive({
-  complaint_type: 'system',
+  complaint_type: 'venue',
   venue_cluster_id: '',
   booking_id: '',
   content: '',
@@ -155,13 +130,12 @@ const availableVenueClusters = computed(() => {
   return Array.from(clusters.values());
 });
 
-const isValid = computed(() => {
-  if (!form.content || !form.complaint_type) return false;
-  return form.complaint_type !== 'venue' || Boolean(form.venue_cluster_id);
-});
+const isValid = computed(() => Boolean(
+  form.content && form.complaint_type === 'venue' && form.booking_id && form.venue_cluster_id
+));
 
 function applyInitialContext() {
-  form.complaint_type = props.initialType === 'venue' ? 'venue' : 'system';
+  form.complaint_type = 'venue';
   form.venue_cluster_id = props.initialVenueId ? String(props.initialVenueId) : '';
   form.booking_id = props.initialBookingId ? String(props.initialBookingId) : '';
 }
@@ -169,8 +143,11 @@ function applyInitialContext() {
 async function fetchBookings() {
   bookingsLoading.value = true;
   try {
-    const response = await api('/api/bookings?per_page=50');
+    const response = await api('/api/complaints/eligible-bookings', { cache: 'no-store', dedupe: false });
     recentBookings.value = Array.isArray(response.data) ? response.data : [];
+    if (!form.booking_id && recentBookings.value.length) {
+      form.booking_id = String(recentBookings.value[0].id);
+    }
     if (form.booking_id) onBookingChange();
   } catch (error) {
     recentBookings.value = [];
@@ -248,15 +225,18 @@ async function submit() {
   errorMsg.value = '';
   try {
     const payload = new FormData();
-    payload.append('complaint_type', form.complaint_type);
+    payload.append('complaint_type', 'venue');
     payload.append('content', form.content);
-    if (form.complaint_type === 'venue') {
-      payload.append('venue_cluster_id', String(form.venue_cluster_id));
-      if (form.booking_id) payload.append('booking_id', String(form.booking_id));
-    }
+    payload.append('venue_cluster_id', String(form.venue_cluster_id));
+    payload.append('booking_id', String(form.booking_id));
     if (form.imageFile) payload.append('evidence_image', form.imageFile);
 
-    const response = await apiFormData('/api/complaints', payload);
+    const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const response = await apiFormData('/api/complaints', payload, {
+      headers: { 'Idempotency-Key': idempotencyKey }
+    });
     emit('success', response);
     reset();
     emit('close');
@@ -266,15 +246,6 @@ async function submit() {
     isSubmitting.value = false;
   }
 }
-
-watch(() => form.complaint_type, (type) => {
-  if (type === 'system') {
-    form.booking_id = '';
-    form.venue_cluster_id = '';
-  } else if (props.initialVenueId && !form.venue_cluster_id) {
-    form.venue_cluster_id = String(props.initialVenueId);
-  }
-});
 
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
@@ -287,4 +258,3 @@ watch(() => props.isOpen, (isOpen) => {
 
 onBeforeUnmount(revokePreview);
 </script>
-

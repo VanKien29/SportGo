@@ -38,6 +38,7 @@
                 <th>Nội dung khiếu nại</th>
                 <th>Cụm sân / Booking</th>
                 <th>Trạng thái</th>
+                <th>SLA</th>
                 <th>Ngày tạo</th>
                 <th class="action-col">Thao tác</th>
               </tr>
@@ -64,6 +65,9 @@
                   <span class="status-pill" :class="getStatusClass(complaint.status)">
                     {{ getStatusLabel(complaint.status) }}
                   </span>
+                </td>
+                <td>
+                  <small class="cell-sub" :class="slaClass(complaint)">{{ slaLabel(complaint) }}</small>
                 </td>
                 <td>
                   <small class="cell-sub">{{ formatDate(complaint.created_at) }}</small>
@@ -208,6 +212,19 @@ const getStatusClass = (status) => {
   return map[status] || 'closed';
 };
 
+const slaLabel = (complaint) => {
+  if (!complaint?.resolution_due_at || ['resolved', 'rejected', 'closed'].includes(complaint.status)) return 'Đã chốt';
+  const diff = new Date(complaint.resolution_due_at).getTime() - Date.now();
+  if (diff < 0) return 'Quá hạn xử lý';
+  const hours = Math.max(1, Math.ceil(diff / 3600000));
+  return hours < 24 ? `Còn ${hours} giờ` : `Còn ${Math.ceil(hours / 24)} ngày`;
+};
+
+const slaClass = (complaint) => {
+  if (!complaint?.resolution_due_at || ['resolved', 'rejected', 'closed'].includes(complaint.status)) return 'sla-done';
+  return new Date(complaint.resolution_due_at).getTime() < Date.now() ? 'sla-overdue' : 'sla-on-time';
+};
+
 const getComplaintTypeLabel = (type) => {
   const map = {
     venue: 'Về sân bãi',
@@ -226,6 +243,10 @@ const getComplaintTypeLabel = (type) => {
   flex-direction: column;
   gap: 16px;
 }
+
+.sla-on-time { color: #166534; }
+.sla-overdue { color: #b91c1c; font-weight: 600; }
+.sla-done { color: #64748b; }
 
 /* Single unified main surface */
 .complaints-header-hero {

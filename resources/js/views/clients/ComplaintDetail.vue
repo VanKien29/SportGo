@@ -104,13 +104,25 @@
                       v-model.trim="replyContent"
                       rows="4"
                       maxlength="4000"
-                      placeholder="Nhập nội dung trao đổi thêm với bộ phận hỗ trợ..."
+                      placeholder="Nhập nội dung trao đổi thêm hoặc để trống nếu chỉ bổ sung ảnh..."
                       :disabled="sending"
                       class="cp-reply-textarea"
                     ></textarea>
+                    <input
+                      ref="replyEvidenceInput"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      :disabled="sending"
+                      @change="selectReplyEvidence"
+                    />
+                    <small class="cp-help-text">Tối đa 5 ảnh cho toàn bộ khiếu nại, mỗi ảnh 5MB.</small>
+                    <div v-if="replyEvidenceFiles.length" class="cp-reply-files">
+                      <span v-for="file in replyEvidenceFiles" :key="file.name + file.size">{{ file.name }}</span>
+                    </div>
                     <p v-if="replyError" class="cp-error-msg">{{ replyError }}</p>
                     <div class="cp-reply-btn-row">
-                      <button type="submit" class="w2-btn w2-btn--primary" :disabled="sending || replyContent.length < 2">
+                      <button type="submit" class="w2-btn w2-btn--primary" :disabled="sending || (!replyContent.length && !replyEvidenceFiles.length)">
                         <AppIcon name="send" :size="15" /> {{ sending ? 'Đang gửi...' : 'Gửi phản hồi' }}
                       </button>
                     </div>
@@ -184,7 +196,8 @@ export default {
       error: '',
       replyContent: '',
       replyError: '',
-      sending: false
+      sending: false,
+      replyEvidenceFiles: []
     };
   },
   computed: {
@@ -212,17 +225,41 @@ export default {
     },
     async submitReply() {
       this.replyError = '';
+      if (!this.replyContent.length && !this.replyEvidenceFiles.length) {
+        this.replyError = 'Vui lòng nhập nội dung hoặc chọn ảnh bổ sung.';
+        return;
+      }
       this.sending = true;
       try {
-        const response = await complaintService.reply(this.complaint.id, this.replyContent);
+        const response = await complaintService.reply(this.complaint.id, this.replyContent, this.replyEvidenceFiles);
         this.timeline.push(response.data);
         this.replyContent = '';
+        this.replyEvidenceFiles = [];
+        if (this.$refs.replyEvidenceInput) this.$refs.replyEvidenceInput.value = '';
         this.complaint.status = 'processing';
       } catch (error) {
         this.replyError = error.message || 'Không thể gửi phản hồi.';
       } finally {
         this.sending = false;
       }
+    },
+    selectReplyEvidence(event) {
+      const files = Array.from(event.target.files || []);
+      if (this.replyEvidenceFiles.length + files.length > 5) {
+        this.replyError = 'Chỉ được đính kèm tối đa 5 ảnh cho một khiếu nại.';
+        return;
+      }
+      if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+        this.replyError = 'Mỗi ảnh minh chứng không được vượt quá 5MB.';
+        return;
+      }
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      if (totalSize > 20 * 1024 * 1024) {
+        this.replyError = 'Tổng dung lượng ảnh minh chứng không được vượt quá 20MB.';
+        return;
+      }
+      this.replyEvidenceFiles = files;
+      this.replyError = '';
     },
     typeLabel(type) {
       return type === 'venue' ? 'Khiếu nại cụm sân' : 'Khiếu nại hệ thống';
@@ -496,6 +533,25 @@ export default {
 .cp-reply-textarea:focus {
   outline: none;
   border-color: #15803d;
+}
+
+.cp-help-text {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.cp-reply-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.cp-reply-files span {
+  padding: 4px 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
 }
 
 .cp-reply-btn-row {

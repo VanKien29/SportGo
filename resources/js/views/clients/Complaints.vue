@@ -13,7 +13,7 @@
             <div>
               <p class="sg3-kicker">Trung tâm hỗ trợ</p>
               <h1 class="page-head-title">Khiếu nại của tôi</h1>
-              <p class="page-head-desc">Theo dõi yêu cầu và trao đổi với ban quản trị SportGo hoặc chủ sân.</p>
+              <p class="page-head-desc">Theo dõi khiếu nại dịch vụ từ các booking và trao đổi với chủ sân.</p>
             </div>
             <router-link class="w2-btn w2-btn--primary" :to="{ name:'client-complaint-create' }">
               <span>Gửi khiếu nại mới</span>
@@ -43,7 +43,7 @@
             <div v-if="!complaints.length" class="sg3-empty sg3-empty--inline">
               <div>
                 <strong>Bạn chưa gửi khiếu nại nào</strong>
-                <p>Nếu gặp sự cố thanh toán hoặc sân bãi, hãy gửi khiếu nại để được xử lý nhanh nhất.</p>
+                <p>Nếu gặp sự cố tại sân trong thời gian booking, hãy gửi khiếu nại để được xử lý nhanh nhất.</p>
                 <router-link class="w2-btn w2-btn--outline" to="/bookings">Xem đơn đặt sân</router-link>
               </div>
             </div>
@@ -128,7 +128,7 @@ export default {
       this.load();
     },
     typeLabel(type) {
-      return type === "venue" ? "Khiếu nại cụm sân" : "Khiếu nại hệ thống";
+      return type === "venue" ? "Khiếu nại dịch vụ sân" : "Khiếu nại";
     },
     statusLabel(status) {
       return (
