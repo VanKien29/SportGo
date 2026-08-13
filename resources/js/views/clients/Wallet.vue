@@ -8,11 +8,21 @@
         <!-- LEFT SIDEBAR NAVIGATION -->
         <ClientAccountNav />
 
-        <!-- RIGHT PAGE CONTENT -->
-        <div v-if="loading" class="w2-state-card w2-loading">
-          <div class="w2-spinner"></div>
-          <div>
-            <span>Đang tải thông tin Ví SportGo...</span>
+        <!-- SKELETON LOADING STATE -->
+        <div v-if="loading" class="w2-skeleton-wrapper">
+          <div class="w2-sk-hero">
+            <div class="w2-sk-line w2-sk-title"></div>
+            <div class="w2-sk-line w2-sk-amount"></div>
+            <div class="w2-sk-line w2-sk-sub"></div>
+          </div>
+          <div class="w2-sk-ledger">
+            <div v-for="n in 3" :key="n" class="w2-sk-row">
+              <div class="w2-sk-circle"></div>
+              <div class="w2-sk-col">
+                <div class="w2-sk-line w2-sk-text1"></div>
+                <div class="w2-sk-line w2-sk-text2"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -29,77 +39,81 @@
         <div v-else class="w2-white-content">
         <!-- TOP BALANCE BANNER ON PURE WHITE -->
         <section class="w2-white-hero">
-          <div class="w2-hero-info">
-            <div class="w2-balance-caption">
-              <span>SỐ DƯ KHẢ DỤNG</span>
-              <button
-                type="button"
-                class="w2-eye-btn"
-                :title="showBalance ? 'Ẩn số dư' : 'Hiện số dư'"
-                @click="showBalance = !showBalance"
-              >
-                {{ showBalance ? "[Ẩn số dư]" : "[Hiện số dư]" }}
-              </button>
+          <div class="w2-hero-top">
+            <div class="w2-hero-main-group">
+              <div class="w2-balance-caption">
+                <span class="w2-caption-text">SỐ DƯ KHẢ DỤNG</span>
+                <button
+                  type="button"
+                  class="w2-icon-btn"
+                  :title="showBalance ? 'Ẩn số dư' : 'Hiện số dư'"
+                  @click="showBalance = !showBalance"
+                >
+                  <svg v-if="showBalance" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="w2-balance-val">
+                <template v-if="showBalance">
+                  {{ money(wallet.balance) }}
+                </template>
+                <template v-else>
+                  •••••••• VNĐ
+                </template>
+              </div>
             </div>
 
-            <div class="w2-balance-val">
-              <template v-if="showBalance">
-                {{ money(wallet.balance) }}
-              </template>
-              <template v-else>
-                •••••••• VNĐ
-              </template>
-            </div>
-
-            <div class="w2-metrics-line">
-              <span class="w2-metric-sub">Tạm khóa: {{ money(wallet.locked_balance) }}</span>
-              <span class="w2-sep">•</span>
-              <span class="w2-metric-sub">Tổng giao dịch: {{ ledgers.length }}</span>
-              <span class="w2-sep">•</span>
-              <span class="w2-metric-sub">Mã ví: #SPG-WLT-{{ wallet.id || 'CLIENT' }}</span>
+            <div class="w2-hero-actions">
               <button
                 type="button"
-                class="w2-copy-link"
-                @click="copyText(`SPG-WLT-${wallet.id || 'CLIENT'}`, 'Mã ví')"
+                class="w2-btn w2-btn--primary"
+                @click="openDepositModal"
               >
-                [Sao chép]
+                Nạp tiền VietQR
               </button>
+
+              <button
+                type="button"
+                class="w2-btn w2-btn--outline"
+                :disabled="!wallet || wallet.balance <= 0"
+                @click="openWithdrawModal"
+              >
+                Rút tiền ngân hàng
+              </button>
+
+              <router-link to="/refunds" class="w2-btn w2-btn--outline">
+                Lịch sử hoàn tiền
+              </router-link>
             </div>
           </div>
 
-          <div class="w2-hero-illustration">
-            <!-- FLAT VECTOR SVG ILLUSTRATION MATCHING PROFILE / SITE ESTHETIC -->
-            <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="12" width="100" height="56" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" />
-              <rect x="22" y="26" width="18" height="12" rx="2" fill="#15803d" opacity="0.85" />
-              <line x1="22" y1="32" x2="40" y2="32" stroke="#ffffff" stroke-width="1" />
-              <rect x="10" y="20" width="100" height="6" fill="#0f172a" opacity="0.08" />
-              <circle cx="92" cy="48" r="9" fill="#15803d" />
-              <path d="M88 48L91 51L96 45" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </div>
+          <!-- METRICS INFO INLINE ROW -->
+          <div class="w2-metrics-inline-row">
+            <div class="w2-meta-item">
+              <span class="w2-meta-label">Tạm khóa:</span>
+              <span class="w2-meta-val">{{ money(wallet.locked_balance) }}</span>
+            </div>
 
-          <div class="w2-hero-actions">
-            <button
-              type="button"
-              class="w2-btn w2-btn--primary"
-              @click="openDepositModal"
-            >
-              + Nạp tiền VietQR
-            </button>
+            <span class="w2-meta-divider">/</span>
 
-            <button
-              type="button"
-              class="w2-btn w2-btn--outline"
-              :disabled="!wallet || wallet.balance <= 0"
-              @click="openWithdrawModal"
-            >
-              Rút tiền ngân hàng
-            </button>
+            <div class="w2-meta-item">
+              <span class="w2-meta-label">Tổng giao dịch:</span>
+              <span class="w2-meta-val">{{ ledgers.length }}</span>
+            </div>
 
-            <router-link to="/refunds" class="w2-link-item">
-              Lịch sử hoàn tiền
-            </router-link>
+            <span class="w2-meta-divider">/</span>
+
+            <div class="w2-meta-item">
+              <span class="w2-meta-label">Mã ví:</span>
+              <span class="w2-meta-val font-mono">#SPG-WLT-{{ wallet.id || 'CLIENT' }}</span>
+            </div>
           </div>
         </section>
 
@@ -142,13 +156,13 @@
           <!-- SUMMARY BAR FOR FILTERED LEDGERS -->
           <div v-if="filteredLedgers.length > 0" class="w2-summary-bar">
             <div class="w2-sum-col">
-              <span>Tổng phát sinh tăng (+):</span>
-              <span class="is-credit">+{{ money(totalCredit) }}</span>
+              <span>Tổng phát sinh tăng:</span>
+              <span class="is-credit">{{ money(totalCredit) }}</span>
             </div>
             <div class="w2-sum-divider">|</div>
             <div class="w2-sum-col">
-              <span>Tổng phát sinh giảm (-):</span>
-              <span class="is-debit">-{{ money(totalDebit) }}</span>
+              <span>Tổng phát sinh giảm:</span>
+              <span class="is-debit">{{ money(totalDebit) }}</span>
             </div>
           </div>
 
@@ -160,7 +174,7 @@
                 <line x1="20" y1="18" x2="60" y2="18" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" />
                 <line x1="20" y1="28" x2="45" y2="28" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round" />
                 <circle cx="40" cy="42" r="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
-                <path d="M36 42H44M40 38V46" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" />
+                <circle cx="40" cy="42" r="4" fill="#94a3b8" />
               </svg>
             </div>
             <span class="w2-empty-title">Chưa phát sinh giao dịch nào</span>
@@ -185,11 +199,14 @@
                     Mã GD: {{ item.transaction_code }}
                     <button
                       type="button"
-                      class="w2-tx-copy-btn"
+                      class="w2-icon-btn"
                       title="Sao chép mã giao dịch"
                       @click="copyText(item.transaction_code, 'Mã giao dịch')"
                     >
-                      [Sao chép]
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
                     </button>
                   </span>
                   <span class="w2-tx-date">{{ formatDate(item.created_at) }}</span>
@@ -198,7 +215,7 @@
 
               <div class="w2-tx-amount-block" :class="item.direction">
                 <span class="w2-tx-amount">
-                  {{ item.direction === 'credit' ? '+' : '-' }}{{ money(item.amount) }}
+                  {{ money(item.amount) }}
                 </span>
                 <span class="w2-tx-balance-after">
                   Số dư sau GD: {{ money(item.balance_after) }}
@@ -489,10 +506,10 @@ export default {
 
       return [
         { value: "all", label: "Tất cả", count: counts.all },
-        { value: "deposit", label: "Nạp tiền (+)", count: counts.deposit },
-        { value: "payment", label: "Thanh toán (-)", count: counts.payment },
-        { value: "refund", label: "Hoàn tiền (+)", count: counts.refund },
-        { value: "withdrawal", label: "Rút tiền (-)", count: counts.withdrawal },
+        { value: "deposit", label: "Nạp tiền", count: counts.deposit },
+        { value: "payment", label: "Thanh toán", count: counts.payment },
+        { value: "refund", label: "Hoàn tiền", count: counts.refund },
+        { value: "withdrawal", label: "Rút tiền", count: counts.withdrawal },
       ];
     },
 
@@ -700,79 +717,95 @@ export default {
 /* TOP HERO BANNER ON PURE WHITE */
 .w2-white-hero {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 0 16px;
+}
+
+.w2-hero-top {
+  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  padding: 24px 0 28px;
-  border-bottom: 1px solid #f1f5f9;
   gap: 24px;
   flex-wrap: wrap;
 }
 
-.w2-hero-info {
+.w2-hero-main-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-width: 280px;
+  gap: 6px;
 }
 
 .w2-balance-caption {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.w2-caption-text {
   font-size: 12px;
   color: #475569;
   letter-spacing: 0.05em;
 }
 
-.w2-eye-btn {
-  background: transparent;
-  border: none;
-  color: #0f172a;
-  cursor: pointer;
-  padding: 0;
-  font-size: 12px;
-  text-decoration: underline;
-}
-
 .w2-balance-val {
-  font-size: 32px;
+  font-size: 36px;
   color: #0f172a;
-  line-height: 1.2;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
-.w2-metrics-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13.5px;
-  color: #334155;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-
-.w2-metric-sub {
-  color: #334155;
-}
-
-.w2-sep {
-  color: #cbd5e1;
-}
-
-.w2-copy-link {
-  background: transparent;
-  border: none;
-  color: #0f172a;
-  cursor: pointer;
-  padding: 0;
-  font-size: 12px;
-  text-decoration: underline;
-}
-
-.w2-hero-illustration {
-  display: flex;
+.w2-icon-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.w2-icon-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.w2-metrics-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.w2-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: #334155;
+  background: transparent;
+  border: none;
+}
+
+.w2-meta-label {
+  color: #64748b;
+}
+
+.w2-meta-val {
+  color: #0f172a;
+}
+
+.w2-meta-divider {
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.font-mono {
+  font-family: monospace;
 }
 
 .w2-hero-actions {
@@ -830,8 +863,77 @@ export default {
   cursor: not-allowed;
 }
 
+/* SKELETON LOADING STATE */
+.w2-skeleton-wrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-top: 8px;
+}
+
+.w2-sk-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.w2-sk-line {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: w2SkShimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.w2-sk-title { width: 140px; height: 14px; }
+.w2-sk-amount { width: 220px; height: 36px; }
+.w2-sk-sub { width: 320px; height: 14px; }
+
+.w2-sk-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.w2-sk-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.w2-sk-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: w2SkShimmer 1.5s infinite;
+}
+
+.w2-sk-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.w2-sk-text1 { width: 45%; height: 16px; }
+.w2-sk-text2 { width: 28%; height: 12px; }
+
+@keyframes w2SkShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* STATE CARDS */
 .w2-state-card {
+  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -839,10 +941,9 @@ export default {
   text-align: center;
   padding: 48px 24px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
   gap: 16px;
-  margin-top: 24px;
   color: #0f172a;
 }
 
@@ -878,8 +979,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 0 16px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 0 12px;
   flex-wrap: wrap;
 }
 
@@ -957,8 +1057,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 12px 0;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 0;
   font-size: 13.5px;
   color: #0f172a;
 }
@@ -1004,9 +1103,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0;
+  padding: 14px 0;
   gap: 16px;
-  border-bottom: 1px solid #f1f5f9;
   transition: background 0.15s ease;
 }
 

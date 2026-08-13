@@ -94,7 +94,9 @@ class ComplaintController extends Controller
             'venue_cluster_id' => ['required_if:complaint_type,venue', 'nullable', 'exists:venue_clusters,id'],
             'booking_id' => ['nullable', 'string', 'exists:bookings,id'],
             'content' => ['required', 'string', 'max:2000'],
-            'evidence_image' => ['nullable', 'image', 'max:5120'], // max 5MB
+            'evidence_images' => ['nullable', 'array', 'max:5'],
+            'evidence_images.*' => ['image', 'max:5120'], // max 5MB per image
+            'evidence_image' => ['nullable', 'image', 'max:5120'], // backward compatibility
         ]);
 
         $booking = null;
@@ -122,27 +124,40 @@ class ComplaintController extends Controller
             'status' => 'open',
         ]);
 
-        if ($request->hasFile('evidence_image')) {
-            $thumbnail = $request->file('evidence_image');
-            $manager = ImageManager::usingDriver(new Driver());
-            $image = $manager->decodePath($thumbnail->getPathname());
-            
-            $filename = uniqid('complaint_', true) . '.webp';
-            $path = 'complaints/' . $filename;
-            
-            if (!Storage::disk('public')->exists('complaints')) {
+        $imagesToProcess = [];
+        if ($request->hasFile('evidence_images')) {
+            $imagesToProcess = $request->file('evidence_images');
+        } elseif ($request->hasFile('evidence_image')) {
+            $imagesToProcess = [$request->file('evidence_image')];
+        }
+
+        if (! empty($imagesToProcess)) {
+            if (! Storage::disk('public')->exists('complaints')) {
                 Storage::disk('public')->makeDirectory('complaints');
             }
-            
-            $image->save(storage_path('app/public/' . $path), 80);
 
-            $complaint->evidence()->create([
-                'collection' => 'evidence_image',
-                'file_name' => $thumbnail->getClientOriginalName() . '.webp',
-                'file_path' => $path,
-                'mime_type' => 'image/webp',
-                'file_size' => filesize(storage_path('app/public/' . $path)),
-            ]);
+            $manager = ImageManager::usingDriver(new Driver());
+
+            foreach (array_slice($imagesToProcess, 0, 5) as $index => $thumbnail) {
+                if (! $thumbnail->isValid()) {
+                    continue;
+                }
+
+                $image = $manager->decodePath($thumbnail->getPathname());
+                $filename = uniqid('complaint_' . ($index + 1) . '_', true) . '.webp';
+                $path = 'complaints/' . $filename;
+
+                $image->save(storage_path('app/public/' . $path), 80);
+
+                $complaint->evidence()->create([
+                    'collection' => 'complaint_evidence',
+                    'file_name' => $thumbnail->getClientOriginalName(),
+                    'file_path' => Storage::url($path),
+                    'mime_type' => 'image/webp',
+                    'file_size' => filesize(storage_path('app/public/' . $path)),
+                    'sort_order' => $index,
+                ]);
+            }
         }
 
         if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
