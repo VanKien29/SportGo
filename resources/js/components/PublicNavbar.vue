@@ -16,6 +16,8 @@
           <router-link to="/news" class="alb-nav-link" active-class="active-link">Tin tức</router-link>
           <router-link to="/community" class="alb-nav-link" active-class="active-link">Cộng đồng</router-link>
           <router-link to="/offers" class="alb-nav-link" active-class="active-link">Ưu đãi</router-link>
+          <router-link to="/about" class="alb-nav-link" active-class="active-link">Về chúng tôi</router-link>
+          <router-link to="/contact" class="alb-nav-link" active-class="active-link">Liên hệ</router-link>
           <router-link to="/become-partner" class="alb-btn-owner">
             <span>Đăng ký Chủ sân</span>
           </router-link>
@@ -23,6 +25,11 @@
 
         <!-- User Actions -->
         <div style="display: flex; align-items: center; gap: 16px;">
+          <!-- Messaging / Chat Link -->
+          <router-link v-if="user" to="/chat" class="sg3-icon-button" style="text-decoration: none;" title="Hộp thư tin nhắn">
+            <span style="font-size: 13px; font-weight: 500; color: #111827;">Tin nhắn</span>
+          </router-link>
+
           <!-- Notification Bell Link -->
           <div v-if="user" class="sg3-menu-wrap sg3-notifications">
             <button type="button" class="sg3-icon-button" aria-label="Mở thông báo" @click.stop="toggleNotifDropdown">

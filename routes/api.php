@@ -590,6 +590,7 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/cancel/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelPreview']);
+        Route::post('/bookings/{id}/services', [\App\Http\Controllers\Api\Player\BookingController::class, 'addServices']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
 

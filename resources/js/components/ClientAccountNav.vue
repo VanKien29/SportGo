@@ -1,16 +1,21 @@
 <template>
-  <nav class="an-nav" aria-label="Điều hướng tài khoản">
-    <router-link
-      v-for="item in items"
-      :key="item.key"
-      :to="item.to"
-      class="an-link"
-      :class="{ active: isActive(item.key) }"
-      :aria-current="isActive(item.key) ? 'page' : undefined"
-    >
-      <span>{{ item.label }}</span>
-    </router-link>
-  </nav>
+  <aside class="an-sidebar" aria-label="Điều hướng tài khoản">
+    <div class="an-sidebar-header">
+      <span class="an-sidebar-title">QUẢN LÝ TÀI KHOẢN</span>
+    </div>
+    <nav class="an-sidebar-menu">
+      <router-link
+        v-for="item in items"
+        :key="item.key"
+        :to="item.to"
+        class="an-link"
+        :class="{ active: isActive(item.key) }"
+        :aria-current="isActive(item.key) ? 'page' : undefined"
+      >
+        <span>{{ item.label }}</span>
+      </router-link>
+    </nav>
+  </aside>
 </template>
 
 <script setup>
@@ -63,34 +68,82 @@ function isActive(key) {
 </script>
 
 <style scoped>
-.an-nav {
+.an-sidebar {
+  width: 220px;
+  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 24px;
-  overflow-x: auto;
+  flex-direction: column;
+  gap: 12px;
+  background: #ffffff;
+  padding-right: 16px;
+  border-right: 1px solid #f1f5f9;
+}
+
+.an-sidebar-header {
+  padding: 4px 10px;
+}
+
+.an-sidebar-title {
+  font-size: 11px;
+  color: #475569;
+  letter-spacing: 0.06em;
+  font-weight: 400 !important;
+}
+
+.an-sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .an-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  padding: 8px 14px;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #1e293b;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 400 !important;
+  color: #334155;
   text-decoration: none;
-  border: none;
-  white-space: nowrap;
+  border-radius: 6px;
   transition: all 0.15s ease;
-  border-radius: 4px;
+  border-left: 3px solid transparent;
 }
 
 .an-link:hover {
   color: #0f172a;
+  background: #f8fafc;
 }
 
 .an-link.active {
-  color: #15803d;
-  font-weight: 500;
+  color: #0f172a;
+  background: #f1f5f9;
+  border-left-color: #0f172a;
+  font-weight: 400 !important;
+}
+
+@media (max-width: 768px) {
+  .an-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding-right: 0;
+    padding-bottom: 16px;
+  }
+
+  .an-sidebar-menu {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .an-link {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+
+  .an-link.active {
+    border-left: none;
+    border-bottom-color: #0f172a;
+  }
 }
 </style>

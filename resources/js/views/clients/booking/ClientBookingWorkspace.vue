@@ -36,7 +36,36 @@
         <div class="cbw-schedule-panel">
           <!-- CLEAN COMPACT TOOLBAR -->
           <div class="cbw-toolbar">
-            <!-- Loại sân -->
+            <!-- DATE SELECTOR (CUSTOM MINI CALENDAR PICKER) -->
+            <div class="cbw-date-selector">
+              <span class="cbw-date-lbl">Ngày chơi:</span>
+              <AdminDatePicker
+                :model-value="bookingDate"
+                placeholder="Chọn ngày chơi"
+                @update:model-value="onCustomDateSelect"
+              />
+              <div class="cbw-quick-dates">
+                <button
+                  type="button"
+                  class="cbw-quick-btn"
+                  :class="{ 'is-active': bookingDate === today }"
+                  @click="setDateQuick(today)"
+                >Hôm nay</button>
+                <button
+                  type="button"
+                  class="cbw-quick-btn"
+                  :class="{ 'is-active': bookingDate === tomorrow }"
+                  @click="setDateQuick(tomorrow)"
+                >Ngày mai</button>
+                <button
+                  type="button"
+                  class="cbw-quick-btn"
+                  :class="{ 'is-active': bookingDate === dayAfterTomorrow }"
+                  @click="setDateQuick(dayAfterTomorrow)"
+                >Ngày kia</button>
+              </div>
+            </div>
+
             <!-- CA CHƠI TABS (SÁNG / CHIỀU / TỐI) -->
             <div v-if="dynamicTimePeriods.length" class="cbw-period-tabs">
               <button
@@ -47,7 +76,7 @@
                 :class="{ 'is-active': activePeriodKey === period.key }"
                 @click="activePeriod = period.key"
               >
-                <strong>{{ period.label }}</strong>
+                <span>{{ period.label }}</span>
                 <span class="cbw-period-range">({{ period.range }})</span>
               </button>
             </div>
@@ -205,6 +234,34 @@
               </template>
             </div>
 
+            <!-- ADD-ON VENUE SERVICES -->
+            <div v-if="clusterServices && clusterServices.length" class="cbw-services-section">
+              <div class="cbw-divider"></div>
+              <p class="cbw-payment-title">Dịch vụ đi kèm tại sân (Không bắt buộc)</p>
+              <div class="cbw-services-list">
+                <div v-for="srv in clusterServices" :key="srv.id" class="cbw-service-item">
+                  <div class="cbw-srv-info">
+                    <strong class="cbw-srv-name">{{ srv.name }}</strong>
+                    <span class="cbw-srv-price">{{ money(srv.price) }} / {{ srv.unit || 'lượt' }}</span>
+                  </div>
+                  <div class="cbw-srv-qty">
+                    <button
+                      type="button"
+                      class="cbw-qty-btn"
+                      :disabled="!selectedServiceQty(srv.id)"
+                      @click="updateServiceQty(srv, -1)"
+                    >-</button>
+                    <span class="cbw-qty-val">{{ selectedServiceQty(srv.id) }}</span>
+                    <button
+                      type="button"
+                      class="cbw-qty-btn"
+                      @click="updateServiceQty(srv, 1)"
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- PAYMENT OPTIONS -->
             <div class="cbw-divider"></div>
             <div class="cbw-payment-section">
@@ -268,12 +325,13 @@
 
 <script>
 import PublicNavbar from "../../../components/PublicNavbar.vue";
+import AdminDatePicker from "../../../components/AdminDatePicker.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 
 export default {
   name: "ClientBookingWorkspace",
-  components: { PublicNavbar },
+  components: { PublicNavbar, AdminDatePicker },
   data() {
     return {
       steps: [
@@ -312,17 +370,34 @@ export default {
       submitting: false,
       submitError: "",
       routeSelection: null,
+      selectedServicesMap: {},
     };
   },
   computed: {
     today() {
       return new Date().toLocaleDateString("en-CA");
     },
+    tomorrow() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return d.toLocaleDateString("en-CA");
+    },
+    dayAfterTomorrow() {
+      const d = new Date();
+      d.setDate(d.getDate() + 2);
+      return d.toLocaleDateString("en-CA");
+    },
     isLoggedIn() {
       return Boolean(getAuth());
     },
     currentCluster() {
       return this.clusters.find(c => String(c.id) === String(this.clusterId)) || null;
+    },
+    clusterServices() {
+      return this.currentCluster?.services || [];
+    },
+    servicesTotal() {
+      return Object.values(this.selectedServicesMap).reduce((sum, item) => sum + (item.quantity * item.price), 0);
     },
     backTarget() {
       const r = String(this.$route.query.return_to || "");
@@ -542,7 +617,7 @@ export default {
       return this.venueVoucherDiscount + this.vipVoucherDiscount;
     },
     total() {
-      return Math.max(this.afterMembership - this.voucherDiscount, 0);
+      return Math.max(this.afterMembership - this.voucherDiscount, 0) + this.servicesTotal;
     },
     requiredAmount() {
       if (this.paymentOption === "full_payment" || this.paymentOption === "wallet") return this.total;
@@ -909,6 +984,42 @@ export default {
         await this.checkAvailability();
       }
     },
+    setDateQuick(d) {
+      this.bookingDate = d;
+      this.onDateChange();
+    },
+    async onCustomDateSelect(newDate) {
+      if (!newDate) return;
+      this.bookingDate = newDate;
+      await this.onDateChange();
+    },
+    async onDateChange() {
+      this.clearSelection();
+      await this.loadSchedule();
+    },
+    selectedServiceQty(serviceId) {
+      return this.selectedServicesMap[serviceId]?.quantity || 0;
+    },
+    updateServiceQty(srv, delta) {
+      const current = this.selectedServicesMap[srv.id]?.quantity || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        const copy = { ...this.selectedServicesMap };
+        delete copy[srv.id];
+        this.selectedServicesMap = copy;
+      } else {
+        this.selectedServicesMap = {
+          ...this.selectedServicesMap,
+          [srv.id]: {
+            service_id: srv.id,
+            name: srv.name,
+            price: Number(srv.price || 0),
+            unit: srv.unit || "lượt",
+            quantity: next,
+          },
+        };
+      }
+    },
     async submit() {
       if (!this.canSubmit) return;
       if (!getAuth()) {
@@ -925,12 +1036,18 @@ export default {
           end_time: r.end_time,
         }));
         const first = ranges[0];
+        const selectedServices = Object.values(this.selectedServicesMap).map(item => ({
+          service_id: item.service_id,
+          quantity: item.quantity
+        }));
+
         const booking = await bookingService.createBooking({
           venue_court_id: first.venue_court_id,
           booking_date: this.bookingDate,
           start_time: first.start_time,
           end_time: first.end_time,
           ...(ranges.length > 1 ? { time_ranges: ranges } : {}),
+          ...(selectedServices.length > 0 ? { selected_services: selectedServices } : {}),
           payment_option: this.paymentOption,
           venue_voucher_id: this.venueVoucher?.id || null,
           vip_voucher_id: this.vipVoucher?.id || null,
@@ -1007,21 +1124,21 @@ export default {
 </script>
 
 <style scoped>
+<style scoped>
 /* ===== BASE LAYOUT ===== */
 .cbw-page {
   min-height: 100vh;
-  background: #f8faf9;
+  background: #ffffff;
   color: #0f172a;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
-  overflow-x: hidden;
 }
 
 .cbw-main {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 28px 24px 80px;
-  overflow-x: hidden;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 24px 32px 60px !important;
 }
 
 /* ===== STEP PROGRESS INDICATOR ===== */
@@ -1029,13 +1146,13 @@ export default {
   display: flex;
   gap: 0;
   align-items: stretch;
-  padding: 0;
-  margin-bottom: 28px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  padding: 0 0 16px 0;
+  margin-bottom: 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .cbw-step {
@@ -1043,15 +1160,10 @@ export default {
   align-items: center;
   gap: 12px;
   flex: 1;
-  padding: 14px 20px;
-  opacity: 0.42;
-  transition: opacity 0.2s ease, background 0.2s ease;
-  border-right: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
   position: relative;
-}
-
-.cbw-step:last-child {
-  border-right: none;
 }
 
 .cbw-step.is-active,
@@ -1059,29 +1171,23 @@ export default {
   opacity: 1;
 }
 
-.cbw-step.is-active {
-  background: #f0fdf4;
-}
-
 .cbw-step-num {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #f1f5f9;
-  color: #64748b;
+  color: #475569;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.2s, color 0.2s;
 }
 
 .cbw-step.is-active .cbw-step-num {
-  background: #16a34a;
+  background: #15803d;
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
 }
 
 .cbw-step.is-done .cbw-step-num {
@@ -1096,14 +1202,14 @@ export default {
 }
 
 .cbw-step-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 500;
   color: #0f172a;
   line-height: 1.2;
 }
 
 .cbw-step-hint {
-  font-size: 11.5px;
+  font-size: 12px;
   color: #64748b;
   line-height: 1.3;
 }
@@ -1124,7 +1230,7 @@ export default {
   width: 32px;
   height: 32px;
   border: 3px solid #e2e8f0;
-  border-top-color: #16a34a;
+  border-top-color: #15803d;
   border-radius: 50%;
   animation: cbw-spin 0.75s linear infinite;
 }
@@ -1136,8 +1242,8 @@ export default {
 /* ===== WORKSPACE GRID LAYOUT ===== */
 .cbw-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 32px;
   align-items: start;
   min-width: 0;
 }
@@ -1146,140 +1252,116 @@ export default {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* ===== FILTERS TOOLBAR ===== */
-.cbw-filters {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.cbw-filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cbw-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.cbw-select,
-.cbw-input {
-  font-size: 13.5px;
-  color: #0f172a;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 9px 12px;
-  background: #ffffff;
-  outline: none;
-  width: 100%;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.cbw-select:focus,
-.cbw-input:focus {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
-}
-
-.cbw-select:disabled {
-  background: #f8fafc;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
-.cbw-date-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cbw-date-btn {
-  width: 36px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #374151;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease, border-color 0.15s;
-}
-
-.cbw-date-btn:hover {
-  background: #f0fdf4;
-  border-color: #16a34a;
-  color: #16a34a;
-}
-
 /* ===== CLEAN COMPACT TOOLBAR ===== */
 .cbw-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
+}
+
+.cbw-date-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cbw-date-lbl {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.cbw-date-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13.5px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  font-weight: 400;
+}
+
+.cbw-date-input:focus {
+  border-color: #15803d;
+}
+
+.cbw-quick-dates {
+  display: flex;
+  gap: 6px;
+}
+
+.cbw-quick-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cbw-quick-btn:hover {
+  border-color: #15803d;
+  color: #15803d;
+}
+
+.cbw-quick-btn.is-active {
+  background: #15803d;
+  color: #ffffff;
+  border-color: #15803d;
 }
 
 .cbw-period-tabs {
   display: flex;
   gap: 6px;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 10px;
 }
 
 .cbw-period-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 16px;
+  padding: 6px 14px;
   font-size: 13px;
-  color: #374151;
-  background: transparent;
-  border: none;
-  border-radius: 7px;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
   font-weight: 500;
+  transition: all 0.15s ease;
 }
 
 .cbw-period-btn:hover:not(.is-active) {
-  background: #e2e8f0;
+  border-color: #15803d;
+  color: #15803d;
 }
 
 .cbw-period-btn.is-active {
   color: #ffffff;
-  background: #16a34a;
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+  background: #15803d;
+  border-color: #15803d;
 }
 
 .cbw-period-range {
   font-size: 11.5px;
-  color: #6b7280;
+  opacity: 0.85;
   font-weight: 400;
-}
-
-.cbw-period-btn.is-active .cbw-period-range {
-  color: rgba(255,255,255,0.78);
 }
 
 /* ===== STATE MESSAGES ===== */
 .cbw-state-msg {
   text-align: center;
   padding: 50px 16px;
-  color: #374151;
+  color: #475569;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .cbw-state-msg--error {
@@ -1288,38 +1370,24 @@ export default {
 
 /* ===== MATRIX TABLE ===== */
 .cbw-schedule-panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  min-width: 0; /* Ngăn grid item tràn ra ngoài */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  min-width: 0;
   overflow: hidden;
 }
 
 .cbw-matrix-wrap {
   overflow-x: auto;
   overflow-y: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
   margin-bottom: 14px;
   max-height: 560px;
   width: 100%;
   max-width: 100%;
-}
-
-.cbw-matrix-wrap::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.cbw-matrix-wrap::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.cbw-matrix-wrap::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
 }
 
 .cbw-matrix {
@@ -1331,82 +1399,74 @@ export default {
 .cbw-th-corner {
   padding: 10px 14px;
   text-align: left;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #6b7280;
-  background: #f9fafb;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  background: #ffffff;
   white-space: nowrap;
-  min-width: 120px;
-  width: 120px;
   position: sticky;
   top: 0;
   left: 0;
   z-index: 3;
-  border-bottom: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
+  border-bottom: 2px solid #15803d;
+  border-right: 1px solid #f1f5f9;
 }
 
 .cbw-th-court {
   padding: 10px 14px;
   text-align: center;
-  background: #f9fafb;
-  min-width: 148px;
+  background: #ffffff;
+  min-width: 140px;
   white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 2;
-  border-bottom: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
+  border-bottom: 2px solid #15803d;
+  border-right: 1px solid #f1f5f9;
 }
 
 .cbw-th-court strong {
   display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: #111827;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
 }
 
 .cbw-th-court span {
   display: block;
-  font-size: 10.5px;
-  color: #9ca3af;
+  font-size: 11.5px;
+  color: #64748b;
   font-weight: 400;
-  white-space: nowrap;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .cbw-td-time {
   padding: 0 14px;
   font-size: 12.5px;
-  font-weight: 600;
-  color: #374151;
-  background: #f9fafb;
+  font-weight: 500;
+  color: #0f172a;
+  background: #ffffff;
   white-space: nowrap;
   position: sticky;
   left: 0;
   z-index: 1;
-  border-right: 2px solid #e5e7eb;
-  border-bottom: 1px solid #f3f4f6;
-  height: 48px;
+  border-right: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  height: 44px;
   vertical-align: middle;
-  letter-spacing: -0.01em;
 }
 
 .cbw-td-slot {
   padding: 4px;
   vertical-align: stretch;
-  border-bottom: 1px solid #f3f4f6;
-  border-right: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
 }
 
 .cbw-td-empty {
   padding: 40px 16px;
   text-align: center;
-  color: #6b7280;
+  color: #64748b;
   font-size: 13.5px;
   font-weight: 400;
 }
@@ -1415,62 +1475,63 @@ export default {
 .cbw-slot-btn {
   width: 100%;
   height: 100%;
-  min-height: 40px;
+  min-height: 38px;
   background: #ffffff;
-  border: 1.5px solid transparent;
-  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-  gap: 4px;
+  padding: 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #15803d;
+  transition: all 0.15s ease;
 }
 
 .cbw-slot-btn:hover:not(:disabled):not(.is-selected) {
-  background: #f0fdf4;
-  border-color: #86efac;
-  transform: scale(1.02);
+  border-color: #15803d;
+  background: #ffffff;
 }
 
 .cbw-slot-btn.is-selected {
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  background: #15803d;
   border-color: #15803d;
   color: #ffffff;
-  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.35);
+  font-weight: 500;
 }
 
 .cbw-slot-btn.is-booked,
 .cbw-slot-btn.is-past {
-  background: #f9fafb;
-  border-color: transparent;
+  background: #ffffff;
+  border-color: #f1f5f9;
+  color: #cbd5e1;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-locked {
-  background: #fef2f2;
-  border-color: transparent;
+  background: #ffffff;
+  border-color: #fecaca;
+  color: #ef4444;
   cursor: not-allowed;
 }
 
 .cbw-slot-label {
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: #ffffff;
-  letter-spacing: 0.01em;
 }
 
 .cbw-slot-price {
   font-size: 12px;
-  font-weight: 700;
-  color: #16a34a;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  color: #15803d;
 }
 
 .cbw-slot-disabled-text {
-  font-size: 11px;
-  color: #9ca3af;
+  font-size: 11.5px;
+  color: #cbd5e1;
   font-weight: 400;
 }
 
@@ -1490,67 +1551,17 @@ export default {
   border-radius: 10px;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 14px;
-}
-
-.cbw-sel-bar--error {
-  background: #fef2f2;
-  border-color: #fecaca;
-}
-
-.cbw-sel-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cbw-sel-info strong {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #15803d;
-}
-
-.cbw-sel-bar--error .cbw-sel-info strong {
-  color: #dc2626;
-}
-
-.cbw-sel-info span {
-  font-size: 12.5px;
-  color: #374151;
-}
-
-.cbw-sel-actions {
-  display: flex;
-  align-items: center;
-}
-
-.cbw-clear-btn {
-  font-size: 12.5px;
-  color: #ef4444;
-  background: transparent;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 5px 12px;
-  font-weight: 500;
-  transition: background 0.15s, color 0.15s;
-}
-
-.cbw-clear-btn:hover {
-  background: #fef2f2;
-}
-
-/* ===== RIGHT SUMMARY PANEL ===== */
+ /* ===== RIGHT SUMMARY PANEL ===== */
 .cbw-summary-panel {
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 24px;
-  background: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 20px;
+  background: #f8fafc;
   position: sticky;
   top: 24px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  box-shadow: none;
 }
 
 .cbw-summary-header {
@@ -1559,36 +1570,33 @@ export default {
 
 .cbw-summary-label {
   display: inline-block;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #16a34a;
-  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 500;
+  color: #15803d;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  padding: 3px 9px;
-  margin-bottom: 8px;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 4px;
 }
 
 .cbw-summary-title {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: #0f172a;
   margin: 0 0 4px;
-  letter-spacing: -0.02em;
 }
 
 .cbw-summary-sub {
   font-size: 12.5px;
-  color: #6b7280;
+  color: #475569;
   margin: 0;
   line-height: 1.5;
 }
 
 .cbw-divider {
   height: 1px;
-  background: #f1f5f9;
+  background: #e2e8f0;
   margin: 16px 0;
 }
 
@@ -1608,13 +1616,13 @@ export default {
 }
 
 .cbw-fact-row span {
-  color: #6b7280;
+  color: #475569;
   flex-shrink: 0;
 }
 
 .cbw-fact-row strong {
-  color: #111827;
-  font-weight: 600;
+  color: #0f172a;
+  font-weight: 500;
   text-align: right;
 }
 
@@ -1627,10 +1635,9 @@ export default {
 
 .cbw-price-head {
   font-size: 11.5px;
-  font-weight: 700;
-  color: #374151;
+  font-weight: 500;
+  color: #475569;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
   margin-bottom: 2px;
 }
 
@@ -1641,20 +1648,20 @@ export default {
   font-size: 12.5px;
   gap: 8px;
   padding: 6px 10px;
-  background: #f9fafb;
-  border-radius: 7px;
+  background: #ffffff;
+  border-radius: 4px;
 }
 
 .cbw-price-row span {
-  color: #6b7280;
+  color: #475569;
   flex: 1;
   min-width: 0;
   line-height: 1.3;
 }
 
 .cbw-price-row strong {
-  color: #111827;
-  font-weight: 600;
+  color: #0f172a;
+  font-weight: 500;
   flex-shrink: 0;
 }
 
@@ -1673,8 +1680,8 @@ export default {
 }
 
 .cbw-discount-val {
-  color: #16a34a;
-  font-weight: 700;
+  color: #15803d;
+  font-weight: 500;
 }
 
 .cbw-voucher-btn {
@@ -1684,10 +1691,10 @@ export default {
   width: 100%;
   padding: 10px 13px;
   font-size: 13px;
-  color: #374151;
-  background: #f9fafb;
-  border: 1.5px dashed #d1d5db;
-  border-radius: 9px;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   cursor: pointer;
   text-align: left;
   font-weight: 500;
@@ -1695,19 +1702,18 @@ export default {
 }
 
 .cbw-voucher-btn:hover {
-  border-color: #16a34a;
-  background: #f0fdf4;
+  border-color: #15803d;
 }
 
 .cbw-voucher-count {
   font-size: 11.5px;
-  color: #9ca3af;
+  color: #64748b;
   font-weight: 400;
 }
 
 .cbw-voucher-notice {
   font-size: 12px;
-  color: #d97706;
+  color: #b45309;
   margin: 0;
 }
 
@@ -1722,24 +1728,23 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 10px 13px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   background: #ffffff;
   cursor: pointer;
   font-size: 13px;
-  color: #374151;
+  color: #0f172a;
   text-align: left;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .cbw-voucher-item:hover:not(.is-active) {
-  border-color: #86efac;
-  background: #f9fafb;
+  border-color: #15803d;
 }
 
 .cbw-voucher-item.is-active {
-  border-color: #16a34a;
-  background: #f0fdf4;
+  border-color: #15803d;
+  background: #ffffff;
 }
 
 .cbw-voucher-item > div {
@@ -1749,25 +1754,25 @@ export default {
 }
 
 .cbw-voucher-item > div strong {
-  font-weight: 700;
-  color: #111827;
+  font-weight: 500;
+  color: #0f172a;
   font-size: 13px;
 }
 
 .cbw-voucher-item > div span {
   font-size: 11.5px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .cbw-voucher-item > strong {
-  color: #16a34a;
-  font-weight: 700;
+  color: #15803d;
+  font-weight: 500;
   flex-shrink: 0;
 }
 
 .cbw-voucher-empty {
   font-size: 12.5px;
-  color: #9ca3af;
+  color: #64748b;
   margin: 0;
   text-align: center;
   padding: 8px;
@@ -1782,26 +1787,24 @@ export default {
 
 .cbw-payment-title {
   font-size: 12px;
-  font-weight: 700;
-  color: #374151;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .cbw-wallet-bal {
   font-size: 12.5px;
-  color: #6b7280;
+  color: #475569;
   margin: 0;
   padding: 8px 12px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
 }
 
 .cbw-wallet-bal strong {
-  color: #d97706;
-  font-weight: 700;
+  color: #15803d;
+  font-weight: 500;
 }
 
 .cbw-payment-opts {
@@ -1814,26 +1817,23 @@ export default {
   display: flex;
   align-items: flex-start;
   gap: 11px;
-  padding: 11px 13px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   background: #ffffff;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s;
 }
 
 .cbw-payment-opt:hover:not(.is-active):not(.is-disabled) {
-  border-color: #d1fae5;
-  background: #fafffe;
+  border-color: #15803d;
 }
 
 .cbw-payment-opt input[type="radio"] {
   width: 16px;
   height: 16px;
-  min-width: 16px;
-  min-height: 16px;
   margin-top: 3px;
-  accent-color: #16a34a;
+  accent-color: #15803d;
   flex-shrink: 0;
   cursor: pointer;
 }
@@ -1846,20 +1846,19 @@ export default {
 
 .cbw-payment-opt > div strong {
   font-size: 13px;
-  font-weight: 600;
-  color: #111827;
+  font-weight: 500;
+  color: #0f172a;
   line-height: 1.3;
 }
 
 .cbw-payment-opt > div span {
   font-size: 11.5px;
-  color: #6b7280;
+  color: #64748b;
   line-height: 1.4;
 }
 
 .cbw-payment-opt.is-active {
-  border-color: #16a34a;
-  background: #f0fdf4;
+  border-color: #15803d;
 }
 
 .cbw-payment-opt.is-active > div strong {
@@ -1877,16 +1876,15 @@ export default {
   align-items: center;
   justify-content: space-between;
   font-size: 14px;
-  color: #374151;
+  color: #0f172a;
   margin-bottom: 4px;
   font-weight: 500;
 }
 
 .cbw-total-val {
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 600;
   color: #15803d;
-  letter-spacing: -0.03em;
 }
 
 .cbw-required-row {
@@ -1894,16 +1892,49 @@ export default {
   align-items: center;
   justify-content: space-between;
   font-size: 12.5px;
-  color: #6b7280;
+  color: #475569;
   margin-bottom: 14px;
-  background: #f9fafb;
-  border-radius: 8px;
+  background: #ffffff;
+  border-radius: 4px;
   padding: 8px 12px;
 }
 
 .cbw-required-row strong {
-  color: #111827;
-  font-weight: 700;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.cbw-submit-error {
+  font-size: 12.5px;
+  color: #dc2626;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #fecaca;
+}
+
+.cbw-submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.cbw-submit-btn:hover:not(:disabled) {
+  background: #166534;
+}
+
+.cbw-submit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}ght: 700;
 }
 
 .cbw-submit-error {
@@ -1970,6 +2001,88 @@ export default {
 @keyframes cbw-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ===== SERVICES ADD-ON SECTION ===== */
+.cbw-services-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cbw-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cbw-service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  gap: 12px;
+}
+
+.cbw-srv-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cbw-srv-name {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.cbw-srv-price {
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 500;
+}
+
+.cbw-srv-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cbw-qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cbw-qty-btn:hover:not(:disabled) {
+  background: #15803d;
+  color: #ffffff;
+  border-color: #15803d;
+}
+
+.cbw-qty-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cbw-qty-val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  min-width: 16px;
+  text-align: center;
 }
 
 /* ===== RESPONSIVE STYLES ===== */

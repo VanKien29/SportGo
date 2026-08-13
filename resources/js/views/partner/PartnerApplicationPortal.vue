@@ -486,6 +486,7 @@ const cancelError = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
+const bankTimer = ref(null);
 const mapTimer = ref(null);
 const mapInstance = ref(null);
 const mapMarker = ref(null);
@@ -517,30 +518,39 @@ const reviewingCount = computed(() => applications.value.filter((a) => ['pending
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(async () => {
-  if (!user) { router.replace({ name: 'login', query: { redirect: route.fullPath } }); return; }
-  loadDraft();
-  const loaders = [
-    ['hồ sơ đã gửi', loadApplications],
-    ['danh sách ngân hàng', loadBanks],
-    ['Tỉnh/Thành phố', loadProvinces],
-    ['loại sân', loadCourtTypes],
-    ['tiện ích', loadAmenities],
-  ];
-  const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
-  const failedLabels = results
-    .map((result, index) => (result.status === 'rejected' ? loaders[index][0] : null))
-    .filter(Boolean);
-  if (failedLabels.length) {
-    formBanner.value = `Không thể tải ${failedLabels.join(', ')}. Vui lòng làm mới trang hoặc thử lại sau.`;
-    toast.error(formBanner.value);
+  if (route.name === 'partner-application' && !user) {
+    router.replace({ name: 'login', query: { redirect: route.fullPath } });
+    return;
   }
-  await openDraftFromRoute();
+  loadDraft();
+  if (user) {
+    const loaders = [
+      ['hồ sơ đã gửi', loadApplications],
+      ['danh sách ngân hàng', loadBanks],
+      ['Tỉnh/Thành phố', loadProvinces],
+      ['loại sân', loadCourtTypes],
+      ['tiện ích', loadAmenities],
+    ];
+    const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
+    const failedLabels = results
+      .map((result, index) => (result.status === 'rejected' ? loaders[index][0] : null))
+      .filter(Boolean);
+    if (failedLabels.length) {
+      formBanner.value = `Không thể tải ${failedLabels.join(', ')}. Vui lòng làm mới trang hoặc thử lại sau.`;
+      toast.error(formBanner.value);
+    }
+    await openDraftFromRoute();
+  }
 });
 
 onBeforeUnmount(() => {
-  clearTimeout(bankTimer.value);
-  clearTimeout(mapTimer.value);
-  destroyMapPicker();
+  try {
+    if (bankTimer.value) clearTimeout(bankTimer.value);
+    if (mapTimer.value) clearTimeout(mapTimer.value);
+    destroyMapPicker();
+  } catch (e) {
+    // Prevent unmount exceptions from blocking navigation
+  }
 });
 
 watch(() => route.name, (name) => {
@@ -657,6 +667,10 @@ async function loadAmenities() { const r = await api('/api/amenities?active_only
 
 // ─── Form lifecycle ───────────────────────────────────────────────────────────
 function startNewApplication() {
+  if (!user) {
+    router.push({ name: 'login', query: { redirect: '/partner-application' } });
+    return;
+  }
   editingApplicationId.value = '';
   editingApplicationStatus.value = '';
   resetForm(defaultForm(user));

@@ -3,8 +3,10 @@
     <PublicNavbar />
 
     <main class="cp-main">
-      <!-- MAIN CONTAINER -->
-      <div class="cp-body">
+      <div class="wallet-layout-grid">
+        <ClientAccountNav />
+
+        <div class="w2-white-content">
         <!-- USER IDENTITY BANNER (FRAMELESS) -->
         <div class="cp-identity">
           <div class="cp-avatar-wrap">
@@ -177,6 +179,7 @@
             </div>
           </div>
         </div>
+      </div>
       </div>
     </main>
 
@@ -383,13 +386,14 @@
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
+import ClientAccountNav from "../../components/ClientAccountNav.vue";
 import { authService } from "../../services/authService.js";
 import { bookingService } from "../../services/bookingService.js";
 import { getAuth, saveAuth } from "../../stores/auth.js";
 
 export default {
   name: "ClientProfile",
-  components: { PublicNavbar },
+  components: { PublicNavbar, ClientAccountNav },
   data() {
     const user = getAuth();
     return {
@@ -658,9 +662,25 @@ export default {
 }
 
 .cp-main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px 16px 60px;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 24px 32px 60px !important;
+}
+
+.wallet-layout-grid {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.w2-white-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 /* BUTTONS */

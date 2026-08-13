@@ -56,7 +56,7 @@
                 <img v-if="brandLogo" :src="brandLogo" :alt="brandName" style="max-width: 64px; max-height: 48px; object-fit: contain;" />
                 <template v-else>
                   <span class="alb-orbit-center__logo">SportGo</span>
-                  <span class="alb-orbit-center__sub">Platform</span>
+                  <span class="alb-orbit-center__sub">Nền tảng</span>
                 </template>
               </div>
 
@@ -106,105 +106,167 @@
         </div>
       </section>
 
-      <!-- SECTION 2: DUAL FEATURES (NO ICONS) -->
-      <section class="alb-section alb-section--alt">
+      <!-- SECTION 2: DUAL SOLUTION STORYTELLING WITH 3D TRANSPARENT ILLUSTRATIONS -->
+      <section class="alb-solution-story">
         <div class="sg-container">
-          <header class="alb-section-header">
-            <span class="alb-section-tag">TÍNH NĂNG NỔI BẬT</span>
+          <header class="alb-section-header alb-section-header--center">
+            <span class="alb-section-tag">HỆ SINH THÁI THÔNG MINH</span>
             <h2 class="alb-section-title">Giải Pháp Cho Người Chơi & Chủ Sân</h2>
             <p class="alb-section-desc">Tối ưu trải nghiệm đặt sân cho người chơi và nâng cao hiệu quả kinh doanh cho chủ cụm sân</p>
           </header>
 
-          <div class="alb-dual-features">
-            <!-- FOR PLAYERS -->
-            <div class="alb-feature-block">
-              <h3 class="alb-feature-block__title">Dành Cho Người Chơi</h3>
+          <div class="alb-story-grid">
+            <!-- STORY 1: PLAYERS -->
+            <div class="alb-story-card">
+              <div class="alb-story-card__header">
+                <span class="alb-story-badge">Dành Cho Người Chơi</span>
+                <h3 class="alb-story-card__title">Đặt Sân Nhanh - Chọn Đúng Khung Giờ Yêu Thích</h3>
+              </div>
 
-              <div class="alb-feature-item">
-                <div class="alb-feature-item__content">
-                  <h4>Tìm Sân Theo Vị Trí Gần Nhất</h4>
-                  <p>Định vị địa lý giúp tìm cụm sân gần bạn, hiển thị khoảng cách và chỉ đường chi tiết.</p>
+              <div class="alb-story-card__media">
+                <img
+                  :src="'/images/home/player_solution_3d.png'"
+                  alt="Giải pháp cho người chơi"
+                  class="alb-story-img"
+                />
+              </div>
+
+              <div class="alb-story-steps">
+                <div class="alb-story-step">
+                  <span class="alb-story-step__index">01</span>
+                  <div class="alb-story-step__content">
+                    <h4>Tìm Sân Theo Vị Trí Gần Nhất</h4>
+                    <p>Định vị địa lý giúp tìm cụm sân gần bạn, hiển thị khoảng cách và chỉ đường chi tiết.</p>
+                  </div>
+                </div>
+
+                <div class="alb-story-step">
+                  <span class="alb-story-step__index">02</span>
+                  <div class="alb-story-step__content">
+                    <h4>Sơ Đồ Giờ Trống Realtime</h4>
+                    <p>Xem chính xác các ô giờ còn trống, giá tiền theo khung giờ và chọn đúng thảm sân yêu thích.</p>
+                  </div>
+                </div>
+
+                <div class="alb-story-step">
+                  <span class="alb-story-step__index">03</span>
+                  <div class="alb-story-step__content">
+                    <h4>Ghép Đội & Đăng Bài Xé Vé</h4>
+                    <p>Dễ dàng đăng bài tìm đối thủ giao lưu hoặc đăng ký tham gia các suất chơi xé vé lẻ.</p>
+                  </div>
                 </div>
               </div>
 
-              <div class="alb-feature-item">
-                <div class="alb-feature-item__content">
-                  <h4>Sơ Đồ Giờ Trống Realtime</h4>
-                  <p>Xem chính xác các ô giờ còn trống, giá tiền theo khung giờ và chọn đúng thảm sân yêu thích.</p>
-                </div>
+              <div class="alb-story-card__footer">
+                <router-link to="/venues" class="alb-story-btn">
+                  <span>Khám Phá Cụm Sân Gần Bạn</span>
+                </router-link>
               </div>
-
-              <div class="alb-feature-item">
-                <div class="alb-feature-item__content">
-                  <h4>Ghép Đội & Đăng Bài Xé Vé</h4>
-                  <p>Dễ dàng đăng bài tìm đối thủ giao lưu hoặc đăng ký tham gia các suất chơi xé vé lẻ.</p>
-                </div>
-              </div>
-
-              <router-link to="/venues" class="alb-search-btn" style="display: inline-flex; margin-top: 16px;">
-                <span>Khám Phá Cụm Sân Gần Bạn</span>
-              </router-link>
             </div>
 
-            <!-- FOR OWNERS -->
-            <div class="alb-feature-block">
-              <h3 class="alb-feature-block__title">Dành Cho Chủ Sân Thể Thao</h3>
+            <!-- STORY 2: OWNERS -->
+            <div class="alb-story-card">
+              <div class="alb-story-card__header">
+                <span class="alb-story-badge alb-story-badge--owner">Dành Cho Chủ Sân Thể Thao</span>
+                <h3 class="alb-story-card__title">Quản Lý Thông Minh - Tối Đa Doanh Thu Sân</h3>
+              </div>
 
-              <div class="alb-feature-item">
-                <div class="alb-feature-item__content">
-                  <h4>Tối Ưu Tỷ Lệ Lấp Đầy Giờ Trống</h4>
-                  <p>Tự động công khai lịch trống lên hệ thống, giảm 90% cuộc gọi hỏi lịch thủ công.</p>
+              <div class="alb-story-card__media">
+                <img
+                  :src="'/images/home/owner_solution_3d.png'"
+                  alt="Giải pháp cho chủ sân"
+                  class="alb-story-img"
+                />
+              </div>
+
+              <div class="alb-story-steps">
+                <div class="alb-story-step">
+                  <span class="alb-story-step__index">01</span>
+                  <div class="alb-story-step__content">
+                    <h4>Tối Ưu Tỷ Lệ Lấp Đầy Giờ Trống</h4>
+                    <p>Tự động công khai lịch trống lên hệ thống, giảm 90% cuộc gọi hỏi lịch thủ công.</p>
+                  </div>
+                </div>
+
+                <div class="alb-story-step">
+                  <span class="alb-story-step__index">02</span>
+                  <div class="alb-story-step__content">
+                    <h4>Thu Tiền Giữ Chỗ Qua Mã QR Dynamic</h4>
+                    <p>Tích hợp cổng thanh toán tự động đối soát, nhận tiền giữ chỗ ngay lập tức vào tài khoản.</p>
+                  </div>
+                </div>
+
+                <div class="alb-story-step">
+                  <span class="alb-story-step__index">03</span>
+                  <div class="alb-story-step__content">
+                    <h4>Quản Lý Bán Dịch Vụ & Cho Thuê Vợt</h4>
+                    <p>Tích hợp POS bán nước uống, phụ kiện & cho thuê thiết bị và theo dõi doanh thu tổng hợp.</p>
+                  </div>
                 </div>
               </div>
 
-              <div class="alb-feature-item">
-                <div class="alb-feature-item__content">
-                  <h4>Thu Tiền Giữ Chỗ Qua Mã QR Dynamic</h4>
-                  <p>Tích hợp cổng thanh toán tự động đối soát, nhận tiền giữ chỗ ngay lập tức vào tài khoản.</p>
-                </div>
+              <div class="alb-story-card__footer">
+                <router-link to="/become-partner" class="alb-story-btn alb-story-btn--owner">
+                  <span>Đăng Ký Tham Gia Đối Tác</span>
+                </router-link>
               </div>
-
-              <div class="alb-feature-item">
-                <div class="alb-feature-item__content">
-                  <h4>Quản Lý Bán Dịch Vụ & Cho Thuê Vợt</h4>
-                  <p>Tích hợp POS bán nước uống, phụ kiện & cho thuê thiết bị và theo dõi doanh thu tổng hợp.</p>
-                </div>
-              </div>
-
-              <router-link to="/become-partner" class="alb-search-btn" style="display: inline-flex; margin-top: 16px;">
-                <span>Đăng Ký Tham Gia Đối Tác</span>
-              </router-link>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- SECTION 3: HOW IT WORKS -->
-      <section class="alb-section">
+      <!-- SECTION 3: 3-STEP WORKFLOW STORYTELLING -->
+      <section class="alb-workflow-section">
         <div class="sg-container">
-          <header class="alb-section-header">
+          <header class="alb-section-header alb-section-header--center">
             <span class="alb-section-tag">QUY TRÌNH ĐẶT SÂN</span>
             <h2 class="alb-section-title">Đặt Sân Giữ Chỗ Chỉ Trong 3 Bước</h2>
             <p class="alb-section-desc">Trải nghiệm đặt lịch minh bạch, nhanh chóng và an tâm trước mỗi trận đấu</p>
           </header>
 
-          <div class="alb-steps-grid">
-            <div class="alb-step-item">
-              <div class="alb-step-num">01 / BƯỚC 1</div>
-              <h3 class="alb-step-title">Tìm Sân & Chọn Khung Giờ</h3>
-              <p class="alb-step-desc">Chọn địa điểm gần bạn, xem sơ đồ giờ trống và chọn chính xác thảm sân muốn chơi.</p>
+          <div class="alb-workflow-grid">
+            <div class="alb-workflow-step">
+              <div class="alb-workflow-media">
+                <span class="alb-workflow-num">01</span>
+                <img :src="'/images/home/step1_search_3d.png'" alt="Bước 1: Tìm sân & chọn giờ" class="alb-workflow-img" />
+              </div>
+              <div class="alb-workflow-body">
+                <span class="alb-workflow-phase">BƯỚC 01 / TÌM KIẾM</span>
+                <h3 class="alb-workflow-title">Tìm Sân & Chọn Khung Giờ</h3>
+                <p class="alb-workflow-desc">Chọn địa điểm gần bạn, xem sơ đồ giờ trống và chọn chính xác thảm sân muốn chơi.</p>
+              </div>
             </div>
 
-            <div class="alb-step-item">
-              <div class="alb-step-num">02 / BƯỚC 2</div>
-              <h3 class="alb-step-title">Xác Nhận & Thanh Toán</h3>
-              <p class="alb-step-desc">Quét mã QR thanh toán đặt cọc giữ chỗ an toàn và tiện lợi qua chuyển khoản ngân hàng.</p>
+            <div class="alb-workflow-connector">
+              <div class="alb-workflow-line"></div>
             </div>
 
-            <div class="alb-step-item">
-              <div class="alb-step-num">03 / BƯỚC 3</div>
-              <h3 class="alb-step-title">Nhận Mã Booking & Vào Sân</h3>
-              <p class="alb-step-desc">Nhận mã xác nhận tức thì qua SMS/Email và đến sân trải nghiệm trận đấu tuyệt vời.</p>
+            <div class="alb-workflow-step">
+              <div class="alb-workflow-media">
+                <span class="alb-workflow-num">02</span>
+                <img :src="'/images/home/step2_pay_3d.png'" alt="Bước 2: Xác nhận & thanh toán" class="alb-workflow-img" />
+              </div>
+              <div class="alb-workflow-body">
+                <span class="alb-workflow-phase">BƯỚC 02 / THANH TOÁN</span>
+                <h3 class="alb-workflow-title">Xác Nhận & Thanh Toán</h3>
+                <p class="alb-workflow-desc">Quét mã QR thanh toán đặt cọc giữ chỗ an toàn và tiện lợi qua chuyển khoản ngân hàng.</p>
+              </div>
+            </div>
+
+            <div class="alb-workflow-connector">
+              <div class="alb-workflow-line"></div>
+            </div>
+
+            <div class="alb-workflow-step">
+              <div class="alb-workflow-media">
+                <span class="alb-workflow-num">03</span>
+                <img :src="'/images/home/step3_ticket_3d.png'" alt="Bước 3: Nhận mã booking" class="alb-workflow-img" />
+              </div>
+              <div class="alb-workflow-body">
+                <span class="alb-workflow-phase">BƯỚC 03 / VÀO SÂN</span>
+                <h3 class="alb-workflow-title">Nhận Mã Booking & Vào Sân</h3>
+                <p class="alb-workflow-desc">Nhận mã xác nhận tức thì qua SMS/Email và đến sân trải nghiệm trận đấu tuyệt vời.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -424,7 +486,7 @@ export default {
     },
     venueImage(venue) {
       const img = venue.image_path || venue.cover_image || venue.thumbnail;
-      if (!img) return "/images/home/anhbia2.webp";
+      if (!img) return "/images/home/sportgo-home-hero-v2.webp";
       if (/^https?:\/\//.test(img)) return img;
       return img.startsWith("/") ? img : `/storage/${img}`;
     },
