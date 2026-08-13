@@ -17,6 +17,9 @@ class PartnerApplicationDocument extends Model
         'title',
         'description',
         'file_path',
+        'pdf_file_path',
+        'pdf_hash',
+        'pdf_generated_at',
         'status',
         'reviewed_by',
         'reviewed_at',
@@ -26,16 +29,21 @@ class PartnerApplicationDocument extends Model
 
     protected $hidden = [
         'file_path',
+        'pdf_file_path',
+        'pdf_hash',
     ];
 
     protected $appends = [
         'download_url',
+        'preview_url',
+        'export_url',
     ];
 
     protected function casts(): array
     {
         return [
             'reviewed_at' => 'datetime',
+            'pdf_generated_at' => 'datetime',
             'sort_order' => 'integer',
         ];
     }
@@ -55,8 +63,23 @@ class PartnerApplicationDocument extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function accessLogs()
+    {
+        return $this->hasMany(DocumentAccessLog::class, 'partner_application_document_id');
+    }
+
     public function getDownloadUrlAttribute(): string
     {
         return url('/api/user/partner-application/documents/' . $this->id . '/download');
+    }
+
+    public function getPreviewUrlAttribute(): string
+    {
+        return url('/api/user/partner-application/documents/' . $this->id . '/download?mode=view');
+    }
+
+    public function getExportUrlAttribute(): string
+    {
+        return url('/api/user/partner-application/documents/' . $this->id . '/download?mode=export');
     }
 }

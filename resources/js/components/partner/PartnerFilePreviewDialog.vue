@@ -86,7 +86,7 @@ const typeLabel = computed(() => {
 });
 
 watch(
-  () => [props.show, props.document?.id, props.document?.download_url],
+  () => [props.show, props.document?.id, props.document?.preview_url || props.document?.download_url],
   () => {
     if (props.show && props.document) loadDocument();
     else cleanup();
@@ -106,7 +106,7 @@ async function loadDocument() {
 
   try {
     const token = readToken();
-    const response = await fetch(props.document.download_url, {
+    const response = await fetch(viewUrl(props.document), {
       cache: 'no-store',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -171,6 +171,12 @@ function detectFileType(mimeType, response) {
   ) return 'docx';
 
   return 'unsupported';
+}
+
+function viewUrl(document) {
+  if (document?.preview_url) return document.preview_url;
+  if (!document?.download_url) return '';
+  return `${document.download_url}${document.download_url.includes('?') ? '&' : '?'}mode=view`;
 }
 
 function cleanup() {

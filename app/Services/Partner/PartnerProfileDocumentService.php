@@ -43,7 +43,9 @@ class PartnerProfileDocumentService
                 continue;
             }
 
-            $path = $file->store('partner-applications/' . $application->id . '/' . $documentGroup . '/' . $requestId, 'public');
+            // Partner documents are private; delivery goes through the
+            // authorization-aware PDF endpoint instead of /storage URLs.
+            $path = $file->store('partner-applications/' . $application->id . '/' . $documentGroup . '/' . $requestId, 'local');
             $media = Media::query()->create([
                 'mediable_type' => PartnerApplication::class,
                 'mediable_id' => $application->id,
@@ -105,8 +107,9 @@ class PartnerProfileDocumentService
         return [
             'id' => $document->id,
             'file_name' => $file->getClientOriginalName(),
-            'file_path' => $document->file_path,
             'download_url' => $document->download_url,
+            'preview_url' => $document->preview_url,
+            'export_url' => $document->export_url,
             'mime_type' => $file->getMimeType() ?: $file->getClientMimeType(),
             'file_size' => $file->getSize(),
             'sort_order' => $document->sort_order,

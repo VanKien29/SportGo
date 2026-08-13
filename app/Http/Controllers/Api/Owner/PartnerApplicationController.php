@@ -62,6 +62,9 @@ class PartnerApplicationController extends Controller
                 'status' => $document->status,
                 'generated_at' => $document->generated_at,
                 'download_url' => '/api/files/documents/' . $document->id . '/download',
+                'preview_url' => '/api/files/documents/' . $document->id . '/download?mode=view',
+                'export_url' => '/api/files/documents/' . $document->id . '/download?mode=export',
+                'mime_type' => 'application/pdf',
                 'signatures' => $document->signatures,
             ]);
 

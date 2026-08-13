@@ -1073,7 +1073,9 @@ class PartnerApplicationService
                 }
 
                 $folder = 'partner-applications/' . $application->id . '/' . $type . ($batch ? '/' . $batch : '');
-                $path = $file->store($folder, 'public');
+                // Keep uploaded partner evidence off the public disk. The
+                // download controller creates and caches a PDF derivative.
+                $path = $file->store($folder, 'local');
                 $media = Media::query()->create([
                     'mediable_type' => PartnerApplication::class,
                     'mediable_id' => $application->id,

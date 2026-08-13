@@ -54,6 +54,10 @@ class PartnerDocumentService
         'venue_location_appendix' => 'PLVT',
     ];
 
+    public function __construct(private readonly DocumentPdfService $pdfs)
+    {
+    }
+
     public function generateDocument(
         string $documentType,
         Model $reference,
@@ -124,7 +128,11 @@ class PartnerDocumentService
             'generated_at' => $renderedAt,
         ]);
 
-        return $document;
+        // Keep DOCX private for rendering/signature operations. The partner
+        // surface receives a controlled PDF copy with an audit watermark.
+        $this->ensurePdfCopies($document->fresh());
+
+        return $document->fresh();
     }
 
     public function signDocument(
@@ -214,6 +222,8 @@ class PartnerDocumentService
         ])->save();
 
         $this->syncVenueChangeAppendixAfterSignature($document->refresh(), $signerSide, $isCompleted);
+
+        $this->ensurePdfCopies($document->refresh());
 
         return $signature;
     }
@@ -421,6 +431,100 @@ class PartnerDocumentService
         }
 
         return $path;
+    }
+
+    /**
+     * Resolve the PDF delivered to partner/admin clients. Existing DOCX
+     * records are converted lazily so deployments do not need a bulk job.
+     */
+    public function pdfDownloadPath(GeneratedDocument $document): string
+    {
+        $document->refresh();
+        $this->ensurePdfCopies($document);
+
+        $path = $document->final_pdf_path ?: $document->generated_pdf_path;
+        if (! $path || ! Storage::disk('local')->exists($path)) {
+            abort(404, 'Không tìm thấy bản PDF của văn bản.');
+        }
+
+        return $path;
+    }
+
+    public function pdfDownloadName(GeneratedDocument $document): string
+    {
+        $base = match ($document->document_type) {
+            'partner_contract' => 'HopDong',
+            'mutual_liquidation_minutes', 'settlement_minutes' => 'BienBan',
+            'unilateral_termination_notice' => 'CongVan',
+            default => 'VanBan',
+        };
+
+        return $base . '_' . $document->document_code . '.pdf';
+    }
+
+    public function ensurePdfCopies(GeneratedDocument $document): void
+    {
+        $sourcePath = $document->final_file_path ?: $document->generated_file_path;
+        if (! $sourcePath || ! Storage::disk('local')->exists($sourcePath)) {
+            return;
+        }
+
+        $sourceAbsolutePath = Storage::disk('local')->path($sourcePath);
+        $relativePdfPath = $document->generated_pdf_path
+            ?: 'generated-documents/' . ($document->generated_at?->format('Y/m') ?: now()->format('Y/m')) . '/' . $document->document_code . '.pdf';
+        $pdfAbsolutePath = Storage::disk('local')->path($relativePdfPath);
+        $watermark = sprintf(
+            'BẢN SAO KIỂM SOÁT | %s | Phiên bản %d | Trạng thái: %s | Phát hành: %s',
+            $document->document_code,
+            (int) ($document->document_version ?: 1),
+            $this->documentStatusLabel($document->status),
+            (string) ($document->render_data['rendered_by'] ?? 'Hệ thống')
+        );
+
+        $needsRegeneration = ! $document->pdf_locked_at
+            || ! Storage::disk('local')->exists($relativePdfPath)
+            || ! $document->pdf_hash
+            || ! hash_equals((string) $document->pdf_hash, hash_file('sha256', $pdfAbsolutePath));
+
+        if ($needsRegeneration) {
+            $this->pdfs->convertDocx($sourceAbsolutePath, $pdfAbsolutePath, $watermark);
+            $document->forceFill([
+                'generated_pdf_path' => $relativePdfPath,
+                'pdf_hash' => hash_file('sha256', $pdfAbsolutePath),
+                'pdf_generated_at' => now(),
+            ])->save();
+        }
+
+        if ($document->status === 'completed') {
+            $finalPdfPath = $document->final_pdf_path
+                ?: 'generated-documents/' . ($document->completed_at?->format('Y/m') ?: now()->format('Y/m')) . '/' . $document->document_code . '-final.pdf';
+            $finalPdfAbsolutePath = Storage::disk('local')->path($finalPdfPath);
+            $needsFinalCopy = ! Storage::disk('local')->exists($finalPdfPath)
+                || ! $document->final_pdf_hash
+                || ! hash_equals((string) $document->final_pdf_hash, hash_file('sha256', $finalPdfAbsolutePath));
+
+            if ($needsFinalCopy) {
+                if (! copy($pdfAbsolutePath, $finalPdfAbsolutePath)) {
+                    throw new RuntimeException('Không thể khóa bản PDF hoàn tất của văn bản.');
+                }
+                $document->forceFill([
+                    'final_pdf_path' => $finalPdfPath,
+                    'final_pdf_hash' => hash_file('sha256', $finalPdfAbsolutePath),
+                    'pdf_locked_at' => $document->pdf_locked_at ?: now(),
+                ])->save();
+            }
+        }
+    }
+
+    private function documentStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'pending_owner_signature' => 'chờ chủ sân ký',
+            'pending_sportgo_signature' => 'chờ SportGo ký',
+            'completed' => 'hoàn tất',
+            'cancelled' => 'đã hủy',
+            default => 'bản nháp',
+        };
     }
 
     private function repairVisibleSignerNames(GeneratedDocument $document): void

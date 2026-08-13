@@ -131,7 +131,7 @@ let resizeObserver = null;
 let scaleFrame = null;
 let loadSequence = 0;
 
-watch([() => props.show, () => props.document?.download_url], async ([show, downloadUrl]) => {
+watch([() => props.show, () => props.document?.preview_url || props.document?.download_url], async ([show, downloadUrl]) => {
   if (show && downloadUrl) {
     await nextTick();
     loadDocument();
@@ -157,7 +157,7 @@ async function loadDocument() {
   
   try {
     const token = readToken();
-    const response = await fetch(props.document.download_url, {
+    const response = await fetch(viewUrl(props.document), {
       cache: 'no-store',
       credentials: 'same-origin',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -242,6 +242,12 @@ function detectFileType(mimeType, response) {
   ) return 'docx';
 
   return 'unsupported';
+}
+
+function viewUrl(document) {
+  if (document?.preview_url) return document.preview_url;
+  if (!document?.download_url) return '';
+  return `${document.download_url}${document.download_url.includes('?') ? '&' : '?'}mode=view`;
 }
 
 function observeDocumentSize() {
