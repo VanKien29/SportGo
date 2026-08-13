@@ -205,6 +205,34 @@
               </template>
             </div>
 
+            <!-- ADD-ON VENUE SERVICES -->
+            <div v-if="clusterServices && clusterServices.length" class="cbw-services-section">
+              <div class="cbw-divider"></div>
+              <p class="cbw-payment-title">Dịch vụ đi kèm tại sân (Không bắt buộc)</p>
+              <div class="cbw-services-list">
+                <div v-for="srv in clusterServices" :key="srv.id" class="cbw-service-item">
+                  <div class="cbw-srv-info">
+                    <strong class="cbw-srv-name">{{ srv.name }}</strong>
+                    <span class="cbw-srv-price">{{ money(srv.price) }} / {{ srv.unit || 'lượt' }}</span>
+                  </div>
+                  <div class="cbw-srv-qty">
+                    <button
+                      type="button"
+                      class="cbw-qty-btn"
+                      :disabled="!selectedServiceQty(srv.id)"
+                      @click="updateServiceQty(srv, -1)"
+                    >-</button>
+                    <span class="cbw-qty-val">{{ selectedServiceQty(srv.id) }}</span>
+                    <button
+                      type="button"
+                      class="cbw-qty-btn"
+                      @click="updateServiceQty(srv, 1)"
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- PAYMENT OPTIONS -->
             <div class="cbw-divider"></div>
             <div class="cbw-payment-section">
@@ -312,6 +340,7 @@ export default {
       submitting: false,
       submitError: "",
       routeSelection: null,
+      selectedServicesMap: {},
     };
   },
   computed: {
@@ -323,6 +352,12 @@ export default {
     },
     currentCluster() {
       return this.clusters.find(c => String(c.id) === String(this.clusterId)) || null;
+    },
+    clusterServices() {
+      return this.currentCluster?.services || [];
+    },
+    servicesTotal() {
+      return Object.values(this.selectedServicesMap).reduce((sum, item) => sum + (item.quantity * item.price), 0);
     },
     backTarget() {
       const r = String(this.$route.query.return_to || "");
@@ -542,7 +577,7 @@ export default {
       return this.venueVoucherDiscount + this.vipVoucherDiscount;
     },
     total() {
-      return Math.max(this.afterMembership - this.voucherDiscount, 0);
+      return Math.max(this.afterMembership - this.voucherDiscount, 0) + this.servicesTotal;
     },
     requiredAmount() {
       if (this.paymentOption === "full_payment" || this.paymentOption === "wallet") return this.total;
@@ -909,6 +944,29 @@ export default {
         await this.checkAvailability();
       }
     },
+    selectedServiceQty(serviceId) {
+      return this.selectedServicesMap[serviceId]?.quantity || 0;
+    },
+    updateServiceQty(srv, delta) {
+      const current = this.selectedServicesMap[srv.id]?.quantity || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        const copy = { ...this.selectedServicesMap };
+        delete copy[srv.id];
+        this.selectedServicesMap = copy;
+      } else {
+        this.selectedServicesMap = {
+          ...this.selectedServicesMap,
+          [srv.id]: {
+            service_id: srv.id,
+            name: srv.name,
+            price: Number(srv.price || 0),
+            unit: srv.unit || "lượt",
+            quantity: next,
+          },
+        };
+      }
+    },
     async submit() {
       if (!this.canSubmit) return;
       if (!getAuth()) {
@@ -925,12 +983,18 @@ export default {
           end_time: r.end_time,
         }));
         const first = ranges[0];
+        const selectedServices = Object.values(this.selectedServicesMap).map(item => ({
+          service_id: item.service_id,
+          quantity: item.quantity
+        }));
+
         const booking = await bookingService.createBooking({
           venue_court_id: first.venue_court_id,
           booking_date: this.bookingDate,
           start_time: first.start_time,
           end_time: first.end_time,
           ...(ranges.length > 1 ? { time_ranges: ranges } : {}),
+          ...(selectedServices.length > 0 ? { selected_services: selectedServices } : {}),
           payment_option: this.paymentOption,
           venue_voucher_id: this.venueVoucher?.id || null,
           vip_voucher_id: this.vipVoucher?.id || null,
@@ -1970,6 +2034,88 @@ export default {
 @keyframes cbw-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ===== SERVICES ADD-ON SECTION ===== */
+.cbw-services-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cbw-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cbw-service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  gap: 12px;
+}
+
+.cbw-srv-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cbw-srv-name {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.cbw-srv-price {
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 500;
+}
+
+.cbw-srv-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cbw-qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cbw-qty-btn:hover:not(:disabled) {
+  background: #15803d;
+  color: #ffffff;
+  border-color: #15803d;
+}
+
+.cbw-qty-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cbw-qty-val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  min-width: 16px;
+  text-align: center;
 }
 
 /* ===== RESPONSIVE STYLES ===== */
