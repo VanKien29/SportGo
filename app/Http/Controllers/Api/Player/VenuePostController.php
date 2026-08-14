@@ -20,8 +20,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\ImageManager;
 
 class VenuePostController extends Controller
 {
@@ -231,6 +229,63 @@ class VenuePostController extends Controller
         return response()->json(['data' => $post]);
     }
 
+    public function myPosts(Request $request)
+    {
+        $user = $request->user();
+        if (! Schema::hasTable('community_posts')) {
+            return response()->json([
+                'data' => [],
+                'total' => 0,
+            ]);
+        }
+
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['all', 'pending_review', 'published', 'rejected', 'hidden', 'deleted', 'trash'])],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $status = $validated['status'] ?? 'all';
+        $perPage = $validated['per_page'] ?? 10;
+        $page = $validated['page'] ?? 1;
+
+        if ($status === 'deleted' || $status === 'trash') {
+            $query = CommunityPost::onlyTrashed()
+                ->with([
+                    'media',
+                    'author:id,full_name,username,avatar_url',
+                    'hashtags',
+                ])
+                ->where('author_id', $user->id);
+        } else {
+            $query = CommunityPost::with([
+                'media',
+                'author:id,full_name,username,avatar_url',
+                'hashtags',
+            ])
+                ->where('author_id', $user->id)
+                ->when($status !== 'all', fn ($q) => $q->where('status', $status));
+        }
+
+        $paginator = $query->latest()->paginate($perPage, ['*'], 'page', $page);
+        $posts = $paginator->getCollection();
+
+        $likesAvailable = Schema::hasTable('community_post_likes');
+        $likedLookup = $this->likedLookup('community_post_likes', $posts->pluck('id'), $user->id);
+        $authorBadges = $this->authorBadges->lookup([$user->id]);
+
+        $paginator->setCollection($posts->map(
+            fn (CommunityPost $post) => $this->normalizeCommunityPost(
+                $post,
+                $likesAvailable,
+                $likedLookup,
+                $authorBadges[(string) $user->id] ?? []
+            )
+        ));
+
+        return response()->json($paginator);
+    }
+
     /**
      * Player tạo bài tự do trong community_posts. venue_posts vẫn dành cho luồng
      * bài cụm sân của Owner, nơi venue_cluster_id là bắt buộc trong schema hiện tại.
@@ -264,11 +319,14 @@ class VenuePostController extends Controller
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
             'thumbnail' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'images' => ['nullable', 'array', 'max:10'],
+            'images.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'post_type' => ['nullable', 'string', Rule::in(['news'])],
             'is_draft' => ['nullable', 'declined'],
         ], [
             'post_type.in' => 'Bài chia sẻ cộng đồng không hỗ trợ loại bài này.',
             'is_draft.declined' => 'Luồng bài cộng đồng hiện chưa hỗ trợ lưu nháp.',
+            'images.max' => 'Bạn chỉ có thể tải lên tối đa 10 ảnh cho mỗi bài viết.',
         ]);
 
         $content = trim(strip_tags($validated['content']));
@@ -304,7 +362,11 @@ class VenuePostController extends Controller
                 $communityPost->hashtags()->syncWithPivotValues($hashtagIds, ['post_type' => 'community_posts']);
             }
 
-            if ($request->hasFile('thumbnail')) {
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $imageFile) {
+                    $this->storeCommunityThumbnail($communityPost, $imageFile);
+                }
+            } elseif ($request->hasFile('thumbnail')) {
                 $this->storeCommunityThumbnail($communityPost, $request->file('thumbnail'));
             }
 
@@ -326,12 +388,109 @@ class VenuePostController extends Controller
         ], 201);
     }
 
-    public function update(UpdateVenuePostRequest $request, string $id)
+    public function update(Request $request, string $id)
     {
-        if ($this->communityPostId($id) !== null) {
+        $communityId = $this->communityPostId($id) ?? (is_numeric($id) ? (int) $id : null);
+        if ($communityId !== null && CommunityPost::where('id', $communityId)->exists()) {
+            $post = CommunityPost::findOrFail($communityId);
+            $isAdmin = $request->user()->roles()->whereIn('roles.name', ['admin', 'super_admin'])->exists();
+            abort_unless($isAdmin || (string) $post->author_id === (string) $request->user()->id, 403);
+
+            if ($post->status === 'hidden' && ! $isAdmin) {
+                return response()->json([
+                    'message' => 'Bài viết đã bị quản trị viên khóa và không thể chỉnh sửa.',
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'content' => [
+                    'required',
+                    'string',
+                    function ($attribute, $value, $fail) {
+                        $stripped = trim(html_entity_decode(strip_tags($value)));
+                        if (mb_strlen($stripped) < 20) {
+                            $fail('Nội dung thực tế phải có ít nhất 20 ký tự.');
+                        }
+                    },
+                ],
+                'tags' => ['nullable', 'array', 'max:10'],
+                'tags.*' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s\-\p{L}]+$/u'],
+                'images' => ['nullable', 'array', 'max:10'],
+                'images.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+                'removed_media_ids' => ['nullable', 'array'],
+                'removed_media_ids.*' => ['integer'],
+            ]);
+
+            $content = trim(strip_tags($validated['content']));
+
+            $requireModeration = false;
+            if (Schema::hasTable('moderation_configs')) {
+                $configVal = ModerationConfig::where('key', 'require_community_post_moderation')->value('value');
+                $requireModeration = ($configVal === 'true' || $configVal === true || $configVal === '1' || $configVal === 1);
+            }
+
+            $status = $post->status;
+            if ($requireModeration) {
+                // If moderation is active, editing re-routes the post to pending_review
+                $status = 'pending_review';
+                $post->status_reason = null;
+            } elseif ($status === 'rejected') {
+                $status = 'published';
+                $post->status_reason = null;
+            }
+
+            $post->content = $content;
+            $post->status = $status;
+            $post->edited_at = now();
+            $post->edit_count = ((int) $post->edit_count) + 1;
+            $post->save();
+
+            // Sync hashtags
+            if (isset($validated['tags']) && Schema::hasTable('post_hashtags')) {
+                $hashtagIds = collect($validated['tags'])
+                    ->map(fn ($tag) => trim($tag))
+                    ->filter()
+                    ->unique()
+                    ->map(function ($tagName) {
+                        return Hashtag::firstOrCreate(
+                            ['name' => $tagName],
+                            ['slug' => Str::slug($tagName)]
+                        )->id;
+                    })
+                    ->values()
+                    ->all();
+                $post->hashtags()->syncWithPivotValues($hashtagIds, ['post_type' => 'community_posts']);
+            }
+
+            // Remove deleted media
+            if (! empty($validated['removed_media_ids'])) {
+                $mediaToRemove = $post->media()->whereIn('id', $validated['removed_media_ids'])->get();
+                foreach ($mediaToRemove as $media) {
+                    Storage::disk('public')->delete((string) $media->getRawOriginal('file_path'));
+                    $media->delete();
+                }
+            }
+
+            // Store newly added images
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $imageFile) {
+                    $this->storeCommunityThumbnail($post, $imageFile);
+                }
+            }
+
+            $data = $this->normalizeCommunityPost(
+                $post->load(['media', 'author:id,full_name,username,avatar_url', 'hashtags']),
+                Schema::hasTable('community_post_likes'),
+                [],
+                $this->authorBadges->lookup([$post->author_id])[(string) $post->author_id] ?? []
+            );
+
             return response()->json([
-                'message' => 'Chỉnh sửa bài cộng đồng chưa được hỗ trợ trong luồng này.',
-            ], 409);
+                'message' => $status === 'pending_review'
+                    ? 'Bài viết đã được chỉnh sửa và chuyển sang hàng chờ kiểm duyệt.'
+                    : 'Bài viết đã được cập nhật thành công.',
+                'data' => $data,
+            ]);
         }
 
         $post = VenuePost::findOrFail($id);
@@ -340,7 +499,7 @@ class VenuePostController extends Controller
         try {
             $post = $this->venuePostService->updatePost(
                 $post,
-                $request->validated(),
+                $request->all(),
                 $request->user(),
                 $request->file('thumbnail')
             );
@@ -354,21 +513,52 @@ class VenuePostController extends Controller
         }
     }
 
-    public function destroy(Request $request, string $id)
+    public function restore(Request $request, string $id)
     {
-        $communityId = $this->communityPostId($id);
+        $communityId = $this->communityPostId($id) ?? (is_numeric($id) ? (int) $id : null);
         if ($communityId !== null) {
-            $post = CommunityPost::findOrFail($communityId);
+            $post = CommunityPost::onlyTrashed()->findOrFail($communityId);
             $isAdmin = $request->user()->roles()->whereIn('roles.name', ['admin', 'super_admin'])->exists();
             abort_unless($isAdmin || (string) $post->author_id === (string) $request->user()->id, 403);
 
-            foreach ($post->media as $media) {
-                Storage::disk('public')->delete((string) $media->getRawOriginal('file_path'));
-                $media->delete();
+            $post->restore();
+
+            return response()->json([
+                'message' => 'Đã khôi phục bài viết thành công.',
+                'data' => $this->normalizeCommunityPost(
+                    $post->load(['media', 'author:id,full_name,username,avatar_url', 'hashtags']),
+                    Schema::hasTable('community_post_likes'),
+                    [],
+                    $this->authorBadges->lookup([$post->author_id])[(string) $post->author_id] ?? []
+                ),
+            ]);
+        }
+
+        return response()->json(['message' => 'Không tìm thấy bài viết.'], 404);
+    }
+
+    public function destroy(Request $request, string $id)
+    {
+        $communityId = $this->communityPostId($id) ?? (is_numeric($id) ? (int) $id : null);
+        if ($communityId !== null) {
+            $post = CommunityPost::withTrashed()->findOrFail($communityId);
+            $isAdmin = $request->user()->roles()->whereIn('roles.name', ['admin', 'super_admin'])->exists();
+            abort_unless($isAdmin || (string) $post->author_id === (string) $request->user()->id, 403);
+
+            if ($request->boolean('force') || $post->trashed()) {
+                foreach ($post->media as $media) {
+                    Storage::disk('public')->delete((string) $media->getRawOriginal('file_path'));
+                    $media->delete();
+                }
+                $post->forceDelete();
+
+                return response()->json(['message' => 'Đã xóa vĩnh viễn bài viết.']);
             }
+
+            // Soft delete
             $post->delete();
 
-            return response()->json(['message' => 'Bài viết đã được xóa.']);
+            return response()->json(['message' => 'Đã chuyển bài viết vào thùng rác.']);
         }
 
         $post = VenuePost::findOrFail($id);
@@ -618,6 +808,8 @@ class VenuePostController extends Controller
         $data['likes_available'] = $likesAvailable;
         $data['is_liked'] = isset($likedLookup[(string) $post->id]);
         $data['author_badges'] = $authorBadges;
+        $data['is_edited'] = (bool) ($post->updated_at && $post->created_at && $post->updated_at->diffInMinutes($post->created_at) > 1);
+        $data['edited_at'] = $post->updated_at;
 
         return $data;
     }
@@ -650,6 +842,10 @@ class VenuePostController extends Controller
         $data['likes_available'] = $likesAvailable;
         $data['is_liked'] = isset($likedLookup[(string) $post->id]);
         $data['author_badges'] = $authorBadges;
+        $data['is_edited'] = (bool) ($post->edited_at !== null || $post->edit_count > 0);
+        $data['edited_at'] = $post->edited_at;
+        $data['is_deleted'] = (bool) $post->trashed();
+        $data['deleted_at'] = $post->deleted_at;
 
         return $data;
     }
@@ -700,22 +896,16 @@ class VenuePostController extends Controller
 
     private function storeCommunityThumbnail(CommunityPost $post, $thumbnail): void
     {
-        $manager = ImageManager::usingDriver(new Driver);
-        $image = $manager->decodePath($thumbnail->getPathname());
-        $filename = uniqid('community_', true).'.webp';
-        $path = 'community_posts/'.$filename;
+        $extension = strtolower($thumbnail->getClientOriginalExtension() ?: 'webp');
+        $filename = uniqid('community_', true).'.'.$extension;
+        $path = $thumbnail->storeAs('community_posts', $filename, 'public');
 
-        if (! Storage::disk('public')->exists('community_posts')) {
-            Storage::disk('public')->makeDirectory('community_posts');
-        }
-
-        $image->save(storage_path('app/public/'.$path), 80);
         $post->media()->create([
             'collection' => 'thumbnail',
-            'file_name' => pathinfo($thumbnail->getClientOriginalName(), PATHINFO_FILENAME).'.webp',
+            'file_name' => $thumbnail->getClientOriginalName(),
             'file_path' => $path,
-            'mime_type' => 'image/webp',
-            'file_size' => filesize(storage_path('app/public/'.$path)),
+            'mime_type' => $thumbnail->getClientMimeType() ?: 'image/'.$extension,
+            'file_size' => $thumbnail->getSize() ?: 0,
         ]);
     }
 }

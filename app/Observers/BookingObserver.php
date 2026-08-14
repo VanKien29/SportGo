@@ -4,6 +4,8 @@ namespace App\Observers;
 
 use App\Events\BookingScheduleUpdated;
 use App\Models\Booking;
+use App\Models\Notification;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class BookingObserver
@@ -42,6 +44,10 @@ class BookingObserver
                 $this->dispatchBroadcast($oldClusterId, $oldDate, 'booking_rescheduled');
             }
         }
+
+        if ($booking->wasChanged('status') && in_array($booking->status, ['cancelled', 'rejected'], true)) {
+            $this->handleBookingCancellationSideEffects($booking);
+        }
     }
 
     /**
@@ -50,6 +56,52 @@ class BookingObserver
     public function deleted(Booking $booking): void
     {
         $this->broadcastScheduleChange($booking, 'booking_deleted');
+        $this->handleBookingCancellationSideEffects($booking);
+    }
+
+    /**
+     * Automatically close linked matchmaking post and notify participants when booking is cancelled/deleted.
+     */
+    private function handleBookingCancellationSideEffects(Booking $booking): void
+    {
+        try {
+            $playerPost = $booking->playerPost;
+            if ($playerPost && in_array($playerPost->status, ['open', 'full'], true)) {
+                $playerPost->status = 'closed';
+                $playerPost->status_reason = 'booking_cancelled';
+                $playerPost->save();
+
+                $participants = DB::table('player_post_participants')
+                    ->where('post_id', $playerPost->id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->get();
+
+                if ($participants->isNotEmpty()) {
+                    DB::table('player_post_participants')
+                        ->where('post_id', $playerPost->id)
+                        ->whereIn('status', ['pending', 'approved'])
+                        ->update([
+                            'status' => 'cancelled',
+                            'responded_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                    $venueName = $booking->venueCluster->name ?? 'sân';
+                    foreach ($participants as $p) {
+                        Notification::create([
+                            'user_id' => $p->user_id,
+                            'type' => 'matchmaking_booking_cancelled',
+                            'title' => 'Buổi giao lưu đã bị hủy',
+                            'body' => "Lịch đặt sân tại {$venueName} đã bị hủy nên buổi giao lưu không thể diễn ra.",
+                            'reference_type' => 'player_post',
+                            'reference_id' => $playerPost->id,
+                        ]);
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

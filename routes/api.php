@@ -615,6 +615,8 @@ Route::middleware('auth:sanctum')
         Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);
 
         // Player/Client Venue Posts (Community Posts)
+        Route::get('/my-community-posts', [PlayerVenuePostController::class, 'myPosts']);
+        Route::post('/my-community-posts/{id}/restore', [PlayerVenuePostController::class, 'restore']);
         Route::post('/venue-posts', [PlayerVenuePostController::class, 'store'])->middleware('throttle:5,1');
         Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
         Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);

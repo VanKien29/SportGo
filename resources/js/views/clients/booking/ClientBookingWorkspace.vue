@@ -740,10 +740,14 @@ export default {
     },
     recurringEstimatedSessions() {
       if (this.recurringPreviewResult?.total_dates !== undefined) {
-        if (this.recurringForm.conflict_resolution === "skip" && this.recurringPreviewResult.conflict_count) {
-          return Math.max(this.recurringPreviewResult.total_dates - this.recurringPreviewResult.conflict_count, 0);
+        let skipped = 0;
+        if (this.recurringPreviewResult.conflicts?.length) {
+          this.recurringPreviewResult.conflicts.forEach(cf => {
+            const action = this.getConflictAction(cf.date);
+            if (action === "skip") skipped++;
+          });
         }
-        return this.recurringPreviewResult.total_dates;
+        return Math.max(this.recurringPreviewResult.total_dates - skipped, 0);
       }
       if (!this.recurringForm.recurring_start_date || !this.recurringForm.recurring_end_date) return 0;
       const s = new Date(this.recurringForm.recurring_start_date);
