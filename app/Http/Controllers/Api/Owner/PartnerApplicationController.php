@@ -7,13 +7,25 @@ use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
 use App\Services\Partner\PartnerApplicationService;
+use App\Services\Partner\PartnerOnboardingTermsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PartnerApplicationController extends Controller
 {
-    public function __construct(private readonly PartnerApplicationService $partners)
+    public function __construct(
+        private readonly PartnerApplicationService $partners,
+        private readonly PartnerOnboardingTermsService $onboardingTerms,
+    )
     {
+    }
+
+    public function onboardingTerms(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->onboardingTerms->payload(),
+        ]);
     }
 
     public function myApplications(Request $request): JsonResponse

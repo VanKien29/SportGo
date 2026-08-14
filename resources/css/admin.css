@@ -6096,7 +6096,7 @@ td:not(.docx td) small {
 
 .filters {
     display: grid;
-    grid-template-columns: 1fr 1fr 160px auto;
+    grid-template-columns: minmax(180px, 1.35fr) repeat(5, minmax(92px, 1fr)) auto;
     gap: 16px;
     align-items: end;
     padding: 0;
@@ -6104,6 +6104,41 @@ td:not(.docx td) small {
     border-radius: 0;
     background: transparent !important;
     box-shadow: none !important;
+}
+
+.booking-filter-search input {
+    min-width: 0;
+}
+
+.booking-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 1px;
+}
+
+.booking-filter-actions .btn {
+    min-height: 38px;
+    white-space: nowrap;
+}
+
+.booking-filter-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: -8px;
+    color: var(--admin-muted, #64748b);
+    font-size: 12.5px;
+}
+
+.booking-filter-clear {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #15803d;
+    font: inherit;
+    cursor: pointer;
 }
 
 .booking-range {

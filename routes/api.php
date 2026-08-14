@@ -372,6 +372,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\Owner\WalletController::class, 'getWithdrawals']);
         // Partner Profile
         Route::get('/partner-applications', [OwnerPartnerApplicationController::class, 'myApplications']);
+        Route::get('/partner-application/terms', [OwnerPartnerApplicationController::class, 'onboardingTerms']);
         Route::get('/partner-application', [OwnerPartnerApplicationController::class, 'myApplication']);
         Route::get('/my-partner-profile', [OwnerPartnerApplicationController::class, 'myApplication']);
         Route::get('/my-partner-profile/documents', [OwnerPartnerApplicationController::class, 'documents']);
@@ -552,6 +553,7 @@ Route::middleware('auth:sanctum')
         Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
 
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
+        Route::get('/user/partner-application/terms', [UserPartnerApplicationController::class, 'onboardingTerms']);
         Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereNumber('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);

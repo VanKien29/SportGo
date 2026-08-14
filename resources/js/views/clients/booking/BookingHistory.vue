@@ -21,9 +21,9 @@
             </router-link>
           </div>
 
-          <!-- STATUS FILTER TABS & SEARCH -->
+          <!-- STATUS FILTER TABS & FILTER WORKSPACE -->
           <div class="w2-toolbar">
-            <div class="w2-tabs">
+            <div class="w2-tabs" role="tablist" aria-label="Lọc trạng thái booking">
               <button
                 v-for="filter in statusFilters"
                 :key="filter.value"
@@ -36,33 +36,51 @@
               </button>
             </div>
 
-            <!-- SEARCH & DATE FILTERS INLINE -->
-            <form class="bh-filter-form" @submit.prevent="applyFilters">
-              <div class="w2-search">
-                <input
-                  v-model.trim="searchInput"
-                  type="text"
-                  class="w2-search-input"
-                  placeholder="Mã đơn đặt sân..."
-                />
-              </div>
+            <div class="bh-toolbar-actions">
+              <span class="bh-result-count">{{ totalBookings }} booking</span>
+              <button type="button" class="w2-btn w2-btn--outline" :class="{ 'is-active': showAdvancedFilters }" @click="showAdvancedFilters = !showAdvancedFilters">
+                Bộ lọc <span v-if="activeFilterCount" class="bh-filter-count">{{ activeFilterCount }}</span>
+              </button>
+            </div>
+          </div>
 
-              <div class="bh-date-picker-wrap">
+          <form class="bh-filter-panel" :class="{ 'is-open': showAdvancedFilters }" @submit.prevent="applyFilters">
+            <div class="bh-filter-field bh-filter-field--search">
+              <label for="bookingSearch">Tìm theo mã booking</label>
+              <input id="bookingSearch" v-model.trim="searchInput" type="search" class="w2-search-input" placeholder="Nhập mã booking..." />
+            </div>
+            <div class="bh-filter-field">
+              <label>Khoảng ngày</label>
+              <div class="bh-date-range">
                 <ClientDatePicker v-model="fromDate" placeholder="Từ ngày" />
-              </div>
-
-              <div class="bh-date-picker-wrap">
                 <ClientDatePicker v-model="toDate" placeholder="Đến ngày" />
               </div>
-
-              <button type="submit" class="w2-btn w2-btn--outline">
-                Tìm
-              </button>
-              <button v-if="searchInput || fromDate || toDate" type="button" class="w2-btn w2-btn--outline" @click="resetFilters">
-                Đặt lại
-              </button>
-            </form>
-          </div>
+            </div>
+            <div class="bh-filter-field">
+              <label for="bookingType">Loại booking</label>
+              <select id="bookingType" v-model="bookingType" class="bh-select-inline">
+                <option value="">Tất cả</option>
+                <option value="single">Booking lẻ</option>
+                <option value="recurring">Lịch cố định</option>
+              </select>
+            </div>
+            <div class="bh-filter-field">
+              <label for="paymentStatus">Thanh toán</label>
+              <select id="paymentStatus" v-model="paymentStatus" class="bh-select-inline">
+                <option value="">Tất cả</option>
+                <option value="pending">Chờ thanh toán</option>
+                <option value="paid">Đã thanh toán</option>
+                <option value="not_required">Thanh toán tại sân</option>
+                <option value="refunded">Đã hoàn tiền</option>
+                <option value="failed">Thanh toán lỗi</option>
+              </select>
+            </div>
+            <div class="bh-filter-panel-actions">
+              <button type="submit" class="w2-btn w2-btn--primary">Áp dụng</button>
+              <button v-if="activeFilterCount" type="button" class="w2-btn w2-btn--outline" @click="resetFilters">Xóa lọc</button>
+            </div>
+          </form>
+          <p v-if="filterError" class="bh-filter-error">{{ filterError }}</p>
 
           <!-- BOOKINGS CONTENT AREA -->
           <section class="bh-content-area">
@@ -246,16 +264,21 @@ export default {
       error: "",
       currentPage: 1,
       totalPages: 1,
+      totalBookings: 0,
       statusGroup: "all",
       searchInput: "",
       fromDate: "",
       toDate: "",
+      bookingType: "",
+      paymentStatus: "",
+      showAdvancedFilters: true,
+      filterError: "",
       statusFilters: [
         { label: "Tất cả", value: "all" },
         { label: "Sắp tới", value: "upcoming" },
-        { label: "Chờ thanh toán", value: "pending" },
         { label: "Hoàn thành", value: "completed" },
         { label: "Đã hủy", value: "cancelled" },
+        { label: "Đã hoàn tiền", value: "refunded" },
       ],
       showCancelModal: false,
       cancelTarget: null,
@@ -269,6 +292,12 @@ export default {
   mounted() {
     this.loadBookings();
   },
+  computed: {
+    activeFilterCount() {
+      return [this.searchInput, this.fromDate, this.toDate, this.bookingType, this.paymentStatus]
+        .filter(Boolean).length;
+    },
+  },
   methods: {
     async loadBookings() {
       this.loading = true;
@@ -280,12 +309,15 @@ export default {
           search: this.searchInput || undefined,
           from_date: this.fromDate || undefined,
           to_date: this.toDate || undefined,
+          booking_type: this.bookingType || undefined,
+          payment_status: this.paymentStatus || undefined,
         };
         const response = await bookingService.listBookings(params);
         const payload = response.data || response;
         this.bookings = Array.isArray(payload.data) ? payload.data : Array.isArray(payload) ? payload : [];
         this.currentPage = Number(payload.meta?.current_page || payload.current_page || 1);
         this.totalPages = Number(payload.meta?.last_page || payload.last_page || 1);
+        this.totalBookings = Number(payload.meta?.total || payload.total || this.bookings.length);
       } catch (err) {
         this.error = err.message || "Không thể tải lịch sử đặt sân.";
       } finally {
@@ -298,6 +330,11 @@ export default {
       this.loadBookings();
     },
     applyFilters() {
+      this.filterError = "";
+      if (this.fromDate && this.toDate && this.fromDate > this.toDate) {
+        this.filterError = "Ngày bắt đầu không được sau ngày kết thúc.";
+        return;
+      }
       this.currentPage = 1;
       this.loadBookings();
     },
@@ -305,6 +342,9 @@ export default {
       this.searchInput = "";
       this.fromDate = "";
       this.toDate = "";
+      this.bookingType = "";
+      this.paymentStatus = "";
+      this.filterError = "";
       this.currentPage = 1;
       this.loadBookings();
     },
@@ -504,6 +544,57 @@ export default {
   padding-bottom: 12px;
   flex-wrap: wrap;
 }
+
+.bh-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.bh-result-count {
+  color: #64748b;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.w2-btn.is-active {
+  border-color: #15803d;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.bh-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.bh-filter-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(260px, 1.4fr) minmax(140px, .8fr) minmax(160px, .9fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.bh-filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bh-filter-field label { color: #475569; font-size: 12px; }
+.bh-filter-field .w2-search-input { width: 100%; box-sizing: border-box; }
+.bh-date-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bh-select-inline { width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; font-size: 13px; }
+.bh-filter-panel-actions { display: flex; align-items: center; gap: 8px; }
+.bh-filter-error { margin: -14px 0 0; color: #b91c1c; font-size: 12.5px; }
 
 .w2-tabs {
   display: flex;
@@ -721,6 +812,20 @@ export default {
 @keyframes w2SkShimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+@media (max-width: 1000px) {
+  .bh-filter-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bh-filter-field--search { grid-column: span 2; }
+  .bh-filter-panel-actions { grid-column: span 2; }
+}
+
+@media (max-width: 680px) {
+  .bh-toolbar-actions { width: 100%; margin-left: 0; justify-content: space-between; }
+  .bh-filter-panel { grid-template-columns: 1fr; }
+  .bh-filter-field--search,
+  .bh-filter-panel-actions { grid-column: auto; }
+  .bh-date-range { grid-template-columns: 1fr; }
 }
 
 .w2-state-card {

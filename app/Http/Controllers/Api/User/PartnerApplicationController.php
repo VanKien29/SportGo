@@ -20,6 +20,7 @@ use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use App\Services\Partner\PartnerLocationService;
 use App\Services\Partner\PartnerMapResolver;
+use App\Services\Partner\PartnerOnboardingTermsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +40,7 @@ class PartnerApplicationController extends Controller
         private readonly PartnerMapResolver $maps,
         private readonly PartnerDocumentSigningService $signing,
         private readonly PartnerDocumentService $documents,
+        private readonly PartnerOnboardingTermsService $onboardingTerms,
     ) {
     }
 
@@ -55,6 +57,7 @@ class PartnerApplicationController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
+                'onboarding_terms' => $this->onboardingTerms->payload(),
                 'latest' => $applications->first(),
                 'history' => $applications,
                 'can_register' => $models
@@ -69,6 +72,14 @@ class PartnerApplicationController extends Controller
                     ])
                     ->isEmpty(),
             ],
+        ]);
+    }
+
+    public function onboardingTerms(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->onboardingTerms->payload(),
         ]);
     }
 
