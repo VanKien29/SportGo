@@ -402,7 +402,47 @@ import PublicNavbar from "../../components/PublicNavbar.vue";
 import ClientAccountNav from "../../components/ClientAccountNav.vue";
 import { authService } from "../../services/authService.js";
 import { bookingService } from "../../services/bookingService.js";
+import { courtTypeService } from "../../services/courtTypes.js";
 import { getAuth, saveAuth } from "../../stores/auth.js";
+
+const MAX_PROFILE_SPORTS = 5;
+const PROFILE_SPORT_PRIORITY = [
+  "badminton",
+  "football",
+  "pickleball",
+  "tennis",
+  "basketball",
+  "volleyball",
+];
+const FALLBACK_SPORTS = [
+  { id: "badminton", name: "Cầu lông" },
+  { id: "football", name: "Bóng đá" },
+  { id: "pickleball", name: "Pickleball" },
+  { id: "tennis", name: "Tennis" },
+  { id: "basketball", name: "Bóng rổ" },
+];
+
+function sportIdFromName(name) {
+  const normalizedName = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const aliases = {
+    "cau-long": "badminton",
+    "bong-da": "football",
+    pickleball: "pickleball",
+    tennis: "tennis",
+    "bong-ro": "basketball",
+    "bong-chuyen": "volleyball",
+  };
+
+  return aliases[normalizedName] || normalizedName;
+}
 
 export default {
   name: "ClientProfile",
@@ -422,15 +462,11 @@ export default {
         email: user?.email || "",
         phone: user?.phone || "",
         bio: user?.bio || "",
-        sports: user?.sports || ["badminton", "football"],
+        sports: Array.isArray(user?.sports) && user.sports.length
+          ? user.sports.map((sport) => String(typeof sport === "object" ? sport.id || sport.code || sport.name : sport))
+          : ["badminton", "football"],
       },
-      sportsList: [
-        { id: "badminton", name: "Cầu lông" },
-        { id: "football", name: "Bóng đá" },
-        { id: "pickleball", name: "Pickleball" },
-        { id: "tennis", name: "Tennis" },
-        { id: "basketball", name: "Bóng rổ" },
-      ],
+      courtTypes: [],
       // EMAIL OTP VERIFICATION STATE
       showEmailOtpModal: false,
       pendingNewEmail: "",
@@ -472,6 +508,23 @@ export default {
             ? "Nhân viên sân"
             : "Người chơi";
     },
+    sportsList() {
+      const dynamicSports = this.courtTypes
+        .filter((type) => type?.is_active !== false && !type.parent_id)
+        .map((type) => ({
+          id: sportIdFromName(type.name),
+          name: type.name,
+        }))
+        .sort((a, b) => {
+          const aIndex = PROFILE_SPORT_PRIORITY.indexOf(a.id);
+          const bIndex = PROFILE_SPORT_PRIORITY.indexOf(b.id);
+          return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex)
+            - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+        })
+        .slice(0, MAX_PROFILE_SPORTS);
+
+      return dynamicSports.length ? dynamicSports : FALLBACK_SPORTS;
+    },
   },
   created() {
     if (!this.user) {
@@ -479,12 +532,22 @@ export default {
       return;
     }
     this.loadOverview();
+    this.loadCourtTypes();
   },
   beforeUnmount() {
     if (this.otpTimer) clearInterval(this.otpTimer);
     if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
   },
   methods: {
+    async loadCourtTypes() {
+      try {
+        const courtTypes = await courtTypeService.getCourtTypes();
+        this.courtTypes = Array.isArray(courtTypes) ? courtTypes : [];
+      } catch (error) {
+        this.courtTypes = [];
+        console.warn("Không thể tải danh sách môn thể thao", error);
+      }
+    },
     async loadOverview() {
       try {
         const [bookingsResponse, walletResponse] = await Promise.allSettled([
