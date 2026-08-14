@@ -596,10 +596,11 @@ export default {
           this.clearTimer();
         }
 
-        if (this.canPayOnline) {
-          await this.loadPaymentInfo();
-        } else {
+        // Không tạo mã QR trong lúc tải trang. API này có thể chậm do phải
+        // tạo payment record/QR; người dùng chỉ cần gọi khi bấm "Hiện mã QR".
+        if (!this.canPayOnline) {
           this.paymentInfo = null;
+          this.paymentError = "";
         }
       } catch (err) {
         this.booking = null;

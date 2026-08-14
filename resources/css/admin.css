@@ -596,6 +596,12 @@
     padding: 0 !important;
 }
 
+/* Keep both dashboards aligned with the spacing used by the portal pages. */
+.sg-shell-admin .content-area:has(.admin-dashboard-page),
+.sg-shell-admin .content-area:has(.owner-dashboard-page) {
+    padding: 28px clamp(22px, 2.4vw, 42px) 36px !important;
+}
+
 .sg-shell-admin .content-area .hero-integrated-tabs,
 .hero-integrated-tabs {
     background: var(--admin-surface, #ffffff) !important;
@@ -707,6 +713,11 @@
 
     .sg-shell-admin .content-area {
         padding: 0;
+    }
+
+    .sg-shell-admin .content-area:has(.admin-dashboard-page),
+    .sg-shell-admin .content-area:has(.owner-dashboard-page) {
+        padding: 20px 16px 28px !important;
     }
 
     .admin-footer {

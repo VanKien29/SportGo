@@ -10,6 +10,7 @@ use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenuePolicyRule;
 use App\Services\BookingService;
+use App\Services\Memberships\VenueMembershipService;
 use App\Services\Policies\RefundCancellationPolicyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class VenueController extends Controller
     public function __construct(
         private readonly BookingService $bookingService,
         private readonly RefundCancellationPolicyService $refundPolicies,
+        private readonly VenueMembershipService $venueMemberships,
     )
     {
     }
@@ -346,6 +348,10 @@ class VenueController extends Controller
                 'amenities_detail' => $amenitiesDetail,
                 'services' => $cluster->services,
                 'booking_config' => $cluster->bookingConfig,
+                'membership' => [
+                    'enabled' => $this->venueMemberships->hasSettings((string) $cluster->id),
+                    'tiers' => $this->venueMemberships->publicSettingsPayload((string) $cluster->id),
+                ],
                 'operating_hours' => $this->operatingHoursPayload($cluster),
                 'policies' => $this->policyPayload($cluster),
                 'venue_courts' => $cluster->venueCourts,

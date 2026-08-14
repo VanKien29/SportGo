@@ -17,6 +17,7 @@
             <div class="cp-name-row">
               <h2>{{ formData.fullName || "Người dùng SportGo" }}</h2>
               <span class="cp-role-tag">{{ roleLabel }}</span>
+              <ClientAuthorBadges :badges="profileBadges" />
             </div>
             <p class="cp-email-text">{{ user?.email }}<span v-if="user?.phone"> · SĐT: {{ user.phone }}</span></p>
             <span class="cp-verify-text">Trạng thái: {{ user?.email_verified_at ? "Đã xác thực Email" : "Tài khoản hoạt động" }}</span>
@@ -49,6 +50,66 @@
             <span class="cp-metric-link">Khám phá ưu đãi</span>
           </router-link>
         </div>
+
+        <section class="cp-account-overview" aria-labelledby="cp-account-overview-title">
+          <div class="cp-account-overview-head">
+            <div>
+              <span class="cp-section-kicker">TỔNG QUAN QUYỀN LỢI</span>
+              <h3 id="cp-account-overview-title">Gói & chi phí của bạn</h3>
+            </div>
+            <router-link to="/vip-membership" class="cp-text-link">Xem ưu đãi VIP →</router-link>
+          </div>
+
+          <div class="cp-account-overview-grid">
+            <article class="cp-account-summary-card cp-account-summary-card--vip">
+              <span class="cp-summary-label">Gói SportGo VIP</span>
+              <strong>{{ vipPackageLabel }}</strong>
+              <p>{{ vipSubscription ? "Hiệu lực đến " + formatDate(vipSubscription.expires_at) : "Chưa đăng ký gói trả phí" }}</p>
+              <router-link v-if="!vipSubscription" to="/vip-membership" class="cp-summary-action">Khám phá gói phù hợp</router-link>
+            </article>
+
+            <article class="cp-account-summary-card">
+              <span class="cp-summary-label">Chi tiêu tại sân</span>
+              <strong>{{ formatCurrency(venueSpendTotal) }}</strong>
+              <p>{{ venueMemberships.length ? venueMemberships.length + " cụm sân đang theo dõi hạng" : "Chưa có lịch sử tích lũy theo sân" }}</p>
+            </article>
+
+            <article class="cp-account-summary-card">
+              <span class="cp-summary-label">Số dư có thể dùng</span>
+              <strong>{{ formatCurrency(walletBalance) }}</strong>
+              <p>Đang khóa: {{ formatCurrency(walletLockedBalance) }}</p>
+              <router-link to="/wallet" class="cp-summary-action">Mở Ví SportGo</router-link>
+            </article>
+          </div>
+
+          <div v-if="venueMemberships.length" class="cp-venue-memberships">
+            <div class="cp-venue-memberships-head">
+              <div>
+                <strong>Hội viên theo từng sân</strong>
+                <span>Hạng được tính riêng theo lịch đặt và chi tiêu tại mỗi cụm sân.</span>
+              </div>
+              <span class="cp-venue-memberships-count">{{ venueMemberships.length }} cụm sân</span>
+            </div>
+            <div class="cp-venue-membership-list">
+              <router-link
+                v-for="membership in venueMemberships"
+                :key="membership.venue_cluster_id"
+                class="cp-venue-membership-item"
+                :to="{ name: 'venue-detail', params: { id: membership.venue_cluster_id }, query: { tab: 'membership' } }"
+              >
+                <div class="cp-venue-membership-copy">
+                  <strong>{{ membership.venue_name || "Cụm sân SportGo" }}</strong>
+                  <span>{{ membership.tier?.label || membership.tier?.tier_label || "Thường" }} · {{ formatPercent(membership.tier?.discount_percent) }}% ưu đãi</span>
+                </div>
+                <div class="cp-venue-membership-stats">
+                  <strong>{{ formatCurrency(membership.total_spend_amount || membership.total_spent) }}</strong>
+                  <span>{{ Number(membership.completed_bookings || membership.total_bookings || 0) }} lượt hoàn tất</span>
+                </div>
+                <span class="cp-venue-membership-arrow">→</span>
+              </router-link>
+            </div>
+          </div>
+        </section>
 
         <!-- 2-COLUMN PROFILE DETAILS & EDIT FORM -->
         <div class="cp-grid">
@@ -400,6 +461,7 @@
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import ClientAccountNav from "../../components/ClientAccountNav.vue";
+import ClientAuthorBadges from "../../components/ClientAuthorBadges.vue";
 import { authService } from "../../services/authService.js";
 import { bookingService } from "../../services/bookingService.js";
 import { courtTypeService } from "../../services/courtTypes.js";
@@ -446,14 +508,15 @@ function sportIdFromName(name) {
 
 export default {
   name: "ClientProfile",
-  components: { PublicNavbar, ClientAccountNav },
+  components: { PublicNavbar, ClientAccountNav, ClientAuthorBadges },
   data() {
     const user = getAuth();
     return {
       user,
       bookingCount: 0,
       walletBalance: 0,
-      membershipLabel: "Cơ bản",
+      walletLockedBalance: 0,
+      membershipLabel: user?.membership_tier?.tier?.label || user?.membership_tier?.tier?.tier_label || "Thường",
       saving: false,
       saveMessage: "",
       saveStatusClass: "",
@@ -499,6 +562,35 @@ export default {
     userInitial() {
       return this.formData.fullName?.trim()?.charAt(0)?.toUpperCase() || "S";
     },
+    profileBadges() {
+      const vipPackage = this.user?.vip_subscription?.package;
+      const tier = this.user?.membership_tier?.tier;
+
+      return {
+        vip: vipPackage
+          ? {
+              type: vipPackage.type,
+              label: this.user?.vip_subscription?.badge?.label || vipPackage.badge_name || "VIP SportGo",
+              icon: vipPackage.type === "pro" ? "shieldCheck" : vipPackage.type === "saving" ? "sparkles" : "star",
+            }
+          : null,
+        venue_membership: tier
+          ? {
+              tier_key: tier.tier_key || tier.tier || "standard",
+              label: tier.label || tier.tier_label || "Hội viên sân",
+              venue_name: this.user?.membership_tier?.venue_name || "",
+              discount_percent: tier.discount_percent || 0,
+              icon: tier.tier_key === "diamond"
+                ? "sparkles"
+                : tier.tier_key === "gold"
+                  ? "crown"
+                  : tier.tier_key === "silver"
+                    ? "star"
+                    : "shieldCheck",
+            }
+          : null,
+      };
+    },
     roleLabel() {
       return this.user?.role === "owner"
         ? "Chủ sân"
@@ -525,12 +617,25 @@ export default {
 
       return dynamicSports.length ? dynamicSports : FALLBACK_SPORTS;
     },
+    vipSubscription() {
+      return this.user?.vip_subscription || null;
+    },
+    vipPackageLabel() {
+      return this.vipSubscription?.package?.label || this.vipSubscription?.package?.name || "Chưa đăng ký";
+    },
+    venueMemberships() {
+      return Array.isArray(this.user?.venue_memberships) ? this.user.venue_memberships : [];
+    },
+    venueSpendTotal() {
+      return this.venueMemberships.reduce((sum, membership) => sum + Number(membership.total_spend_amount ?? membership.total_spent ?? 0), 0);
+    },
   },
   created() {
     if (!this.user) {
       this.$router.replace({ name: "login", query: { redirect: this.$route.fullPath } });
       return;
     }
+    this.refreshAccountData();
     this.loadOverview();
     this.loadCourtTypes();
   },
@@ -539,6 +644,17 @@ export default {
     if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
   },
   methods: {
+    async refreshAccountData() {
+      try {
+        const payload = await authService.me();
+        this.user = saveAuth(payload);
+        this.membershipLabel = this.user?.membership_tier?.tier?.label
+          || this.user?.membership_tier?.tier?.tier_label
+          || "Thường";
+      } catch (error) {
+        console.warn("Không thể làm mới quyền lợi tài khoản", error);
+      }
+    },
     async loadCourtTypes() {
       try {
         const courtTypes = await courtTypeService.getCourtTypes();
@@ -561,6 +677,7 @@ export default {
         if (walletResponse.status === "fulfilled") {
           const payload = walletResponse.value?.data || walletResponse.value || {};
           this.walletBalance = Number(payload.balance ?? payload.wallet?.balance ?? 0);
+          this.walletLockedBalance = Number(payload.locked_balance ?? payload.wallet?.locked_balance ?? 0);
         }
       } catch (error) {
         console.warn("Không thể tải thông tin ví", error);
@@ -732,6 +849,12 @@ export default {
     },
     formatCurrency(value) {
       return `${new Intl.NumberFormat("vi-VN").format(Number(value || 0))} đ`;
+    },
+    formatPercent(value) {
+      return Number(value || 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    },
+    formatDate(value) {
+      return value ? new Date(value).toLocaleDateString("vi-VN") : "-";
     },
   },
 };
@@ -959,6 +1082,234 @@ export default {
   color: #15803d;
   font-weight: 500;
   margin-top: 4px;
+}
+
+/* ACCOUNT BENEFITS & COST OVERVIEW */
+.cp-account-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #dcebe0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fbfffc 0%, #f3faf5 100%);
+}
+
+.cp-account-overview-head,
+.cp-venue-memberships-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cp-section-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.cp-account-overview h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.cp-text-link,
+.cp-summary-action {
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cp-text-link:hover,
+.cp-summary-action:hover {
+  color: #166534;
+  text-decoration: underline;
+}
+
+.cp-account-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cp-account-summary-card {
+  display: flex;
+  min-height: 128px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #e0ebe3;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.cp-account-summary-card--vip {
+  border-color: #b9e2c4;
+  background: #f8fff9;
+}
+
+.cp-summary-label {
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.cp-account-summary-card > strong {
+  color: #0f172a;
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.cp-account-summary-card p {
+  min-height: 30px;
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cp-summary-action {
+  margin-top: auto;
+}
+
+.cp-venue-memberships {
+  padding-top: 16px;
+  border-top: 1px solid #dcebe0;
+}
+
+.cp-venue-memberships-head {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.cp-venue-memberships-head div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cp-venue-memberships-head strong {
+  color: #0f172a;
+  font-size: 13.5px;
+}
+
+.cp-venue-memberships-head span {
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.cp-venue-memberships-count {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e8f6eb;
+  color: #15803d !important;
+  font-size: 11px !important;
+  font-weight: 650;
+}
+
+.cp-venue-membership-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cp-venue-membership-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 11px 12px;
+  border: 1px solid #e1ebe3;
+  border-radius: 9px;
+  background: #ffffff;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cp-venue-membership-item:hover {
+  border-color: #9ed3aa;
+  box-shadow: 0 5px 14px rgba(21, 128, 61, 0.08);
+  transform: translateY(-1px);
+}
+
+.cp-venue-membership-copy,
+.cp-venue-membership-stats {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cp-venue-membership-copy strong,
+.cp-venue-membership-stats strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-venue-membership-copy span,
+.cp-venue-membership-stats span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.cp-venue-membership-stats {
+  align-items: flex-end;
+}
+
+.cp-venue-membership-arrow {
+  color: #15803d;
+  font-size: 18px;
+  line-height: 1;
+}
+
+@media (max-width: 850px) {
+  .cp-account-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cp-account-summary-card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .cp-account-overview {
+    padding: 16px;
+  }
+
+  .cp-account-overview-head,
+  .cp-venue-memberships-head {
+    flex-direction: column;
+  }
+
+  .cp-venue-membership-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cp-venue-membership-stats {
+    grid-column: 1 / 2;
+    align-items: flex-start;
+  }
+
+  .cp-venue-membership-arrow {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }
 
 /* 2-COLUMN GRID */

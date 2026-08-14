@@ -39,12 +39,15 @@ class BookingFinanceTestDataSeeder extends Seeder
 
         $admin = $this->user('admin');
         $owner = $this->user('owner');
+        $ownerSun = $this->user('owner_sun');
         $staff = $this->user('venuestaff');
         $customerNam = $this->user('user');
         $customerLinh = $this->user('user1');
+        $customerChau = $this->user('user2');
+        $customerHa = $this->user('user3');
 
         $cluster = DB::table('venue_clusters')->where('slug', 'green-sport-ba-dinh')->first();
-        if (! $admin || ! $owner || ! $staff || ! $customerNam || ! $customerLinh || ! $cluster) {
+        if (! $admin || ! $owner || ! $staff || ! $customerNam || ! $customerLinh || ! $customerChau || ! $customerHa || ! $cluster) {
             return;
         }
 
@@ -63,7 +66,7 @@ class BookingFinanceTestDataSeeder extends Seeder
         $ownerBankId = $this->ownerBankAccount($owner->id);
         $ownerWalletId = $this->ownerWallet($owner->id, $cluster->id);
 
-        foreach ([$customerNam, $customerLinh] as $customer) {
+        foreach ([$customerNam, $customerLinh, $customerChau, $customerHa] as $customer) {
             $walletId = $this->userWallet($customer->id, 0);
             $this->userPayoutAccount($customer);
         }
@@ -192,7 +195,301 @@ class BookingFinanceTestDataSeeder extends Seeder
         $this->ownerWithdrawal($owner->id, $ownerWalletId, $ownerBankId, $admin->id, 'WD_OWNER_0001', 80000, 'pending');
         $this->ownerWithdrawal($owner->id, $ownerWalletId, $ownerBankId, $admin->id, 'WD_OWNER_0002', 100000, 'completed');
 
+        $this->seedAdditionalOwnerBookings($owner, $cluster, $courts, $customerChau, $customerHa, $systemBankId, $ownerWalletId);
+        $this->seedMembershipSettings($cluster->id);
+
+        if ($ownerSun) {
+            $this->seedOwnerSunScenario($ownerSun, $admin, $customerChau, $customerHa, $systemBankId);
+        }
+
         $this->syncWalletSnapshots();
+    }
+
+    private function seedAdditionalOwnerBookings(
+        object $owner,
+        object $cluster,
+        object $courts,
+        object $customerChau,
+        object $customerHa,
+        ?string $systemBankId,
+        string $ownerWalletId,
+    ): void {
+        $today = CarbonImmutable::now(config('app.timezone'))->startOfDay();
+
+        $completed = $this->booking([
+            'booking_code' => 'BOOKING_0004',
+            'customer_id' => $customerChau->id,
+            'venue_court_id' => $courts[0]->id,
+            'requested_venue_court_id' => $courts[0]->id,
+            'venue_cluster_id' => $cluster->id,
+            'booking_date' => $today->subDays(5)->toDateString(),
+            'start_time' => '18:00:00',
+            'end_time' => '19:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 140000,
+            'original_amount' => 140000,
+            'final_amount' => 140000,
+            'required_payment_amount' => 140000,
+            'payment_option' => 'full_payment',
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'completed',
+            'created_by' => $customerChau->id,
+            'created_at' => $this->baseDate->subDay(),
+            'updated_at' => $this->baseDate->subDay(),
+        ], [[
+            'court_id' => $courts[0]->id,
+            'start' => '18:00:00',
+            'end' => '19:00:00',
+            'price' => 140000,
+        ]]);
+        $payment = $this->payment($completed, $systemBankId, 140000, 'PAYMENT_0004', 'full', 'sepay', 'paid', 4);
+        $this->paymentLog($payment['id'], 'payment_paid', null, 'paid', $payment['gateway_txn_id']);
+        $this->ownerCredit($ownerWalletId, $owner->id, $cluster->id, $completed['id'], $payment['id'], 140000, 'Khách thanh toán booking BOOKING_0004.');
+
+        $this->booking([
+            'booking_code' => 'BOOKING_0005',
+            'customer_id' => $customerHa->id,
+            'venue_court_id' => $courts[1]->id,
+            'requested_venue_court_id' => $courts[1]->id,
+            'venue_cluster_id' => $cluster->id,
+            'booking_date' => $today->addDays(2)->toDateString(),
+            'start_time' => '19:00:00',
+            'end_time' => '20:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 140000,
+            'original_amount' => 140000,
+            'final_amount' => 140000,
+            'required_payment_amount' => 0,
+            'payment_option' => 'no_prepay',
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'pending_approval',
+            'created_by' => $customerHa->id,
+            'created_at' => $this->baseDate,
+            'updated_at' => $this->baseDate,
+        ], [[
+            'court_id' => $courts[1]->id,
+            'start' => '19:00:00',
+            'end' => '20:00:00',
+            'price' => 140000,
+        ]]);
+
+        $pending = $this->booking([
+            'booking_code' => 'BOOKING_0006',
+            'customer_id' => $customerChau->id,
+            'venue_court_id' => $courts[0]->id,
+            'requested_venue_court_id' => $courts[0]->id,
+            'venue_cluster_id' => $cluster->id,
+            'booking_date' => $today->addDays(4)->toDateString(),
+            'start_time' => '20:00:00',
+            'end_time' => '21:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 140000,
+            'original_amount' => 140000,
+            'final_amount' => 140000,
+            'required_payment_amount' => 140000,
+            'payment_option' => 'full_payment',
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'pending_payment',
+            'created_by' => $customerChau->id,
+            'created_at' => $this->baseDate,
+            'updated_at' => $this->baseDate,
+        ], [[
+            'court_id' => $courts[0]->id,
+            'start' => '20:00:00',
+            'end' => '21:00:00',
+            'price' => 140000,
+        ]]);
+        $this->payment($pending, $systemBankId, 140000, 'PAYMENT_0006', 'full', 'sepay', 'pending', 6);
+    }
+
+    private function seedOwnerSunScenario(
+        object $owner,
+        object $admin,
+        object $customerChau,
+        object $customerHa,
+        ?string $systemBankId,
+    ): void {
+        $cluster = DB::table('venue_clusters')->where('slug', 'sun-sport-cau-giay')->first();
+        if (! $cluster) {
+            return;
+        }
+
+        $courts = DB::table('venue_courts')
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->get()
+            ->values();
+
+        if ($courts->count() < 2) {
+            return;
+        }
+
+        $ownerBankId = $this->ownerBankAccount($owner->id);
+        $ownerWalletId = $this->ownerWallet($owner->id, $cluster->id);
+        $today = CarbonImmutable::now(config('app.timezone'))->startOfDay();
+
+        foreach (range(1, 5) as $index) {
+            $code = 'SUN_BOOKING_000'.$index;
+            $court = $courts[($index - 1) % 2];
+            $amount = $court->id === $courts[0]->id ? 650000 : 900000;
+            $booking = $this->booking([
+                'booking_code' => $code,
+                'customer_id' => $customerChau->id,
+                'venue_court_id' => $court->id,
+                'requested_venue_court_id' => $court->id,
+                'venue_cluster_id' => $cluster->id,
+                'booking_date' => $today->subDays(10 - $index)->toDateString(),
+                'start_time' => $index % 2 === 0 ? '19:00:00' : '18:00:00',
+                'end_time' => $index % 2 === 0 ? '20:00:00' : '19:00:00',
+                'duration_minutes' => 60,
+                'total_price' => $amount,
+                'original_amount' => $amount,
+                'final_amount' => $amount,
+                'required_payment_amount' => $amount,
+                'payment_option' => 'full_payment',
+                'source' => 'online',
+                'booking_type' => 'single',
+                'status' => 'completed',
+                'created_by' => $customerChau->id,
+                'created_at' => $this->baseDate->subDays($index),
+                'updated_at' => $this->baseDate->subDays($index),
+            ], [[
+                'court_id' => $court->id,
+                'start' => $index % 2 === 0 ? '19:00:00' : '18:00:00',
+                'end' => $index % 2 === 0 ? '20:00:00' : '19:00:00',
+                'price' => $amount,
+            ]]);
+            $payment = $this->payment($booking, $systemBankId, $amount, 'PAYMENT_SUN_000'.$index, 'full', 'sepay', 'paid', 10 + $index);
+            $this->paymentLog($payment['id'], 'payment_paid', null, 'paid', $payment['gateway_txn_id']);
+            $this->ownerCredit($ownerWalletId, $owner->id, $cluster->id, $booking['id'], $payment['id'], $amount, 'Khách thanh toán booking '.$code.'.');
+        }
+
+        $confirmed = $this->booking([
+            'booking_code' => 'SUN_BOOKING_0006',
+            'customer_id' => $customerHa->id,
+            'venue_court_id' => $courts[1]->id,
+            'requested_venue_court_id' => $courts[1]->id,
+            'venue_cluster_id' => $cluster->id,
+            'booking_date' => $today->addDay()->toDateString(),
+            'start_time' => '18:00:00',
+            'end_time' => '19:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 900000,
+            'original_amount' => 900000,
+            'final_amount' => 900000,
+            'required_payment_amount' => 900000,
+            'payment_option' => 'full_payment',
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'confirmed',
+            'created_by' => $customerHa->id,
+            'created_at' => $this->baseDate,
+            'updated_at' => $this->baseDate,
+        ], [[
+            'court_id' => $courts[1]->id,
+            'start' => '18:00:00',
+            'end' => '19:00:00',
+            'price' => 900000,
+        ]]);
+        $payment = $this->payment($confirmed, $systemBankId, 900000, 'PAYMENT_SUN_0006', 'full', 'sepay', 'paid', 16);
+        $this->paymentLog($payment['id'], 'payment_paid', null, 'paid', $payment['gateway_txn_id']);
+        $this->ownerCredit($ownerWalletId, $owner->id, $cluster->id, $confirmed['id'], $payment['id'], 900000, 'Khách thanh toán booking SUN_BOOKING_0006.');
+
+        $this->booking([
+            'booking_code' => 'SUN_BOOKING_0007',
+            'customer_id' => $customerHa->id,
+            'venue_court_id' => $courts[0]->id,
+            'requested_venue_court_id' => $courts[0]->id,
+            'venue_cluster_id' => $cluster->id,
+            'booking_date' => $today->addDays(3)->toDateString(),
+            'start_time' => '20:00:00',
+            'end_time' => '21:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 650000,
+            'original_amount' => 650000,
+            'final_amount' => 650000,
+            'required_payment_amount' => 0,
+            'payment_option' => 'no_prepay',
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'pending_approval',
+            'created_by' => $customerHa->id,
+            'created_at' => $this->baseDate,
+            'updated_at' => $this->baseDate,
+        ], [[
+            'court_id' => $courts[0]->id,
+            'start' => '20:00:00',
+            'end' => '21:00:00',
+            'price' => 650000,
+        ]]);
+
+        $pending = $this->booking([
+            'booking_code' => 'SUN_BOOKING_0008',
+            'customer_id' => $customerHa->id,
+            'venue_court_id' => $courts[1]->id,
+            'requested_venue_court_id' => $courts[1]->id,
+            'venue_cluster_id' => $cluster->id,
+            'booking_date' => $today->addDays(5)->toDateString(),
+            'start_time' => '19:00:00',
+            'end_time' => '20:00:00',
+            'duration_minutes' => 60,
+            'total_price' => 900000,
+            'original_amount' => 900000,
+            'final_amount' => 900000,
+            'required_payment_amount' => 900000,
+            'payment_option' => 'full_payment',
+            'source' => 'online',
+            'booking_type' => 'single',
+            'status' => 'pending_payment',
+            'created_by' => $customerHa->id,
+            'created_at' => $this->baseDate,
+            'updated_at' => $this->baseDate,
+        ], [[
+            'court_id' => $courts[1]->id,
+            'start' => '19:00:00',
+            'end' => '20:00:00',
+            'price' => 900000,
+        ]]);
+        $this->payment($pending, $systemBankId, 900000, 'PAYMENT_SUN_0008', 'full', 'sepay', 'pending', 18);
+
+        $this->ownerWithdrawal($owner->id, $ownerWalletId, $ownerBankId, $admin->id, 'WD_OWNER_SUN_0001', 500000, 'pending');
+        $this->ownerWithdrawal($owner->id, $ownerWalletId, $ownerBankId, $admin->id, 'WD_OWNER_SUN_0002', 800000, 'completed');
+        $this->seedMembershipSettings($cluster->id);
+    }
+
+    private function seedMembershipSettings(string $clusterId): void
+    {
+        if (! Schema::hasTable('court_membership_tiers')) {
+            return;
+        }
+
+        $tiers = [
+            ['tier' => 'standard', 'discount_percent' => 0, 'min_bookings' => 0, 'min_spent_amount' => 0],
+            ['tier' => 'silver', 'discount_percent' => 3, 'min_bookings' => 5, 'min_spent_amount' => 500000],
+            ['tier' => 'gold', 'discount_percent' => 5, 'min_bookings' => 15, 'min_spent_amount' => 2000000],
+            ['tier' => 'diamond', 'discount_percent' => 8, 'min_bookings' => 30, 'min_spent_amount' => 5000000],
+        ];
+
+        foreach ($tiers as $tier) {
+            DB::table('court_membership_tiers')->updateOrInsert(
+                [
+                    'venue_cluster_id' => $clusterId,
+                    'tier' => $tier['tier'],
+                ],
+                [
+                    ...$tier,
+                    'maintain_min_bookings' => null,
+                    'maintain_min_spent' => null,
+                    'maintain_period_months' => null,
+                    'updated_at' => $this->baseDate,
+                    'created_at' => $this->baseDate,
+                ],
+            );
+        }
     }
 
     private function hasRequiredTables(): bool
@@ -214,6 +511,10 @@ class BookingFinanceTestDataSeeder extends Seeder
             'refund_status_histories',
             'payment_logs',
             'voucher_usages',
+            'reviews',
+            'booking_support_requests',
+            'partner_termination_booking_actions',
+            'booking_services',
             'complaint_replies',
             'complaints',
             'player_post_participants',
@@ -429,8 +730,8 @@ class BookingFinanceTestDataSeeder extends Seeder
             'status_reason' => null,
             'completed_by' => $status === 'completed' ? $adminId : null,
             'completed_at' => $status === 'completed' ? $requestedAt->addHour() : null,
-            'transfer_reference' => $status === 'completed' ? 'MB-WD-OWNER-0002' : null,
-            'payout_transfer_code' => $status === 'completed' ? 'WD_OWNER_0002' : null,
+            'transfer_reference' => $status === 'completed' ? 'MB-'.$requestCode : null,
+            'payout_transfer_code' => $status === 'completed' ? $requestCode : null,
             'payout_qr_created_at' => $status === 'completed' ? $requestedAt->addMinutes(30) : null,
             'metadata' => json_encode(['seed' => true, 'scenario' => 'owner_withdrawal'], JSON_UNESCAPED_UNICODE),
             'requested_at' => $requestedAt,
@@ -446,7 +747,7 @@ class BookingFinanceTestDataSeeder extends Seeder
         if ($status === 'completed') {
             $this->ownerLedger($ownerWalletId, $ownerId, null, null, null, 'debit', 'debit', $amount, 'withdrawal', $id, 'Đã chi trả yêu cầu rút '.$requestCode.'.');
             $this->ownerWalletWithdrawn[$ownerWalletId] = ($this->ownerWalletWithdrawn[$ownerWalletId] ?? 0) + $amount;
-            $this->receipt('withdrawal', 'owner_withdrawal_requests', $id, $ownerId, $adminId, 'Phiếu chi rút tiền chủ sân '.$requestCode, $amount, 1);
+            $this->receipt('withdrawal', 'owner_withdrawal_requests', $id, $ownerId, $adminId, 'Phiếu chi rút tiền chủ sân '.$requestCode, $amount, $this->ownerLedgerSequence);
         }
     }
 
@@ -667,13 +968,25 @@ class BookingFinanceTestDataSeeder extends Seeder
             return $id;
         }
 
+        $owner = DB::table('users')->where('id', $ownerId)->first();
+        $isSunOwner = $owner?->username === 'owner_sun';
+
+        if ($isSunOwner) {
+            // owner_sun đã có một tài khoản TPBank đang chờ duyệt từ seeder hồ sơ.
+            // Tạo thêm tài khoản active để có thể kiểm tra luồng doanh thu/rút tiền.
+            DB::table('owner_bank_accounts')
+                ->where('owner_id', $ownerId)
+                ->where('status', 'pending')
+                ->update(['is_default' => false, 'updated_at' => $this->baseDate]);
+        }
+
         $id = DB::table('owner_bank_accounts')->insertGetId([
             'owner_id' => $ownerId,
             'partner_application_id' => null,
-            'bank_name' => 'Techcombank',
-            'bank_code' => 'TCB',
-            'account_number' => '29206999999999',
-            'account_holder_name' => 'NGUYEN MINH QUAN',
+            'bank_name' => $isSunOwner ? 'TPBank' : 'Techcombank',
+            'bank_code' => $isSunOwner ? 'TPB' : 'TCB',
+            'account_number' => $isSunOwner ? '0987654322' : '29206999999999',
+            'account_holder_name' => $isSunOwner ? 'LE HOANG ANH' : 'NGUYEN MINH QUAN',
             'branch_name' => 'Hà Nội',
             'status' => 'active',
             'is_default' => true,

@@ -583,16 +583,11 @@ class BookingController extends Controller
 
         // Đính kèm các thông tin liên quan nếu cần
         $booking->load([
-            'venueCourt.venueCluster',
             'venueCourt.courtType',
             'venueCluster',
-            'venueCluster.venueCourts.courtType',
-            'items.venueCourt.courtType',
-            'items.requestedVenueCourt.courtType',
-            'payments.logs',
-            'payments.userWallet',
-            'refunds.statusHistories',
-            'playerPost.participants',
+            'items.venueCourt',
+            'payments',
+            'bookingServices',
         ]);
 
         // Tính thời gian giữ chỗ còn lại (giây)
@@ -607,6 +602,10 @@ class BookingController extends Controller
         }
 
         $bookingArray = $booking->toArray();
+        // FE dùng key `services`; không trả thêm tên relation Eloquent
+        // `booking_services` để payload chi tiết gọn và nhất quán.
+        $bookingArray['services'] = $booking->bookingServices->values()->toArray();
+        unset($bookingArray['booking_services']);
         $bookingArray['time_left_seconds'] = $timeLeftSeconds;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');
         $bookingArray['refunded_amount'] = (float) $booking->refunds->whereIn('status', [

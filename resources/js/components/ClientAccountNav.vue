@@ -44,6 +44,11 @@ const items = [
     to: { name: 'client-wallet' },
   },
   {
+    key: 'vip',
+    label: 'Gói VIP',
+    to: { name: 'vip-membership' },
+  },
+  {
     key: 'notifications',
     label: 'Thông báo',
     to: { name: 'client-notifications' },
@@ -64,6 +69,7 @@ function isActive(key) {
   if (key === 'bookings') return route.name === 'booking-history';
   if (key === 'refunds') return route.name === 'client-refunds' || route.name === 'client-refund-detail';
   if (key === 'wallet') return route.name === 'client-wallet';
+  if (key === 'vip') return route.name === 'vip-membership';
   if (key === 'notifications') return route.name === 'client-notifications';
   if (key === 'complaints') return route.name === 'client-complaints' || route.name === 'client-complaint-detail';
   if (key === 'policies') return route.name === 'policies';
