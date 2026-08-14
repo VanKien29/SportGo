@@ -100,7 +100,12 @@
               <div class="cp-form-group">
                 <label>Môn thể thao yêu thích</label>
                 <div class="cp-sports-options">
-                  <label v-for="sport in sportsList" :key="sport.id" class="cp-checkbox-label">
+                  <label
+                    v-for="sport in sportsList"
+                    :key="sport.id"
+                    class="cp-checkbox-label"
+                    :class="{ 'is-selected': formData.sports.includes(sport.id) }"
+                  >
                     <input
                       v-model="formData.sports"
                       type="checkbox"
@@ -979,25 +984,90 @@ export default {
 .cp-sports-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  min-height: 30px;
-  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2ebe4;
+  border-radius: 10px;
+  background: #fbfdfb;
 }
 
 .cp-checkbox-label {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 13px;
+  border: 1px solid #d6e3d9;
+  border-radius: 9px;
+  background: #ffffff;
   font-size: 13px;
-  color: #0f172a;
+  color: #334155;
   cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+
+.cp-checkbox-label::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 1.5px solid #a8b8ad;
+  border-radius: 5px;
+  background: #ffffff;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cp-checkbox-label::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 22px;
+  width: 8px;
+  height: 5px;
+  border-bottom: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  transform: translate(-50%, -65%) rotate(-45deg) scale(0);
+  transition: transform 0.16s ease;
+}
+
+.cp-checkbox-label:hover {
+  border-color: #8fc9a1;
+  background: #f7fcf8;
+}
+
+.cp-checkbox-label:focus-within {
+  border-color: #159447;
+  box-shadow: 0 0 0 3px rgba(21, 148, 71, 0.14);
+}
+
+.cp-checkbox-label.is-selected {
+  border-color: #8fc9a1;
+  background: #f0faf3;
+  color: #0d7137;
+}
+
+.cp-checkbox-label.is-selected::before {
+  border-color: #159447;
+  background: #159447;
+  box-shadow: 0 2px 5px rgba(21, 148, 71, 0.2);
+}
+
+.cp-checkbox-label.is-selected::after {
+  transform: translate(-50%, -65%) rotate(-45deg) scale(1);
 }
 
 .cp-checkbox-label input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: #15803d;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .cp-alert {
