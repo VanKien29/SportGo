@@ -331,6 +331,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
         Route::post('/moderation/posts/{type}/{id}/notify-author', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'notifyAuthor']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
+        Route::post('/moderation/posts/{type}/{id}/ai-recheck', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'aiRecheck']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
 
         // Admin Venue Posts
@@ -590,6 +591,8 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/eligible-vouchers', [\App\Http\Controllers\Api\Player\BookingController::class, 'eligibleVouchers']);
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);
         Route::get('/bookings/recurring-groups/{groupCode}', [\App\Http\Controllers\Api\Player\BookingController::class, 'recurringGroup']);
+        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'previewRecurring']);
+        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Player\BookingController::class, 'storeRecurring']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
@@ -617,6 +620,9 @@ Route::middleware('auth:sanctum')
         Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);
 
         // Player/Client Venue Posts (Community Posts)
+        Route::get('/my-community-posts', [PlayerVenuePostController::class, 'myPosts']);
+        Route::post('/my-community-posts/{id}/restore', [PlayerVenuePostController::class, 'restore']);
+        Route::post('/my-community-posts/{id}/appeal', [PlayerVenuePostController::class, 'appeal']);
         Route::post('/venue-posts', [PlayerVenuePostController::class, 'store'])->middleware('throttle:5,1');
         Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
         Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);

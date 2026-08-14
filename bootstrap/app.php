@@ -4,6 +4,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -25,6 +26,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json([
                     'message' => 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
                 ], 401);
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (PostTooLargeException $exception, $request) {
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Tổng dung lượng ảnh tải lên vượt quá giới hạn cho phép của máy chủ.',
+                ], 413);
             }
 
             return null;

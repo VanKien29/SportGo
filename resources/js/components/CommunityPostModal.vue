@@ -28,7 +28,7 @@
           </p>
 
           <label class="content-field">
-            <span>Nội dung <small>Bắt buộc</small></span>
+            <span class="content-field-label">Nội dung</span>
             <textarea
               v-model="form.content"
               rows="6"
@@ -36,18 +36,41 @@
               required
               :placeholder="`Bạn muốn chia sẻ điều gì${userFirstName ? `, ${userFirstName}` : ''}?`"
             ></textarea>
-            <small :class="{ invalid: trimmedContentLength > 0 && trimmedContentLength < minimumContentLength }">
-              {{ trimmedContentLength < minimumContentLength
-                ? `Cần ít nhất ${minimumContentLength} ký tự · ${trimmedContentLength}/${minimumContentLength}`
-                : `${trimmedContentLength.toLocaleString('vi-VN')} ký tự` }}
-            </small>
+            <div class="content-field-footer">
+              <span
+                class="content-counter"
+                :class="{ 'is-invalid': trimmedContentLength > 0 && trimmedContentLength < minimumContentLength }"
+              >
+                <template v-if="trimmedContentLength > 0 && trimmedContentLength < minimumContentLength">
+                  Cần thêm {{ minimumContentLength - trimmedContentLength }} ký tự nữa · {{ trimmedContentLength }}/{{ minimumContentLength }}
+                </template>
+                <template v-else-if="trimmedContentLength >= minimumContentLength">
+                  {{ trimmedContentLength.toLocaleString('vi-VN') }} ký tự
+                </template>
+                <template v-else>
+                  Tối thiểu {{ minimumContentLength }} ký tự
+                </template>
+              </span>
+            </div>
           </label>
 
-          <div v-if="imagePreviewUrl" class="image-preview">
-            <img :src="imagePreviewUrl" alt="Ảnh sẽ đính kèm bài viết" />
-            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeFile">
-              <AppIcon name="trash" />
-            </button>
+          <!-- LƯỚI PREVIEW ẢNH ĐÃ CHỌN -->
+          <div v-if="selectedImages.length" class="image-preview-grid">
+            <div
+              v-for="(img, idx) in selectedImages"
+              :key="idx"
+              class="image-preview-item"
+            >
+              <img :src="img.url" :alt="`Ảnh ${idx + 1}`" />
+              <button
+                type="button"
+                class="remove-image-btn"
+                aria-label="Xóa ảnh này"
+                @click="removeImage(idx)"
+              >
+                <AppIcon name="x" size="14" />
+              </button>
+            </div>
           </div>
 
           <fieldset class="topic-fieldset">
@@ -72,17 +95,19 @@
           <div class="attachment-row">
             <div>
               <strong>Ảnh minh họa</strong>
-              <small>Một ảnh JPG, PNG hoặc WebP, tối đa 5 MB</small>
+              <small>Tối đa 10 ảnh JPG, PNG hoặc WebP, tối đa 5 MB/ảnh</small>
             </div>
-            <label class="image-picker">
+            <label class="image-picker" :class="{ disabled: selectedImages.length >= 10 }">
               <input
                 ref="fileInput"
                 type="file"
+                multiple
                 accept="image/jpeg,image/png,image/webp"
+                :disabled="selectedImages.length >= 10"
                 @change="handleFileChange"
               />
               <AppIcon name="image" />
-              {{ selectedFile ? 'Đổi ảnh' : 'Chọn ảnh' }}
+              {{ selectedImages.length ? `Thêm ảnh (${selectedImages.length}/10)` : 'Chọn ảnh' }}
             </label>
           </div>
 
@@ -91,8 +116,7 @@
           <footer class="form-actions">
             <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
             <button type="submit" class="submit-button" :disabled="isSubmitting || !isValid">
-              <span v-if="isSubmitting" class="spinner" aria-hidden="true"></span>
-              {{ isSubmitting ? 'Đang đăng...' : 'Đăng bài' }}
+              {{ isSubmitting ? 'Đang lưu...' : (isEditing ? 'Lưu thay đổi' : 'Đăng bài') }}
             </button>
           </footer>
         </form>
@@ -109,6 +133,7 @@ import { getAuth } from '@/stores/auth.js';
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
+  editingPost: { type: Object, default: null },
 });
 
 const emit = defineEmits(['close', 'success']);
@@ -117,17 +142,48 @@ const minimumContentLength = 20;
 const maximumTags = 3;
 const availableCategories = ['Kinh nghiệm', 'Giao lưu', 'Hỏi đáp', 'Sự kiện', 'Cụm sân mới', 'Ưu đãi'];
 const form = ref({ content: '', post_type: 'news', tags: [] });
-const selectedFile = ref(null);
-const imagePreviewUrl = ref('');
+const selectedImages = ref([]);
+const removedMediaIds = ref([]);
 const fileInput = ref(null);
 const fileError = ref('');
 const errorMsg = ref('');
 const isSubmitting = ref(false);
 
+const isEditing = computed(() => Boolean(props.editingPost));
 const userInitial = computed(() => String(user?.fullName || 'S').trim().charAt(0).toUpperCase());
 const userFirstName = computed(() => String(user?.fullName || '').trim().split(/\s+/).filter(Boolean).at(-1) || '');
 const trimmedContentLength = computed(() => form.value.content.trim().length);
 const isValid = computed(() => trimmedContentLength.value >= minimumContentLength);
+
+function assetUrl(path) {
+  if (!path || /^https?:\/\//.test(path) || path.startsWith('/')) return path || '';
+  return `/storage/${path}`;
+}
+
+watch(
+  () => [props.isOpen, props.editingPost],
+  ([open, post]) => {
+    if (open && post) {
+      form.value = {
+        content: post.content || post.short_description || '',
+        post_type: 'news',
+        tags: Array.isArray(post.hashtags) ? post.hashtags.map((t) => t.name) : [],
+      };
+      removedMediaIds.value = [];
+      const mediaList = Array.isArray(post.media) ? post.media : [];
+      selectedImages.value = mediaList.map((m) => ({
+        id: m.id,
+        url: assetUrl(m.url || m.file_url || m.file_path || m.path),
+        isExisting: true,
+      }));
+      fileError.value = '';
+      errorMsg.value = '';
+    } else if (open && !post) {
+      reset();
+    }
+  },
+  { immediate: true }
+);
 
 function toggleTag(category) {
   const index = form.value.tags.indexOf(category);
@@ -138,40 +194,114 @@ function toggleTag(category) {
   if (form.value.tags.length < maximumTags) form.value.tags.push(category);
 }
 
-function revokePreview() {
-  if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value);
-  imagePreviewUrl.value = '';
-}
-
-function removeFile() {
-  selectedFile.value = null;
-  revokePreview();
+function removeImage(index) {
+  const item = selectedImages.value[index];
+  if (item?.isExisting && item.id) {
+    removedMediaIds.value.push(item.id);
+  } else if (item?.url) {
+    URL.revokeObjectURL(item.url);
+  }
+  selectedImages.value.splice(index, 1);
   if (fileInput.value) fileInput.value.value = '';
 }
 
-function handleFileChange(event) {
+function clearAllImages() {
+  selectedImages.value.forEach((img) => {
+    if (img.isExisting && img.id) {
+      removedMediaIds.value.push(img.id);
+    } else if (img.url) {
+      URL.revokeObjectURL(img.url);
+    }
+  });
+  selectedImages.value = [];
+  if (fileInput.value) fileInput.value.value = '';
+}
+
+async function compressImage(file, maxDimension = 1920, quality = 0.85) {
+  return new Promise((resolve) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+            const webpFile = new File([blob], cleanName, { type: 'image/webp' });
+            resolve(webpFile);
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleFileChange(event) {
   fileError.value = '';
-  const file = event.target.files?.[0];
-  removeFile();
-  if (!file) return;
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
 
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!allowedTypes.includes(file.type)) {
-    fileError.value = 'Ảnh phải có định dạng JPG, PNG hoặc WebP.';
-    return;
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    fileError.value = 'Kích thước ảnh không được vượt quá 5 MB.';
-    return;
+  const remainingSlots = 10 - selectedImages.value.length;
+  if (files.length > remainingSlots) {
+    fileError.value = `Bạn chỉ có thể thêm tối đa ${remainingSlots} ảnh nữa (tổng 10 ảnh).`;
   }
 
-  selectedFile.value = file;
-  imagePreviewUrl.value = URL.createObjectURL(file);
+  const allowedFiles = files.slice(0, remainingSlots);
+  for (const file of allowedFiles) {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      fileError.value = 'Chỉ chấp nhận file ảnh JPG, PNG hoặc WebP.';
+      continue;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      fileError.value = 'Mỗi ảnh gốc không được vượt quá 15 MB.';
+      continue;
+    }
+    const optimizedFile = await compressImage(file);
+    selectedImages.value.push({
+      file: optimizedFile,
+      url: URL.createObjectURL(optimizedFile),
+      isExisting: false,
+    });
+  }
+
+  if (fileInput.value) fileInput.value.value = '';
 }
 
 function reset() {
   form.value = { content: '', post_type: 'news', tags: [] };
-  removeFile();
+  clearAllImages();
+  removedMediaIds.value = [];
   fileError.value = '';
   errorMsg.value = '';
 }
@@ -203,14 +333,33 @@ async function submit() {
     payload.append('post_type', form.value.post_type);
     payload.append('is_draft', '0');
     form.value.tags.forEach((tag, index) => payload.append(`tags[${index}]`, tag));
-    if (selectedFile.value) payload.append('thumbnail', selectedFile.value);
 
-    const response = await apiFormData('/api/venue-posts', payload);
-    emit('success', response);
-    reset();
-    emit('close');
+    const newImages = selectedImages.value.filter((img) => !img.isExisting && img.file);
+    newImages.forEach((item, index) => {
+      payload.append(`images[${index}]`, item.file);
+    });
+
+    if (isEditing.value) {
+      payload.append('_method', 'PUT');
+      removedMediaIds.value.forEach((id, index) => {
+        payload.append(`removed_media_ids[${index}]`, id);
+      });
+      const targetId = props.editingPost.id || props.editingPost.entity_id;
+      const response = await apiFormData(`/api/venue-posts/${targetId}`, payload);
+      emit('success', response);
+      reset();
+      emit('close');
+    } else {
+      if (newImages.length === 1) {
+        payload.append('thumbnail', newImages[0].file);
+      }
+      const response = await apiFormData('/api/venue-posts', payload);
+      emit('success', response);
+      reset();
+      emit('close');
+    }
   } catch (error) {
-    errorMsg.value = error.message || 'Không thể đăng bài viết. Vui lòng kiểm tra nội dung và thử lại.';
+    errorMsg.value = error.message || 'Không thể lưu bài viết. Vui lòng kiểm tra nội dung và thử lại.';
   } finally {
     isSubmitting.value = false;
   }
@@ -356,16 +505,19 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-.content-field span {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
+.content-field-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.content-field small {
+.content-field-label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.content-field-required {
   color: #dc2626;
   font-weight: 400;
   font-size: 12px;
@@ -383,43 +535,74 @@ onBeforeUnmount(() => {
   resize: vertical;
   outline: none;
   background: #ffffff;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
 }
 
 .content-field textarea:focus {
-  border-color: #16a34a;
+  border-color: #15803d;
 }
 
-.content-field small.invalid {
+.content-field-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.content-counter {
+  color: #475569;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.content-counter.is-invalid {
   color: #dc2626;
+  font-weight: 500;
 }
 
-/* ─── IMAGE PREVIEW ─── */
-.image-preview {
+/* ─── IMAGE PREVIEW GRID ─── */
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.image-preview-item {
   position: relative;
+  aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 240px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
 }
 
-.image-preview img {
+.image-preview-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.remove-image {
+.remove-image-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.7);
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 6px;
-  cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease;
+}
+
+.remove-image-btn:hover {
+  background: #dc2626;
 }
 
 /* ─── TOPIC FIELDSET ─── */
@@ -454,25 +637,33 @@ onBeforeUnmount(() => {
 }
 
 .topic-list button {
-  padding: 5px 12px;
+  padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #0f172a;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.topic-list button:hover:not(:disabled) {
-  border-color: #16a34a;
-  color: #16a34a;
+.topic-list button:hover:not(:disabled):not(.active) {
+  border-color: #15803d;
+  color: #15803d;
+  background: #f8fafc;
 }
 
 .topic-list button.active {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #ffffff;
+  background: #15803d;
+  border-color: #15803d;
+  color: #ffffff !important;
+}
+
+.topic-list button.active:hover:not(:disabled) {
+  background: #166534;
+  border-color: #166534;
+  color: #ffffff !important;
 }
 
 .topic-list button:disabled {
@@ -517,15 +708,22 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .image-picker input {
   display: none;
 }
 
-.image-picker:hover {
-  border-color: #16a34a;
-  color: #16a34a;
+.image-picker:hover:not(.disabled) {
+  border-color: #15803d;
+  color: #15803d;
+}
+
+.image-picker.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f1f5f9;
 }
 
 /* ─── ERROR ─── */
@@ -547,52 +745,49 @@ onBeforeUnmount(() => {
 
 .cancel-button {
   padding: 9px 18px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   background: #ffffff;
   color: #0f172a;
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .cancel-button:hover:not(:disabled) {
   background: #f8fafc;
+  border-color: #94a3b8;
 }
 
 .submit-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 20px;
-  border: none;
+  justify-content: center;
+  padding: 0 20px;
+  height: 38px;
+  border: 1px solid #15803d;
   border-radius: 6px;
-  background: #16a34a;
+  background: #15803d;
   color: #ffffff;
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
 .submit-button:hover:not(:disabled) {
-  background: #15803d;
+  background: #166534;
+  border-color: #166534;
 }
 
 .submit-button:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+  background: #15803d;
+  border-color: #15803d;
+  color: #ffffff;
+  opacity: 0.9;
 }
-
-.spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #ffffff;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: cm-spin 0.75s linear infinite;
-}
-
-@keyframes cm-spin { to { transform: rotate(360deg); } }
 </style>
 

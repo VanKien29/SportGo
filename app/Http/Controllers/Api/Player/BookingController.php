@@ -572,7 +572,13 @@ class BookingController extends Controller
      */
     public function show(string $id)
     {
-        $booking = Booking::findOrFail($id);
+        $booking = Booking::find($id);
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Đơn đặt sân không còn tồn tại hoặc đã được làm mới. Vui lòng mở lại từ Lịch sử đặt sân.',
+            ], 404);
+        }
 
         // Bảo vệ quyền riêng tư: Người chơi chỉ được xem đơn đặt của chính mình
         if ($booking->customer_id !== auth()->id()) {

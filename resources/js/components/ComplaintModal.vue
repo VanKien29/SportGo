@@ -75,10 +75,10 @@
           <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
 
           <footer class="form-actions">
-            <SgButton type="secondary" :disabled="isSubmitting" @click="close">Hủy</SgButton>
-            <SgButton native-type="submit" type="primary" :loading="isSubmitting" :disabled="!isValid">
-              Gửi khiếu nại
-            </SgButton>
+            <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
+            <button type="submit" class="submit-button" :disabled="isSubmitting || !isValid">
+              {{ isSubmitting ? 'Đang gửi...' : 'Gửi khiếu nại' }}
+            </button>
           </footer>
         </form>
       </div>
@@ -89,14 +89,11 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
-import SgButton from './common/SgButton.vue';
 import { api, apiFormData } from '@/services/api';
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
-  initialType: { type: String, default: 'system' },
   initialVenueId: { type: [String, Number], default: '' },
-  initialVenueName: { type: String, default: '' },
   initialBookingId: { type: [String, Number], default: '' },
 });
 
@@ -108,6 +105,7 @@ const form = reactive({
   content: '',
   imageFile: null,
 });
+
 const recentBookings = ref([]);
 const bookingsLoading = ref(false);
 const isSubmitting = ref(false);
@@ -116,23 +114,23 @@ const imagePreview = ref('');
 const fileInput = ref(null);
 
 const availableVenueClusters = computed(() => {
-  const clusters = new Map();
+  const map = new Map();
   recentBookings.value.forEach((booking) => {
-    const cluster = booking.venue_cluster || booking.venueCluster || booking.venue_court?.venue_cluster;
-    if (cluster?.id) clusters.set(String(cluster.id), cluster);
+    const cluster = bookingCluster(booking);
+    if (cluster?.id && !map.has(String(cluster.id))) {
+      map.set(String(cluster.id), { id: cluster.id, name: cluster.name });
+    }
   });
-  if (props.initialVenueId) {
-    clusters.set(String(props.initialVenueId), {
-      id: props.initialVenueId,
-      name: props.initialVenueName || 'Cụm sân đang xem',
-    });
-  }
-  return Array.from(clusters.values());
+  return Array.from(map.values());
 });
 
 const isValid = computed(() => Boolean(
-  form.content && form.complaint_type === 'venue' && form.booking_id && form.venue_cluster_id
+  form.content.trim() && form.complaint_type === 'venue' && form.booking_id && form.venue_cluster_id
 ));
+
+function bookingCluster(booking) {
+  return booking.venue_cluster || booking.venueCluster || booking.cluster || null;
+}
 
 function applyInitialContext() {
   form.complaint_type = 'venue';
@@ -159,10 +157,6 @@ async function fetchBookings() {
   }
 }
 
-function bookingCluster(booking) {
-  return booking?.venue_cluster || booking?.venueCluster || booking?.venue_court?.venue_cluster || null;
-}
-
 function bookingOptionLabel(booking) {
   const date = booking.booking_date
     ? new Date(`${booking.booking_date}T00:00:00`).toLocaleDateString('vi-VN')
@@ -174,12 +168,12 @@ function bookingOptionLabel(booking) {
 
 function onBookingChange() {
   const booking = recentBookings.value.find((item) => String(item.id) === String(form.booking_id));
-  if (!booking) {
-    if (!props.initialVenueId) form.venue_cluster_id = '';
-    return;
+  if (booking) {
+    const cluster = bookingCluster(booking);
+    form.venue_cluster_id = cluster ? String(cluster.id) : '';
+  } else if (!props.initialVenueId) {
+    form.venue_cluster_id = '';
   }
-  const cluster = bookingCluster(booking);
-  form.venue_cluster_id = String(booking.venue_cluster_id || cluster?.id || '');
 }
 
 function revokePreview() {
@@ -258,3 +252,281 @@ watch(() => props.isOpen, (isOpen) => {
 
 onBeforeUnmount(revokePreview);
 </script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.complaint-modal {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.modal-kicker {
+  display: block;
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.icon-button:hover {
+  background: #f8fafc;
+}
+
+.modal-description {
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0 0 18px 0;
+}
+
+.complaint-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.type-list {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.type-list legend {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.type-option:hover {
+  border-color: #94a3b8;
+}
+
+.type-option.selected {
+  border-color: #15803d;
+  background: #f8fafc;
+}
+
+.type-option input {
+  margin-top: 3px;
+  accent-color: #15803d;
+}
+
+.type-option strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.type-option small {
+  font-size: 12px;
+  color: #475569;
+  display: block;
+  margin-top: 2px;
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-block span {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-block small {
+  color: #475569;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.field-control {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  font-family: inherit;
+  outline: none;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.field-control:focus {
+  border-color: #15803d;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: #475569;
+}
+
+.character-count {
+  font-size: 12px;
+  color: #475569;
+  text-align: right;
+}
+
+.image-preview {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 180px;
+  border: 1px solid #cbd5e1;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.remove-image {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.remove-image:hover {
+  background: #dc2626;
+}
+
+.form-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 0;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cancel-button {
+  padding: 9px 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cancel-button:hover {
+  border-color: #94a3b8;
+}
+
+.submit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  height: 38px;
+  border: 1px solid #15803d;
+  border-radius: 6px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #166534;
+  border-color: #166534;
+}
+
+.submit-button:disabled {
+  cursor: not-allowed;
+  background: #15803d;
+  border-color: #15803d;
+  color: #ffffff;
+  opacity: 0.9;
+}
+</style>

@@ -24,7 +24,26 @@
             </div>
           </article>
 
-          <section class="feed-toolbar" aria-label="Lọc bảng tin">
+          <div v-if="user" class="community-main-tabs">
+            <button
+              type="button"
+              class="main-tab-item"
+              :class="{ active: feedTab === 'public' }"
+              @click="switchFeedTab('public')"
+            >
+              Bảng tin cộng đồng
+            </button>
+            <button
+              type="button"
+              class="main-tab-item"
+              :class="{ active: feedTab === 'my_posts' }"
+              @click="switchFeedTab('my_posts')"
+            >
+              Bài viết của tôi
+            </button>
+          </div>
+
+          <section v-if="feedTab === 'public'" class="feed-toolbar" aria-label="Lọc bảng tin">
             <div class="toolbar-title">
               <h2>Bảng tin mới nhất</h2>
             </div>
@@ -57,20 +76,35 @@
             </div>
           </section>
 
+          <section v-else class="feed-toolbar" aria-label="Lọc bài viết của tôi">
+            <div class="toolbar-title">
+              <h2>Bài viết của tôi</h2>
+            </div>
+            <div class="feed-filters">
+              <div class="category-list" aria-label="Lọc trạng thái bài viết">
+                <button type="button" :class="{ active: myPostStatus === 'all' }" @click="setMyPostStatus('all')">Tất cả</button>
+                <button type="button" :class="{ active: myPostStatus === 'pending_review' }" @click="setMyPostStatus('pending_review')">Chờ duyệt</button>
+                <button type="button" :class="{ active: myPostStatus === 'published' }" @click="setMyPostStatus('published')">Đã đăng</button>
+                <button type="button" :class="{ active: myPostStatus === 'rejected' }" @click="setMyPostStatus('rejected')">Bị từ chối</button>
+                <button type="button" :class="{ active: myPostStatus === 'deleted' }" @click="setMyPostStatus('deleted')">Thùng rác</button>
+              </div>
+            </div>
+          </section>
+
           <div v-if="loading" class="feed-state" aria-live="polite">
-            <span class="spinner" aria-hidden="true"></span>
-            <p>Đang tải bảng tin...</p>
+            <p>Đang tải bài viết...</p>
           </div>
           <div v-else-if="error" class="feed-state state-error" role="alert">
             <AppIcon name="alert" />
-            <strong>Không thể tải bảng tin</strong>
+            <strong>Không thể tải bài viết</strong>
             <p>{{ error }}</p>
-            <button type="button" @click="fetchPosts({ page: 1 })">Thử lại</button>
+            <button type="button" @click="loadCurrentFeed({ page: 1 })">Thử lại</button>
           </div>
           <div v-else-if="!posts.length" class="feed-state">
             <AppIcon name="newspaper" />
-            <strong>Chưa có bài viết phù hợp</strong>
-            <p>Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.</p>
+            <strong>{{ feedTab === 'my_posts' ? (myPostStatus === 'deleted' ? 'Thùng rác trống' : 'Bạn chưa có bài viết nào trong mục này') : 'Chưa có bài viết phù hợp' }}</strong>
+            <p>{{ feedTab === 'my_posts' ? (myPostStatus === 'deleted' ? 'Các bài viết bị xóa sẽ tạm thời lưu ở đây trước khi xóa vĩnh viễn.' : 'Hãy tạo bài viết mới để chia sẻ với cộng đồng.') : 'Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.' }}</p>
+            <button v-if="feedTab === 'my_posts' && myPostStatus !== 'deleted'" type="button" class="create-first-post-btn" @click="showCommunityModal = true">Đăng bài ngay</button>
           </div>
 
           <div v-else class="post-stream">
@@ -93,6 +127,18 @@
                     <small>
                       {{ timeAgo(post.published_at || post.created_at) }}
                       <template v-if="post.venue_cluster?.name"> · {{ post.venue_cluster.name }}</template>
+                      <template v-if="post.is_edited"> · <span>Đã chỉnh sửa</span></template>
+                      <template v-if="post.is_deleted">
+                        · <span class="post-status-text text-rejected">Đã chuyển vào thùng rác</span>
+                      </template>
+                      <template v-else-if="post.status && post.status !== 'published'">
+                        · <span class="post-status-text" :class="`text-${post.status}`">
+                          {{ post.status === 'pending_review' ? 'Chờ duyệt' : (post.status === 'rejected' ? (post.rejection_source === 'ai' ? 'Bị từ chối bởi AI' : 'Bị từ chối bởi Admin') : post.status) }}
+                        </span>
+                      </template>
+                      <template v-else-if="feedTab === 'my_posts' && post.status === 'published'">
+                        · <span class="post-status-text text-published">Đã xuất bản</span>
+                      </template>
                     </small>
                   </span>
                 </button>
@@ -108,13 +154,63 @@
                     <AppIcon name="moreHorizontal" />
                   </button>
                   <div v-if="openMenuPostId === post.id" class="post-menu" role="menu" @click.stop>
-                    <button type="button" role="menuitem" @click="openReport(post)">
-                      <AppIcon name="alert" />
-                      Báo cáo bài viết
-                    </button>
+                    <template v-if="post.is_deleted">
+                      <button type="button" role="menuitem" @click="restorePost(post)">
+                        <AppIcon name="refreshCw" />
+                        Khôi phục bài viết
+                      </button>
+                      <button type="button" role="menuitem" class="delete-menuitem" @click="forceDeletePost(post)">
+                        <AppIcon name="trash" />
+                        Xóa vĩnh viễn
+                      </button>
+                    </template>
+                    <template v-else-if="isOwnPost(post)">
+                      <button type="button" role="menuitem" @click="openEditPost(post)">
+                        <AppIcon name="edit" />
+                        Chỉnh sửa bài viết
+                      </button>
+                      <button v-if="post.status === 'rejected'" type="button" role="menuitem" @click="openAppealModal(post)">
+                        <AppIcon name="refreshCw" />
+                        Đề xuất duyệt lại
+                      </button>
+                      <button type="button" role="menuitem" @click="copyPostLink(post)">
+                        <AppIcon name="copy" />
+                        Sao chép liên kết
+                      </button>
+                      <button type="button" role="menuitem" class="delete-menuitem" @click="deletePost(post)">
+                        <AppIcon name="trash" />
+                        Xóa bài viết
+                      </button>
+                    </template>
+                    <template v-else>
+                      <button type="button" role="menuitem" @click="copyPostLink(post)">
+                        <AppIcon name="copy" />
+                        Sao chép liên kết
+                      </button>
+                      <button type="button" role="menuitem" @click="openReport(post)">
+                        <AppIcon name="alert" />
+                        Báo cáo bài viết
+                      </button>
+                    </template>
                   </div>
                 </div>
               </header>
+
+              <div v-if="post.status === 'rejected' && post.status_reason" class="post-rejection-inline">
+                <span class="rejection-label">Lý do từ chối:</span>
+                <span class="rejection-msg">{{ post.status_reason }}</span>
+                <span v-if="isOwnPost(post)" class="rejection-actions">
+                  <span class="rejection-dot">·</span>
+                  <button type="button" class="rejection-action-btn" @click="openEditPost(post)">Chỉnh sửa</button>
+                  <span class="rejection-dot">·</span>
+                  <button type="button" class="rejection-action-btn" @click="openAppealModal(post)">Đề xuất duyệt lại</button>
+                </span>
+              </div>
+
+              <div v-if="post.status === 'pending_review' && post.appeal_note && isOwnPost(post)" class="post-appeal-inline">
+                <span class="appeal-label">Lời nhắn gửi Admin:</span>
+                <span class="appeal-msg">{{ post.appeal_note }}</span>
+              </div>
 
               <div class="post-body">
                 <div v-if="post.hashtags?.length" class="post-tags">
@@ -354,8 +450,9 @@
 
     <CommunityPostModal
       :is-open="showCommunityModal"
-      @close="showCommunityModal = false"
-      @success="handleCommunityPostCreated"
+      :editing-post="editingPost"
+      @close="closeCommunityModal"
+      @success="handleCommunityPostSaved"
     />
     <MeetupPostModal
       :is-open="showMeetupModal"
@@ -370,6 +467,52 @@
       @close="reportTarget = null"
       @success="handleReportSuccess"
     />
+
+    <ConfirmModal
+      v-model="showDeleteConfirm"
+      :title="isForceDelete ? 'Xóa vĩnh viễn bài viết' : 'Chuyển vào thùng rác'"
+      :message="isForceDelete ? 'Bài viết và hình ảnh sẽ bị xóa vĩnh viễn khỏi hệ thống và không thể khôi phục.' : 'Bạn có chắc chắn muốn xóa bài viết này không? Bài viết sẽ được chuyển vào thùng rác và ẩn khỏi bảng tin.'"
+      :confirm-text="isForceDelete ? 'Xóa vĩnh viễn' : 'Xóa bài viết'"
+      cancel-text="Hủy"
+      type="danger"
+      @confirm="handleConfirmDelete"
+      @cancel="deletePostTarget = null; isForceDelete = false"
+    />
+
+    <!-- MODAL ĐỀ XUẤT DUYỆT LẠI (APPEAL MODAL) -->
+    <Teleport to="body">
+      <div v-if="showAppealModal" class="appeal-backdrop" @click.self="showAppealModal = false">
+        <div class="appeal-modal" role="dialog" aria-modal="true">
+          <div class="appeal-modal-header">
+            <h3>Đề xuất duyệt lại bài viết</h3>
+          </div>
+          <div class="appeal-modal-body">
+            <p class="appeal-modal-desc">
+              Gửi lời nhắn giải trình tới Quản trị viên nếu bạn cho rằng bài viết phù hợp với tiêu chuẩn cộng đồng thể thao SportGo.
+            </p>
+            <div class="appeal-form-group">
+              <label for="appeal-note-input">Lời nhắn gửi Quản trị viên (bắt buộc):</label>
+              <textarea
+                id="appeal-note-input"
+                v-model.trim="appealNote"
+                rows="4"
+                maxlength="500"
+                placeholder="Ví dụ: Bài viết chia sẻ kinh nghiệm chọn vợt cầu lông thực tế, từ ngữ không có ý xúc phạm, mong Quản trị viên xem xét duyệt lại giúp tôi..."
+              ></textarea>
+              <div class="appeal-char-count">{{ appealNote.length }}/500</div>
+            </div>
+          </div>
+          <div class="appeal-modal-footer">
+            <button class="btn secondary" type="button" :disabled="isSubmittingAppeal" @click="showAppealModal = false">
+              Hủy
+            </button>
+            <button class="btn primary" type="button" :disabled="isSubmittingAppeal || appealNote.length < 5" @click="submitAppeal">
+              {{ isSubmittingAppeal ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -380,6 +523,7 @@ import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import ClientAuthorBadges from '@/components/ClientAuthorBadges.vue';
 import CommunityPostModal from '@/components/CommunityPostModal.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import MeetupPostModal from '@/components/MeetupPostModal.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import ReportModal from '@/components/ReportModal.vue';
@@ -392,6 +536,8 @@ const toast = useToast();
 const user = getAuth();
 const isPlayer = computed(() => user?.role_group === 'user');
 const canCreateCommunityPost = computed(() => Boolean(user && ['user', 'owner'].includes(user.role_group)));
+const feedTab = ref(String(route.query.tab || 'public'));
+const myPostStatus = ref(String(route.query.status || 'all'));
 const posts = ref([]);
 const loading = ref(true);
 const loadingMore = ref(false);
@@ -400,9 +546,17 @@ const searchQuery = ref(String(route.query.q || ''));
 const selectedCategory = ref(String(route.query.category || ''));
 const showMobileFilters = ref(false);
 const showCommunityModal = ref(false);
+const editingPost = ref(null);
 const showMeetupModal = ref(false);
 const openMenuPostId = ref(null);
 const reportTarget = ref(null);
+const showDeleteConfirm = ref(false);
+const deletePostTarget = ref(null);
+const isForceDelete = ref(false);
+const showAppealModal = ref(false);
+const appealTargetPost = ref(null);
+const appealNote = ref('');
+const isSubmittingAppeal = ref(false);
 const pagination = ref({ current_page: 1, last_page: 1 });
 const categories = ['Kinh nghiệm', 'Giao lưu', 'Hỏi đáp', 'Sự kiện', 'Cụm sân mới', 'Ưu đãi'];
 const fallbackPostImage = '/images/home/badminton-cover.webp';
@@ -418,6 +572,14 @@ const matchmakingPosts = ref([]);
 const matchmakingLoading = ref(true);
 const matchmakingError = ref('');
 const joiningPostId = ref(null);
+
+async function loadCurrentFeed({ page = 1, append = false } = {}) {
+  if (feedTab.value === 'my_posts') {
+    await fetchMyPosts({ page, append });
+  } else {
+    await fetchPosts({ page, append });
+  }
+}
 
 async function fetchPosts({ page = 1, append = false } = {}) {
   if (append) loadingMore.value = true;
@@ -446,6 +608,55 @@ async function fetchPosts({ page = 1, append = false } = {}) {
     loading.value = false;
     loadingMore.value = false;
   }
+}
+
+async function fetchMyPosts({ page = 1, append = false } = {}) {
+  if (!user) return;
+  if (append) loadingMore.value = true;
+  else loading.value = true;
+  error.value = '';
+
+  try {
+    const params = new URLSearchParams({ page: String(page), per_page: '10' });
+    if (myPostStatus.value && myPostStatus.value !== 'all') {
+      params.set('status', myPostStatus.value);
+    }
+    const response = await api(`/api/my-community-posts?${params.toString()}`);
+    const incoming = Array.isArray(response.data) ? response.data : [];
+    posts.value = append ? [...posts.value, ...incoming] : incoming;
+    pagination.value = {
+      current_page: Number(response.current_page || page),
+      last_page: Number(response.last_page || 1),
+    };
+  } catch (requestError) {
+    if (append) {
+      toast.error(requestError.message || 'Không thể tải thêm bài viết.');
+    } else {
+      posts.value = [];
+      error.value = requestError.message || 'Không thể tải danh sách bài viết của bạn.';
+    }
+  } finally {
+    loading.value = false;
+    loadingMore.value = false;
+  }
+}
+
+function switchFeedTab(tab) {
+  if (feedTab.value === tab) return;
+  feedTab.value = tab;
+  posts.value = [];
+  pagination.value = { current_page: 1, last_page: 1 };
+  if (tab === 'my_posts') {
+    fetchMyPosts({ page: 1 });
+  } else {
+    fetchPosts({ page: 1 });
+  }
+}
+
+function setMyPostStatus(status) {
+  if (myPostStatus.value === status) return;
+  myPostStatus.value = status;
+  fetchMyPosts({ page: 1 });
 }
 
 async function fetchMatchmakingPosts() {
@@ -485,7 +696,7 @@ function clearFilters() {
 
 function loadMorePosts() {
   if (loadingMore.value || pagination.value.current_page >= pagination.value.last_page) return;
-  fetchPosts({ page: pagination.value.current_page + 1, append: true });
+  loadCurrentFeed({ page: pagination.value.current_page + 1, append: true });
 }
 
 async function ensurePostDetails(post) {
@@ -606,6 +817,7 @@ function setReply(post, comment, targetReply = null) {
 }
 
 async function sharePost(post) {
+  openMenuPostId.value = null;
   const href = router.resolve({ name: 'community-post-detail', params: { slug: post.slug || post.id } }).href;
   const url = new URL(href, window.location.origin).toString();
   const shareData = { title: post.title || 'Bài viết SportGo', text: post.short_description || plainText(post.content), url };
@@ -670,17 +882,143 @@ function joinLabel(post) {
 }
 
 function isOwnPost(post) {
-  return String(user?.id || '') === String(post.author?.id || '');
+  if (!user) return false;
+  const authorId = post.author?.id ?? post.author_id;
+  return String(user.id) === String(authorId);
 }
 
-function handleCommunityPostCreated(response) {
+function openEditPost(post) {
+  openMenuPostId.value = null;
+  editingPost.value = post;
+  showCommunityModal.value = true;
+}
+
+function closeCommunityModal() {
   showCommunityModal.value = false;
-  if (response?.data?.status === 'published') {
-    toast.success('Bài viết đã được đăng.');
-    fetchPosts({ page: 1 });
+  editingPost.value = null;
+}
+
+function openAppealModal(post) {
+  openMenuPostId.value = null;
+  appealTargetPost.value = post;
+  appealNote.value = '';
+  showAppealModal.value = true;
+}
+
+async function submitAppeal() {
+  if (!appealTargetPost.value || appealNote.value.trim().length < 5) return;
+  isSubmittingAppeal.value = true;
+  try {
+    const targetId = appealTargetPost.value.id || appealTargetPost.value.entity_id;
+    const response = await api(`/api/my-community-posts/${targetId}/appeal`, {
+      method: 'POST',
+      body: JSON.stringify({ note: appealNote.value.trim() }),
+    });
+    toast.success(response?.message || 'Đã gửi yêu cầu xem xét lại tới Ban quản trị.');
+    showAppealModal.value = false;
+    const updated = response?.data;
+    if (updated) {
+      const idx = posts.value.findIndex((p) => String(p.id) === String(updated.id));
+      if (idx >= 0) {
+        posts.value[idx] = updated;
+      }
+    }
+  } catch (err) {
+    toast.error(err.message || 'Không thể gửi yêu cầu xem xét lại.');
+  } finally {
+    isSubmittingAppeal.value = false;
+  }
+}
+
+async function copyPostLink(post) {
+  openMenuPostId.value = null;
+  const href = router.resolve({ name: 'community-post-detail', params: { slug: post.slug || post.id } }).href;
+  const url = new URL(href, window.location.origin).toString();
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      toast.success('Đã sao chép liên kết bài viết.');
+    } else {
+      toast.info(`Liên kết bài viết: ${url}`);
+    }
+  } catch (err) {
+    toast.info(`Liên kết bài viết: ${url}`);
+  }
+}
+
+async function restorePost(post) {
+  openMenuPostId.value = null;
+  try {
+    const targetId = post.id || post.entity_id;
+    await api(`/api/my-community-posts/${targetId}/restore`, { method: 'POST' });
+    toast.success('Đã khôi phục bài viết thành công.');
+    posts.value = posts.value.filter((p) => p.id !== post.id);
+  } catch (err) {
+    toast.error(err.message || 'Không thể khôi phục bài viết.');
+  }
+}
+
+function forceDeletePost(post) {
+  openMenuPostId.value = null;
+  isForceDelete.value = true;
+  deletePostTarget.value = post;
+  showDeleteConfirm.value = true;
+}
+
+function deletePost(post) {
+  openMenuPostId.value = null;
+  isForceDelete.value = false;
+  deletePostTarget.value = post;
+  showDeleteConfirm.value = true;
+}
+
+async function handleConfirmDelete() {
+  if (!deletePostTarget.value) return;
+  const post = deletePostTarget.value;
+  try {
+    const targetId = post.id || post.entity_id;
+    const url = isForceDelete.value ? `/api/venue-posts/${targetId}?force=true` : `/api/venue-posts/${targetId}`;
+    await api(url, { method: 'DELETE' });
+    toast.success(isForceDelete.value ? 'Đã xóa vĩnh viễn bài viết.' : 'Đã chuyển bài viết vào thùng rác.');
+    posts.value = posts.value.filter((p) => p.id !== post.id);
+  } catch (err) {
+    toast.error(err.message || 'Không thể xóa bài viết.');
+  } finally {
+    deletePostTarget.value = null;
+    showDeleteConfirm.value = false;
+    isForceDelete.value = false;
+  }
+}
+
+function handleCommunityPostSaved(response) {
+  const isEdit = Boolean(editingPost.value);
+  closeCommunityModal();
+  const updated = response?.data;
+
+  if (isEdit && updated) {
+    toast.success(response?.message || 'Bài viết đã được cập nhật thành công.');
+    const index = posts.value.findIndex((p) => p.id === updated.id || (p.entity_id && p.entity_id === updated.entity_id));
+    if (index >= 0) {
+      posts.value[index] = updated;
+    } else {
+      loadCurrentFeed({ page: 1 });
+    }
     return;
   }
-  toast.success(response?.message || 'Bài viết đã được gửi và đang chờ kiểm duyệt.');
+
+  if (updated?.status === 'published') {
+    toast.success('Bài viết đã được đăng công khai.');
+    if (feedTab.value === 'public') {
+      fetchPosts({ page: 1 });
+    } else {
+      switchFeedTab('public');
+    }
+    return;
+  }
+  toast.info(response?.message || 'Bài viết đã được gửi và đang chờ kiểm duyệt.');
+  feedTab.value = 'my_posts';
+  myPostStatus.value = 'pending_review';
+  fetchMyPosts({ page: 1 });
 }
 
 function handleMeetupPostCreated() {
@@ -775,7 +1113,7 @@ function closePostMenu() {
 }
 
 onMounted(() => {
-  fetchPosts();
+  loadCurrentFeed();
   fetchMatchmakingPosts();
   document.addEventListener('click', closePostMenu);
 });
@@ -887,7 +1225,42 @@ h1, h2, h3, h4, strong, b, .client-author-line {
   min-width: 0;
 }
 
-/* â”€â”€â”€ COMPOSER CARD â”€â”€â”€ */
+/* ─── COMMUNITY MAIN TABS ─── */
+.community-main-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.main-tab-item {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.main-tab-item.active {
+  background: #15803d;
+  color: #ffffff !important;
+}
+
+.main-tab-item:hover:not(.active) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* ─── COMPOSER CARD ─── */
 .composer-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -1255,6 +1628,53 @@ h1, h2, h3, h4, strong, b, .client-author-line {
   padding: 6px;
   min-width: 180px;
   z-index: 50;
+}
+
+.post-status-text {
+  font-weight: 500;
+}
+
+.post-status-text.text-pending_review {
+  color: #64748b;
+}
+
+.post-status-text.text-published {
+  color: #15803d;
+}
+
+.post-status-text.text-rejected {
+  color: #dc2626;
+}
+
+.post-rejection-note {
+  margin: 8px 18px 0;
+  font-size: 13px;
+  color: #dc2626;
+  font-weight: 400;
+}
+
+.delete-menuitem {
+  color: #dc2626 !important;
+}
+
+.delete-menuitem:hover {
+  background: #fee2e2 !important;
+}
+
+.create-first-post-btn {
+  margin-top: 6px;
+  padding: 8px 18px;
+  border: 1px solid #15803d;
+  border-radius: 6px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.create-first-post-btn:hover {
+  background: #166534;
 }
 
 .post-menu button {
@@ -1891,5 +2311,204 @@ h1, h2, h3, h4, strong, b, .client-author-line {
 
 .desktop-filters .search-form {
   margin-bottom: 12px;
+}
+
+/* REJECTION NOTE & APPEAL STYLES */
+.post-rejection-inline {
+  margin: 10px 18px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+  font-weight: 400;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.rejection-label {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.rejection-msg {
+  color: #334155;
+}
+
+.rejection-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rejection-dot {
+  color: #94a3b8;
+  user-select: none;
+}
+
+.rejection-action-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.rejection-action-btn:hover {
+  color: #15803d;
+}
+
+.post-appeal-inline {
+  margin: 10px 18px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+  font-weight: 400;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.appeal-label {
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.appeal-msg {
+  color: #334155;
+}
+
+/* APPEAL MODAL */
+.appeal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 16px;
+}
+
+.appeal-modal {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.appeal-modal-header {
+  padding: 18px 20px 0;
+}
+
+.appeal-modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.appeal-modal-body {
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.appeal-modal-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.appeal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.appeal-form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.appeal-form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.appeal-form-group textarea:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.appeal-char-count {
+  font-size: 11.5px;
+  color: #64748b;
+  text-align: right;
+}
+
+.appeal-modal-footer {
+  padding: 12px 20px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #ffffff;
+}
+
+.appeal-modal-footer .btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.appeal-modal-footer .btn.secondary {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.appeal-modal-footer .btn.secondary:hover {
+  background: #f8fafc;
+}
+
+.appeal-modal-footer .btn.primary {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.appeal-modal-footer .btn.primary:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.appeal-modal-footer .btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

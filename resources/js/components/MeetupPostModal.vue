@@ -30,15 +30,23 @@
         </div>
 
         <div v-else-if="!userBookings.length" class="modal-state empty">
-          <AppIcon name="calendar" size="28" />
+          <AppIcon name="calendar" size="32" />
           <strong>Chưa có lịch sân phù hợp</strong>
-          <span>Bạn cần một booking sắp tới đã được xác nhận và chưa có bài giao lưu.</span>
+          <span>Bạn cần một booking sắp tới đã được xác nhận để đăng bài tìm người ghép kèo.</span>
+          <div class="empty-actions">
+            <button type="button" class="mpm-book-btn" @click="goToBooking">
+              Đặt sân ngay
+            </button>
+            <button type="button" class="mpm-cancel-btn" @click="close">
+              Đóng
+            </button>
+          </div>
         </div>
 
         <form v-else class="meetup-form" @submit.prevent="submit">
           <label class="field-block">
-            <span>Cụm sân <small>Bắt buộc</small></span>
-            <CustomSelect
+            <span>Cụm sân</span>
+            <ClientCustomSelect
               v-model="form.venue_id"
               :options="venueOptions"
               placeholder="Chọn cụm sân"
@@ -47,11 +55,12 @@
 
           <div class="field-grid">
             <label class="field-block">
-              <span>Lịch đã đặt <small>Bắt buộc</small></span>
-              <CustomSelect
+              <span>Lịch đã đặt</span>
+              <ClientCustomSelect
                 v-model="form.booking_id"
                 :options="bookingOptions"
                 :disabled="!form.venue_id"
+                icon="clock"
                 placeholder="Chọn ngày và khung giờ"
               />
             </label>
@@ -83,7 +92,7 @@
               :class="{ invalid: form.content.length > 0 && form.content.length < 10 }"
             >
               {{ form.content.length > 0 && form.content.length < 10
-                ? `Cần thêm ${10 - form.content.length} ký tự`
+                ? `Cần thêm ${10 - form.content.length} ký tự nữa`
                 : `${form.content.length}/2000` }}
             </small>
           </label>
@@ -91,10 +100,10 @@
           <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
 
           <footer class="form-actions">
-            <SgButton type="secondary" :disabled="isSubmitting" @click="close">Hủy</SgButton>
-            <SgButton native-type="submit" type="primary" :loading="isSubmitting" :disabled="!isValid">
-              Đăng bài giao lưu
-            </SgButton>
+            <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
+            <button type="submit" class="submit-button" :disabled="isSubmitting || !isValid">
+              {{ isSubmitting ? 'Đang đăng...' : 'Đăng bài giao lưu' }}
+            </button>
           </footer>
         </form>
       </div>
@@ -105,12 +114,13 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
-import CustomSelect from '@/components/CustomSelect.vue';
-import SgButton from '@/components/common/SgButton.vue';
+import ClientCustomSelect from '@/components/ClientCustomSelect.vue';
 import { api } from '@/services/api';
 import { getAuth } from '@/stores/auth.js';
 
+const router = useRouter();
 const props = defineProps({ isOpen: { type: Boolean, default: false } });
 const emit = defineEmits(['close', 'success']);
 const user = getAuth();
@@ -121,6 +131,11 @@ const bookingsLoading = ref(false);
 const bookingsError = ref('');
 const isSubmitting = ref(false);
 const errorMsg = ref('');
+
+function goToBooking() {
+  close();
+  router.push('/venues');
+}
 
 const venueOptions = computed(() => {
   const venues = new Map();
@@ -379,21 +394,73 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
 }
 
 .field-control:focus {
-  border-color: #16a34a;
+  border-color: #15803d;
 }
 
 .modal-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 40px 20px;
   text-align: center;
   color: #0f172a;
   font-size: 14px;
 }
 
-.modal-actions {
+.modal-state strong {
+  font-size: 16px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.modal-state span {
+  color: #475569;
+  font-size: 13.5px;
+  max-width: 380px;
+  line-height: 1.5;
+}
+
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mpm-book-btn {
+  padding: 9px 20px;
+  background: #15803d;
+  color: #ffffff;
+  border: 1px solid #15803d;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mpm-book-btn:hover {
+  background: #166534;
+}
+
+.mpm-cancel-btn {
+  padding: 9px 18px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.mpm-cancel-btn:hover {
+  border-color: #94a3b8;
+}
+
+.form-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -403,7 +470,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
 
 .cancel-button {
   padding: 9px 18px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   background: #ffffff;
   color: #0f172a;
@@ -412,27 +479,38 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
   cursor: pointer;
 }
 
+.cancel-button:hover {
+  border-color: #94a3b8;
+}
+
 .submit-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 20px;
-  border: none;
+  justify-content: center;
+  padding: 0 20px;
+  height: 38px;
+  border: 1px solid #15803d;
   border-radius: 6px;
-  background: #16a34a;
+  background: #15803d;
   color: #ffffff;
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
 .submit-button:hover:not(:disabled) {
-  background: #15803d;
+  background: #166534;
+  border-color: #166534;
 }
 
 .submit-button:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+  background: #15803d;
+  border-color: #15803d;
+  color: #ffffff;
+  opacity: 0.9;
 }
 
 .form-error {

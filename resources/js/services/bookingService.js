@@ -58,7 +58,10 @@ export const bookingService = {
 
   // Lấy chi tiết đơn đặt sân
   getBooking(id) {
-    return api(`/api/bookings/${id}`);
+    return api(`/api/bookings/${id}`, {
+      cache: 'no-store',
+      timeoutMs: 10000,
+    });
   },
 
   getRecurringGroup(groupCode) {

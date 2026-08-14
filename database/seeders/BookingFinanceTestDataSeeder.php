@@ -538,6 +538,12 @@ class BookingFinanceTestDataSeeder extends Seeder
             }
         }
 
+        // Giữ ID booking mẫu ổn định sau mỗi lần seed để các link demo,
+        // notification và browser smoke test không trỏ vào booking cũ.
+        if (DB::getDriverName() === 'mysql' && Schema::hasTable('bookings')) {
+            DB::statement('ALTER TABLE bookings AUTO_INCREMENT = 1');
+        }
+
         $this->ownerWalletBalances = [];
         $this->ownerWalletPending = [];
         $this->ownerWalletEarned = [];

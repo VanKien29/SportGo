@@ -604,7 +604,9 @@ export default {
         }
       } catch (err) {
         this.booking = null;
-        this.loadError = err.message || "Không thể tải thông tin booking.";
+        this.loadError = err.status === 404
+          ? "Đơn đặt sân này không còn tồn tại. Vui lòng mở lại booking từ Lịch sử đặt sân."
+          : (err.message || "Không thể tải thông tin booking.");
       } finally {
         this.loading = false;
       }
