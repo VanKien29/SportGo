@@ -133,7 +133,7 @@
                       </template>
                       <template v-else-if="post.status && post.status !== 'published'">
                         · <span class="post-status-text" :class="`text-${post.status}`">
-                          {{ post.status === 'pending_review' ? 'Chờ duyệt' : (post.status === 'rejected' ? 'Bị từ chối' : post.status) }}
+                          {{ post.status === 'pending_review' ? 'Chờ duyệt' : (post.status === 'rejected' ? (post.rejection_source === 'ai' ? 'Bị từ chối bởi AI' : 'Bị từ chối bởi Admin') : post.status) }}
                         </span>
                       </template>
                       <template v-else-if="feedTab === 'my_posts' && post.status === 'published'">
@@ -169,6 +169,10 @@
                         <AppIcon name="edit" />
                         Chỉnh sửa bài viết
                       </button>
+                      <button v-if="post.status === 'rejected'" type="button" role="menuitem" @click="openAppealModal(post)">
+                        <AppIcon name="refreshCw" />
+                        Đề xuất duyệt lại
+                      </button>
                       <button type="button" role="menuitem" @click="copyPostLink(post)">
                         <AppIcon name="copy" />
                         Sao chép liên kết
@@ -192,9 +196,21 @@
                 </div>
               </header>
 
-              <p v-if="post.status === 'rejected' && post.status_reason" class="post-rejection-note">
-                Lý do từ chối: {{ post.status_reason }}
-              </p>
+              <div v-if="post.status === 'rejected' && post.status_reason" class="post-rejection-inline">
+                <span class="rejection-label">Lý do từ chối:</span>
+                <span class="rejection-msg">{{ post.status_reason }}</span>
+                <span v-if="isOwnPost(post)" class="rejection-actions">
+                  <span class="rejection-dot">·</span>
+                  <button type="button" class="rejection-action-btn" @click="openEditPost(post)">Chỉnh sửa</button>
+                  <span class="rejection-dot">·</span>
+                  <button type="button" class="rejection-action-btn" @click="openAppealModal(post)">Đề xuất duyệt lại</button>
+                </span>
+              </div>
+
+              <div v-if="post.status === 'pending_review' && post.appeal_note && isOwnPost(post)" class="post-appeal-inline">
+                <span class="appeal-label">Lời nhắn gửi Admin:</span>
+                <span class="appeal-msg">{{ post.appeal_note }}</span>
+              </div>
 
               <div class="post-body">
                 <div v-if="post.hashtags?.length" class="post-tags">
@@ -462,6 +478,41 @@
       @confirm="handleConfirmDelete"
       @cancel="deletePostTarget = null; isForceDelete = false"
     />
+
+    <!-- MODAL ĐỀ XUẤT DUYỆT LẠI (APPEAL MODAL) -->
+    <Teleport to="body">
+      <div v-if="showAppealModal" class="appeal-backdrop" @click.self="showAppealModal = false">
+        <div class="appeal-modal" role="dialog" aria-modal="true">
+          <div class="appeal-modal-header">
+            <h3>Đề xuất duyệt lại bài viết</h3>
+          </div>
+          <div class="appeal-modal-body">
+            <p class="appeal-modal-desc">
+              Gửi lời nhắn giải trình tới Quản trị viên nếu bạn cho rằng bài viết phù hợp với tiêu chuẩn cộng đồng thể thao SportGo.
+            </p>
+            <div class="appeal-form-group">
+              <label for="appeal-note-input">Lời nhắn gửi Quản trị viên (bắt buộc):</label>
+              <textarea
+                id="appeal-note-input"
+                v-model.trim="appealNote"
+                rows="4"
+                maxlength="500"
+                placeholder="Ví dụ: Bài viết chia sẻ kinh nghiệm chọn vợt cầu lông thực tế, từ ngữ không có ý xúc phạm, mong Quản trị viên xem xét duyệt lại giúp tôi..."
+              ></textarea>
+              <div class="appeal-char-count">{{ appealNote.length }}/500</div>
+            </div>
+          </div>
+          <div class="appeal-modal-footer">
+            <button class="btn secondary" type="button" :disabled="isSubmittingAppeal" @click="showAppealModal = false">
+              Hủy
+            </button>
+            <button class="btn primary" type="button" :disabled="isSubmittingAppeal || appealNote.length < 5" @click="submitAppeal">
+              {{ isSubmittingAppeal ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -502,6 +553,10 @@ const reportTarget = ref(null);
 const showDeleteConfirm = ref(false);
 const deletePostTarget = ref(null);
 const isForceDelete = ref(false);
+const showAppealModal = ref(false);
+const appealTargetPost = ref(null);
+const appealNote = ref('');
+const isSubmittingAppeal = ref(false);
 const pagination = ref({ current_page: 1, last_page: 1 });
 const categories = ['Kinh nghiệm', 'Giao lưu', 'Hỏi đáp', 'Sự kiện', 'Cụm sân mới', 'Ưu đãi'];
 const fallbackPostImage = '/images/home/badminton-cover.webp';
@@ -841,6 +896,38 @@ function openEditPost(post) {
 function closeCommunityModal() {
   showCommunityModal.value = false;
   editingPost.value = null;
+}
+
+function openAppealModal(post) {
+  openMenuPostId.value = null;
+  appealTargetPost.value = post;
+  appealNote.value = '';
+  showAppealModal.value = true;
+}
+
+async function submitAppeal() {
+  if (!appealTargetPost.value || appealNote.value.trim().length < 5) return;
+  isSubmittingAppeal.value = true;
+  try {
+    const targetId = appealTargetPost.value.id || appealTargetPost.value.entity_id;
+    const response = await api(`/api/my-community-posts/${targetId}/appeal`, {
+      method: 'POST',
+      body: JSON.stringify({ note: appealNote.value.trim() }),
+    });
+    toast.success(response?.message || 'Đã gửi yêu cầu xem xét lại tới Ban quản trị.');
+    showAppealModal.value = false;
+    const updated = response?.data;
+    if (updated) {
+      const idx = posts.value.findIndex((p) => String(p.id) === String(updated.id));
+      if (idx >= 0) {
+        posts.value[idx] = updated;
+      }
+    }
+  } catch (err) {
+    toast.error(err.message || 'Không thể gửi yêu cầu xem xét lại.');
+  } finally {
+    isSubmittingAppeal.value = false;
+  }
 }
 
 async function copyPostLink(post) {
@@ -2224,5 +2311,204 @@ h1, h2, h3, h4, strong, b, .client-author-line {
 
 .desktop-filters .search-form {
   margin-bottom: 12px;
+}
+
+/* REJECTION NOTE & APPEAL STYLES */
+.post-rejection-inline {
+  margin: 10px 18px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+  font-weight: 400;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.rejection-label {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.rejection-msg {
+  color: #334155;
+}
+
+.rejection-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rejection-dot {
+  color: #94a3b8;
+  user-select: none;
+}
+
+.rejection-action-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.rejection-action-btn:hover {
+  color: #15803d;
+}
+
+.post-appeal-inline {
+  margin: 10px 18px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+  font-weight: 400;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.appeal-label {
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.appeal-msg {
+  color: #334155;
+}
+
+/* APPEAL MODAL */
+.appeal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 16px;
+}
+
+.appeal-modal {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.appeal-modal-header {
+  padding: 18px 20px 0;
+}
+
+.appeal-modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.appeal-modal-body {
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.appeal-modal-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.appeal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.appeal-form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.appeal-form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.appeal-form-group textarea:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.appeal-char-count {
+  font-size: 11.5px;
+  color: #64748b;
+  text-align: right;
+}
+
+.appeal-modal-footer {
+  padding: 12px 20px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #ffffff;
+}
+
+.appeal-modal-footer .btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.appeal-modal-footer .btn.secondary {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.appeal-modal-footer .btn.secondary:hover {
+  background: #f8fafc;
+}
+
+.appeal-modal-footer .btn.primary {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.appeal-modal-footer .btn.primary:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.appeal-modal-footer .btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

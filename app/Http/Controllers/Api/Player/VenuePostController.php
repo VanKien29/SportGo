@@ -10,6 +10,7 @@ use App\Models\Hashtag;
 use App\Models\ModerationConfig;
 use App\Models\VenuePost;
 use App\Services\CommunityAuthorBadgeService;
+use App\Services\GeminiService;
 use App\Services\VenuePostService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -330,19 +331,35 @@ class VenuePostController extends Controller
         ]);
 
         $content = trim(strip_tags($validated['content']));
+        $tags = $validated['tags'] ?? [];
+
+        // Thẩm định bằng Gemini AI
+        $gemini = app(GeminiService::class);
+        $aiResult = $gemini->moderateCommunityPost($content, $tags);
+
         $status = 'pending_review';
-        if (Schema::hasTable('moderation_configs')) {
-            $requireModeration = ModerationConfig::where('key', 'require_community_post_moderation')->value('value');
-            if ($requireModeration === 'false' || $requireModeration === false) {
-                $status = 'published';
-            }
+        $statusReason = null;
+
+        if ($aiResult['verdict'] === 'approved' && $aiResult['score'] >= 85) {
+            $status = 'published';
+        } elseif ($aiResult['verdict'] === 'rejected') {
+            $status = 'rejected';
+            $statusReason = $aiResult['reason'] ?? 'Nội dung vi phạm quy chuẩn cộng đồng.';
+        } else {
+            $status = 'pending_review';
         }
 
-        $post = DB::transaction(function () use ($request, $validated, $content, $status) {
+        $post = DB::transaction(function () use ($request, $validated, $content, $status, $statusReason, $aiResult) {
             $communityPost = CommunityPost::create([
                 'author_id' => $request->user()->id,
                 'content' => $content,
                 'status' => $status,
+                'status_reason' => $statusReason,
+                'ai_verdict' => $aiResult['verdict'] ?? null,
+                'ai_score' => $aiResult['score'] ?? null,
+                'ai_summary' => $aiResult['summary'] ?? null,
+                'ai_flags' => $aiResult['flags'] ?? [],
+                'ai_reviewed_at' => now(),
             ]);
 
             if (! empty($validated['tags']) && Schema::hasTable('post_hashtags')) {
@@ -380,10 +397,14 @@ class VenuePostController extends Controller
             $this->authorBadges->lookup([$post->author_id])[(string) $post->author_id] ?? []
         );
 
+        $responseMessage = match ($post->status) {
+            'published' => 'Bài viết đã được AI kiểm duyệt và xuất bản thành công.',
+            'rejected' => 'Bài viết bị từ chối do vi phạm quy chuẩn cộng đồng: ' . ($post->status_reason ?? ''),
+            default => 'Bài viết đã được gửi và đang chờ quản trị viên duyệt.',
+        };
+
         return response()->json([
-            'message' => $post->status === 'published'
-                ? 'Bài viết đã được đăng.'
-                : 'Bài viết đã được gửi và đang chờ kiểm duyệt.',
+            'message' => $responseMessage,
             'data' => $data,
         ], 201);
     }
@@ -422,25 +443,32 @@ class VenuePostController extends Controller
             ]);
 
             $content = trim(strip_tags($validated['content']));
+            $tags = $validated['tags'] ?? [];
 
-            $requireModeration = false;
-            if (Schema::hasTable('moderation_configs')) {
-                $configVal = ModerationConfig::where('key', 'require_community_post_moderation')->value('value');
-                $requireModeration = ($configVal === 'true' || $configVal === true || $configVal === '1' || $configVal === 1);
-            }
+            // Thẩm định bằng Gemini AI
+            $gemini = app(GeminiService::class);
+            $aiResult = $gemini->moderateCommunityPost($content, $tags);
 
-            $status = $post->status;
-            if ($requireModeration) {
-                // If moderation is active, editing re-routes the post to pending_review
-                $status = 'pending_review';
-                $post->status_reason = null;
-            } elseif ($status === 'rejected') {
+            $status = 'pending_review';
+            $statusReason = null;
+
+            if ($aiResult['verdict'] === 'approved' && $aiResult['score'] >= 85) {
                 $status = 'published';
-                $post->status_reason = null;
+            } elseif ($aiResult['verdict'] === 'rejected') {
+                $status = 'rejected';
+                $statusReason = $aiResult['reason'] ?? 'Nội dung vi phạm quy chuẩn cộng đồng.';
+            } else {
+                $status = 'pending_review';
             }
 
             $post->content = $content;
             $post->status = $status;
+            $post->status_reason = $statusReason;
+            $post->ai_verdict = $aiResult['verdict'] ?? null;
+            $post->ai_score = $aiResult['score'] ?? null;
+            $post->ai_summary = $aiResult['summary'] ?? null;
+            $post->ai_flags = $aiResult['flags'] ?? [];
+            $post->ai_reviewed_at = now();
             $post->edited_at = now();
             $post->edit_count = ((int) $post->edit_count) + 1;
             $post->save();
@@ -485,10 +513,14 @@ class VenuePostController extends Controller
                 $this->authorBadges->lookup([$post->author_id])[(string) $post->author_id] ?? []
             );
 
+            $responseMessage = match ($status) {
+                'published' => 'Bài viết đã được AI kiểm duyệt và cập nhật thành công.',
+                'rejected' => 'Bài viết bị từ chối do vi phạm quy chuẩn cộng đồng: ' . ($post->status_reason ?? ''),
+                default => 'Bài viết đã được chỉnh sửa và chuyển sang hàng chờ kiểm duyệt.',
+            };
+
             return response()->json([
-                'message' => $status === 'pending_review'
-                    ? 'Bài viết đã được chỉnh sửa và chuyển sang hàng chờ kiểm duyệt.'
-                    : 'Bài viết đã được cập nhật thành công.',
+                'message' => $responseMessage,
                 'data' => $data,
             ]);
         }
@@ -527,6 +559,41 @@ class VenuePostController extends Controller
                 'message' => 'Đã khôi phục bài viết thành công.',
                 'data' => $this->normalizeCommunityPost(
                     $post->load(['media', 'author:id,full_name,username,avatar_url', 'hashtags']),
+                    Schema::hasTable('community_post_likes'),
+                    [],
+                    $this->authorBadges->lookup([$post->author_id])[(string) $post->author_id] ?? []
+                ),
+            ]);
+        }
+
+        return response()->json(['message' => 'Không tìm thấy bài viết.'], 404);
+    }
+
+    public function appeal(Request $request, string $id)
+    {
+        $communityId = $this->communityPostId($id) ?? (is_numeric($id) ? (int) $id : null);
+        if ($communityId !== null) {
+            $post = CommunityPost::findOrFail($communityId);
+            abort_unless((string) $post->author_id === (string) $request->user()->id, 403);
+
+            $validated = $request->validate([
+                'note' => ['required', 'string', 'min:5', 'max:500'],
+            ], [
+                'note.required' => 'Vui lòng nhập lời nhắn giải trình / đề xuất duyệt lại.',
+                'note.min' => 'Lời nhắn phải có ít nhất 5 ký tự.',
+                'note.max' => 'Lời nhắn không được vượt quá 500 ký tự.',
+            ]);
+
+            $post->update([
+                'status' => 'pending_review',
+                'appeal_note' => trim($validated['note']),
+                'appealed_at' => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Đã gửi yêu cầu xem xét lại tới ban quản trị thành công.',
+                'data' => $this->normalizeCommunityPost(
+                    $post->fresh(['media', 'author:id,full_name,username,avatar_url', 'hashtags']),
                     Schema::hasTable('community_post_likes'),
                     [],
                     $this->authorBadges->lookup([$post->author_id])[(string) $post->author_id] ?? []
@@ -846,6 +913,16 @@ class VenuePostController extends Controller
         $data['edited_at'] = $post->edited_at;
         $data['is_deleted'] = (bool) $post->trashed();
         $data['deleted_at'] = $post->deleted_at;
+        $data['ai_verdict'] = $post->ai_verdict;
+        $data['ai_score'] = $post->ai_score;
+        $data['ai_summary'] = $post->ai_summary;
+        $data['ai_flags'] = $post->ai_flags;
+        $data['ai_reviewed_at'] = $post->ai_reviewed_at;
+        $data['appeal_note'] = $post->appeal_note;
+        $data['appealed_at'] = $post->appealed_at;
+        $data['rejection_source'] = $post->status === 'rejected'
+            ? (($post->reviewed_by === null && $post->ai_verdict === 'rejected') ? 'ai' : 'admin')
+            : null;
 
         return $data;
     }

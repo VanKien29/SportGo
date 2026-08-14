@@ -686,6 +686,38 @@ class AdminContentModerationController extends Controller
     }
 
     /**
+     * Yêu cầu AI quét và phân tích lại nội dung bài viết
+     */
+    public function aiRecheck(Request $request, string $type, string $id): JsonResponse
+    {
+        $this->authorizePermission($request, 'moderation.view');
+
+        if (in_array($type, ['community_post', 'community_posts'], true)) {
+            $post = CommunityPost::with(['hashtags', 'media'])->findOrFail($id);
+            $tags = $post->hashtags->pluck('name')->all();
+
+            $gemini = app(\App\Services\GeminiService::class);
+            $aiResult = $gemini->moderateCommunityPost($post->content, $tags);
+
+            $post->update([
+                'ai_verdict' => $aiResult['verdict'],
+                'ai_score' => $aiResult['score'],
+                'ai_summary' => $aiResult['summary'],
+                'ai_flags' => $aiResult['flags'],
+                'ai_reviewed_at' => now(),
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'AI đã hoàn tất phân tích lại bài viết.',
+                'data' => $post->fresh(['author', 'media', 'hashtags']),
+            ]);
+        }
+
+        return response()->json(['message' => 'Loại bài viết này không hỗ trợ kiểm duyệt AI.'], 400);
+    }
+
+    /**
      * Phân quyền kiểm duyệt
      */
     private function authorizePermission(Request $request, string|array $permissions): void
