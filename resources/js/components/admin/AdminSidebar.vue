@@ -59,7 +59,7 @@
       <div class="sidebar-two-level-container">
         <!-- Left Rail -->
         <div class="icon-nav-rail">
-          <RouterLink class="rail-logo" to="/admin/venue-clusters" title="Cụm sân">
+          <RouterLink class="rail-logo" to="/admin/dashboard" title="Bảng điều hành">
             <img v-if="brandLogo" :src="brandLogo" :alt="brandName" />
             <span v-else>{{ brandInitials }}</span>
           </RouterLink>

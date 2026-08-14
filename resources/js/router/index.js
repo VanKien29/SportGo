@@ -210,7 +210,8 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                redirect: { name: "admin-venue-clusters" },
+                name: "admin-dashboard",
+                component: () => import("../views/admin/AdminDashboard.vue"),
             },
             { path: "profile", name: "admin-profile", component: () => import("../views/admin/AdminProfile.vue") },
             { path: "users", name: "admin-users", component: () => import("../views/admin/AdminUsers.vue") },
@@ -403,7 +404,8 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                redirect: { name: "owner-venue-clusters" },
+                name: "owner-dashboard",
+                component: () => import("../views/owner/OwnerDashboard.vue"),
             },
             {
                 path: "venue-clusters",
