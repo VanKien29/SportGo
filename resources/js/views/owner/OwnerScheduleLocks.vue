@@ -1966,7 +1966,7 @@ export default {
     max-width: 100%;
 }
 
-.config-left :deep(.mini-cal) {
+.config-left :deep(:is(.mini-cal-card, .mini-cal)) {
     border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 12px;
     padding: 16px;
@@ -3497,7 +3497,7 @@ export default {
     .config-left {
         width: 100%;
     }
-    .config-left :deep(.mini-cal) {
+    .config-left :deep(:is(.mini-cal-card, .mini-cal)) {
         max-width: 100%;
     }
 

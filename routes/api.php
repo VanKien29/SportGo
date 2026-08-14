@@ -586,6 +586,8 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/eligible-vouchers', [\App\Http\Controllers\Api\Player\BookingController::class, 'eligibleVouchers']);
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);
         Route::get('/bookings/recurring-groups/{groupCode}', [\App\Http\Controllers\Api\Player\BookingController::class, 'recurringGroup']);
+        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'previewRecurring']);
+        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Player\BookingController::class, 'storeRecurring']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);

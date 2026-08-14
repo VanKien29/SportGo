@@ -24,14 +24,34 @@
         </div>
       </div>
 
+      <!-- MODE NAVIGATION TABS (PHẲNG, TỐI GIẢN) -->
+      <div class="cbw-mode-nav">
+        <button
+          type="button"
+          class="cbw-mode-tab"
+          :class="{ 'is-active': bookingMode === 'single' }"
+          @click="setBookingMode('single')"
+        >
+          <span>Đặt theo ngày (Lịch lẻ)</span>
+        </button>
+        <button
+          type="button"
+          class="cbw-mode-tab"
+          :class="{ 'is-active': bookingMode === 'recurring' }"
+          @click="setBookingMode('recurring')"
+        >
+          <span>Đặt lịch cố định</span>
+        </button>
+      </div>
+
       <!-- INITIAL LOADING STATE -->
       <div v-if="initialLoading" class="cbw-loading">
         <div class="cbw-spinner"></div>
         <span>Đang chuẩn bị bảng lịch sân...</span>
       </div>
 
-      <!-- MAIN WORKSPACE LAYOUT -->
-      <div v-else class="cbw-workspace" :class="{ 'is-fullwidth': !selectedSlotKeys.length }">
+      <!-- MAIN WORKSPACE LAYOUT: SINGLE BOOKING MODE -->
+      <div v-show="!initialLoading && bookingMode === 'single'" class="cbw-workspace" :class="{ 'is-fullwidth': !selectedSlotKeys.length }">
         <!-- LEFT COLUMN: TIME-ROW MATRIX -->
         <div class="cbw-schedule-panel">
           <!-- CLEAN COMPACT TOOLBAR -->
@@ -155,7 +175,7 @@
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: BOOKING SUMMARY & PAYMENT PANEL (CHỈ HIỆN KHU DÃ CHỌN Ô GIỜ) -->
+        <!-- RIGHT COLUMN: BOOKING SUMMARY & PAYMENT PANEL -->
         <div v-if="selectedSlotKeys.length" class="cbw-summary-panel" ref="summaryPanel" tabindex="-1">
           <div class="cbw-summary-header">
             <span class="cbw-summary-label">THÔNG TIN ĐẶT SÂN</span>
@@ -197,7 +217,7 @@
             </div>
           </template>
 
-          <!-- VOUCHER & DISCOUNT SECTION (FOR LOGGED IN / AUTHENTICATED USERS) -->
+          <!-- VOUCHER & DISCOUNT SECTION -->
           <template v-if="selectedSlotKeys.length && !validationError">
             <div class="cbw-divider"></div>
             <div class="cbw-discount-section">
@@ -319,6 +339,276 @@
           </p>
         </div>
       </div>
+
+      <!-- MAIN WORKSPACE LAYOUT: RECURRING BOOKING MODE (FLAT, CLEAN, WHITE) -->
+      <div v-show="!initialLoading && bookingMode === 'recurring'" class="cbw-workspace cbw-workspace--recurring">
+        <!-- LEFT COLUMN: RECURRING PLANNER (FLAT UNIFIED SECTION) -->
+        <div class="cbw-rec-planner">
+          <!-- SECTION 1: KHOẢNG THỜI GIAN -->
+          <div class="cbw-rec-sec">
+            <div class="cbw-rec-sec-head">
+              <h3 class="cbw-rec-sec-title">1. Khoảng thời gian chơi</h3>
+              <div class="cbw-rec-quick-presets">
+                <button type="button" class="cbw-rec-preset-btn" @click="selectRecurringPreset(1)">1 tháng</button>
+                <button type="button" class="cbw-rec-preset-btn" @click="selectRecurringPreset(2)">2 tháng</button>
+                <button type="button" class="cbw-rec-preset-btn" @click="selectRecurringPreset(3)">3 tháng</button>
+              </div>
+            </div>
+
+            <div class="cbw-rec-form-row">
+              <div class="cbw-rec-form-group">
+                <label class="cbw-rec-form-lbl">Từ ngày:</label>
+                <AdminDatePicker
+                  :model-value="recurringForm.recurring_start_date"
+                  placeholder="Từ ngày"
+                  @update:model-value="val => { recurringForm.recurring_start_date = val; recurringPreviewResult = null; }"
+                />
+              </div>
+
+              <div class="cbw-rec-form-group">
+                <label class="cbw-rec-form-lbl">Đến ngày:</label>
+                <AdminDatePicker
+                  :model-value="recurringForm.recurring_end_date"
+                  placeholder="Đến ngày"
+                  @update:model-value="val => { recurringForm.recurring_end_date = val; recurringPreviewResult = null; }"
+                />
+              </div>
+
+              <div class="cbw-rec-form-group">
+                <label class="cbw-rec-form-lbl">Kiểu chu kỳ:</label>
+                <ClientCustomSelect
+                  v-model="recurringForm.recurrence_type"
+                  :options="recurrenceTypeOptions"
+                  @change="recurringPreviewResult = null"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: CHỌN THỨ TRONG TUẦN & KHUNG GIỜ -->
+          <div v-if="recurringForm.recurrence_type === 'weekly'" class="cbw-rec-sec">
+            <div class="cbw-rec-sec-head">
+              <h3 class="cbw-rec-sec-title">2. Chọn các thứ trong tuần & Khung giờ</h3>
+            </div>
+
+            <!-- WEEKDAYS FLAT LIST -->
+            <div class="cbw-weekday-row">
+              <button
+                v-for="d in weekDaysList"
+                :key="d.value"
+                type="button"
+                class="cbw-day-box"
+                :class="{
+                  'is-selected': isRecurringWeekdaySelected(d.value),
+                  'is-active': recurringActiveWeekday === d.value
+                }"
+                @click="toggleRecurringWeekday(d.value)"
+              >
+                <span class="cbw-day-box-short">{{ d.short }}</span>
+                <span class="cbw-day-box-lbl">{{ d.label }}</span>
+                <span v-if="isRecurringWeekdaySelected(d.value)" class="cbw-day-box-status">
+                  {{ getWeekdayScheduleSummary(d.value) }}
+                </span>
+                <span v-else class="cbw-day-box-empty">Chưa chọn</span>
+              </button>
+            </div>
+
+            <!-- SCHEDULE ROW FOR CURRENT SELECTED WEEKDAY -->
+            <div v-if="isRecurringWeekdaySelected(recurringActiveWeekday)" class="cbw-day-sched-block">
+              <div class="cbw-day-sched-head">
+                <span class="cbw-day-sched-title">
+                  Khung giờ & Sân cho <strong>{{ getWeekdayLabel(recurringActiveWeekday) }}</strong>:
+                </span>
+                <button type="button" class="cbw-copy-link" @click="copyScheduleToAllSelectedWeekdays">
+                  Áp dụng khung giờ & sân này cho tất cả thứ đã chọn
+                </button>
+              </div>
+
+              <div class="cbw-rec-form-row">
+                <div class="cbw-rec-form-group">
+                  <label class="cbw-rec-form-lbl">Bắt đầu:</label>
+                  <ClientCustomSelect
+                    v-model="getWeekdaySchedule(recurringActiveWeekday).start_time"
+                    :options="formattedTimeOptions"
+                    icon="clock"
+                    placeholder="Chọn giờ"
+                    @change="recurringPreviewResult = null"
+                  />
+                </div>
+
+                <div class="cbw-rec-form-group">
+                  <label class="cbw-rec-form-lbl">Kết thúc:</label>
+                  <ClientCustomSelect
+                    v-model="getWeekdaySchedule(recurringActiveWeekday).end_time"
+                    :options="formattedTimeOptions"
+                    icon="clock"
+                    placeholder="Chọn giờ"
+                    @change="recurringPreviewResult = null"
+                  />
+                </div>
+
+                <div class="cbw-rec-form-group">
+                  <label class="cbw-rec-form-lbl">Sân:</label>
+                  <ClientCustomSelect
+                    v-model="getWeekdaySchedule(recurringActiveWeekday).venue_court_id"
+                    :options="courtOptions"
+                    icon="court"
+                    placeholder="Chọn sân"
+                    @change="recurringPreviewResult = null"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: KIỂM TRA LỊCH TRỐNG & BUỔI CHƠI -->
+          <div class="cbw-rec-sec cbw-rec-sec--last">
+            <div class="cbw-rec-sec-head">
+              <h3 class="cbw-rec-sec-title">3. Kiểm tra tính khả dụng của lịch</h3>
+            </div>
+
+            <div class="cbw-rec-check-btn-wrap">
+              <button
+                type="button"
+                class="cbw-rec-btn-action"
+                :disabled="recurringPreviewLoading || !recurringCanSubmit"
+                @click="runPreviewRecurring"
+              >
+                <template v-if="recurringPreviewLoading">Đang kiểm tra các buổi trong chu kỳ...</template>
+                <template v-else>Kiểm tra lịch & Xem trước buổi chơi</template>
+              </button>
+            </div>
+
+            <p v-if="recurringPreviewError" class="cbw-rec-msg-error">{{ recurringPreviewError }}</p>
+
+            <!-- PREVIEW STATUS & CONFLICTS -->
+            <div v-if="recurringPreviewResult" class="cbw-rec-result-area">
+              <div v-if="!recurringPreviewResult.conflict_count" class="cbw-rec-msg-success">
+                ✓ Tất cả <strong>{{ recurringPreviewResult.total_dates }} buổi</strong> trong chu kỳ đều sẵn sàng và không bị trùng lịch.
+              </div>
+
+              <div v-else class="cbw-rec-msg-warn">
+                <span>⚠️ Có <strong>{{ recurringPreviewResult.conflict_count }} buổi</strong> bị trùng hoặc sân bận. Vui lòng chọn cách xử lý bên dưới:</span>
+              </div>
+
+              <!-- CONFLICT TABLE -->
+              <div v-if="recurringPreviewResult.conflicts && recurringPreviewResult.conflicts.length" class="cbw-conflict-table">
+                <div v-for="cf in recurringPreviewResult.conflicts" :key="cf.date" class="cbw-conflict-row">
+                  <div class="cbw-conflict-date">
+                    <strong>{{ formatDate(cf.date) }}</strong>
+                    <span>({{ cf.start_time ? shortTime(cf.start_time) : '' }} – {{ cf.end_time ? shortTime(cf.end_time) : '' }})</span>
+                  </div>
+
+                  <div class="cbw-conflict-controls">
+                    <label class="cbw-conflict-radio">
+                      <input
+                        type="radio"
+                        :name="`cf-${cf.date}`"
+                        value="skip"
+                        :checked="getConflictAction(cf.date) === 'skip'"
+                        @change="setConflictOverride(cf.date, 'skip')"
+                      />
+                      <span>Bỏ qua ngày này</span>
+                    </label>
+
+                    <label v-if="cf.alternatives && cf.alternatives.length" class="cbw-conflict-radio">
+                      <input
+                        type="radio"
+                        :name="`cf-${cf.date}`"
+                        value="switch"
+                        :checked="getConflictAction(cf.date) === 'switch'"
+                        @change="setConflictOverride(cf.date, 'switch', cf.alternatives[0]?.id)"
+                      />
+                      <span>Đổi sang sân:</span>
+                      <select
+                        class="cbw-conflict-select"
+                        :value="getConflictAltCourtId(cf.date) || cf.alternatives[0]?.id"
+                        @change="e => setConflictOverride(cf.date, 'switch', Number(e.target.value))"
+                      >
+                        <option v-for="alt in cf.alternatives" :key="alt.id" :value="alt.id">{{ alt.name }}</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: RECURRING SUMMARY & CHECKOUT -->
+        <div class="cbw-summary-panel" ref="summaryPanel" tabindex="-1">
+          <div class="cbw-summary-header">
+            <span class="cbw-summary-label">THÔNG TIN ĐẶT SÂN CỐ ĐỊNH</span>
+            <h2 class="cbw-summary-title">{{ currentCluster?.name || 'Cụm sân' }}</h2>
+            <p class="cbw-summary-sub">Gói đặt cố định theo chu kỳ</p>
+          </div>
+
+          <div class="cbw-divider"></div>
+
+          <!-- SUMMARY FACTS -->
+          <div class="cbw-facts">
+            <div class="cbw-fact-row">
+              <span>Cụm sân:</span>
+              <strong>{{ currentCluster?.name || '-' }}</strong>
+            </div>
+            <div class="cbw-fact-row">
+              <span>Khoảng ngày:</span>
+              <strong>{{ formatDate(recurringForm.recurring_start_date) }} – {{ formatDate(recurringForm.recurring_end_date) }}</strong>
+            </div>
+            <div class="cbw-fact-row">
+              <span>Chu kỳ:</span>
+              <strong>{{ recurringForm.recurrence_type === 'weekly' ? 'Hàng tuần' : 'Hàng ngày' }} ({{ recurringForm.recurrence_days_of_week?.length || 0 }} buổi/tuần)</strong>
+            </div>
+            <div class="cbw-fact-row">
+              <span>Tổng số buổi:</span>
+              <strong style="color: #15803d; font-size: 15px;">{{ recurringEstimatedSessions }} buổi</strong>
+            </div>
+          </div>
+
+          <!-- PAYMENT OPTIONS -->
+          <div class="cbw-divider"></div>
+          <div class="cbw-payment-section">
+            <p class="cbw-payment-title">Hình thức thanh toán</p>
+            <div class="cbw-payment-opts">
+              <label class="cbw-payment-opt" :class="{ 'is-active': recurringForm.payment_option === 'no_prepay' }">
+                <input type="radio" v-model="recurringForm.payment_option" value="no_prepay" />
+                <div>
+                  <strong>Thanh toán tại sân</strong>
+                  <span>Trả theo từng buổi hoặc thanh toán tại quầy</span>
+                </div>
+              </label>
+              <label class="cbw-payment-opt" :class="{ 'is-active': recurringForm.payment_option === 'full_payment' }">
+                <input type="radio" v-model="recurringForm.payment_option" value="full_payment" />
+                <div>
+                  <strong>Thanh toán Online (QR SePay)</strong>
+                  <span>Giữ trọn vẹn toàn bộ các buổi trong chu kỳ</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- TOTAL & SUBMIT BUTTON -->
+          <div class="cbw-divider"></div>
+
+          <div class="cbw-total-row">
+            <span>Tạm tính chu kỳ:</span>
+            <strong class="cbw-total-val">{{ money(recurringEstimatedTotal) }}</strong>
+          </div>
+
+          <p v-if="recurringSubmitError" class="cbw-submit-error">{{ recurringSubmitError }}</p>
+
+          <button
+            type="button"
+            class="cbw-submit-btn"
+            :disabled="!recurringCanSubmit || recurringSubmitting"
+            @click="submitRecurring"
+          >
+            <template v-if="recurringSubmitting">Đang xử lý tạo lịch cố định...</template>
+            <template v-else-if="!isLoggedIn">Đăng nhập để xác nhận đặt sân</template>
+            <template v-else>Xác nhận đặt lịch cố định</template>
+          </button>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -326,12 +616,14 @@
 <script>
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import AdminDatePicker from "../../../components/AdminDatePicker.vue";
+import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
+import echo from "../../../echo.js";
 
 export default {
   name: "ClientBookingWorkspace",
-  components: { PublicNavbar, AdminDatePicker },
+  components: { PublicNavbar, AdminDatePicker, ClientCustomSelect },
   data() {
     return {
       steps: [
@@ -371,9 +663,116 @@ export default {
       submitError: "",
       routeSelection: null,
       selectedServicesMap: {},
+      lastScheduleFetchedAt: 0,
+      scheduleSyncInterval: null,
+      echoChannelName: null,
+      bookingMode: "single",
+      recurringForm: {
+        recurring_start_date: "",
+        recurring_end_date: "",
+        recurrence_type: "weekly",
+        recurrence_interval: 1,
+        recurrence_days_of_week: [1, 3, 5],
+        venue_court_id: null,
+        start_time: "18:00:00",
+        end_time: "20:00:00",
+        weekday_schedules: {},
+        conflict_resolution: "abort",
+        conflict_overrides: {},
+        payment_option: "no_prepay",
+      },
+      recurringActiveWeekday: 1,
+      recurringPreviewLoading: false,
+      recurringPreviewResult: null,
+      recurringPreviewError: "",
+      recurringSubmitting: false,
+      recurringSubmitError: "",
     };
   },
   computed: {
+    weekDaysList() {
+      return [
+        { value: 1, label: "Thứ Hai", short: "T2" },
+        { value: 2, label: "Thứ Ba", short: "T3" },
+        { value: 3, label: "Thứ Tư", short: "T4" },
+        { value: 4, label: "Thứ Năm", short: "T5" },
+        { value: 5, label: "Thứ Sáu", short: "T6" },
+        { value: 6, label: "Thứ Bảy", short: "T7" },
+        { value: 0, label: "Chủ Nhật", short: "CN" },
+      ];
+    },
+    timeOptions() {
+      const list = [];
+      for (let h = 5; h <= 23; h++) {
+        const hh = String(h).padStart(2, "0");
+        list.push(`${hh}:00:00`);
+        list.push(`${hh}:30:00`);
+      }
+      list.push("24:00:00");
+      return list;
+    },
+    formattedTimeOptions() {
+      return this.timeOptions.map(t => ({
+        value: t,
+        label: this.shortTime(t),
+      }));
+    },
+    courtOptions() {
+      return this.courts.map(c => {
+        const rawType = c.court_type?.name || "";
+        const cleanSub = rawType ? rawType.replace(/\s*\((.*?)\)/g, " · $1") : "";
+        return {
+          value: c.id,
+          label: c.name,
+          sublabel: cleanSub || rawType || null,
+        };
+      });
+    },
+    recurrenceTypeOptions() {
+      return [
+        { value: "weekly", label: "Hàng tuần (Các thứ cố định)" },
+        { value: "daily", label: "Hàng ngày liên tục" },
+      ];
+    },
+    recurringActiveCourt() {
+      const courtId = this.recurringForm.venue_court_id || this.courts[0]?.id;
+      return this.courts.find(c => String(c.id) === String(courtId)) || this.courts[0] || null;
+    },
+    recurringEstimatedSessions() {
+      if (this.recurringPreviewResult?.total_dates !== undefined) {
+        if (this.recurringForm.conflict_resolution === "skip" && this.recurringPreviewResult.conflict_count) {
+          return Math.max(this.recurringPreviewResult.total_dates - this.recurringPreviewResult.conflict_count, 0);
+        }
+        return this.recurringPreviewResult.total_dates;
+      }
+      if (!this.recurringForm.recurring_start_date || !this.recurringForm.recurring_end_date) return 0;
+      const s = new Date(this.recurringForm.recurring_start_date);
+      const e = new Date(this.recurringForm.recurring_end_date);
+      if (e < s) return 0;
+      const daysDiff = Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
+      const weeks = Math.max(daysDiff / 7, 1);
+      return Math.round(weeks * (this.recurringForm.recurrence_days_of_week?.length || 1));
+    },
+    recurringSingleSessionAmount() {
+      const sched = this.recurringForm.weekday_schedules[this.recurringActiveWeekday] || {
+        venue_court_id: this.recurringForm.venue_court_id || this.courts[0]?.id,
+        start_time: this.recurringForm.start_time,
+        end_time: this.recurringForm.end_time,
+      };
+      const durationH = Math.max((this.minutes(sched.end_time) - this.minutes(sched.start_time)) / 60, 0.5);
+      const court = this.courts.find(c => String(c.id) === String(sched.venue_court_id)) || this.courts[0];
+      const rate = Number(court?.price_per_hour || court?.base_price || 120000);
+      return Math.round(rate * durationH);
+    },
+    recurringEstimatedTotal() {
+      return Math.round(this.recurringSingleSessionAmount * this.recurringEstimatedSessions);
+    },
+    recurringCanSubmit() {
+      if (!this.recurringForm.recurring_start_date || !this.recurringForm.recurring_end_date) return false;
+      if (this.recurringForm.recurrence_type === "weekly" && !this.recurringForm.recurrence_days_of_week?.length) return false;
+      if (this.recurringPreviewResult?.conflicts?.length && this.recurringForm.conflict_resolution === "abort") return false;
+      return true;
+    },
     today() {
       return new Date().toLocaleDateString("en-CA");
     },
@@ -649,21 +1048,74 @@ export default {
   async mounted() {
     window.addEventListener("pageshow", this.onPageShow);
     window.addEventListener("focus", this.onWindowFocus);
+
+    // Fallback silent sync timer every 45s
+    this.scheduleSyncInterval = setInterval(() => {
+      if (!document.hidden && !this.initialLoading && !this.scheduleLoading) {
+        this.loadSchedule({ silent: true });
+      }
+    }, 45000);
+
     await this.initialize();
+    this.subscribeScheduleChannel();
   },
   beforeUnmount() {
     window.removeEventListener("pageshow", this.onPageShow);
     window.removeEventListener("focus", this.onWindowFocus);
+
+    if (this.scheduleSyncInterval) {
+      clearInterval(this.scheduleSyncInterval);
+      this.scheduleSyncInterval = null;
+    }
+
+    this.unsubscribeScheduleChannel();
   },
   activated() {
-    this.loadSchedule();
+    this.subscribeScheduleChannel();
+    this.loadSchedule({ silent: true });
+  },
+  deactivated() {
+    this.unsubscribeScheduleChannel();
   },
   methods: {
     onPageShow(e) {
-      if (e.persisted) this.loadSchedule();
+      if (e.persisted) this.loadSchedule({ silent: true });
     },
     onWindowFocus() {
-      if (!this.initialLoading) this.loadSchedule();
+      if (this.initialLoading) return;
+      // Throttle: Only silent refresh if more than 15s since last fetch
+      const now = Date.now();
+      if (now - this.lastScheduleFetchedAt > 15000) {
+        this.loadSchedule({ silent: true });
+      }
+    },
+    subscribeScheduleChannel() {
+      if (!echo || !this.clusterId) return;
+      const channelName = `venue-cluster.${this.clusterId}`;
+      if (this.echoChannelName === channelName) return;
+
+      this.unsubscribeScheduleChannel();
+
+      try {
+        this.echoChannelName = channelName;
+        echo.channel(channelName)
+          .listen('.booking.schedule.updated', (event) => {
+            // If the broadcast is for current booking date or unspecified (whole cluster), silently sync schedule
+            if (!event.booking_date || event.booking_date === this.bookingDate) {
+              this.loadSchedule({ silent: true });
+            }
+          });
+      } catch (err) {
+        console.warn("Could not subscribe to booking schedule channel:", err);
+      }
+    },
+    unsubscribeScheduleChannel() {
+      if (this.echoChannelName && echo) {
+        try {
+          echo.leave(this.echoChannelName);
+        } catch {}
+        this.echoChannelName = null;
+      }
     },
     async initialize() {
       try {
@@ -708,58 +1160,79 @@ export default {
         this.initialLoading = false;
       }
     },
-    async loadSchedule() {
+    async loadSchedule(options = {}) {
+      const isSilent = Boolean(options.silent);
       if (!this.clusterId || !this.bookingDate) return;
       const rid = ++this.scheduleRequestId;
       const prevKeys = [...this.selectedSlotKeys];
-      this.availabilityRequestId += 1;
-      this.checking = false;
-      this.available = true;
-      this.preview = null;
-      this._venueVouchers = [];
-      this._vipVouchers = [];
-      this.selectedVenueVoucherId = "";
-      this.selectedVipVoucherId = "";
-      this.voucherNotice = "";
-      this.scheduleLoading = true;
-      this.scheduleError = "";
+
+      if (!isSilent) {
+        this.availabilityRequestId += 1;
+        this.checking = false;
+        this.available = true;
+        this.preview = null;
+        this._venueVouchers = [];
+        this._vipVouchers = [];
+        this.selectedVenueVoucherId = "";
+        this.selectedVipVoucherId = "";
+        this.voucherNotice = "";
+        this.scheduleLoading = true;
+        this.scheduleError = "";
+      }
+
       try {
         const params = { venue_cluster_id: this.clusterId, booking_date: this.bookingDate };
         if (this.courtTypeId) params.court_type_id = this.courtTypeId;
         const res = await bookingService.getSchedule(params);
         if (rid !== this.scheduleRequestId) return;
+
         this.slots = res.time_slots || [];
         this.courts = res.courts || [];
         this.statuses = res.slot_statuses || [];
         this.operatingHours = res.operating_hours || null;
+        this.lastScheduleFetchedAt = Date.now();
         this.ensureActivePeriod();
 
         if (prevKeys.length) {
           this.selectedSlotKeys = prevKeys;
           const entries = this.slotEntriesFromKeys(prevKeys);
-          const changed = entries.length !== prevKeys.length || entries.some(e => this.slotDisabled(e.courtId, e.slot));
-          if (changed) {
-            this.clearSelection();
-            this.selectionError = "Lịch sân vừa cập nhật. Vui lòng chọn lại các khung giờ trống.";
-          } else if (this.isLoggedIn) {
+          const invalidEntries = entries.filter(e => this.slotDisabled(e.courtId, e.slot));
+
+          if (invalidEntries.length > 0) {
+            // Keep valid ones, filter out disabled
+            const validKeys = entries
+              .filter(e => !this.slotDisabled(e.courtId, e.slot))
+              .map(e => `${e.courtId}:${e.slot.start_time}`);
+
+            this.selectedSlotKeys = validKeys;
+            this.selectionError = "Một số khung giờ bạn đang chọn vừa có khách khác đặt hoặc cập nhật.";
+            if (validKeys.length > 0 && this.isLoggedIn) {
+              await this.checkAvailability();
+            }
+          } else if (!isSilent && this.isLoggedIn) {
             await this.checkAvailability();
           }
-        } else {
+        } else if (!isSilent) {
           await this.applyRouteSelection();
         }
       } catch (err) {
         if (rid !== this.scheduleRequestId) return;
-        this.scheduleError = (err?.message && !err.message.includes("<") && !err.message.includes("Phiên đăng nhập"))
-          ? err.message
-          : "Không thể tải lịch sân. Vui lòng thử lại.";
+        if (!isSilent) {
+          this.scheduleError = (err?.message && !err.message.includes("<") && !err.message.includes("Phiên đăng nhập"))
+            ? err.message
+            : "Không thể tải lịch sân. Vui lòng thử lại.";
+        }
       } finally {
-        if (rid === this.scheduleRequestId) this.scheduleLoading = false;
+        if (rid === this.scheduleRequestId && !isSilent) {
+          this.scheduleLoading = false;
+        }
       }
     },
     async changeCluster() {
       this.courtTypeId = "";
       this.ensurePaymentOption();
       this.clearSelection();
+      this.subscribeScheduleChannel();
       await this.loadSchedule();
     },
     async changeDate() {
@@ -1119,11 +1592,192 @@ export default {
       const n = Number(value || 0);
       return n >= 1000 ? `${Math.round(n / 1000)}k` : n || "";
     },
+    setBookingMode(mode) {
+      this.bookingMode = mode;
+      if (mode === "recurring" && !this.recurringForm.recurring_start_date) {
+        this.initRecurringDates();
+      }
+    },
+    initRecurringDates() {
+      const s = new Date();
+      s.setDate(s.getDate() + 1);
+      const startStr = s.toLocaleDateString("en-CA");
+      const e = new Date(s);
+      e.setMonth(e.getMonth() + 1);
+      const endStr = e.toLocaleDateString("en-CA");
+
+      this.recurringForm.recurring_start_date = startStr;
+      this.recurringForm.recurring_end_date = endStr;
+      this.recurringForm.venue_court_id = this.courts[0]?.id || null;
+      this.recurringForm.recurrence_days_of_week = [1, 3, 5];
+      this.recurringActiveWeekday = 1;
+    },
+    selectRecurringPreset(months) {
+      const s = new Date(this.recurringForm.recurring_start_date || this.tomorrow);
+      const e = new Date(s);
+      e.setMonth(e.getMonth() + months);
+      this.recurringForm.recurring_end_date = e.toLocaleDateString("en-CA");
+      this.recurringPreviewResult = null;
+    },
+    isRecurringWeekdaySelected(day) {
+      return (this.recurringForm.recurrence_days_of_week || []).includes(day);
+    },
+    getWeekdayLabel(day) {
+      return this.weekDaysList.find(d => d.value === day)?.label || `Thứ ${day}`;
+    },
+    toggleRecurringWeekday(day) {
+      const list = [...(this.recurringForm.recurrence_days_of_week || [])];
+      const idx = list.indexOf(day);
+      if (idx >= 0) {
+        if (list.length > 1) {
+          list.splice(idx, 1);
+        }
+      } else {
+        list.push(day);
+      }
+      this.recurringForm.recurrence_days_of_week = list.sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b));
+      this.recurringActiveWeekday = day;
+      this.recurringPreviewResult = null;
+    },
+    getWeekdaySchedule(day) {
+      if (!this.recurringForm.weekday_schedules[day]) {
+        this.recurringForm.weekday_schedules[day] = {
+          venue_court_id: this.recurringForm.venue_court_id || this.courts[0]?.id,
+          start_time: this.recurringForm.start_time || "18:00:00",
+          end_time: this.recurringForm.end_time || "20:00:00",
+        };
+      }
+      return this.recurringForm.weekday_schedules[day];
+    },
+    getWeekdayScheduleSummary(day) {
+      const s = this.getWeekdaySchedule(day);
+      const court = this.courts.find(c => String(c.id) === String(s.venue_court_id)) || this.courts[0];
+      return `${this.shortTime(s.start_time)}–${this.shortTime(s.end_time)} · ${court?.name || "Sân"}`;
+    },
+    copyScheduleToAllSelectedWeekdays() {
+      const activeSched = this.getWeekdaySchedule(this.recurringActiveWeekday);
+      (this.recurringForm.recurrence_days_of_week || []).forEach(day => {
+        this.recurringForm.weekday_schedules[day] = { ...activeSched };
+      });
+      this.recurringPreviewResult = null;
+    },
+    recurringPayload() {
+      const f = this.recurringForm;
+      const courtId = f.venue_court_id || this.courts[0]?.id;
+
+      const weekdayTimeRanges = [];
+      if (f.recurrence_type === "weekly") {
+        (f.recurrence_days_of_week || []).forEach(day => {
+          const sched = f.weekday_schedules[day] || {
+            venue_court_id: courtId,
+            start_time: f.start_time,
+            end_time: f.end_time,
+          };
+          weekdayTimeRanges.push({
+            day_of_week: day,
+            time_ranges: [{
+              venue_court_id: sched.venue_court_id || courtId,
+              start_time: sched.start_time || f.start_time,
+              end_time: sched.end_time || f.end_time,
+            }],
+          });
+        });
+      }
+
+      const overrides = Object.entries(f.conflict_overrides || {}).map(([date, ov]) => ({
+        date,
+        action: ov.action || "skip",
+        venue_court_id: ov.action === "switch" ? ov.venue_court_id : undefined,
+      }));
+
+      return {
+        venue_cluster_id: this.clusterId,
+        venue_court_id: courtId,
+        recurring_start_date: f.recurring_start_date,
+        recurring_end_date: f.recurring_end_date,
+        recurrence_type: f.recurrence_type,
+        recurrence_interval: f.recurrence_interval || 1,
+        recurrence_days_of_week: f.recurrence_type === "weekly" ? f.recurrence_days_of_week : undefined,
+        start_time: f.start_time,
+        end_time: f.end_time,
+        weekday_time_ranges: weekdayTimeRanges.length ? weekdayTimeRanges : undefined,
+        payment_option: f.payment_option || "no_prepay",
+        conflict_resolution: f.conflict_resolution || "abort",
+        conflict_overrides: overrides.length ? overrides : undefined,
+      };
+    },
+    async runPreviewRecurring() {
+      this.recurringPreviewLoading = true;
+      this.recurringPreviewError = "";
+      try {
+        const payload = this.recurringPayload();
+        const res = await bookingService.previewRecurringBooking(payload);
+        this.recurringPreviewResult = res.data || res;
+      } catch (err) {
+        this.recurringPreviewResult = null;
+        this.recurringPreviewError = err?.message || "Chưa kiểm tra được lịch cố định. Vui lòng kiểm tra lại cấu hình.";
+      } finally {
+        this.recurringPreviewLoading = false;
+      }
+    },
+    getConflictAction(date) {
+      return this.recurringForm.conflict_overrides?.[date]?.action || (this.recurringForm.conflict_resolution === "skip" ? "skip" : "skip");
+    },
+    getConflictAltCourtId(date) {
+      return this.recurringForm.conflict_overrides?.[date]?.venue_court_id || null;
+    },
+    setConflictOverride(date, action, altCourtId = null) {
+      if (!this.recurringForm.conflict_overrides) {
+        this.recurringForm.conflict_overrides = {};
+      }
+      this.recurringForm.conflict_overrides[date] = {
+        action,
+        venue_court_id: altCourtId,
+      };
+      this.recurringForm.conflict_resolution = "mixed";
+    },
+    async submitRecurring() {
+      if (!this.recurringCanSubmit) return;
+      if (!getAuth()) {
+        this.recurringSubmitError = "";
+        this.$router.push({ name: "login", query: { redirect: this.$route.fullPath } });
+        return;
+      }
+      this.recurringSubmitting = true;
+      this.recurringSubmitError = "";
+
+      try {
+        const payload = this.recurringPayload();
+        const res = await bookingService.createRecurringBooking(payload);
+        const result = res.data || res;
+        const groupCode = result.recurring_group_code;
+        const firstBooking = result.first_booking || result.bookings?.[0];
+
+        if (payload.payment_option === "full_payment" && firstBooking?.id) {
+          try {
+            const payRes = await bookingService.createSepayPayment(firstBooking.id);
+            if (payRes?.payment_url) {
+              window.location.href = payRes.payment_url;
+              return;
+            }
+          } catch {}
+        }
+
+        if (groupCode) {
+          this.$router.push({ path: "/bookings/history", query: { group: groupCode } });
+        } else {
+          this.$router.push({ path: "/bookings/history" });
+        }
+      } catch (err) {
+        this.recurringSubmitError = err?.message || "Không thể tạo lịch cố định. Vui lòng thử lại.";
+      } finally {
+        this.recurringSubmitting = false;
+      }
+    },
   },
 };
 </script>
 
-<style scoped>
 <style scoped>
 /* ===== BASE LAYOUT ===== */
 .cbw-page {
@@ -1132,6 +1786,10 @@ export default {
   color: #0f172a;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
+}
+
+.cbw-page strong {
+  font-weight: 500;
 }
 
 .cbw-main {
@@ -1144,26 +1802,28 @@ export default {
 /* ===== STEP PROGRESS INDICATOR ===== */
 .cbw-steps {
   display: flex;
-  gap: 0;
-  align-items: stretch;
-  padding: 0 0 16px 0;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
   margin-bottom: 24px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #f1f5f9;
-  border-radius: 0;
   box-shadow: none;
 }
 
 .cbw-step {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   flex: 1;
-  padding: 10px 16px;
+  max-width: 320px;
+  padding: 8px 16px;
   opacity: 0.45;
   transition: opacity 0.2s ease;
   position: relative;
+  border: none;
 }
 
 .cbw-step.is-active,
@@ -1176,7 +1836,7 @@ export default {
   height: 28px;
   border-radius: 50%;
   background: #f1f5f9;
-  color: #475569;
+  color: #0f172a;
   font-size: 13px;
   font-weight: 500;
   display: flex;
@@ -1191,8 +1851,8 @@ export default {
 }
 
 .cbw-step.is-done .cbw-step-num {
-  background: #dcfce7;
-  color: #15803d;
+  background: #15803d;
+  color: #ffffff;
 }
 
 .cbw-step-info {
@@ -1210,7 +1870,7 @@ export default {
 
 .cbw-step-hint {
   font-size: 12px;
-  color: #64748b;
+  color: #475569;
   line-height: 1.3;
 }
 
@@ -1222,7 +1882,7 @@ export default {
   justify-content: center;
   gap: 14px;
   padding: 100px 0;
-  color: #475569;
+  color: #0f172a;
   font-size: 14px;
 }
 
@@ -1239,6 +1899,44 @@ export default {
   to { transform: rotate(360deg); }
 }
 
+/* ===== MODE NAVIGATION TABS (SOLID CLEAN) ===== */
+.cbw-mode-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  border: none;
+}
+
+.cbw-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.cbw-mode-tab:hover:not(.is-active) {
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.cbw-mode-tab.is-active {
+  color: #ffffff;
+  background: #15803d;
+  border-color: #15803d;
+  font-weight: 500;
+}
+
 /* ===== WORKSPACE GRID LAYOUT ===== */
 .cbw-workspace {
   display: grid;
@@ -1246,10 +1944,15 @@ export default {
   gap: 32px;
   align-items: start;
   min-width: 0;
+  min-height: 540px;
 }
 
 .cbw-workspace.is-fullwidth {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.cbw-workspace--recurring {
+  grid-template-columns: minmax(0, 1fr) 360px !important;
 }
 
 /* ===== CLEAN COMPACT TOOLBAR ===== */
@@ -1275,21 +1978,6 @@ export default {
   color: #0f172a;
 }
 
-.cbw-date-input {
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13.5px;
-  color: #0f172a;
-  background: #ffffff;
-  outline: none;
-  font-weight: 400;
-}
-
-.cbw-date-input:focus {
-  border-color: #15803d;
-}
-
 .cbw-quick-dates {
   display: flex;
   gap: 6px;
@@ -1298,8 +1986,8 @@ export default {
 .cbw-quick-btn {
   padding: 6px 14px;
   font-size: 13px;
-  font-weight: 500;
-  color: #475569;
+  font-weight: 400;
+  color: #1e293b;
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -1316,6 +2004,7 @@ export default {
   background: #15803d;
   color: #ffffff;
   border-color: #15803d;
+  font-weight: 500;
 }
 
 .cbw-period-tabs {
@@ -1329,12 +2018,12 @@ export default {
   gap: 6px;
   padding: 6px 14px;
   font-size: 13px;
-  color: #475569;
+  color: #1e293b;
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 400;
   transition: all 0.15s ease;
 }
 
@@ -1347,11 +2036,12 @@ export default {
   color: #ffffff;
   background: #15803d;
   border-color: #15803d;
+  font-weight: 500;
 }
 
 .cbw-period-range {
   font-size: 11.5px;
-  opacity: 0.85;
+  opacity: 0.9;
   font-weight: 400;
 }
 
@@ -1359,7 +2049,7 @@ export default {
 .cbw-state-msg {
   text-align: center;
   padding: 50px 16px;
-  color: #475569;
+  color: #1e293b;
   font-size: 14px;
   font-weight: 400;
 }
@@ -1382,7 +2072,7 @@ export default {
 .cbw-matrix-wrap {
   overflow-x: auto;
   overflow-y: auto;
-  border: 1px solid #f1f5f9;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
   margin-bottom: 14px;
   max-height: 560px;
@@ -1401,14 +2091,13 @@ export default {
   text-align: left;
   font-size: 12px;
   font-weight: 500;
-  color: #475569;
+  color: #1e293b;
   background: #ffffff;
   white-space: nowrap;
   position: sticky;
   top: 0;
   left: 0;
   z-index: 3;
-  border-bottom: 2px solid #15803d;
   border-right: 1px solid #f1f5f9;
 }
 
@@ -1421,7 +2110,6 @@ export default {
   position: sticky;
   top: 0;
   z-index: 2;
-  border-bottom: 2px solid #15803d;
   border-right: 1px solid #f1f5f9;
 }
 
@@ -1435,7 +2123,7 @@ export default {
 .cbw-th-court span {
   display: block;
   font-size: 11.5px;
-  color: #64748b;
+  color: #475569;
   font-weight: 400;
   margin-top: 2px;
 }
@@ -1451,7 +2139,6 @@ export default {
   left: 0;
   z-index: 1;
   border-right: 1px solid #f1f5f9;
-  border-bottom: 1px solid #f1f5f9;
   height: 44px;
   vertical-align: middle;
 }
@@ -1459,14 +2146,13 @@ export default {
 .cbw-td-slot {
   padding: 4px;
   vertical-align: stretch;
-  border-bottom: 1px solid #f1f5f9;
   border-right: 1px solid #f1f5f9;
 }
 
 .cbw-td-empty {
   padding: 40px 16px;
   text-align: center;
-  color: #64748b;
+  color: #334155;
   font-size: 13.5px;
   font-weight: 400;
 }
@@ -1476,8 +2162,8 @@ export default {
   width: 100%;
   height: 100%;
   min-height: 38px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: transparent;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -1485,34 +2171,33 @@ export default {
   justify-content: center;
   padding: 4px;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 400;
   color: #15803d;
   transition: all 0.15s ease;
 }
 
 .cbw-slot-btn:hover:not(:disabled):not(.is-selected) {
-  border-color: #15803d;
-  background: #ffffff;
+  background: #f8fafc;
+  color: #166534;
 }
 
 .cbw-slot-btn.is-selected {
   background: #15803d;
-  border-color: #15803d;
   color: #ffffff;
   font-weight: 500;
 }
 
 .cbw-slot-btn.is-booked,
 .cbw-slot-btn.is-past {
-  background: #ffffff;
-  border-color: #f1f5f9;
+  background: transparent;
+  border: none;
   color: #cbd5e1;
   cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-locked {
-  background: #ffffff;
-  border-color: #fecaca;
+  background: transparent;
+  border: none;
   color: #ef4444;
   cursor: not-allowed;
 }
@@ -1525,7 +2210,7 @@ export default {
 
 .cbw-slot-price {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   color: #15803d;
 }
 
@@ -1546,26 +2231,67 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #f0fdf4;
-  border: 1.5px solid #bbf7d0;
-  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #15803d;
+  border-radius: 8px;
   gap: 12px;
   flex-wrap: wrap;
- /* ===== RIGHT SUMMARY PANEL ===== */
-.cbw-summary-panel {
+  margin-top: 14px;
+}
+
+.cbw-sel-bar--error {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.cbw-sel-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cbw-sel-info strong {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.cbw-sel-info span {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.cbw-clear-btn {
+  background: transparent;
   border: none;
-  border-radius: 8px;
-  padding: 20px;
-  background: #f8fafc;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc2626;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.cbw-clear-btn:hover {
+  opacity: 0.8;
+}
+
+/* ===== RIGHT SUMMARY PANEL ===== */
+.cbw-summary-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 24px 20px;
+  background: #ffffff;
   position: sticky;
   top: 24px;
   display: flex;
   flex-direction: column;
+  gap: 18px;
   box-shadow: none;
 }
 
 .cbw-summary-header {
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
 
 .cbw-summary-label {
@@ -1575,36 +2301,32 @@ export default {
   color: #15803d;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  background: transparent;
-  padding: 0;
   margin-bottom: 4px;
 }
 
 .cbw-summary-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15.5px;
+  font-weight: 500;
   color: #0f172a;
   margin: 0 0 4px;
 }
 
 .cbw-summary-sub {
   font-size: 12.5px;
-  color: #475569;
+  color: #334155;
   margin: 0;
   line-height: 1.5;
 }
 
 .cbw-divider {
-  height: 1px;
-  background: #e2e8f0;
-  margin: 16px 0;
+  display: none;
 }
 
 /* ===== FACTS ===== */
 .cbw-facts {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .cbw-fact-row {
@@ -1616,7 +2338,8 @@ export default {
 }
 
 .cbw-fact-row span {
-  color: #475569;
+  color: #334155;
+  font-weight: 400;
   flex-shrink: 0;
 }
 
@@ -1634,10 +2357,9 @@ export default {
 }
 
 .cbw-price-head {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
-  color: #475569;
-  text-transform: uppercase;
+  color: #0f172a;
   margin-bottom: 2px;
 }
 
@@ -1647,13 +2369,13 @@ export default {
   justify-content: space-between;
   font-size: 12.5px;
   gap: 8px;
-  padding: 6px 10px;
-  background: #ffffff;
-  border-radius: 4px;
+  padding: 4px 0;
+  border: none;
 }
 
 .cbw-price-row span {
-  color: #475569;
+  color: #1e293b;
+  font-weight: 400;
   flex: 1;
   min-width: 0;
   line-height: 1.3;
@@ -1697,8 +2419,8 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
-  font-weight: 500;
-  transition: border-color 0.15s, background 0.15s;
+  font-weight: 400;
+  transition: border-color 0.15s;
 }
 
 .cbw-voucher-btn:hover {
@@ -1707,7 +2429,7 @@ export default {
 
 .cbw-voucher-count {
   font-size: 11.5px;
-  color: #64748b;
+  color: #334155;
   font-weight: 400;
 }
 
@@ -1735,7 +2457,7 @@ export default {
   font-size: 13px;
   color: #0f172a;
   text-align: left;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s;
 }
 
 .cbw-voucher-item:hover:not(.is-active) {
@@ -1761,7 +2483,7 @@ export default {
 
 .cbw-voucher-item > div span {
   font-size: 11.5px;
-  color: #64748b;
+  color: #334155;
 }
 
 .cbw-voucher-item > strong {
@@ -1772,7 +2494,7 @@ export default {
 
 .cbw-voucher-empty {
   font-size: 12.5px;
-  color: #64748b;
+  color: #334155;
   margin: 0;
   text-align: center;
   padding: 8px;
@@ -1782,19 +2504,19 @@ export default {
 .cbw-payment-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .cbw-payment-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 500;
   color: #0f172a;
   margin: 0;
 }
 
 .cbw-wallet-bal {
   font-size: 12.5px;
-  color: #475569;
+  color: #1e293b;
   margin: 0;
   padding: 8px 12px;
   background: #ffffff;
@@ -1810,7 +2532,7 @@ export default {
 .cbw-payment-opts {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .cbw-payment-opt {
@@ -1853,12 +2575,13 @@ export default {
 
 .cbw-payment-opt > div span {
   font-size: 11.5px;
-  color: #64748b;
+  color: #334155;
   line-height: 1.4;
 }
 
 .cbw-payment-opt.is-active {
   border-color: #15803d;
+  background: #ffffff;
 }
 
 .cbw-payment-opt.is-active > div strong {
@@ -1866,7 +2589,7 @@ export default {
 }
 
 .cbw-payment-opt.is-disabled {
-  opacity: 0.42;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -1882,7 +2605,7 @@ export default {
 }
 
 .cbw-total-val {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #15803d;
 }
@@ -1892,9 +2615,10 @@ export default {
   align-items: center;
   justify-content: space-between;
   font-size: 12.5px;
-  color: #475569;
+  color: #1e293b;
   margin-bottom: 14px;
   background: #ffffff;
+  border: 1px solid #f1f5f9;
   border-radius: 4px;
   padding: 8px 12px;
 }
@@ -1909,8 +2633,8 @@ export default {
   color: #dc2626;
   margin: 0 0 10px;
   padding: 8px 12px;
-  background: #ffffff;
-  border-radius: 4px;
+  background: #fef2f2;
+  border-radius: 6px;
   border: 1px solid #fecaca;
 }
 
@@ -1924,7 +2648,7 @@ export default {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background 0.15s;
 }
 
 .cbw-submit-btn:hover:not(:disabled) {
@@ -1934,49 +2658,11 @@ export default {
 .cbw-submit-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}ght: 700;
-}
-
-.cbw-submit-error {
-  font-size: 12.5px;
-  color: #dc2626;
-  margin: 0 0 10px;
-  padding: 8px 12px;
-  background: #fef2f2;
-  border-radius: 8px;
-  border: 1px solid #fecaca;
-}
-
-.cbw-submit-btn {
-  width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #16a34a, #15803d);
-  color: #ffffff;
-  font-size: 14.5px;
-  font-weight: 700;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  letter-spacing: 0.01em;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
-  transition: opacity 0.2s, transform 0.1s;
-}
-
-.cbw-submit-btn:hover:not(:disabled) {
-  opacity: 0.92;
-  transform: translateY(-1px);
-}
-
-.cbw-submit-btn:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
 }
 
 .cbw-hold-note {
   font-size: 11.5px;
-  color: #9ca3af;
+  color: #475569;
   margin: 10px 0 0;
   text-align: center;
   line-height: 1.5;
@@ -1992,7 +2678,7 @@ export default {
 
 .cbw-skel span {
   height: 44px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%;
   animation: cbw-shimmer 1.4s infinite;
@@ -2021,8 +2707,9 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   gap: 12px;
 }
 
@@ -2057,7 +2744,7 @@ export default {
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 14px;
   display: inline-flex;
   align-items: center;
@@ -2079,10 +2766,325 @@ export default {
 
 .cbw-qty-val {
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: #0f172a;
   min-width: 16px;
   text-align: center;
+}
+
+/* ===== RECURRING PLANNER (FLAT, UNIFIED) ===== */
+.cbw-rec-planner {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 24px 28px;
+  gap: 28px;
+}
+
+.cbw-rec-sec {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border: none;
+}
+
+.cbw-rec-sec--last {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border: none;
+}
+
+.cbw-rec-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cbw-rec-sec-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.cbw-rec-quick-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cbw-rec-preset-btn {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cbw-rec-preset-btn:hover {
+  border-color: #15803d;
+  color: #15803d;
+}
+
+.cbw-rec-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.cbw-rec-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cbw-rec-form-lbl {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #0f172a;
+}
+
+.cbw-rec-input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 13.5px;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.cbw-rec-input:focus {
+  border-color: #15803d;
+}
+
+/* WEEKDAYS FLAT ROW */
+.cbw-weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .cbw-weekday-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (max-width: 550px) {
+  .cbw-weekday-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cbw-day-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 72px;
+}
+
+.cbw-day-box:hover {
+  border-color: #cbd5e1;
+}
+
+.cbw-day-box.is-selected {
+  border-color: #15803d;
+  background: #ffffff;
+}
+
+.cbw-day-box-short {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.cbw-day-box.is-selected .cbw-day-box-short {
+  color: #15803d;
+}
+
+.cbw-day-box-lbl {
+  font-size: 11px;
+  color: #334155;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.cbw-day-box-status {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: #15803d;
+  margin-top: 4px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.cbw-day-box-empty {
+  font-size: 10.5px;
+  color: #475569;
+  margin-top: 4px;
+}
+
+/* DAY SCHEDULE SETTINGS */
+.cbw-day-sched-block {
+  padding-top: 14px;
+  border: none;
+  margin-top: 10px;
+}
+
+.cbw-day-sched-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cbw-day-sched-title {
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.cbw-copy-link {
+  background: transparent;
+  border: none;
+  color: #15803d;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cbw-copy-link:hover {
+  opacity: 0.8;
+}
+
+/* ACTION & RESULT */
+.cbw-rec-check-btn-wrap {
+  margin-bottom: 12px;
+}
+
+.cbw-rec-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  background: #15803d;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cbw-rec-btn-action:hover:not(:disabled) {
+  background: #166534;
+}
+
+.cbw-rec-btn-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cbw-rec-msg-success {
+  font-size: 13.5px;
+  color: #15803d;
+  font-weight: 400;
+  margin-top: 8px;
+}
+
+.cbw-rec-msg-warn {
+  font-size: 13.5px;
+  color: #b45309;
+  font-weight: 400;
+  margin-top: 8px;
+}
+
+.cbw-rec-msg-error {
+  font-size: 13px;
+  color: #dc2626;
+  font-weight: 400;
+  margin-top: 8px;
+}
+
+/* CONFLICT TABLE */
+.cbw-conflict-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  border: none;
+  padding-top: 0;
+}
+
+.cbw-conflict-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  background: #fffbeb;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cbw-conflict-date {
+  font-size: 13px;
+  color: #78350f;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cbw-conflict-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cbw-conflict-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #78350f;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.cbw-conflict-select {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #d97706;
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 12px;
+  color: #0f172a;
 }
 
 /* ===== RESPONSIVE STYLES ===== */
@@ -2100,15 +3102,13 @@ export default {
     padding: 16px 14px 60px;
   }
   .cbw-steps {
-    border-radius: 10px;
     flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
   .cbw-step {
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  .cbw-step:last-child {
-    border-bottom: none;
+    max-width: 100%;
+    justify-content: flex-start;
   }
   .cbw-filters {
     grid-template-columns: 1fr;
