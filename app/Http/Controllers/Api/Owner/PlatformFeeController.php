@@ -232,6 +232,7 @@ class PlatformFeeController extends Controller
         return [
             'id' => $ledger->id,
             'creation_source' => $ledger->creation_source,
+            'automation_key' => $ledger->automation_key,
             'can_cancel' => $ledger->creation_source === 'owner_prepay'
                 && in_array($effectiveStatus, ['pending', 'overdue'], true)
                 && (float) $ledger->amount_paid <= 0,
