@@ -53,6 +53,11 @@ const items = [
     label: 'Khiếu nại',
     to: { name: 'client-complaints' },
   },
+  {
+    key: 'policies',
+    label: 'Chính sách',
+    to: { name: 'policies' },
+  },
 ];
 
 function isActive(key) {
@@ -61,6 +66,7 @@ function isActive(key) {
   if (key === 'wallet') return route.name === 'client-wallet';
   if (key === 'notifications') return route.name === 'client-notifications';
   if (key === 'complaints') return route.name === 'client-complaints' || route.name === 'client-complaint-detail';
+  if (key === 'policies') return route.name === 'policies';
   if (route.name !== 'profile') return false;
   if (key === 'refunds') return route.query.tab === 'refunds';
   return key === 'profile' && route.query.tab !== 'refunds';

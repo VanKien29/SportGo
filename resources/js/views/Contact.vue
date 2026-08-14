@@ -158,17 +158,15 @@
       </div>
     </section>
 
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../components/PublicNavbar.vue";
-import ClientFooter from "../components/ClientFooter.vue";
 
 export default {
   name: "ContactView",
-  components: { PublicNavbar, ClientFooter },
+  components: { PublicNavbar },
   data() {
     return {
       submitting: false,

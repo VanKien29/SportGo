@@ -18,8 +18,11 @@
           <router-link to="/offers" class="alb-nav-link" active-class="active-link">Ưu đãi</router-link>
           <router-link to="/about" class="alb-nav-link" active-class="active-link">Về chúng tôi</router-link>
           <router-link to="/contact" class="alb-nav-link" active-class="active-link">Liên hệ</router-link>
-          <router-link to="/become-partner" class="alb-btn-owner">
+          <router-link v-if="!isOwner && !isAdmin" to="/become-partner" class="alb-btn-owner">
             <span>Đăng ký Chủ sân</span>
+          </router-link>
+          <router-link v-else-if="isOwner" to="/owner/dashboard" class="alb-btn-owner">
+            <span>Vào trang chủ sân</span>
           </router-link>
         </div>
 
@@ -114,7 +117,11 @@
                   Trò chuyện
                 </router-link>
 
-                <button v-if="!isClientUser" type="button" class="dd-item" @click="goToDashboard">
+                <router-link v-if="isOwner" to="/owner/dashboard" class="dd-item" @click="showDropdown = false">
+                  Vào trang chủ sân
+                </router-link>
+
+                <button v-if="isAdmin" type="button" class="dd-item" @click="goToDashboard">
                   Trang quản trị
                 </button>
 
@@ -182,10 +189,16 @@ export default {
       return labels[this.user?.role] || "Tài khoản";
     },
     isClientUser() {
-      return !["admin", "owner"].includes(this.user?.role);
+      return Boolean(this.user);
+    },
+    isOwner() {
+      return this.user?.role === "owner";
+    },
+    isAdmin() {
+      return this.user?.role === "admin";
     },
     profileRoute() {
-      return this.user?.role === "owner" ? "/owner/profile" : "/profile";
+      return "/profile";
     },
   },
   watch: {
@@ -277,7 +290,13 @@ export default {
     },
     goToDashboard() {
       this.showDropdown = false;
-      this.$router.push(this.user?.role === "admin" ? "/admin/dashboard" : "/owner/dashboard");
+      if (this.user?.role === "admin") {
+        this.$router.push("/admin/dashboard");
+      } else if (this.user?.role === "staff") {
+        this.$router.push("/staff/dashboard");
+      } else {
+        this.$router.push("/owner/dashboard");
+      }
     },
     async handleLogout() {
       await logout();

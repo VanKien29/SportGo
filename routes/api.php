@@ -64,6 +64,7 @@ use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
 use App\Http\Controllers\Api\Public\SystemProfileController;
 use App\Http\Controllers\Api\Public\OfferController;
+use App\Http\Controllers\Api\Public\PolicyController as PublicPolicyController;
 use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
@@ -75,6 +76,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/system-profile', [SystemProfileController::class, 'show']);
 Route::get('/offers', [OfferController::class, 'index']);
+Route::get('/policies', [PublicPolicyController::class, 'index']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);

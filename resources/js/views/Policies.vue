@@ -9,6 +9,8 @@
         <p class="sg-policy-hero__subtitle">
           Quy định minh bạch bảo vệ quyền lợi người chơi, chủ sân và đảm bảo trải nghiệm dịch vụ chuẩn mực.
         </p>
+        <p v-if="isLoading" class="sg-policy-sync-state">Đang đồng bộ phiên bản chính sách đang áp dụng...</p>
+        <p v-else-if="loadError" class="sg-policy-sync-state sg-policy-sync-state--warning">{{ loadError }}</p>
 
         <!-- Search Bar -->
         <div class="sg-policy-search">
@@ -65,6 +67,37 @@
             <h2 class="sg-doc-title">{{ currentPolicy.title }}</h2>
             <div class="sg-doc-intro">{{ currentPolicy.intro }}</div>
 
+            <section v-if="activeTab === 'partner' && partnerTerms?.platform_fee" class="sg-partner-fee-panel">
+              <div class="sg-partner-fee-panel__head">
+                <div>
+                  <h3>{{ partnerTerms.platform_fee.title }}</h3>
+                  <p>{{ partnerTerms.platform_fee.summary }}</p>
+                </div>
+                <span>{{ partnerTerms.platform_fee.billing_cycle_label }}</span>
+              </div>
+              <div class="sg-partner-fee-table-wrap">
+                <table class="sg-partner-fee-table">
+                  <thead>
+                    <tr>
+                      <th>Quy mô sân</th>
+                      <th>Đơn giá / sân / tháng</th>
+                      <th>Ưu đãi năm</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="tier in partnerTerms.platform_fee.tiers" :key="tier.id">
+                      <td>{{ tier.min_courts }}{{ tier.max_courts ? ` - ${tier.max_courts}` : '+' }} sân</td>
+                      <td>{{ formatCurrency(tier.price_per_court_month) }}</td>
+                      <td>{{ Number(tier.annual_discount_percent || 0) }}%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="sg-partner-fee-note">
+                Hạn thanh toán mặc định: {{ partnerTerms.platform_fee.settings?.default_due_days || 7 }} ngày. Mức phí được chốt tại thời điểm tạo kỳ phí.
+              </p>
+            </section>
+
             <div v-for="(section, idx) in filteredSections" :key="idx" class="sg-doc-section">
               <h3 class="sg-doc-section__heading">{{ idx + 1 }}. {{ section.heading }}</h3>
               <p v-for="(p, pIdx) in section.paragraphs" :key="pIdx" class="sg-doc-paragraph">
@@ -79,26 +112,29 @@
       </div>
     </section>
 
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../components/PublicNavbar.vue";
-import ClientFooter from "../components/ClientFooter.vue";
+import { policyService } from "../services/policies.js";
 
 export default {
   name: "PoliciesView",
-  components: { PublicNavbar, ClientFooter },
+  components: { PublicNavbar },
   data() {
     return {
       activeTab: "terms",
       searchQuery: "",
+      isLoading: true,
+      loadError: "",
+      remotePolicies: [],
+      partnerTerms: null,
       tabs: [
         { id: "terms", name: "Điều Khoản Sử Dụng" },
         { id: "privacy", name: "Chính Sách Bảo Mật" },
         { id: "refund", name: "Hủy Lịch & Hoàn Tiền" },
-        { id: "partner", name: "Quy Định Dành Cho Chủ Sân" },
+        { id: "partner", name: "Đăng ký Chủ sân" },
         { id: "community", name: "Quy Tắc Ứng Xử Cộng Đồng" },
       ],
       policyData: {
@@ -230,7 +266,50 @@ export default {
 
   computed: {
     currentPolicy() {
-      return this.policyData[this.activeTab] || this.policyData.terms;
+      if (this.activeTab === "partner" && this.partnerTerms?.policies?.length) {
+        return this.partnerPolicy;
+      }
+
+      const fallback = this.policyData[this.activeTab] || this.policyData.terms;
+      const remoteKey = {
+        terms: "terms",
+        refund: "booking_cancellation",
+      }[this.activeTab];
+      const remote = this.remotePolicies.find((policy) => policy.key === remoteKey);
+      if (!remote) return fallback;
+
+      const paragraphs = String(remote.content || "")
+        .split(/\n\s*\n/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      return {
+        ...fallback,
+        title: remote.title || fallback.title,
+        lastUpdated: remote.version ? `Phiên bản ${remote.version}` : fallback.lastUpdated,
+        intro: paragraphs.shift() || fallback.intro,
+        sections: [{
+          heading: "Nội dung đang áp dụng",
+          paragraphs,
+        }],
+      };
+    },
+
+    partnerPolicy() {
+      const policies = this.partnerTerms?.policies || [];
+      const versions = policies.map((policy) => `v${policy.version}`).join(" · ");
+      return {
+        title: "Chính sách áp dụng khi đăng ký Chủ sân",
+        lastUpdated: versions || "Đang cập nhật",
+        intro: this.partnerTerms?.notice || "Vui lòng đọc chính sách trước khi gửi hồ sơ đăng ký.",
+        sections: policies.map((policy) => ({
+          heading: policy.title,
+          paragraphs: String(policy.content || "")
+            .split(/\n\s*\n/)
+            .map((item) => item.trim())
+            .filter(Boolean),
+        })),
+      };
     },
 
     filteredSections() {
@@ -247,9 +326,36 @@ export default {
   },
 
   methods: {
+    async loadPolicies() {
+      this.isLoading = true;
+      this.loadError = "";
+      try {
+        const response = await policyService.list();
+        const data = response?.data || response || {};
+        this.remotePolicies = Array.isArray(data.policies) ? data.policies : [];
+        this.partnerTerms = data.partner_onboarding || null;
+      } catch (error) {
+        this.loadError = "Không thể đồng bộ phiên bản chính sách mới nhất. Đang hiển thị nội dung dự phòng.";
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
     printPolicy() {
       window.print();
     },
+
+    formatCurrency(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(Number(value || 0));
+    },
+  },
+
+  mounted() {
+    this.loadPolicies();
   },
 };
 </script>
@@ -286,6 +392,16 @@ export default {
   max-width: 680px;
   margin: 0 auto 32px;
   line-height: 1.6;
+}
+
+.sg-policy-sync-state {
+  margin: -16px auto 24px;
+  color: #047857;
+  font-size: 13px;
+}
+
+.sg-policy-sync-state--warning {
+  color: #9a3412;
 }
 
 .sg-policy-search {
@@ -445,6 +561,85 @@ export default {
   background: #f8fafc;
   border-left: 4px solid #059669;
   border-radius: 0 8px 8px 0;
+}
+
+.sg-partner-fee-panel {
+  margin: -8px 0 36px;
+  padding: 20px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  background: #f0fdf4;
+}
+
+.sg-partner-fee-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.sg-partner-fee-panel__head h3 {
+  margin: 0 0 5px;
+  color: #14532d;
+  font-size: 18px;
+}
+
+.sg-partner-fee-panel__head p {
+  margin: 0;
+  color: #365c45;
+  font-size: 14px;
+}
+
+.sg-partner-fee-panel__head > span {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  color: #166534;
+  background: #dcfce7;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sg-partner-fee-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.sg-partner-fee-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.sg-partner-fee-table th,
+.sg-partner-fee-table td {
+  padding: 11px 13px;
+  border-bottom: 1px solid #dcfce7;
+  text-align: left;
+  font-size: 13px;
+}
+
+.sg-partner-fee-table th {
+  color: #365c45;
+  background: #f7fff9;
+  font-weight: 700;
+}
+
+.sg-partner-fee-table td {
+  color: #1f2937;
+}
+
+.sg-partner-fee-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.sg-partner-fee-note {
+  margin: 12px 0 0;
+  color: #4b6352;
+  font-size: 12.5px;
 }
 
 .sg-doc-section {

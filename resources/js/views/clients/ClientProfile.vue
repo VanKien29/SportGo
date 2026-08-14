@@ -162,7 +162,15 @@
                 </button>
               </div>
 
-              <div v-if="user?.role !== 'owner'" class="cp-partner-banner">
+              <div v-if="user?.role === 'owner'" class="cp-partner-banner cp-owner-banner">
+                <h4>Quản lý cụm sân</h4>
+                <p>Chuyển sang khu vực vận hành để quản lý sân, lịch đặt và doanh thu.</p>
+                <router-link to="/owner/dashboard" class="cp-btn cp-btn--primary cp-btn--full">
+                  <span>Vào trang chủ sân</span>
+                </router-link>
+              </div>
+
+              <div v-else-if="!['admin', 'owner'].includes(user?.role)" class="cp-partner-banner">
                 <h4>Kinh doanh sân thể thao?</h4>
                 <p>Đăng ký đối tác với SportGo để đăng tải cụm sân và tự động hóa quản lý lịch đặt.</p>
                 <router-link to="/become-partner" class="cp-btn cp-btn--primary cp-btn--full">
@@ -451,7 +459,13 @@ export default {
       return this.formData.fullName?.trim()?.charAt(0)?.toUpperCase() || "S";
     },
     roleLabel() {
-      return this.user?.role === "owner" ? "Chủ sân" : this.user?.role === "staff" ? "Nhân viên sân" : "Người chơi";
+      return this.user?.role === "owner"
+        ? "Chủ sân"
+        : this.user?.role === "admin"
+          ? "Quản trị viên"
+          : this.user?.role === "staff"
+            ? "Nhân viên sân"
+            : "Người chơi";
     },
   },
   created() {
