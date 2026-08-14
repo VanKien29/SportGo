@@ -57,10 +57,14 @@ export const bookingService = {
   },
 
   // Lấy chi tiết đơn đặt sân
-  getBooking(id) {
+  getBooking(id, options = {}) {
     return api(`/api/bookings/${id}`, {
       cache: 'no-store',
-      timeoutMs: 10000,
+      // Chi tiết booking không nên dùng chung promise với một lần tải cũ.
+      // Nếu request trước bị kẹt, lần mở lại vẫn phải tạo request mới.
+      dedupe: false,
+      timeoutMs: 8000,
+      ...options,
     });
   },
 

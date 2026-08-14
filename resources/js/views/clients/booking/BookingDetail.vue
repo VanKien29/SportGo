@@ -400,6 +400,7 @@ export default {
       booking: null,
       loading: true,
       loadError: "",
+      bookingLoadController: null,
       cancellingBooking: false,
       cancelBookingError: "",
       startingChat: false,
@@ -522,6 +523,14 @@ export default {
   },
   beforeUnmount() {
     this.clearTimer();
+    this.bookingLoadController?.abort();
+  },
+  watch: {
+    "$route.params.id"(nextId, previousId) {
+      if (nextId && nextId !== previousId) {
+        this.loadBooking();
+      }
+    },
   },
   methods: {
     extraServiceQty(serviceId) {
@@ -583,10 +592,21 @@ export default {
     },
     async loadBooking() {
       const id = this.$route.params.id;
+      if (!id) {
+        this.booking = null;
+        this.loadError = "Không xác định được mã booking cần xem.";
+        this.loading = false;
+        return;
+      }
+
+      this.bookingLoadController?.abort();
+      const controller = new AbortController();
+      this.bookingLoadController = controller;
       this.loading = true;
       this.loadError = "";
       try {
-        const res = await bookingService.getBooking(id);
+        const res = await bookingService.getBooking(id, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         this.booking = res;
         this.timeLeft = Math.max(0, Math.floor(Number(res.time_left_seconds) || 0));
 
@@ -603,12 +623,18 @@ export default {
           this.paymentError = "";
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         this.booking = null;
-        this.loadError = err.status === 404
+        this.loadError = err.status === 408 || err.code === "REQUEST_TIMEOUT"
+          ? "Máy chủ phản hồi quá lâu. Vui lòng thử lại."
+          : err.status === 404
           ? "Đơn đặt sân này không còn tồn tại. Vui lòng mở lại booking từ Lịch sử đặt sân."
           : (err.message || "Không thể tải thông tin booking.");
       } finally {
-        this.loading = false;
+        if (this.bookingLoadController === controller) {
+          this.bookingLoadController = null;
+          this.loading = false;
+        }
       }
     },
     async loadPaymentInfo() {
