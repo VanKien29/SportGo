@@ -157,4 +157,9 @@ class Booking extends Model
     {
         return $this->belongsTo(VenueCourt::class, 'venue_court_id')->withTrashed();
     }
+
+    public function bookingServices()
+    {
+        return $this->hasMany(BookingServiceItem::class, 'booking_id');
+    }
 }

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class VenueMembershipService
 {
-    private const EARNING_BOOKING_STATUSES = ['confirmed', 'checked_in', 'completed'];
+    private const EARNING_BOOKING_STATUSES = ['completed'];
 
     public const DEFAULT_TIERS = [
         ['tier' => 'standard', 'tier_label' => 'Thường', 'tier_order' => 0, 'discount_percent' => 0, 'min_bookings' => 0, 'min_spent_amount' => 0],
@@ -35,6 +35,26 @@ class VenueMembershipService
             ->map(fn (array $tier): array => $this->tierPayload($tier))
             ->values()
             ->all();
+    }
+
+    public function publicSettingsPayload(string $venueClusterId): array
+    {
+        return collect($this->settingsPayload($venueClusterId))
+            ->map(function (array $tier): array {
+                $tier['has_voucher'] = ! empty($tier['voucher_id']) || ! empty($tier['voucher']);
+                unset($tier['voucher_id'], $tier['voucher']);
+
+                return $tier;
+            })
+            ->values()
+            ->all();
+    }
+
+    public function hasSettings(string $venueClusterId): bool
+    {
+        return CourtMembershipTier::query()
+            ->where('venue_cluster_id', $venueClusterId)
+            ->exists();
     }
 
     public function upsertSettings(string $venueClusterId, array $tiers): array
@@ -77,7 +97,7 @@ class VenueMembershipService
             return null;
         }
 
-        return $this->syncUserVenue($booking->customer_id, $booking->venue_cluster_id, 'booking_successful');
+        return $this->syncUserVenue($booking->customer_id, $booking->venue_cluster_id, 'booking_completed');
     }
 
     public function syncUserVenue(string $userId, string $venueClusterId, string $reason = 'recalculated'): UserCourtMembership
@@ -109,12 +129,15 @@ class VenueMembershipService
             );
             $eligibleTier = $this->determineTier($settings, $stats['total_bookings'], $stats['total_spent']);
             $currentTier = $this->normalizeTierKey($membership->tier ?: 'standard');
+            $currentTierSettings = $settings->firstWhere('tier', $currentTier);
             $canUpgrade = $oldTier === null
                 || in_array($reason, ['booking_completed', 'booking_successful'], true)
                 || ($reason === 'recalculated' && ! $membership->last_downgraded_at);
             $targetTier = $canUpgrade && $this->tierOrder($eligibleTier['tier']) > $this->tierOrder($currentTier)
                 ? $eligibleTier
-                : ($settings->firstWhere('tier', $currentTier) ?: $eligibleTier);
+                : ($currentTierSettings && (bool) ($currentTierSettings['is_active'] ?? true)
+                    ? $currentTierSettings
+                    : $eligibleTier);
 
             $periodStart = $membership->period_start ? Carbon::parse($membership->period_start)->startOfDay() : now()->startOfDay();
             $periodStats = $this->periodStatsForUserVenue($userId, $venueClusterId, $periodStart);
@@ -189,6 +212,10 @@ class VenueMembershipService
         $tierKey = $this->userTierKey($userId, $venueClusterId);
         $settings = $this->settingsForCluster($venueClusterId);
         $tier = $settings->firstWhere('tier', $tierKey) ?: $settings->first();
+        if (! (bool) ($tier['is_active'] ?? true)) {
+            $stats = $this->statsForUserVenue($userId, $venueClusterId);
+            $tier = $this->determineTier($settings, $stats['total_bookings'], $stats['total_spent']);
+        }
         $discountPercent = (float) ($tier['discount_percent'] ?? 0);
         $discountAmount = round(min(max($amount * ($discountPercent / 100), 0), $amount), 2);
 
@@ -208,13 +235,17 @@ class VenueMembershipService
             ->where('user_id', $userId)
             ->where('venue_cluster_id', $venueClusterId)
             ->first();
+        $settings = $this->settingsForCluster($venueClusterId);
 
         if ($membership) {
-            return $this->normalizeTierKey($membership->tier);
+            $currentTier = $settings->firstWhere('tier', $this->normalizeTierKey($membership->tier));
+            if ($currentTier && (bool) ($currentTier['is_active'] ?? true)) {
+                return $this->normalizeTierKey($membership->tier);
+            }
         }
 
         $stats = $this->statsForUserVenue($userId, $venueClusterId);
-        $tier = $this->determineTier($this->settingsForCluster($venueClusterId), $stats['total_bookings'], $stats['total_spent']);
+        $tier = $this->determineTier($settings, $stats['total_bookings'], $stats['total_spent']);
 
         return $tier['tier'];
     }

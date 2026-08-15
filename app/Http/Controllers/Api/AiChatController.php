@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AiConversation;
 use App\Models\AiMessage;
 use App\Models\Booking;
+use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\GeminiService;
@@ -34,7 +35,7 @@ class AiChatController extends Controller
 
         if ($userId) {
             $query->where('user_id', $userId);
-        } else if ($sessionToken) {
+        } else if ($sessionToken && preg_match('/^[a-zA-Z0-9_-]{8,100}$/', $sessionToken)) {
             $query->where('session_token', $sessionToken);
         } else {
             return response()->json([
@@ -75,21 +76,21 @@ class AiChatController extends Controller
     {
         $request->validate([
             'prompt' => 'required|string|max:1000',
-            'booking_id' => 'nullable|string',
-            'venue_cluster_id' => 'nullable|string',
-            'session_token' => 'nullable|string',
+            'booking_id' => 'nullable|string|max:100',
+            'venue_cluster_id' => 'nullable|string|max:100',
+            'session_token' => 'nullable|string|max:100',
         ]);
 
-        $prompt = trim($request->input('prompt'));
+        $prompt = trim(strip_tags($request->input('prompt')));
         $bookingId = $request->input('booking_id');
         $userId = auth('sanctum')->id();
         $sessionToken = $request->header('X-Guest-Token') ?: $request->input('session_token');
 
-        if (! $userId && ! $sessionToken) {
+        if (! $userId && (! $sessionToken || ! preg_match('/^[a-zA-Z0-9_-]{8,100}$/', $sessionToken))) {
             $sessionToken = (string) Str::uuid();
         }
 
-        // Tìm hoặc tạo cuộc trò chuyện AI trong CSDL
+        // Tìm hoặc tạo cuộc trò chuyện AI trong CSDL với phân quyền chính xác
         $conversation = null;
         if ($userId) {
             $conversation = AiConversation::firstOrCreate(
@@ -113,31 +114,68 @@ class AiChatController extends Controller
         // 2. Thu thập ngữ cảnh dữ liệu thực tế đầy đủ từ hệ thống SportGo
         $contextLines = [];
 
-        $venues = VenueCluster::whereIn('status', ['active', 'approved'])
+        $venues = VenueCluster::with(['basePrices'])
+            ->whereIn('status', ['active', 'approved'])
             ->limit(20)
             ->get();
 
         if ($venues->isNotEmpty()) {
+            // Tổng hợp giá thực tế toàn hệ thống để AI trả lời đúng khoảng giá
+            $allPrices = VenueBasePrice::whereIn('venue_cluster_id', $venues->pluck('id'))
+                ->pluck('price')
+                ->map(fn($p) => (float) $p)
+                ->filter();
+
+            if ($allPrices->isNotEmpty()) {
+                $minPrice = number_format($allPrices->min(), 0, ',', '.');
+                $maxPrice = number_format($allPrices->max(), 0, ',', '.');
+                $contextLines[] = "THÔNG TIN GIÁ THỰC TẾ HỆ THỐNG SPORTGO:";
+                $contextLines[] = "- Giá thuê sân dao động từ {$minPrice} VNĐ/giờ đến {$maxPrice} VNĐ/giờ (theo dữ liệu thực tế trong hệ thống).";
+                $contextLines[] = "- Đây là mức giá chính xác, KHÔNG được đưa ra con số ước tính khác ngoài khoảng này.";
+                $contextLines[] = "";
+            }
+
             $contextLines[] = "DANH SÁCH CÁC CỤM SÂN THỂ THAO ĐANG HOẠT ĐỘNG TRÊN NỀN TẢNG SPORTGO:";
             foreach ($venues as $v) {
                 $courts = VenueCourt::where('venue_cluster_id', $v->id)->get();
                 $courtNames = $courts->pluck('name')->filter()->join(', ');
 
+                // Giá thực tế của cụm sân này
+                $prices = $v->basePrices->pluck('price')->map(fn($p) => (float) $p)->filter();
+                $priceText = 'Chưa cập nhật giá';
+                if ($prices->isNotEmpty()) {
+                    $minP = number_format($prices->min(), 0, ',', '.');
+                    $maxP = number_format($prices->max(), 0, ',', '.');
+                    $priceText = $prices->count() > 1
+                        ? "từ {$minP} VNĐ đến {$maxP} VNĐ/giờ"
+                        : "{$minP} VNĐ/giờ";
+                }
+
                 $contextLines[] = "- Cụm sân: {$v->name}";
                 $contextLines[] = "  + Địa chỉ: {$v->address}";
-                $contextLines[] = "  + Hotline liên hệ: " . ($v->phone_contact ?? '0902000003');
+                $contextLines[] = "  + Hotline liên hệ: " . ($v->phone_contact ?? 'Chưa cập nhật');
                 $contextLines[] = "  + Danh sách sân chơi: " . ($courtNames ?: 'Sân cầu lông A1, Sân cầu lông A2');
+                $contextLines[] = "  + Giá thuê sân: {$priceText}";
             }
         } else {
             $contextLines[] = "Hệ thống SportGo hiện đang hỗ trợ đặt lịch cho Cụm sân Green Sport Ba Đình (Địa chỉ: Số 12 Kim Mã, Ba Đình - Hotline: 0902000003).";
         }
 
+        // Kiểm tra bảo mật quyền sở hữu đơn hàng (Booking Ownership Scope)
         if ($bookingId) {
             $code = ltrim($bookingId, '#');
-            $booking = Booking::with(['venueCluster', 'venueCourt'])
-                ->where('id', $bookingId)
-                ->orWhere('booking_code', $code)
-                ->first();
+            $bookingQuery = Booking::with(['venueCluster', 'venueCourt']);
+
+            if ($userId) {
+                $bookingQuery->where('user_id', $userId);
+            } else if ($sessionToken) {
+                $bookingQuery->where('session_token', $sessionToken);
+            }
+
+            $booking = $bookingQuery->where(function ($q) use ($bookingId, $code) {
+                $q->where('id', $bookingId)->orWhere('booking_code', $code);
+            })->first();
+
             if ($booking) {
                 $contextLines[] = "\nThông tin đơn đặt sân hiện tại của khách hàng:";
                 $contextLines[] = "- Mã đơn: #{$booking->booking_code}";
@@ -147,6 +185,40 @@ class AiChatController extends Controller
                 $contextLines[] = "- Khung giờ: {$booking->start_time} - {$booking->end_time}";
                 $contextLines[] = "- Trạng thái đơn: {$booking->status}";
                 $contextLines[] = "- Tổng tiền: " . number_format($booking->total_price) . " VNĐ";
+            }
+        }
+
+        // 3a. Quy định hủy / hoàn tiền từ cấu hình từng cụm sân
+        $bookingConfigs = \App\Models\BookingConfig::whereIn('venue_cluster_id', $venues->pluck('id'))->get()->keyBy('venue_cluster_id');
+        if ($bookingConfigs->isNotEmpty()) {
+            $contextLines[] = "";
+            $contextLines[] = "QUY ĐỊNH HỦY SÂN VÀ HOÀN TIỀN TỪNG CỤM SÂN:";
+            foreach ($venues as $v) {
+                $cfg = $bookingConfigs->get($v->id);
+                if ($cfg) {
+                    $cancelBefore = $cfg->cancel_before_hours ? "{$cfg->cancel_before_hours} giờ trước khi thi đấu" : 'Không quy định cụ thể';
+                    $refundPct    = $cfg->refund_percent !== null ? "{$cfg->refund_percent}% giá trị booking" : 'Theo chính sách SportGo';
+                    $openTime     = $cfg->fixed_open_time  ? substr($cfg->fixed_open_time,  0, 5) : '06:00';
+                    $closeTime    = $cfg->fixed_close_time ? substr($cfg->fixed_close_time, 0, 5) : '22:00';
+                    $contextLines[] = "- {$v->name}: Hủy trước {$cancelBefore} | Hoàn {$refundPct} | Hoạt động: {$openTime} - {$closeTime}";
+                }
+            }
+        }
+
+        // 3b. Lịch sử đặt sân của người dùng hiện tại (nếu đã đăng nhập)
+        if ($userId) {
+            $recentBookings = \App\Models\Booking::with(['venueCluster', 'venueCourt'])
+                ->where('user_id', $userId)
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get();
+
+            if ($recentBookings->isNotEmpty()) {
+                $contextLines[] = "";
+                $contextLines[] = "LỊCH SỬ ĐẶT SÂN GẦN ĐÂY CỦA KHÁCH HÀNG:";
+                foreach ($recentBookings as $bk) {
+                    $contextLines[] = "- Mã đơn #{$bk->booking_code} | {$bk->venueCluster?->name} | {$bk->booking_date} {$bk->start_time}-{$bk->end_time} | Trạng thái: {$bk->status}";
+                }
             }
         }
 

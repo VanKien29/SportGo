@@ -595,9 +595,7 @@ export default {
 }
 
 .categories-container,
-.table-container,
-.card,
-.state {
+.table-container {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;

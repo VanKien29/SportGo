@@ -95,7 +95,7 @@
           <div class="audit-item-body">
             <div class="audit-item-header">
               <div class="audit-title-group">
-                <span class="audit-code">#YCTD-{{ item.id }}</span>
+                <span class="audit-code">#{{ item.request_type === 'location' ? 'YCVT' : 'YCTD' }}-{{ item.id }}</span>
                 <span class="req-status-pill" :class="'pill-' + item.status">
                   {{ formatStatusLabel(item.status) }}
                 </span>
@@ -110,6 +110,14 @@
 
             <!-- Meta Info Grid (Cấu trúc thông tin 2 cột phẳng đồng bộ) -->
             <div class="meta-info-grid">
+              <div v-if="item.request_type === 'location' && item.new_address" class="meta-info-item full-width">
+                <span class="meta-info-label">Địa chỉ mới</span>
+                <span class="meta-info-value highlight">{{ locationAddress(item) }}</span>
+              </div>
+              <div v-if="item.request_type === 'location' && item.new_latitude != null" class="meta-info-item">
+                <span class="meta-info-label">Tọa độ mới</span>
+                <span class="meta-info-value">{{ item.new_latitude }}, {{ item.new_longitude }}</span>
+              </div>
               <div v-if="item.new_name" class="meta-info-item">
                 <span class="meta-info-label">Tên cụm sân</span>
                 <span class="meta-info-value highlight">{{ item.new_name }}</span>
@@ -145,12 +153,12 @@
             </div>
 
             <!-- Action Button -->
-            <div v-if="item.status === 'pending'" class="audit-actions">
+            <div v-if="canCancel(item)" class="audit-actions">
               <button
                 type="button"
                 class="btn-cancel-req"
                 :disabled="isClusterLocked"
-                @click="$emit('cancel-request', item.id)"
+                @click="$emit('cancel-request', item)"
               >
                 Hủy yêu cầu này
               </button>
@@ -166,6 +174,7 @@ export default {
   name: 'ClusterRequestsCenterTab',
   props: {
     infoRequests: { type: Array, default: () => [] },
+    locationRequests: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false },
     isClusterLocked: { type: Boolean, default: false },
   },
@@ -177,22 +186,52 @@ export default {
   },
   computed: {
     requestsList() {
-      return Array.isArray(this.infoRequests) ? this.infoRequests : [];
+      const infoRequests = (Array.isArray(this.infoRequests) ? this.infoRequests : [])
+        .map((request) => ({ ...request, request_type: 'info' }));
+      const locationRequests = (Array.isArray(this.locationRequests) ? this.locationRequests : [])
+        .map((request) => ({ ...request, request_type: 'location' }));
+
+      return [...infoRequests, ...locationRequests].sort(
+        (first, second) => new Date(second.created_at || 0) - new Date(first.created_at || 0),
+      );
     },
     filteredRequests() {
       if (!this.filterStatus) return this.requestsList;
-      return this.requestsList.filter((r) => r.status === this.filterStatus);
+      return this.requestsList.filter((request) => this.statusMatches(request, this.filterStatus));
     },
   },
   methods: {
     countStatus(status) {
-      return this.requestsList.filter((r) => r.status === status).length;
+      return this.requestsList.filter((request) => this.statusMatches(request, status)).length;
+    },
+    statusMatches(request, filterStatus) {
+      if (filterStatus === 'pending') {
+        return ['pending', 'pending_owner_signature', 'need_supplement'].includes(request.status);
+      }
+      if (filterStatus === 'approved') {
+        return ['approved', 'approved_pending_appendix', 'completed'].includes(request.status);
+      }
+      return request.status === filterStatus;
+    },
+    canCancel(request) {
+      return request.request_type === 'location'
+        ? ['pending_owner_signature', 'pending'].includes(request.status)
+        : request.status === 'pending';
+    },
+    locationAddress(request) {
+      return [request.new_address, request.new_ward, request.new_province]
+        .filter(Boolean)
+        .join(', ');
     },
     formatStatusLabel(status) {
       return (
         {
           pending: 'Chờ duyệt',
+          pending_owner_signature: 'Chờ chủ sân ký',
+          need_supplement: 'Cần bổ sung',
           approved: 'Đã duyệt',
+          approved_pending_appendix: 'Đã duyệt, chờ phụ lục',
+          completed: 'Hoàn tất',
           rejected: 'Từ chối',
           cancelled: 'Đã hủy',
         }[status] || status
@@ -408,7 +447,11 @@ export default {
 }
 
 .req-status-pill.pill-pending { background: #fef9c3; color: #854d0e; }
+.req-status-pill.pill-pending_owner_signature,
+.req-status-pill.pill-need_supplement { background: #fef9c3; color: #854d0e; }
 .req-status-pill.pill-approved { background: #dcfce7; color: #166534; }
+.req-status-pill.pill-approved_pending_appendix,
+.req-status-pill.pill-completed { background: #dcfce7; color: #166534; }
 .req-status-pill.pill-rejected { background: #fee2e2; color: #991b1b; }
 .req-status-pill.pill-cancelled { background: #f1f5f9; color: #64748b; }
 

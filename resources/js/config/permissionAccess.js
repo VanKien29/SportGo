@@ -51,9 +51,8 @@ const STAFF_ROUTE_MENU_KEYS = {
 
 export function isSuperAdmin(auth) {
   if (!auth) return false;
-  if (auth.role_group === 'admin') return true;
   const roles = auth.roles || [];
-  return roles.includes('super_admin') || roles.includes('admin');
+  return roles.includes('super_admin');
 }
 
 export function hasAllAdminPermissions(auth, permissionCodes = []) {

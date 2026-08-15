@@ -120,7 +120,7 @@ export default {
       if (savedClusterId) {
         try {
           const { venueClusterService } = await import('../../services/venueClusters.js');
-          const res = await venueClusterService.getClusters();
+          const res = await venueClusterService.getClusters({ compact: 1 });
           const list = res.data || [];
           const cluster = list.find((c) => String(c.id) === String(savedClusterId));
           if (cluster) {

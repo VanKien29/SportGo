@@ -17,6 +17,9 @@ import {
 } from "../config/permissionAccess.js";
 
 import Home from "../views/Home.vue";
+import About from "../views/About.vue";
+import Contact from "../views/Contact.vue";
+import Policies from "../views/Policies.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
 import ForgotPassword from "../views/ForgotPassword.vue";
@@ -28,6 +31,11 @@ import StaffLayout from "../views/staff/StaffLayout.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
+    { path: "/about", name: "about", component: About, meta: { title: "Về SportGo" } },
+    { path: "/contact", name: "contact", component: Contact, meta: { title: "Liên Hệ - SportGo" } },
+    { path: "/policies", name: "policies", component: Policies, meta: { title: "Chính Sách & Điều Khoản - SportGo" } },
+    { path: "/chat", name: "client-chat", component: () => import("../views/clients/ClientChat.vue"), meta: { title: "Hộp Thư Tin Nhắn - SportGo" } },
+    { path: "/messages", name: "client-messages", component: () => import("../views/clients/ClientChat.vue"), meta: { title: "Hộp Thư Tin Nhắn - SportGo" } },
     { path: "/venues", name: "venues", component: () => import("../views/clients/VenueList.vue") },
     { path: "/map", name: "client-map", component: () => import("../views/clients/ClientMapView.vue") },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
@@ -202,7 +210,8 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                redirect: { name: "admin-venue-clusters" },
+                name: "admin-dashboard",
+                component: () => import("../views/admin/AdminDashboard.vue"),
             },
             { path: "profile", name: "admin-profile", component: () => import("../views/admin/AdminProfile.vue") },
             { path: "users", name: "admin-users", component: () => import("../views/admin/AdminUsers.vue") },
@@ -395,7 +404,8 @@ const routes = [
         children: [
             {
                 path: "dashboard",
-                redirect: { name: "owner-venue-clusters" },
+                name: "owner-dashboard",
+                component: () => import("../views/owner/OwnerDashboard.vue"),
             },
             {
                 path: "venue-clusters",
@@ -589,6 +599,22 @@ if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
     window.history.scrollRestoration = "manual";
 }
 
+function authContextForRoute(route) {
+    if (!route?.matched?.some((record) => record.meta.requiresAuth)) {
+        return null;
+    }
+
+    return route.matched.find((record) => record.meta.role)?.meta.role || "user";
+}
+
+function entersNewAuthContext(to, from) {
+    const targetContext = authContextForRoute(to);
+    if (!targetContext) return false;
+
+    const sourceContext = authContextForRoute(from);
+    return sourceContext !== targetContext;
+}
+
 router.beforeEach(async (to, from, next) => {
     applyThemeModeForPath(to.path);
 
@@ -631,9 +657,14 @@ router.beforeEach(async (to, from, next) => {
             );
         }
 
-        auth = requiredRole === "admin"
-            ? await restoreAdminAuth()
-            : await restoreAuth();
+        // Validate when entering an authenticated area or switching roles. Internal
+        // navigation inside the same client/owner shell keeps the local auth state
+        // and does not wait for another /me request on every menu click.
+        if (entersNewAuthContext(to, from)) {
+            auth = requiredRole === "admin"
+                ? await restoreAdminAuth()
+                : await restoreAuth();
+        }
 
         if (!auth) {
             return next(

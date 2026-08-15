@@ -10,7 +10,7 @@
         <template v-if="!loading && role">
             <header class="role-detail-context">
                 <div class="role-detail-title">
-                    <span class="eyebrow">Nhóm quyền</span>
+                    <span class="eyebrow">{{ role.display_scope || "Nhóm quyền" }}</span>
                     <h2>{{ role.display_name || role.name }}</h2>
                     <span class="role-code">Mã <code>{{ role.name }}</code></span>
                 </div>
@@ -110,11 +110,7 @@
                 </div>
 
                 <div v-if="!canEditPermissionMatrix" class="alert warning">
-                    {{
-                        role.can_edit_permissions
-                            ? "Tài khoản của bạn chỉ được xem bảng quyền, chưa được phép thay đổi."
-                            : "Nhóm Super Admin được khóa chỉnh sửa để tránh mất quyền quản trị lõi."
-                    }}
+                    {{ permissionLockMessage }}
                 </div>
 
                 <div
@@ -442,9 +438,21 @@ export default {
         },
         canUpdateRole() {
             return (
-                this.role?.name !== "super_admin" &&
+                Boolean(this.role?.can_edit_role) &&
                 hasAllAdminPermissions(getAuth(), ["role.update"])
             );
+        },
+        permissionLockMessage() {
+            if (this.role?.name === "admin") {
+                return "Nhóm Admin luôn bật toàn bộ quyền. Chỉ Super Admin mới được thay đổi quyền của nhóm này.";
+            }
+            if (this.role?.name === "super_admin") {
+                return "Super Admin là quyền toàn hệ thống, không cấu hình trong ma trận nhóm quyền.";
+            }
+            if (this.role?.can_edit_permissions) {
+                return "Tài khoản của bạn chỉ được xem bảng quyền, chưa được phép thay đổi.";
+            }
+            return "Nhóm quyền này đang bị khóa chỉnh sửa.";
         },
         canEditPermissionMatrix() {
             return (

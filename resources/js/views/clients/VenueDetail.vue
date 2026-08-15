@@ -99,7 +99,7 @@
       <div class="sg-detail-tabs-wrapper">
         <nav class="sg-container sg-detail-tabs-bar" aria-label="Nội dung chi tiết sân">
           <button
-            v-for="tab in venueTabs"
+            v-for="tab in visibleVenueTabs"
             :key="tab.id"
             type="button"
             class="sg-detail-tab-btn"
@@ -168,7 +168,81 @@
             </div>
           </template>
 
-          <!-- TAB 2: SÂN & BẢNG GIÁ -->
+          <!-- TAB 2: HỘI VIÊN SÂN -->
+          <template v-else-if="activeTab === 'membership'">
+            <div class="sg-membership-detail">
+              <section class="sg-membership-intro">
+                <div class="sg-membership-intro-copy">
+                  <span class="sg-membership-eyebrow">CHƯƠNG TRÌNH THÀNH VIÊN</span>
+                  <h2 class="sg-section-title">Chơi càng đều, quyền lợi càng tốt</h2>
+                  <p>Hạng hội viên được tính riêng tại {{ venue.name }} dựa trên số lượt đặt hoàn tất và tổng chi tiêu. Quyền lợi áp dụng trực tiếp khi bạn đặt sân.</p>
+                </div>
+                <div v-if="currentVenueMembership" class="sg-membership-current-badge">
+                  <span>Hạng hiện tại của bạn</span>
+                  <strong>{{ currentVenueMembership.tier?.label || currentVenueMembership.tier?.tier_label || "Thường" }}</strong>
+                  <small>{{ formatPercent(currentVenueMembership.tier?.discount_percent) }}% ưu đãi theo hạng</small>
+                </div>
+                <div v-else class="sg-membership-current-badge sg-membership-current-badge--empty">
+                  <span>Bạn chưa có hạng tại sân</span>
+                  <strong>Bắt đầu từ Thường</strong>
+                  <small>Đặt sân hoàn tất để bắt đầu tích lũy.</small>
+                </div>
+              </section>
+
+              <div class="sg-membership-tier-grid">
+                <article
+                  v-for="tier in membershipTiers"
+                  :key="tier.tier_key || tier.tier"
+                  class="sg-membership-tier-card"
+                  :class="[
+                    'sg-membership-tier-card--' + (tier.tier_key || tier.tier),
+                    { 'is-current': currentVenueMembership?.tier?.tier_key === (tier.tier_key || tier.tier) }
+                  ]"
+                >
+                  <div class="sg-membership-tier-topline">
+                    <span class="sg-membership-tier-index">0{{ Number(tier.tier_order || 0) + 1 }}</span>
+                    <span v-if="currentVenueMembership?.tier?.tier_key === (tier.tier_key || tier.tier)" class="sg-membership-current-label">Hạng của bạn</span>
+                  </div>
+                  <div class="sg-membership-tier-title">
+                    <span class="sg-membership-tier-icon">
+                      <AppIcon :name="membershipTierIcon(tier.tier_key || tier.tier)" :size="18" />
+                    </span>
+                    <div>
+                      <h3>{{ tier.label || tier.tier_label }}</h3>
+                      <strong>{{ formatPercent(tier.discount_percent) }}%</strong>
+                      <span>ưu đãi đặt sân</span>
+                    </div>
+                  </div>
+                  <ul class="sg-membership-tier-benefits">
+                    <li><AppIcon name="check" :size="14" /> Từ {{ Number(tier.min_bookings || tier.min_completed_bookings || 0) }} lượt đặt hoàn tất</li>
+                    <li><AppIcon name="check" :size="14" /> Chi tiêu từ {{ formatCurrency(tier.min_spent_amount || tier.min_spend_amount) }}</li>
+                    <li v-if="tier.has_voucher || tier.voucher_id || tier.voucher"><AppIcon name="ticket" :size="14" /> Có voucher theo cấu hình sân</li>
+                    <li v-if="tier.maintain_period_months"><AppIcon name="calendar" :size="14" /> Duy trì trong {{ tier.maintain_period_months }} tháng</li>
+                  </ul>
+                </article>
+              </div>
+
+              <section v-if="currentVenueMembership" class="sg-membership-progress">
+                <div class="sg-membership-progress-head">
+                  <div>
+                    <span class="sg-membership-eyebrow">TIẾN ĐỘ CỦA BẠN</span>
+                    <h3>{{ currentVenueMembership.next_tier ? "Tiến tới hạng " + (currentVenueMembership.next_tier.label || currentVenueMembership.next_tier.tier_label) : "Bạn đang ở hạng cao nhất" }}</h3>
+                  </div>
+                  <strong>{{ Number(currentVenueMembership.progress_percent || 0) }}%</strong>
+                </div>
+                <div class="sg-membership-progress-track">
+                  <span :style="{ width: Math.min(100, Math.max(0, Number(currentVenueMembership.progress_percent || 0))) + '%' }"></span>
+                </div>
+                <div v-if="currentVenueMembership.next_tier" class="sg-membership-progress-meta">
+                  <span>Còn {{ Number(currentVenueMembership.remaining_bookings || 0) }} lượt đặt hoàn tất</span>
+                  <span>Còn {{ formatCurrency(currentVenueMembership.remaining_spend_amount) }}</span>
+                </div>
+                <p v-else class="sg-membership-progress-note">Tiếp tục duy trì lịch đặt để giữ trọn quyền lợi hiện tại.</p>
+              </section>
+            </div>
+          </template>
+
+          <!-- TAB 3: SÂN & BẢNG GIÁ -->
           <template v-else-if="activeTab === 'courts'">
             <!-- Sơ đồ sân -->
             <div v-if="courtGroups.length" class="sg-detail-block">
@@ -247,6 +321,16 @@
                 <article v-for="policy in policies" :key="policy.label" class="sg-policy-item">
                   <span class="sg-policy-lbl">{{ policy.label }}</span>
                   <span class="sg-policy-val">{{ policy.value }}</span>
+                </article>
+              </div>
+              <div v-if="policyNotices.length" class="sg-policy-notices">
+                <div class="sg-policy-notices-head">
+                  <strong>Thông tin áp dụng</strong>
+                  <span>{{ policyNoticeSourceLabel }}</span>
+                </div>
+                <article v-for="notice in policyNotices" :key="notice.id" class="sg-policy-notice">
+                  <strong>{{ notice.title }}</strong>
+                  <p>{{ notice.content }}</p>
                 </article>
               </div>
             </div>
@@ -405,7 +489,7 @@ import ComplaintModal from "../../components/ComplaintModal.vue";
 import ReportModal from "../../components/ReportModal.vue";
 import VenuePostsTab from "../../components/VenuePostsTab.vue";
 import { venueService } from "../../services/venues.js";
-import { getAuth } from "../../stores/auth.js";
+import { getAuth, restoreAuth } from "../../stores/auth.js";
 import { useToast } from "vue-toastification";
 
 export default {
@@ -425,6 +509,7 @@ export default {
       venueTabs: [
         { id: "overview", label: "Tổng quan & tiện ích" },
         { id: "courts", label: "Sân & bảng giá" },
+        { id: "membership", label: "Hội viên sân" },
         { id: "posts", label: "Bài viết" },
         { id: "reviews", label: "Đánh giá" },
         { id: "location", label: "Vị trí & bản đồ" },
@@ -527,16 +612,39 @@ export default {
       });
       return Object.values(groups);
     },
+    membershipTiers() {
+      const tiers = this.venue?.membership?.tiers || this.venue?.membership_tiers || [];
+      return Array.isArray(tiers) ? tiers.filter((tier) => tier?.is_active !== false) : [];
+    },
+    membershipEnabled() {
+      return Boolean(this.venue?.membership?.enabled && this.membershipTiers.length);
+    },
+    visibleVenueTabs() {
+      return this.venueTabs.filter((tab) => tab.id !== 'membership' || this.membershipEnabled);
+    },
+    currentVenueMembership() {
+      const memberships = getAuth()?.venue_memberships;
+      const venueId = String(this.venue?.id || "");
+      return Array.isArray(memberships)
+        ? memberships.find((membership) => String(membership?.venue_cluster_id || "") === venueId) || null
+        : null;
+    },
     basePrices() { return this.venue?.base_prices || []; },
     priceSlots() { return this.venue?.price_slots || []; },
     holidayPrices() { return this.venue?.holiday_prices || []; },
+    policyNotices() { return this.venue?.policies?.display_notices || []; },
+    policyNoticeSourceLabel() {
+      return this.venue?.policies?.display_notice_source_label || 'Theo chính sách hệ thống';
+    },
     policies() {
       const policy = this.venue?.policies || {};
       const hours = this.venue?.operating_hours || {};
+      const cancellationRefund = policy.cancellation_refund || {};
       return [
         { label: "Giờ mở cửa", value: hours.fixed_open_time && hours.fixed_close_time ? `${this.timeLabel(hours.fixed_open_time)} - ${this.timeLabel(hours.fixed_close_time)}` : "Theo lịch ngày" },
         { label: "Đặt trước", value: this.durationLabel(policy.min_advance_booking_minutes) },
-        { label: "Hoàn tiền", value: policy.cancel_before_hours != null ? `Trước ${policy.cancel_before_hours}h · ${Number(policy.refund_percent || 0)}%` : "Theo CS hiện hành" }
+        { label: "Hủy & hoàn tiền", value: cancellationRefund.effective_summary || (policy.cancel_before_hours != null ? `Trước ${policy.cancel_before_hours}h · ${Number(policy.refund_percent || 0)}%` : "Theo chính sách hệ thống") },
+        { label: "Nguồn chính sách hủy", value: cancellationRefund.source_label || "Theo chính sách hệ thống" }
       ];
     },
     reviews() { return this.venue?.reviews || []; },
@@ -571,8 +679,9 @@ export default {
       return !(this.previewSchedule.time_slots || []).length ? 'Cụm sân không mở cửa ngày này.' : 'Không còn khung giờ trống.';
     }
   },
-  mounted() {
+  async mounted() {
     this.activeTab = this.normalizeTab(this.$route.query.tab);
+    await this.refreshAuthMemberships();
     this.fetchVenue();
   },
   watch: {
@@ -601,6 +710,15 @@ export default {
   },
 
   methods: {
+    async refreshAuthMemberships() {
+      if (!getAuth()) return;
+
+      try {
+        await restoreAuth();
+      } catch {
+        // Guest venue pages should remain usable even when auth refresh fails.
+      }
+    },
     normalizeBookingDate(value) {
       const today = this.todayStr();
       const candidate = String(value || today);
@@ -611,7 +729,7 @@ export default {
     },
     normalizeTab(tab) {
       const value = String(tab || 'overview');
-      return this.venueTabs.some((item) => item.id === value) ? value : 'overview';
+      return this.venueTabs.some((item) => item.id === value && (item.id !== 'membership' || this.membershipEnabled)) ? value : 'overview';
     },
 
     setActiveTab(tab) {
@@ -671,6 +789,19 @@ export default {
       }).format(amount);
     },
 
+    formatPercent(value) {
+      return Number(value || 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    },
+
+    membershipTierIcon(tierKey) {
+      return {
+        standard: "shieldCheck",
+        silver: "star",
+        gold: "crown",
+        diamond: "sparkles",
+      }[tierKey] || "shieldCheck";
+    },
+
     formatDate(value) {
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return '';
@@ -715,6 +846,7 @@ export default {
         const res = await venueService.show(id);
         if (requestId !== this.venueRequestId) return;
         this.venue = res.data || res;
+        this.activeTab = this.normalizeTab(this.$route.query.tab);
 
         // Build gallery
         const g = [
@@ -1626,6 +1758,52 @@ export default {
   font-weight: 400;
 }
 
+.sg-policy-notices {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sg-policy-notices-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.sg-policy-notices-head span {
+  color: #15803d;
+  font-size: 11px;
+}
+
+.sg-policy-notice {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-left: 3px solid #16a34a;
+  border-radius: 6px;
+}
+
+.sg-policy-notice + .sg-policy-notice {
+  margin-top: 8px;
+}
+
+.sg-policy-notice strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.sg-policy-notice p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
 /* Reviews List */
 .sg-review-preview-note {
   font-size: 12px;
@@ -2028,8 +2206,303 @@ export default {
   color: #ef4444;
 }
 
+/* VENUE MEMBERSHIP PROGRAM */
+.sg-membership-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sg-membership-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 22px;
+  align-items: center;
+  padding: 24px;
+  border: 1px solid #cce8d4;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f7fff8 0%, #ecf8ef 100%);
+}
+
+.sg-membership-intro-copy {
+  min-width: 0;
+}
+
+.sg-membership-eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+.sg-membership-intro .sg-section-title {
+  margin-bottom: 8px;
+  font-size: 22px;
+}
+
+.sg-membership-intro p {
+  max-width: 650px;
+  margin: 0;
+  color: #496152;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.sg-membership-current-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid #b8ddc1;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  text-align: right;
+}
+
+.sg-membership-current-badge span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.sg-membership-current-badge strong {
+  color: #166534;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.sg-membership-current-badge small {
+  color: #15803d;
+  font-size: 11px;
+}
+
+.sg-membership-current-badge--empty {
+  border-color: #dbe7df;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.sg-membership-current-badge--empty strong {
+  color: #334155;
+  font-size: 17px;
+}
+
+.sg-membership-current-badge--empty small {
+  color: #64748b;
+}
+
+.sg-membership-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sg-membership-tier-card {
+  display: flex;
+  min-width: 0;
+  min-height: 235px;
+  flex-direction: column;
+  gap: 16px;
+  padding: 17px;
+  border: 1px solid #dfe8e1;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.035);
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.sg-membership-tier-card:hover {
+  border-color: #a9d3b3;
+  box-shadow: 0 8px 20px rgba(21, 128, 61, 0.08);
+  transform: translateY(-2px);
+}
+
+.sg-membership-tier-card.is-current {
+  border-color: #2f9a52;
+  box-shadow: 0 0 0 3px rgba(47, 154, 82, 0.12), 0 8px 20px rgba(21, 128, 61, 0.09);
+}
+
+.sg-membership-tier-card--silver {
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
+}
+
+.sg-membership-tier-card--gold {
+  border-color: #ead9ad;
+  background: linear-gradient(180deg, #fffdf7 0%, #fffaf0 100%);
+}
+
+.sg-membership-tier-card--diamond {
+  border-color: #c8d5e9;
+  background: linear-gradient(180deg, #fbfdff 0%, #f1f6fc 100%);
+}
+
+.sg-membership-tier-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+}
+
+.sg-membership-tier-index {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.sg-membership-current-label {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e7f6eb;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.sg-membership-tier-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sg-membership-tier-title > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sg-membership-tier-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #e8f7eb;
+  color: #15803d;
+}
+
+.sg-membership-tier-card--silver .sg-membership-tier-icon {
+  background: #edf1f5;
+  color: #64748b;
+}
+
+.sg-membership-tier-card--gold .sg-membership-tier-icon {
+  background: #fff1c8;
+  color: #a16207;
+}
+
+.sg-membership-tier-card--diamond .sg-membership-tier-icon {
+  background: #e4efff;
+  color: #315f9b;
+}
+
+.sg-membership-tier-title h3 {
+  margin: 0 0 4px;
+  color: #0f172a;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.sg-membership-tier-title strong {
+  color: #15803d;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.sg-membership-tier-title span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.sg-membership-tier-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sg-membership-tier-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #475569;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.sg-membership-tier-benefits .app-icon {
+  flex: 0 0 auto;
+  color: #15803d;
+}
+
+.sg-membership-progress {
+  padding: 20px;
+  border: 1px solid #dbe8de;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.sg-membership-progress-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sg-membership-progress-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.sg-membership-progress-head > strong {
+  color: #15803d;
+  font-size: 22px;
+}
+
+.sg-membership-progress-track {
+  height: 9px;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8f0ea;
+}
+
+.sg-membership-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3aa55b, #15803d);
+  transition: width 0.35s ease;
+}
+
+.sg-membership-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.sg-membership-progress-note {
+  margin: 9px 0 0;
+  color: #64748b;
+  font-size: 11.5px;
+}
+
 /* RESPONSIVE BREAKPOINTS */
 @media (max-width: 992px) {
+  .sg-membership-tier-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .sg-hero-grid {
     grid-template-columns: 1fr;
   }
@@ -2042,6 +2515,28 @@ export default {
     position: static;
   }
 }
+
+@media (max-width: 620px) {
+  .sg-membership-intro {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .sg-membership-current-badge {
+    text-align: left;
+  }
+
+  .sg-membership-tier-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sg-membership-progress {
+    padding: 16px;
+  }
+
+  .sg-membership-progress-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
 </style>
-
-

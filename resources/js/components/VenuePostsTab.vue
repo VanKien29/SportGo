@@ -519,3 +519,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
+<style scoped src="../../css/components/client-venue-posts-tab.css"></style>

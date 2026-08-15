@@ -63,20 +63,47 @@
                             <strong v-else class="sg-community-author-name">{{ authorName }}</strong>
                             <div class="sg-community-post-meta">
                                 <span>{{ formatDate(post.created_at || post.published_at) }}</span>
+                                <template v-if="post.is_edited">
+                                    <span aria-hidden="true">·</span>
+                                    <span>Đã chỉnh sửa</span>
+                                </template>
                                 <span aria-hidden="true">·</span>
                                 <span>Bài chia sẻ cộng đồng</span>
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            class="sg-community-icon-btn"
-                            aria-label="Báo cáo bài viết"
-                            title="Báo cáo bài viết"
-                            @click="openReport(postReportType, post.entity_id, post.title)"
-                        >
-                            <Flag :size="18" />
-                        </button>
+                        <div class="sg-community-header-actions">
+                            <template v-if="isAuthor">
+                                <button
+                                    type="button"
+                                    class="sg-community-icon-btn"
+                                    aria-label="Chỉnh sửa bài viết"
+                                    title="Chỉnh sửa bài viết"
+                                    @click="openEditModal"
+                                >
+                                    <Pencil :size="18" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="sg-community-icon-btn text-danger"
+                                    aria-label="Xóa bài viết"
+                                    title="Xóa bài viết"
+                                    @click="deleteCurrentPost"
+                                >
+                                    <Trash2 :size="18" />
+                                </button>
+                            </template>
+                            <button
+                                v-else
+                                type="button"
+                                class="sg-community-icon-btn"
+                                aria-label="Báo cáo bài viết"
+                                title="Báo cáo bài viết"
+                                @click="openReport(postReportType, post.entity_id, post.title)"
+                            >
+                                <Flag :size="18" />
+                            </button>
+                        </div>
                     </header>
 
                     <div class="sg-community-post-body">
@@ -240,6 +267,23 @@
             @close="reportModal.open = false"
             @success="handleReportSuccess"
         />
+
+        <CommunityPostModal
+            :is-open="showEditModal"
+            :editing-post="post"
+            @close="showEditModal = false"
+            @success="handlePostUpdated"
+        />
+
+        <ConfirmModal
+            v-model="showDeleteConfirm"
+            title="Xóa bài viết"
+            message="Bạn có chắc chắn muốn xóa bài viết này không? Bài viết sẽ được gỡ khỏi bảng tin cộng đồng."
+            confirm-text="Xóa bài viết"
+            cancel-text="Hủy"
+            type="danger"
+            @confirm="handleConfirmDelete"
+        />
     </div>
 </template>
 
@@ -253,12 +297,16 @@ import {
     Heart,
     LoaderCircle,
     MessageCircle,
+    Pencil,
     RefreshCw,
     Send,
     Share2,
+    Trash2,
 } from "lucide-vue-next";
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import CommunityPostModal from "@/components/CommunityPostModal.vue";
+import ConfirmModal from "@/components/ConfirmModal.vue";
 import PublicNavbar from "@/components/PublicNavbar.vue";
 import ReportModal from "@/components/ReportModal.vue";
 import { api } from "@/services/api.js";
@@ -271,6 +319,8 @@ const router = useRouter();
 const post = ref(null);
 const loading = ref(true);
 const error = ref("");
+const showEditModal = ref(false);
+const showDeleteConfirm = ref(false);
 const newComment = ref("");
 const commentError = ref("");
 const isSubmittingComment = ref(false);
@@ -284,7 +334,8 @@ const reportModal = reactive({
     targetName: "",
 });
 
-const currentUser = computed(() => getAuth()?.user || null);
+const currentUser = computed(() => getAuth() || null);
+const isAuthor = computed(() => currentUser.value && String(currentUser.value.id) === String(post.value?.author?.id || post.value?.author_id));
 const authorName = computed(
     () => post.value?.author?.full_name || post.value?.author?.username || "Thành viên SportGo",
 );
@@ -326,6 +377,32 @@ async function loadPost() {
         error.value = requestError.message || "Bài viết không tồn tại hoặc chưa được xuất bản.";
     } finally {
         loading.value = false;
+    }
+}
+
+function openEditModal() {
+    showEditModal.value = true;
+}
+
+function handlePostUpdated(response) {
+    showEditModal.value = false;
+    showNotice(response?.message || "Bài viết đã được cập nhật thành công.");
+    loadPost();
+}
+
+function deleteCurrentPost() {
+    showDeleteConfirm.value = true;
+}
+
+async function handleConfirmDelete() {
+    try {
+        const targetId = post.value.entity_id || post.value.id;
+        await api(`/api/venue-posts/${targetId}`, { method: "DELETE" });
+        router.push("/community?tab=my_posts");
+    } catch (requestError) {
+        showNotice(requestError.message || "Không thể xóa bài viết.");
+    } finally {
+        showDeleteConfirm.value = false;
     }
 }
 
@@ -562,21 +639,32 @@ watch(
     font-size: 13px;
 }
 
+.sg-community-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .sg-community-icon-btn {
     display: grid;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     place-items: center;
-    border: 1px solid #d7e5da;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     background: #fff;
-    color: #5d7163;
+    color: #475569;
     cursor: pointer;
 }
 
 .sg-community-icon-btn:hover {
-    border-color: #0aa052;
-    color: #087f3e;
+    border-color: #15803d;
+    color: #15803d;
+}
+
+.sg-community-icon-btn.text-danger:hover {
+    border-color: #dc2626;
+    color: #dc2626;
 }
 
 .sg-community-post-body {

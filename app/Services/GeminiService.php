@@ -25,12 +25,20 @@ class GeminiService
 
         $systemInstruction = "Bạn là Trợ lý AI thông minh của nền tảng đặt sân thể thao SportGo (SportGo AI Assistant).\n"
             . "Nhiệm vụ của bạn là hỗ trợ người chơi tìm kiếm sân đấu, tư vấn khung giờ chơi, hướng dẫn quy định hoàn hủy và giải đáp thắc mắc dịch vụ.\n"
-            . "QUY TẮC BẮT BUỘC:\n"
-            . "1. Trả lời bằng tiếng Việt lịch sự, tự nhiên, linh hoạt, chính xác hệt như ChatGPT/Gemini.\n"
-            . "2. TUYỆT ĐỐI KHÔNG SỬ DỤNG BẤT KỲ EMOJI NÀO TRONG CÂU TRẢ LỜI.\n"
-            . "3. Nếu có dữ liệu ngữ cảnh sân đấu bên dưới, hãy kết hợp thông tin chính xác từ hệ thống SportGo để tư vấn.";
+            . "QUY TẮC NGUYÊN TẮC BẮT BUỘC:\n"
+            . "1. ĐƯA KẾT QUẢ/CON SỐ TRỌNG TÂM LÊN ĐẦU CÂU TRẢ LỜI NGAY LẬP TỨC (ví dụ: 'Hiện tại hệ thống SportGo có 8 cụm sân tại Hà Nội...').\n"
+            . "2. Trả lời ngắn gọn, súc tích, đi thẳng vào vấn đề. Tránh liệt kê dông dài hoặc chào hỏi rườm rà.\n"
+            . "3. Nếu có danh sách nhiều hơn 5 mục, chỉ nêu 3-4 cụm sân nổi bật nhất và gợi ý người dùng xem danh sách đầy đủ tại trang Tìm Sân (/venues).\n"
+            . "4. TUYỆT ĐỐI KHÔNG SỬ DỤNG BẤT KỲ EMOJI NÀO TRONG CÂU TRẢ LỜI.\n"
+            . "5. ĐỊNH DẠNG TRẢ LỜI BẰNG MARKDOWN:\n"
+            . "   - Dùng **in đậm** cho tên sân, con số quan trọng, tiêu đề nhỏ.\n"
+            . "   - Dùng danh sách có số (1. 2. 3.) khi liệt kê nhiều mục.\n"
+            . "   - Dùng dấu gạch đầu dòng (- ) khi liệt kê tính năng hoặc lưu ý.\n"
+            . "   - Xuống dòng giữa các ý để bố cục thoáng mắt, dễ đọc.\n"
+            . "   - KHÔNG viết thành một đoạn văn xuôi liền mạch dài dòng.";
 
         $fullPrompt = $systemInstruction . "\n\n--- DỮ LIỆU NGỮ CẢNH SPORTGO ---\n" . $systemContext . "\n\n--- CÂU HỎI CỦA KHÁCH HÀNG ---\n" . $userPrompt;
+
 
         try {
             $response = Http::withoutVerifying()->withHeaders([
@@ -71,6 +79,107 @@ class GeminiService
             Log::error('Gemini API Exception', ['error' => $e->getMessage()]);
             return "Ngoại lệ kết nối AI: " . $e->getMessage();
         }
+    }
+
+    /**
+     * Thẩm định và kiểm duyệt nội dung bài viết cộng đồng bằng Gemini AI.
+     * Trả về mảng có cấu trúc: verdict, score, summary, flags, reason.
+     */
+    public function moderateCommunityPost(string $content, array $hashtags = [], array $mediaUrls = []): array
+    {
+        $plainContent = trim(strip_tags($content));
+        $tagsString = !empty($hashtags) ? implode(', ', $hashtags) : 'Không có';
+
+        $prompt = "Bạn là Chuyên gia AI Kiểm duyệt Nội dung của mạng xã hội thể thao SportGo (SportGo AI Content Moderator).\n"
+            . "Nhiệm vụ của bạn là thẩm định tính an toàn, văn minh, tích cực và phù hợp của bài viết do người dùng đăng tải.\n\n"
+            . "--- TIÊU CHÍ KIỂM DUYỆT BẮT BUỘC ---\n"
+            . "1. NGÔN TỪ & VĂN HÓA: Tuyệt đối không chấp nhận chửi thề tục tĩu, xúc phạm danh dự cá nhân, thù địch, phân biệt vùng miền, đe dọa.\n"
+            . "2. SPAM & GIAN LẬN: Tuyệt đối không chấp nhận quảng cáo cờ bạc, cá độ bóng đá/thể thao, link kiếm tiền lừa đảo, số điện thoại spam, mại dâm.\n"
+            . "3. NỘI DUNG NHẠY CẢM: Không chấp nhận nội dung 18+, khiêu dâm, bạo lực máu me.\n"
+            . "4. CHỦ ĐỀ THỂ THAO: Khuyến khích chia sẻ kỹ năng/kinh nghiệm thể thao (cầu lông, bóng đá, tennis, pickleball, bóng rổ, gym, chạy bộ...), tìm bạn chơi, trao đổi giao lưu sân bãi lành mạnh.\n\n"
+            . "--- QUY TẮC PHÂN LOẠI ---\n"
+            . "- 'approved': Nội dung văn minh, an toàn, lành mạnh, không vi phạm. Score từ 85 đến 100.\n"
+            . "- 'rejected': Nội dung vi phạm rõ ràng (chửi bới, cờ bạc, cá độ, 18+, spam link lừa đảo). Score dưới 50.\n"
+            . "- 'needs_review': Nội dung có tranh cãi gay gắt, từ ngữ nhạy cảm dễ gây hiểu nhầm hoặc nằm ở ranh giới cần Admin người thật xem xét thêm. Score từ 50 đến 84.\n\n"
+            . "--- NỘI DUNG BÀI VIẾT CẦN KIỂM DUYỆT ---\n"
+            . "Nội dung: " . $plainContent . "\n"
+            . "Hashtags: " . $tagsString . "\n"
+            . "Số lượng ảnh: " . count($mediaUrls) . "\n\n"
+            . "--- YÊU CẦU ĐỊNH DẠNG ĐẦU RA ---\n"
+            . "BẮT BUỘC trả về DUY NHẤT 1 chuỗi JSON hợp lệ, KHÔNG có markdown bọc ngoài ```json, KHÔNG có lời giải thích thêm.\n"
+            . "{\n"
+            . "  \"verdict\": \"approved\" | \"rejected\" | \"needs_review\",\n"
+            . "  \"score\": 95,\n"
+            . "  \"summary\": \"Tóm tắt 1 câu ngắn gọn về bài viết bằng tiếng Việt\",\n"
+            . "  \"flags\": [\"profanity\" | \"gambling\" | \"spam\" | \"hate_speech\" | \"nsfw\" | \"off_topic\"],\n"
+            . "  \"reason\": \"Lý do ngắn gọn bằng tiếng Việt nếu rejected/needs_review, hoặc 'Nội dung phù hợp quy chuẩn cộng đồng' nếu approved\"\n"
+            . "}";
+
+        try {
+            if (empty($this->apiKey)) {
+                return [
+                    'verdict' => 'needs_review',
+                    'score' => 75,
+                    'summary' => mb_substr($plainContent, 0, 120),
+                    'flags' => [],
+                    'reason' => 'Chưa cấu hình API Key AI, chuyển sang hàng đợi Admin duyệt.',
+                ];
+            }
+
+            $response = Http::withoutVerifying()->withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl . '?key=' . $this->apiKey, [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['text' => $prompt],
+                        ],
+                    ],
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.1,
+                    'maxOutputTokens' => 500,
+                ],
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $rawText = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                $cleanJson = trim(preg_replace('/^```(?:json)?|```$/m', '', trim($rawText)));
+                $parsed = json_decode($cleanJson, true);
+
+                if (is_array($parsed) && isset($parsed['verdict'])) {
+                    $verdict = in_array($parsed['verdict'], ['approved', 'rejected', 'needs_review'], true)
+                        ? $parsed['verdict']
+                        : 'needs_review';
+                    $score = isset($parsed['score']) ? max(0, min(100, (int) $parsed['score'])) : 80;
+                    $summary = !empty($parsed['summary']) ? mb_substr((string) $parsed['summary'], 0, 490) : mb_substr($plainContent, 0, 120);
+                    $flags = is_array($parsed['flags'] ?? null) ? $parsed['flags'] : [];
+                    $reason = !empty($parsed['reason']) ? (string) $parsed['reason'] : ($verdict === 'approved' ? 'Nội dung phù hợp quy chuẩn cộng đồng.' : 'Cần kiểm tra thêm.');
+
+                    return [
+                        'verdict' => $verdict,
+                        'score' => $score,
+                        'summary' => $summary,
+                        'flags' => $flags,
+                        'reason' => $reason,
+                    ];
+                }
+            }
+
+            Log::warning('Gemini moderation response not parsed', ['body' => $response->body()]);
+        } catch (\Throwable $e) {
+            Log::error('Gemini Moderation Exception', ['error' => $e->getMessage()]);
+        }
+
+        // Fallback an toàn (Fail-safe)
+        return [
+            'verdict' => 'needs_review',
+            'score' => 70,
+            'summary' => mb_substr($plainContent, 0, 120),
+            'flags' => [],
+            'reason' => 'Đã gửi bài vào hàng chờ Admin duyệt.',
+        ];
     }
 
     /**

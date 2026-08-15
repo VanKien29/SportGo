@@ -262,10 +262,17 @@ class SepayPaymentService
                         ]);
                         $this->bookingService->syncMembershipForCompletedBooking($booking);
                     } elseif (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
+                        // Trả sau và đặt cọc đều cần chủ sân duyệt. Với booking
+                        // cọc, chỉ chuyển sang chờ duyệt sau khi đã nhận đủ tiền cọc.
+                        $nextStatus = $booking?->payment_option === 'deposit'
+                            ? 'pending_approval'
+                            : 'confirmed';
                         $payment->booking()->update([
-                            'status' => 'confirmed',
+                            'status' => $nextStatus,
                         ]);
-                        $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
+                        if ($nextStatus === 'confirmed') {
+                            $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
+                        }
                     }
 
                     SlotLock::query()

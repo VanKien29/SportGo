@@ -1,5 +1,17 @@
 export const adminNavigationSections = [
   {
+    label: 'Tổng quan',
+    items: [
+      {
+        label: 'Bảng điều hành',
+        icon: 'dashboard',
+        to: '/admin/dashboard',
+        activeNames: ['admin-dashboard'],
+        permissionCodes: ['dashboard.view'],
+      },
+    ],
+  },
+  {
     label: 'Vận hành sân',
     items: [
       {
@@ -135,13 +147,6 @@ export const adminNavigationSections = [
         to: '/admin/service-categories',
         activeNames: ['admin-service-categories'],
         permissionCodes: ['service_category.view'],
-      },
-      {
-        label: 'Banner',
-        icon: 'image',
-        to: '/admin/banners',
-        activeNames: ['admin-banners'],
-        permissionCodes: ['banner.view'],
       },
     ],
   },

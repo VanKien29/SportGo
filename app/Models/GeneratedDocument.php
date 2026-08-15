@@ -9,6 +9,16 @@ class GeneratedDocument extends Model
 {
     use HasFactory;
 
+    protected $hidden = [
+        'generated_file_path',
+        'final_file_path',
+        'generated_pdf_path',
+        'final_pdf_path',
+        'file_hash',
+        'pdf_hash',
+        'final_pdf_hash',
+    ];
+
     protected $fillable = [
         'document_code',
         'document_type',
@@ -33,10 +43,16 @@ class GeneratedDocument extends Model
         'final_file_media_id',
         'generated_file_path',
         'final_file_path',
+        'generated_pdf_path',
+        'final_pdf_path',
         'file_hash',
+        'pdf_hash',
+        'final_pdf_hash',
         'generated_by',
         'generated_at',
+        'pdf_generated_at',
         'locked_at',
+        'pdf_locked_at',
         'completed_at',
     ];
 
@@ -47,7 +63,9 @@ class GeneratedDocument extends Model
             'document_version' => 'integer',
             'render_data' => 'array',
             'generated_at' => 'datetime',
+            'pdf_generated_at' => 'datetime',
             'locked_at' => 'datetime',
+            'pdf_locked_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
     }
@@ -65,6 +83,11 @@ class GeneratedDocument extends Model
     public function signingRequests()
     {
         return $this->hasMany(DocumentSigningRequest::class, 'generated_document_id');
+    }
+
+    public function accessLogs()
+    {
+        return $this->hasMany(DocumentAccessLog::class, 'generated_document_id');
     }
 
     public function template()

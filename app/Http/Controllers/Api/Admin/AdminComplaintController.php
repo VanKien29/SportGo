@@ -192,6 +192,7 @@ class AdminComplaintController extends Controller
             'resolve_note' => $data['resolve_note'],
             'status_reason' => in_array($data['status'], ['rejected', 'closed'], true) ? $data['resolve_note'] : null,
             'resolved_at' => $isFinished ? now() : null,
+            'first_response_at' => $complaint->first_response_at ?: now(),
         ])->save();
 
         $this->audit->log($request, 'complaint', 'complaint.'.$data['status'], 'complaints', $complaint->id, $oldValues, $complaint->fresh()->toArray(), [
@@ -220,6 +221,10 @@ class AdminComplaintController extends Controller
 
         $complaint = Complaint::query()->with(['customer', 'venueCluster.owner'])->findOrFail($id);
 
+        if (! $complaint->first_response_at) {
+            $complaint->forceFill(['first_response_at' => now()])->save();
+        }
+
         $this->audit->log($request, 'complaint', 'complaint.notified', 'complaints', $complaint->id, [], [], [
             'reason' => $data['message'],
             'severity' => 'info',
@@ -240,6 +245,9 @@ class AdminComplaintController extends Controller
             'complaint_type' => $complaint->complaint_type,
             'content' => $complaint->content,
             'status' => $complaint->status,
+            'first_response_at' => $complaint->first_response_at,
+            'response_due_at' => $complaint->response_due_at,
+            'resolution_due_at' => $complaint->resolution_due_at,
             'is_vip_priority' => (bool) $complaint->is_vip_priority,
             'customer' => $this->userPayload($complaint->customer),
             'assigned_to' => $this->userPayload($complaint->assignedTo),

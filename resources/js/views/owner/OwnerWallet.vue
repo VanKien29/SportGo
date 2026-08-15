@@ -168,8 +168,10 @@ export default {
     };
   },
   async mounted() {
-    await this.loadWalletData();
-    await this.loadHistory();
+    await Promise.all([
+      this.loadWalletData(),
+      this.loadHistory(),
+    ]);
   },
   methods: {
     async loadWalletData() {
@@ -218,8 +220,10 @@ export default {
         this.form.owner_note = '';
         
         // Reload data
-        await this.loadWalletData();
-        await this.loadHistory(1);
+        await Promise.all([
+          this.loadWalletData(),
+          this.loadHistory(1),
+        ]);
       } catch (err) {
         this.error = err.message || 'Gửi yêu cầu rút tiền thất bại.';
       } finally {

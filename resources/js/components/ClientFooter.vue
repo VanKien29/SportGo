@@ -34,7 +34,7 @@
         <h4>TÍNH NĂNG & DỊCH VỤ</h4>
         <div class="alb-footer-links">
           <router-link to="/become-partner">Dành Cho Chủ Sân</router-link>
-          <router-link to="/bookings">Lịch Đặt Của Tôi</router-link>
+          <router-link to="/about">Giới Thiệu SportGo</router-link>
           <router-link to="/offers">Ưu Đãi & Khuyến Mãi</router-link>
           <router-link to="/news">Tin Tức & Kinh Nghiệm</router-link>
           <router-link to="/community">Cộng Đồng Ghép Đội</router-link>
@@ -45,11 +45,11 @@
       <div class="alb-footer-col">
         <h4>HỖ TRỢ KHÁCH HÀNG</h4>
         <div class="alb-footer-links">
-          <a href="#support">Trung Tâm Hỗ Trợ 24/7</a>
-          <a href="#">Điều Khoản Sử Dụng</a>
-          <a href="#">Chính Sách Bảo Mật</a>
-          <a href="#">Quy Định Hoàn Tiền</a>
-          <a href="#">Tải App Mobile iOS / Android</a>
+          <router-link to="/contact">Trung Tâm Hỗ Trợ & Liên Hệ</router-link>
+          <router-link to="/policies">Điều Khoản Sử Dụng</router-link>
+          <router-link to="/policies">Chính Sách Bảo Mật</router-link>
+          <router-link to="/policies">Quy Định Hoàn Tiền</router-link>
+          <a href="#app-download">Tải App Mobile iOS / Android</a>
         </div>
       </div>
     </div>

@@ -52,13 +52,18 @@ class VenueMembershipServiceTest extends TestCase
         $this->assertSame(['standard', 'silver', 'gold', 'diamond'], array_column($payload[0]['tiers'], 'tier'));
     }
 
-    public function test_profile_membership_counts_confirmed_successful_booking(): void
+    public function test_profile_membership_ignores_uncompleted_booking(): void
     {
         [$user, $cluster] = $this->createUserAndCluster();
         $service = app(VenueMembershipService::class);
 
         $this->createBooking($user, $cluster, 120000, 'BK-MEMBER-CONFIRMED', 'confirmed');
 
+        $payload = $service->membershipsForUser($user);
+
+        $this->assertCount(0, $payload);
+
+        $this->createCompletedBooking($user, $cluster, 120000, 'BK-MEMBER-COMPLETED');
         $payload = $service->membershipsForUser($user);
 
         $this->assertCount(1, $payload);

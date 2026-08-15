@@ -198,7 +198,8 @@
             <!-- Right Sidebar -->
             <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 16px;">
               <div class="field" style="display: flex; flex-direction: column; gap: 6px;">
-                <span style="font-size: 13px; font-weight: 400; color: #475569;">Ảnh đại diện (Thumbnail)</span>
+                <span style="font-size: 13px; font-weight: 400; color: #475569;">Ảnh đại diện (Thumbnail) <span class="required" style="color: #ef4444;">*</span></span>
+                <span style="font-size: 12px; color: #64748b;">JPG, PNG hoặc WEBP · tối đa 5 MB</span>
                 <div class="upload-zone" style="aspect-ratio: 16/10; border: 2px dashed #cbd5e1; border-radius: 12px; position: relative; cursor: pointer; overflow: hidden; background: white;" :style="editingPostStatus === 'pending_review' ? 'cursor: not-allowed; opacity: 0.8;' : ''" @click="editingPostStatus !== 'pending_review' && !thumbnailPreview && $refs.fileInputRef.click()">
                   <div v-if="thumbnailPreview" style="position: absolute; inset: 0;">
                     <img :src="thumbnailPreview" style="width: 100%; height: 100%; object-fit: cover;" />
@@ -208,7 +209,7 @@
                     <AppIcon name="upload" size="24" style="margin-bottom: 8px;" />
                     <span style="font-size: 13px; font-weight: 400;">Tải ảnh lên</span>
                   </div>
-                  <input type="file" ref="fileInputRef" style="display: none;" @click.stop @change="handleFileUpload" accept="image/*" />
+                  <input type="file" ref="fileInputRef" style="display: none;" @click.stop @change="handleFileUpload" accept="image/jpeg,image/png,image/webp" />
                 </div>
                 <p class="error-msg" v-if="errors.thumbnail" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.thumbnail[0] }}</p>
               </div>
@@ -249,7 +250,7 @@
 
               <label class="field compact" style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="font-size: 11px; font-weight: 400; text-transform: uppercase; color: #94a3b8;">Cơ sở / Cụm sân <span class="required" style="color: #ef4444;">*</span></span>
-                <CustomSelect v-model="form.venue_cluster_id" :options="clusterOptions" placeholder="-- Chọn cụm sân --" :class="{ 'is-invalid': errors.venue_cluster_id }" disabled />
+                <CustomSelect v-model="form.venue_cluster_id" :options="clusterOptions" placeholder="-- Chọn cụm sân --" :class="{ 'is-invalid': errors.venue_cluster_id }" :disabled="isEditing || editingPostStatus === 'pending_review' || venueClustersLoading || clusterOptions.length <= 1" />
                 <p class="error-msg" v-if="errors.venue_cluster_id" style="color: #ef4444; font-size: 12px; margin: 0; font-weight: 400;">{{ errors.venue_cluster_id[0] }}</p>
               </label>
 
@@ -350,6 +351,7 @@ const toast = useToast();
 
 const posts = ref([]);
 const venueClusters = ref([]);
+const venueClustersLoading = ref(false);
 const loading = ref(false);
 const submitting = ref(false);
 const isEditing = ref(false);
@@ -376,6 +378,22 @@ const categoryOptions = [
 const clusterOptions = computed(() => {
   return venueClusters.value.map(c => ({ label: c.name, value: c.id }));
 });
+
+const resolvedOwnedClusterId = () => {
+  const selected = venueClusters.value.find((cluster) => String(cluster.id) === String(currentClusterId.value));
+  return selected?.id ?? venueClusters.value[0]?.id ?? '';
+};
+
+const syncCurrentCluster = () => {
+  const clusterId = resolvedOwnedClusterId();
+  currentClusterId.value = clusterId ? String(clusterId) : '';
+
+  if (!isEditing.value) {
+    form.venue_cluster_id = clusterId;
+  }
+
+  return clusterId;
+};
 
 const galleryImageCount = computed(() => existingGallery.value.length + galleryFiles.value.length);
 
@@ -415,9 +433,9 @@ const currentClusterId = ref(localStorage.getItem('selected_cluster') || '');
 
 const handleClusterChange = (e) => {
   if (e.detail && e.detail.id) {
-    currentClusterId.value = e.detail.id;
-    if (form.venue_cluster_id) {
-      form.venue_cluster_id = e.detail.id;
+    currentClusterId.value = String(e.detail.id);
+    if (!isEditing.value) {
+      syncCurrentCluster();
     }
   }
 };
@@ -435,11 +453,17 @@ onUnmounted(() => {
 });
 
 const fetchVenueClusters = async () => {
+  venueClustersLoading.value = true;
   try {
-    const res = await api('/api/owner/venue-clusters?compact=1');
-    venueClusters.value = res.data;
+    const res = await api('/api/owner/venue-clusters?compact=1&owned_only=1');
+    venueClusters.value = Array.isArray(res.data) ? res.data : [];
+    syncCurrentCluster();
   } catch (error) {
+    venueClusters.value = [];
+    currentClusterId.value = '';
     console.error('Error fetching venue clusters', error);
+  } finally {
+    venueClustersLoading.value = false;
   }
 };
 
@@ -621,7 +645,7 @@ const clearThumbnail = () => {
   }
 };
 
-const openForm = (post = null) => {
+const openForm = async (post = null) => {
   errors.value = {};
   clearThumbnail();
   resetGallery();
@@ -650,9 +674,22 @@ const openForm = (post = null) => {
     isEditing.value = false;
     editingPostId.value = null;
     editingPostStatus.value = '';
+
+    if (venueClustersLoading.value || venueClusters.value.length === 0) {
+      await fetchVenueClusters();
+    }
+
+    const clusterId = syncCurrentCluster();
+    if (!clusterId) {
+      errors.value = {
+        venue_cluster_id: ['Bạn cần có ít nhất một cụm sân thuộc quyền sở hữu để tạo bài viết.'],
+      };
+      toast.error('Chưa có cụm sân hợp lệ để tạo bài viết.');
+      return;
+    }
     
     if (!isEditing.value) {
-      form.venue_cluster_id = currentClusterId.value || (venueClusters.value.length > 0 ? venueClusters.value[0].id : '');
+      form.venue_cluster_id = clusterId;
       form.title = '';
       form.short_description = '';
       form.content = '';
@@ -689,8 +726,9 @@ const submitForm = async () => {
     valErrors.content = ['Nội dung thực tế phải từ 20 ký tự trở lên.'];
   }
   
-  if (!form.venue_cluster_id) {
-    valErrors.venue_cluster_id = ['Vui lòng chọn cụm sân.'];
+  const selectedClusterIsOwned = venueClusters.value.some((cluster) => String(cluster.id) === String(form.venue_cluster_id));
+  if (!form.venue_cluster_id || !selectedClusterIsOwned) {
+    valErrors.venue_cluster_id = ['Vui lòng chọn một cụm sân thuộc quyền sở hữu của bạn.'];
   }
   
   if (!form.post_type) {
@@ -744,8 +782,10 @@ const submitForm = async () => {
       errors.value = error.response.data.errors || {};
       toast.error(firstValidationMessage(error.response.data) || 'Dữ liệu nhập không hợp lệ, vui lòng kiểm tra lại.');
       focusFirstError();
+    } else if (error.status === 429) {
+      toast.error('Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
     } else {
-      toast.error('Có lỗi xảy ra trong quá trình xử lý, vui lòng thử lại.');
+      toast.error(error.message || 'Có lỗi xảy ra trong quá trình xử lý, vui lòng thử lại.');
     }
   } finally {
     submitting.value = false;

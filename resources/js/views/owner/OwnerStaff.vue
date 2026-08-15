@@ -40,7 +40,10 @@
           :data="filteredStaff"
         >
           <template #full_name="{ row }">
-            <strong>{{ row.full_name }}</strong>
+            <div class="staff-user-cell">
+              <span class="staff-avatar-badge">{{ (row.full_name || 'N').charAt(0).toUpperCase() }}</span>
+              <span class="staff-name-text">{{ row.full_name }}</span>
+            </div>
           </template>
 
           <template #username="{ row }">
@@ -518,5 +521,31 @@ footer { display: flex; justify-content: flex-end; gap: 10px; }
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+.staff-user-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.staff-avatar-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.staff-name-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a !important;
 }
 </style>

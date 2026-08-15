@@ -513,6 +513,7 @@ class PartnerApplicationService
             if ($hasSportgoSignature) {
                 if ($contract->venue_cluster_id) {
                     VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
+                        'owner_id' => $owner->id,
                         'status' => 'active',
                         'status_reason' => null,
                     ]);
@@ -570,6 +571,7 @@ class PartnerApplicationService
             if ($hasOwnerSignature) {
                 if ($contract->venue_cluster_id) {
                     VenueCluster::query()->whereKey($contract->venue_cluster_id)->update([
+                        'owner_id' => $contract->owner_id,
                         'status' => 'active',
                         'status_reason' => null,
                     ]);
@@ -1071,7 +1073,9 @@ class PartnerApplicationService
                 }
 
                 $folder = 'partner-applications/' . $application->id . '/' . $type . ($batch ? '/' . $batch : '');
-                $path = $file->store($folder, 'public');
+                // Keep uploaded partner evidence off the public disk. The
+                // download controller creates and caches a PDF derivative.
+                $path = $file->store($folder, 'local');
                 $media = Media::query()->create([
                     'mediable_type' => PartnerApplication::class,
                     'mediable_id' => $application->id,

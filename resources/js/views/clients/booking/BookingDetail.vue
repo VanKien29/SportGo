@@ -48,6 +48,15 @@
               Xem sân
             </router-link>
 
+            <button
+              v-if="canAddInVenueServices"
+              type="button"
+              class="bd-btn bd-btn--primary"
+              @click="openServicesModal"
+            >
+              🥤 Gọi thêm dịch vụ tại sân
+            </button>
+
             <router-link
               v-if="venueId"
               :to="rebookLocation"
@@ -128,6 +137,20 @@
               </div>
             </div>
 
+            <!-- ATTACHED SERVICES LIST -->
+            <div v-if="booking.services?.length" class="bd-slots-section">
+              <h4 class="bd-sub-title">Dịch vụ đi kèm tại sân</h4>
+              <div class="bd-slots-list">
+                <div v-for="srv in booking.services" :key="srv.id" class="bd-slot-row">
+                  <div>
+                    <strong>{{ srv.service_name }}</strong>
+                    <p>Số lượng: {{ srv.quantity }} {{ srv.unit || 'lượt' }} x {{ formatPrice(srv.unit_price) }}</p>
+                  </div>
+                  <strong class="bd-val" style="color: #15803d;">{{ formatPrice(srv.total_price) }}</strong>
+                </div>
+              </div>
+            </div>
+
             <!-- REASON / NOTE IF ANY -->
             <div v-if="booking.status_reason" class="bd-note-block">
               <strong>Ghi chú từ hệ thống / Chủ sân:</strong>
@@ -164,6 +187,84 @@
                 <strong class="bd-price-val bd-price-val--green">{{ formatCurrency(booking.required_payment_amount) }}</strong>
               </div>
             </div>
+
+            <!-- ONLINE PAYMENT -->
+            <section v-if="canPayOnline" class="bd-payment-panel" aria-labelledby="bd-payment-title">
+              <div class="bd-payment-head">
+                <div>
+                  <h4 id="bd-payment-title">Thanh toán chuyển khoản</h4>
+                  <p>Quét mã QR hoặc nhập thông tin bên dưới để thanh toán.</p>
+                </div>
+                <button
+                  v-if="!paymentInfo && !paymentLoading"
+                  type="button"
+                  class="bd-btn bd-btn--primary bd-payment-retry"
+                  @click="loadPaymentInfo"
+                >
+                  Hiện mã QR
+                </button>
+              </div>
+
+              <div v-if="paymentLoading" class="bd-payment-loading">
+                <span class="bd-spinner" aria-hidden="true"></span>
+                <span>Đang tạo mã QR...</span>
+              </div>
+
+              <div v-else-if="paymentError" class="bd-alert bd-alert--error">
+                <span>{{ paymentError }}</span>
+                <button type="button" class="bd-link-btn" @click="loadPaymentInfo">Thử lại</button>
+              </div>
+
+              <div v-else-if="paymentInfo" class="bd-payment-content">
+                <div class="bd-payment-amount">
+                  <span>Số tiền cần chuyển</span>
+                  <strong>{{ formatCurrency(paymentAmount) }}</strong>
+                </div>
+
+                <div class="bd-payment-body">
+                  <div class="bd-qr-wrap">
+                    <img
+                      v-if="paymentInfo.qr_url && !qrImageError"
+                      :src="paymentInfo.qr_url"
+                      alt="Mã QR thanh toán đơn đặt sân"
+                      @error="qrImageError = true"
+                    />
+                    <div v-else class="bd-qr-fallback">
+                      <strong>Không tải được ảnh QR</strong>
+                      <span>Vui lòng nhập thông tin chuyển khoản bên cạnh.</span>
+                    </div>
+                  </div>
+
+                  <div class="bd-bank-details">
+                    <div>
+                      <span>Ngân hàng</span>
+                      <strong>{{ paymentAccount.bank_name || paymentAccount.bank_code || "-" }}</strong>
+                    </div>
+                    <div>
+                      <span>Số tài khoản</span>
+                      <button type="button" @click="copyPaymentValue(paymentAccount.account_number, 'Số tài khoản')">
+                        {{ paymentAccount.account_number || "-" }}
+                      </button>
+                    </div>
+                    <div>
+                      <span>Chủ tài khoản</span>
+                      <strong>{{ paymentAccount.account_holder_name || "-" }}</strong>
+                    </div>
+                    <div>
+                      <span>Nội dung chuyển khoản</span>
+                      <button type="button" @click="copyPaymentValue(paymentInfo.transfer_content, 'Nội dung chuyển khoản')">
+                        {{ paymentInfo.transfer_content || "-" }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="bd-payment-note">
+                  Chuyển đúng số tiền và nội dung để hệ thống tự động xác nhận thanh toán.
+                </p>
+                <p v-if="copySuccess" class="bd-copy-success">{{ copySuccess }}</p>
+              </div>
+            </section>
 
             <!-- PAYMENT HISTORY (IF ANY) -->
             <div v-if="booking.payments?.length" class="bd-pay-history">
@@ -241,6 +342,47 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- ADD EXTRA SERVICES MODAL -->
+    <Teleport to="body">
+      <div v-if="showServicesModal" class="bd-modal-overlay" @click.self="showServicesModal = false">
+        <div class="bd-modal-content">
+          <div class="bd-modal-head">
+            <h3>🥤 Gọi thêm dịch vụ tại sân</h3>
+            <button type="button" class="bd-modal-close" @click="showServicesModal = false">✕</button>
+          </div>
+          <div class="bd-modal-body">
+            <div v-if="loadingVenueServices" class="bd-modal-loading">Đang tải danh sách dịch vụ tại sân...</div>
+            <div v-else-if="!availableVenueServices.length" class="bd-modal-empty">Cụm sân này chưa niêm yết dịch vụ tại sân.</div>
+            <div v-else class="bd-modal-services-list">
+              <div v-for="srv in availableVenueServices" :key="srv.id" class="cbw-service-item">
+                <div class="cbw-srv-info">
+                  <strong class="cbw-srv-name">{{ srv.name }}</strong>
+                  <span class="cbw-srv-price">{{ formatPrice(srv.price) }} / {{ srv.unit || 'lượt' }}</span>
+                </div>
+                <div class="cbw-srv-qty">
+                  <button type="button" class="cbw-qty-btn" :disabled="!extraServiceQty(srv.id)" @click="updateExtraQty(srv, -1)">-</button>
+                  <span class="cbw-qty-val">{{ extraServiceQty(srv.id) }}</span>
+                  <button type="button" class="cbw-qty-btn" @click="updateExtraQty(srv, 1)">+</button>
+                </div>
+              </div>
+            </div>
+            <p v-if="addServicesError" class="bd-modal-error">{{ addServicesError }}</p>
+          </div>
+          <div class="bd-modal-foot">
+            <button type="button" class="bd-btn bd-btn--outline" @click="showServicesModal = false">Hủy bỏ</button>
+            <button
+              type="button"
+              class="bd-btn bd-btn--primary"
+              :disabled="!extraServicesTotal || submittingExtra"
+              @click="submitExtraServices"
+            >
+              <span>{{ submittingExtra ? 'Đang gửi...' : `Xác nhận & Gửi (${formatPrice(extraServicesTotal)})` }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -248,6 +390,7 @@
 import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { chatService } from "../../../services/chat.service.js";
+import { venueService } from "../../../services/venues.js";
 
 export default {
   name: "BookingDetail",
@@ -257,6 +400,7 @@ export default {
       booking: null,
       loading: true,
       loadError: "",
+      bookingLoadController: null,
       cancellingBooking: false,
       cancelBookingError: "",
       startingChat: false,
@@ -264,9 +408,26 @@ export default {
       timerInterval: null,
       showCancelBookingModal: false,
       cancelReason: "Khách hàng thay đổi kế hoạch",
+      paymentInfo: null,
+      paymentLoading: false,
+      paymentError: "",
+      qrImageError: false,
+      copySuccess: "",
+      showServicesModal: false,
+      loadingVenueServices: false,
+      availableVenueServices: [],
+      extraServicesMap: {},
+      submittingExtra: false,
+      addServicesError: "",
     };
   },
   computed: {
+    canAddInVenueServices() {
+      return ["confirmed", "checked_in", "pending_approval", "pending_payment"].includes(this.booking?.status);
+    },
+    extraServicesTotal() {
+      return Object.values(this.extraServicesMap).reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    },
     formattedTimer() {
       const totalSeconds = Math.max(0, Math.floor(Number(this.timeLeft) || 0));
       const minutes = Math.floor(totalSeconds / 60);
@@ -341,6 +502,18 @@ export default {
       const startsAt = new Date(`${date}T${time}:00`);
       return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
     },
+    canPayOnline() {
+      return this.booking?.status === "pending_payment"
+        && Number(this.booking?.required_payment_amount || 0) > 0
+        && this.booking?.payment_option !== "wallet"
+        && this.timeLeft > 0;
+    },
+    paymentAccount() {
+      return this.paymentInfo?.payment_account || this.paymentInfo?.system_bank_account || {};
+    },
+    paymentAmount() {
+      return this.paymentInfo?.payment?.amount || this.booking?.required_payment_amount || 0;
+    },
     cancelDescription() {
       return "Quy định hủy sân: Hoàn lại 100% số tiền vào Ví SportGo khi hủy trước giờ chơi.";
     },
@@ -350,14 +523,90 @@ export default {
   },
   beforeUnmount() {
     this.clearTimer();
+    this.bookingLoadController?.abort();
+  },
+  watch: {
+    "$route.params.id"(nextId, previousId) {
+      if (nextId && nextId !== previousId) {
+        this.loadBooking();
+      }
+    },
   },
   methods: {
+    extraServiceQty(serviceId) {
+      return this.extraServicesMap[serviceId]?.quantity || 0;
+    },
+    updateExtraQty(srv, delta) {
+      const current = this.extraServicesMap[srv.id]?.quantity || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        const copy = { ...this.extraServicesMap };
+        delete copy[srv.id];
+        this.extraServicesMap = copy;
+      } else {
+        this.extraServicesMap = {
+          ...this.extraServicesMap,
+          [srv.id]: {
+            service_id: srv.id,
+            name: srv.name,
+            price: Number(srv.price || 0),
+            unit: srv.unit || "lượt",
+            quantity: next,
+          },
+        };
+      }
+    },
+    async openServicesModal() {
+      this.showServicesModal = true;
+      this.addServicesError = "";
+      if (!this.availableVenueServices.length && this.venueId) {
+        this.loadingVenueServices = true;
+        try {
+          const res = await venueService.show(this.venueId);
+          this.availableVenueServices = res.data?.services || res.services || [];
+        } catch (e) {
+          this.addServicesError = "Không tải được danh sách dịch vụ.";
+        } finally {
+          this.loadingVenueServices = false;
+        }
+      }
+    },
+    async submitExtraServices() {
+      if (!this.extraServicesTotal) return;
+      this.submittingExtra = true;
+      this.addServicesError = "";
+      try {
+        const services = Object.values(this.extraServicesMap).map(item => ({
+          service_id: item.service_id,
+          quantity: item.quantity
+        }));
+        await bookingService.addServices(this.booking.id, { services });
+        this.showServicesModal = false;
+        this.extraServicesMap = {};
+        await this.loadBooking();
+      } catch (err) {
+        this.addServicesError = err.message || "Không thể thêm dịch vụ. Vui lòng thử lại.";
+      } finally {
+        this.submittingExtra = false;
+      }
+    },
     async loadBooking() {
       const id = this.$route.params.id;
+      if (!id) {
+        this.booking = null;
+        this.loadError = "Không xác định được mã booking cần xem.";
+        this.loading = false;
+        return;
+      }
+
+      this.bookingLoadController?.abort();
+      const controller = new AbortController();
+      this.bookingLoadController = controller;
       this.loading = true;
       this.loadError = "";
       try {
-        const res = await bookingService.getBooking(id);
+        const res = await bookingService.getBooking(id, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         this.booking = res;
         this.timeLeft = Math.max(0, Math.floor(Number(res.time_left_seconds) || 0));
 
@@ -366,11 +615,54 @@ export default {
         } else {
           this.clearTimer();
         }
+
+        // Không tạo mã QR trong lúc tải trang. API này có thể chậm do phải
+        // tạo payment record/QR; người dùng chỉ cần gọi khi bấm "Hiện mã QR".
+        if (!this.canPayOnline) {
+          this.paymentInfo = null;
+          this.paymentError = "";
+        }
       } catch (err) {
+        if (controller.signal.aborted) return;
         this.booking = null;
-        this.loadError = err.message || "Không thể tải thông tin booking.";
+        this.loadError = err.status === 408 || err.code === "REQUEST_TIMEOUT"
+          ? "Máy chủ phản hồi quá lâu. Vui lòng thử lại."
+          : err.status === 404
+          ? "Đơn đặt sân này không còn tồn tại. Vui lòng mở lại booking từ Lịch sử đặt sân."
+          : (err.message || "Không thể tải thông tin booking.");
       } finally {
-        this.loading = false;
+        if (this.bookingLoadController === controller) {
+          this.bookingLoadController = null;
+          this.loading = false;
+        }
+      }
+    },
+    async loadPaymentInfo() {
+      if (!this.booking?.id || !this.canPayOnline || this.paymentLoading) return;
+
+      this.paymentLoading = true;
+      this.paymentError = "";
+      this.qrImageError = false;
+      try {
+        this.paymentInfo = await bookingService.createSepayPayment(this.booking.id);
+      } catch (err) {
+        this.paymentInfo = null;
+        this.paymentError = err.message || "Không thể tạo mã QR thanh toán.";
+      } finally {
+        this.paymentLoading = false;
+      }
+    },
+    async copyPaymentValue(value, label) {
+      if (!value) return;
+
+      try {
+        await navigator.clipboard.writeText(String(value));
+        this.copySuccess = `Đã sao chép ${label.toLowerCase()}.`;
+        window.setTimeout(() => {
+          this.copySuccess = "";
+        }, 2200);
+      } catch (err) {
+        this.copySuccess = `Không thể sao chép ${label.toLowerCase()}.`;
       }
     },
     startTimer() {
@@ -706,6 +998,173 @@ export default {
   margin: 0;
 }
 
+/* PAYMENT */
+.bd-payment-panel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.bd-payment-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.bd-payment-head h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.bd-payment-head p,
+.bd-payment-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.bd-payment-retry {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.bd-payment-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  font-size: 12.5px;
+  color: #475569;
+}
+
+.bd-payment-loading .bd-spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.bd-payment-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bd-payment-amount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: #166534;
+}
+
+.bd-payment-amount strong {
+  font-size: 15px;
+  color: #15803d;
+}
+
+.bd-payment-body {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.bd-qr-wrap {
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.bd-qr-wrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.bd-qr-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.bd-qr-fallback strong {
+  color: #b45309;
+}
+
+.bd-bank-details {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.bd-bank-details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bd-bank-details span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.bd-bank-details strong,
+.bd-bank-details button {
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.bd-bank-details button,
+.bd-link-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #15803d;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bd-bank-details button:hover,
+.bd-link-btn:hover {
+  text-decoration: underline;
+}
+
+.bd-payment-note {
+  padding-top: 2px;
+}
+
+.bd-copy-success {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: #15803d;
+}
+
 .bd-cancel-action {
   margin-top: 24px;
 }
@@ -840,6 +1299,24 @@ export default {
   border: 1px solid #fecaca;
 }
 
+.bd-alert--error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 420px) {
+  .bd-payment-body {
+    grid-template-columns: 1fr;
+  }
+
+  .bd-qr-wrap {
+    justify-self: center;
+  }
+}
+
 .bd-modal-foot {
   display: flex;
   align-items: center;
@@ -847,5 +1324,49 @@ export default {
   gap: 10px;
   padding: 8px 20px 20px;
   background: #ffffff;
+}
+
+.bd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.bd-modal-content {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bd-modal-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.bd-modal-loading,
+.bd-modal-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: #64748b;
+  font-size: 13.5px;
+}
+
+.bd-modal-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 4px 0 0 0;
 }
 </style>
