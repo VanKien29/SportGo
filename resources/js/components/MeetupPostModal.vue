@@ -117,6 +117,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import ClientCustomSelect from '@/components/ClientCustomSelect.vue';
+import SgButton from '@/components/common/SgButton.vue';
 import { api } from '@/services/api';
 import { getAuth } from '@/stores/auth.js';
 
@@ -520,5 +521,4 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
   margin: 0;
 }
 </style>
-
 

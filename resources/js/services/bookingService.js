@@ -52,7 +52,6 @@ export const bookingService = {
     return api(`/api/bookings${suffix ? `?${suffix}` : ''}`, {
       cache: 'no-store',
       dedupe: false,
-      timeoutMs: 8000,
     });
   },
 
@@ -63,7 +62,6 @@ export const bookingService = {
       // Chi tiết booking không nên dùng chung promise với một lần tải cũ.
       // Nếu request trước bị kẹt, lần mở lại vẫn phải tạo request mới.
       dedupe: false,
-      timeoutMs: 8000,
       ...options,
     });
   },

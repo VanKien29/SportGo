@@ -8,45 +8,16 @@ const PERMISSIONS_KEY = 'auth_permissions';
 const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 const inFlightGetRequests = new Map();
-const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
 
-async function fetchWithTimeout(path, options = {}) {
-  const {
-    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
-    signal: externalSignal,
-    ...fetchOptions
-  } = options;
-  const controller = new AbortController();
-  let timedOut = false;
-  let timeoutId = null;
+// Request không bị hủy theo thời gian trên web. Component vẫn có thể truyền
+// AbortSignal để hủy request cũ khi người dùng đổi trang hoặc đổi bản ghi.
+async function fetchRequest(path, options = {}) {
+  const { timeoutMs: _ignoredTimeout, ...fetchOptions } = options;
   const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
 
-  const abortFromCaller = () => controller.abort(externalSignal.reason);
-  if (externalSignal) {
-    if (externalSignal.aborted) abortFromCaller();
-    else externalSignal.addEventListener('abort', abortFromCaller, { once: true });
-  }
-
-  if (timeoutMs > 0) {
-    timeoutId = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, timeoutMs);
-  }
-
   try {
-    return await fetch(path, { ...fetchOptions, signal: controller.signal });
-  } catch (error) {
-    if (timedOut) {
-      const timeoutError = new Error('Kết nối quá lâu. Vui lòng thử lại.');
-      timeoutError.status = 408;
-      timeoutError.code = 'REQUEST_TIMEOUT';
-      throw timeoutError;
-    }
-    throw error;
+    return await fetch(path, fetchOptions);
   } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-    externalSignal?.removeEventListener('abort', abortFromCaller);
     if (typeof performance !== 'undefined' && typeof performance.measure === 'function') {
       const duration = performance.now() - startedAt;
       if (duration > 800) {
@@ -124,7 +95,7 @@ async function requestApi(path, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetchWithTimeout(path, { ...options, headers });
+  const response = await fetchRequest(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
 
   if (response.status === 401) {
@@ -132,7 +103,7 @@ async function requestApi(path, options = {}) {
     if (token && (!options.method || options.method.toUpperCase() === 'GET')) {
       const retryHeaders = { ...headers };
       delete retryHeaders.Authorization;
-      const retryResponse = await fetchWithTimeout(path, { ...options, headers: retryHeaders });
+      const retryResponse = await fetchRequest(path, { ...options, headers: retryHeaders });
       if (retryResponse.ok) {
         return await retryResponse.json().catch(() => ({}));
       }
@@ -186,7 +157,7 @@ export async function apiFormData(path, formData, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetchWithTimeout(path, {
+  const response = await fetchRequest(path, {
     method: options.method || 'POST',
     ...options,
     headers,
@@ -229,7 +200,7 @@ export async function apiDownload(path, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetchWithTimeout(path, {
+  const response = await fetchRequest(path, {
     ...requestOptions,
     cache: 'no-store',
     credentials: requestOptions.credentials || 'same-origin',

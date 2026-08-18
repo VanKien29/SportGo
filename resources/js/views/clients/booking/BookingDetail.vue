@@ -625,9 +625,7 @@ export default {
       } catch (err) {
         if (controller.signal.aborted) return;
         this.booking = null;
-        this.loadError = err.status === 408 || err.code === "REQUEST_TIMEOUT"
-          ? "Máy chủ phản hồi quá lâu. Vui lòng thử lại."
-          : err.status === 404
+        this.loadError = err.status === 404
           ? "Đơn đặt sân này không còn tồn tại. Vui lòng mở lại booking từ Lịch sử đặt sân."
           : (err.message || "Không thể tải thông tin booking.");
       } finally {
@@ -718,6 +716,17 @@ export default {
         expired: "Đã hết hạn",
       };
       return map[status] || status;
+    },
+    paymentStatusLabel(status) {
+      const map = {
+        pending: "Đang chờ xử lý",
+        paid: "Đã thanh toán",
+        failed: "Thanh toán thất bại",
+        cancelled: "Đã hủy",
+        refunded: "Đã hoàn tiền",
+        partially_refunded: "Đã hoàn một phần",
+      };
+      return map[status] || status || "Chưa xác định";
     },
     formatDate(dateStr) {
       if (!dateStr) return "-";
