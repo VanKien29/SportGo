@@ -734,15 +734,15 @@ export default {
       if (!this.venueId) return;
       this.startingChat = true;
       try {
-        const ownerId = this.venueCluster?.owner_id || this.booking?.venue_cluster?.owner_id;
         const res = await chatService.startConversation({
-          user_id: ownerId,
+          type: "venue_contact",
+          venue_id: this.venueId,
           venue_cluster_id: this.venueId,
         });
         if (res && res.id) {
           this.$router.push({
-            name: "chat",
-            query: { conversation_id: res.id, booking_id: this.booking.id },
+            path: "/chat",
+            query: { conversation_id: res.id, booking_id: this.booking.id, venue_id: this.venueId },
           });
         }
       } catch (err) {

@@ -386,6 +386,53 @@ export const ICON_REGISTRY = {
     ['rect', { x: 4, y: 8, width: 16, height: 12, rx: 2 }],
     ['path', { d: 'M2 14h2M20 14h2M15 13v2M9 13v2' }],
   ],
+  info: [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['path', { d: 'M12 16v-4M12 8h.01' }],
+  ],
+  moreVertical: [
+    ['circle', { cx: 12, cy: 12, r: 1 }],
+    ['circle', { cx: 12, cy: 5, r: 1 }],
+    ['circle', { cx: 12, cy: 19, r: 1 }],
+  ],
+  pin: [
+    ['line', { x1: 12, y1: 17, x2: 12, y2: 22 }],
+    ['path', { d: 'M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z' }],
+  ],
+  cornerUpLeft: [
+    ['polyline', { points: '9 14 4 9 9 4' }],
+    ['path', { d: 'M20 20v-7a4 4 0 0 0-4-4H4' }],
+  ],
+  slash: [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['line', { x1: 4.93, y1: 4.93, x2: 19.07, y2: 19.07 }],
+  ],
+  helpCircle: [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['path', { d: 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01' }],
+  ],
+  smile: [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['path', { d: 'M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01' }],
+  ],
+  userPlus: [
+    ['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }],
+    ['circle', { cx: 9, cy: 7, r: 4 }],
+    ['line', { x1: 19, y1: 8, x2: 19, y2: 14 }],
+    ['line', { x1: 22, y1: 11, x2: 16, y2: 11 }],
+  ],
+  bookmark: [
+    ['path', { d: 'm19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z' }],
+  ],
+  volume2: [
+    ['polygon', { points: '11 5 6 9 2 9 2 15 6 15 11 19 11 5' }],
+    ['path', { d: 'M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14' }],
+  ],
+  volumeX: [
+    ['polygon', { points: '11 5 6 9 2 9 2 15 6 15 11 19 11 5' }],
+    ['line', { x1: 23, y1: 9, x2: 17, y2: 15 }],
+    ['line', { x1: 17, y1: 9, x2: 23, y2: 15 }],
+  ],
 };
 
 export const ICON_ALIASES = {
@@ -402,6 +449,7 @@ export const ICON_ALIASES = {
   publish: 'rocket',
   edit: 'pencil',
   delete: 'trash',
+  trash2: 'trash',
   view: 'eye',
   clone: 'copy',
   stop: 'power',
