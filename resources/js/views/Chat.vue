@@ -1382,6 +1382,7 @@ import BaseInput from '../components/ui/BaseInput.vue';
 import echo from '../echo.js';
 import { getAuth } from '../stores/auth.js';
 import { chatService } from '../services/chat.service.js';
+import { getAvatarColorHex } from '../utils/avatar.js';
 
 export default {
   name: 'Chat',
@@ -2767,28 +2768,7 @@ export default {
     },
 
     getAvatarColorHex(name) {
-      if (!name) return '#10b981';
-      const cleanName = String(name)
-        .replace(/^Người dùng\s+/i, '')
-        .replace(/^Nhân viên sân\s+/i, '')
-        .trim();
-
-      const colors = [
-        '#f97316', // Orange
-        '#10b981', // Emerald green
-        '#3b82f6', // Blue
-        '#8b5cf6', // Purple
-        '#ec4899', // Pink
-        '#06b6d4', // Cyan
-        '#f43f5e', // Rose
-        '#6366f1', // Indigo
-      ];
-      let hash = 0;
-      for (let i = 0; i < cleanName.length; i++) {
-        hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      const index = Math.abs(hash) % colors.length;
-      return colors[index];
+      return getAvatarColorHex(name);
     },
 
     supportRequestStatusLabel(status) {

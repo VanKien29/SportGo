@@ -14,6 +14,8 @@ app.use(Toast, {
   timeout: 3000,
   closeOnClick: true,
   pauseOnHover: true,
+  icon: false,
+  hideProgressBar: true,
 });
 
 // Mount immediately. Router guards and async route components may need to
