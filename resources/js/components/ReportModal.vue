@@ -12,77 +12,102 @@
       aria-labelledby="report-modal-title"
     >
       <header class="modal-header">
-        <div>
-          <span class="modal-kicker">An toàn cộng đồng</span>
-          <h2 id="report-modal-title">Báo cáo nội dung</h2>
+        <div class="modal-header-text">
+          <h2 id="report-modal-title" class="modal-title">
+            {{ targetType === 'venue_cluster' ? 'Báo cáo cụm sân' : 'Báo cáo nội dung' }}
+          </h2>
+          <p class="modal-subtitle">Chọn lý do phù hợp để gửi tới ban quản trị SportGo xem xét.</p>
         </div>
-        <button type="button" class="icon-button" aria-label="Đóng" @click="close">
-          <AppIcon name="x" size="18" />
+        <button type="button" class="modal-close-btn" aria-label="Đóng" @click="close">
+          <AppIcon name="x" :size="18" />
         </button>
       </header>
 
       <div class="modal-body">
-        <p class="modal-description">
-          Chọn lý do phù hợp để đội ngũ SportGo kiểm tra. Danh tính người báo cáo không hiển thị với đối tượng bị báo cáo.
-        </p>
-
-        <div v-if="targetName" class="target-summary">
-          <span>Đối tượng</span>
-          <strong>{{ targetName }}</strong>
+        <!-- Target object summary if provided -->
+        <div v-if="targetName" class="target-summary-row">
+          <span class="target-label">Đối tượng báo cáo:</span>
+          <span class="target-val">{{ targetName }}</span>
         </div>
 
         <form class="moderation-form" @submit.prevent="submit">
-          <fieldset class="reason-list">
-            <legend>Lý do báo cáo</legend>
-            <label
-              v-for="option in reasonOptions"
-              :key="option.value"
-              class="reason-option"
-              :class="{ selected: form.reason === option.value }"
-            >
-              <input v-model="form.reason" type="radio" :value="option.value" required />
-              <span>
-                <strong>{{ option.label }}</strong>
-                <small>{{ option.description }}</small>
-              </span>
+          <!-- Reason choices -->
+          <div class="field-group">
+            <label class="field-label">
+              <span>Lý do báo cáo</span>
+              <span class="field-required">Bắt buộc</span>
             </label>
-          </fieldset>
+            <div class="reason-list" role="radiogroup">
+              <label
+                v-for="option in reasonOptions"
+                :key="option.value"
+                class="reason-item"
+                :class="{ 'reason-item--selected': form.reason === option.value }"
+              >
+                <input
+                  v-model="form.reason"
+                  type="radio"
+                  :value="option.value"
+                  class="reason-radio"
+                  required
+                />
+                <div class="reason-content">
+                  <span class="reason-title">{{ option.label }}</span>
+                  <span class="reason-desc">{{ option.description }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
-          <label class="field-block">
-            <span>Thông tin bổ sung <small>Không bắt buộc</small></span>
+          <!-- Extra description -->
+          <div class="field-group">
+            <label class="field-label" for="report-description-input">
+              <span>Thông tin bổ sung</span>
+              <span class="field-optional">Không bắt buộc</span>
+            </label>
             <textarea
+              id="report-description-input"
               v-model.trim="form.description"
-              class="field-control"
+              class="field-control field-textarea"
               rows="3"
               maxlength="1000"
-              placeholder="Mô tả ngắn gọn nội dung hoặc hành vi cần kiểm tra"
+              placeholder="Mô tả ngắn gọn nội dung hoặc hành vi vi phạm..."
             ></textarea>
-            <small class="character-count">{{ form.description.length }}/1000</small>
-          </label>
+            <div class="field-counter">{{ form.description.length }}/1000</div>
+          </div>
 
-          <label class="field-block">
-            <span>Ảnh minh chứng <small>JPG, PNG hoặc WebP, tối đa 5 MB</small></span>
+          <!-- Image evidence -->
+          <div class="field-group">
+            <label class="field-label" for="report-image-input">
+              <span>Ảnh minh chứng</span>
+              <span class="field-optional">Tối đa 5 MB</span>
+            </label>
             <input
+              id="report-image-input"
               ref="fileInput"
-              class="field-control file-control"
+              class="field-control file-input-control"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               @change="onImageSelected"
             />
-          </label>
+          </div>
 
-          <div v-if="imagePreview" class="image-preview">
-            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" />
-            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeImage">
-              <AppIcon name="trash" size="16" />
+          <!-- Image preview -->
+          <div v-if="imagePreview" class="image-preview-box">
+            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" class="preview-img" />
+            <button type="button" class="preview-remove-btn" aria-label="Xóa ảnh đã chọn" @click="removeImage">
+              <AppIcon name="trash" :size="15" />
             </button>
           </div>
 
           <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
 
+          <!-- Footer actions -->
           <footer class="form-actions">
-            <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
-            <button type="submit" class="submit-button" :disabled="isSubmitting || !form.reason">
+            <button type="button" class="btn-cancel" :disabled="isSubmitting" @click="close">
+              Hủy
+            </button>
+            <button type="submit" class="btn-submit" :disabled="isSubmitting || !form.reason">
               {{ isSubmitting ? 'Đang gửi...' : 'Gửi báo cáo' }}
             </button>
           </footer>
@@ -123,19 +148,19 @@ const reasonOptions = [
     description: 'Tin rác, quảng cáo dịch vụ trái phép hoặc spam bình luận.',
   },
   {
-    value: 'harassment',
-    label: 'Quấy rối hoặc xúc phạm',
-    description: 'Ngôn từ kích động, đe dọa, xúc phạm người khác.',
-  },
-  {
-    value: 'fraud',
-    label: 'Gian lận hoặc giả mạo',
-    description: 'Thông tin sai lệch, giả danh cá nhân hoặc tổ chức.',
-  },
-  {
-    value: 'inappropriate_content',
+    value: 'offensive',
     label: 'Nội dung không phù hợp',
     description: 'Hình ảnh, ngôn từ nhạy cảm hoặc vi phạm thuần phong mỹ tục.',
+  },
+  {
+    value: 'harassment',
+    label: 'Quấy rối hoặc xúc phạm',
+    description: 'Ngôn từ kích động, đe dọa hoặc xúc phạm người khác.',
+  },
+  {
+    value: 'fake',
+    label: 'Gian lận hoặc giả mạo',
+    description: 'Thông tin sai lệch, giả danh cá nhân hoặc cụm sân.',
   },
   {
     value: 'other',
@@ -225,11 +250,14 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ==========================================================================
+   REPORT MODAL - UNIFIED WHITE, BORDERLESS & MINIMALIST FLAT STYLING
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,76 +273,93 @@ onBeforeUnmount(() => {
   max-height: 90vh;
   overflow-y: auto;
   padding: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   color: #0f172a;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
+/* Reset all font-weights to 400 throughout */
+.moderation-modal *,
+.moderation-modal h2,
+.moderation-modal span,
+.moderation-modal label,
+.moderation-modal button {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+/* Header */
 .modal-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  border: none !important;
 }
 
-.modal-kicker {
-  display: block;
-  font-size: 12px;
-  color: #15803d;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+.modal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.modal-header h2 {
-  font-size: 20px;
-  font-weight: 500;
+.modal-title {
+  font-size: 18px;
   color: #0f172a;
   margin: 0;
+  line-height: 1.3;
 }
 
-.icon-button {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 6px;
-  color: #0f172a;
-  cursor: pointer;
+.modal-subtitle {
+  font-size: 13px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.modal-close-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
 }
 
-.icon-button:hover {
-  background: #f8fafc;
+.modal-close-btn:hover {
+  background: #f1f5f9;
 }
 
-.modal-description {
-  font-size: 13.5px;
-  color: #475569;
-  line-height: 1.5;
-  margin: 0 0 14px 0;
-}
-
-.target-summary {
+/* Target object summary */
+.target-summary-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 13px;
-  margin-bottom: 16px;
+  font-size: 13.5px;
+  margin-bottom: 4px;
 }
 
-.target-summary span {
-  color: #475569;
+.target-label {
+  color: #64748b;
 }
 
-.target-summary strong {
+.target-val {
   color: #0f172a;
-  font-weight: 500;
+}
+
+/* Body & Form */
+.modal-body {
+  display: flex;
+  flex-direction: column;
 }
 
 .moderation-form {
@@ -323,126 +368,151 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
-.reason-list {
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.reason-list legend {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
-  margin-bottom: 8px;
-}
-
-.reason-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.reason-option:hover {
-  border-color: #94a3b8;
-}
-
-.reason-option.selected {
-  border-color: #15803d;
-  background: #f8fafc;
-}
-
-.reason-option input {
-  margin-top: 3px;
-  accent-color: #15803d;
-}
-
-.reason-option strong {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
-}
-
-.reason-option small {
-  font-size: 12px;
-  color: #475569;
-  display: block;
-  margin-top: 2px;
-}
-
-.field-block {
+.field-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.field-block span {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
+.field-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-size: 13.5px;
+  color: #0f172a;
 }
 
-.field-block small {
-  color: #475569;
-  font-weight: 400;
+.field-required {
   font-size: 12px;
+  color: #ef4444;
 }
 
+.field-optional {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Reason Radio List */
+.reason-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reason-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.reason-item:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.reason-item--selected {
+  border-color: #15803d !important;
+  background: #f0fdf4 !important;
+}
+
+.reason-radio {
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  flex: 0 0 16px !important;
+  margin: 2px 0 0 0 !important;
+  padding: 0 !important;
+  accent-color: #15803d;
+  cursor: pointer;
+}
+
+.reason-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reason-title {
+  font-size: 13.5px;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.reason-desc {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* Field Controls */
 .field-control {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #94a3b8;
   border-radius: 8px;
   font-size: 13.5px;
   color: #0f172a;
-  font-family: inherit;
-  outline: none;
   background: #ffffff;
+  outline: none;
+  font-family: inherit;
   box-sizing: border-box;
+  transition: border-color 0.15s ease;
 }
 
 .field-control:focus {
   border-color: #15803d;
 }
 
-.character-count {
-  font-size: 12px;
-  color: #475569;
-  text-align: right;
+.field-textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
 }
 
-.image-preview {
+.file-input-control {
+  padding: 7px 10px;
+}
+
+.field-counter {
+  font-size: 12px;
+  color: #64748b;
+  text-align: right;
+  margin-top: 2px;
+}
+
+/* Image preview */
+.image-preview-box {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 180px;
-  border: 1px solid #cbd5e1;
+  max-height: 160px;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
 }
 
-.image-preview img {
+.preview-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.remove-image {
+.preview-remove-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 26px;
-  height: 26px;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: rgba(15, 23, 42, 0.75);
   color: #ffffff;
@@ -454,66 +524,60 @@ onBeforeUnmount(() => {
   transition: background 0.15s ease;
 }
 
-.remove-image:hover {
+.preview-remove-btn:hover {
   background: #dc2626;
 }
 
 .form-error {
-  color: #dc2626;
   font-size: 13px;
+  color: #ef4444;
   margin: 0;
+  line-height: 1.4;
 }
 
+/* Footer Actions */
 .form-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 8px;
+  border: none !important;
 }
 
-.cancel-button {
+.btn-cancel {
   padding: 9px 18px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1px solid #94a3b8;
   background: #ffffff;
-  color: #0f172a;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.cancel-button:hover {
-  border-color: #94a3b8;
-}
-
-.submit-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-  height: 38px;
-  border: 1px solid #15803d;
+  color: #334155;
   border-radius: 6px;
-  background: #15803d;
-  color: #ffffff;
   font-size: 13.5px;
-  font-weight: 500;
   cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.submit-button:hover:not(:disabled) {
-  background: #166534;
-  border-color: #166534;
+.btn-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-.submit-button:disabled {
-  cursor: not-allowed;
+.btn-submit {
+  padding: 9px 22px;
+  border: none;
   background: #15803d;
-  border-color: #15803d;
   color: #ffffff;
-  opacity: 0.9;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-submit:hover {
+  background: #166534;
+}
+
+.btn-submit:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
 }
 </style>

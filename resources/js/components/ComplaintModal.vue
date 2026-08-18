@@ -7,76 +7,140 @@
       aria-labelledby="complaint-modal-title"
     >
       <header class="modal-header">
-        <div>
-          <span class="modal-kicker">Trung tâm hỗ trợ</span>
-          <h2 id="complaint-modal-title">Gửi khiếu nại</h2>
+        <div class="modal-header-text">
+          <h2 id="complaint-modal-title" class="modal-title">Gửi khiếu nại</h2>
+          <p class="modal-subtitle">Tiếp nhận và phản hồi các vấn đề phát sinh khi sử dụng dịch vụ tại sân.</p>
         </div>
-        <button type="button" class="icon-button" aria-label="Đóng" @click="close">
-          <AppIcon name="x" size="18" />
+        <button type="button" class="modal-close-btn" aria-label="Đóng" @click="close">
+          <AppIcon name="x" :size="18" />
         </button>
       </header>
 
       <div class="modal-body">
-        <p class="modal-description">
-          Khiếu nại dùng cho vấn đề cần được hỗ trợ và phản hồi. Nếu bạn chỉ muốn thông báo nội dung vi phạm, hãy dùng chức năng báo cáo.
-        </p>
-
         <form class="complaint-form" @submit.prevent="submit">
-          <p class="modal-description">Khiếu nại dịch vụ chỉ được gửi từ booking đang hoạt động tại sân.</p>
-
-          <template>
-            <label class="field-block">
-              <span>Lịch đặt sân liên quan <small>Bắt buộc</small></span>
-              <select v-model="form.booking_id" class="field-control" @change="onBookingChange">
-                <option value="" disabled>Chọn booking đang hoạt động</option>
-                <option v-for="booking in recentBookings" :key="booking.id" :value="booking.id">
-                  {{ bookingOptionLabel(booking) }}
-                </option>
-              </select>
+          <!-- Custom Booking Dropdown -->
+          <div ref="dropdownRef" class="field-group custom-dropdown-group">
+            <label class="field-label">
+              <span>Lịch đặt sân liên quan</span>
+              <span class="field-required">Bắt buộc</span>
             </label>
 
-            <small v-if="bookingsLoading" class="field-hint">Đang tải booking đủ điều kiện...</small>
-            <small v-else-if="!recentBookings.length" class="field-hint">
-              Hiện chưa có booking trong thời gian tiếp nhận khiếu nại.
-            </small>
-          </template>
+            <div class="custom-dropdown">
+              <button
+                type="button"
+                class="dropdown-trigger-btn"
+                :class="{ 'dropdown-trigger-btn--open': isDropdownOpen }"
+                aria-haspopup="listbox"
+                :aria-expanded="isDropdownOpen"
+                :disabled="bookingsLoading || !recentBookings.length"
+                @click="toggleDropdown"
+              >
+                <span
+                  class="dropdown-trigger-text"
+                  :class="{ 'dropdown-trigger-placeholder': !form.booking_id }"
+                >
+                  {{ currentSelectedLabel }}
+                </span>
+                <AppIcon
+                  name="chevron-down"
+                  :size="16"
+                  class="dropdown-chevron-icon"
+                  :class="{ 'dropdown-chevron-icon--rotated': isDropdownOpen }"
+                />
+              </button>
 
-          <label class="field-block">
-            <span>Nội dung chi tiết <small>Bắt buộc</small></span>
+              <!-- Dropdown Menu List -->
+              <div
+                v-if="isDropdownOpen"
+                class="dropdown-menu-list"
+                role="listbox"
+                tabindex="-1"
+              >
+                <div v-if="bookingsLoading" class="dropdown-empty-state">
+                  Đang tải danh sách booking...
+                </div>
+                <div v-else-if="!recentBookings.length" class="dropdown-empty-state">
+                  Hiện chưa có booking trong thời gian tiếp nhận khiếu nại.
+                </div>
+                <template v-else>
+                  <button
+                    v-for="booking in recentBookings"
+                    :key="booking.id"
+                    type="button"
+                    role="option"
+                    :aria-selected="String(form.booking_id) === String(booking.id)"
+                    class="dropdown-option-item"
+                    :class="{ 'dropdown-option-item--selected': String(form.booking_id) === String(booking.id) }"
+                    @click="selectBooking(booking)"
+                  >
+                    <span class="dropdown-option-text">{{ bookingOptionLabel(booking) }}</span>
+                    <AppIcon
+                      v-if="String(form.booking_id) === String(booking.id)"
+                      name="check"
+                      :size="15"
+                      class="dropdown-option-check"
+                    />
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <span v-if="bookingsLoading" class="field-hint">Đang tải danh sách booking...</span>
+            <span v-else-if="!recentBookings.length" class="field-hint">
+              Hiện chưa có booking trong thời gian tiếp nhận khiếu nại.
+            </span>
+          </div>
+
+          <!-- Content text -->
+          <div class="field-group">
+            <label class="field-label" for="complaint-content-input">
+              <span>Nội dung chi tiết</span>
+              <span class="field-required">Bắt buộc</span>
+            </label>
             <textarea
+              id="complaint-content-input"
               v-model.trim="form.content"
-              class="field-control"
+              class="field-control field-textarea"
               rows="4"
               maxlength="2000"
               required
-              placeholder="Mô tả sự việc, thời điểm và hỗ trợ bạn mong muốn"
+              placeholder="Mô tả cụ thể sự việc, thời điểm và yêu cầu hỗ trợ của bạn..."
             ></textarea>
-            <small class="character-count">{{ form.content.length }}/2000</small>
-          </label>
+            <div class="field-counter">{{ form.content.length }}/2000</div>
+          </div>
 
-          <label class="field-block">
-            <span>Ảnh minh chứng <small>JPG, PNG hoặc WebP, tối đa 5 MB</small></span>
+          <!-- Image evidence -->
+          <div class="field-group">
+            <label class="field-label" for="complaint-image-input">
+              <span>Ảnh minh chứng</span>
+              <span class="field-optional">Tối đa 5 MB</span>
+            </label>
             <input
+              id="complaint-image-input"
               ref="fileInput"
-              class="field-control file-control"
+              class="field-control file-input-control"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               @change="onImageSelected"
             />
-          </label>
+          </div>
 
-          <div v-if="imagePreview" class="image-preview">
-            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" />
-            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeImage">
-              <AppIcon name="trash" size="16" />
+          <!-- Image preview -->
+          <div v-if="imagePreview" class="image-preview-box">
+            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" class="preview-img" />
+            <button type="button" class="preview-remove-btn" aria-label="Xóa ảnh đã chọn" @click="removeImage">
+              <AppIcon name="trash" :size="15" />
             </button>
           </div>
 
           <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
 
+          <!-- Footer Actions -->
           <footer class="form-actions">
-            <button type="button" class="cancel-button" :disabled="isSubmitting" @click="close">Hủy</button>
-            <button type="submit" class="submit-button" :disabled="isSubmitting || !isValid">
+            <button type="button" class="btn-cancel" :disabled="isSubmitting" @click="close">
+              Hủy
+            </button>
+            <button type="submit" class="btn-submit" :disabled="isSubmitting || !isValid">
               {{ isSubmitting ? 'Đang gửi...' : 'Gửi khiếu nại' }}
             </button>
           </footer>
@@ -87,7 +151,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
 import { api, apiFormData } from '@/services/api';
 
@@ -112,21 +176,18 @@ const isSubmitting = ref(false);
 const errorMsg = ref('');
 const imagePreview = ref('');
 const fileInput = ref(null);
-
-const availableVenueClusters = computed(() => {
-  const map = new Map();
-  recentBookings.value.forEach((booking) => {
-    const cluster = bookingCluster(booking);
-    if (cluster?.id && !map.has(String(cluster.id))) {
-      map.set(String(cluster.id), { id: cluster.id, name: cluster.name });
-    }
-  });
-  return Array.from(map.values());
-});
+const isDropdownOpen = ref(false);
+const dropdownRef = ref(null);
 
 const isValid = computed(() => Boolean(
   form.content.trim() && form.complaint_type === 'venue' && form.booking_id && form.venue_cluster_id
 ));
+
+const currentSelectedLabel = computed(() => {
+  if (!form.booking_id) return 'Chọn booking đang hoạt động';
+  const found = recentBookings.value.find((b) => String(b.id) === String(form.booking_id));
+  return found ? bookingOptionLabel(found) : 'Chọn booking đang hoạt động';
+});
 
 function bookingCluster(booking) {
   return booking.venue_cluster || booking.venueCluster || booking.cluster || null;
@@ -176,6 +237,23 @@ function onBookingChange() {
   }
 }
 
+function toggleDropdown() {
+  if (bookingsLoading.value || !recentBookings.value.length) return;
+  isDropdownOpen.value = !isDropdownOpen.value;
+}
+
+function selectBooking(booking) {
+  form.booking_id = String(booking.id);
+  onBookingChange();
+  isDropdownOpen.value = false;
+}
+
+function handleClickOutside(event) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    isDropdownOpen.value = false;
+  }
+}
+
 function revokePreview() {
   if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
   imagePreview.value = '';
@@ -189,6 +267,7 @@ function removeImage() {
 
 function reset() {
   form.content = '';
+  isDropdownOpen.value = false;
   removeImage();
   errorMsg.value = '';
   applyInitialContext();
@@ -250,15 +329,25 @@ watch(() => props.isOpen, (isOpen) => {
   }
 });
 
-onBeforeUnmount(revokePreview);
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside);
+  revokePreview();
+});
 </script>
 
 <style scoped>
+/* ==========================================================================
+   COMPLAINT MODAL - UNIFIED WHITE, BORDERLESS & MINIMALIST FLAT STYLING
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -270,59 +359,80 @@ onBeforeUnmount(revokePreview);
   border: 1px solid #cbd5e1;
   border-radius: 12px;
   width: 100%;
-  max-width: 540px;
+  max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   color: #0f172a;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
+/* Reset all font-weights to 400 throughout */
+.complaint-modal *,
+.complaint-modal h2,
+.complaint-modal span,
+.complaint-modal label,
+.complaint-modal button {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+/* Header */
 .modal-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  border: none !important;
 }
 
-.modal-kicker {
-  display: block;
-  font-size: 12px;
-  color: #15803d;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+.modal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.modal-header h2 {
-  font-size: 20px;
-  font-weight: 500;
+.modal-title {
+  font-size: 18px;
   color: #0f172a;
   margin: 0;
+  line-height: 1.3;
 }
 
-.icon-button {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 6px;
-  color: #0f172a;
-  cursor: pointer;
+.modal-subtitle {
+  font-size: 13px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.modal-close-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
 }
 
-.icon-button:hover {
-  background: #f8fafc;
+.modal-close-btn:hover {
+  background: #f1f5f9;
 }
 
-.modal-description {
-  font-size: 13.5px;
-  color: #475569;
-  line-height: 1.5;
-  margin: 0 0 18px 0;
+/* Body & Form */
+.modal-body {
+  display: flex;
+  flex-direction: column;
 }
 
 .complaint-form {
@@ -331,131 +441,228 @@ onBeforeUnmount(revokePreview);
   gap: 16px;
 }
 
-.type-list {
-  border: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.type-list legend {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
-  margin-bottom: 8px;
-}
-
-.type-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.type-option:hover {
-  border-color: #94a3b8;
-}
-
-.type-option.selected {
-  border-color: #15803d;
-  background: #f8fafc;
-}
-
-.type-option input {
-  margin-top: 3px;
-  accent-color: #15803d;
-}
-
-.type-option strong {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
-}
-
-.type-option small {
-  font-size: 12px;
-  color: #475569;
-  display: block;
-  margin-top: 2px;
-}
-
-.field-block {
+.field-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.field-block span {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #0f172a;
+.field-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-size: 13.5px;
+  color: #0f172a;
 }
 
-.field-block small {
-  color: #475569;
-  font-weight: 400;
+.field-required {
   font-size: 12px;
+  color: #ef4444;
 }
 
+.field-optional {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ==========================================================================
+   CUSTOM DROPDOWN (Replaces native browser <select>)
+   ========================================================================== */
+.custom-dropdown-group {
+  position: relative;
+}
+
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-trigger-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.dropdown-trigger-btn:hover:not(:disabled) {
+  border-color: #64748b;
+}
+
+.dropdown-trigger-btn--open {
+  border-color: #15803d !important;
+}
+
+.dropdown-trigger-btn:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+}
+
+.dropdown-trigger-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #0f172a;
+}
+
+.dropdown-trigger-placeholder {
+  color: #64748b;
+}
+
+.dropdown-chevron-icon {
+  color: #475569;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-chevron-icon--rotated {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu List Popover */
+.dropdown-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-option-item {
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  box-sizing: border-box;
+}
+
+.dropdown-option-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.dropdown-option-item--selected {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.dropdown-option-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.dropdown-option-check {
+  color: #15803d;
+  flex-shrink: 0;
+}
+
+.dropdown-empty-state {
+  padding: 12px;
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Field Controls */
 .field-control {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #94a3b8;
   border-radius: 8px;
   font-size: 13.5px;
   color: #0f172a;
-  font-family: inherit;
-  outline: none;
   background: #ffffff;
+  outline: none;
+  font-family: inherit;
   box-sizing: border-box;
+  transition: border-color 0.15s ease;
 }
 
 .field-control:focus {
   border-color: #15803d;
 }
 
+.field-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+.file-input-control {
+  padding: 7px 10px;
+}
+
 .field-hint {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #475569;
+  margin-top: 2px;
 }
 
-.character-count {
+.field-counter {
   font-size: 12px;
-  color: #475569;
+  color: #64748b;
   text-align: right;
+  margin-top: 2px;
 }
 
-.image-preview {
+/* Image preview */
+.image-preview-box {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 180px;
-  border: 1px solid #cbd5e1;
+  max-height: 160px;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
 }
 
-.image-preview img {
+.preview-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.remove-image {
+.preview-remove-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 26px;
-  height: 26px;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: rgba(15, 23, 42, 0.75);
   color: #ffffff;
@@ -467,66 +674,60 @@ onBeforeUnmount(revokePreview);
   transition: background 0.15s ease;
 }
 
-.remove-image:hover {
+.preview-remove-btn:hover {
   background: #dc2626;
 }
 
 .form-error {
-  color: #dc2626;
   font-size: 13px;
+  color: #ef4444;
   margin: 0;
+  line-height: 1.4;
 }
 
+/* Footer Actions */
 .form-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 8px;
+  border: none !important;
 }
 
-.cancel-button {
+.btn-cancel {
   padding: 9px 18px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1px solid #94a3b8;
   background: #ffffff;
-  color: #0f172a;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.cancel-button:hover {
-  border-color: #94a3b8;
-}
-
-.submit-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-  height: 38px;
-  border: 1px solid #15803d;
+  color: #334155;
   border-radius: 6px;
-  background: #15803d;
-  color: #ffffff;
   font-size: 13.5px;
-  font-weight: 500;
   cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.submit-button:hover:not(:disabled) {
-  background: #166534;
-  border-color: #166534;
+.btn-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-.submit-button:disabled {
-  cursor: not-allowed;
+.btn-submit {
+  padding: 9px 22px;
+  border: none;
   background: #15803d;
-  border-color: #15803d;
   color: #ffffff;
-  opacity: 0.9;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-submit:hover {
+  background: #166534;
+}
+
+.btn-submit:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
 }
 </style>

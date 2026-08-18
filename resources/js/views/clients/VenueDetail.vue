@@ -1061,7 +1061,7 @@ export default {
 
 <style scoped>
 .venue-detail-page {
-  background: #f8fafc;
+  background: #ffffff;
   min-height: 100vh;
   color: #0f172a;
   padding-bottom: 60px;
@@ -1110,7 +1110,7 @@ export default {
 /* HERO BAND STYLES */
 .sg-hero-band {
   background: #ffffff;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: none;
   padding: 16px 0 24px;
 }
 
@@ -1368,7 +1368,7 @@ export default {
 /* NAVIGATION TABS WRAPPER */
 .sg-detail-tabs-wrapper {
   background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: none;
   position: sticky;
   top: 0;
   z-index: 20;

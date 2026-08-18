@@ -107,18 +107,18 @@ html body .Vue-Toastification__toast {
   min-height: 44px !important;
   max-width: 380px !important;
   width: auto !important;
-  padding: 10px 14px !important;
-  border-radius: 10px !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
   font-family: inherit;
   font-size: 13.5px;
-  font-weight: 450;
+  font-weight: 400 !important;
   line-height: 1.4;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
   gap: 12px !important;
-  overflow: visible;
+  overflow: hidden !important;
   position: relative;
 
   /* Hardware Acceleration (GPU 60fps) & Spring Transition Curve */
@@ -129,65 +129,46 @@ html body .Vue-Toastification__toast {
   transform-origin: bottom right;
 }
 
-/* Invisible Hover Bridge Pseudo-element (Nối khoảng trống gap triệt tiêu giật/flicker) */
-html body .Vue-Toastification__toast::before {
-  content: '';
-  position: absolute;
-  top: -14px;
-  left: -8px;
-  right: -8px;
-  bottom: -8px;
-  pointer-events: auto;
-  z-index: -1;
-  background: transparent;
+/* Remove any pseudo elements that might create square backdrop artifacts */
+html body .Vue-Toastification__toast::before,
+html body .Vue-Toastification__toast::after {
+  display: none !important;
 }
 
-/* Disable hover bridge expansion when there is only 1 toast */
-html body .Vue-Toastification__toast:only-child::before {
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+/* Hide Toast Icons & Progress Bar Completely */
+html body .Vue-Toastification__icon,
+html body .Vue-Toastification__icon-component,
+html body .Vue-Toastification__progress-bar {
+  display: none !important;
 }
 
-/* Unified Clean Toast Types with Left Color Accents */
-html body .Vue-Toastification__toast--success {
+/* Toast Body */
+html body .Vue-Toastification__toast-body {
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+/* Unified Clean Minimalist Toast (Single Clean Layer, No square artifacts) */
+html body .Vue-Toastification__toast--success,
+html body .Vue-Toastification__toast--error,
+html body .Vue-Toastification__toast--info,
+html body .Vue-Toastification__toast--warning,
+html body .Vue-Toastification__toast--default {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border: 1px solid #e2e8f0 !important;
-  border-left: 4px solid #10b981 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
-}
-
-html body .Vue-Toastification__toast--error {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-  border-left: 4px solid #ef4444 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
-}
-
-html body .Vue-Toastification__toast--info {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-  border-left: 4px solid #3b82f6 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
-}
-
-html body .Vue-Toastification__toast--warning {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-  border-left: 4px solid #f59e0b !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
 }
 
 :root[data-theme="dark"] html body .Vue-Toastification__toast,
 .dark html body .Vue-Toastification__toast {
   background-color: #18181b !important;
   color: #f4f4f5 !important;
-  border-color: #27272a !important;
+  border: 1px solid #27272a !important;
 }
 
 /* Override Default Library Keyframe Conflicts for Smooth 60fps Enter/Leave */
