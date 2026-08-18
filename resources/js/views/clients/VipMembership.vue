@@ -1,261 +1,223 @@
 <template>
-    <div class="vip-shell sg-client-page">
-        <PublicNavbar />
-        <main class="vip-page sg-client-shell">
-            <header class="page-head">
-                <div class="page-head-copy">
-                    <p>SportGo VIP</p>
-                    <h1>Chọn gói phù hợp với bạn</h1>
-                    <span>Quyền lợi rõ ràng, giá minh bạch và kích hoạt sau khi thanh toán.</span>
-                </div>
-                <div class="head-actions">
-                    <button class="back-btn" type="button" @click="goBack">
-                        ← Quay lại
-                    </button>
-                    <router-link class="link-btn" to="/profile"
-                        >Hồ sơ</router-link
-                    >
-                </div>
-            </header>
+  <div class="vip-shell sg-client-page">
+    <PublicNavbar />
+    <main class="vip-page sg-client-shell">
+      <!-- Header -->
+      <header class="page-head">
+        <div class="page-head-copy">
+          <h1>Gói hội viên VIP</h1>
+          <p class="page-subtitle">Đặc quyền hoàn tiền sau mỗi lượt đặt sân, ưu đãi voucher và ưu tiên hỗ trợ cho người chơi thể thao thường xuyên.</p>
+        </div>
+        <div class="head-actions">
+          <button class="back-btn" type="button" @click="goBack">
+            ← Quay lại hồ sơ
+          </button>
+        </div>
+      </header>
 
-            <div v-if="error" class="alert error">{{ error }}</div>
-            <div v-if="success" class="alert success">{{ success }}</div>
-            <div v-if="hasActiveSubscription" class="alert info">
-                Bạn đang có gói VIP còn hiệu lực. Hệ thống chỉ cho phép dùng 1
-                gói VIP tại một thời điểm.
+      <!-- Alert notifications -->
+      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+      <div v-if="success" class="alert success" role="status">{{ success }}</div>
+      <div v-if="hasActiveSubscription" class="alert info" role="status">
+        Bạn đang có gói VIP còn hiệu lực. Hệ thống hiện áp dụng 1 gói VIP tại một thời điểm cho mỗi tài khoản.
+      </div>
+
+      <!-- Current Active Plan Strip (Flat plain text, NO card box) -->
+      <section v-if="subscription" class="current-plan-strip" aria-label="Gói hiện tại">
+        <div class="current-plan-item">
+          <span class="current-plan-label">Gói đang sử dụng:</span>
+          <span class="current-plan-val">{{ subscription.package?.label || subscription.package?.name }}</span>
+        </div>
+        <div class="current-plan-item">
+          <span class="current-plan-label">Hạn sử dụng:</span>
+          <span class="current-plan-val">{{ date(subscription.expires_at) }}</span>
+        </div>
+        <div class="current-plan-item">
+          <span class="current-plan-label">Đã thanh toán:</span>
+          <span class="current-plan-val">{{ money(subscription.paid_amount) }}</span>
+        </div>
+      </section>
+
+      <!-- QR Payment Section (Flat layout on white, NO card box) -->
+      <section
+        v-if="paymentInfo && !hasActiveSubscription"
+        class="payment-section"
+        aria-label="Thông tin thanh toán"
+      >
+        <div class="payment-intro">
+          <span class="payment-title">Thanh toán kích hoạt gói VIP</span>
+          <span class="payment-amount">{{ money(paymentInfo.payment?.amount) }}</span>
+          <p class="payment-hint">Vui lòng quét mã QR hoặc chuyển khoản chính xác nội dung bên dưới để hệ thống tự động kích hoạt gói.</p>
+        </div>
+
+        <div class="payment-layout">
+          <div v-if="paymentInfo.qr_url" class="payment-qr-frame">
+            <img :src="paymentInfo.qr_url" alt="QR thanh toán VIP" class="payment-qr-img" />
+          </div>
+
+          <div class="payment-details-list">
+            <div class="payment-field">
+              <span class="payment-field-label">Ngân hàng:</span>
+              <span class="payment-field-val">
+                {{ paymentInfo.payment_account?.bank_name || paymentInfo.system_bank_account?.bank_name || "-" }}
+              </span>
             </div>
 
-            <section class="vip-intro" aria-label="Thông tin gói VIP">
-                <div class="vip-intro__lead">
-                    <span class="vip-intro__icon"><AppIcon name="star" :size="20" /></span>
-                    <div>
-                        <strong>Đặc quyền SportGo dành cho người chơi thường xuyên</strong>
-                        <p>Chọn chu kỳ bên dưới để xem đúng mức giá và mức tiết kiệm của từng gói.</p>
-                    </div>
-                </div>
-                <div class="vip-intro__facts">
-                    <span><AppIcon name="shieldCheck" :size="15" /> Giá lấy từ cấu hình hệ thống</span>
-                    <span><AppIcon name="calendar" :size="15" /> Có thể chọn tháng, quý hoặc năm</span>
-                </div>
-            </section>
+            <div class="payment-field">
+              <span class="payment-field-label">Số tài khoản:</span>
+              <span class="payment-field-val">{{ paymentInfo.payment_account?.account_number || paymentInfo.system_bank_account?.account_number || "-" }}</span>
+              <button
+                type="button"
+                class="btn-copy-inline"
+                @click="copyText(paymentInfo.payment_account?.account_number || paymentInfo.system_bank_account?.account_number)"
+              >
+                Sao chép
+              </button>
+            </div>
 
-            <section v-if="subscription" class="current-plan">
-                <div>
-                    <span>Đang dùng</span>
-                    <strong>{{
-                        subscription.package?.label ||
-                        subscription.package?.name
-                    }}</strong>
-                </div>
-                <div>
-                    <span>Hiệu lực đến</span>
-                    <strong>{{ date(subscription.expires_at) }}</strong>
-                </div>
-                <div>
-                    <span>Đã thanh toán</span>
-                    <strong>{{ money(subscription.paid_amount) }}</strong>
-                </div>
-            </section>
+            <div class="payment-field">
+              <span class="payment-field-label">Nội dung chuyển khoản:</span>
+              <span class="payment-field-val">{{ paymentInfo.transfer_content }}</span>
+              <button
+                type="button"
+                class="btn-copy-inline"
+                @click="copyText(paymentInfo.transfer_content)"
+              >
+                Sao chép
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <section
-                v-if="paymentInfo && !hasActiveSubscription"
-                class="payment-panel"
+      <!-- Loading / Empty states -->
+      <div v-if="loading" class="state-text">Đang tải danh sách gói VIP...</div>
+      <div v-else-if="!paidPackages.length" class="state-text">
+        Hiện chưa có gói VIP đang mở bán. Vui lòng quay lại sau.
+      </div>
+
+      <!-- Packages Grid (Flat side-by-side columns, NO background cards, NO icon circles) -->
+      <section v-else class="plans-columns" aria-label="Danh sách gói VIP">
+        <div
+          v-for="pkg in paidPackages"
+          :key="pkg.id"
+          class="plan-column"
+        >
+          <!-- Plan Title & Description (NO icon wrap) -->
+          <div class="plan-header">
+            <div class="plan-title-line">
+              <h2 class="plan-name">{{ pkg.label || pkg.name }}</h2>
+              <span v-if="isCurrentPackage(pkg)" class="plan-current-indicator">(Đang sử dụng)</span>
+            </div>
+            <p class="plan-desc">{{ packageDescription(pkg) }}</p>
+          </div>
+
+          <!-- Price Display (Clean flat text on white) -->
+          <div class="plan-price-display">
+            <span class="plan-price-val">{{ money(pkg.monthly_price) }}</span>
+            <span class="plan-price-period">/ tháng</span>
+          </div>
+
+          <!-- Cycles Options -->
+          <div class="plan-cycles-block">
+            <div class="cycles-header">
+              <span class="block-title">Chọn chu kỳ thanh toán</span>
+              <span v-if="cycleDiscount(pkg, 'yearly') > 0" class="saving-note">
+                Tiết kiệm đến {{ formatPercent(cycleDiscount(pkg, 'yearly')) }}%/năm
+              </span>
+            </div>
+
+            <div class="cycle-buttons-stack">
+              <button
+                v-for="cycle in pkg.available_cycles"
+                :key="cycle.key"
+                type="button"
+                class="cycle-btn"
+                :disabled="!canPurchasePackage(pkg) || Boolean(subscribing)"
+                @click="openConfirm(pkg, cycle)"
+              >
+                <div class="cycle-btn-left">
+                  <span class="cycle-title">{{ cycleLabel(cycle) }}</span>
+                  <span v-if="cycleDiscount(pkg, cycle.key) > 0" class="cycle-saving-label">
+                    Tiết kiệm {{ formatPercent(cycleDiscount(pkg, cycle.key)) }}%
+                  </span>
+                </div>
+                <div class="cycle-btn-right">
+                  <span class="cycle-total">{{ money(cycle.price) }}</span>
+                  <span class="cycle-monthly">{{ money(cycleUnitPrice(cycle)) }}/tháng</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Features (Clean plain list, NO icon circles) -->
+          <div class="plan-features-block">
+            <span class="block-title">Quyền lợi thành viên</span>
+            <ul class="features-list">
+              <li v-for="feature in packageFeatures(pkg)" :key="feature.key" class="feature-row">
+                <AppIcon name="check" :size="14" class="feature-check-icon" />
+                <div class="feature-texts">
+                  <span class="feature-main">{{ feature.value }}</span>
+                  <span class="feature-sub">{{ feature.label }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Confirmation Modal -->
+      <div
+        v-if="pendingPurchase"
+        class="modal-overlay"
+        role="presentation"
+        @click.self="closeConfirm"
+      >
+        <section class="confirm-modal-card" role="dialog" aria-modal="true">
+          <header class="confirm-modal-header">
+            <h2 class="confirm-modal-title">Xác nhận đăng ký gói VIP</h2>
+            <p class="confirm-modal-subtitle">
+              {{ pendingPurchase.package.label || pendingPurchase.package.name }}
+            </p>
+          </header>
+
+          <div class="confirm-summary-grid">
+            <div class="confirm-item">
+              <span class="confirm-label">Chu kỳ:</span>
+              <span class="confirm-val">{{ cycleLabel(pendingPurchase.cycle) }}</span>
+            </div>
+            <div class="confirm-item">
+              <span class="confirm-label">Tổng thanh toán:</span>
+              <span class="confirm-val">{{ money(pendingPurchase.cycle.price) }}</span>
+            </div>
+          </div>
+
+          <p class="confirm-note">
+            Sau khi quét mã thanh toán thành công, hệ thống sẽ tự động kích hoạt gói VIP cho tài khoản của bạn.
+          </p>
+
+          <footer class="confirm-modal-actions">
+            <button
+              type="button"
+              class="btn-cancel"
+              :disabled="Boolean(subscribing)"
+              @click="closeConfirm"
             >
-                <div class="payment-copy">
-                    <span>Thanh toán</span>
-                    <strong>{{ money(paymentInfo.payment?.amount) }}</strong>
-                    <small
-                        >Chuyển đúng số tiền và nội dung để hệ thống tự kích
-                        hoạt gói VIP.</small
-                    >
-                </div>
-                <img
-                    v-if="paymentInfo.qr_url"
-                    :src="paymentInfo.qr_url"
-                    alt="QR thanh toán VIP"
-                />
-                <div class="payment-details">
-                    <div>
-                        <small>Ngân hàng</small>
-                        <strong>{{
-                            paymentInfo.payment_account?.bank_name ||
-                            paymentInfo.system_bank_account?.bank_name ||
-                            "-"
-                        }}</strong>
-                    </div>
-                    <div>
-                        <small>Số tài khoản</small>
-                        <button
-                            type="button"
-                            @click="
-                                copyText(
-                                    paymentInfo.payment_account
-                                        ?.account_number ||
-                                        paymentInfo.system_bank_account
-                                            ?.account_number,
-                                )
-                            "
-                        >
-                            {{
-                                paymentInfo.payment_account?.account_number ||
-                                paymentInfo.system_bank_account
-                                    ?.account_number ||
-                                "-"
-                            }}
-                        </button>
-                    </div>
-                    <div>
-                        <small>Nội dung</small>
-                        <button
-                            type="button"
-                            @click="copyText(paymentInfo.transfer_content)"
-                        >
-                            {{ paymentInfo.transfer_content }}
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <div v-if="loading" class="state">Đang tải gói VIP...</div>
-            <div v-else-if="!paidPackages.length" class="state">
-                Hiện chưa có gói VIP đang mở bán. Vui lòng quay lại sau.
-            </div>
-            <section v-else class="plan-grid" aria-label="Danh sách gói VIP">
-                <article
-                    v-for="pkg in paidPackages"
-                    :key="pkg.id"
-                    class="plan-card"
-                    :class="[
-                        `plan-${pkg.type}`,
-                        { current: isCurrentPackage(pkg) },
-                    ]"
-                >
-                    <header class="plan-card__header">
-                        <div class="plan-card__identity">
-                            <span class="plan-card__icon" :class="`plan-card__icon--${pkg.type}`">
-                                <AppIcon :name="pkg.type === 'pro' ? 'shieldCheck' : 'star'" :size="19" />
-                            </span>
-                            <div>
-                                <span class="plan-card__eyebrow">{{ packageBadgeText(pkg) }}</span>
-                                <h2>{{ pkg.label || pkg.name }}</h2>
-                                <p>{{ packageDescription(pkg) }}</p>
-                            </div>
-                        </div>
-                        <div class="plan-card__labels">
-                            <span v-if="pkg.type === 'saving'" class="plan-card__recommended">Phổ biến</span>
-                            <em v-if="isCurrentPackage(pkg)">Đang dùng</em>
-                        </div>
-                    </header>
-
-                    <div class="plan-price">
-                        <div>
-                            <strong>{{ money(pkg.monthly_price) }}</strong>
-                            <span>/ tháng</span>
-                        </div>
-                        <small>Giá tham chiếu theo chu kỳ tháng</small>
-                    </div>
-
-                    <div class="plan-card__section-head">
-                        <div>
-                            <strong>Chọn chu kỳ thanh toán</strong>
-                            <span>Thanh toán một lần cho toàn bộ chu kỳ</span>
-                        </div>
-                        <span v-if="cycleDiscount(pkg, 'yearly') > 0" class="plan-card__saving">
-                            Tiết kiệm {{ formatPercent(cycleDiscount(pkg, 'yearly')) }}%/năm
-                        </span>
-                    </div>
-
-                    <div class="cycle-list">
-                        <button
-                            v-for="cycle in pkg.available_cycles"
-                            :key="cycle.key"
-                            class="cycle-option"
-                            type="button"
-                            :disabled="
-                                !canPurchasePackage(pkg) || Boolean(subscribing)
-                            "
-                            @click="openConfirm(pkg, cycle)"
-                        >
-                            <span class="cycle-option__name">
-                                <strong>{{ cycleLabel(cycle) }}</strong>
-                                <small v-if="cycleDiscount(pkg, cycle.key) > 0">Giảm {{ formatPercent(cycleDiscount(pkg, cycle.key)) }}%</small>
-                            </span>
-                            <span class="cycle-option__price">
-                                <strong>{{ money(cycle.price) }}</strong>
-                                <small>{{ money(cycleUnitPrice(cycle)) }}/tháng</small>
-                            </span>
-                        </button>
-                    </div>
-
-                    <div class="plan-card__features">
-                        <div class="plan-card__section-head plan-card__section-head--features">
-                            <strong>Quyền lợi trong gói</strong>
-                            <span>{{ packageFeatures(pkg).length }} quyền lợi</span>
-                        </div>
-                        <ul>
-                            <li v-for="feature in packageFeatures(pkg)" :key="feature.key">
-                                <span class="plan-feature__icon"><AppIcon name="check" :size="14" /></span>
-                                <span><strong>{{ feature.value }}</strong><small>{{ feature.label }}</small></span>
-                            </li>
-                        </ul>
-                    </div>
-                </article>
-            </section>
-
-            <div
-                v-if="pendingPurchase"
-                class="confirm-backdrop"
-                @click.self="closeConfirm"
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn-confirm"
+              :disabled="Boolean(subscribing)"
+              @click="confirmPurchase"
             >
-                <section class="confirm-modal" role="dialog" aria-modal="true">
-                    <header>
-                        <span>Xác nhận mua gói</span>
-                        <h2>
-                            {{
-                                pendingPurchase.package.label ||
-                                pendingPurchase.package.name
-                            }}
-                        </h2>
-                    </header>
-                    <div class="confirm-summary">
-                        <div>
-                            <small>Chu kỳ</small>
-                            <strong>{{
-                                cycleLabel(pendingPurchase.cycle)
-                            }}</strong>
-                        </div>
-                        <div>
-                            <small>Số tiền</small>
-                            <strong>{{
-                                money(pendingPurchase.cycle.price)
-                            }}</strong>
-                        </div>
-                    </div>
-                    <p>
-                        Sau khi thanh toán thành công, gói VIP sẽ được kích hoạt
-                        ngay và hệ thống sẽ phát quyền lợi của tháng đầu tiên.
-                    </p>
-                    <footer>
-                        <button
-                            class="ghost-btn"
-                            type="button"
-                            @click="closeConfirm"
-                        >
-                            Hủy
-                        </button>
-                        <button
-                            class="confirm-btn"
-                            type="button"
-                            :disabled="Boolean(subscribing)"
-                            @click="confirmPurchase"
-                        >
-                            {{ subscribing ? "Đang xử lý..." : "Xác nhận mua" }}
-                        </button>
-                    </footer>
-                </section>
-            </div>
-        </main>
-    </div>
+              {{ subscribing ? "Đang xử lý..." : "Tiến hành thanh toán" }}
+            </button>
+          </footer>
+        </section>
+      </div>
+    </main>
+  </div>
 </template>
 
 <script>
@@ -264,1002 +226,795 @@ import AppIcon from "../../components/AppIcon.vue";
 import { vipMembershipService } from "../../services/vipMembershipService.js";
 
 export default {
-    name: "VipMembership",
-    components: { AppIcon, PublicNavbar },
-    data() {
-        return {
-            packages: [],
-            subscription: null,
-            loading: false,
-            subscribing: "",
-            error: "",
-            success: "",
-            pendingPurchase: null,
-            paymentInfo: null,
-            paymentPollInterval: null,
-        };
+  name: "VipMembership",
+  components: { AppIcon, PublicNavbar },
+  data() {
+    return {
+      packages: [],
+      subscription: null,
+      loading: false,
+      subscribing: "",
+      error: "",
+      success: "",
+      pendingPurchase: null,
+      paymentInfo: null,
+      paymentPollInterval: null,
+    };
+  },
+  computed: {
+    paidPackages() {
+      return this.packages.filter(
+        (pkg) => pkg.type !== "free" && pkg.is_active,
+      );
     },
-    computed: {
-        paidPackages() {
-            return this.packages.filter(
-                (pkg) => pkg.type !== "free" && pkg.is_active,
-            );
-        },
-        hasActiveSubscription() {
-            return Boolean(
-                this.subscription?.status === "active" &&
-                this.subscription?.expires_at &&
-                new Date(this.subscription.expires_at) > new Date(),
-            );
-        },
+    hasActiveSubscription() {
+      return Boolean(
+        this.subscription?.status === "active" &&
+        this.subscription?.expires_at &&
+        new Date(this.subscription.expires_at) > new Date(),
+      );
     },
-    mounted() {
+  },
+  mounted() {
+    this.load();
+  },
+  beforeUnmount() {
+    this.stopPaymentPolling();
+  },
+  methods: {
+    async load() {
+      this.loading = true;
+      this.error = "";
+      try {
+        const response = await vipMembershipService.playerIndex();
+        this.packages = response.packages || [];
+        this.subscription = response.subscription || null;
+        if (this.hasActiveSubscription) {
+          this.paymentInfo = null;
+          this.stopPaymentPolling();
+        }
+      } catch (error) {
+        this.error = error.message || "Không thể tải gói VIP.";
+      } finally {
+        this.loading = false;
+      }
+    },
+    isCurrentPackage(pkg) {
+      return this.subscription?.package?.id === pkg.id;
+    },
+    canPurchasePackage(pkg) {
+      return !this.hasActiveSubscription && !this.isCurrentPackage(pkg);
+    },
+    goBack() {
+      this.$router.push("/profile");
+    },
+    packageDescription(pkg) {
+      if (pkg.type === "saving") return "Tiết kiệm chi phí và tối ưu quyền lợi cho người chơi đều đặn.";
+      if (pkg.type === "pro") return "Tối đa đặc quyền hoàn tiền, bài giao lưu và ưu đãi đặt sân.";
+      return "Quyền lợi VIP tiện ích dành riêng cho người chơi SportGo.";
+    },
+    packageFeatures(pkg) {
+      const cashback = Number(pkg.cashback_percent || 0);
+      const postLimit = Number(pkg.match_post_limit_per_month || 0);
+      const voucherCount = Number(pkg.voucher_count_per_month || 0);
+      const voucherDiscount = Number(pkg.voucher_discount_percent || 0);
+      const voucherMax = Number(pkg.voucher_max_discount_amount || 0);
+      const voucherMin = Number(pkg.voucher_min_order_amount || 0);
+
+      return [
+        {
+          key: "cashback",
+          value: cashback > 0 ? `Hoàn tiền ${this.formatPercent(cashback)}%` : "Không có hoàn tiền",
+          label: "Cộng trực tiếp vào ví sau khi hoàn tất lượt đặt sân",
+        },
+        {
+          key: "matchmaking",
+          value: this.postLimitText(postLimit),
+          label: "Đăng tin tìm đối giao lưu trên hệ thống",
+        },
+        {
+          key: "voucher-count",
+          value: voucherCount > 0 ? `${voucherCount} voucher VIP / tháng` : "Không có voucher VIP",
+          label: "Tự động phát vào đầu mỗi chu kỳ thành viên",
+        },
+        {
+          key: "voucher-value",
+          value: voucherDiscount > 0 ? `Ưu đãi giảm ${this.formatPercent(voucherDiscount)}%` : "Ưu đãi chuẩn",
+          label: voucherDiscount > 0 && voucherMax > 0
+            ? `Tối đa ${this.money(voucherMax)} · đơn từ ${this.money(voucherMin)}`
+            : "Áp dụng theo chính sách gói",
+        },
+        {
+          key: "complaint",
+          value: pkg.priority_complaint ? "Ưu tiên hỗ trợ & xử lý khiếu nại" : "Hỗ trợ tiêu chuẩn",
+          label: "Thời gian tiếp nhận và phản hồi nhanh chóng",
+        },
+      ];
+    },
+    cycleDiscount(pkg, cycle) {
+      return Number(pkg.pricing_discounts?.[cycle] || 0);
+    },
+    cycleUnitPrice(cycle) {
+      const months = Number(cycle.months || 1);
+      return Number(cycle.price || 0) / Math.max(months, 1);
+    },
+    formatPercent(value) {
+      return Number(value || 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    },
+    cycleLabel(cycle) {
+      return (
+        {
+          monthly: "Hằng tháng (1 tháng)",
+          quarterly: "Hằng quý (3 tháng)",
+          yearly: "Hằng năm (12 tháng)",
+        }[cycle.key] ||
+        cycle.label ||
+        "Chu kỳ"
+      );
+    },
+    openConfirm(pkg, cycle) {
+      this.error = "";
+      this.success = "";
+      if (!this.canPurchasePackage(pkg)) {
+        this.error =
+          "Bạn đang có gói VIP còn hiệu lực. Không thể mua thêm hoặc đổi sang gói khác cho đến khi gói hiện tại hết hạn.";
+        return;
+      }
+      this.pendingPurchase = { package: pkg, cycle };
+    },
+    closeConfirm() {
+      if (this.subscribing) return;
+      this.pendingPurchase = null;
+    },
+    async confirmPurchase() {
+      if (!this.pendingPurchase) return;
+
+      const { package: pkg, cycle } = this.pendingPurchase;
+      this.subscribing = `${pkg.id}-${cycle.key}`;
+      this.error = "";
+      try {
+        const response = await vipMembershipService.subscribe({
+          package_id: pkg.id,
+          billing_cycle: cycle.key,
+        });
+        this.success =
+          response.message || "Đã tạo thông tin thanh toán gói VIP.";
+        this.paymentInfo = response;
+        this.pendingPurchase = null;
+        this.startPaymentPolling();
+      } catch (error) {
+        this.error = error.message || "Không thể kích hoạt gói VIP.";
+      } finally {
+        this.subscribing = "";
+      }
+    },
+    startPaymentPolling() {
+      this.stopPaymentPolling();
+      this.paymentPollInterval = setInterval(() => {
         this.load();
+      }, 5000);
     },
-    beforeUnmount() {
-        this.stopPaymentPolling();
+    stopPaymentPolling() {
+      if (!this.paymentPollInterval) return;
+      clearInterval(this.paymentPollInterval);
+      this.paymentPollInterval = null;
     },
-    methods: {
-        async load() {
-            this.loading = true;
-            this.error = "";
-            try {
-                const response = await vipMembershipService.playerIndex();
-                this.packages = response.packages || [];
-                this.subscription = response.subscription || null;
-                if (this.hasActiveSubscription) {
-                    this.paymentInfo = null;
-                    this.stopPaymentPolling();
-                }
-            } catch (error) {
-                this.error = error.message || "Không thể tải gói VIP.";
-            } finally {
-                this.loading = false;
-            }
-        },
-        isCurrentPackage(pkg) {
-            return this.subscription?.package?.id === pkg.id;
-        },
-        canPurchasePackage(pkg) {
-            return !this.hasActiveSubscription && !this.isCurrentPackage(pkg);
-        },
-        goBack() {
-            this.$router.push("/profile");
-        },
-        packageBadgeText(pkg) {
-            if (pkg.type === "saving") return "SportGo Tiết kiệm";
-            if (pkg.type === "pro") return "SportGo Pro";
-            return pkg.badge_name || pkg.label || pkg.name;
-        },
-        packageDescription(pkg) {
-            if (pkg.type === "saving") return "Cân bằng chi phí và quyền lợi cho người chơi đều đặn.";
-            if (pkg.type === "pro") return "Tối đa đặc quyền cho người chơi và cộng đồng giao lưu.";
-            return "Quyền lợi cơ bản để bắt đầu hành trình cùng SportGo.";
-        },
-        packageFeatures(pkg) {
-            const cashback = Number(pkg.cashback_percent || 0);
-            const postLimit = Number(pkg.match_post_limit_per_month || 0);
-            const voucherCount = Number(pkg.voucher_count_per_month || 0);
-            const voucherDiscount = Number(pkg.voucher_discount_percent || 0);
-            const voucherMax = Number(pkg.voucher_max_discount_amount || 0);
-            const voucherMin = Number(pkg.voucher_min_order_amount || 0);
-
-            return [
-                {
-                    key: "cashback",
-                    value: cashback > 0 ? `${this.formatPercent(cashback)}% cashback` : "Không có cashback",
-                    label: "Hoàn tiền sau booking hoàn tất",
-                },
-                {
-                    key: "matchmaking",
-                    value: this.postLimitText(postLimit),
-                    label: "Đăng bài tuyển giao lưu mỗi tháng",
-                },
-                {
-                    key: "voucher-count",
-                    value: voucherCount > 0 ? `${voucherCount} voucher VIP/tháng` : "Không có voucher VIP",
-                    label: "Voucher được phát theo chu kỳ hệ thống",
-                },
-                {
-                    key: "voucher-value",
-                    value: voucherDiscount > 0 ? `Giảm ${this.formatPercent(voucherDiscount)}%` : "Không áp dụng giảm voucher",
-                    label: voucherDiscount > 0 && voucherMax > 0
-                        ? `Tối đa ${this.money(voucherMax)} · đơn từ ${this.money(voucherMin)}`
-                        : "Ưu đãi voucher theo cấu hình gói",
-                },
-                {
-                    key: "complaint",
-                    value: pkg.priority_complaint ? "Ưu tiên xử lý" : "Xử lý tiêu chuẩn",
-                    label: "Khiếu nại và hỗ trợ từ SportGo",
-                },
-            ];
-        },
-        cycleDiscount(pkg, cycle) {
-            return Number(pkg.pricing_discounts?.[cycle] || 0);
-        },
-        cycleUnitPrice(cycle) {
-            const months = Number(cycle.months || 1);
-            return Number(cycle.price || 0) / Math.max(months, 1);
-        },
-        formatPercent(value) {
-            return Number(value || 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
-        },
-        cycleLabel(cycle) {
-            return (
-                {
-                    monthly: "Hằng tháng",
-                    quarterly: "Hằng quý",
-                    yearly: "Hằng năm",
-                }[cycle.key] ||
-                cycle.label ||
-                "Chu kỳ"
-            );
-        },
-        openConfirm(pkg, cycle) {
-            this.error = "";
-            this.success = "";
-            if (!this.canPurchasePackage(pkg)) {
-                this.error =
-                    "Bạn đang có gói VIP còn hiệu lực. Không thể mua thêm hoặc đổi sang gói khác cho đến khi gói hiện tại hết hạn.";
-                return;
-            }
-            this.pendingPurchase = { package: pkg, cycle };
-        },
-        purchaseActionText(pkg, cycle) {
-            if (this.isCurrentPackage(pkg)) return "Đang dùng";
-            if (this.hasActiveSubscription) return "Đã có gói VIP";
-            return `Mua ${this.cycleLabel(cycle).toLowerCase()}`;
-        },
-        closeConfirm() {
-            if (this.subscribing) return;
-            this.pendingPurchase = null;
-        },
-        async confirmPurchase() {
-            if (!this.pendingPurchase) return;
-
-            const { package: pkg, cycle } = this.pendingPurchase;
-            this.subscribing = `${pkg.id}-${cycle.key}`;
-            this.error = "";
-            try {
-                const response = await vipMembershipService.subscribe({
-                    package_id: pkg.id,
-                    billing_cycle: cycle.key,
-                });
-                this.success =
-                    response.message || "Đã tạo thông tin thanh toán gói VIP.";
-                this.paymentInfo = response;
-                this.pendingPurchase = null;
-                this.startPaymentPolling();
-            } catch (error) {
-                this.error = error.message || "Không thể kích hoạt gói VIP.";
-            } finally {
-                this.subscribing = "";
-            }
-        },
-        startPaymentPolling() {
-            this.stopPaymentPolling();
-            this.paymentPollInterval = setInterval(() => {
-                this.load();
-            }, 5000);
-        },
-        stopPaymentPolling() {
-            if (!this.paymentPollInterval) return;
-            clearInterval(this.paymentPollInterval);
-            this.paymentPollInterval = null;
-        },
-        async copyText(value) {
-            if (!value) return;
-            try {
-                await navigator.clipboard.writeText(String(value));
-                this.success = "Đã sao chép thông tin thanh toán.";
-            } catch {
-                this.error = "Không thể sao chép. Vui lòng sao chép thủ công.";
-            }
-        },
-        postLimitText(limit) {
-            return Number(limit) < 0
-                ? "Bài giao lưu không giới hạn"
-                : `${Number(limit || 0)} bài giao lưu/tháng`;
-        },
-        money(value) {
-            return new Intl.NumberFormat("vi-VN", {
-                style: "currency",
-                currency: "VND",
-            }).format(value || 0);
-        },
-        date(value) {
-            return value ? new Date(value).toLocaleDateString("vi-VN") : "-";
-        },
+    async copyText(value) {
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(String(value));
+        this.success = "Đã sao chép thông tin thanh toán.";
+      } catch {
+        this.error = "Không thể sao chép. Vui lòng sao chép thủ công.";
+      }
     },
+    postLimitText(limit) {
+      return Number(limit) < 0
+        ? "Đăng bài giao lưu không giới hạn"
+        : `${Number(limit || 0)} bài giao lưu / tháng`;
+    },
+    money(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+      }).format(value || 0);
+    },
+    date(value) {
+      return value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+    },
+  },
 };
 </script>
 
 <style scoped>
+/* ==========================================================================
+   VIP MEMBERSHIP PAGE - ULTRA MINIMALIST, FLAT & SINGLE WHITE SURFACE
+   - 100% pure white background (#ffffff)
+   - Zero card boxes, zero box shadows, zero icon wrappers
+   - Zero badges/chips/pills, zero emoji, zero gradients
+   - Strict font-weight: 400 throughout
+   - Crisp, high-contrast dark text (#0f172a, #334155, #475569)
+   - Clean choice buttons with thin sharp outline (#94a3b8)
+   ========================================================================== */
 .vip-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 8% 0%, rgba(220, 252, 231, 0.68), transparent 28rem),
-    #f6faf7;
-  color: #14231b;
+  background: #ffffff !important;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+/* Global reset to font-weight 400 throughout */
+.vip-shell *,
+.vip-shell h1,
+.vip-shell h2,
+.vip-shell button,
+.vip-shell span,
+.vip-shell strong,
+.vip-shell small,
+.vip-shell p,
+.vip-shell label,
+.vip-shell li {
+  font-weight: 400 !important;
+  background-image: none !important;
 }
 
 .vip-page {
-  max-width: 1240px;
-  padding: 34px 24px 72px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
 }
 
+/* Page Header - No bottom border */
 .page-head {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 22px;
+  gap: 20px;
+  margin-bottom: 24px;
+  border: none !important;
 }
 
-.page-head-copy > p {
-  margin: 0 0 7px;
-  color: #15803d;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.page-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 720px;
 }
 
 .page-head-copy h1 {
+  font-size: 24px;
+  color: #0f172a;
   margin: 0;
-  color: #102219;
-  font-size: clamp(27px, 3vw, 42px);
-  font-weight: 720;
-  letter-spacing: -0.04em;
-  line-height: 1.06;
+  line-height: 1.25;
 }
 
-.page-head-copy span {
-  display: block;
-  max-width: 630px;
-  margin-top: 10px;
-  color: #647b6b;
+.page-subtitle {
   font-size: 14px;
-  line-height: 1.6;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .head-actions {
-  display: flex;
   flex-shrink: 0;
-  align-items: center;
-  gap: 9px;
 }
 
-.back-btn,
-.link-btn,
-.ghost-btn,
-.confirm-btn {
+.back-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 9px;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 650;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-.back-btn,
-.link-btn,
-.ghost-btn {
-  border: 1px solid #d6e5da;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #94a3b8;
   background: #ffffff;
-  color: #355242;
+  color: #334155;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.back-btn:hover,
-.link-btn:hover,
-.ghost-btn:hover {
-  border-color: #a5cdb0;
-  background: #f7fcf8;
+.back-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #64748b;
 }
 
+/* Alerts */
 .alert {
-  margin-bottom: 14px;
-  padding: 12px 15px;
-  border-radius: 10px;
-  font-size: 13px;
+  padding: 11px 15px;
+  border-radius: 6px;
+  font-size: 13.5px;
   line-height: 1.45;
+  margin-bottom: 18px;
+  border: 1px solid transparent;
 }
 
 .alert.error {
-  border: 1px solid #fecaca;
-  background: #fff7f7;
+  background: #fef2f2;
+  border-color: #fecaca;
   color: #b91c1c;
 }
 
 .alert.success {
-  border: 1px solid #bbf7d0;
   background: #f0fdf4;
+  border-color: #bbf7d0;
   color: #15803d;
 }
 
 .alert.info {
-  border: 1px solid #cbe4d2;
-  background: #effaf1;
-  color: #256d3d;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
 }
 
-.vip-intro {
+/* Current Plan Strip - Plain flat row on white (NO card box) */
+.current-plan-strip {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 18px;
-  padding: 18px 20px;
-  border: 1px solid #cfe7d5;
-  border-radius: 15px;
-  background: linear-gradient(125deg, #f2fcf4 0%, #fbfefb 100%);
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 10px 0;
+  border: none !important;
 }
 
-.vip-intro__lead {
+.current-plan-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
 }
 
-.vip-intro__icon,
-.plan-card__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  background: #dcf4e2;
-  color: #15803d;
+.current-plan-label {
+  color: #475569;
 }
 
-.vip-intro__lead strong {
-  display: block;
-  color: #1c3b27;
-  font-size: 14px;
-  font-weight: 700;
+.current-plan-val {
+  color: #0f172a;
 }
 
-.vip-intro__lead p {
-  margin: 4px 0 0;
-  color: #64816e;
-  font-size: 12px;
-}
-
-.vip-intro__facts {
+/* QR Payment Section - Flat on white (NO card box) */
+.payment-section {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  color: #5e7667;
-  font-size: 11.5px;
-  white-space: nowrap;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 0 0 20px 0;
+  border: none !important;
 }
 
-.vip-intro__facts span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.current-plan {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  margin-bottom: 18px;
-  overflow: hidden;
-  border: 1px solid #c8e3cf;
-  border-radius: 14px;
-  background: #c8e3cf;
-}
-
-.current-plan > div {
-  display: flex;
-  min-height: 82px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  padding: 14px 18px;
-  background: #f7fff8;
-}
-
-.current-plan span {
-  color: #668170;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.current-plan strong {
-  color: #166534;
-  font-size: 17px;
-  font-weight: 720;
-}
-
-.payment-panel {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 18px;
-  padding: 18px;
-  border: 1px solid #f2d99a;
-  border-radius: 15px;
-  background: #fffaf0;
-}
-
-.payment-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.payment-copy > span {
-  color: #a16207;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.payment-copy > strong {
-  color: #7c4a06;
-  font-size: 23px;
-  font-weight: 750;
-}
-
-.payment-copy small {
-  color: #8a6d36;
-  font-size: 11.5px;
-  line-height: 1.5;
-}
-
-.payment-panel img {
-  width: 150px;
-  height: 150px;
-  justify-self: center;
-  border: 7px solid #ffffff;
-  border-radius: 9px;
-  box-shadow: 0 5px 14px rgba(124, 74, 6, 0.12);
-}
-
-.payment-details {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.payment-details > div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-  padding: 11px 12px;
-  border: 1px solid #f1dfb9;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.payment-details small {
-  color: #9a7a45;
-  font-size: 10.5px;
-}
-
-.payment-details strong,
-.payment-details button {
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #66420b;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.payment-details button {
-  cursor: pointer;
-}
-
-.payment-details button:hover {
-  color: #a16207;
-  text-decoration: underline;
-}
-
-.state {
-  padding: 42px 20px;
-  border: 1px dashed #cddfd1;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.7);
-  color: #668170;
-  font-size: 13px;
-  text-align: center;
-}
-
-.plan-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  align-items: start;
-}
-
-.plan-card {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #dbe8de;
-  border-radius: 17px;
-  background: #ffffff;
-  box-shadow: 0 8px 24px rgba(20, 59, 32, 0.055);
-}
-
-.plan-card.current {
-  border-color: #47a65c;
-  box-shadow: 0 0 0 3px rgba(71, 166, 92, 0.13), 0 10px 26px rgba(20, 59, 32, 0.07);
-}
-
-.plan-card.plan-pro {
-  border-color: #b8cce9;
-  background: linear-gradient(180deg, #fbfdff 0%, #ffffff 38%);
-}
-
-.plan-card.plan-pro .plan-card__icon {
-  background: #e1ebfb;
-  color: #2563a8;
-}
-
-.plan-card.plan-saving {
-  border-color: #b9e2c4;
-  background: linear-gradient(180deg, #fbfffc 0%, #ffffff 38%);
-}
-
-.plan-card__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 20px 20px 14px;
-}
-
-.plan-card__identity {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 11px;
-}
-
-.plan-card__icon {
-  width: 36px;
-  height: 36px;
-}
-
-.plan-card__eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: #15803d;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.plan-card__header h2 {
-  margin: 0;
-  color: #102219;
-  font-size: 21px;
-  font-weight: 720;
-}
-
-.plan-card__header p {
-  margin: 5px 0 0;
-  color: #6b8172;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.plan-card__labels {
-  display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
-}
-
-.plan-card__recommended,
-.plan-card__labels em {
-  padding: 5px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.plan-card__recommended {
-  background: #fff4d6;
-  color: #a16207;
-}
-
-.plan-card__labels em {
-  background: #e4f6e8;
-  color: #15803d;
-}
-
-.plan-price {
+.payment-intro {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin: 0 20px 15px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #edf2ee;
 }
 
-.plan-price > div {
+.payment-title {
+  font-size: 14px;
+  color: #475569;
+}
+
+.payment-amount {
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.payment-hint {
+  font-size: 13px;
+  color: #334155;
+  margin: 2px 0 0;
+}
+
+.payment-layout {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 20px;
+  align-items: center;
+}
+
+.payment-qr-frame {
+  width: 140px;
+  height: 140px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.payment-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.payment-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.payment-field-label {
+  color: #475569;
+}
+
+.payment-field-val {
+  color: #0f172a;
+}
+
+.btn-copy-inline {
+  padding: 2px 7px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 4px;
+  font-size: 11.5px;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: background 0.15s ease;
+}
+
+.btn-copy-inline:hover {
+  background: #f1f5f9;
+}
+
+/* Loading & Empty State */
+.state-text {
+  padding: 40px 0;
+  text-align: center;
+  color: #475569;
+  font-size: 14px;
+}
+
+/* Plans Columns (Flat columns on white, NO background cards, NO shadows) */
+.plans-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  align-items: start;
+}
+
+.plan-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: transparent;
+  border: none !important;
+  padding: 0;
+  box-shadow: none !important;
+}
+
+/* Plan Header (NO icon wrap box) */
+.plan-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.plan-name {
+  font-size: 20px;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.plan-current-indicator {
+  font-size: 13px;
+  color: #15803d;
+}
+
+.plan-desc {
+  font-size: 13px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Price Display (Clean flat text) */
+.plan-price-display {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
-.plan-price strong {
-  color: #0f5130;
-  font-size: 25px;
-  font-weight: 750;
+.plan-price-val {
+  font-size: 24px;
+  color: #0f172a;
 }
 
-.plan-price span {
-  color: #789181;
-  font-size: 11px;
+.plan-price-period {
+  font-size: 13px;
+  color: #475569;
 }
 
-.plan-price small {
-  color: #81958a;
-  font-size: 10.5px;
-}
-
-.plan-card__section-head {
+/* Cycles Section */
+.plan-cycles-block {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cycles-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 20px 10px;
+  gap: 8px;
 }
 
-.plan-card__section-head > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.block-title {
+  font-size: 13.5px;
+  color: #0f172a;
 }
 
-.plan-card__section-head strong {
-  color: #273f30;
+.saving-note {
   font-size: 12px;
+  color: #15803d;
 }
 
-.plan-card__section-head span {
-  color: #7b9182;
-  font-size: 10.5px;
-}
-
-.plan-card__section-head--features {
-  padding: 0 0 10px;
-}
-
-.plan-card__saving {
-  flex-shrink: 0;
-  color: #15803d !important;
-  font-size: 10.5px !important;
-  font-weight: 700;
-  text-align: right;
-}
-
-.cycle-list {
+.cycle-buttons-stack {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 0 20px;
+  gap: 8px;
 }
 
-.cycle-option {
+.cycle-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 58px;
-  padding: 10px 12px;
-  border: 1px solid #dfeae2;
-  border-radius: 10px;
-  background: #fbfdfb;
-  color: #263f2e;
-  font: inherit;
-  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
 }
 
-.cycle-option:hover:not(:disabled) {
-  border-color: #77bd88;
-  background: #f4fcf5;
-  box-shadow: 0 4px 11px rgba(21, 128, 61, 0.08);
-  transform: translateY(-1px);
+.cycle-btn:hover:not(:disabled) {
+  border-color: #0f172a;
+  background: #f8fafc;
 }
 
-.cycle-option:disabled {
+.cycle-btn:disabled {
+  background: #ffffff;
+  color: #94a3b8;
   cursor: not-allowed;
-  opacity: 0.55;
+  border-color: #cbd5e1;
 }
 
-.cycle-option__name,
-.cycle-option__price {
+.cycle-btn-left {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.cycle-option__name strong {
-  font-size: 12px;
-}
-
-.cycle-option__name small {
-  color: #15803d;
-  font-size: 10.5px;
-  font-weight: 650;
-}
-
-.cycle-option__price {
-  align-items: flex-end;
-}
-
-.cycle-option__price strong {
-  color: #0f5130;
-  font-size: 14px;
-}
-
-.cycle-option__price small {
-  color: #81958a;
-  font-size: 10px;
-}
-
-.plan-card__features {
-  margin: 17px 20px 20px;
-  padding-top: 16px;
-  border-top: 1px solid #edf2ee;
-}
-
-.plan-card__features > .plan-card__section-head > span {
-  white-space: nowrap;
-}
-
-.plan-card__features ul {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.plan-card__features li {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: #566d5d;
-  font-size: 11.5px;
-  line-height: 1.4;
-}
-
-.plan-card__features li > span:last-child {
-  display: flex;
-  min-width: 0;
   flex-direction: column;
   gap: 2px;
 }
 
-.plan-card__features li strong {
-  color: #31523b;
+.cycle-title {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.cycle-saving-label {
   font-size: 11.5px;
-}
-
-.plan-card__features li small {
-  color: #82968a;
-  font-size: 10.5px;
-}
-
-.plan-feature__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #e8f7eb;
   color: #15803d;
 }
 
-.confirm-backdrop {
-  position: fixed;
-  z-index: 50;
-  inset: 0;
+.cycle-btn-right {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  background: rgba(13, 33, 21, 0.48);
-  backdrop-filter: blur(3px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
-.confirm-modal {
-  width: min(100%, 440px);
-  padding: 22px;
-  border: 1px solid #d8e7db;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 18px 55px rgba(15, 23, 42, 0.22);
+.cycle-total {
+  font-size: 13.5px;
+  color: #0f172a;
 }
 
-.confirm-modal header > span {
-  color: #15803d;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.cycle-monthly {
+  font-size: 11.5px;
+  color: #475569;
 }
 
-.confirm-modal h2 {
-  margin: 6px 0 18px;
-  color: #102219;
-  font-size: 23px;
+/* Features Block (NO circular icon wrappers) */
+.plan-features-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.confirm-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.features-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
   gap: 9px;
 }
 
-.confirm-summary > div {
+.feature-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.feature-check-icon {
+  color: #0f172a;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.feature-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.feature-main {
+  color: #0f172a;
+}
+
+.feature-sub {
+  font-size: 12px;
+  color: #475569;
+}
+
+/* Confirmation Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.confirm-modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.confirm-modal-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 11px;
-  border-radius: 9px;
-  background: #f5faf6;
+  border: none !important;
 }
 
-.confirm-summary small {
-  color: #789181;
-  font-size: 10.5px;
+.confirm-modal-title {
+  font-size: 18px;
+  color: #0f172a;
+  margin: 0;
 }
 
-.confirm-summary strong {
-  color: #166534;
-  font-size: 14px;
+.confirm-modal-subtitle {
+  font-size: 13px;
+  color: #334155;
+  margin: 0;
 }
 
-.confirm-modal > p {
-  margin: 16px 0;
-  color: #647b6b;
-  font-size: 12.5px;
-  line-height: 1.55;
-}
-
-.confirm-modal footer {
+.confirm-summary-grid {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: 8px;
+  padding: 10px 0;
 }
 
-.confirm-btn {
-  border: 1px solid #15803d;
-  background: #15803d;
+.confirm-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.confirm-label {
+  color: #475569;
+}
+
+.confirm-val {
+  color: #0f172a;
+}
+
+.confirm-note {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+  border: none !important;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-confirm {
+  padding: 8px 18px;
+  border: none;
+  background: #0f172a;
   color: #ffffff;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-.confirm-btn:hover:not(:disabled) {
-  background: #166534;
-  box-shadow: 0 5px 13px rgba(21, 128, 61, 0.18);
-  transform: translateY(-1px);
+.btn-confirm:hover {
+  background: #1e293b;
 }
 
-.confirm-btn:disabled {
+.btn-confirm:disabled {
+  background: #cbd5e1;
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
-@media (max-width: 840px) {
-  .page-head {
-    align-items: flex-start;
+/* Responsive */
+@media (max-width: 768px) {
+  .plans-columns {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .current-plan-strip {
     flex-direction: column;
-  }
-
-  .head-actions {
-    width: 100%;
-  }
-
-  .head-actions > * {
-    flex: 1;
-  }
-
-  .vip-intro {
     align-items: flex-start;
-    flex-direction: column;
+    gap: 8px;
   }
 
-  .vip-intro__facts {
-    align-items: flex-start;
-  }
-
-  .payment-panel {
-    grid-template-columns: 160px minmax(0, 1fr);
-  }
-
-  .payment-details {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 680px) {
-  .vip-page {
-    padding: 24px 16px 48px;
-  }
-
-  .vip-intro__lead {
-    align-items: flex-start;
-  }
-
-  .current-plan {
+  .payment-layout {
     grid-template-columns: 1fr;
   }
 
-  .current-plan > div {
-    min-height: 0;
-    padding: 12px 15px;
-  }
-
-  .payment-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .payment-panel img {
-    order: -1;
-  }
-
-  .plan-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .plan-card__header {
-    padding: 17px 16px 13px;
-  }
-
-  .plan-price,
-  .cycle-list {
-    margin-inline: 16px;
-  }
-
-  .cycle-list {
-    padding-inline: 0;
-  }
-
-  .plan-card__section-head {
-    padding-inline: 16px;
-  }
-
-  .plan-card__features {
-    margin-inline: 16px;
-  }
-
-  .plan-card__labels {
-    display: none;
+  .payment-qr-frame {
+    margin: 0 auto;
   }
 }
 </style>

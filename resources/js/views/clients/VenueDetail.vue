@@ -171,71 +171,175 @@
           <!-- TAB 2: HỘI VIÊN SÂN -->
           <template v-else-if="activeTab === 'membership'">
             <div class="sg-membership-detail">
+              <!-- Intro Banner with Illustration (No gradient, no nested boxes) -->
               <section class="sg-membership-intro">
                 <div class="sg-membership-intro-copy">
-                  <span class="sg-membership-eyebrow">CHƯƠNG TRÌNH THÀNH VIÊN</span>
+                  <span class="sg-membership-eyebrow">CHƯƠNG TRÌNH THÀNH VIÊN SÂN</span>
                   <h2 class="sg-section-title">Chơi càng đều, quyền lợi càng tốt</h2>
-                  <p>Hạng hội viên được tính riêng tại {{ venue.name }} dựa trên số lượt đặt hoàn tất và tổng chi tiêu. Quyền lợi áp dụng trực tiếp khi bạn đặt sân.</p>
+                  <p>Hạng hội viên được tính riêng tại {{ venue.name }} dựa trên số lượt đặt hoàn tất và tổng chi tiêu. Quyền lợi giảm giá áp dụng trực tiếp mỗi khi bạn đặt sân.</p>
+                  
+                  <div class="sg-membership-status-row">
+                    <span class="sg-membership-status-label">Trạng thái tích lũy:</span>
+                    <span v-if="currentVenueMembership" class="sg-membership-status-val">
+                      {{ currentVenueMembership.tier?.label || currentVenueMembership.tier?.tier_label || "Thường" }} · Giảm {{ formatPercent(currentVenueMembership.tier?.discount_percent) }}% khi đặt sân
+                    </span>
+                    <span v-else class="sg-membership-status-val">
+                      Bắt đầu từ Thường (Đặt sân để bắt đầu tích lũy hạng)
+                    </span>
+                  </div>
                 </div>
-                <div v-if="currentVenueMembership" class="sg-membership-current-badge">
-                  <span>Hạng hiện tại của bạn</span>
-                  <strong>{{ currentVenueMembership.tier?.label || currentVenueMembership.tier?.tier_label || "Thường" }}</strong>
-                  <small>{{ formatPercent(currentVenueMembership.tier?.discount_percent) }}% ưu đãi theo hạng</small>
-                </div>
-                <div v-else class="sg-membership-current-badge sg-membership-current-badge--empty">
-                  <span>Bạn chưa có hạng tại sân</span>
-                  <strong>Bắt đầu từ Thường</strong>
-                  <small>Đặt sân hoàn tất để bắt đầu tích lũy.</small>
+
+                <div class="sg-membership-intro-visual" aria-hidden="true">
+                  <svg class="sg-membership-illus" viewBox="0 0 200 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="150" cy="65" r="45" fill="#f0fdf4" />
+                    <circle cx="45" cy="85" r="22" fill="#f8fafc" />
+                    <rect x="25" y="75" width="28" height="40" rx="3" fill="#e2e8f0" />
+                    <rect x="60" y="55" width="28" height="60" rx="3" fill="#cbd5e1" />
+                    <rect x="95" y="40" width="28" height="75" rx="3" fill="#15803d" opacity="0.2" />
+                    <rect x="130" y="25" width="34" height="90" rx="3" fill="#15803d" />
+                    <text x="39" y="100" text-anchor="middle" fill="#64748b" font-size="10" font-family="sans-serif">1</text>
+                    <text x="74" y="90" text-anchor="middle" fill="#475569" font-size="10" font-family="sans-serif">2</text>
+                    <text x="109" y="80" text-anchor="middle" fill="#15803d" font-size="10" font-family="sans-serif">3</text>
+                    <text x="147" y="75" text-anchor="middle" fill="#ffffff" font-size="11" font-family="sans-serif">★</text>
+                    <path d="M140 10 h14 v6 a7 7 0 0 1 -7 7 a7 7 0 0 1 -7 -7 v-6 z" fill="#15803d" />
+                    <path d="M137 12 h3 v3 a4 4 0 0 1 -3 -3 z M157 12 h-3 v3 a4 4 0 0 0 3 -3 z" stroke="#15803d" stroke-width="1.2" fill="none" />
+                    <path d="M147 23 v4 M143 27 h8" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" />
+                    <path d="M175 35 l2 4 4 1 -3 3 1 4 -4 -2 -4 2 1 -4 -3 -3 4 -1 z" fill="#15803d" opacity="0.4" />
+                    <path d="M20 40 l1.5 3 3 0.7 -2.2 2.2 0.7 3 -3 -1.5 -3 1.5 0.7 -3 -2.2 -2.2 3 -0.7 z" fill="#94a3b8" opacity="0.5" />
+                  </svg>
                 </div>
               </section>
 
+              <!-- Tiers Flat Columns (Rich Full-Scale Vector Illustrations) -->
               <div class="sg-membership-tier-grid">
                 <article
                   v-for="tier in membershipTiers"
                   :key="tier.tier_key || tier.tier"
-                  class="sg-membership-tier-card"
-                  :class="[
-                    'sg-membership-tier-card--' + (tier.tier_key || tier.tier),
-                    { 'is-current': currentVenueMembership?.tier?.tier_key === (tier.tier_key || tier.tier) }
-                  ]"
+                  class="sg-membership-tier-col"
+                  :class="{ 'is-current': currentVenueMembership?.tier?.tier_key === (tier.tier_key || tier.tier) }"
                 >
                   <div class="sg-membership-tier-topline">
                     <span class="sg-membership-tier-index">0{{ Number(tier.tier_order || 0) + 1 }}</span>
-                    <span v-if="currentVenueMembership?.tier?.tier_key === (tier.tier_key || tier.tier)" class="sg-membership-current-label">Hạng của bạn</span>
+                    <span v-if="currentVenueMembership?.tier?.tier_key === (tier.tier_key || tier.tier)" class="sg-membership-current-label">(Hạng của bạn)</span>
                   </div>
-                  <div class="sg-membership-tier-title">
-                    <span class="sg-membership-tier-icon">
-                      <AppIcon :name="membershipTierIcon(tier.tier_key || tier.tier)" :size="18" />
-                    </span>
-                    <div>
-                      <h3>{{ tier.label || tier.tier_label }}</h3>
-                      <strong>{{ formatPercent(tier.discount_percent) }}%</strong>
-                      <span>ưu đãi đặt sân</span>
-                    </div>
+
+                  <!-- Rich Vector Illustration (NO enclosing circle, expansive artwork) -->
+                  <div class="sg-tier-illustration-wrap" aria-hidden="true">
+                    <!-- Diamond Tier Elite Illustration -->
+                    <svg v-if="(tier.tier_key || tier.tier) === 'diamond' || (tier.tier_key || tier.tier) === 'platinum'" class="sg-tier-illus" viewBox="0 0 90 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <ellipse cx="45" cy="67" rx="38" ry="5" fill="#ecfdf5" />
+                      <path d="M22 48 C28 54 38 58 45 58 C52 58 62 54 68 48" stroke="#15803d" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                      <path d="M16 42 C24 48 35 52 45 52 C55 52 66 48 74 42" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.6" />
+                      <rect x="36" y="58" width="18" height="6" rx="2" fill="#0f172a" />
+                      <path d="M30 26 L45 12 L60 26 L45 54 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1.6" stroke-linejoin="round" />
+                      <path d="M20 26 L30 26 L45 54 L20 26 Z" fill="#dcfce7" stroke="#0f172a" stroke-width="1.3" stroke-linejoin="round" />
+                      <path d="M70 26 L60 26 L45 54 L70 26 Z" fill="#dcfce7" stroke="#0f172a" stroke-width="1.3" stroke-linejoin="round" />
+                      <path d="M20 26 L30 26 L45 12 L20 26 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1.3" stroke-linejoin="round" />
+                      <path d="M70 26 L60 26 L45 12 L70 26 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1.3" stroke-linejoin="round" />
+                      <path d="M30 26 L45 26 L45 54 L30 26 Z" fill="#a7f3d0" stroke="#0f172a" stroke-width="1" />
+                      <path d="M60 26 L45 26 L45 54 L60 26 Z" fill="#6ee7b7" stroke="#0f172a" stroke-width="1" />
+                      <path d="M30 26 L45 12 L45 26 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1" />
+                      <path d="M60 26 L45 12 L45 26 Z" fill="#dcfce7" stroke="#0f172a" stroke-width="1" />
+                      <path d="M37 12 L34 5 L39 8 L45 3 L51 8 L56 5 L53 12 Z" fill="#f59e0b" stroke="#b45309" stroke-width="1" stroke-linejoin="round" />
+                      <circle cx="45" cy="5" r="1.2" fill="#ffffff" />
+                      <path d="M45 0 V2 M10 26 H12 M78 26 H80" stroke="#15803d" stroke-width="2" stroke-linecap="round" />
+                      <path d="M12 14 L14 18 L18 19 L14 20 L12 24 L10 20 L6 19 L10 18 Z" fill="#15803d" />
+                      <path d="M76 10 L77.5 13 L80.5 14 L77.5 15 L76 18 L74.5 15 L71.5 14 L74.5 13 Z" fill="#15803d" />
+                    </svg>
+
+                    <!-- Gold Tier Championship Illustration -->
+                    <svg v-else-if="(tier.tier_key || tier.tier) === 'gold'" class="sg-tier-illus" viewBox="0 0 90 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <ellipse cx="45" cy="67" rx="36" ry="5" fill="#fef3c7" />
+                      <path d="M26 48 C18 42 18 26 28 18" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" fill="none" />
+                      <path d="M21 44 C19 41 21 38 24 39" fill="#f59e0b" />
+                      <path d="M18 34 C16 31 18 28 21 29" fill="#f59e0b" />
+                      <path d="M21 24 C20 21 23 19 25 21" fill="#f59e0b" />
+                      <path d="M64 48 C72 42 72 26 62 18" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" fill="none" />
+                      <path d="M69 44 C71 41 69 38 66 39" fill="#f59e0b" />
+                      <path d="M72 34 C74 31 72 28 69 29" fill="#f59e0b" />
+                      <path d="M69 24 C70 21 67 19 65 21" fill="#f59e0b" />
+                      <rect x="34" y="56" width="22" height="7" rx="2" fill="#b45309" />
+                      <rect x="37" y="50" width="16" height="6" fill="#d97706" />
+                      <path d="M41 44 H49 L47 50 H43 Z" fill="#f59e0b" />
+                      <path d="M31 16 H59 V28 C59 38 52 44 45 44 C38 44 31 38 31 28 Z" fill="#fef3c7" stroke="#b45309" stroke-width="1.6" stroke-linejoin="round" />
+                      <path d="M36 16 H54 V26 C54 33 50 38 45 38 C40 38 36 33 36 26 Z" fill="#fde68a" />
+                      <path d="M31 20 C24 20 23 30 32 32" stroke="#b45309" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                      <path d="M59 20 C66 20 67 30 58 32" stroke="#b45309" stroke-width="1.6" stroke-linecap="round" fill="none" />
+                      <path d="M45 8 L47 13 L52 13.5 L48 17 L49.5 22 L45 19.5 L40.5 22 L42 17 L38 13.5 L43 13 Z" fill="#b45309" stroke="#f59e0b" stroke-width="0.8" />
+                      <circle cx="28" cy="10" r="1.5" fill="#f59e0b" />
+                      <circle cx="62" cy="12" r="1.5" fill="#f59e0b" />
+                      <rect x="23" y="28" width="2" height="2" transform="rotate(45 23 28)" fill="#d97706" />
+                      <rect x="66" y="26" width="2" height="2" transform="rotate(45 66 26)" fill="#d97706" />
+                    </svg>
+
+                    <!-- Silver Tier Active Milestone Illustration -->
+                    <svg v-else-if="(tier.tier_key || tier.tier) === 'silver'" class="sg-tier-illus" viewBox="0 0 90 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <ellipse cx="45" cy="67" rx="36" ry="5" fill="#f1f5f9" />
+                      <path d="M24 64 L30 46 H60 L66 64 Z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.2" />
+                      <path d="M30 46 H60 V64 H30 Z" fill="#f8fafc" />
+                      <line x1="20" y1="18" x2="70" y2="58" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+                      <line x1="70" y1="18" x2="20" y2="58" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+                      <ellipse cx="22" cy="20" rx="9" ry="7" transform="rotate(-35 22 20)" fill="#ffffff" stroke="#94a3b8" stroke-width="1.3" />
+                      <ellipse cx="68" cy="20" rx="9" ry="7" transform="rotate(35 68 20)" fill="#ffffff" stroke="#94a3b8" stroke-width="1.3" />
+                      <path d="M38 34 L30 56 L38 52 L44 56 L42 34" fill="#cbd5e1" stroke="#94a3b8" stroke-width="1" stroke-linejoin="round" />
+                      <path d="M52 34 L60 56 L52 52 L46 56 L48 34" fill="#94a3b8" stroke="#64748b" stroke-width="1" stroke-linejoin="round" />
+                      <circle cx="45" cy="30" r="14" fill="#ffffff" stroke="#475569" stroke-width="1.8" />
+                      <circle cx="45" cy="30" r="10" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" />
+                      <path d="M45 23 L47 27.5 L52 28 L48 31.5 L49.5 36.5 L45 34 L40.5 36.5 L42 31.5 L38 28 L43 27.5 Z" fill="#475569" />
+                      <path d="M14 34 L16 38 L20 39 L16 40 L14 44 L12 40 L8 39 L12 38 Z" fill="#94a3b8" opacity="0.6" />
+                      <path d="M74 24 L75.5 27 L78.5 28 L75.5 29 L74 32 L72.5 29 L69.5 28 L72.5 27 Z" fill="#94a3b8" opacity="0.6" />
+                    </svg>
+
+                    <!-- Bronze / Standard Tier Starter Gear Illustration -->
+                    <svg v-else class="sg-tier-illus" viewBox="0 0 90 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <ellipse cx="45" cy="67" rx="38" ry="5" fill="#f1f5f9" />
+                      <rect x="18" y="38" width="38" height="24" rx="7" fill="#334155" />
+                      <path d="M22 38 C22 31 34 31 34 38" stroke="#15803d" stroke-width="2" fill="none" stroke-linecap="round" />
+                      <rect x="18" y="46" width="38" height="3" fill="#15803d" />
+                      <rect x="25" y="44" width="7" height="8" rx="2" fill="#475569" />
+                      <rect x="10" y="44" width="7" height="18" rx="3" fill="#cbd5e1" />
+                      <rect x="11.5" y="40" width="4" height="4" rx="1" fill="#15803d" />
+                      <path d="M52 20 L76 58" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" />
+                      <ellipse cx="46" cy="18" rx="14" ry="11" transform="rotate(-30 46 18)" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" />
+                      <line x1="38" y1="12" x2="52" y2="24" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="1 1" />
+                      <line x1="42" y1="9" x2="56" y2="21" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="1 1" />
+                      <line x1="38" y1="21" x2="50" y2="10" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="1 1" />
+                      <path d="M60 52 L68 44 L72 50 Z" fill="#ffffff" stroke="#94a3b8" stroke-width="1" stroke-linejoin="round" />
+                      <ellipse cx="59" cy="53" rx="2.5" ry="3" fill="#15803d" />
+                    </svg>
                   </div>
+
+                  <h3 class="sg-tier-name">{{ tier.label || tier.tier_label }}</h3>
+
+                  <div class="sg-membership-tier-discount">
+                    <span class="sg-discount-number">{{ formatPercent(tier.discount_percent) }}%</span>
+                    <span class="sg-discount-unit">ưu đãi đặt sân</span>
+                  </div>
+
                   <ul class="sg-membership-tier-benefits">
-                    <li><AppIcon name="check" :size="14" /> Từ {{ Number(tier.min_bookings || tier.min_completed_bookings || 0) }} lượt đặt hoàn tất</li>
-                    <li><AppIcon name="check" :size="14" /> Chi tiêu từ {{ formatCurrency(tier.min_spent_amount || tier.min_spend_amount) }}</li>
-                    <li v-if="tier.has_voucher || tier.voucher_id || tier.voucher"><AppIcon name="ticket" :size="14" /> Có voucher theo cấu hình sân</li>
-                    <li v-if="tier.maintain_period_months"><AppIcon name="calendar" :size="14" /> Duy trì trong {{ tier.maintain_period_months }} tháng</li>
+                    <li><AppIcon name="check" :size="14" class="sg-benefit-check" /> Từ {{ Number(tier.min_bookings || tier.min_completed_bookings || 0) }} lượt đặt hoàn tất</li>
+                    <li><AppIcon name="check" :size="14" class="sg-benefit-check" /> Chi tiêu từ {{ formatCurrency(tier.min_spent_amount || tier.min_spend_amount) }}</li>
+                    <li v-if="tier.has_voucher || tier.voucher_id || tier.voucher"><AppIcon name="ticket" :size="14" class="sg-benefit-check" /> Có voucher ưu đãi riêng</li>
+                    <li v-if="tier.maintain_period_months"><AppIcon name="calendar" :size="14" class="sg-benefit-check" /> Duy trì trong {{ tier.maintain_period_months }} tháng</li>
                   </ul>
                 </article>
               </div>
 
+              <!-- User Progress Section (Flat minimalist) -->
               <section v-if="currentVenueMembership" class="sg-membership-progress">
                 <div class="sg-membership-progress-head">
-                  <div>
-                    <span class="sg-membership-eyebrow">TIẾN ĐỘ CỦA BẠN</span>
-                    <h3>{{ currentVenueMembership.next_tier ? "Tiến tới hạng " + (currentVenueMembership.next_tier.label || currentVenueMembership.next_tier.tier_label) : "Bạn đang ở hạng cao nhất" }}</h3>
+                  <div class="sg-membership-progress-titles">
+                    <span class="sg-membership-eyebrow">TIẾN ĐỘ NÂNG HẠNG</span>
+                    <h3 class="sg-progress-title">{{ currentVenueMembership.next_tier ? "Tiến tới hạng " + (currentVenueMembership.next_tier.label || currentVenueMembership.next_tier.tier_label) : "Bạn đang ở hạng cao nhất" }}</h3>
                   </div>
-                  <strong>{{ Number(currentVenueMembership.progress_percent || 0) }}%</strong>
+                  <span class="sg-progress-percent-val">{{ Number(currentVenueMembership.progress_percent || 0) }}%</span>
                 </div>
                 <div class="sg-membership-progress-track">
                   <span :style="{ width: Math.min(100, Math.max(0, Number(currentVenueMembership.progress_percent || 0))) + '%' }"></span>
                 </div>
                 <div v-if="currentVenueMembership.next_tier" class="sg-membership-progress-meta">
                   <span>Còn {{ Number(currentVenueMembership.remaining_bookings || 0) }} lượt đặt hoàn tất</span>
-                  <span>Còn {{ formatCurrency(currentVenueMembership.remaining_spend_amount) }}</span>
+                  <span>Còn {{ formatCurrency(currentVenueMembership.remaining_spend_amount) }} chi tiêu</span>
                 </div>
                 <p v-else class="sg-membership-progress-note">Tiếp tục duy trì lịch đặt để giữ trọn quyền lợi hiện tại.</p>
               </section>
@@ -2206,224 +2310,163 @@ export default {
   color: #ef4444;
 }
 
-/* VENUE MEMBERSHIP PROGRAM */
+/* VENUE MEMBERSHIP PROGRAM - MINIMALIST FLAT STYLING */
 .sg-membership-detail {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 28px;
+  background: #ffffff !important;
 }
 
+.sg-membership-detail *,
+.sg-membership-detail h2,
+.sg-membership-detail h3,
+.sg-membership-detail span,
+.sg-membership-detail p,
+.sg-membership-detail li {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+/* Membership Intro Banner */
 .sg-membership-intro {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
-  gap: 22px;
+  display: flex;
   align-items: center;
-  padding: 24px;
-  border: 1px solid #cce8d4;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #f7fff8 0%, #ecf8ef 100%);
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0 20px;
+  background: transparent !important;
+  border: none !important;
 }
 
 .sg-membership-intro-copy {
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 620px;
 }
 
 .sg-membership-eyebrow {
-  display: block;
-  margin-bottom: 7px;
   color: #15803d;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
 
 .sg-membership-intro .sg-section-title {
-  margin-bottom: 8px;
   font-size: 22px;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .sg-membership-intro p {
-  max-width: 650px;
-  margin: 0;
-  color: #496152;
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.sg-membership-current-badge {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px;
-  border: 1px solid #b8ddc1;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.86);
-  text-align: right;
-}
-
-.sg-membership-current-badge span {
-  color: #64748b;
-  font-size: 11px;
-}
-
-.sg-membership-current-badge strong {
-  color: #166534;
-  font-size: 21px;
-  font-weight: 700;
-}
-
-.sg-membership-current-badge small {
-  color: #15803d;
-  font-size: 11px;
-}
-
-.sg-membership-current-badge--empty {
-  border-color: #dbe7df;
-  background: rgba(255, 255, 255, 0.68);
-}
-
-.sg-membership-current-badge--empty strong {
   color: #334155;
-  font-size: 17px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0;
 }
 
-.sg-membership-current-badge--empty small {
+.sg-membership-status-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.sg-membership-status-label {
   color: #64748b;
 }
 
+.sg-membership-status-val {
+  color: #0f172a;
+}
+
+.sg-membership-intro-visual {
+  flex-shrink: 0;
+}
+
+.sg-membership-illus {
+  width: 170px;
+  height: 110px;
+  display: block;
+}
+
+/* Tier Grid (4 Columns, NO multi-color cards, NO icon wrapper boxes) */
 .sg-membership-tier-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 24px;
 }
 
-.sg-membership-tier-card {
+.sg-membership-tier-col {
   display: flex;
-  min-width: 0;
-  min-height: 235px;
   flex-direction: column;
-  gap: 16px;
-  padding: 17px;
-  border: 1px solid #dfe8e1;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.035);
-  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.sg-membership-tier-card:hover {
-  border-color: #a9d3b3;
-  box-shadow: 0 8px 20px rgba(21, 128, 61, 0.08);
-  transform: translateY(-2px);
-}
-
-.sg-membership-tier-card.is-current {
-  border-color: #2f9a52;
-  box-shadow: 0 0 0 3px rgba(47, 154, 82, 0.12), 0 8px 20px rgba(21, 128, 61, 0.09);
-}
-
-.sg-membership-tier-card--silver {
-  background: linear-gradient(180deg, #ffffff 0%, #f9fbfd 100%);
-}
-
-.sg-membership-tier-card--gold {
-  border-color: #ead9ad;
-  background: linear-gradient(180deg, #fffdf7 0%, #fffaf0 100%);
-}
-
-.sg-membership-tier-card--diamond {
-  border-color: #c8d5e9;
-  background: linear-gradient(180deg, #fbfdff 0%, #f1f6fc 100%);
+  gap: 12px;
+  padding: 16px 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .sg-membership-tier-topline {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  min-height: 20px;
+  gap: 8px;
 }
 
 .sg-membership-tier-index {
-  color: #94a3b8;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .sg-membership-current-label {
-  padding: 4px 7px;
-  border-radius: 999px;
-  background: #e7f6eb;
   color: #15803d;
-  font-size: 10px;
-  font-weight: 650;
+  font-size: 12px;
 }
 
-.sg-membership-tier-title {
+.sg-tier-illustration-wrap {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.sg-membership-tier-title > div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sg-membership-tier-icon {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #e8f7eb;
-  color: #15803d;
+  margin: 4px 0 2px;
 }
 
-.sg-membership-tier-card--silver .sg-membership-tier-icon {
-  background: #edf1f5;
-  color: #64748b;
+.sg-tier-illus {
+  width: 86px;
+  height: 72px;
+  display: block;
 }
 
-.sg-membership-tier-card--gold .sg-membership-tier-icon {
-  background: #fff1c8;
-  color: #a16207;
-}
-
-.sg-membership-tier-card--diamond .sg-membership-tier-icon {
-  background: #e4efff;
-  color: #315f9b;
-}
-
-.sg-membership-tier-title h3 {
-  margin: 0 0 4px;
+.sg-tier-name {
+  font-size: 18px;
   color: #0f172a;
-  font-size: 19px;
-  font-weight: 700;
+  margin: 4px 0 0 0;
 }
 
-.sg-membership-tier-title strong {
-  color: #15803d;
-  font-size: 25px;
-  line-height: 1;
+.sg-membership-tier-discount {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
-.sg-membership-tier-title span {
-  color: #64748b;
-  font-size: 11px;
+.sg-discount-number {
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.sg-discount-unit {
+  font-size: 12px;
+  color: #475569;
 }
 
 .sg-membership-tier-benefits {
+  list-style: none;
+  margin: 4px 0 0 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  margin: auto 0 0;
-  padding: 0;
-  list-style: none;
+  gap: 8px;
 }
 
 .sg-membership-tier-benefits li {
@@ -2431,20 +2474,24 @@ export default {
   align-items: flex-start;
   gap: 7px;
   color: #475569;
-  font-size: 11.5px;
-  line-height: 1.4;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
-.sg-membership-tier-benefits .app-icon {
-  flex: 0 0 auto;
-  color: #15803d;
+.sg-benefit-check {
+  color: #0f172a;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
+/* User Progress Section */
 .sg-membership-progress {
-  padding: 20px;
-  border: 1px solid #dbe8de;
-  border-radius: 14px;
-  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 0;
+  background: transparent !important;
+  border: none !important;
 }
 
 .sg-membership-progress-head {
@@ -2454,47 +2501,67 @@ export default {
   gap: 16px;
 }
 
-.sg-membership-progress-head h3 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 16px;
-  font-weight: 650;
+.sg-membership-progress-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.sg-membership-progress-head > strong {
+.sg-progress-title {
+  font-size: 16px;
+  color: #0f172a;
+  margin: 0;
+}
+
+.sg-progress-percent-val {
+  font-size: 18px;
   color: #15803d;
-  font-size: 22px;
 }
 
 .sg-membership-progress-track {
-  height: 9px;
-  margin-top: 16px;
+  height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e8f0ea;
+  background: #e2e8f0;
 }
 
 .sg-membership-progress-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #3aa55b, #15803d);
-  transition: width 0.35s ease;
+  background: #15803d;
 }
 
 .sg-membership-progress-meta {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 9px;
-  color: #64748b;
-  font-size: 11.5px;
+  align-items: center;
+  gap: 18px;
+  color: #475569;
+  font-size: 12.5px;
 }
 
 .sg-membership-progress-note {
-  margin: 9px 0 0;
-  color: #64748b;
-  font-size: 11.5px;
+  color: #475569;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .sg-membership-tier-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .sg-membership-intro {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 540px) {
+  .sg-membership-tier-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* RESPONSIVE BREAKPOINTS */
