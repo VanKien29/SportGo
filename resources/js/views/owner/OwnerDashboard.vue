@@ -414,7 +414,10 @@ export default {
       this.isLoading = true;
       this.error = '';
       const clusterId = this.selectedCluster?.id || localStorage.getItem('selected_cluster');
-      await this.resolveSelectedCluster(clusterId);
+      // Loading the selected cluster name and the dashboard metrics are
+      // independent. Start both together so a slow cluster-list request does
+      // not block the first meaningful dashboard response.
+      const clusterPromise = this.resolveSelectedCluster(clusterId);
       const params = new URLSearchParams({ period: this.periodKey });
       if (clusterId) params.set('venue_cluster_id', clusterId);
       if (this.periodKey === 'custom') {
@@ -422,7 +425,10 @@ export default {
         params.set('date_to', this.customDateTo);
       }
       try {
-        const response = await api(`/api/owner/dashboard?${params.toString()}`);
+        const [response] = await Promise.all([
+          api(`/api/owner/dashboard?${params.toString()}`),
+          clusterPromise,
+        ]);
         const base = emptyStats();
         this.stats = {
           ...base,
@@ -457,7 +463,7 @@ export default {
     statusTone(status) {
       if (['confirmed', 'completed'].includes(status)) return 'od-status--success';
       if (status === 'checked_in') return 'od-status--info';
-      if (['cancelled', 'rejected', 'expired'].includes(status)) return 'od-status--danger';
+      if (['cancelled', 'rejected', 'expired', 'no_show'].includes(status)) return 'od-status--danger';
       return 'od-status--warning';
     },
     statusPercent(count) {

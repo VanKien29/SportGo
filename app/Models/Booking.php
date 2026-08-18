@@ -162,4 +162,9 @@ class Booking extends Model
     {
         return $this->hasMany(BookingServiceItem::class, 'booking_id');
     }
+
+    public function statusHistories()
+    {
+        return $this->hasMany(BookingStatusHistory::class, 'booking_id')->latest('created_at');
+    }
 }

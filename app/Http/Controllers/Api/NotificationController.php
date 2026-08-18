@@ -94,6 +94,14 @@ class NotificationController extends Controller
             return '/partner-application/' . $referenceId;
         }
 
+        if ($referenceId && str_contains($referenceType, 'player_post')) {
+            if (str_contains($type, 'participant') || str_contains($type, 'matchmaking_request')) {
+                return '/matchmaking-requests/' . $referenceId;
+            }
+
+            return '/matchmaking-posts/' . $referenceId . '/manage';
+        }
+
         if (str_contains($type, 'post_like') || str_contains($type, 'post_comment') || str_contains($type, 'comment_reply')) {
             return ! empty($data['slug']) ? '/community/' . $data['slug'] : '/community';
         }

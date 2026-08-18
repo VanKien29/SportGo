@@ -22,6 +22,7 @@ class User extends Authenticatable
         'password',
         'avatar_url',
         'bio',
+        'preferred_sports',
         'status',
         'is_locked',
         'verification_channel',
@@ -47,6 +48,7 @@ class User extends Authenticatable
             'locked_until' => 'datetime',
             'is_locked' => 'boolean',
             'password' => 'hashed',
+            'preferred_sports' => 'array',
         ];
     }
 

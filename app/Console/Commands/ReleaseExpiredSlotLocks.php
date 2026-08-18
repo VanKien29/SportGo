@@ -7,7 +7,6 @@ use App\Models\BookingConfig;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\SlotLock;
-use App\Models\ViolationRecord;
 use App\Services\BookingService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -123,20 +122,7 @@ class ReleaseExpiredSlotLocks extends Command
 
         app(BookingService::class)->releaseVoucherUsageForBooking($booking, 'cancelled');
 
-        if (! $booking->customer_id) {
-            return;
-        }
-
-        $record = ViolationRecord::query()->firstOrCreate(
-            ['target_type' => 'user', 'target_id' => (int) $booking->customer_id],
-            ['violation_count' => 0]
-        );
-
-        $record->forceFill([
-            'violation_count' => $record->violation_count + 1,
-            'last_violation_at' => now(),
-            'last_action_type' => 'booking_approval_timeout',
-            'last_action_expires_at' => null,
-        ])->save();
+        // Owner approval timeout is a venue-side SLA event. It must not create
+        // a violation against the customer who was waiting for approval.
     }
 }

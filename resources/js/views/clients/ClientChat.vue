@@ -268,6 +268,10 @@
                     </span>
                   </div>
                 </div>
+                <span v-if="activeConversation.type === 'venue_contact'" class="cc-venue-context">
+                  <AppIcon name="mapPin" size="13" />
+                  Cụm sân: {{ activeConversation.title }}
+                </span>
               </div>
 
               <!-- HEADER ACTIONS -->
