@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Events\BookingScheduleUpdated;
 use App\Models\Booking;
 use App\Models\Notification;
+use App\Services\Bookings\BookingLifecycleService;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -45,8 +46,24 @@ class BookingObserver
             }
         }
 
-        if ($booking->wasChanged('status') && in_array($booking->status, ['cancelled', 'rejected'], true)) {
+        if ($booking->wasChanged('status') && in_array($booking->status, ['cancelled', 'rejected', 'expired', 'no_show'], true)) {
             $this->handleBookingCancellationSideEffects($booking);
+        }
+
+        if ($booking->wasChanged('status')) {
+            try {
+                $lifecycle = app(BookingLifecycleService::class);
+                $lifecycle->recordHistory(
+                    $booking,
+                    $booking->getOriginal('status'),
+                    $booking->status,
+                    $booking->status_reason ? 'status_reason' : 'status_changed',
+                    $booking->status_reason,
+                );
+                $lifecycle->notifyStatusChanged($booking, $booking->status, 'status_changed', $booking->status_reason);
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
     }
 
@@ -68,7 +85,7 @@ class BookingObserver
             $playerPost = $booking->playerPost;
             if ($playerPost && in_array($playerPost->status, ['open', 'full'], true)) {
                 $playerPost->status = 'closed';
-                $playerPost->status_reason = 'booking_cancelled';
+                $playerPost->status_reason = 'booking_' . $booking->status;
                 $playerPost->save();
 
                 $participants = DB::table('player_post_participants')
@@ -91,10 +108,11 @@ class BookingObserver
                         Notification::create([
                             'user_id' => $p->user_id,
                             'type' => 'matchmaking_booking_cancelled',
-                            'title' => 'Buổi giao lưu đã bị hủy',
-                            'body' => "Lịch đặt sân tại {$venueName} đã bị hủy nên buổi giao lưu không thể diễn ra.",
+                            'title' => 'Buổi giao lưu đã đóng',
+                            'body' => "Lịch đặt sân tại {$venueName} không còn hiệu lực nên buổi giao lưu không thể tiếp tục.",
                             'reference_type' => 'player_post',
                             'reference_id' => $playerPost->id,
+                            'data' => ['action_url' => '/matchmaking-requests/' . $p->id],
                         ]);
                     }
                 }

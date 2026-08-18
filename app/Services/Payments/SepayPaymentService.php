@@ -252,16 +252,7 @@ class SepayPaymentService
                         ? (float) $booking->payments()->where('status', 'paid')->sum('amount')
                         : 0.0;
 
-                    if (
-                        $booking?->source === 'counter'
-                        && $paidAmount >= (float) $booking->total_price
-                        && in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'], true)
-                    ) {
-                        $payment->booking()->update([
-                            'status' => 'completed',
-                        ]);
-                        $this->bookingService->syncMembershipForCompletedBooking($booking);
-                    } elseif (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
+                    if (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
                         // Trả sau và đặt cọc đều cần chủ sân duyệt. Với booking
                         // cọc, chỉ chuyển sang chờ duyệt sau khi đã nhận đủ tiền cọc.
                         $nextStatus = $booking?->payment_option === 'deposit'

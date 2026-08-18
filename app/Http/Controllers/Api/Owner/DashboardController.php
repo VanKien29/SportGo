@@ -512,7 +512,7 @@ class DashboardController extends Controller
             ['key' => 'confirmed', 'label' => 'Đã xác nhận', 'statuses' => ['confirmed']],
             ['key' => 'playing', 'label' => 'Đang chơi', 'statuses' => ['checked_in']],
             ['key' => 'completed', 'label' => 'Hoàn thành', 'statuses' => ['completed']],
-            ['key' => 'cancelled', 'label' => 'Hủy / từ chối', 'statuses' => ['cancelled', 'rejected', 'expired']],
+            ['key' => 'cancelled', 'label' => 'Hủy / từ chối / no-show', 'statuses' => ['cancelled', 'rejected', 'expired', 'no_show']],
         ];
 
         return collect($groups)->map(function (array $group) use ($statusCounts): array {

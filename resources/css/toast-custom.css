@@ -135,11 +135,17 @@ html body .Vue-Toastification__toast::after {
   display: none !important;
 }
 
-/* Hide Toast Icons & Progress Bar Completely */
+/* Hide icons, but keep the progress element mounted so its animation can
+   emit Toastification's close event when the timeout elapses. */
 html body .Vue-Toastification__icon,
-html body .Vue-Toastification__icon-component,
-html body .Vue-Toastification__progress-bar {
+html body .Vue-Toastification__icon-component {
   display: none !important;
+}
+
+html body .Vue-Toastification__progress-bar {
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Toast Body */

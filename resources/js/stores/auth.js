@@ -35,6 +35,8 @@ function normalizeAuth(payload, existingToken = null) {
     full_name: user.full_name || user.fullName,
     email: user.email,
     phone: user.phone,
+    bio: user.bio,
+    preferred_sports: user.preferred_sports || [],
     avatar_url: user.avatar_url,
     email_verified_at: user.email_verified_at,
     status: user.status,

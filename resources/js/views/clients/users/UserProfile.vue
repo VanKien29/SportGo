@@ -447,10 +447,6 @@ async function joinMatchmaking(post) {
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
-  if (viewer.role_group !== 'user') {
-    toast.info('Chức năng này dành cho tài khoản người dùng.');
-    return;
-  }
 
   joiningId.value = post.id;
   try {
@@ -468,10 +464,6 @@ function openUserReport() {
   if (!viewer) {
     toast.info('Vui lòng đăng nhập để gửi báo cáo.');
     router.push({ name: 'login', query: { redirect: route.fullPath } });
-    return;
-  }
-  if (viewer.role_group !== 'user') {
-    toast.info('Chức năng này dành cho tài khoản người dùng.');
     return;
   }
   showReportModal.value = true;
@@ -495,4 +487,536 @@ watch(() => route.params.id, () => {
 onMounted(loadPage);
 </script>
 
+<style scoped>
+.user-profile-page {
+  --profile-ink: #12251c;
+  --profile-muted: #66756d;
+  --profile-border: #dce8e0;
+  --profile-soft: #f4f8f5;
+  --profile-green: #128143;
+  --profile-green-dark: #0d6936;
+  min-height: 100vh;
+  background: #f5f8f6;
+  color: var(--profile-ink);
+}
+
+.profile-shell {
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 28px 0 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sg-community-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  color: var(--profile-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sg-community-breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+  transition: color .16s ease;
+}
+
+.sg-community-breadcrumb a:hover {
+  color: var(--profile-green-dark);
+}
+
+.profile-hero,
+.profile-stats,
+.profile-content,
+.meetup-card,
+.post-card {
+  border: 1px solid var(--profile-border) !important;
+  box-shadow: 0 8px 26px rgba(18, 37, 28, .045) !important;
+}
+
+.profile-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  min-height: 154px;
+  padding: 24px 26px;
+  background: #fff;
+}
+
+.profile-avatar,
+.post-author-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  color: #fff;
+  background: var(--profile-green);
+  font-weight: 750;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  font-size: 30px;
+  box-shadow: 0 0 0 6px #e6f3ea;
+}
+
+.profile-avatar img,
+.post-author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.public-profile-copy {
+  min-width: 0;
+}
+
+.public-profile-copy h1 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 5px 0 8px;
+  color: var(--profile-ink);
+  font-size: clamp(22px, 3vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+
+.public-profile-copy p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--profile-muted);
+  font-size: 13px;
+}
+
+.report-user {
+  white-space: nowrap;
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  background: #fff;
+}
+
+.profile-stats article {
+  display: grid;
+  gap: 5px;
+  min-height: 94px;
+  padding: 20px 26px;
+}
+
+.profile-stats article + article {
+  border-left: 1px solid var(--profile-border);
+}
+
+.profile-stats strong {
+  color: var(--profile-green-dark);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.profile-stats span {
+  color: var(--profile-muted);
+  font-size: 13px;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--profile-border);
+  border-radius: 10px;
+  background: #eaf3ed;
+}
+
+.profile-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #52645a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.profile-tabs button:hover {
+  color: var(--profile-green-dark);
+}
+
+.profile-tabs button.active {
+  color: var(--profile-green-dark);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(18, 37, 28, .08);
+}
+
+.profile-content {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: 0;
+  background: transparent;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.post-feed,
+.meetup-list {
+  display: grid;
+  gap: 14px;
+}
+
+.post-card,
+.meetup-card {
+  overflow: hidden;
+  padding: 0;
+  background: #fff;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 19px 21px 12px;
+}
+
+.post-author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 15px;
+}
+
+.post-author-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.post-author-copy strong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--profile-ink);
+  font-size: 13px;
+}
+
+.post-author-copy > span {
+  color: #829087;
+  font-size: 11.5px;
+}
+
+.post-open-button {
+  margin-left: auto;
+}
+
+.post-copy {
+  padding: 0 21px 18px;
+}
+
+.post-copy h2 {
+  margin: 9px 0 6px;
+  color: var(--profile-ink);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.post-copy p {
+  margin: 8px 0 0;
+  color: #405148;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.sg-client-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 1px solid #cfe6d7;
+  border-radius: 999px;
+  background: #f0faf3;
+  color: var(--profile-green-dark);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.post-media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  padding: 0;
+  border: 0;
+  background: #e8f3eb;
+  cursor: pointer;
+}
+
+.post-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-footer,
+.meetup-card > footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 21px;
+  border-top: 1px solid #edf3ee;
+  color: #718077;
+  font-size: 12px;
+}
+
+.post-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.post-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--profile-green-dark);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.meetup-card {
+  padding: 21px;
+}
+
+.meetup-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.meetup-card h2 {
+  margin: 5px 0 0;
+  color: var(--profile-ink);
+  font-size: 18px;
+}
+
+.meetup-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 18px 0 12px;
+  color: #52645a;
+  font-size: 13px;
+}
+
+.meetup-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meetup-card > p {
+  margin: 0;
+  color: #52645a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.meetup-card > footer {
+  justify-content: flex-end;
+  margin: 18px -21px -21px;
+  padding: 13px 21px;
+}
+
+.request-status {
+  color: var(--profile-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sg-client-state {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 220px;
+  padding: 28px;
+  border: 1px solid var(--profile-border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--profile-muted);
+  text-align: center;
+}
+
+.page-state {
+  min-height: 360px;
+}
+
+.page-state strong,
+.content-state strong {
+  color: var(--profile-ink);
+  font-size: 15px;
+}
+
+.page-state p,
+.content-state span {
+  max-width: 460px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.page-state--error,
+.content-state--error {
+  color: #a33b32;
+  border-color: #f0d0cc;
+  background: #fffafa;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #dceee2;
+  border-top-color: var(--profile-green);
+  border-radius: 50%;
+  animation: profile-spin .75s linear infinite;
+}
+
+.sg-client-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--profile-border);
+  border-radius: 7px;
+  background: #fff;
+  color: #52645a;
+  cursor: pointer;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+
+.sg-client-icon-button:hover {
+  border-color: #afd2bb;
+  background: #f1faf4;
+  color: var(--profile-green-dark);
+}
+
+@keyframes profile-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .profile-shell {
+    width: min(100% - 24px, 640px);
+    padding-top: 18px;
+    padding-bottom: 48px;
+  }
+
+  .profile-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+    padding: 20px;
+  }
+
+  .profile-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 23px;
+    box-shadow: 0 0 0 4px #e6f3ea;
+  }
+
+  .public-profile-copy h1 {
+    font-size: 21px;
+  }
+
+  .report-user {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .profile-stats article {
+    min-height: 82px;
+    padding: 16px 18px;
+  }
+
+  .profile-stats strong {
+    font-size: 22px;
+  }
+
+  .post-header,
+  .post-copy,
+  .post-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .post-footer {
+    flex-wrap: wrap;
+    gap: 8px 13px;
+  }
+
+  .post-footer button {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .meetup-card {
+    padding: 17px;
+  }
+
+  .meetup-card > header {
+    display: grid;
+  }
+
+  .meetup-card > footer {
+    margin: 16px -17px -17px;
+    padding: 12px 17px;
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-tabs button {
+    gap: 5px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  .profile-tabs button :deep(svg) {
+    width: 15px;
+    height: 15px;
+  }
+}
+</style>
 

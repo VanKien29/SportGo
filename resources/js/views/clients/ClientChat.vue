@@ -164,9 +164,13 @@
                 <div>
                   <h2 class="cc-head-name">{{ activeConversation.title }}</h2>
                   <span class="cc-head-status">
-                    {{ activeConversation.is_ai ? "Trợ lý trí tuệ nhân tạo SportGo 24/7" : "Sân đấu trực tuyến" }}
+                    {{ conversationStatus(activeConversation) }}
                   </span>
                 </div>
+                <span v-if="activeConversation.type === 'venue_contact'" class="cc-venue-context">
+                  <AppIcon name="mapPin" size="13" />
+                  Cụm sân: {{ activeConversation.title }}
+                </span>
               </div>
 
               <div class="cc-head-actions">
@@ -354,6 +358,14 @@ export default {
         this.currentUser = null;
       }
     },
+    conversationStatus(conversation) {
+      if (conversation?.is_ai) return "Trợ lý trí tuệ nhân tạo SportGo 24/7";
+      if (conversation?.type === "venue_contact") {
+        const ownerName = conversation.other_user?.full_name;
+        return ownerName ? `Trao đổi với chủ sân · ${ownerName}` : "Trao đổi với chủ sân";
+      }
+      return "Cuộc trò chuyện trực tuyến";
+    },
     async fetchConversations() {
       this.loadingConversations = true;
       try {
@@ -400,8 +412,9 @@ export default {
       if (q.user_id || q.venue_id) {
         try {
           const res = await chatService.startConversation({
+            type: q.venue_id ? "venue_contact" : "direct",
             user_id: q.user_id,
-            venue_cluster_id: q.venue_id,
+            venue_id: q.venue_id,
           });
           await this.fetchConversations();
           const found = this.conversations.find((c) => String(c.id) === String(res.id));
@@ -1031,6 +1044,27 @@ export default {
 .cc-head-status {
   font-size: 12px;
   color: #64748b;
+}
+
+.cc-venue-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .cc-venue-context {
+    display: none;
+  }
 }
 
 .cc-head-btn {

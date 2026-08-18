@@ -1124,7 +1124,7 @@ export default {
       if (!this.venue) return;
       this.$router.push({
         path: '/chat',
-        query: { venueId: this.venue.id }
+        query: { venue_id: this.venue.id }
       });
     },
 
