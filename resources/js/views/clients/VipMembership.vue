@@ -865,49 +865,74 @@ export default {
   color: #475569;
 }
 
-/* Features Block (NO circular icon wrappers) */
+/* Features & Perks Block */
+.plan-perks-block,
 .plan-features-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 16px;
 }
 
+.block-title {
+  font-size: 13.5px;
+  font-weight: 600 !important;
+  color: #0f172a;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.perks-list,
 .features-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 12px;
 }
 
+.perk-row,
 .feature-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
+  gap: 10px;
+  font-size: 13.5px;
   line-height: 1.4;
 }
 
+.perk-check-glyph,
 .feature-check-icon {
-  color: #0f172a;
+  color: #15803d;
+  font-weight: 700 !important;
+  font-size: 14px;
+  line-height: 1.4;
   flex-shrink: 0;
-  margin-top: 3px;
+  margin-top: 1px;
 }
 
+.perk-body,
 .feature-texts {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
+.perk-label,
 .feature-main {
+  font-weight: 600 !important;
   color: #0f172a;
+  font-size: 13.5px;
+  line-height: 1.4;
+  display: block;
 }
 
+.perk-sub,
 .feature-sub {
   font-size: 12px;
-  color: #475569;
+  color: #64748b;
+  line-height: 1.4;
+  display: block;
 }
 
 /* Confirmation Modal */

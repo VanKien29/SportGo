@@ -82,10 +82,18 @@
           </div>
 
           <nav class="wizard-steps-nav" aria-label="Các phần của hồ sơ">
-            <a href="#partner-step-personal" class="wizard-step-link"><span>1</span>Người đăng ký</a>
-            <a href="#partner-step-business" class="wizard-step-link"><span>2</span>Kinh doanh</a>
-            <a href="#partner-step-venue" class="wizard-step-link"><span>3</span>Thông tin Cụm sân</a>
-            <a href="#partner-step-documents" class="wizard-step-link"><span>4</span>Ngân hàng & Giấy tờ</a>
+            <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 1 }" @click="scrollToStep(1, 'partner-step-personal')">
+              <span>1</span>Người đăng ký
+            </button>
+            <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 2 }" @click="scrollToStep(2, 'partner-step-business')">
+              <span>2</span>Kinh doanh
+            </button>
+            <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 3 }" @click="scrollToStep(3, 'partner-step-venue')">
+              <span>3</span>Thông tin Cụm sân
+            </button>
+            <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 4 }" @click="scrollToStep(4, 'partner-step-documents')">
+              <span>4</span>Ngân hàng & Giấy tờ
+            </button>
           </nav>
 
           <aside v-if="onboardingTerms" class="wizard-terms-summary">
@@ -526,6 +534,16 @@ const canRegister = ref(false);
 const pageError = ref('');
 const draft = ref(null);
 const formOpen = ref(false);
+const activeStep = ref(1);
+
+function scrollToStep(stepIndex, elementId) {
+  activeStep.value = stepIndex;
+  const el = document.getElementById(elementId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 const showApplicationsModal = ref(false);
 const fieldErrors = reactive({});
 const formBanner = ref('');
@@ -552,6 +570,31 @@ const mapMarker = ref(null);
 const mapReverseBusy = ref(false);
 const editingApplicationId = ref('');
 const editingApplicationStatus = ref('');
+let scrollObserver = null;
+
+function initScrollSpy() {
+  if (scrollObserver) scrollObserver.disconnect();
+  const stepIds = [
+    { id: 'partner-step-personal', step: 1 },
+    { id: 'partner-step-business', step: 2 },
+    { id: 'partner-step-venue', step: 3 },
+    { id: 'partner-step-documents', step: 4 },
+  ];
+  if (typeof IntersectionObserver === 'undefined') return;
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const matched = stepIds.find(s => s.id === entry.target.id);
+        if (matched) activeStep.value = matched.step;
+      }
+    });
+  }, { threshold: 0.2 });
+
+  stepIds.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (el) scrollObserver.observe(el);
+  });
+}
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -633,9 +676,11 @@ watch(formOpen, async (open) => {
   if (open) {
     await nextTick();
     initMapPicker();
+    initScrollSpy();
     return;
   }
   destroyMapPicker();
+  if (scrollObserver) scrollObserver.disconnect();
 });
 watch(() => [form.venue_latitude, form.venue_longitude], updateMapPickerMarker);
 watch(() => route.query.editDraft, async () => {
@@ -1942,12 +1987,13 @@ function money(value) {
   gap: 10px;
   padding: 12px 16px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   text-decoration: none;
   color: #475569;
   font-size: 13.5px;
   font-weight: 500;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
@@ -1961,19 +2007,28 @@ function money(value) {
   background: #f1f5f9;
   color: #475569;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  transition: all 0.15s ease;
 }
 
-.wizard-step-link:hover,
-.wizard-step-link.is-active {
-  border-color: #16a34a;
+.wizard-step-link:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
   color: #0f172a;
-  background: #ffffff;
+}
+
+.wizard-step-link.is-active {
+  border-color: #15803d;
+  color: #0f172a;
+  background: #f0fdf4;
+  font-weight: 600;
+  box-shadow: 0 1px 3px 0 rgba(21, 128, 61, 0.1);
 }
 
 .wizard-step-link.is-active span {
-  background: #16a34a;
+  background: #15803d;
   color: #ffffff;
+  font-weight: 700;
 }
 
 .form-section {

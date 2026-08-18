@@ -44,7 +44,7 @@
             </div>
           </div>
 
-          <form class="bh-filter-panel" :class="{ 'is-open': showAdvancedFilters }" @submit.prevent="applyFilters">
+          <form v-show="showAdvancedFilters" class="bh-filter-panel" :class="{ 'is-open': showAdvancedFilters }" @submit.prevent="applyFilters">
             <div class="bh-filter-field bh-filter-field--search">
               <label for="bookingSearch">Tìm theo mã booking</label>
               <div class="bh-input-with-icon">
@@ -298,7 +298,7 @@ export default {
         { value: "refunded", label: "Đã hoàn tiền" },
         { value: "failed", label: "Thanh toán lỗi" },
       ],
-      showAdvancedFilters: true,
+      showAdvancedFilters: false,
       filterError: "",
       statusFilters: [
         { label: "Tất cả", value: "all" },

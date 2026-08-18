@@ -133,10 +133,16 @@ export default {
       return (
         {
           pending: "Đang xử lý",
+          pending_owner_confirmation: "Chờ chủ sân xác nhận",
+          owner_confirmed: "Chủ sân đã xác nhận",
+          admin_processing: "SportGo đang xử lý",
           approved: "Đã duyệt",
-          processing: "Đang hoàn",
-          completed: "Đã hoàn",
+          processing: "Đang chuyển tiền",
+          completed: "Đã hoàn tiền",
+          completed_cash: "Đã hoàn tiền mặt",
           rejected: "Từ chối",
+          owner_rejected: "Chủ sân từ chối",
+          failed: "Hoàn thất bại",
           cancelled: "Đã hủy",
         }[status] || status || "Chưa cập nhật"
       );
@@ -303,16 +309,22 @@ export default {
 }
 
 .sg3-status-pill.status-completed,
-.sg3-status-pill.status-approved {
+.sg3-status-pill.status-completed_cash,
+.sg3-status-pill.status-approved,
+.sg3-status-pill.status-owner_confirmed {
   color: #15803d;
 }
 
 .sg3-status-pill.status-pending,
+.sg3-status-pill.status-pending_owner_confirmation,
+.sg3-status-pill.status-admin_processing,
 .sg3-status-pill.status-processing {
   color: #d97706;
 }
 
 .sg3-status-pill.status-rejected,
+.sg3-status-pill.status-owner_rejected,
+.sg3-status-pill.status-failed,
 .sg3-status-pill.status-cancelled {
   color: #dc2626;
 }
