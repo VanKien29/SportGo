@@ -712,7 +712,14 @@ class ChatController extends Controller
     {
         $currentUser = $request->user();
         $userId = $currentUser->id;
-        $type = $request->input('type', 'direct');
+        $type = $request->input('type');
+
+        if (!$type && ($request->filled('venue_id') || $request->filled('venue_cluster_id') || $request->filled('venueId'))) {
+            $type = 'venue_contact';
+        }
+        if (!$type) {
+            $type = 'direct';
+        }
 
         if ($type === 'group') {
             $name = trim($request->input('name') ?: 'Nhóm chat mới');
@@ -827,7 +834,7 @@ class ChatController extends Controller
         }
 
         if ($type === 'venue_contact') {
-            $venueId = $request->input('venue_id');
+            $venueId = $request->input('venue_id') ?: $request->input('venue_cluster_id') ?: $request->input('venueId');
             if (!$venueId) {
                 return response()->json(['message' => 'Mã sân đấu là bắt buộc.'], 400);
             }
@@ -890,7 +897,7 @@ class ChatController extends Controller
             return response()->json(['id' => $conversation->id]);
         }
 
-        if ($type === 'saved') {
+        if ($type === 'saved' || $type === 'saved_messages') {
             // Check if saved conversation (direct type with only 1 participant) already exists
             $existing = Conversation::where('type', 'direct')
                 ->whereHas('participants', function ($q) use ($userId) {

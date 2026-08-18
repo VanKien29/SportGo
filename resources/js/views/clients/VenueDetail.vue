@@ -346,96 +346,120 @@
             </div>
           </template>
 
-          <!-- TAB 3: SÂN & BẢNG GIÁ -->
+          <!-- TAB 2: SÂN & BẢNG GIÁ -->
           <template v-else-if="activeTab === 'courts'">
-            <!-- Sơ đồ sân -->
-            <div v-if="courtGroups.length" class="sg-detail-block">
-              <div class="sg-court-heading-row">
-                <div>
-                  <h2 class="sg-section-title">Sơ đồ vị trí sân</h2>
-                  <p class="sg-section-sub">Nhấp trực tiếp trên sơ đồ để xem vị trí sân con.</p>
-                </div>
-                <span class="sg-court-legend-dot">Sân đang hoạt động</span>
-              </div>
-
-              <div class="sg-court-canvas" :style="layoutCanvasStyle" aria-label="Sơ đồ trực quan các sân">
-                <button
-                  v-for="court in courtLayoutItems"
-                  :key="court.id"
-                  type="button"
-                  class="sg-court-node-btn"
-                  :style="courtLayoutStyle(court)"
-                  @click="selectLayoutCourt(court)"
-                >
-                  <strong class="sg-court-node-name">{{ court.shortName }}</strong>
-                  <span class="sg-court-node-type">{{ court.court_type?.name || "Sân thể thao" }}</span>
-                </button>
-                <div
-                  v-for="decoration in layoutDecorationItems"
-                  :key="decoration.id"
-                  class="sg-court-deco-item"
-                  :style="courtLayoutStyle(decoration)"
-                >
-                  <AppIcon :name="decorationIcon(decoration.type)" :size="15" />
-                  <span>{{ decoration.name }}</span>
-                </div>
-              </div>
-
-              <p v-if="selectedLayoutCourt" class="sg-court-selected-note">
-                Đang xem: <strong>{{ selectedLayoutCourt.name }}</strong> ({{ selectedLayoutCourt.court_type?.name || "Sân thể thao" }})
-              </p>
-
-              <!-- Phân loại sân con -->
-              <h3 class="sg-subsection-title" style="margin-top: 20px;">Danh sách loại sân con</h3>
-              <div class="sg-court-groups-grid">
-                <article v-for="group in courtGroups" :key="group.typeId" class="sg-court-group-card">
-                  <div class="sg-court-group-header">
-                    <span class="sg-court-group-type">{{ group.typeName }}</span>
-                    <span class="sg-court-group-count">{{ group.courts.length }} sân</span>
+            <div class="sg-courts-pricing-section">
+              <!-- Sơ đồ vị trí sân -->
+              <div v-if="courtGroups.length" class="sg-courts-block">
+                <div class="sg-court-heading-row">
+                  <div>
+                    <h2 class="sg-section-title">Sơ đồ vị trí sân</h2>
+                    <p class="sg-section-sub">Nhấp trực tiếp trên sơ đồ để xem vị trí sân con tương ứng.</p>
                   </div>
-                  <p class="sg-court-group-names">{{ group.courts.map((court) => court.name).join(", ") }}</p>
-                </article>
-              </div>
-            </div>
-
-            <!-- Bảng giá -->
-            <div v-if="basePrices.length || priceSlots.length || holidayPrices.length" class="sg-detail-block">
-              <h2 class="sg-section-title">Bảng giá thuê sân</h2>
-              <div class="sg-price-table-flat">
-                <article v-for="price in basePrices" :key="`base-${price.id}`" class="sg-price-row">
-                  <span class="sg-price-type">{{ price.court_type?.name || "Tất cả loại sân" }} (Giờ thường)</span>
-                  <span class="sg-price-val">{{ formatCurrency(price.price) }}/giờ</span>
-                </article>
-                <article v-for="slot in priceSlots" :key="`slot-${slot.id}`" class="sg-price-row">
-                  <span class="sg-price-type">{{ slot.court_type?.name || "Tất cả loại sân" }} · {{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
-                  <span class="sg-price-val">{{ formatCurrency(slot.price) }}/giờ</span>
-                </article>
-                <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="sg-price-row sg-price-holiday">
-                  <span class="sg-price-type">Ngày {{ formatDate(holiday.holiday_date) }} · {{ holiday.court_type?.name || "Tất cả loại sân" }}</span>
-                  <span class="sg-price-val">{{ formatCurrency(holiday.price) }}/giờ</span>
-                </article>
-              </div>
-            </div>
-
-
-            <!-- Chính sách sân -->
-            <div class="sg-detail-block">
-              <h2 class="sg-section-title">Chính sách &amp; Quy định</h2>
-              <div class="sg-policy-grid">
-                <article v-for="policy in policies" :key="policy.label" class="sg-policy-item">
-                  <span class="sg-policy-lbl">{{ policy.label }}</span>
-                  <span class="sg-policy-val">{{ policy.value }}</span>
-                </article>
-              </div>
-              <div v-if="policyNotices.length" class="sg-policy-notices">
-                <div class="sg-policy-notices-head">
-                  <strong>Thông tin áp dụng</strong>
-                  <span>{{ policyNoticeSourceLabel }}</span>
+                  <span class="sg-court-legend-dot">Sân đang hoạt động</span>
                 </div>
-                <article v-for="notice in policyNotices" :key="notice.id" class="sg-policy-notice">
-                  <strong>{{ notice.title }}</strong>
-                  <p>{{ notice.content }}</p>
-                </article>
+
+                <div class="sg-court-canvas" :style="layoutCanvasStyle" aria-label="Sơ đồ trực quan các sân">
+                  <button
+                    v-for="court in courtLayoutItems"
+                    :key="court.id"
+                    type="button"
+                    class="sg-court-node-btn"
+                    :class="{ 'is-selected': selectedLayoutCourt?.id === court.id }"
+                    :style="courtLayoutStyle(court)"
+                    @click="selectLayoutCourt(court)"
+                  >
+                    <span class="sg-court-node-name">{{ court.shortName }}</span>
+                    <span class="sg-court-node-type">{{ court.court_type?.name || "Sân thể thao" }}</span>
+                  </button>
+                  <div
+                    v-for="decoration in layoutDecorationItems"
+                    :key="decoration.id"
+                    class="sg-court-deco-item"
+                    :style="courtLayoutStyle(decoration)"
+                  >
+                    <AppIcon :name="decorationIcon(decoration.type)" :size="15" />
+                    <span>{{ decoration.name }}</span>
+                  </div>
+                </div>
+
+                <p v-if="selectedLayoutCourt" class="sg-court-selected-note">
+                  Đang chọn xem: <span class="sg-court-selected-highlight">{{ selectedLayoutCourt.name }}</span> ({{ selectedLayoutCourt.court_type?.name || "Sân thể thao" }})
+                </p>
+              </div>
+
+              <!-- Phân loại loại sân & Danh sách sân con (Flat clean list) -->
+              <div v-if="courtGroups.length" class="sg-courts-block">
+                <h2 class="sg-section-title">Danh sách sân hoạt động</h2>
+                <div class="sg-court-groups-flat">
+                  <div v-for="group in courtGroups" :key="group.typeId" class="sg-court-group-row">
+                    <div class="sg-court-group-info">
+                      <div class="sg-court-group-title-line">
+                        <span class="sg-court-group-type">{{ group.typeName }}</span>
+                        <span class="sg-court-group-count">({{ group.courts.length }} sân)</span>
+                      </div>
+                      <p class="sg-court-group-subnames">Gồm: {{ group.courts.map((court) => court.name).join(" · ") }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bảng giá thuê sân (Clean Modern Table) -->
+              <div v-if="basePrices.length || priceSlots.length || holidayPrices.length" class="sg-courts-block">
+                <h2 class="sg-section-title">Bảng giá thuê sân</h2>
+                <div class="sg-price-table-flat">
+                  <div class="sg-price-table-head">
+                    <span class="sg-price-th-type">Loại sân &amp; Khung giờ</span>
+                    <span class="sg-price-th-val">Đơn giá thuê</span>
+                  </div>
+                  <div class="sg-price-table-body">
+                    <article v-for="price in basePrices" :key="`base-${price.id}`" class="sg-price-row">
+                      <div class="sg-price-info">
+                        <span class="sg-price-name">{{ price.court_type?.name || "Tất cả loại sân" }}</span>
+                        <span class="sg-price-sub">Giờ tiêu chuẩn</span>
+                      </div>
+                      <span class="sg-price-val">{{ formatCurrency(price.price) }}/giờ</span>
+                    </article>
+
+                    <article v-for="slot in priceSlots" :key="`slot-${slot.id}`" class="sg-price-row">
+                      <div class="sg-price-info">
+                        <span class="sg-price-name">{{ slot.court_type?.name || "Tất cả loại sân" }}</span>
+                        <span class="sg-price-sub">{{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
+                      </div>
+                      <span class="sg-price-val">{{ formatCurrency(slot.price) }}/giờ</span>
+                    </article>
+
+                    <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="sg-price-row sg-price-holiday">
+                      <div class="sg-price-info">
+                        <span class="sg-price-name">{{ holiday.court_type?.name || "Tất cả loại sân" }}</span>
+                        <span class="sg-price-sub">Ngày lễ {{ formatDate(holiday.holiday_date) }} ({{ timeLabel(holiday.start_time) }} - {{ timeLabel(holiday.end_time) }})</span>
+                      </div>
+                      <span class="sg-price-val">{{ formatCurrency(holiday.price) }}/giờ</span>
+                    </article>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Chính sách & Quy định -->
+              <div class="sg-courts-block">
+                <h2 class="sg-section-title">Chính sách &amp; Quy định sân</h2>
+                <div class="sg-policy-grid-flat">
+                  <article v-for="policy in policies" :key="policy.label" class="sg-policy-item-flat">
+                    <span class="sg-policy-lbl">{{ policy.label }}</span>
+                    <span class="sg-policy-val">{{ policy.value }}</span>
+                  </article>
+                </div>
+                
+                <div v-if="policyNotices.length" class="sg-policy-notices">
+                  <div class="sg-policy-notices-head">
+                    <strong>Thông tin áp dụng</strong>
+                    <span>{{ policyNoticeSourceLabel }}</span>
+                  </div>
+                  <article v-for="notice in policyNotices" :key="notice.id" class="sg-policy-notice">
+                    <strong>{{ notice.title }}</strong>
+                    <p>{{ notice.content }}</p>
+                  </article>
+                </div>
               </div>
             </div>
           </template>
@@ -450,71 +474,101 @@
 
           <!-- TAB 4: ĐÁNH GIÁ -->
           <template v-else-if="activeTab === 'reviews'">
-            <div class="sg-detail-block">
-              <h2 class="sg-section-title">Đánh giá từ khách hàng</h2>
-              <p v-if="reviews.length && reviewCount > reviews.length" class="sg-review-preview-note">
-                Hiển thị {{ reviews.length }} đánh giá gần nhất trong tổng số {{ reviewCount }} lượt.
-              </p>
+            <div class="sg-reviews-section">
+              <!-- Reviews Summary Header (Flat, no card box, high contrast) -->
+              <div class="sg-reviews-overview">
+                <div class="sg-reviews-score-block">
+                  <div class="sg-reviews-score-big">{{ reviewStats.avg }}</div>
+                  <div class="sg-reviews-score-meta">
+                    <div class="sg-reviews-stars-visual">
+                      <span v-for="i in 5" :key="i" class="sg-star-char" :class="{ 'sg-star-filled': i <= Math.round(Number(reviewStats.avg)) }">★</span>
+                    </div>
+                    <span class="sg-reviews-total-text">Dựa trên {{ reviewStats.total }} đánh giá từ người chơi</span>
+                  </div>
+                </div>
 
-              <div v-if="reviews.length" class="sg-reviews-flat-list">
-                <article v-for="review in reviews" :key="review.id" class="sg-review-item-card">
-                  <div class="sg-review-header-row">
-                    <div class="sg-review-user">
-                      <div class="sg-review-avatar">{{ initials(review.author_name || 'Khách hàng') }}</div>
-                      <div class="sg-review-user-info">
-                        <span class="sg-review-author-name">{{ review.author_name || "Khách hàng" }}</span>
-                        <small v-if="review.created_at" class="sg-review-date">{{ formatDate(review.created_at) }}</small>
+                <!-- Rating Bars Breakdown -->
+                <div class="sg-reviews-breakdown">
+                  <div v-for="item in reviewStats.breakdown" :key="item.star" class="sg-rating-bar-row">
+                    <span class="sg-rating-bar-star">{{ item.star }} sao</span>
+                    <div class="sg-rating-bar-track">
+                      <div class="sg-rating-bar-fill" :style="{ width: item.percent + '%' }"></div>
+                    </div>
+                    <span class="sg-rating-bar-count">{{ item.count }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reviews List -->
+              <div v-if="filteredReviews.length" class="sg-reviews-list">
+                <article v-for="review in filteredReviews" :key="review.id" class="sg-review-entry">
+                  <div class="sg-review-entry-header">
+                    <div class="sg-review-user-block">
+                      <div class="sg-review-avatar-text">{{ initials(review.author_name || 'Khách hàng') }}</div>
+                      <div class="sg-review-meta-text">
+                        <span class="sg-review-name">{{ review.author_name || "Khách hàng SportGo" }}</span>
+                        <span v-if="review.created_at" class="sg-review-time">{{ formatDate(review.created_at) }}</span>
                       </div>
                     </div>
-                    <div class="sg-review-stars-badge">
-                      <span>{{ Number(review.rating || 0).toFixed(1) }} ★</span>
+
+                    <div class="sg-review-stars-line">
+                      <span v-for="i in 5" :key="i" class="sg-star-mini" :class="{ 'sg-star-mini-active': i <= Number(review.rating || 5) }">★</span>
                     </div>
                   </div>
-                  <p v-if="review.content" class="sg-review-comment">{{ review.content }}</p>
+
+                  <p v-if="review.content" class="sg-review-body">{{ review.content }}</p>
                   
-                  <div v-if="review.reply_content" class="sg-review-reply-box">
-                    <span class="sg-reply-label">Phản hồi từ chủ sân</span>
-                    <p class="sg-reply-text">{{ review.reply_content }}</p>
+                  <!-- Owner Reply (Flat indented block) -->
+                  <div v-if="review.reply_content" class="sg-review-owner-reply">
+                    <div class="sg-reply-header">
+                      <span class="sg-reply-author">Phản hồi từ Ban quản lý {{ venue.name }}</span>
+                      <span v-if="review.replied_at" class="sg-reply-time">{{ formatDate(review.replied_at) }}</span>
+                    </div>
+                    <p class="sg-reply-body">{{ review.reply_content }}</p>
                   </div>
                 </article>
               </div>
-              <p v-else class="sg-muted-text">Sân chưa có đánh giá công khai.</p>
+
+              <p v-else class="sg-empty-reviews-text">Chưa có đánh giá nào được ghi nhận.</p>
             </div>
           </template>
 
           <!-- TAB 5: VỊ TRÍ & BẢN ĐỒ -->
           <template v-else-if="activeTab === 'location'">
-            <div class="sg-detail-block">
-              <h2 class="sg-section-title">Vị trí &amp; Chỉ đường</h2>
-              <div class="sg-location-summary-bar">
-                <div class="sg-loc-info">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>{{ fullAddress }}</span>
-                </div>
-                <div class="sg-loc-actions">
-                  <a v-if="mapExternalUrl" :href="mapExternalUrl" target="_blank" rel="noopener noreferrer" class="sg-btn-link-action">
-                    <span>Mở Google Maps</span>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+            <div class="sg-location-section">
+              <!-- Location Action & Info Bar (Flat 3-column minimalist) -->
+              <div class="sg-location-info-grid">
+                <article class="sg-loc-card-flat">
+                  <span class="sg-loc-card-label">ĐỊA CHỈ CỤM SÂN</span>
+                  <p class="sg-loc-card-value">{{ fullAddress }}</p>
+                  <button type="button" class="sg-loc-btn-action" @click="copyAddress">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <span>Sao chép địa chỉ</span>
+                  </button>
+                </article>
+
+                <article class="sg-loc-card-flat">
+                  <span class="sg-loc-card-label">HƯỚNG DẪN DI CHUYỂN &amp; GỬI XE</span>
+                  <p class="sg-loc-card-value">Giao thông thông thoáng, có bãi gửi xe máy miễn phí &amp; chỗ đỗ ô tô có bảo vệ trông giữ.</p>
+                  <a v-if="mapExternalUrl" :href="mapExternalUrl" target="_blank" rel="noopener noreferrer" class="sg-loc-btn-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    <span>Mở chỉ đường trên Google Maps</span>
                   </a>
-                  <a v-if="phoneUrl" :href="phoneUrl" class="sg-btn-link-action">
-                    Gọi {{ venue.phone_contact }}
+                </article>
+
+                <article class="sg-loc-card-flat">
+                  <span class="sg-loc-card-label">LIÊN HỆ TRỰC TIẾP</span>
+                  <p class="sg-loc-card-value">Hotline hỗ trợ: {{ venue.phone_contact || "Đang cập nhật" }}</p>
+                  <a v-if="phoneUrl" :href="phoneUrl" class="sg-loc-btn-action">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                    <span>Gọi điện cho cụm sân</span>
                   </a>
-                </div>
+                </article>
               </div>
 
-              <iframe
-                v-if="mapEmbedUrl"
-                class="sg-map-embed-iframe"
-                :src="mapEmbedUrl"
-                :title="`Bản đồ ${venue.name}`"
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-              ></iframe>
-
-              <div v-if="!mapEmbedUrl && !mapExternalUrl" class="sg-empty-block">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <h3 class="sg-empty-title">Vị trí đang được cập nhật</h3>
-                <p class="sg-empty-desc">Hãy nhắn tin với cụm sân để được hướng dẫn đường đi.</p>
+              <!-- Interactive Map Container -->
+              <div class="sg-location-map-wrapper">
+                <div ref="venueMapContainer" class="sg-venue-map-canvas"></div>
               </div>
             </div>
           </template>
@@ -587,12 +641,15 @@
 </template>
 
 <script>
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import PublicNavbar from "../../components/PublicNavbar.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import ComplaintModal from "../../components/ComplaintModal.vue";
 import ReportModal from "../../components/ReportModal.vue";
 import VenuePostsTab from "../../components/VenuePostsTab.vue";
 import { venueService } from "../../services/venues.js";
+import { chatService } from "../../services/chat.service.js";
 import { getAuth, restoreAuth } from "../../stores/auth.js";
 import { useToast } from "vue-toastification";
 
@@ -609,6 +666,7 @@ export default {
       error: "",
       gallery: [],
       activeImage: "",
+      venueLeafletMap: null,
       activeTab: "overview",
       venueTabs: [
         { id: "overview", label: "Tổng quan & tiện ích" },
@@ -753,6 +811,31 @@ export default {
     },
     reviews() { return this.venue?.reviews || []; },
     reviewCount() { return Number(this.venue?.rating_count || this.reviews.length || 0); },
+    reviewStats() {
+      const list = this.reviews || [];
+      const total = Number(this.venue?.rating_count || list.length || 0);
+      const avg = Number(this.venue?.rating_avg || 0) > 0 
+        ? Number(this.venue.rating_avg).toFixed(1)
+        : (list.length ? (list.reduce((sum, r) => sum + Number(r.rating || 5), 0) / list.length).toFixed(1) : '5.0');
+      
+      const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      list.forEach((r) => {
+        const star = Math.min(5, Math.max(1, Math.round(Number(r.rating || 5))));
+        counts[star] = (counts[star] || 0) + 1;
+      });
+      
+      const baseTotal = list.length || 1;
+      const breakdown = [5, 4, 3, 2, 1].map((star) => ({
+        star,
+        count: counts[star] || 0,
+        percent: Math.round(((counts[star] || 0) / baseTotal) * 100),
+      }));
+
+      return { avg, total: total || list.length, breakdown };
+    },
+    filteredReviews() {
+      return this.reviews || [];
+    },
     minDate() { return this.todayStr(); },
     mapEmbedUrl() {
       if (this.venue?.map_url?.includes("google.com/maps/embed")) return this.venue.map_url;
@@ -786,7 +869,18 @@ export default {
   async mounted() {
     this.activeTab = this.normalizeTab(this.$route.query.tab);
     await this.refreshAuthMemberships();
-    this.fetchVenue();
+    await this.fetchVenue();
+    if (this.activeTab === 'location') {
+      this.$nextTick(() => {
+        this.initVenueLocationMap();
+      });
+    }
+  },
+  beforeUnmount() {
+    if (this.venueLeafletMap) {
+      this.venueLeafletMap.remove();
+      this.venueLeafletMap = null;
+    }
   },
   watch: {
     '$route.params.id'(nextId, previousId) {
@@ -799,6 +893,11 @@ export default {
     },
     '$route.query.tab'(tab) {
       this.activeTab = this.normalizeTab(tab);
+      if (this.activeTab === 'location') {
+        this.$nextTick(() => {
+          this.initVenueLocationMap();
+        });
+      }
     },
     bookDate(value) {
       const normalized = this.normalizeBookingDate(value);
@@ -839,6 +938,11 @@ export default {
     setActiveTab(tab) {
       const nextTab = this.normalizeTab(tab);
       this.activeTab = nextTab;
+      if (nextTab === 'location') {
+        this.$nextTick(() => {
+          this.initVenueLocationMap();
+        });
+      }
       const query = { ...this.$route.query };
       if (nextTab === 'overview') delete query.tab;
       else query.tab = nextTab;
@@ -1120,11 +1224,30 @@ export default {
       this.$router.push({ name: 'booking-create', query });
     },
 
-    chatWithVenue() {
+    async chatWithVenue() {
       if (!this.venue) return;
+      if (!this.requirePlayer()) return;
+
+      try {
+        const res = await chatService.startConversation({
+          type: "venue_contact",
+          venue_id: this.venue.id,
+          venue_cluster_id: this.venue.id,
+        });
+        if (res && res.id) {
+          this.$router.push({
+            path: "/chat",
+            query: { conversation_id: res.id, venue_id: this.venue.id },
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn("Chuyển tới trang chat theo tham số venue_id", err);
+      }
+
       this.$router.push({
-        path: '/chat',
-        query: { venue_id: this.venue.id }
+        path: "/chat",
+        query: { venue_id: this.venue.id, venueId: this.venue.id },
       });
     },
 
@@ -1140,6 +1263,61 @@ export default {
         return false;
       }
       return true;
+    },
+
+    initVenueLocationMap() {
+      if (!this.$refs.venueMapContainer) return;
+      if (this.venueLeafletMap) {
+        this.venueLeafletMap.invalidateSize();
+        return;
+      }
+
+      const lat = parseFloat(this.venue?.latitude) || 21.036236;
+      const lng = parseFloat(this.venue?.longitude) || 105.790583;
+
+      try {
+        const map = L.map(this.$refs.venueMapContainer, {
+          center: [lat, lng],
+          zoom: 15,
+          zoomControl: true,
+          scrollWheelZoom: false,
+        });
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors',
+        }).addTo(map);
+
+        const customIcon = L.divIcon({
+          className: 'sg-venue-map-custom-marker',
+          html: `<div class="sg-map-marker-pin"><svg width="32" height="32" viewBox="0 0 24 24" fill="#15803d" stroke="#ffffff" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="#ffffff"/></svg></div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+        marker.bindPopup(`
+          <div class="sg-map-popup-content">
+            <div class="sg-map-popup-title">${this.venue?.name || 'Cụm sân'}</div>
+            <div class="sg-map-popup-address">${this.fullAddress}</div>
+          </div>
+        `).openPopup();
+
+        this.venueLeafletMap = map;
+      } catch (err) {
+        console.warn("Could not init Leaflet map:", err);
+      }
+    },
+
+    async copyAddress() {
+      if (!this.fullAddress) return;
+      try {
+        await navigator.clipboard.writeText(this.fullAddress);
+        this.toast.success("Đã sao chép địa chỉ cụm sân!");
+      } catch {
+        this.toast.info(`Địa chỉ: ${this.fullAddress}`);
+      }
     },
 
     openComplaint() {
@@ -1562,10 +1740,10 @@ export default {
 
 .sg-detail-block {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  border-radius: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
 }
 
 .sg-section-title {
@@ -1652,7 +1830,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px dashed #f1f5f9;
+  border-bottom: none;
 }
 
 .sg-service-copy {
@@ -1712,42 +1890,89 @@ export default {
   background: #15803d;
 }
 
+/* COURTS & PRICING SECTION - MINIMALIST FLAT STYLING */
+.sg-courts-pricing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  background: #ffffff !important;
+}
+
+.sg-courts-pricing-section *,
+.sg-courts-pricing-section span,
+.sg-courts-pricing-section p,
+.sg-courts-pricing-section strong {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+.sg-courts-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Court Canvas */
+.sg-court-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sg-court-legend-dot {
+  font-size: 12.5px;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sg-court-legend-dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #15803d;
+}
+
 .sg-court-canvas {
   position: relative;
   width: 100%;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .sg-court-node-btn {
   position: absolute;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 4px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  padding: 4px 6px;
+  transition: all 0.15s ease;
 }
 
-.sg-court-node-btn:hover {
+.sg-court-node-btn:hover,
+.sg-court-node-btn.is-selected {
   border-color: #15803d;
-  box-shadow: 0 2px 8px rgba(21, 128, 61, 0.15);
+  box-shadow: 0 0 0 1px #15803d;
 }
 
 .sg-court-node-name {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12.5px;
   color: #0f172a;
 }
 
 .sg-court-node-type {
-  font-size: 10.5px;
+  font-size: 10px;
   color: #64748b;
 }
 
@@ -1762,110 +1987,141 @@ export default {
 
 .sg-court-selected-note {
   font-size: 12.5px;
-  color: #334155;
-  margin-top: 10px;
+  color: #475569;
+  margin: 0;
 }
 
-.sg-court-groups-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+.sg-court-selected-highlight {
+  color: #15803d;
 }
 
-.sg-court-group-card {
-  background: #f8fafc;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #f1f5f9;
-}
-
-.sg-court-group-header {
+/* Court Groups Flat */
+.sg-court-groups-flat {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sg-court-group-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: none;
+}
+
+.sg-court-group-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .sg-court-group-type {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
   color: #0f172a;
 }
 
 .sg-court-group-count {
-  font-size: 11.5px;
+  font-size: 12px;
   color: #15803d;
 }
 
-.sg-court-group-names {
-  font-size: 12px;
-  color: #334155;
-  margin: 4px 0 0;
+.sg-court-group-subnames {
+  font-size: 12.5px;
+  color: #475569;
+  margin: 0;
 }
 
-/* Prices & Policies */
+/* Price Table Flat */
 .sg-price-table-flat {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  width: 100%;
+}
+
+.sg-price-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: none;
+  font-size: 12px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.sg-price-table-body {
+  display: flex;
+  flex-direction: column;
 }
 
 .sg-price-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 10px 0;
+  border-bottom: none;
+  background: transparent !important;
 }
 
-.sg-price-type {
-  color: #334155;
+.sg-price-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sg-price-name {
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.sg-price-sub {
+  font-size: 12px;
+  color: #64748b;
 }
 
 .sg-price-val {
+  font-size: 14px;
   color: #15803d;
-  font-weight: 500;
-}
-
-.sg-price-holiday {
-  background: #fffbebf5;
 }
 
 .sg-price-holiday .sg-price-val {
   color: #d97706;
 }
 
-.sg-policy-grid {
+/* Policy Flat Grid */
+.sg-policy-grid-flat {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px 28px;
+  padding-bottom: 8px;
 }
 
-.sg-policy-item {
+.sg-policy-item-flat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  background: #f8fafc;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: none;
 }
 
 .sg-policy-lbl {
   font-size: 11.5px;
-  color: #334155;
+  color: #64748b;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .sg-policy-val {
-  font-size: 13px;
+  font-size: 13.5px;
   color: #0f172a;
-  font-weight: 400;
+  line-height: 1.5;
 }
 
 .sg-policy-notices {
   margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid #e2e8f0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .sg-policy-notices-head {
@@ -1884,10 +2140,10 @@ export default {
 }
 
 .sg-policy-notice {
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: #f8fafc;
-  border-left: 3px solid #16a34a;
-  border-radius: 6px;
+  border-left: 2px solid #15803d;
+  border-radius: 0 6px 6px 0;
 }
 
 .sg-policy-notice + .sg-policy-notice {
@@ -1908,159 +2164,359 @@ export default {
   white-space: pre-line;
 }
 
-/* Reviews List */
-.sg-review-preview-note {
-  font-size: 12px;
-  color: #64748b;
-  margin: 0 0 12px;
+@media (max-width: 640px) {
+  .sg-policy-grid-flat {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
-.sg-reviews-flat-list {
+/* REVIEWS SECTION - MINIMALIST FLAT STYLING */
+.sg-reviews-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 28px;
+  background: #ffffff !important;
 }
 
-.sg-review-item-card {
+.sg-reviews-section *,
+.sg-reviews-section h2,
+.sg-reviews-section span,
+.sg-reviews-section p {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+/* Reviews Overview */
+.sg-reviews-overview {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 36px;
+  align-items: center;
+  padding: 8px 0 16px;
+  border-bottom: none;
+}
+
+.sg-reviews-score-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sg-reviews-score-big {
+  font-size: 42px;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.sg-reviews-score-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sg-reviews-stars-visual {
+  display: flex;
+  gap: 2px;
+}
+
+.sg-star-char {
+  font-size: 18px;
+  color: #e2e8f0;
+}
+
+.sg-star-char.sg-star-filled {
+  color: #15803d;
+}
+
+.sg-reviews-total-text {
+  font-size: 12.5px;
+  color: #475569;
+}
+
+/* Rating breakdown */
+.sg-reviews-breakdown {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
+  max-width: 380px;
 }
 
-.sg-review-header-row {
+.sg-rating-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.sg-rating-bar-star {
+  width: 40px;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.sg-rating-bar-track {
+  flex: 1;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.sg-rating-bar-fill {
+  height: 100%;
+  background: #15803d;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.sg-rating-bar-count {
+  width: 24px;
+  text-align: right;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* Reviews List */
+.sg-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sg-review-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: none;
+}
+
+.sg-review-entry-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.sg-review-user {
+.sg-review-user-block {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.sg-review-avatar {
-  width: 32px;
-  height: 32px;
+.sg-review-avatar-text {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: #f1f5f9;
   color: #15803d;
-  font-size: 12px;
-  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12.5px;
+  flex-shrink: 0;
 }
 
-.sg-review-user-info {
+.sg-review-meta-text {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
-.sg-review-author-name {
-  font-size: 13px;
-  font-weight: 500;
+.sg-review-name {
+  font-size: 13.5px;
   color: #0f172a;
 }
 
-.sg-review-date {
-  font-size: 11px;
-  color: #475569;
+.sg-review-time {
+  font-size: 11.5px;
+  color: #64748b;
 }
 
-.sg-review-stars-badge {
+.sg-review-stars-line {
+  display: flex;
+  gap: 2px;
+}
+
+.sg-star-mini {
+  font-size: 14px;
+  color: #e2e8f0;
+}
+
+.sg-star-mini.sg-star-mini-active {
+  color: #15803d;
+}
+
+.sg-review-body {
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Owner Reply */
+.sg-review-owner-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-left: 2px solid #15803d;
+  border-radius: 0 6px 6px 0;
+  margin-top: 4px;
+}
+
+.sg-reply-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sg-reply-author {
   font-size: 12px;
-  color: #d97706;
-  font-weight: 500;
+  color: #15803d;
 }
 
-.sg-review-comment {
+.sg-reply-time {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.sg-reply-body {
   font-size: 13px;
-  color: #1e293b;
+  color: #334155;
   line-height: 1.5;
   margin: 0;
 }
 
-.sg-review-reply-box {
-  background: #f8fafc;
-  padding: 8px 12px;
-  border-radius: 6px;
+.sg-empty-reviews-text {
+  color: #64748b;
+  font-size: 13.5px;
+  margin: 12px 0;
+}
+
+@media (max-width: 640px) {
+  .sg-reviews-overview {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* LOCATION & MAP SECTION - MINIMALIST FLAT STYLING */
+.sg-location-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: #ffffff !important;
+}
+
+.sg-location-section *,
+.sg-location-section span,
+.sg-location-section p,
+.sg-location-section a,
+.sg-location-section button {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+.sg-location-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.sg-loc-card-flat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: none;
+}
+
+.sg-loc-card-label {
+  font-size: 11.5px;
+  color: #64748b;
+  letter-spacing: 0.03em;
+}
+
+.sg-loc-card-value {
+  font-size: 13.5px;
+  color: #0f172a;
+  line-height: 1.55;
+  margin: 0;
+  flex: 1;
+}
+
+.sg-loc-btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #15803d;
+  font-size: 12.5px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  width: fit-content;
   margin-top: 4px;
 }
 
-.sg-reply-label {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #15803d;
-}
-
-.sg-reply-text {
-  font-size: 12.5px;
-  color: #475569;
-  margin: 2px 0 0;
-}
-
-/* Location Embed */
-.sg-location-summary-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.sg-loc-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  color: #334155;
-}
-
-.sg-loc-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.sg-btn-link-action {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #15803d;
-  font-size: 12.5px;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.sg-btn-link-action:hover {
+.sg-loc-btn-action:hover {
   text-decoration: underline;
 }
 
-.sg-map-embed-iframe {
+.sg-location-map-wrapper {
   width: 100%;
-  height: 320px;
+  height: 420px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: #f8fafc;
 }
 
-.sg-empty-block {
-  text-align: center;
-  padding: 30px 0;
+.sg-venue-map-canvas {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
-.sg-empty-title {
-  font-size: 15px;
-  font-weight: 500;
-  color: #334155;
-  margin: 8px 0 4px;
+.sg-map-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
-.sg-empty-desc {
-  font-size: 12.5px;
-  color: #64748b;
-  margin: 0;
+.sg-map-popup-content {
+  font-family: inherit;
+  padding: 4px 2px;
+}
+
+.sg-map-popup-title {
+  font-size: 13.5px;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.sg-map-popup-address {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .sg-location-info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sg-location-map-wrapper {
+    height: 320px;
+  }
 }
 
 /* RIGHT SIDEBAR BOOKING WIDGET STYLES */
@@ -2082,8 +2538,8 @@ export default {
 }
 
 .sg-booking-header {
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 12px;
+  border-bottom: none;
+  padding-bottom: 6px;
 }
 
 .sg-booking-title-row {
@@ -2291,7 +2747,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding-top: 10px;
-  border-top: 1px solid #f1f5f9;
+  border-top: none;
 }
 
 .sg-support-btn {
