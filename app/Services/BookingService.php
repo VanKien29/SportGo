@@ -742,13 +742,10 @@ class BookingService
                 ->get()
                 ->each(fn (Payment $pendingPayment) => $this->failPendingPayment($pendingPayment, $actor, 'counter_payment_replaced'));
 
-            if (in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'], true)) {
-                $booking->update([
-                    'status' => $collectionAmount >= $outstandingAmount ? 'completed' : 'confirmed',
-                ]);
-                if ($booking->status === 'completed') {
-                    $this->syncMembershipForCompletedBooking($booking);
-                }
+            if (in_array($booking->status, ['pending_approval', 'pending_payment'], true)) {
+                // Thu đủ tiền không kết thúc một buổi chơi còn ở tương lai.
+                // Lifecycle reconciler sẽ hoàn thành sau khi đã sử dụng sân.
+                $booking->update(['status' => 'confirmed']);
             }
 
             return $booking->fresh(['venueCourt.courtType', 'requestedVenueCourt', 'customer', 'payments']);
@@ -1996,12 +1993,12 @@ class BookingService
 
     private function initialCounterStatus(string $paymentOption, bool $isPaid): string
     {
-        if ($isPaid) {
-            return 'completed';
-        }
-
         if ($paymentOption === 'no_prepay') {
             return 'confirmed';
+        }
+
+        if ($isPaid) {
+            return 'pending_approval';
         }
 
         return 'pending_payment';
@@ -2524,7 +2521,7 @@ class BookingService
         $slotEnd = $this->timeToMinutes($endTime);
 
         return $intervals->first(function (array $interval) use ($venueCourtId, $slotStart, $slotEnd) {
-            return $interval['venue_court_id'] === $venueCourtId
+            return (string) $interval['venue_court_id'] === (string) $venueCourtId
                 && $this->timeToMinutes($interval['start_time']) < $slotEnd
                 && $this->timeToMinutes($interval['end_time']) > $slotStart;
         });

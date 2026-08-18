@@ -234,11 +234,8 @@ export default {
       this.loadFailed = false;
       this.clearMessages();
 
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 15000);
-
       try {
-        const data = await api('/api/owner/pricing', { signal: controller.signal });
+        const data = await api('/api/owner/pricing');
         this.clusters = data.clusters || [];
         this.courtTypesByCluster = data.court_types_by_cluster || {};
         this.basePrices = data.base_prices || [];
@@ -258,11 +255,8 @@ export default {
         this.syncBasePriceDrafts();
       } catch (error) {
         this.loadFailed = true;
-        this.error = error.name === 'AbortError'
-          ? 'Tải cấu hình giá quá lâu. Vui lòng kiểm tra kết nối mạng và thử lại.'
-          : (error.message || 'Không thể tải cấu hình giá.');
+        this.error = error.message || 'Không thể tải cấu hình giá.';
       } finally {
-        window.clearTimeout(timeout);
         this.isLoading = false;
       }
     },

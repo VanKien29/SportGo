@@ -26,14 +26,12 @@
     :policies="requiredPolicies"
     @accepted="handlePoliciesAccepted"
   />
-  <FloatingChatWidget v-if="showFloatingChat" />
   <FloatingActions />
 </template>
 
 <script>
 import ClientFooter from "./components/ClientFooter.vue";
 import FloatingActions from "./components/FloatingActions.vue";
-import FloatingChatWidget from "./components/FloatingChatWidget.vue";
 import PolicyAcceptanceModal from "./components/PolicyAcceptanceModal.vue";
 import SetPasswordModal from "./components/SetPasswordModal.vue";
 import { policyService } from "./services/policies.js";
@@ -44,7 +42,6 @@ export default {
   components: {
     ClientFooter,
     FloatingActions,
-    FloatingChatWidget,
     PolicyAcceptanceModal,
     SetPasswordModal,
   },
@@ -56,16 +53,10 @@ export default {
     };
   },
   computed: {
-    showFloatingChat() {
-      const path = this.$route.path;
-      if (/^\/(?:admin|owner|staff)(?:\/|$)/.test(path)) return false;
-      if (/^\/(?:chat|messages)(?:\/|$)/.test(path)) return false;
-      return true;
-    },
     showClientFooter() {
       const path = this.$route.path;
       if (/^\/(?:admin|owner|staff)(?:\/|$)/.test(path)) return false;
-      if (/^\/(?:login|register|forgot-password|chat)(?:\/|$)/.test(path)) {
+      if (/^\/(?:login|register|forgot-password|chat|messages)(?:\/|$)/.test(path)) {
         return false;
       }
       return true;

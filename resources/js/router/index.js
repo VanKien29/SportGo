@@ -34,8 +34,7 @@ const routes = [
     { path: "/about", name: "about", component: About, meta: { title: "Về SportGo" } },
     { path: "/contact", name: "contact", component: Contact, meta: { title: "Liên Hệ - SportGo" } },
     { path: "/policies", name: "policies", component: Policies, meta: { title: "Chính Sách & Điều Khoản - SportGo" } },
-    { path: "/chat", name: "client-chat", component: () => import("../views/clients/ClientChat.vue"), meta: { title: "Hộp Thư Tin Nhắn - SportGo" } },
-    { path: "/messages", name: "client-messages", component: () => import("../views/clients/ClientChat.vue"), meta: { title: "Hộp Thư Tin Nhắn - SportGo" } },
+    { path: "/messages", name: "client-messages", component: () => import("../views/clients/ClientChat.vue"), meta: { requiresAuth: true, title: "Hộp Thư Tin Nhắn - SportGo" } },
     { path: "/venues", name: "venues", component: () => import("../views/clients/VenueList.vue") },
     { path: "/map", name: "client-map", component: () => import("../views/clients/ClientMapView.vue") },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
@@ -90,10 +89,22 @@ const routes = [
         meta: { requiresAuth: true, title: "Quản lý bài giao lưu" },
     },
     {
+        path: "/matchmaking-requests",
+        name: "ClientMatchmakingRequests",
+        component: () => import("../views/clients/community/MatchmakingRequests.vue"),
+        meta: { requiresAuth: true, title: "Đơn tham gia giao lưu" },
+    },
+    {
+        path: "/matchmaking-requests/:id",
+        name: "ClientMatchmakingRequestDetail",
+        component: () => import("../views/clients/community/MatchmakingRequestDetail.vue"),
+        meta: { requiresAuth: true, title: "Chi tiết đơn giao lưu" },
+    },
+    {
         path: "/chat",
         name: "chat",
         component: () => import("../views/clients/ClientChat.vue"),
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, title: "Hộp Thư Tin Nhắn - SportGo" },
     },
     {
         path: "/partner-application/:id/documents/:documentId",
@@ -183,7 +194,7 @@ const routes = [
         path: "/become-partner",
         name: "partner-registration",
         component: () => import("../views/partner/PartnerApplicationPortal.vue"),
-        meta: { requiresAuth: false },
+        meta: { requiresAuth: true },
     },
     {
         path: "/vip-membership",
@@ -751,6 +762,15 @@ router.afterEach((to) => {
         document.head.appendChild(metaDesc);
     }
     metaDesc.content = `${title}. Tìm sân gần bạn, xem ma trận giờ trống và giữ chỗ dễ dàng cùng SportGo.`;
+});
+
+router.onError((error, to) => {
+    console.error('[SportGo] Router navigation error:', error, to?.fullPath);
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sportgo:router-error', {
+            detail: { error, to: to?.fullPath || null },
+        }));
+    }
 });
 
 export default router;

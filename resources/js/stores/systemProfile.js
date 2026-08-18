@@ -89,13 +89,9 @@ export async function loadSystemProfile({ force = false } = {}) {
 
     systemProfileState.loading = true;
 
-    let profileTimeoutId = null;
     try {
-        const controller = new AbortController();
-        profileTimeoutId = setTimeout(() => controller.abort(), 5000);
         const response = await fetch("/api/system-profile", {
             headers: { Accept: "application/json" },
-            signal: controller.signal,
         });
         const payload = await response.json().catch(() => ({}));
 
@@ -107,7 +103,6 @@ export async function loadSystemProfile({ force = false } = {}) {
     } catch {
         applySystemProfile();
     } finally {
-        if (profileTimeoutId) clearTimeout(profileTimeoutId);
         systemProfileState.loading = false;
     }
 

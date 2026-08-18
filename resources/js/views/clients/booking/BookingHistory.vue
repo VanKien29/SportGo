@@ -421,6 +421,7 @@ export default {
         confirmed: "Đã xác nhận",
         checked_in: "Đang chơi",
         completed: "Hoàn thành",
+        no_show: "Không check-in",
         cancelled: "Đã hủy",
         expired: "Đã hết hạn",
         rejected: "Từ chối",

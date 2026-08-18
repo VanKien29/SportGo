@@ -107,6 +107,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
@@ -503,15 +504,6 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/venue-posts/{id}/restore', [OwnerVenuePostController::class, 'restore']);
         Route::apiResource('venue-posts', OwnerVenuePostController::class);
 
-        // Booking Management
-        Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'index']);
-        Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'show']);
-        Route::post('/bookings/counter', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeCounter']);
-        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'previewRecurring']);
-        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeRecurring']);
-        Route::patch('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'updateStatus']);
-        Route::patch('/bookings/{id}/court', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'changeCourt']);
-
         // Matchmaking Posts (Giao lưu tại sân)
         Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'index']);
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'eligibleBookings']);
@@ -607,6 +599,8 @@ Route::middleware('auth:sanctum')
         Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 
         // Player Matchmaking Posts
+        Route::get('/matchmaking-requests', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myRequests']);
+        Route::get('/matchmaking-requests/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myRequest']);
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
         Route::post('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'store'])->middleware('throttle:5,1');
         Route::post('/matchmaking-posts/{id}/join', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'join']);

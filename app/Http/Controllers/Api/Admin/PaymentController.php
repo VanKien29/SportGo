@@ -29,7 +29,7 @@ class PaymentController extends Controller
             'status' => ['nullable', Rule::in(['pending', 'paid', 'failed', 'refunded'])],
             'payment_kind' => ['nullable', Rule::in(['full', 'deposit', 'partial'])],
             'method' => ['nullable', 'string', 'max:50'],
-            'booking_status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'cancelled', 'completed', 'expired'])],
+            'booking_status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'no_show', 'cancelled', 'expired', 'rejected'])],
             'booking_source' => ['nullable', 'string', 'max:50'],
             'venue_cluster_id' => ['nullable', 'integer'],
             'customer_id' => ['nullable', 'integer'],

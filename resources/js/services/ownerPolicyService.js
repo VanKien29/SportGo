@@ -22,7 +22,6 @@ export const ownerPolicyService = {
     return api(path, {
       cache: 'no-store',
       dedupe: false,
-      timeoutMs: 8000,
     });
   },
   saveRule(payload) {

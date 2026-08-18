@@ -7,7 +7,6 @@ export const venueClusterService = {
     return api(`/api/owner/venue-clusters${query ? `?${query}` : ''}`, {
       cache: 'no-store',
       dedupe: false,
-      timeoutMs: 8000,
     });
   },
   getClusterDetails(id) {
@@ -111,7 +110,6 @@ export const venueClusterService = {
     return api(`/api/owner/venue-clusters/${clusterId}/location-change-requests${qs}`, {
       cache: 'no-store',
       dedupe: false,
-      timeoutMs: 8000,
     });
   },
   createLocationChangeRequest(clusterId, data) {

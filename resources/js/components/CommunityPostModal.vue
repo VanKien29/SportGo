@@ -217,6 +217,14 @@ function clearAllImages() {
   if (fileInput.value) fileInput.value.value = '';
 }
 
+// Unmount cleanup must only release browser object URLs.  Editing an existing
+// post should not mark its media as removed just because the modal closed.
+function releaseImagePreviews() {
+  selectedImages.value.forEach((img) => {
+    if (!img?.isExisting && img?.url) URL.revokeObjectURL(img.url);
+  });
+}
+
 async function compressImage(file, maxDimension = 1920, quality = 0.85) {
   return new Promise((resolve) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
@@ -376,7 +384,7 @@ watch(() => props.isOpen, (isOpen) => {
 onMounted(() => document.addEventListener('keydown', handleEscape));
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleEscape);
-  revokePreview();
+  releaseImagePreviews();
 });
 </script>
 
@@ -790,4 +798,3 @@ onBeforeUnmount(() => {
   opacity: 0.9;
 }
 </style>
-

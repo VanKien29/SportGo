@@ -527,7 +527,9 @@ export default {
         bio: user?.bio || "",
         sports: Array.isArray(user?.sports) && user.sports.length
           ? user.sports.map((sport) => String(typeof sport === "object" ? sport.id || sport.code || sport.name : sport))
-          : ["badminton", "football"],
+          : (Array.isArray(user?.preferred_sports) && user.preferred_sports.length
+            ? user.preferred_sports.map((sport) => String(sport))
+            : ["badminton", "football"]),
       },
       courtTypes: [],
       // EMAIL OTP VERIFICATION STATE
@@ -648,6 +650,13 @@ export default {
       try {
         const payload = await authService.me();
         this.user = saveAuth(payload);
+        this.formData.fullName = this.user?.fullName || this.formData.fullName;
+        this.formData.email = this.user?.email || this.formData.email;
+        this.formData.phone = this.user?.phone || "";
+        this.formData.bio = this.user?.bio || "";
+        this.formData.sports = Array.isArray(this.user?.preferred_sports) && this.user.preferred_sports.length
+          ? this.user.preferred_sports.map((sport) => String(sport))
+          : this.formData.sports;
         this.membershipLabel = this.user?.membership_tier?.tier?.label
           || this.user?.membership_tier?.tier?.tier_label
           || "Thường";
@@ -791,23 +800,30 @@ export default {
       this.saving = true;
       this.saveMessage = "";
       try {
-        const updatedUser = {
+        const payload = new FormData();
+        payload.append("full_name", this.formData.fullName.trim());
+        payload.append("email", finalEmail || "");
+        payload.append("phone", finalPhone || "");
+        payload.append("bio", this.formData.bio || "");
+        this.formData.sports.forEach((sport) => payload.append("preferred_sports[]", sport));
+
+        const response = await authService.updateProfile(payload);
+        const currentAuth = getAuth();
+        this.user = saveAuth({
+          ...currentAuth,
           user: {
-            ...this.user,
-            full_name: this.formData.fullName,
-            fullName: this.formData.fullName,
-            email: finalEmail,
-            phone: finalPhone,
-            bio: this.formData.bio,
-            sports: this.formData.sports,
+            ...(currentAuth?.user || {}),
+            ...(response?.user || {}),
           },
-        };
-        saveAuth(updatedUser);
-        this.user = getAuth();
-        this.formData.email = finalEmail;
-        this.formData.phone = finalPhone;
+        });
+        this.formData.email = this.user?.email || finalEmail;
+        this.formData.phone = this.user?.phone || finalPhone;
+        this.formData.bio = this.user?.bio || this.formData.bio;
+        this.formData.sports = Array.isArray(this.user?.preferred_sports)
+          ? this.user.preferred_sports.map((sport) => String(sport))
+          : this.formData.sports;
         this.saveStatusClass = "cp-alert--success";
-        this.saveMessage = "Thông tin hồ sơ và địa chỉ đã được xác minh & cập nhật thành công!";
+        this.saveMessage = response?.message || "Thông tin hồ sơ đã được cập nhật thành công.";
       } catch (err) {
         this.saveStatusClass = "cp-alert--error";
         this.saveMessage = err.message || "Không thể cập nhật thông tin.";

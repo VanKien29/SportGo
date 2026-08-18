@@ -197,7 +197,7 @@ class BookingController extends Controller
     {
         $validated = $request->validate([
             'status_group' => 'nullable|in:all,upcoming,completed,cancelled,refunded',
-            'status' => 'nullable|in:pending_approval,pending_payment,confirmed,checked_in,completed,cancelled,expired,rejected',
+            'status' => 'nullable|in:pending_approval,pending_payment,confirmed,checked_in,completed,no_show,cancelled,expired,rejected',
             'search' => 'nullable|string|max:100',
             'from_date' => 'nullable|date_format:Y-m-d',
             'to_date' => 'nullable|date_format:Y-m-d|after_or_equal:from_date',

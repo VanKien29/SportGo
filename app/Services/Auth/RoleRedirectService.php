@@ -108,6 +108,8 @@ class RoleRedirectService
             'email_verified_at' => $user->email_verified_at,
             'status' => $user->status,
             'avatar_url' => $user->avatar_url,
+            'bio' => $user->bio,
+            'preferred_sports' => $user->preferred_sports ?: [],
             'status_reason' => $user->status_reason,
             'lock_type' => $user->lock_type,
             'locked_until' => $user->locked_until,

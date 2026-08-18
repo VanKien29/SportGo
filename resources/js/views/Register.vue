@@ -49,6 +49,7 @@
             autocapitalize="none"
             spellcheck="false"
             maxlength="50"
+            required
             :aria-invalid="Boolean(fieldErrors.username)"
             @input="clearFieldError('username')"
           />
@@ -67,6 +68,7 @@
             placeholder="Nguyễn Văn A"
             autocomplete="name"
             maxlength="255"
+            required
             :aria-invalid="Boolean(fieldErrors.full_name)"
             @input="clearFieldError('full_name')"
           />
@@ -86,6 +88,7 @@
             placeholder="09xxxxxxxx"
             autocomplete="tel"
             maxlength="20"
+            required
             :aria-invalid="Boolean(fieldErrors.phone)"
             @input="clearFieldError('phone')"
           />
@@ -106,6 +109,7 @@
             autocapitalize="none"
             spellcheck="false"
             maxlength="255"
+            required
             :aria-invalid="Boolean(fieldErrors.email)"
             @input="clearFieldError('email')"
           />
@@ -119,7 +123,8 @@
             v-model="form.password"
             class="sg-auth-password"
             :class="{ 'sg-auth-password--error': fieldErrors.password }"
-            label="Mật khẩu *"
+            label="Mật khẩu"
+            required
             placeholder="Tối thiểu 8 ký tự"
             autocomplete="new-password"
             @update:model-value="clearFieldError('password')"
@@ -139,7 +144,8 @@
             v-model="form.password_confirmation"
             class="sg-auth-password"
             :class="{ 'sg-auth-password--error': fieldErrors.password_confirmation }"
-            label="Xác nhận mật khẩu *"
+            label="Xác nhận mật khẩu"
+            required
             placeholder="Nhập lại mật khẩu"
             autocomplete="new-password"
             @update:model-value="clearFieldError('password_confirmation')"
@@ -221,6 +227,7 @@
           maxlength="6"
           placeholder="000000"
           autocomplete="one-time-code"
+          required
           :aria-invalid="Boolean(fieldErrors.otp)"
           @input="clearFieldError('otp')"
         />
@@ -454,5 +461,3 @@ export default {
   },
 };
 </script>
-
-

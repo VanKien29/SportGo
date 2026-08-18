@@ -5330,6 +5330,7 @@ export default {
                     confirmed: "Đã xác nhận",
                     checked_in: "Đã check-in",
                     completed: "Hoàn thành",
+                    no_show: "Không check-in",
                     cancelled: "Đã hủy",
                     rejected: "Từ chối",
                     expired: "Hết hạn",

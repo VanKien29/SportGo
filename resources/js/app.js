@@ -10,6 +10,18 @@ import { loadSystemProfile } from './stores/systemProfile.js';
 
 const app = createApp(App);
 app.use(router);
+
+// Keep a component cleanup/render exception from aborting an otherwise valid
+// SPA navigation. The original error remains visible in devtools and can be
+// reported without leaving the address bar ahead of the rendered page.
+app.config.errorHandler = (error, instance, info) => {
+  console.error('[SportGo] Vue error:', error, info, instance);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('sportgo:app-error', {
+      detail: { error, info },
+    }));
+  }
+};
 app.use(Toast, {
   timeout: 3000,
   closeOnClick: true,
