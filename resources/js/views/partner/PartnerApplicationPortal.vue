@@ -1,7 +1,7 @@
 <template>
-  <div class="partner-portal-page partner-client-page sg-client-page">
+  <div class="partner-portal-page partner-client-page sg-client-page" :class="{ 'partner-portal-page--landing': !formOpen }">
     <PublicNavbar />
-    <main class="portal-main">
+    <main :class="['portal-main', { 'portal-main--landing': !formOpen, 'portal-main--form': formOpen }]">
       <!-- ───── LANDING PAGE VIEW ───── -->
       <template v-if="!formOpen">
         <!-- User Existing Applications / Draft Notification Bar -->
@@ -1570,9 +1570,28 @@ function money(value) {
 </script>
 
 <style scoped>
+.partner-portal-page--landing {
+  background-color: #ffffff !important;
+}
+
+.partner-portal-page .portal-main.portal-main--landing {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden;
+}
+
+.partner-portal-page .portal-main.portal-main--form {
+  max-width: 1100px !important;
+  margin: 32px auto 48px !important;
+  padding: 0 20px !important;
+}
+
 .portal-user-sticky-banner {
-  background: #0f172a;
-  color: #ffffff;
+  background: #f0fdf4;
+  border-bottom: 1px solid #bbf7d0;
+  color: #166534;
   padding: 12px 24px;
 }
 
@@ -1592,6 +1611,7 @@ function money(value) {
   gap: 10px;
   font-size: 14px;
   font-weight: 400;
+  color: #166534;
 }
 
 .portal-banner-actions {
