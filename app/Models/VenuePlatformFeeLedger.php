@@ -12,6 +12,7 @@ class VenuePlatformFeeLedger extends Model
     protected $fillable = [
         'venue_cluster_id',
         'creation_source',
+        'automation_key',
         'tier_id',
         'tier_name_snapshot',
         'tier_min_courts_snapshot',

@@ -9,8 +9,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
 
 class VenuePostService
 {
@@ -71,26 +69,18 @@ class VenuePostService
                 $post->hashtags()->syncWithPivotValues($hashtagIds, ['post_type' => 'venue_posts']);
             }
 
-            // Convert and save thumbnail to WebP using Intervention Image
+            // Save thumbnail
             if ($thumbnail) {
-                $manager = ImageManager::usingDriver(new Driver());
-                $image = $manager->decodePath($thumbnail->getPathname());
-                
-                $filename = uniqid('thumb_', true) . '.webp';
-                $path = 'venue_posts/' . $filename;
-                
-                if (!Storage::disk('public')->exists('venue_posts')) {
-                    Storage::disk('public')->makeDirectory('venue_posts');
-                }
-                
-                $image->save(storage_path('app/public/' . $path), 80);
+                $extension = strtolower($thumbnail->getClientOriginalExtension() ?: 'webp');
+                $filename = uniqid('thumb_', true) . '.' . $extension;
+                $path = $thumbnail->storeAs('venue_posts', $filename, 'public');
 
                 $post->media()->create([
                     'collection' => 'thumbnail',
-                    'file_name' => $thumbnail->getClientOriginalName() . '.webp',
+                    'file_name' => $thumbnail->getClientOriginalName(),
                     'file_path' => $path,
-                    'mime_type' => 'image/webp',
-                    'file_size' => filesize(storage_path('app/public/' . $path)),
+                    'mime_type' => $thumbnail->getClientMimeType() ?: 'image/' . $extension,
+                    'file_size' => $thumbnail->getSize() ?: 0,
                 ]);
             }
 
@@ -160,25 +150,16 @@ class VenuePostService
                 // Remove old
                 $post->media()->where('collection', 'thumbnail')->delete();
                 
-                // Convert and save thumbnail to WebP using Intervention Image
-                $manager = new ImageManager(new Driver());
-                $image = $manager->decodePath($thumbnail->getPathname());
-                
-                $filename = uniqid('thumb_', true) . '.webp';
-                $path = 'venue_posts/' . $filename;
-                
-                if (!Storage::disk('public')->exists('venue_posts')) {
-                    Storage::disk('public')->makeDirectory('venue_posts');
-                }
-                
-                $image->save(storage_path('app/public/' . $path), quality: 80);
+                $extension = strtolower($thumbnail->getClientOriginalExtension() ?: 'webp');
+                $filename = uniqid('thumb_', true) . '.' . $extension;
+                $path = $thumbnail->storeAs('venue_posts', $filename, 'public');
 
                 $post->media()->create([
                     'collection' => 'thumbnail',
-                    'file_name' => $thumbnail->getClientOriginalName() . '.webp',
+                    'file_name' => $thumbnail->getClientOriginalName(),
                     'file_path' => $path,
-                    'mime_type' => 'image/webp',
-                    'file_size' => filesize(storage_path('app/public/' . $path)),
+                    'mime_type' => $thumbnail->getClientMimeType() ?: 'image/' . $extension,
+                    'file_size' => $thumbnail->getSize() ?: 0,
                 ]);
             }
 
@@ -279,23 +260,16 @@ class VenuePostService
 
     private function storeGalleryFile(VenuePost $post, UploadedFile $file, int $sortOrder): void
     {
-        $manager = ImageManager::usingDriver(new Driver());
-        $image = $manager->decodePath($file->getPathname());
-        $filename = uniqid('gallery_', true) . '.webp';
-        $path = 'venue_posts/' . $filename;
-
-        if (!Storage::disk('public')->exists('venue_posts')) {
-            Storage::disk('public')->makeDirectory('venue_posts');
-        }
-
-        $image->save(storage_path('app/public/' . $path), 80);
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'webp');
+        $filename = uniqid('gallery_', true) . '.' . $extension;
+        $path = $file->storeAs('venue_posts', $filename, 'public');
 
         $post->media()->create([
             'collection' => 'gallery',
-            'file_name' => pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp',
+            'file_name' => $file->getClientOriginalName(),
             'file_path' => $path,
-            'mime_type' => 'image/webp',
-            'file_size' => filesize(storage_path('app/public/' . $path)),
+            'mime_type' => $file->getClientMimeType() ?: 'image/' . $extension,
+            'file_size' => $file->getSize() ?: 0,
             'sort_order' => $sortOrder,
         ]);
     }

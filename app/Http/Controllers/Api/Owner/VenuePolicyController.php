@@ -34,6 +34,14 @@ class VenuePolicyController extends Controller
             ->latest()
             ->get();
 
+        $systemVenuePolicy = SystemPolicy::query()
+            ->where('policy_type', 'venue_policy')
+            ->where('status', 'active')
+            ->where('is_active', true)
+            ->orderByDesc('priority')
+            ->orderByDesc('version')
+            ->first();
+
         $systemPolicies = SystemPolicy::query()
             ->with(['rules' => fn ($query) => $query->where('is_active', true)->orderByDesc('priority')])
             ->where('status', 'active')
@@ -62,6 +70,22 @@ class VenuePolicyController extends Controller
                 ];
             });
 
+        $customerNotices = $venueRules
+            ->where('rule_type', 'customer_notice')
+            ->map(fn (VenuePolicyRule $rule): array => $this->venueRulePayload($rule))
+            ->values();
+        $effectiveCustomerNotices = $customerNotices->isNotEmpty()
+            ? $customerNotices
+            : ($systemVenuePolicy ? collect([[
+                'id' => 'system-' . $systemVenuePolicy->id,
+                'title' => $systemVenuePolicy->title,
+                'content' => $systemVenuePolicy->content,
+                'status' => 'system_default',
+                'status_label' => 'Đang dùng chính sách hệ thống',
+                'source' => 'system',
+                'read_only' => true,
+            ]]) : collect());
+
         return response()->json([
             'data' => [
                 'venue_cluster' => [
@@ -75,10 +99,16 @@ class VenuePolicyController extends Controller
                     ->where('rule_type', '!=', 'customer_notice')
                     ->map(fn (VenuePolicyRule $rule): array => $this->venueRulePayload($rule))
                     ->values(),
-                'customer_notices' => $venueRules
-                    ->where('rule_type', 'customer_notice')
-                    ->map(fn (VenuePolicyRule $rule): array => $this->venueRulePayload($rule))
-                    ->values(),
+                'customer_notices' => $customerNotices,
+                'effective_customer_notices' => $effectiveCustomerNotices,
+                'system_venue_policy' => $systemVenuePolicy ? [
+                    'id' => $systemVenuePolicy->id,
+                    'title' => $systemVenuePolicy->title,
+                    'content' => $systemVenuePolicy->content,
+                    'version' => $systemVenuePolicy->version,
+                    'source' => 'system',
+                    'source_label' => 'Chính sách hệ thống',
+                ] : null,
             ],
         ]);
     }

@@ -37,6 +37,13 @@ class FileDownloadController extends Controller
             $path = ltrim($path, '/');
         }
 
+        // Partner source files and generated contract DOCX files must only be
+        // served through their authorization-aware PDF endpoints. Without
+        // this guard an authenticated user could guess a storage key here.
+        if ($this->isProtectedPartnerPath($path)) {
+            return response()->json(['message' => 'File này chỉ được truy cập qua luồng tài liệu đối tác.'], 403);
+        }
+
         // Find file in either private (local) or public disk
         [$disk, $resolvedPath] = $this->resolveFileLocation($path);
 
@@ -88,5 +95,15 @@ class FileDownloadController extends Controller
         fclose($stream);
 
         return $prefix !== '%PDF-';
+    }
+
+    private function isProtectedPartnerPath(string $path): bool
+    {
+        return collect([
+            'generated-documents/',
+            'partner-applications/',
+            'partner-application-pdfs/',
+            'contracts/',
+        ])->contains(fn (string $prefix): bool => str_starts_with($path, $prefix));
     }
 }

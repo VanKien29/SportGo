@@ -23,6 +23,50 @@
 
         <!-- High-converting Partner Landing Page -->
         <PartnerLanding @start-registration="startNewApplication" />
+
+        <section v-if="onboardingTerms" class="partner-terms-band" aria-labelledby="partner-terms-title">
+          <div class="partner-terms-inner">
+            <div class="partner-terms-heading">
+              <div>
+                <p class="partner-terms-kicker">Thông tin cần biết trước khi đăng ký</p>
+                <h2 id="partner-terms-title">Phí nền tảng và chính sách áp dụng</h2>
+                <p>{{ onboardingTerms.notice }}</p>
+              </div>
+              <span class="partner-terms-version">Cập nhật theo phiên bản đang hiệu lực</span>
+            </div>
+
+            <div class="partner-terms-grid">
+              <div class="partner-fee-panel">
+                <div class="partner-panel-title-row">
+                  <h3>{{ onboardingTerms.platform_fee.title }}</h3>
+                  <span>{{ onboardingTerms.platform_fee.billing_cycle_label }}</span>
+                </div>
+                <p class="partner-panel-summary">{{ onboardingTerms.platform_fee.summary }}</p>
+                <div class="partner-fee-table-wrap">
+                  <table class="partner-fee-table">
+                    <thead><tr><th>Bậc sân</th><th>Phí / sân / tháng</th><th>Đóng năm</th></tr></thead>
+                    <tbody>
+                      <tr v-for="tier in onboardingTerms.platform_fee.tiers" :key="tier.id">
+                        <td>{{ tier.name }}</td>
+                        <td>{{ money(tier.price_per_court_month) }}</td>
+                        <td>Giảm {{ tier.annual_discount_percent }}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="partner-terms-note">{{ onboardingTerms.platform_fee.settings.default_due_days }} ngày nhắc trước hạn; quá hạn có thể bị giới hạn quyền vận hành theo chính sách.</p>
+              </div>
+
+              <div class="partner-policy-panel">
+                <h3>Chính sách liên quan</h3>
+                <details v-for="policy in onboardingTerms.policies" :key="policy.key" class="partner-policy-item">
+                  <summary>{{ policy.title }} <span>v{{ policy.version }}</span></summary>
+                  <p>{{ policy.content }}</p>
+                </details>
+              </div>
+            </div>
+          </div>
+        </section>
       </template>
 
       <!-- ───── FORM VIEW WIZARD ───── -->
@@ -43,6 +87,20 @@
             <a href="#partner-step-venue" class="wizard-step-link"><span>3</span>Thông tin Cụm sân</a>
             <a href="#partner-step-documents" class="wizard-step-link"><span>4</span>Ngân hàng & Giấy tờ</a>
           </nav>
+
+          <aside v-if="onboardingTerms" class="wizard-terms-summary">
+            <div>
+              <strong>Điều kiện phí hiện tại</strong>
+              <span>{{ selectedFeeTier ? `${money(selectedFeeTier.price_per_court_month)} / sân / tháng` : 'Chọn số sân để xem mức phí dự kiến' }}</span>
+            </div>
+            <details>
+              <summary>Xem phí và chính sách</summary>
+              <div class="wizard-terms-detail">
+                <p>{{ onboardingTerms.platform_fee.summary }}</p>
+                <p v-for="policy in onboardingTerms.policies" :key="policy.key"><strong>{{ policy.title }}:</strong> {{ policy.content }}</p>
+              </div>
+            </details>
+          </aside>
 
           <form class="wizard-form" novalidate @submit.prevent="submit">
             <div class="wizard-body">
@@ -262,7 +320,7 @@
                   <label class="confirmation-label">
                     <input v-model="confirmed" type="checkbox" />
                     <span>
-                      Tôi xác nhận thông tin trong hồ sơ là chính xác và đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.
+                      Tôi xác nhận thông tin trong hồ sơ là chính xác, đã đọc phí nền tảng và các chính sách liên quan, đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.
                     </span>
                   </label>
                   <p v-if="fieldErrors.confirmed" class="confirmation-error">{{ fieldErrors.confirmed }}</p>
@@ -442,7 +500,12 @@ const FormField = defineComponent({
   setup(props, { slots, attrs }) {
     return () => h('div', { class: ['form-group', attrs.class] }, [
       h('label', { class: 'form-label' }, [
-        h('span', { class: 'form-label-text' }, props.label),
+        h('span', { class: 'form-label-text' }, [
+          props.label,
+          props.required
+            ? h('span', { class: 'required', 'aria-hidden': 'true' }, ' *')
+            : null,
+        ]),
       ]),
       slots.default?.(),
       props.error ? h('p', { class: 'error-text' }, props.error) : null,
@@ -458,6 +521,7 @@ const user = getAuth();
 
 const loading = ref(false);
 const applications = ref([]);
+const onboardingTerms = ref(null);
 const canRegister = ref(false);
 const pageError = ref('');
 const draft = ref(null);
@@ -481,6 +545,7 @@ const cancelError = ref('');
 const mapError = ref('');
 const mapStatus = ref('');
 const mapSuggestion = ref(null);
+const bankTimer = ref(null);
 const mapTimer = ref(null);
 const mapInstance = ref(null);
 const mapMarker = ref(null);
@@ -509,33 +574,47 @@ const wardOptions = computed(() => wards.value.map((w) => ({ ...w, value: w.code
 const courtTypeOptions = computed(() => courtTypes.value.filter((t) => t.is_active !== false && Number(t.children_count || 0) === 0).map((t) => ({ ...t, value: t.id, label: t.name })));
 const submitDisabled = computed(() => submitting.value);
 const reviewingCount = computed(() => applications.value.filter((a) => ['pending', 'submitted', 'reviewing'].includes(a.status)).length);
+const selectedFeeTier = computed(() => {
+  const count = Number(form.court_count_total || 0);
+  return onboardingTerms.value?.platform_fee?.tiers?.find((tier) => count >= Number(tier.min_courts) && (tier.max_courts === null || count <= Number(tier.max_courts))) || null;
+});
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 onMounted(async () => {
-  if (!user) { router.replace({ name: 'login', query: { redirect: route.fullPath } }); return; }
-  loadDraft();
-  const loaders = [
-    ['hồ sơ đã gửi', loadApplications],
-    ['danh sách ngân hàng', loadBanks],
-    ['Tỉnh/Thành phố', loadProvinces],
-    ['loại sân', loadCourtTypes],
-    ['tiện ích', loadAmenities],
-  ];
-  const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
-  const failedLabels = results
-    .map((result, index) => (result.status === 'rejected' ? loaders[index][0] : null))
-    .filter(Boolean);
-  if (failedLabels.length) {
-    formBanner.value = `Không thể tải ${failedLabels.join(', ')}. Vui lòng làm mới trang hoặc thử lại sau.`;
-    toast.error(formBanner.value);
+  if (route.name === 'partner-application' && !user) {
+    router.replace({ name: 'login', query: { redirect: route.fullPath } });
+    return;
   }
-  await openDraftFromRoute();
+  loadDraft();
+  if (user) {
+    const loaders = [
+      ['hồ sơ đã gửi', loadApplications],
+      ['phí và chính sách đối tác', loadOnboardingTerms],
+      ['danh sách ngân hàng', loadBanks],
+      ['Tỉnh/Thành phố', loadProvinces],
+      ['loại sân', loadCourtTypes],
+      ['tiện ích', loadAmenities],
+    ];
+    const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
+    const failedLabels = results
+      .map((result, index) => (result.status === 'rejected' ? loaders[index][0] : null))
+      .filter(Boolean);
+    if (failedLabels.length) {
+      formBanner.value = `Không thể tải ${failedLabels.join(', ')}. Vui lòng làm mới trang hoặc thử lại sau.`;
+      toast.error(formBanner.value);
+    }
+    await openDraftFromRoute();
+  }
 });
 
 onBeforeUnmount(() => {
-  clearTimeout(bankTimer.value);
-  clearTimeout(mapTimer.value);
-  destroyMapPicker();
+  try {
+    if (bankTimer.value) clearTimeout(bankTimer.value);
+    if (mapTimer.value) clearTimeout(mapTimer.value);
+    destroyMapPicker();
+  } catch (e) {
+    // Prevent unmount exceptions from blocking navigation
+  }
 });
 
 watch(() => route.name, (name) => {
@@ -609,6 +688,7 @@ async function loadApplications() {
   try {
     const r = await api('/api/user/partner-application');
     applications.value = r.data?.history || [];
+    onboardingTerms.value = r.data?.onboarding_terms || onboardingTerms.value;
     canRegister.value = Boolean(r.data?.can_register);
     pageError.value = '';
   } catch (error) {
@@ -626,6 +706,10 @@ async function refreshApplications() {
   } catch {
     toast.error(pageError.value);
   }
+}
+async function loadOnboardingTerms() {
+  const r = await api('/api/user/partner-application/terms');
+  onboardingTerms.value = r.data || null;
 }
 async function loadBanks() {
   const cached = readCache(BANK_CACHE_KEY);
@@ -652,6 +736,10 @@ async function loadAmenities() { const r = await api('/api/amenities?active_only
 
 // ─── Form lifecycle ───────────────────────────────────────────────────────────
 function startNewApplication() {
+  if (!user) {
+    router.push({ name: 'login', query: { redirect: '/partner-application' } });
+    return;
+  }
   editingApplicationId.value = '';
   editingApplicationStatus.value = '';
   resetForm(defaultForm(user));
@@ -1511,6 +1599,106 @@ function money(value) {
   gap: 10px;
 }
 
+.partner-terms-band {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 36px 20px 44px;
+}
+
+.partner-terms-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.partner-terms-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.partner-terms-kicker {
+  margin: 0 0 6px;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.partner-terms-heading h2 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.partner-terms-heading p,
+.partner-panel-summary,
+.partner-terms-note,
+.partner-policy-item p {
+  color: #475569;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.partner-terms-heading p { margin: 0; max-width: 720px; }
+.partner-terms-version { color: #64748b; font-size: 12px; white-space: nowrap; }
+
+.partner-terms-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  gap: 16px;
+}
+
+.partner-fee-panel,
+.partner-policy-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.partner-panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.partner-panel-title-row h3,
+.partner-policy-panel h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.partner-panel-title-row span {
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.partner-panel-summary { margin: 8px 0 14px; }
+.partner-fee-table-wrap { overflow-x: auto; }
+.partner-fee-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.partner-fee-table th,
+.partner-fee-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+.partner-fee-table th { color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.partner-fee-table td { color: #334155; }
+.partner-fee-table td:nth-child(2) { color: #0f172a; font-weight: 600; }
+.partner-terms-note { margin: 14px 0 0; font-size: 12px; }
+
+.partner-policy-panel h3 { margin-bottom: 4px; }
+.partner-policy-item { border-bottom: 1px solid #f1f5f9; padding: 11px 0; }
+.partner-policy-item:last-child { border-bottom: 0; }
+.partner-policy-item summary { cursor: pointer; color: #0f172a; font-size: 13.5px; font-weight: 600; }
+.partner-policy-item summary span { color: #64748b; font-size: 11px; font-weight: 400; margin-left: 4px; }
+.partner-policy-item p { margin: 8px 0 0; white-space: pre-line; font-size: 13px; }
+
 .portal-modal-backdrop {
   position: fixed;
   top: 0;
@@ -1694,6 +1882,38 @@ function money(value) {
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 28px;
+}
+
+.wizard-terms-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -12px 0 24px;
+  padding: 12px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #14532d;
+  font-size: 13px;
+}
+
+.wizard-terms-summary > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wizard-terms-summary strong { font-weight: 600; }
+.wizard-terms-summary span { color: #166534; }
+.wizard-terms-summary details { position: relative; }
+.wizard-terms-summary summary { cursor: pointer; color: #166534; font-weight: 600; white-space: nowrap; }
+.wizard-terms-detail { position: absolute; z-index: 3; right: 0; top: 28px; width: min(520px, 80vw); max-height: 360px; overflow: auto; padding: 14px 16px; background: #ffffff; border: 1px solid #bbf7d0; border-radius: 6px; box-shadow: 0 12px 30px rgba(15, 23, 42, .12); color: #334155; }
+.wizard-terms-detail p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.6; white-space: pre-line; }
+.wizard-terms-detail p:last-child { margin-bottom: 0; }
+
+@media (max-width: 760px) {
+  .partner-terms-heading { flex-direction: column; gap: 8px; }
+  .partner-terms-version { white-space: normal; }
+  .partner-terms-grid { grid-template-columns: 1fr; }
+  .wizard-terms-summary { align-items: flex-start; flex-direction: column; }
+  .wizard-terms-summary details { width: 100%; }
+  .wizard-terms-detail { position: static; width: auto; margin-top: 10px; }
 }
 
 .wizard-step-link {

@@ -58,7 +58,7 @@
         </template>
 
         <template #content="{ row }">
-          <div class="content-preview">{{ row.content }}</div>
+          <div class="content-preview">{{ getContentText(row) }}</div>
         </template>
 
         <template #hashtags="{ row }">
@@ -76,6 +76,22 @@
             <span v-if="row.media.length > 1" class="media-count">+{{ row.media.length - 1 }}</span>
           </div>
           <span v-else class="muted">Không có</span>
+        </template>
+
+        <template #ai_moderation="{ row }">
+          <div v-if="row.ai_verdict || row.appeal_note" class="ai-cell">
+            <span v-if="row.ai_verdict" class="ai-badge" :class="`ai-${row.ai_verdict}`">
+              {{ row.ai_verdict === 'approved' ? 'AI An toàn' : (row.ai_verdict === 'rejected' ? 'AI Vi phạm' : 'AI Cần xem') }}
+              <small v-if="row.ai_score !== null">({{ row.ai_score }}%)</small>
+            </span>
+            <span v-if="row.appeal_note" class="ai-badge ai-appealed">
+              Có khiếu nại
+            </span>
+            <div v-if="row.ai_summary" class="ai-summary-text" :title="row.ai_summary">
+              {{ row.ai_summary }}
+            </div>
+          </div>
+          <span v-else class="muted">Chưa quét</span>
         </template>
 
         <template #status="{ row }">
@@ -186,7 +202,7 @@
             <h5 v-if="activeTab === 'system_posts' && activeItem.title" style="margin: 0 0 10px; font-size: 16px; font-weight: 400; color: #0f172a;">
               {{ activeItem.title }}
             </h5>
-            <p class="fb-post-text">{{ activeItem.content }}</p>
+            <p class="fb-post-text">{{ getContentText(activeItem) }}</p>
 
             <div v-if="activeItem.media && activeItem.media.length" class="fb-media-container">
               <img v-for="m in activeItem.media" :key="m.id" :src="m.file_path || m.url" style="cursor: pointer;" @click="openLightbox(m.file_path || m.url)" />
@@ -203,6 +219,58 @@
                 <span style="cursor: pointer; display: flex; align-items: center; color: #64748b; margin-left: 10px;" @click="copyPostLink(activeItem.id)" title="Sao chép liên kết bài viết">
                   <AppIcon name="share" size="16" />
                 </span>
+              </div>
+            </div>
+
+            <!-- Author Appeal Card -->
+            <div v-if="activeItem.appeal_note" class="ai-appeal-card">
+              <div class="ai-appeal-header">
+                <strong>Lời nhắn giải trình từ tác giả:</strong>
+                <span v-if="activeItem.appealed_at" class="muted">{{ formatDate(activeItem.appealed_at) }}</span>
+              </div>
+              <p class="ai-appeal-text">{{ activeItem.appeal_note }}</p>
+            </div>
+
+            <!-- AI Copilot Card -->
+            <div v-if="activeItem.ai_verdict || activeTab === 'community_posts'" class="ai-copilot-card">
+              <div class="ai-copilot-header">
+                <div class="ai-copilot-title">
+                  <span class="ai-sparkle-icon">✨</span>
+                  <strong>Thẩm định Gemini AI</strong>
+                  <span v-if="activeItem.ai_verdict" class="ai-badge" :class="`ai-${activeItem.ai_verdict}`">
+                    {{ activeItem.ai_verdict === 'approved' ? 'Khuyến nghị duyệt' : (activeItem.ai_verdict === 'rejected' ? 'Cảnh báo vi phạm' : 'Cần thẩm định') }}
+                    <span v-if="activeItem.ai_score !== null">({{ activeItem.ai_score }}/100)</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  class="btn-recheck-ai"
+                  :disabled="recheckingAi"
+                  @click="recheckAiForPost(activeItem)"
+                >
+                  {{ recheckingAi ? 'AI đang quét...' : 'Quét lại bằng AI' }}
+                </button>
+              </div>
+
+              <div v-if="activeItem.ai_summary" class="ai-copilot-summary">
+                <strong>Tóm tắt:</strong> {{ activeItem.ai_summary }}
+              </div>
+
+              <div v-if="activeItem.ai_flags?.length" class="ai-copilot-flags">
+                <strong>Cờ cảnh báo:</strong>
+                <span v-for="flag in activeItem.ai_flags" :key="flag" class="ai-flag-tag">#{{ flag }}</span>
+              </div>
+
+              <div v-if="activeItem.status_reason || (activeItem.ai_verdict === 'rejected' && activeItem.ai_summary)" class="ai-copilot-reason">
+                <strong>Lý do AI phát hiện:</strong> {{ activeItem.status_reason || 'Nội dung chứa yếu tố không phù hợp với chuẩn mực thể thao SportGo.' }}
+                <button
+                  v-if="activeItem.status_reason && !actionForm.reason"
+                  type="button"
+                  class="btn-use-reason"
+                  @click="actionForm.reason = activeItem.status_reason"
+                >
+                  Dùng lý do này
+                </button>
               </div>
             </div>
 
@@ -492,6 +560,7 @@ export default {
         targetPost: null
       },
       sendingNotification: false,
+      recheckingAi: false,
       activeItem: null,
       showComments: false,
       actionForm: {
@@ -557,6 +626,9 @@ export default {
       if (this.activeTab !== 'system_posts') {
         cols.push({ key: 'hashtags', label: 'HASHTAG' });
         cols.push({ key: 'media', label: 'ẢNH / FILE' });
+      }
+      if (this.activeTab === 'community_posts') {
+        cols.push({ key: 'ai_moderation', label: 'AI ĐÁNH GIÁ' });
       }
       cols.push(
         { key: 'status', label: 'TRẠNG THÁI' },
@@ -775,6 +847,28 @@ export default {
         setTimeout(() => this.error = '', 3000);
       }
     },
+    async recheckAiForPost(item) {
+      if (!item) return;
+      this.recheckingAi = true;
+      this.clearAlerts();
+      try {
+        const response = await adminModerationService.aiRecheck(this.activeTab, item.id);
+        if (response.data) {
+          Object.assign(this.activeItem, response.data);
+          const index = this.items.findIndex(i => i.id === item.id);
+          if (index !== -1) {
+            this.items[index] = { ...this.items[index], ...response.data };
+          }
+        }
+        this.message = 'AI đã hoàn tất phân tích lại bài viết.';
+        setTimeout(() => this.message = '', 3000);
+      } catch (err) {
+        this.error = err.message || 'Không thể kết nối AI để phân tích.';
+        setTimeout(() => this.error = '', 3000);
+      } finally {
+        this.recheckingAi = false;
+      }
+    },
     openActionModal(item) {
       this.clearAlerts();
       this.activeItem = item;
@@ -892,7 +986,16 @@ export default {
       return item?.author || {};
     },
     getContentText(item) {
-      return item?.content || '';
+      return this.plainTextFromHtml(item?.content || item?.short_description || '');
+    },
+    plainTextFromHtml(value) {
+      if (!value) return '';
+      const html = String(value);
+      if (typeof DOMParser === 'undefined') {
+        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      return (parsed.body.textContent || '').replace(/\s+/g, ' ').trim();
     },
     getContentMedia(item) {
       return item?.media || [];
@@ -1729,5 +1832,179 @@ th {
   box-shadow: none !important;
   padding: 0 !important;
   margin-bottom: 0 !important;
+}
+
+/* AI MODERATION STYLES */
+.ai-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.ai-badge.ai-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ai-badge.ai-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ai-badge.ai-needs_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ai-badge.ai-appealed {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.ai-summary-text {
+  font-size: 12px;
+  color: #64748b;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-appeal-card {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  background: #f0f9ff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-appeal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: #0369a1;
+}
+
+.ai-appeal-text {
+  margin: 0;
+  font-size: 13px;
+  color: #0c4a6e;
+  line-height: 1.5;
+}
+
+.ai-copilot-card {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-copilot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-copilot-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.ai-sparkle-icon {
+  font-size: 16px;
+}
+
+.btn-recheck-ai {
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-recheck-ai:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.ai-copilot-summary {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.ai-copilot-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #475569;
+}
+
+.ai-flag-tag {
+  padding: 2px 6px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.ai-copilot-reason {
+  font-size: 13px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 8px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-use-reason {
+  padding: 3px 8px;
+  border: 1px solid #f87171;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #b91c1c;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-use-reason:hover {
+  background: #fee2e2;
 }
 </style>

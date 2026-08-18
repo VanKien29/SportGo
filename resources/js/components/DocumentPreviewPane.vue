@@ -53,7 +53,7 @@ let resizeObserver = null;
 let scaleFrame = null;
 let loadSequence = 0;
 
-watch(() => props.document?.download_url, loadDocument, { immediate: true });
+watch(() => props.document?.preview_url || props.document?.download_url, loadDocument, { immediate: true });
 
 async function loadDocument() {
   const currentLoad = ++loadSequence;
@@ -69,7 +69,7 @@ async function loadDocument() {
 
   try {
     const token = readToken();
-    const response = await fetch(props.document.download_url, {
+    const response = await fetch(viewUrl(props.document), {
       cache: 'no-store',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -139,6 +139,12 @@ function detectFileType(mimeType, response) {
   return 'unsupported';
 }
 
+function viewUrl(document) {
+  if (document?.preview_url) return document.preview_url;
+  if (!document?.download_url) return '';
+  return `${document.download_url}${document.download_url.includes('?') ? '&' : '?'}mode=view`;
+}
+
 function cleanup() {
   if (fileUrl.value) URL.revokeObjectURL(fileUrl.value);
   fileUrl.value = '';
@@ -172,18 +178,18 @@ function updateDocumentScale() {
   const page = container?.querySelector('section.docx');
   if (!pane || !container || !page) return;
 
+  const wrapper = container.querySelector('.docx-wrapper');
+  wrapper?.style.setProperty('width', '100%', 'important');
+  wrapper?.style.setProperty('min-width', '100%', 'important');
+  wrapper?.style.setProperty('box-sizing', 'border-box', 'important');
+  wrapper?.style.setProperty('align-items', 'center', 'important');
+
+  // Keep the page dimensions supplied by docx-preview. Replacing them with
+  // scrollWidth makes overflowing paragraphs redefine the page width and
+  // shifts/crops the document inside the preview pane.
+  page.style.setProperty('margin-left', 'auto', 'important');
+  page.style.setProperty('margin-right', 'auto', 'important');
   container.style.setProperty('--document-scale', '1');
-  page.style.removeProperty('width');
-  page.style.removeProperty('min-width');
-  const paneStyle = window.getComputedStyle(pane);
-  const horizontalPadding = parseFloat(paneStyle.paddingLeft || 0) + parseFloat(paneStyle.paddingRight || 0);
-  const availableWidth = Math.max(0, pane.clientWidth - horizontalPadding);
-  const naturalPageWidth = page.offsetWidth || page.getBoundingClientRect().width;
-  const pageWidth = Math.max(naturalPageWidth, page.scrollWidth || 0);
-  page.style.setProperty('width', `${pageWidth}px`, 'important');
-  page.style.setProperty('min-width', `${pageWidth}px`, 'important');
-  const scale = pageWidth > 0 ? Math.min(1, availableWidth / pageWidth) : 1;
-  container.style.setProperty('--document-scale', Math.max(0.25, scale).toFixed(4));
 }
 
 function downloadDocument() {
@@ -198,4 +204,3 @@ onUnmounted(() => {
   cleanup();
 });
 </script>
-

@@ -1,0 +1,591 @@
+/*
+ * Partner application pages
+ *
+ * These pages are rendered in two different shells:
+ * - the public client shell, where main.sg-client-page is full width;
+ * - the owner shell, where the route is rendered inside .content-area.
+ *
+ * Keep the sizing here explicit so the document viewer cannot inherit the
+ * full-width main rule and push the document below the owner workspace.
+ */
+
+.sg-client-page.partner-review-page,
+.sg-client-page.partner-document-page {
+    min-height: 100vh;
+    background: #f5f9f6;
+    color: #14241a;
+}
+
+.sg-client-page.partner-review-page main.partner-review-main,
+.sg-client-page.partner-document-page main.partner-document-main {
+    box-sizing: border-box;
+    width: min(1180px, calc(100% - 48px));
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 0 56px;
+}
+
+.sg-client-page .partner-page-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.sg-client-page .partner-page-title {
+    min-width: 0;
+}
+
+.sg-client-page .partner-page-title p {
+    margin: 0 0 5px;
+    color: #087f3e;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sg-client-page .partner-page-title h1 {
+    margin: 0;
+    color: #14241a;
+    font-size: clamp(24px, 3vw, 32px);
+    font-weight: 400;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.sg-client-page .partner-page-title small {
+    display: block;
+    margin-top: 7px;
+    color: #496053;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.sg-client-page .partner-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #cfe1d3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+.sg-client-page .partner-card + .partner-card {
+    margin-top: 16px;
+}
+
+.sg-client-page .partner-card-head {
+    min-height: 56px;
+    padding: 15px 18px;
+    background: #fbfdfb;
+}
+
+.sg-client-page .partner-card-head h2,
+.sg-client-page .partner-card-head h3 {
+    margin: 0;
+    color: #14241a;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.3;
+}
+
+.sg-client-page .partner-card-head p {
+    margin: 5px 0 0;
+    color: #496053;
+    font-size: 13px;
+}
+
+.sg-client-page .partner-card-body {
+    padding: 18px;
+}
+
+.sg-client-page .partner-review-main .btn-primary,
+.sg-client-page .partner-document-main .btn-primary {
+    border: 1px solid #149447 !important;
+    border-radius: 8px;
+    background: #149447 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.sg-client-page .partner-review-main .btn-secondary,
+.sg-client-page .partner-review-main .btn-outline,
+.sg-client-page .partner-document-main .btn-secondary,
+.sg-client-page .partner-document-main .btn-outline {
+    border: 1px solid #bfd8c5 !important;
+    border-radius: 8px;
+    background: #ffffff !important;
+    color: #14241a !important;
+    box-shadow: none !important;
+}
+
+.sg-client-page .partner-layout-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 18px;
+    align-items: start;
+}
+
+.sg-client-page .partner-workflow-card {
+    margin-bottom: 18px;
+    padding: 20px;
+}
+
+.sg-client-page .partner-workflow-copy {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.sg-client-page .partner-workflow-copy h2 {
+    margin: 5px 0 4px;
+    color: #14241a;
+    font-size: 22px;
+    font-weight: 400;
+}
+
+.sg-client-page .partner-workflow-copy p {
+    margin: 0;
+    color: #496053;
+    font-size: 14px;
+}
+
+.sg-client-page .partner-workflow-eyebrow {
+    color: #087f3e !important;
+    font-size: 12px !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sg-client-page .partner-workflow-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 20px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sg-client-page .partner-workflow-steps li {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    padding: 10px 0;
+    color: #496053;
+    font-size: 13px;
+}
+
+.sg-client-page .partner-workflow-steps li > span {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 1px solid #bfd8c5;
+    border-radius: 50%;
+    color: #496053;
+    background: #ffffff;
+}
+
+.sg-client-page .partner-workflow-steps li.completed > span,
+.sg-client-page .partner-workflow-steps li.current > span {
+    border-color: #149447;
+    color: #ffffff;
+    background: #149447;
+}
+
+.sg-client-page .partner-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.sg-client-page .partner-info-box {
+    min-width: 0;
+    border: 1px solid #dbe8dd;
+    border-radius: 0;
+    padding: 14px;
+    background: #fbfdfb;
+}
+
+.sg-client-page .partner-info-box h3 {
+    margin: 0 0 12px;
+    color: #14241a;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.sg-client-page .partner-info-list {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 8px 12px;
+    margin: 0;
+}
+
+.sg-client-page .partner-info-list dt {
+    color: #496053;
+    font-size: 13px;
+}
+
+.sg-client-page .partner-info-list dd {
+    min-width: 0;
+    margin: 0;
+    color: #14241a;
+    font-size: 13px;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+.sg-client-page .partner-document-list,
+.sg-client-page .partner-timeline-list,
+.sg-client-page .partner-court-list {
+    display: grid;
+    gap: 10px;
+}
+
+.sg-client-page .partner-doc-row,
+.sg-client-page .partner-court-row,
+.sg-client-page .partner-timeline-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid #dbe8dd;
+    border-radius: 0;
+    padding: 13px 14px;
+    background: #ffffff;
+}
+
+.sg-client-page .partner-doc-row strong,
+.sg-client-page .partner-court-row strong,
+.sg-client-page .partner-timeline-row strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #14241a;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.sg-client-page .partner-doc-row p,
+.sg-client-page .partner-court-row p,
+.sg-client-page .partner-timeline-row p {
+    margin: 0;
+    color: #496053;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.sg-client-page .partner-doc-actions,
+.sg-client-page .partner-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.sg-client-page .partner-action-stack {
+    display: grid;
+    gap: 10px;
+}
+
+.sg-client-page .partner-sign-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
+    gap: 18px;
+    align-items: start;
+}
+
+.sg-client-page .partner-document-main {
+    container-name: partner-document-viewer;
+    container-type: inline-size;
+}
+
+.sg-client-page .partner-document-aside {
+    min-width: 0;
+    position: sticky;
+    top: 18px;
+}
+
+.sg-client-page .partner-inline-document-viewer {
+    width: 100%;
+    height: min(72vh, 820px);
+    min-height: 560px;
+    overflow: hidden;
+    border: 1px solid #dbe8dd;
+    border-radius: 0;
+    background: #edf3ee;
+}
+
+.sg-client-page .partner-document-card .partner-card-body {
+    min-width: 0;
+    padding: 14px;
+    overflow: hidden;
+}
+
+.sg-client-page .document-preview-pane {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    overflow: auto;
+    background: #edf3ee;
+}
+
+.sg-client-page .document-preview-pane .file-frame {
+    display: block;
+    width: 100%;
+    min-height: 100%;
+    flex: 1 0 auto;
+    border: 0;
+    background: #ffffff;
+}
+
+.sg-client-page .document-preview-pane .image-frame {
+    display: flex;
+    min-height: 100%;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 18px;
+}
+
+.sg-client-page .document-preview-pane .image-frame img {
+    max-width: 100%;
+    height: auto;
+    background: #ffffff;
+}
+
+.sg-client-page .document-preview-pane .docx-surface {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100%;
+    padding: 18px;
+    background: #edf3ee;
+    overflow-x: auto;
+}
+
+.sg-client-page .document-preview-pane .docx-surface .docx-wrapper {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    align-items: center !important;
+}
+
+.sg-client-page .document-preview-pane .docx-surface .docx-wrapper > section.docx {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.sg-client-page .document-preview-pane .preview-state {
+    display: grid;
+    min-height: 100%;
+    place-items: center;
+    align-content: center;
+    gap: 10px;
+    padding: 24px;
+    color: #496053;
+    text-align: center;
+}
+
+.sg-client-page .document-preview-pane .preview-state p {
+    margin: 0;
+}
+
+.sg-client-page .document-preview-pane .preview-state.error {
+    color: #b42318;
+}
+
+.sg-client-page .partner-document-hero {
+    display: grid;
+    min-height: 520px;
+    place-items: center;
+    border: 1px dashed #bfd8c5;
+    border-radius: 8px;
+    background: #edf3ee;
+    padding: 24px;
+    text-align: center;
+}
+
+.sg-client-page .partner-document-meta {
+    display: grid;
+    gap: 14px;
+    margin: 0;
+}
+
+.sg-client-page .partner-document-meta div {
+    min-width: 0;
+    padding-bottom: 2px;
+}
+
+.sg-client-page .partner-document-meta div:last-child {
+    padding-bottom: 0;
+}
+
+.sg-client-page .partner-document-meta dt {
+    color: #496053;
+    font-size: 13px;
+}
+
+.sg-client-page .partner-document-meta dd {
+    margin: 4px 0 0;
+    color: #14241a;
+    font-size: 14px;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+.sg-client-page .partner-sign-status {
+    display: grid;
+    gap: 10px;
+}
+
+.sg-client-page .partner-sign-status-item,
+.sg-client-page .partner-confirm-box,
+.sg-client-page .partner-sign-canvas-wrap {
+    border: 1px solid #dbe8dd;
+    border-radius: 0;
+    background: #ffffff;
+}
+
+.sg-client-page .partner-sign-status-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+}
+
+.sg-client-page .partner-sign-status-item span {
+    color: #496053;
+    font-size: 13px;
+}
+
+.sg-client-page .partner-sign-status-item strong {
+    color: #087f3e;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.sg-client-page .partner-confirm-box {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px;
+    color: #14241a;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.sg-client-page .partner-sign-canvas-wrap {
+    position: relative;
+    overflow: hidden;
+}
+
+.sg-client-page .partner-sign-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 170px;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.sg-client-page .partner-otp-box {
+    display: grid;
+    gap: 7px;
+}
+
+.sg-client-page .partner-otp-box input {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #bfd8c5;
+    border-radius: 8px;
+    padding: 0 12px;
+    background: #ffffff;
+    color: #14241a;
+}
+
+/* Owner routes render inside OwnerShell instead of below the public navbar. */
+.sg-shell-owner .content-area > .partner-document-page {
+    min-height: calc(100vh - 64px);
+}
+
+.sg-shell-owner .content-area > .partner-document-page main.partner-document-main {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 24px 28px 40px;
+}
+
+.sg-shell-owner .partner-document-page .partner-page-header {
+    margin-bottom: 18px;
+}
+
+.sg-shell-owner .partner-document-page .partner-inline-document-viewer {
+    height: min(72vh, 760px);
+    min-height: 520px;
+}
+
+@container partner-document-viewer (max-width: 1240px) {
+    .sg-client-page .partner-sign-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sg-client-page .partner-document-aside {
+        position: static;
+    }
+}
+
+@media (max-width: 980px) {
+    .sg-client-page .partner-layout-grid,
+    .sg-client-page .partner-sign-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sg-client-page .partner-document-aside {
+        position: static;
+    }
+
+    .sg-client-page .partner-info-grid,
+    .sg-client-page .partner-workflow-steps {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 720px) {
+    .sg-client-page.partner-review-page main.partner-review-main,
+    .sg-client-page.partner-document-page main.partner-document-main {
+        width: calc(100% - 24px);
+        padding-top: 20px;
+    }
+
+    .sg-client-page .partner-page-header,
+    .sg-client-page .partner-workflow-copy {
+        grid-template-columns: minmax(0, 1fr);
+        display: grid;
+        align-items: start;
+    }
+
+    .sg-client-page .partner-doc-row,
+    .sg-client-page .partner-court-row,
+    .sg-client-page .partner-timeline-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sg-client-page .partner-doc-actions,
+    .sg-client-page .partner-action-row {
+        justify-content: flex-start;
+    }
+
+    .sg-shell-owner .content-area > .partner-document-page main.partner-document-main {
+        width: 100%;
+        padding: 18px 16px 28px;
+    }
+}

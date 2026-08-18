@@ -20,6 +20,7 @@ use App\Services\Partner\PartnerDocumentService;
 use App\Services\Partner\PartnerDocumentSigningService;
 use App\Services\Partner\PartnerLocationService;
 use App\Services\Partner\PartnerMapResolver;
+use App\Services\Partner\PartnerOnboardingTermsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +40,7 @@ class PartnerApplicationController extends Controller
         private readonly PartnerMapResolver $maps,
         private readonly PartnerDocumentSigningService $signing,
         private readonly PartnerDocumentService $documents,
+        private readonly PartnerOnboardingTermsService $onboardingTerms,
     ) {
     }
 
@@ -55,6 +57,7 @@ class PartnerApplicationController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
+                'onboarding_terms' => $this->onboardingTerms->payload(),
                 'latest' => $applications->first(),
                 'history' => $applications,
                 'can_register' => $models
@@ -69,6 +72,14 @@ class PartnerApplicationController extends Controller
                     ])
                     ->isEmpty(),
             ],
+        ]);
+    }
+
+    public function onboardingTerms(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->onboardingTerms->payload(),
         ]);
     }
 
@@ -766,6 +777,9 @@ class PartnerApplicationController extends Controller
             ->map(fn (GeneratedDocument $document) => [
                 ...$document->toArray(),
                 'download_url' => '/api/files/documents/' . $document->id . '/download',
+                'preview_url' => '/api/files/documents/' . $document->id . '/download?mode=view',
+                'export_url' => '/api/files/documents/' . $document->id . '/download?mode=export',
+                'mime_type' => 'application/pdf',
             ]);
 
         return response()->json(['status' => 'success', 'data' => $documents]);
@@ -819,6 +833,9 @@ class PartnerApplicationController extends Controller
             'file_available' => $fileAvailable,
             'file_size' => $fileAvailable ? Storage::disk('local')->size($path) : 0,
             'download_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download' : null,
+            'preview_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download?mode=view' : null,
+            'export_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download?mode=export' : null,
+            'mime_type' => 'application/pdf',
             'signatures' => $document->signatures->values(),
         ];
     }
@@ -839,14 +856,18 @@ class PartnerApplicationController extends Controller
             'reject_reason' => $document->reject_reason,
             'reviewed_at' => $document->reviewed_at,
             'file_name' => $document->media?->file_name ?: ($path ? basename($path) : null),
-            'mime_type' => $fileAvailable
-                ? (Storage::disk('public')->mimeType($path) ?: $document->media?->mime_type)
-                : $document->media?->mime_type,
-            'file_size' => $fileAvailable ? Storage::disk('public')->size($path) : 0,
+            'mime_type' => 'application/pdf',
+            'file_size' => $fileAvailable ? $this->uploadedDocumentStorage($path)->size($path) : 0,
             'file_available' => $fileAvailable,
             'uploaded_at' => $document->created_at,
             'download_url' => $fileAvailable
                 ? '/api/user/partner-application/documents/' . $document->id . '/download'
+                : null,
+            'preview_url' => $fileAvailable
+                ? '/api/user/partner-application/documents/' . $document->id . '/download?mode=view'
+                : null,
+            'export_url' => $fileAvailable
+                ? '/api/user/partner-application/documents/' . $document->id . '/download?mode=export'
                 : null,
         ];
     }
@@ -894,12 +915,22 @@ class PartnerApplicationController extends Controller
             $document->getRawOriginal('file_path'),
             $document->media?->getRawOriginal('file_path'),
         ] as $candidate) {
-            if (is_string($candidate) && $candidate !== '' && Storage::disk('public')->exists($candidate)) {
-                return $candidate;
+            if (! is_string($candidate) || $candidate === '') {
+                continue;
+            }
+            foreach (['local', 'public'] as $disk) {
+                if (Storage::disk($disk)->exists($candidate)) {
+                    return $candidate;
+                }
             }
         }
 
         return null;
+    }
+
+    private function uploadedDocumentStorage(string $path): \Illuminate\Contracts\Filesystem\Filesystem
+    {
+        return Storage::disk('local')->exists($path) ? Storage::disk('local') : Storage::disk('public');
     }
 
     private function normalizedDocumentType(PartnerApplicationDocument $document): ?string

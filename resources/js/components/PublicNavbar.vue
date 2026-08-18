@@ -16,13 +16,23 @@
           <router-link to="/news" class="alb-nav-link" active-class="active-link">Tin tức</router-link>
           <router-link to="/community" class="alb-nav-link" active-class="active-link">Cộng đồng</router-link>
           <router-link to="/offers" class="alb-nav-link" active-class="active-link">Ưu đãi</router-link>
-          <router-link to="/become-partner" class="alb-btn-owner">
+          <router-link to="/about" class="alb-nav-link" active-class="active-link">Về chúng tôi</router-link>
+          <router-link to="/contact" class="alb-nav-link" active-class="active-link">Liên hệ</router-link>
+          <router-link v-if="!isOwner && !isAdmin" to="/become-partner" class="alb-btn-owner">
             <span>Đăng ký Chủ sân</span>
+          </router-link>
+          <router-link v-else-if="isOwner" to="/owner/dashboard" class="alb-btn-owner">
+            <span>Vào trang chủ sân</span>
           </router-link>
         </div>
 
         <!-- User Actions -->
         <div style="display: flex; align-items: center; gap: 16px;">
+          <!-- Messaging / Chat Link -->
+          <router-link v-if="user" to="/chat" class="sg3-icon-button" style="text-decoration: none;" title="Hộp thư tin nhắn">
+            <span style="font-size: 13px; font-weight: 500; color: #111827;">Tin nhắn</span>
+          </router-link>
+
           <!-- Notification Bell Link -->
           <div v-if="user" class="sg3-menu-wrap sg3-notifications">
             <button type="button" class="sg3-icon-button" aria-label="Mở thông báo" @click.stop="toggleNotifDropdown">
@@ -65,14 +75,20 @@
           <!-- User Account Menu -->
           <div v-if="user" class="sg3-menu-wrap sg3-account-menu">
             <button type="button" class="sg3-account-trigger" @click.stop="showDropdown = !showDropdown">
-              <span class="avatar-circle">{{ userInitial }}</span>
+              <span class="avatar-circle" :style="!userAvatarUrl ? { backgroundColor: userAvatarBg } : {}">
+                <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="user.fullName" class="nav-avatar-img" @error="onNavAvatarError" />
+                <span v-else>{{ userInitial }}</span>
+              </span>
               <span class="user-name-text" style="color: #111827;">{{ user.fullName }}</span>
             </button>
 
             <transition name="dd">
               <div v-if="showDropdown" class="dropdown" @click.stop>
                 <div class="dropdown-header">
-                  <div class="dd-avatar">{{ userInitial }}</div>
+                  <div class="dd-avatar" :style="!userAvatarUrl ? { backgroundColor: userAvatarBg } : {}">
+                    <img v-if="userAvatarUrl" :src="userAvatarUrl" :alt="user.fullName" class="nav-avatar-img" @error="onNavAvatarError" />
+                    <span v-else>{{ userInitial }}</span>
+                  </div>
                   <div class="dd-info">
                     <div class="dd-name">{{ user.fullName }}</div>
                     <div class="dd-role">{{ roleLabel }}</div>
@@ -107,7 +123,11 @@
                   Trò chuyện
                 </router-link>
 
-                <button v-if="!isClientUser" type="button" class="dd-item" @click="goToDashboard">
+                <router-link v-if="isOwner" to="/owner/dashboard" class="dd-item" @click="showDropdown = false">
+                  Vào trang chủ sân
+                </router-link>
+
+                <button v-if="isAdmin" type="button" class="dd-item" @click="goToDashboard">
                   Trang quản trị
                 </button>
 
@@ -133,6 +153,7 @@
 import { notificationService } from "../services/notification.service.js";
 import { getAuth, logout } from "../stores/auth.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
+import { getAvatarColorHex, getAvatarInitial } from "../utils/avatar.js";
 import ComplaintModal from "./ComplaintModal.vue";
 
 export default {
@@ -149,6 +170,9 @@ export default {
       notifications: [],
       unreadCount: 0,
       notifTimer: null,
+      notificationLoadTimer: null,
+      notificationsLoading: false,
+      notificationsLoaded: false,
     };
   },
   computed: {
@@ -165,17 +189,32 @@ export default {
       return String(this.supportPhone).replace(/[^\d+]/g, "") || "19006789";
     },
     userInitial() {
-      return this.user?.fullName?.trim()?.charAt(0)?.toUpperCase() || "?";
+      return getAvatarInitial(this.user?.fullName);
+    },
+    userAvatarBg() {
+      return getAvatarColorHex(this.user?.fullName);
+    },
+    userAvatarUrl() {
+      const path = this.user?.avatar_url || this.user?.avatarUrl || this.user?.avatar;
+      if (!path) return null;
+      if (path.startsWith('http') || path.startsWith('/')) return path;
+      return `/storage/${path}`;
     },
     roleLabel() {
       const labels = { admin: "Quản trị viên", owner: "Chủ sân", user: "Người chơi", customer: "Người chơi" };
       return labels[this.user?.role] || "Tài khoản";
     },
     isClientUser() {
-      return !["admin", "owner"].includes(this.user?.role);
+      return Boolean(this.user);
+    },
+    isOwner() {
+      return this.user?.role === "owner";
+    },
+    isAdmin() {
+      return this.user?.role === "admin";
     },
     profileRoute() {
-      return this.user?.role === "owner" ? "/owner/profile" : "/profile";
+      return "/profile";
     },
   },
   watch: {
@@ -187,15 +226,27 @@ export default {
   mounted() {
     document.addEventListener("pointerdown", this.handleOutside);
     if (this.user) {
-      this.fetchNotifications();
-      this.notifTimer = setInterval(this.fetchNotifications, 30000);
+      // Notifications are secondary UI. Let the page render first and only
+      // start polling if the user stays on the current screen.
+      this.notificationLoadTimer = setTimeout(() => {
+        this.fetchNotifications();
+        this.notifTimer = setInterval(this.fetchNotifications, 30000);
+      }, 300);
     }
   },
   beforeUnmount() {
     document.removeEventListener("pointerdown", this.handleOutside);
+    if (this.notificationLoadTimer) clearTimeout(this.notificationLoadTimer);
     if (this.notifTimer) clearInterval(this.notifTimer);
   },
   methods: {
+    onNavAvatarError() {
+      if (this.user) {
+        this.user.avatar_url = null;
+        this.user.avatarUrl = null;
+        this.user.avatar = null;
+      }
+    },
     handleOutside(event) {
       if (!event.target.closest(".sg3-account-menu")) this.showDropdown = false;
       if (!event.target.closest(".sg3-notifications")) this.showNotifDropdown = false;
@@ -203,6 +254,9 @@ export default {
     toggleNotifDropdown() {
       this.showNotifDropdown = !this.showNotifDropdown;
       this.showDropdown = false;
+      if (this.showNotifDropdown && this.user && !this.notificationsLoaded) {
+        this.fetchNotifications();
+      }
     },
     isNotifRead(n) {
       if (!n) return true;
@@ -216,6 +270,8 @@ export default {
       return n?.content || n?.body || n?.data?.message || n?.data?.content || "Không có nội dung chi tiết.";
     },
     async fetchNotifications() {
+      if (this.notificationsLoading) return;
+      this.notificationsLoading = true;
       try {
         const res = await notificationService.getNotifications();
         const list = Array.isArray(res) ? res : (res?.data || []);
@@ -225,6 +281,9 @@ export default {
           : list.filter((n) => !this.isNotifRead(n)).length;
       } catch (error) {
         // silent
+      } finally {
+        this.notificationsLoaded = true;
+        this.notificationsLoading = false;
       }
     },
     async markAllAsRead() {
@@ -254,7 +313,13 @@ export default {
     },
     goToDashboard() {
       this.showDropdown = false;
-      this.$router.push(this.user?.role === "admin" ? "/admin/dashboard" : "/owner/dashboard");
+      if (this.user?.role === "admin") {
+        this.$router.push("/admin/dashboard");
+      } else if (this.user?.role === "staff") {
+        this.$router.push("/staff/dashboard");
+      } else {
+        this.$router.push("/owner/dashboard");
+      }
     },
     async handleLogout() {
       await logout();
@@ -309,6 +374,15 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.nav-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .user-name-text {
@@ -354,6 +428,7 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .dd-info {

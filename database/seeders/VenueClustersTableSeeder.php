@@ -10,7 +10,11 @@ class VenueClustersTableSeeder extends Seeder
 {
     public function run(): void
     {
-        $defaultOwner = User::query()->first();
+        // The seeded partner account must own its demo venues.  Using the first
+        // user here accidentally assigns them to the super admin, leaving the
+        // `owner` account unable to manage its own venue posts.
+        $defaultOwner = User::query()->where('username', 'owner')->first()
+            ?? User::query()->first();
         if (! $defaultOwner) {
             return;
         }

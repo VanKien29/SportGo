@@ -9,14 +9,30 @@ class Complaint extends Model
 {
     use HasFactory;
 
+    protected $hidden = [
+        'idempotency_key',
+        'request_fingerprint',
+        'submitted_ip',
+        'submitted_user_agent',
+    ];
+
     protected $fillable = [
         'complaint_type',
         'is_vip_priority',
+        'idempotency_key',
+        'request_fingerprint',
         'booking_id',
         'venue_cluster_id',
         'customer_id',
+        'booking_snapshot',
+        'submitted_ip',
+        'submitted_user_agent',
+        'policy_version',
         'content',
         'status',
+        'first_response_at',
+        'response_due_at',
+        'resolution_due_at',
         'assigned_to',
         'resolved_by',
         'resolve_note',
@@ -28,7 +44,11 @@ class Complaint extends Model
     {
         return [
             'is_vip_priority' => 'boolean',
+            'booking_snapshot' => 'array',
             'resolved_at' => 'datetime',
+            'first_response_at' => 'datetime',
+            'response_due_at' => 'datetime',
+            'resolution_due_at' => 'datetime',
         ];
     }
 

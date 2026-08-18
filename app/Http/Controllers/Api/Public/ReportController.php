@@ -22,6 +22,7 @@ class ReportController extends Controller
         'community_post_comment' => \App\Models\CommunityPostComment::class,
         'user' => User::class,
         'venue' => VenueCluster::class,
+        'venue_cluster' => VenueCluster::class,
     ];
 
     public function index(Request $request)
@@ -53,12 +54,18 @@ class ReportController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'target_type' => ['required', 'string', 'in:post,comment,venue,user,player_post,venue_post,community_post,community_post_comment'],
+            'target_type' => ['required', 'string', 'in:post,comment,venue,venue_cluster,user,player_post,venue_post,community_post,community_post_comment'],
             'target_id' => ['required', 'string'],
-            'reason' => ['required', 'string', 'in:spam,offensive,fake,harassment,other'],
+            'reason' => ['required', 'string', 'in:spam,offensive,fake,harassment,other,fraud,inappropriate_content'],
             'description' => ['nullable', 'string', 'max:1000'],
             'evidence_image' => ['nullable', 'image', 'max:5120'], // max 5MB
         ]);
+
+        $reason = match ($request->reason) {
+            'fraud' => 'fake',
+            'inappropriate_content' => 'offensive',
+            default => $request->reason,
+        };
 
         $targetType = $request->target_type;
         $targetId = $request->target_id;
@@ -85,7 +92,7 @@ class ReportController extends Controller
             'reporter_id' => $request->user()->id,
             'reportable_type' => $modelClass,
             'reportable_id' => $targetId,
-            'reason' => $request->reason,
+            'reason' => $reason,
             'description' => $request->description,
             'status' => 'pending',
         ]);

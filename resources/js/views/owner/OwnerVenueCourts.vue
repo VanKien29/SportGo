@@ -1103,7 +1103,7 @@ export default {
             this.error = null;
             try {
                 if (!this.clusterId) {
-                    const clustersRes = await venueClusterService.getClusters();
+                    const clustersRes = await venueClusterService.getClusters({ compact: 1 });
                     this.clusterId = clustersRes.data?.[0]?.id || "";
                 }
 

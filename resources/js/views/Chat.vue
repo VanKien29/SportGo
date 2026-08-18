@@ -241,13 +241,13 @@
                 </template>
               </div>
               <div class="min-w-0">
-                <div class="font-medium text-sm text-zinc-100 flex items-center gap-2 min-w-0">
+                <div class="font-medium text-sm text-[var(--admin-text,#0f172a)] flex items-center gap-2 min-w-0">
                   <span class="truncate">{{ profileDisplayName }}</span>
-                  <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-400 text-[9px] font-normal rounded border border-green-500/20 uppercase tracking-wider shrink-0">
+                  <span v-if="activeConversation.type === 'venue_contact'" class="px-1.5 py-0.5 bg-green-500/10 text-green-600 text-[9px] font-medium rounded border border-green-500/20 uppercase tracking-wider shrink-0">
                     Sân đấu
                   </span>
                 </div>
-                <div v-if="profileStatusText" class="text-[10px] text-zinc-500 flex items-center gap-1">
+                <div v-if="profileStatusText" class="text-[11px] text-[var(--admin-muted,#64748b)] flex items-center gap-1">
                   <span class="h-1.5 w-1.5 bg-green-500 rounded-full shrink-0"></span>
                   <span>{{ profileStatusText }}</span>
                 </div>
@@ -259,8 +259,8 @@
               <!-- Sidebar Toggle Button -->
               <button
                 @click="showProfileSidebar = !showProfileSidebar"
-                class="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 transition-colors"
-                :class="{ 'text-zinc-200 bg-zinc-800/40': showProfileSidebar }"
+                class="p-2 rounded-lg text-[var(--admin-muted,#64748b)] hover:text-[var(--admin-text,#0f172a)] hover:bg-[var(--admin-hover,#f1f5f9)] transition-colors"
+                :class="{ 'text-green-600 bg-green-50': showProfileSidebar }"
                 title="Thông tin hội thoại"
               >
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -271,7 +271,7 @@
 
               <button
                 @click="showChatMenu = !showChatMenu"
-                class="p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30 transition-colors"
+                class="p-2 rounded-lg text-[var(--admin-muted,#64748b)] hover:text-[var(--admin-text,#0f172a)] hover:bg-[var(--admin-hover,#f1f5f9)] transition-colors"
                 title="Tùy chọn cuộc trò chuyện"
               >
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1382,6 +1382,7 @@ import BaseInput from '../components/ui/BaseInput.vue';
 import echo from '../echo.js';
 import { getAuth } from '../stores/auth.js';
 import { chatService } from '../services/chat.service.js';
+import { getAvatarColorHex } from '../utils/avatar.js';
 
 export default {
   name: 'Chat',
@@ -2767,28 +2768,7 @@ export default {
     },
 
     getAvatarColorHex(name) {
-      if (!name) return '#10b981';
-      const cleanName = String(name)
-        .replace(/^Người dùng\s+/i, '')
-        .replace(/^Nhân viên sân\s+/i, '')
-        .trim();
-
-      const colors = [
-        '#f97316', // Orange
-        '#10b981', // Emerald green
-        '#3b82f6', // Blue
-        '#8b5cf6', // Purple
-        '#ec4899', // Pink
-        '#06b6d4', // Cyan
-        '#f43f5e', // Rose
-        '#6366f1', // Indigo
-      ];
-      let hash = 0;
-      for (let i = 0; i < cleanName.length; i++) {
-        hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      const index = Math.abs(hash) % colors.length;
-      return colors[index];
+      return getAvatarColorHex(name);
     },
 
     supportRequestStatusLabel(status) {

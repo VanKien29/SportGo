@@ -1,375 +1,260 @@
 <template>
-  <div class="community-page sg-client-page">
+  <div class="community-page">
     <PublicNavbar />
 
-    <main class="sg-container community-container">
+    <main class="community-shell">
+      <header class="community-hero">
+        <div class="community-hero__copy">
+          <span class="community-eyebrow">SportGo Community</span>
+          <h1>Kết nối người chơi, chia sẻ cuộc vui</h1>
+          <p>Khám phá kinh nghiệm, tìm bạn chơi và theo dõi các kèo giao lưu phù hợp với lịch của bạn.</p>
+        </div>
+        <div class="community-hero__actions">
+          <template v-if="user">
+            <button v-if="canCreateCommunityPost" type="button" class="button button-primary" @click="showCommunityModal = true">
+              <AppIcon name="edit" />
+              Đăng bài
+            </button>
+            <button v-if="isPlayer" type="button" class="button button-secondary" @click="showMeetupModal = true">
+              <AppIcon name="users" />
+              Tạo kèo giao lưu
+            </button>
+          </template>
+          <router-link v-else to="/login" class="button button-primary">Đăng nhập để tham gia</router-link>
+        </div>
+      </header>
+
       <div class="community-layout">
-        <section class="feed-column" aria-label="Bảng tin cộng đồng">
-          <article v-if="canCreateCommunityPost" class="composer-card">
-            <div class="composer-start">
+        <section class="community-main" aria-label="Bảng tin cộng đồng">
+          <article v-if="canCreateCommunityPost" class="surface composer">
+            <div class="composer__row">
               <span class="avatar avatar-current">{{ initial(user?.fullName) }}</span>
-              <button type="button" class="composer-prompt" @click="showCommunityModal = true">
-                Bạn muốn chia sẻ điều gì với cộng đồng?
+              <button type="button" class="composer__prompt" @click="showCommunityModal = true">
+                <span>Bạn muốn chia sẻ điều gì với cộng đồng?</span>
+                <AppIcon name="chevronRight" />
               </button>
             </div>
-            <div class="composer-actions">
-              <button type="button" @click="showCommunityModal = true">
-                <AppIcon name="edit" />
-                Bài chia sẻ
-              </button>
-              <button v-if="isPlayer" type="button" @click="showMeetupModal = true">
-                <AppIcon name="users" />
-                Tìm người chơi cùng
-              </button>
+            <div class="composer__actions">
+              <button type="button" class="text-action" @click="showCommunityModal = true"><AppIcon name="edit" />Bài chia sẻ</button>
+              <button v-if="isPlayer" type="button" class="text-action" @click="showMeetupModal = true"><AppIcon name="users" />Tìm người chơi cùng</button>
             </div>
           </article>
 
-          <section class="feed-toolbar" aria-label="Lọc bảng tin">
-            <div class="toolbar-title">
-              <h2>Bảng tin mới nhất</h2>
-            </div>
-            <div class="feed-filters">
-              <form class="search-form" @submit.prevent="applyFilters">
-                <AppIcon name="search" />
-                <input v-model.trim="searchQuery" type="search" placeholder="Tìm trong cộng đồng" aria-label="Tìm trong cộng đồng" />
-                <button type="submit">Tìm</button>
-              </form>
-              <div class="category-list" aria-label="Chủ đề bài viết">
-                <button type="button" :class="{ active: !selectedCategory }" @click="setCategory('')">Tất cả</button>
-                <button
-                  v-for="category in categories"
-                  :key="category"
-                  type="button"
-                  :class="{ active: selectedCategory === category }"
-                  @click="setCategory(category)"
-                >
-                  {{ category }}
-                </button>
-                <button
-                  v-if="searchQuery || selectedCategory"
-                  type="button"
-                  class="filter-clear"
-                  @click="clearFilters"
-                >
-                  Xóa lọc
-                </button>
+          <nav v-if="user" class="surface community-tabs" aria-label="Khu vực cộng đồng">
+            <button type="button" :class="{ active: feedTab === 'public' }" @click="switchFeedTab('public')">Bảng tin cộng đồng</button>
+            <button type="button" :class="{ active: feedTab === 'my_posts' }" @click="switchFeedTab('my_posts')">Bài viết của tôi</button>
+            <router-link :to="{ name: 'ClientMatchmakingRequests' }">Đơn tham gia giao lưu</router-link>
+          </nav>
+
+          <section class="surface filter-panel" aria-label="Bộ lọc bảng tin">
+            <div class="filter-panel__heading">
+              <div>
+                <span class="section-kicker">{{ feedTab === 'public' ? 'Khám phá' : 'Cá nhân' }}</span>
+                <h2>{{ feedTab === 'public' ? 'Bảng tin mới nhất' : 'Bài viết của tôi' }}</h2>
               </div>
+              <button v-if="searchQuery || selectedCategory" type="button" class="button button-quiet" @click="clearFilters">Xóa bộ lọc</button>
+            </div>
+
+            <form v-if="feedTab === 'public'" class="search-field" @submit.prevent="applyFilters">
+              <AppIcon name="search" />
+              <input v-model.trim="searchQuery" type="search" placeholder="Tìm bài viết, kinh nghiệm, kèo giao lưu..." aria-label="Tìm trong cộng đồng" />
+              <button type="submit" class="button button-primary button-small">Tìm</button>
+            </form>
+            <div v-if="feedTab === 'public'" class="filter-nav" aria-label="Chủ đề bài viết">
+              <button type="button" :class="{ active: !selectedCategory }" @click="setCategory('')">Tất cả</button>
+              <button v-for="category in categories" :key="category" type="button" :class="{ active: selectedCategory === category }" @click="setCategory(category)">{{ category }}</button>
+            </div>
+            <div v-else class="filter-nav" aria-label="Trạng thái bài viết">
+              <button type="button" :class="{ active: myPostStatus === 'all' }" @click="setMyPostStatus('all')">Tất cả</button>
+              <button type="button" :class="{ active: myPostStatus === 'pending_review' }" @click="setMyPostStatus('pending_review')">Chờ duyệt</button>
+              <button type="button" :class="{ active: myPostStatus === 'published' }" @click="setMyPostStatus('published')">Đã đăng</button>
+              <button type="button" :class="{ active: myPostStatus === 'rejected' }" @click="setMyPostStatus('rejected')">Bị từ chối</button>
+              <button type="button" :class="{ active: myPostStatus === 'deleted' }" @click="setMyPostStatus('deleted')">Thùng rác</button>
             </div>
           </section>
 
-          <div v-if="loading" class="feed-state" aria-live="polite">
-            <span class="spinner" aria-hidden="true"></span>
-            <p>Đang tải bảng tin...</p>
-          </div>
-          <div v-else-if="error" class="feed-state state-error" role="alert">
+          <div v-if="loading" class="feed-state" aria-live="polite"><span class="loader" aria-hidden="true"></span><p>Đang tải bảng tin...</p></div>
+          <div v-else-if="error" class="surface feed-state feed-state--error" role="alert">
             <AppIcon name="alert" />
-            <strong>Không thể tải bảng tin</strong>
-            <p>{{ error }}</p>
-            <button type="button" @click="fetchPosts({ page: 1 })">Thử lại</button>
+            <div><strong>Không thể tải bảng tin</strong><p>{{ error }}</p></div>
+            <button type="button" class="button button-secondary" @click="loadCurrentFeed({ page: 1 })">Thử lại</button>
           </div>
-          <div v-else-if="!posts.length" class="feed-state">
+          <div v-else-if="!posts.length" class="surface feed-state">
             <AppIcon name="newspaper" />
-            <strong>Chưa có bài viết phù hợp</strong>
-            <p>Hãy đổi chủ đề hoặc từ khóa để xem thêm nội dung.</p>
+            <strong>{{ feedTab === 'my_posts' ? (myPostStatus === 'deleted' ? 'Thùng rác đang trống' : 'Bạn chưa có bài viết trong mục này') : 'Chưa có bài viết phù hợp' }}</strong>
+            <p>{{ feedTab === 'my_posts' ? (myPostStatus === 'deleted' ? 'Bài viết đã xóa sẽ xuất hiện ở đây.' : 'Chia sẻ điều bạn biết để bắt đầu kết nối.') : 'Thử một từ khóa hoặc chủ đề khác.' }}</p>
+            <button v-if="feedTab === 'my_posts' && myPostStatus !== 'deleted'" type="button" class="button button-primary" @click="showCommunityModal = true">Đăng bài ngay</button>
           </div>
 
           <div v-else class="post-stream">
-            <article v-for="post in posts" :key="post.id" class="post-card">
-              <header class="post-header">
+            <article v-for="post in posts" :key="post.id" class="surface post-card">
+              <header class="post-card__header">
                 <button type="button" class="author-button" @click="goToUser(post.author?.id)">
                   <span class="avatar">
-                    <img
-                      v-if="post.author?.avatar_url"
-                      :src="assetUrl(post.author.avatar_url)"
-                      :alt="post.author.full_name || post.author.username"
-                    />
+                    <img v-if="post.author?.avatar_url" :src="assetUrl(post.author.avatar_url)" :alt="post.author.full_name || post.author.username" />
                     <span v-else>{{ initial(post.author?.full_name || post.author?.username) }}</span>
                   </span>
                   <span class="author-copy">
-                    <strong class="client-author-line">
-                      {{ post.author?.full_name || post.author?.username || 'Thành viên SportGo' }}
-                      <ClientAuthorBadges :badges="post.author_badges" />
-                    </strong>
+                    <strong class="author-name">{{ post.author?.full_name || post.author?.username || 'Thành viên SportGo' }} <ClientAuthorBadges :badges="post.author_badges" /></strong>
                     <small>
                       {{ timeAgo(post.published_at || post.created_at) }}
                       <template v-if="post.venue_cluster?.name"> · {{ post.venue_cluster.name }}</template>
+                      <template v-if="post.is_edited"> · Đã chỉnh sửa</template>
+                      <template v-if="post.is_deleted"> · <span class="post-status status-deleted">Đã chuyển vào thùng rác</span></template>
+                      <template v-else-if="post.status && post.status !== 'published'">
+                        · <span class="post-status" :class="'status-' + post.status">{{ post.status === 'pending_review' ? 'Chờ duyệt' : (post.status === 'rejected' ? (post.rejection_source === 'ai' ? 'Bị từ chối bởi AI' : 'Bị từ chối bởi Admin') : post.status) }}</span>
+                      </template>
+                      <template v-else-if="feedTab === 'my_posts' && post.status === 'published'"> · <span class="post-status status-published">Đã xuất bản</span></template>
                     </small>
                   </span>
                 </button>
 
                 <div class="post-menu-wrap">
-                  <button
-                    type="button"
-                    class="icon-button"
-                    :aria-expanded="openMenuPostId === post.id"
-                    aria-label="Tùy chọn bài viết"
-                    @click.stop="togglePostMenu(post.id)"
-                  >
-                    <AppIcon name="moreHorizontal" />
-                  </button>
+                  <button type="button" class="icon-button" :aria-expanded="openMenuPostId === post.id" aria-label="Tùy chọn bài viết" @click.stop="togglePostMenu(post.id)"><AppIcon name="moreHorizontal" /></button>
                   <div v-if="openMenuPostId === post.id" class="post-menu" role="menu" @click.stop>
-                    <button type="button" role="menuitem" @click="openReport(post)">
-                      <AppIcon name="alert" />
-                      Báo cáo bài viết
-                    </button>
+                    <template v-if="post.is_deleted">
+                      <button type="button" role="menuitem" @click="restorePost(post)"><AppIcon name="refreshCw" />Khôi phục bài viết</button>
+                      <button type="button" role="menuitem" class="menu-danger" @click="forceDeletePost(post)"><AppIcon name="trash" />Xóa vĩnh viễn</button>
+                    </template>
+                    <template v-else-if="isOwnPost(post)">
+                      <button type="button" role="menuitem" @click="openEditPost(post)"><AppIcon name="edit" />Chỉnh sửa bài viết</button>
+                      <button v-if="post.status === 'rejected'" type="button" role="menuitem" @click="openAppealModal(post)"><AppIcon name="refreshCw" />Đề xuất duyệt lại</button>
+                      <button type="button" role="menuitem" @click="copyPostLink(post)"><AppIcon name="copy" />Sao chép liên kết</button>
+                      <button type="button" role="menuitem" class="menu-danger" @click="deletePost(post)"><AppIcon name="trash" />Xóa bài viết</button>
+                    </template>
+                    <template v-else>
+                      <button type="button" role="menuitem" @click="copyPostLink(post)"><AppIcon name="copy" />Sao chép liên kết</button>
+                      <button type="button" role="menuitem" @click="openReport(post)"><AppIcon name="alert" />Báo cáo bài viết</button>
+                    </template>
                   </div>
                 </div>
               </header>
 
-              <div class="post-body">
-                <div v-if="post.hashtags?.length" class="post-tags">
-                  <span v-for="tag in post.hashtags.slice(0, 3)" :key="tag.id || tag.name">#{{ tag.name }}</span>
-                </div>
+              <div v-if="post.status === 'rejected' && post.status_reason" class="post-notice post-notice--danger">
+                <strong>Lý do từ chối</strong><span>{{ post.status_reason }}</span>
+                <template v-if="isOwnPost(post)"><button type="button" @click="openEditPost(post)">Chỉnh sửa</button><button type="button" @click="openAppealModal(post)">Đề xuất duyệt lại</button></template>
+              </div>
+              <div v-if="post.status === 'pending_review' && post.appeal_note && isOwnPost(post)" class="post-notice"><strong>Lời nhắn gửi Admin</strong><span>{{ post.appeal_note }}</span></div>
+
+              <div class="post-card__body">
+                <div v-if="post.hashtags?.length" class="post-tags"><span v-for="tag in post.hashtags.slice(0, 3)" :key="tag.id || tag.name">#{{ tag.name }}</span></div>
                 <button type="button" class="post-copy" @click="goToDetail(post.slug || post.id)">
                   <strong v-if="post.title && !titleRepeatsContent(post)">{{ post.title }}</strong>
                   <span>{{ plainText(post.content || post.short_description) }}</span>
                 </button>
               </div>
 
-              <button
-                v-if="postMedia(post).length === 1"
-                type="button"
-                class="post-media media-single"
-                @click="goToDetail(post.slug || post.id)"
-              >
+              <button v-if="postMedia(post).length === 1" type="button" class="post-media media-single" @click="goToDetail(post.slug || post.id)">
                 <img :src="postMedia(post)[0]" :alt="post.title || 'Ảnh bài viết'" @error="handlePostImageError" />
               </button>
-              <button
-                v-else-if="postMedia(post).length > 1"
-                type="button"
-                class="post-media media-grid"
-                :class="`media-count-${Math.min(postMedia(post).length, 4)}`"
-                @click="goToDetail(post.slug || post.id)"
-              >
-                <span v-for="(image, imageIndex) in postMedia(post).slice(0, 4)" :key="`${post.id}-${imageIndex}`">
-                  <img :src="image" :alt="`${post.title || 'Ảnh bài viết'} ${imageIndex + 1}`" @error="handlePostImageError" />
+              <button v-else-if="postMedia(post).length > 1" type="button" class="post-media media-grid" :class="'media-count-' + Math.min(postMedia(post).length, 4)" @click="goToDetail(post.slug || post.id)">
+                <span v-for="(image, imageIndex) in postMedia(post).slice(0, 4)" :key="post.id + '-' + imageIndex">
+                  <img :src="image" :alt="(post.title || 'Ảnh bài viết') + ' ' + (imageIndex + 1)" @error="handlePostImageError" />
                   <b v-if="imageIndex === 3 && postMedia(post).length > 4">+{{ postMedia(post).length - 4 }}</b>
                 </span>
               </button>
 
-              <div class="post-stats">
-                <span><AppIcon name="heart" /> {{ post.like_count || 0 }}</span>
+              <div class="post-card__stats">
+                <span><AppIcon name="heart" />{{ post.like_count || 0 }}</span>
                 <button type="button" @click="toggleComments(post)">{{ post.comment_count || 0 }} bình luận</button>
                 <span>{{ post.view_count || 0 }} lượt xem</span>
               </div>
-
-              <div class="post-actions">
-                <button
-                  type="button"
-                  :class="{ active: Boolean(post.is_liked) }"
-                  :disabled="likingPostIds.has(post.id) || !post.likes_available"
-                  :title="post.likes_available ? '' : 'Lượt thích của bài cụm sân đang chờ cập nhật dữ liệu hệ thống'"
-                  @click="toggleLike(post)"
-                >
-                  <AppIcon name="heart" />
-                  {{ post.is_liked ? 'Đã thích' : 'Thích' }}
-                </button>
-                <button type="button" :class="{ active: commentsOpen[post.id] }" @click="toggleComments(post)">
-                  <AppIcon name="messageCircle" />
-                  Bình luận
-                </button>
-                <button type="button" @click="sharePost(post)">
-                  <AppIcon name="share" />
-                  Chia sẻ
-                </button>
+              <div class="post-card__actions">
+                <button type="button" :class="{ active: Boolean(post.is_liked) }" :disabled="likingPostIds.has(post.id) || !post.likes_available" :title="post.likes_available ? '' : 'Lượt thích đang tạm thời chưa khả dụng'" @click="toggleLike(post)"><AppIcon name="heart" />{{ post.is_liked ? 'Đã thích' : 'Thích' }}</button>
+                <button type="button" :class="{ active: commentsOpen[post.id] }" @click="toggleComments(post)"><AppIcon name="messageCircle" />Bình luận</button>
+                <button type="button" @click="sharePost(post)"><AppIcon name="share" />Chia sẻ</button>
               </div>
 
               <section v-if="commentsOpen[post.id]" class="comments-panel" aria-label="Bình luận bài viết">
-                <div v-if="detailsLoading[post.id]" class="comments-loading">
-                  <span class="spinner spinner-small" aria-hidden="true"></span>
-                  Đang tải bình luận...
-                </div>
+                <div v-if="detailsLoading[post.id]" class="comments-loading"><span class="loader loader-small"></span>Đang tải bình luận...</div>
                 <template v-else>
                   <div v-if="post.top_level_comments?.length" class="comment-list">
                     <article v-for="comment in visibleComments(post)" :key="comment.id" class="comment-item">
-                      <span class="avatar avatar-comment">
-                        <img
-                          v-if="comment.user?.avatar_url"
-                          :src="assetUrl(comment.user.avatar_url)"
-                          :alt="comment.user.full_name || comment.user.username"
-                        />
-                        <span v-else>{{ initial(comment.user?.full_name || comment.user?.username) }}</span>
-                      </span>
-                      <div>
-                        <div class="comment-bubble">
-                          <strong class="client-author-line">
-                            {{ comment.user?.full_name || comment.user?.username || 'Thành viên SportGo' }}
-                            <ClientAuthorBadges :badges="comment.user?.author_badges" />
-                          </strong>
-                          <p>{{ comment.content }}</p>
-                        </div>
-                        <div class="comment-actions">
-                          <small>{{ timeAgo(comment.created_at) }}</small>
-                          <button type="button" class="reply-button" @click="setReply(post, comment)">Trả lời</button>
-                        </div>
+                      <span class="avatar avatar-comment"><img v-if="comment.user?.avatar_url" :src="assetUrl(comment.user.avatar_url)" :alt="comment.user.full_name || comment.user.username" /><span v-else>{{ initial(comment.user?.full_name || comment.user?.username) }}</span></span>
+                      <div class="comment-content">
+                        <div class="comment-bubble"><strong class="author-name">{{ comment.user?.full_name || comment.user?.username || 'Thành viên SportGo' }} <ClientAuthorBadges :badges="comment.user?.author_badges" /></strong><p>{{ comment.content }}</p></div>
+                        <div class="comment-actions"><small>{{ timeAgo(comment.created_at) }}</small><button type="button" @click="setReply(post, comment)">Trả lời</button></div>
                         <div v-if="comment.replies?.length" class="comment-replies">
-                          <article v-for="reply in comment.replies" :key="reply.id" class="comment-item reply-item">
-                            <span class="avatar avatar-comment">
-                              <img
-                                v-if="reply.user?.avatar_url"
-                                :src="assetUrl(reply.user.avatar_url)"
-                                :alt="reply.user.full_name || reply.user.username"
-                              />
-                              <span v-else>{{ initial(reply.user?.full_name || reply.user?.username) }}</span>
-                            </span>
-                            <div>
-                              <div class="comment-bubble">
-                                <strong class="client-author-line">
-                                  {{ reply.user?.full_name || reply.user?.username || 'Thành viên SportGo' }}
-                                  <ClientAuthorBadges :badges="reply.user?.author_badges" />
-                                </strong>
-                                <p v-html="formatMention(reply.content)"></p>
-                              </div>
-                              <div class="comment-actions">
-                                <small>{{ timeAgo(reply.created_at) }}</small>
-                                <button type="button" class="reply-button" @click="setReply(post, comment, reply)">Trả lời</button>
-                              </div>
+                          <article v-for="reply in comment.replies" :key="reply.id" class="comment-item">
+                            <span class="avatar avatar-comment"><img v-if="reply.user?.avatar_url" :src="assetUrl(reply.user.avatar_url)" :alt="reply.user.full_name || reply.user.username" /><span v-else>{{ initial(reply.user?.full_name || reply.user?.username) }}</span></span>
+                            <div class="comment-content">
+                              <div class="comment-bubble"><strong class="author-name">{{ reply.user?.full_name || reply.user?.username || 'Thành viên SportGo' }} <ClientAuthorBadges :badges="reply.user?.author_badges" /></strong><p v-html="formatMention(reply.content)"></p></div>
+                              <div class="comment-actions"><small>{{ timeAgo(reply.created_at) }}</small><button type="button" @click="setReply(post, comment, reply)">Trả lời</button></div>
                             </div>
                           </article>
                         </div>
                       </div>
                     </article>
-                    <button
-                      v-if="post.top_level_comments.length > commentPreviewLimit && !showAllComments[post.id]"
-                      type="button"
-                      class="show-comments-button"
-                      @click="showAllComments[post.id] = true"
-                    >
-                      Xem thêm {{ post.top_level_comments.length - commentPreviewLimit }} bình luận
-                    </button>
+                    <button v-if="post.top_level_comments.length > commentPreviewLimit && !showAllComments[post.id]" type="button" class="show-comments-button" @click="showAllComments[post.id] = true">Xem thêm {{ post.top_level_comments.length - commentPreviewLimit }} bình luận</button>
                   </div>
                   <p v-else class="no-comments">Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p>
-
                   <form v-if="user" class="comment-form-wrapper" @submit.prevent="submitComment(post)">
-                    <div v-if="replyingTo[post.id]" class="replying-indicator">
-                      <span>Đang trả lời <strong>{{ replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo' }}</strong></span>
-                      <button type="button" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" /></button>
-                    </div>
+                    <div v-if="replyingTo[post.id]" class="replying-indicator"><span>Đang trả lời <strong>{{ replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo' }}</strong></span><button type="button" aria-label="Hủy trả lời" @click="replyingTo[post.id] = null"><AppIcon name="x" /></button></div>
                     <div class="comment-form">
                       <span class="avatar avatar-comment">{{ initial(user.fullName) }}</span>
-                      <label>
-                        <span class="sr-only">Viết bình luận</span>
-                        <input
-                          :id="`comment-input-${post.id}`"
-                          v-model.trim="commentDrafts[post.id]"
-                          type="text"
-                          maxlength="1000"
-                          :placeholder="replyingTo[post.id] ? `Phản hồi ${replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo'}...` : 'Viết bình luận...'"
-                          :disabled="commentSubmitting[post.id]"
-                        />
-                      </label>
-                    <button
-                      type="submit"
-                      class="send-comment"
-                      aria-label="Gửi bình luận"
-                      :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"
-                    >
-                        <AppIcon name="send" />
-                      </button>
+                      <label><span class="sr-only">Viết bình luận</span><input :id="'comment-input-' + post.id" v-model.trim="commentDrafts[post.id]" type="text" maxlength="1000" :placeholder="replyingTo[post.id] ? 'Phản hồi ' + (replyingTo[post.id].user?.full_name || replyingTo[post.id].user?.username || 'Thành viên SportGo') + '...' : 'Viết bình luận...'" :disabled="commentSubmitting[post.id]" /></label>
+                      <button type="submit" class="icon-button icon-button--filled" aria-label="Gửi bình luận" :disabled="commentSubmitting[post.id] || !commentDrafts[post.id]?.trim()"><AppIcon name="send" /></button>
                     </div>
                   </form>
-                  <button v-else type="button" class="login-to-comment" @click="goToLogin">
-                    Đăng nhập để bình luận
-                  </button>
+                  <button v-else type="button" class="login-to-comment" @click="goToLogin">Đăng nhập để bình luận</button>
                 </template>
               </section>
             </article>
 
-            <button
-              v-if="pagination.current_page < pagination.last_page"
-              type="button"
-              class="load-more-button"
-              :disabled="loadingMore"
-              @click="loadMorePosts"
-            >
-              <span v-if="loadingMore" class="spinner spinner-small" aria-hidden="true"></span>
-              {{ loadingMore ? 'Đang tải thêm...' : 'Xem thêm bài viết' }}
-            </button>
+            <button v-if="pagination.current_page < pagination.last_page" type="button" class="button button-secondary load-more-button" :disabled="loadingMore" @click="loadMorePosts"><span v-if="loadingMore" class="loader loader-small"></span>{{ loadingMore ? 'Đang tải thêm...' : 'Xem thêm bài viết' }}</button>
             <p v-else class="end-of-feed">Bạn đã xem hết các bài viết hiện có.</p>
           </div>
         </section>
 
-        <aside class="community-sidebar" aria-label="Khám phá cộng đồng">
-          <section class="sidebar-card meetup-sidebar">
-            <header class="sidebar-heading">
-              <h2>Kèo sắp tới</h2>
-              <button v-if="isPlayer" type="button" class="icon-button" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true">
-                <AppIcon name="plus" />
-              </button>
+        <aside class="community-rail" aria-label="Khám phá cộng đồng">
+          <section class="surface rail-panel">
+            <header class="rail-panel__heading">
+              <div><span class="section-kicker">Giao lưu</span><h2>Kèo sắp tới</h2></div>
+              <button v-if="isPlayer" type="button" class="icon-button" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true"><AppIcon name="plus" /></button>
             </header>
-
-            <div v-if="matchmakingLoading" class="meetup-loading">
-              <span class="spinner spinner-small" aria-hidden="true"></span>
-              Đang tải kèo...
-            </div>
-            <div v-else-if="matchmakingError" class="meetup-empty meetup-empty-error" role="alert">
-              <AppIcon name="alert" />
-              <p>{{ matchmakingError }}</p>
-              <button type="button" @click="fetchMatchmakingPosts">Tải lại</button>
-            </div>
+            <div v-if="matchmakingLoading" class="rail-state"><span class="loader loader-small"></span>Đang tải kèo...</div>
+            <div v-else-if="matchmakingError" class="rail-state rail-state--error" role="alert"><AppIcon name="alert" /><p>{{ matchmakingError }}</p><button type="button" class="text-link" @click="fetchMatchmakingPosts">Tải lại</button></div>
             <div v-else-if="matchmakingPosts.length" class="meetup-list">
-              <article v-for="post in matchmakingPosts" :key="post.id" class="meetup-card">
+              <article v-for="post in matchmakingPosts" :key="post.id" class="meetup-item">
                 <header>
                   <button type="button" class="meetup-author" @click="goToUser(post.author?.id)">
-                    <span class="avatar avatar-comment">
-                      <img v-if="post.author?.avatar" :src="assetUrl(post.author.avatar)" :alt="post.author.name" />
-                      <span v-else>{{ initial(post.author?.name) }}</span>
-                    </span>
-                    <span>
-                      <strong class="client-author-line">
-                        {{ post.author?.name || 'Người chơi SportGo' }}
-                        <ClientAuthorBadges :badges="post.author?.author_badges" />
-                      </strong>
-                      <small>{{ timeAgo(post.created_at) }}</small>
-                    </span>
+                    <span class="avatar avatar-comment"><img v-if="post.author?.avatar" :src="assetUrl(post.author.avatar)" :alt="post.author.name" /><span v-else>{{ initial(post.author?.name) }}</span></span>
+                    <span><strong>{{ post.author?.name || 'Người chơi SportGo' }}</strong><small>{{ timeAgo(post.created_at) }}</small></span>
                   </button>
-                  <span class="needed-badge">Cần {{ post.needed_players }} người</span>
+                  <span class="meetup-needed">Cần {{ post.needed_players }} người</span>
                 </header>
-                <div class="meetup-facts">
-                  <span><AppIcon name="mapPin" /> {{ post.booking?.venue_name || 'Cụm sân' }}</span>
-                  <span><AppIcon name="clock" /> {{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span>
-                </div>
+                <div class="meetup-facts"><span><AppIcon name="mapPin" />{{ post.booking?.venue_name || 'Cụm sân' }}</span><span><AppIcon name="clock" />{{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span></div>
                 <p v-if="post.description">{{ post.description }}</p>
-                <button
-                  v-if="!isOwnPost(post)"
-                  type="button"
-                  class="meetup-action"
-                  :disabled="joiningPostId === post.id || Boolean(post.user_status)"
-                  @click="joinMatchmaking(post)"
-                >
-                  {{ joinLabel(post) }}
-                </button>
-                <router-link v-else class="meetup-action" :to="`/matchmaking-posts/${post.id}/manage`">Quản lý yêu cầu</router-link>
+                <button v-if="!isOwnPost(post)" type="button" class="button button-secondary meetup-action" :disabled="joiningPostId === post.id || Boolean(post.user_status)" @click="joinMatchmaking(post)">{{ joinLabel(post) }}</button>
+                <router-link v-else class="button button-secondary meetup-action" :to="'/matchmaking-posts/' + post.id + '/manage'">Quản lý yêu cầu</router-link>
               </article>
             </div>
-            <div v-else class="meetup-empty">
-              <AppIcon name="users" />
-              <p>Chưa có kèo công khai sắp tới.</p>
-              <button v-if="isPlayer" type="button" @click="showMeetupModal = true">Tạo kèo đầu tiên</button>
-            </div>
+            <div v-else class="rail-state"><AppIcon name="users" /><p>Chưa có kèo công khai sắp tới.</p><button v-if="isPlayer" type="button" class="text-link" @click="showMeetupModal = true">Tạo kèo đầu tiên</button></div>
           </section>
+          <section class="surface rail-note"><AppIcon name="shield" /><div><strong>Không gian chơi lành mạnh</strong><p>Chia sẻ lịch sự, tôn trọng thông tin cá nhân và chỉ đăng nội dung liên quan thể thao.</p></div></section>
         </aside>
       </div>
     </main>
 
-    <CommunityPostModal
-      :is-open="showCommunityModal"
-      @close="showCommunityModal = false"
-      @success="handleCommunityPostCreated"
-    />
-    <MeetupPostModal
-      :is-open="showMeetupModal"
-      @close="showMeetupModal = false"
-      @success="handleMeetupPostCreated"
-    />
-    <ReportModal
-      :is-open="Boolean(reportTarget)"
-      :target-type="reportTarget?.feed_type === 'community_post' ? 'community_post' : 'venue_post'"
-      :target-id="reportTarget?.entity_id || reportTarget?.id || ''"
-      :target-name="reportTarget?.title || 'Bài viết cộng đồng'"
-      @close="reportTarget = null"
-      @success="handleReportSuccess"
-    />
+    <CommunityPostModal :is-open="showCommunityModal" :editing-post="editingPost" @close="closeCommunityModal" @success="handleCommunityPostSaved" />
+    <MeetupPostModal :is-open="showMeetupModal" @close="showMeetupModal = false" @success="handleMeetupPostCreated" />
+    <ReportModal :is-open="Boolean(reportTarget)" :target-type="reportTarget?.feed_type === 'community_post' ? 'community_post' : 'venue_post'" :target-id="reportTarget?.entity_id || reportTarget?.id || ''" :target-name="reportTarget?.title || 'Bài viết cộng đồng'" @close="reportTarget = null" @success="handleReportSuccess" />
+    <ConfirmModal v-model="showDeleteConfirm" :title="isForceDelete ? 'Xóa vĩnh viễn bài viết' : 'Chuyển vào thùng rác'" :message="isForceDelete ? 'Bài viết và hình ảnh sẽ bị xóa vĩnh viễn khỏi hệ thống và không thể khôi phục.' : 'Bạn có chắc chắn muốn xóa bài viết này không? Bài viết sẽ được chuyển vào thùng rác và ẩn khỏi bảng tin.'" :confirm-text="isForceDelete ? 'Xóa vĩnh viễn' : 'Xóa bài viết'" cancel-text="Hủy" type="danger" @confirm="handleConfirmDelete" @cancel="deletePostTarget = null; isForceDelete = false" />
+
+    <Teleport to="body">
+      <div v-if="showAppealModal" class="appeal-backdrop" @click.self="showAppealModal = false">
+        <div class="appeal-modal" role="dialog" aria-modal="true">
+          <header><h3>Đề xuất duyệt lại bài viết</h3><button type="button" class="icon-button" aria-label="Đóng" @click="showAppealModal = false"><AppIcon name="x" /></button></header>
+          <div class="appeal-modal__body">
+            <p>Gửi lời nhắn giải trình tới Quản trị viên nếu bạn cho rằng bài viết phù hợp với tiêu chuẩn cộng đồng SportGo.</p>
+            <label for="appeal-note-input">Lời nhắn gửi Quản trị viên</label>
+            <textarea id="appeal-note-input" v-model.trim="appealNote" rows="5" maxlength="500" placeholder="Nhập lời giải trình của bạn..."></textarea>
+            <span class="appeal-char-count">{{ appealNote.length }}/500</span>
+          </div>
+          <footer><button class="button button-secondary" type="button" :disabled="isSubmittingAppeal" @click="showAppealModal = false">Hủy</button><button class="button button-primary" type="button" :disabled="isSubmittingAppeal || appealNote.length < 5" @click="submitAppeal">{{ isSubmittingAppeal ? 'Đang gửi...' : 'Gửi yêu cầu' }}</button></footer>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -380,6 +265,7 @@ import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import ClientAuthorBadges from '@/components/ClientAuthorBadges.vue';
 import CommunityPostModal from '@/components/CommunityPostModal.vue';
+import ConfirmModal from '@/components/ConfirmModal.vue';
 import MeetupPostModal from '@/components/MeetupPostModal.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import ReportModal from '@/components/ReportModal.vue';
@@ -390,8 +276,12 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const user = getAuth();
-const isPlayer = computed(() => user?.role_group === 'user');
+// Owners and admins can participate as ordinary players. The API remains the
+// authority for self-join, duplicate and capacity checks.
+const isPlayer = computed(() => Boolean(user));
 const canCreateCommunityPost = computed(() => Boolean(user && ['user', 'owner'].includes(user.role_group)));
+const feedTab = ref(String(route.query.tab || 'public'));
+const myPostStatus = ref(String(route.query.status || 'all'));
 const posts = ref([]);
 const loading = ref(true);
 const loadingMore = ref(false);
@@ -400,9 +290,17 @@ const searchQuery = ref(String(route.query.q || ''));
 const selectedCategory = ref(String(route.query.category || ''));
 const showMobileFilters = ref(false);
 const showCommunityModal = ref(false);
+const editingPost = ref(null);
 const showMeetupModal = ref(false);
 const openMenuPostId = ref(null);
 const reportTarget = ref(null);
+const showDeleteConfirm = ref(false);
+const deletePostTarget = ref(null);
+const isForceDelete = ref(false);
+const showAppealModal = ref(false);
+const appealTargetPost = ref(null);
+const appealNote = ref('');
+const isSubmittingAppeal = ref(false);
 const pagination = ref({ current_page: 1, last_page: 1 });
 const categories = ['Kinh nghiệm', 'Giao lưu', 'Hỏi đáp', 'Sự kiện', 'Cụm sân mới', 'Ưu đãi'];
 const fallbackPostImage = '/images/home/badminton-cover.webp';
@@ -418,6 +316,14 @@ const matchmakingPosts = ref([]);
 const matchmakingLoading = ref(true);
 const matchmakingError = ref('');
 const joiningPostId = ref(null);
+
+async function loadCurrentFeed({ page = 1, append = false } = {}) {
+  if (feedTab.value === 'my_posts') {
+    await fetchMyPosts({ page, append });
+  } else {
+    await fetchPosts({ page, append });
+  }
+}
 
 async function fetchPosts({ page = 1, append = false } = {}) {
   if (append) loadingMore.value = true;
@@ -448,6 +354,55 @@ async function fetchPosts({ page = 1, append = false } = {}) {
   }
 }
 
+async function fetchMyPosts({ page = 1, append = false } = {}) {
+  if (!user) return;
+  if (append) loadingMore.value = true;
+  else loading.value = true;
+  error.value = '';
+
+  try {
+    const params = new URLSearchParams({ page: String(page), per_page: '10' });
+    if (myPostStatus.value && myPostStatus.value !== 'all') {
+      params.set('status', myPostStatus.value);
+    }
+    const response = await api(`/api/my-community-posts?${params.toString()}`);
+    const incoming = Array.isArray(response.data) ? response.data : [];
+    posts.value = append ? [...posts.value, ...incoming] : incoming;
+    pagination.value = {
+      current_page: Number(response.current_page || page),
+      last_page: Number(response.last_page || 1),
+    };
+  } catch (requestError) {
+    if (append) {
+      toast.error(requestError.message || 'Không thể tải thêm bài viết.');
+    } else {
+      posts.value = [];
+      error.value = requestError.message || 'Không thể tải danh sách bài viết của bạn.';
+    }
+  } finally {
+    loading.value = false;
+    loadingMore.value = false;
+  }
+}
+
+function switchFeedTab(tab) {
+  if (feedTab.value === tab) return;
+  feedTab.value = tab;
+  posts.value = [];
+  pagination.value = { current_page: 1, last_page: 1 };
+  if (tab === 'my_posts') {
+    fetchMyPosts({ page: 1 });
+  } else {
+    fetchPosts({ page: 1 });
+  }
+}
+
+function setMyPostStatus(status) {
+  if (myPostStatus.value === status) return;
+  myPostStatus.value = status;
+  fetchMyPosts({ page: 1 });
+}
+
 async function fetchMatchmakingPosts() {
   matchmakingLoading.value = true;
   matchmakingError.value = '';
@@ -470,7 +425,6 @@ function applyFilters() {
       ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
     },
   });
-  fetchPosts({ page: 1 });
 }
 
 function setCategory(category) {
@@ -486,7 +440,7 @@ function clearFilters() {
 
 function loadMorePosts() {
   if (loadingMore.value || pagination.value.current_page >= pagination.value.last_page) return;
-  fetchPosts({ page: pagination.value.current_page + 1, append: true });
+  loadCurrentFeed({ page: pagination.value.current_page + 1, append: true });
 }
 
 async function ensurePostDetails(post) {
@@ -607,6 +561,7 @@ function setReply(post, comment, targetReply = null) {
 }
 
 async function sharePost(post) {
+  openMenuPostId.value = null;
   const href = router.resolve({ name: 'community-post-detail', params: { slug: post.slug || post.id } }).href;
   const url = new URL(href, window.location.origin).toString();
   const shareData = { title: post.title || 'Bài viết SportGo', text: post.short_description || plainText(post.content), url };
@@ -645,10 +600,6 @@ async function joinMatchmaking(post) {
     goToLogin();
     return;
   }
-  if (!isPlayer.value) {
-    toast.info('Chức năng này dành cho tài khoản người dùng.');
-    return;
-  }
   joiningPostId.value = post.id;
   try {
     await api(`/api/matchmaking-posts/${post.id}/join`, { method: 'POST' });
@@ -671,17 +622,143 @@ function joinLabel(post) {
 }
 
 function isOwnPost(post) {
-  return String(user?.id || '') === String(post.author?.id || '');
+  if (!user) return false;
+  const authorId = post.author?.id ?? post.author_id;
+  return String(user.id) === String(authorId);
 }
 
-function handleCommunityPostCreated(response) {
+function openEditPost(post) {
+  openMenuPostId.value = null;
+  editingPost.value = post;
+  showCommunityModal.value = true;
+}
+
+function closeCommunityModal() {
   showCommunityModal.value = false;
-  if (response?.data?.status === 'published') {
-    toast.success('Bài viết đã được đăng.');
-    fetchPosts({ page: 1 });
+  editingPost.value = null;
+}
+
+function openAppealModal(post) {
+  openMenuPostId.value = null;
+  appealTargetPost.value = post;
+  appealNote.value = '';
+  showAppealModal.value = true;
+}
+
+async function submitAppeal() {
+  if (!appealTargetPost.value || appealNote.value.trim().length < 5) return;
+  isSubmittingAppeal.value = true;
+  try {
+    const targetId = appealTargetPost.value.id || appealTargetPost.value.entity_id;
+    const response = await api(`/api/my-community-posts/${targetId}/appeal`, {
+      method: 'POST',
+      body: JSON.stringify({ note: appealNote.value.trim() }),
+    });
+    toast.success(response?.message || 'Đã gửi yêu cầu xem xét lại tới Ban quản trị.');
+    showAppealModal.value = false;
+    const updated = response?.data;
+    if (updated) {
+      const idx = posts.value.findIndex((p) => String(p.id) === String(updated.id));
+      if (idx >= 0) {
+        posts.value[idx] = updated;
+      }
+    }
+  } catch (err) {
+    toast.error(err.message || 'Không thể gửi yêu cầu xem xét lại.');
+  } finally {
+    isSubmittingAppeal.value = false;
+  }
+}
+
+async function copyPostLink(post) {
+  openMenuPostId.value = null;
+  const href = router.resolve({ name: 'community-post-detail', params: { slug: post.slug || post.id } }).href;
+  const url = new URL(href, window.location.origin).toString();
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      toast.success('Đã sao chép liên kết bài viết.');
+    } else {
+      toast.info(`Liên kết bài viết: ${url}`);
+    }
+  } catch (err) {
+    toast.info(`Liên kết bài viết: ${url}`);
+  }
+}
+
+async function restorePost(post) {
+  openMenuPostId.value = null;
+  try {
+    const targetId = post.id || post.entity_id;
+    await api(`/api/my-community-posts/${targetId}/restore`, { method: 'POST' });
+    toast.success('Đã khôi phục bài viết thành công.');
+    posts.value = posts.value.filter((p) => p.id !== post.id);
+  } catch (err) {
+    toast.error(err.message || 'Không thể khôi phục bài viết.');
+  }
+}
+
+function forceDeletePost(post) {
+  openMenuPostId.value = null;
+  isForceDelete.value = true;
+  deletePostTarget.value = post;
+  showDeleteConfirm.value = true;
+}
+
+function deletePost(post) {
+  openMenuPostId.value = null;
+  isForceDelete.value = false;
+  deletePostTarget.value = post;
+  showDeleteConfirm.value = true;
+}
+
+async function handleConfirmDelete() {
+  if (!deletePostTarget.value) return;
+  const post = deletePostTarget.value;
+  try {
+    const targetId = post.id || post.entity_id;
+    const url = isForceDelete.value ? `/api/venue-posts/${targetId}?force=true` : `/api/venue-posts/${targetId}`;
+    await api(url, { method: 'DELETE' });
+    toast.success(isForceDelete.value ? 'Đã xóa vĩnh viễn bài viết.' : 'Đã chuyển bài viết vào thùng rác.');
+    posts.value = posts.value.filter((p) => p.id !== post.id);
+  } catch (err) {
+    toast.error(err.message || 'Không thể xóa bài viết.');
+  } finally {
+    deletePostTarget.value = null;
+    showDeleteConfirm.value = false;
+    isForceDelete.value = false;
+  }
+}
+
+function handleCommunityPostSaved(response) {
+  const isEdit = Boolean(editingPost.value);
+  closeCommunityModal();
+  const updated = response?.data;
+
+  if (isEdit && updated) {
+    toast.success(response?.message || 'Bài viết đã được cập nhật thành công.');
+    const index = posts.value.findIndex((p) => p.id === updated.id || (p.entity_id && p.entity_id === updated.entity_id));
+    if (index >= 0) {
+      posts.value[index] = updated;
+    } else {
+      loadCurrentFeed({ page: 1 });
+    }
     return;
   }
-  toast.success(response?.message || 'Bài viết đã được gửi và đang chờ kiểm duyệt.');
+
+  if (updated?.status === 'published') {
+    toast.success('Bài viết đã được đăng công khai.');
+    if (feedTab.value === 'public') {
+      fetchPosts({ page: 1 });
+    } else {
+      switchFeedTab('public');
+    }
+    return;
+  }
+  toast.info(response?.message || 'Bài viết đã được gửi và đang chờ kiểm duyệt.');
+  feedTab.value = 'my_posts';
+  myPostStatus.value = 'pending_review';
+  fetchMyPosts({ page: 1 });
 }
 
 function handleMeetupPostCreated() {
@@ -776,7 +853,7 @@ function closePostMenu() {
 }
 
 onMounted(() => {
-  fetchPosts();
+  loadCurrentFeed();
   fetchMatchmakingPosts();
   document.addEventListener('click', closePostMenu);
 });
@@ -784,1113 +861,214 @@ onMounted(() => {
 onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
 </script>
 
-
 <style scoped>
-/* â”€â”€â”€ BASE â”€â”€â”€ */
 .community-page {
+  --community-ink: #15251d;
+  --community-muted: #617169;
+  --community-soft: #f3f6f4;
+  --community-surface: #fff;
+  --community-line: #d8e3dc;
+  --community-accent: #147a46;
+  --community-accent-dark: #0d5d35;
+  --community-accent-soft: #e5f2ea;
+  --community-danger: #b42318;
+  --community-danger-soft: #fff2f0;
   min-height: 100vh;
-  background: #f8fafc;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #0f172a;
-}
-
-.community-container {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 24px 20px 80px;
-}
-
-/* All text & headers override to normal weight & dark color */
-h1, h2, h3, h4, strong, b, .client-author-line {
-  font-weight: 500 !important;
-  color: #0f172a !important;
-}
-
-/* â”€â”€â”€ HEADING â”€â”€â”€ */
-.community-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 36px 0 28px;
-  flex-wrap: wrap;
-}
-
-.eyebrow {
-  display: block;
-  color: #16a34a;
-  font-size: 13px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-
-.community-heading h1 {
-  font-size: clamp(24px, 4vw, 32px);
-  font-weight: 500;
-  color: #0f172a;
-  line-height: 1.25;
-  margin: 0 0 8px;
-}
-
-.community-heading p {
-  font-size: 15px;
-  color: #1e293b;
-  margin: 0;
-  line-height: 1.55;
-  font-weight: 400;
-}
-
-.heading-login {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 20px;
-  border: 1px solid #16a34a;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #16a34a;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.heading-login:hover {
-  background: #16a34a;
-  color: #ffffff;
-}
-
-/* â”€â”€â”€ LAYOUT â”€â”€â”€ */
-.community-layout {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 24px;
-  align-items: start;
-}
-
-@media (max-width: 960px) {
-  .community-layout {
-    grid-template-columns: 1fr;
-  }
-  .community-sidebar {
-    display: none;
-  }
-}
-
-/* â”€â”€â”€ FEED COLUMN â”€â”€â”€ */
-.feed-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-
-/* â”€â”€â”€ COMPOSER CARD â”€â”€â”€ */
-.composer-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 18px 20px;
-}
-
-.composer-start {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.composer-prompt {
-  flex: 1;
-  text-align: left;
-  padding: 10px 16px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  color: #1e293b;
-  font-size: 14px;
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.composer-prompt:hover {
-  border-color: #16a34a;
-}
-
-.composer-actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 14px;
-}
-
-.composer-actions button {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.composer-actions button:hover {
-  background: #f8fafc;
-  border-color: #16a34a;
-}
-
-/* â”€â”€â”€ FEED TOOLBAR â”€â”€â”€ */
-.feed-toolbar {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 16px 20px;
-}
-
-.toolbar-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.toolbar-title h2 {
-  font-size: 17px;
-  font-weight: 500;
-  color: #0f172a;
-  margin: 0;
-}
-
-.feed-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.mobile-filter-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.mobile-filter-toggle:hover {
-  border-color: #16a34a;
-  color: #16a34a;
-}
-
-.mobile-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 14px;
-}
-
-/* â”€â”€â”€ SEARCH FORM â”€â”€â”€ */
-.search-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 6px 6px 6px 14px;
-  color: #0f172a;
-}
-
-.search-form:focus-within {
-  border-color: #16a34a;
-}
-
-.search-form input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 14px;
-  color: #0f172a;
-  font-weight: 400;
-  min-width: 0;
-}
-
-.search-form input::placeholder {
-  color: #334155;
-}
-
-.search-form button {
-  padding: 6px 16px;
-  background: #16a34a;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.search-form button:hover {
-  background: #15803d;
-}
-
-/* â”€â”€â”€ CATEGORY LIST â”€â”€â”€ */
-.category-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.category-list button {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.category-list button:hover {
-  border-color: #16a34a;
-  color: #16a34a;
-}
-
-.category-list button.active {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #ffffff;
-}
-
-.filter-clear {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid #dc2626 !important;
-  background: #ffffff !important;
-  color: #dc2626 !important;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-/* â”€â”€â”€ FEED STATES â”€â”€â”€ */
-.feed-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 64px 20px;
-  text-align: center;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  color: #0f172a;
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.feed-state strong {
-  font-size: 16px;
-  font-weight: 500;
-  color: #0f172a;
-}
-
-.feed-state p {
-  margin: 0;
-  color: #1e293b;
-}
-
-.state-error {
-  color: #dc2626;
-}
-
-/* â”€â”€â”€ SPINNER â”€â”€â”€ */
-.spinner {
-  display: block;
-  width: 34px;
-  height: 34px;
-  border: 3px solid #dcfce7;
-  border-top-color: #16a34a;
-  border-radius: 50%;
-  animation: cm-spin 0.75s linear infinite;
-}
-
-.spinner-small {
-  width: 18px;
-  height: 18px;
-  border-width: 2px;
-}
-
-@keyframes cm-spin { to { transform: rotate(360deg); } }
-
-/* â”€â”€â”€ POST STREAM â”€â”€â”€ */
-.post-stream {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* â”€â”€â”€ POST CARD â”€â”€â”€ */
-.post-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.post-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px 0;
-}
-
-.author-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.author-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.client-author-line {
-  font-size: 14px;
-  font-weight: 500;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.author-copy small {
-  font-size: 12px;
-  color: #1e293b;
-  font-weight: 400;
-}
-
-/* â”€â”€â”€ AVATAR â”€â”€â”€ */
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #16a34a;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-current {
-  background: #16a34a;
-}
-
-.avatar-comment {
-  width: 32px;
-  height: 32px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-/* â”€â”€â”€ POST MENU â”€â”€â”€ */
-.post-menu-wrap {
-  position: relative;
-}
-
-.icon-button {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 6px;
-  color: #0f172a;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.icon-button:hover {
-  background: #f8fafc;
-}
-
-.post-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  padding: 6px;
-  min-width: 180px;
-  z-index: 50;
-}
-
-.post-menu button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: #0f172a;
-  font-size: 13.5px;
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.post-menu button:hover {
-  background: #f8fafc;
-  color: #dc2626;
-}
-
-/* â”€â”€â”€ POST BODY â”€â”€â”€ */
-.post-body {
-  padding: 14px 18px 4px;
-}
-
-.post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.post-tags span {
-  font-size: 12px;
-  font-weight: 500;
-  color: #16a34a;
-}
-
-.post-copy {
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.post-copy strong {
-  font-size: 15px;
-  font-weight: 500;
-  color: #0f172a;
-  display: block;
-}
-
-.post-copy span {
-  font-size: 14px;
-  color: #1e293b;
-  font-weight: 400;
-  line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* â”€â”€â”€ POST MEDIA â”€â”€â”€ */
-.post-media {
-  display: block;
-  width: 100%;
-  border: none;
-  padding: 0;
-  background: none;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-.media-single img {
-  width: 100%;
-  max-height: 400px;
-  object-fit: cover;
-  display: block;
-}
-
-.media-grid {
-  display: grid;
-  gap: 2px;
-}
-
-.media-count-2 { grid-template-columns: 1fr 1fr; }
-.media-count-3 { grid-template-columns: 1fr 1fr 1fr; }
-.media-count-4 { grid-template-columns: 1fr 1fr; }
-
-.media-grid span {
-  position: relative;
-  height: 180px;
-  display: block;
-  overflow: hidden;
-}
-
-.media-grid span img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.media-grid span b {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  font-weight: 500;
-}
-
-/* â”€â”€â”€ POST STATS â”€â”€â”€ */
-.post-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 18px;
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 400;
-}
-
-.post-stats span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.post-stats button {
-  background: none;
-  border: none;
-  color: #1e293b;
-  font-size: 13px;
-  font-weight: 400;
-  cursor: pointer;
-  padding: 0;
-}
-
-.post-stats button:hover {
-  color: #16a34a;
-}
-
-/* â”€â”€â”€ POST ACTIONS â”€â”€â”€ */
-.post-actions {
-  display: flex;
-  gap: 4px;
-  padding: 6px 12px 12px;
-}
-
-.post-actions button {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.post-actions button:hover {
-  background: #f8fafc;
-  border-color: #16a34a;
-}
-
-.post-actions button.active {
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-.post-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* â”€â”€â”€ COMMENTS PANEL â”€â”€â”€ */
-.comments-panel {
-  padding: 14px 18px 18px;
-  background: #f8fafc;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.comments-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #1e293b;
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.comment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.comment-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.comment-bubble {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 13px;
-  flex: 1;
-}
-
-.comment-bubble strong {
-  font-size: 13px;
-  font-weight: 500;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 4px;
-}
-
-.comment-bubble p {
-  font-size: 13.5px;
-  color: #0f172a;
-  font-weight: 400;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 5px;
-}
-
-.comment-actions small {
-  font-size: 12px;
-  color: #1e293b;
-  font-weight: 400;
-}
-
-.reply-button {
-  background: none;
-  border: none;
-  color: #16a34a;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 0;
-}
-
-.reply-button:hover {
-  text-decoration: underline;
-}
-
-.comment-replies {
-  margin-top: 10px;
-  padding-left: 14px;
-  border-left: 2px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.no-comments {
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 400;
-  text-align: center;
-  padding: 12px 0;
-  margin: 0;
-}
-
-.show-comments-button {
-  background: none;
-  border: none;
-  color: #16a34a;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 0;
-}
-
-/* â”€â”€â”€ COMMENT FORM â”€â”€â”€ */
-.comment-form-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.replying-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  padding: 7px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #0f172a;
-}
-
-.replying-indicator button {
-  background: none;
-  border: none;
-  color: #dc2626;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding: 4px;
-}
-
-.comment-form {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.comment-form label {
-  flex: 1;
-  display: block;
-  margin: 0;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  border: 0;
-}
-
-.comment-form input {
-  width: 100%;
-  padding: 9px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 13.5px;
-  color: #0f172a;
-  font-weight: 400;
-  background: #ffffff;
-  outline: none;
-}
-
-.comment-form input:focus {
-  border-color: #16a34a;
-}
-
-.send-comment {
-  width: 34px;
-  height: 34px;
-  background: #16a34a;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.send-comment:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.send-comment:not(:disabled):hover {
-  background: #15803d;
-}
-
-.login-to-comment {
-  background: #ffffff;
-  border: 1px solid #16a34a;
-  border-radius: 8px;
-  color: #16a34a;
-  font-size: 13.5px;
-  font-weight: 500;
-  padding: 10px;
-  cursor: pointer;
-  width: 100%;
-}
-
-.login-to-comment:hover {
-  background: #f0fdf4;
-}
-
-/* â”€â”€â”€ LOAD MORE / END OF FEED â”€â”€â”€ */
-.load-more-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.load-more-button:hover:not(:disabled) {
-  border-color: #16a34a;
-  color: #16a34a;
-}
-
-.load-more-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.end-of-feed {
-  text-align: center;
-  font-size: 13.5px;
-  color: #1e293b;
-  font-weight: 400;
-  padding: 16px;
-  margin: 0;
-}
-
-/* â”€â”€â”€ SIDEBAR â”€â”€â”€ */
-.community-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  position: sticky;
-  top: 80px;
-}
-
-.sidebar-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 18px 20px;
-}
-
-.sidebar-card h2 {
-  font-size: 16px;
-  font-weight: 500;
-  color: #0f172a;
-  margin: 0 0 14px;
-}
-
-/* â”€â”€â”€ SIDEBAR MEETUP â”€â”€â”€ */
-.sidebar-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.sidebar-heading h2 {
-  margin: 0;
-}
-
-.meetup-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #1e293b;
-  font-size: 13px;
-  font-weight: 400;
-  padding: 8px 0;
-}
-
-.meetup-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.meetup-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 13px;
-  background: #ffffff;
-}
-
-.meetup-card header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.meetup-author {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.meetup-author strong {
-  font-size: 13px;
-  font-weight: 500;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.meetup-author small {
-  font-size: 11.5px;
-  color: #1e293b;
-  font-weight: 400;
-  display: block;
-}
-
-.needed-badge {
-  flex-shrink: 0;
-  color: #16a34a;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.meetup-facts {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.meetup-facts span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12.5px;
-  color: #0f172a;
-  font-weight: 400;
-}
-
-.meetup-card p {
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 400;
-  margin: 0 0 10px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.meetup-action {
-  display: block;
-  width: 100%;
-  padding: 8px;
-  text-align: center;
-  background: #16a34a;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.meetup-action:hover:not(:disabled) {
-  background: #15803d;
-}
-
-.meetup-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.meetup-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 24px 0;
-  text-align: center;
-}
-
-.meetup-empty p {
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 400;
-  margin: 0;
-}
-
-.meetup-empty button {
-  padding: 8px 18px;
-  background: #16a34a;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.meetup-empty-error p {
-  color: #dc2626;
-}
-
-.meetup-empty-error button {
-  background: #ffffff;
-  border: 1px solid #dc2626;
-  color: #dc2626;
-}
-
-.desktop-filters .search-form {
-  margin-bottom: 12px;
-}
+  color: var(--community-ink);
+  background: var(--community-soft);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.community-shell { width: min(1220px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 88px; }
+.community-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; padding: 18px 0 38px; }
+.community-hero__copy { max-width: 720px; }
+.community-eyebrow, .section-kicker { display: block; margin-bottom: 10px; color: var(--community-accent); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.community-hero h1 { margin: 0; color: var(--community-ink); font-size: clamp(2rem, 4vw, 3.3rem); font-weight: 650; letter-spacing: -.03em; line-height: 1.08; }
+.community-hero p { max-width: 620px; margin: 16px 0 0; color: var(--community-muted); font-size: 16px; line-height: 1.65; }
+.community-hero__actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.community-layout { display: grid; grid-template-columns: minmax(0, 1fr) 324px; align-items: start; gap: 28px; }
+.community-main, .community-rail { min-width: 0; }
+.community-main { display: flex; flex-direction: column; gap: 16px; }
+.community-rail { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 22px; }
+.surface { background: var(--community-surface); border: 1px solid var(--community-line); border-radius: 14px; box-shadow: 0 8px 24px rgba(22, 49, 36, .045); }
+.button, .text-action, .icon-button, .community-tabs button, .community-tabs a, .filter-nav button, .post-card__actions button, .text-link, .post-notice button, .comment-actions button { font: inherit; cursor: pointer; }
+.button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 1px solid transparent; border-radius: 8px; font-size: 14px; font-weight: 650; text-decoration: none; transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease; }
+.button:active { transform: translateY(1px); }
+.button:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(20, 122, 70, .24); outline-offset: 2px; }
+.button-primary { color: #fff; background: var(--community-accent); }
+.button-primary:hover { background: var(--community-accent-dark); }
+.button-secondary { color: var(--community-accent-dark); background: #fff; border-color: var(--community-line); }
+.button-secondary:hover { background: var(--community-accent-soft); border-color: #b9d1c0; }
+.button-quiet { min-height: 36px; color: var(--community-muted); background: transparent; border-color: transparent; padding-inline: 8px; }
+.button-quiet:hover { color: var(--community-accent-dark); background: var(--community-accent-soft); }
+.button-small { min-height: 38px; padding-inline: 14px; }
+.button:disabled, .icon-button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; flex: 0 0 auto; padding: 0; border: 1px solid var(--community-line); border-radius: 8px; color: var(--community-ink); background: #fff; }
+.icon-button:hover { color: var(--community-accent-dark); background: var(--community-accent-soft); }
+.icon-button--filled { color: #fff; background: var(--community-accent); border-color: var(--community-accent); }
+.icon-button--filled:hover { color: #fff; background: var(--community-accent-dark); }
+.avatar { width: 46px; height: 46px; display: inline-grid; place-items: center; flex: 0 0 auto; overflow: hidden; border-radius: 50%; color: #fff; background: var(--community-accent); font-size: 17px; font-weight: 700; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-comment { width: 34px; height: 34px; font-size: 13px; }
+.composer { padding: 20px; }
+.composer__row { display: flex; align-items: center; gap: 14px; }
+.composer__prompt { min-height: 48px; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 15px; border: 1px solid var(--community-line); border-radius: 8px; color: var(--community-muted); background: #fbfdfb; font: inherit; text-align: left; }
+.composer__prompt:hover { color: var(--community-accent-dark); border-color: #afc9b8; background: var(--community-accent-soft); }
+.composer__actions { display: flex; gap: 24px; margin: 18px 0 0 60px; padding-top: 6px; }
+.text-action { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0; border: 0; color: var(--community-ink); background: transparent; font-size: 14px; font-weight: 650; }
+.text-action:hover { color: var(--community-accent); }
+.community-tabs { display: flex; align-items: stretch; min-height: 56px; padding: 5px; }
+.community-tabs button, .community-tabs a { flex: 1; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border: 0; border-radius: 8px; color: var(--community-muted); background: transparent; font-size: 14px; font-weight: 650; text-align: center; text-decoration: none; }
+.community-tabs button:hover, .community-tabs a:hover { color: var(--community-accent-dark); background: var(--community-soft); }
+.community-tabs .active { color: var(--community-accent-dark); background: var(--community-accent-soft); }
+.filter-panel { padding: 22px; }
+.filter-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.filter-panel h2, .rail-panel h2 { margin: 0; color: var(--community-ink); font-size: 20px; font-weight: 700; letter-spacing: -.015em; }
+.filter-panel .section-kicker, .rail-panel .section-kicker { margin-bottom: 6px; font-size: 11px; }
+.search-field { min-height: 48px; display: flex; align-items: center; gap: 10px; margin-top: 20px; padding: 4px 5px 4px 14px; border: 1px solid var(--community-line); border-radius: 8px; color: var(--community-muted); background: #fbfdfb; }
+.search-field:focus-within { border-color: var(--community-accent); box-shadow: 0 0 0 3px rgba(20, 122, 70, .1); }
+.search-field input { min-width: 0; flex: 1; height: 38px; border: 0; outline: 0; color: var(--community-ink); background: transparent; font: inherit; }
+.search-field input::placeholder { color: #8a9990; }
+.filter-nav { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 17px; }
+.filter-nav button { min-height: 36px; padding: 0; border: 0; color: var(--community-muted); background: transparent; font-size: 13px; font-weight: 600; }
+.filter-nav button:hover { color: var(--community-accent-dark); }
+.filter-nav button.active { color: var(--community-accent-dark); box-shadow: inset 0 -2px 0 var(--community-accent); }
+.feed-state { min-height: 220px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; align-content: center; gap: 10px 14px; padding: 32px; text-align: center; color: var(--community-muted); }
+.feed-state > svg { width: 30px; height: 30px; color: var(--community-accent); }
+.feed-state strong { width: 100%; color: var(--community-ink); font-size: 16px; }
+.feed-state p { width: 100%; margin: 0; line-height: 1.5; }
+.feed-state--error { justify-content: flex-start; text-align: left; }
+.feed-state--error > svg { color: var(--community-danger); }
+.feed-state--error div { flex: 1; min-width: 180px; }
+.feed-state--error strong, .feed-state--error p { display: block; width: auto; }
+.loader { width: 24px; height: 24px; display: inline-block; border: 3px solid #d7e8dc; border-top-color: var(--community-accent); border-radius: 50%; animation: community-spin .8s linear infinite; }
+.loader-small { width: 16px; height: 16px; border-width: 2px; }
+@keyframes community-spin { to { transform: rotate(360deg); } }
+.post-stream { display: flex; flex-direction: column; gap: 16px; }
+.post-card { overflow: visible; }
+.post-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px 15px; }
+.author-button, .meetup-author { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.author-button { flex: 1; }
+.author-copy, .meetup-author > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.author-name { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; color: var(--community-ink); font-size: 14px; font-weight: 700; }
+.author-copy small, .meetup-author small { color: var(--community-muted); font-size: 12px; line-height: 1.35; }
+.author-button:hover .author-name, .meetup-author:hover strong { color: var(--community-accent-dark); }
+.post-menu-wrap { position: relative; }
+.post-menu { position: absolute; z-index: 10; top: 46px; right: 0; width: 210px; padding: 6px; border: 1px solid var(--community-line); border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(20, 43, 30, .14); }
+.post-menu button { width: 100%; min-height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 10px; border: 0; border-radius: 6px; color: var(--community-ink); background: transparent; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.post-menu button:hover { background: var(--community-soft); }
+.post-menu .menu-danger { color: var(--community-danger); }
+.post-notice { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin: 0 22px 14px; padding: 12px 14px; border-radius: 8px; color: #6b4c00; background: #fff8e5; font-size: 13px; line-height: 1.45; }
+.post-notice--danger { color: var(--community-danger); background: var(--community-danger-soft); }
+.post-notice strong { font-weight: 700; }
+.post-notice span { flex: 1 1 100%; }
+.post-notice button { padding: 0; border: 0; color: inherit; background: transparent; font-size: 12px; font-weight: 700; text-decoration: underline; }
+.post-card__body { padding: 0 22px 18px; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 10px; color: var(--community-accent); font-size: 12px; }
+.post-copy { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; padding: 0; border: 0; color: var(--community-ink); background: transparent; font: inherit; line-height: 1.6; text-align: left; cursor: pointer; }
+.post-copy:hover { color: var(--community-accent-dark); }
+.post-copy strong { font-size: 18px; font-weight: 700; line-height: 1.3; }
+.post-copy span { color: var(--community-muted); font-size: 14px; white-space: pre-line; }
+.post-media { width: 100%; display: block; overflow: hidden; padding: 0; border: 0; background: #eaf0eb; cursor: pointer; }
+.post-media img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .2s ease; }
+.post-media:hover img { transform: scale(1.015); }
+.media-single { aspect-ratio: 16 / 9; }
+.media-grid { display: grid; gap: 3px; aspect-ratio: 16 / 9; }
+.media-grid.media-count-2 { grid-template-columns: repeat(2, 1fr); }
+.media-grid.media-count-3, .media-grid.media-count-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+.media-grid > span { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.media-grid b { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(12, 30, 20, .58); font-size: 20px; }
+.post-card__stats { display: flex; align-items: center; gap: 16px; padding: 13px 22px; color: var(--community-muted); font-size: 12px; }
+.post-card__stats span, .post-card__stats button { display: inline-flex; align-items: center; gap: 5px; color: inherit; }
+.post-card__stats svg { width: 15px; height: 15px; }
+.post-card__stats button { padding: 0; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.post-card__stats button:hover { color: var(--community-accent-dark); }
+.post-card__actions { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 22px; padding: 7px 0 10px; }
+.post-card__actions button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; color: var(--community-muted); background: transparent; font-size: 13px; font-weight: 650; }
+.post-card__actions button:hover, .post-card__actions button.active { color: var(--community-accent-dark); background: var(--community-accent-soft); }
+.comments-panel { margin: 0 22px 18px; padding: 16px 0 0; background: #f8fbf9; }
+.comments-loading { display: flex; align-items: center; gap: 8px; padding: 10px 14px 18px; color: var(--community-muted); font-size: 13px; }
+.comment-list { display: flex; flex-direction: column; gap: 14px; padding: 0 14px; }
+.comment-item { display: flex; align-items: flex-start; gap: 9px; }
+.comment-content { min-width: 0; flex: 1; }
+.comment-bubble { padding: 9px 12px; border-radius: 8px; background: #fff; }
+.comment-bubble .author-name { font-size: 12px; }
+.comment-bubble p { margin: 5px 0 0; color: var(--community-ink); font-size: 13px; line-height: 1.5; white-space: pre-line; }
+.comment-actions { display: flex; align-items: center; gap: 10px; margin: 4px 0 0 3px; color: var(--community-muted); font-size: 11px; }
+.comment-actions button, .show-comments-button, .login-to-comment { padding: 0; border: 0; color: var(--community-accent-dark); background: transparent; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.comment-replies { display: flex; flex-direction: column; gap: 10px; margin: 11px 0 0 20px; }
+.show-comments-button { margin: 0 0 2px 43px; }
+.no-comments { margin: 0; padding: 8px 14px 18px; color: var(--community-muted); font-size: 13px; }
+.comment-form-wrapper { padding: 14px; }
+.replying-indicator { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: var(--community-muted); font-size: 12px; }
+.replying-indicator button { padding: 0; border: 0; color: var(--community-muted); background: transparent; cursor: pointer; }
+.comment-form { display: flex; align-items: center; gap: 9px; }
+.comment-form label { flex: 1; min-width: 0; }
+.comment-form input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--community-line); border-radius: 8px; color: var(--community-ink); background: #fff; font: inherit; font-size: 13px; }
+.login-to-comment { display: block; margin: 0 14px 16px; padding: 10px 0; text-align: left; }
+.load-more-button { align-self: center; min-width: 190px; }
+.end-of-feed { margin: 0; color: var(--community-muted); font-size: 12px; text-align: center; }
+.rail-panel { padding: 20px; }
+.rail-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
+.meetup-list { display: flex; flex-direction: column; }
+.meetup-item { padding: 18px 0; }
+.meetup-item header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.meetup-author { flex: 1; }
+.meetup-author strong { color: var(--community-ink); font-size: 13px; font-weight: 700; line-height: 1.3; }
+.meetup-needed { flex: 0 0 auto; color: var(--community-accent-dark); font-size: 11px; font-weight: 700; }
+.meetup-facts { display: flex; flex-direction: column; gap: 6px; margin: 13px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.4; }
+.meetup-facts span { display: flex; align-items: flex-start; gap: 7px; }
+.meetup-facts svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--community-accent); }
+.meetup-item p { margin: 12px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.45; }
+.meetup-action { width: calc(100% - 45px); margin: 14px 0 0 45px; }
+.rail-state { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; min-height: 150px; padding: 12px 0; color: var(--community-muted); font-size: 13px; text-align: center; }
+.rail-state > svg { width: 26px; height: 26px; color: var(--community-accent); }
+.rail-state p { flex-basis: 100%; margin: 0; line-height: 1.5; }
+.rail-state--error > svg { color: var(--community-danger); }
+.text-link { padding: 0; border: 0; color: var(--community-accent-dark); background: transparent; font-size: 12px; font-weight: 700; }
+.rail-note { display: flex; gap: 12px; padding: 18px 20px; color: var(--community-muted); }
+.rail-note > svg { width: 22px; height: 22px; flex: 0 0 auto; color: var(--community-accent); }
+.rail-note strong { display: block; margin-bottom: 5px; color: var(--community-ink); font-size: 13px; }
+.rail-note p { margin: 0; font-size: 12px; line-height: 1.5; }
+.post-status { font-weight: 650; }
+.status-pending_review { color: #8a5a00; }
+.status-rejected, .status-deleted { color: var(--community-danger); }
+.status-published { color: var(--community-accent-dark); }
+.appeal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 31, 22, .42); }
+.appeal-modal { width: min(520px, 100%); overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 20px 60px rgba(10, 30, 18, .2); }
+.appeal-modal header, .appeal-modal footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; }
+.appeal-modal header { padding-bottom: 12px; }
+.appeal-modal h3 { margin: 0; font-size: 18px; }
+.appeal-modal__body { padding: 20px 22px; }
+.appeal-modal__body p { margin: 0 0 18px; color: var(--community-muted); font-size: 13px; line-height: 1.55; }
+.appeal-modal__body label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.appeal-modal textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 12px; border: 1px solid var(--community-line); border-radius: 8px; color: var(--community-ink); font: inherit; font-size: 13px; }
+.appeal-char-count { display: block; margin-top: 6px; color: var(--community-muted); font-size: 11px; text-align: right; }
+.appeal-modal footer { justify-content: flex-end; padding-top: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 980px) { .community-layout { grid-template-columns: 1fr; } .community-rail { position: static; } }
+@media (max-width: 640px) {
+  .community-shell { width: min(100% - 28px, 620px); padding-top: 24px; padding-bottom: 56px; }
+  .community-hero { align-items: flex-start; flex-direction: column; gap: 20px; padding-bottom: 26px; }
+  .community-hero h1 { font-size: 2.15rem; }
+  .community-hero__actions { width: 100%; justify-content: flex-start; }
+  .community-hero__actions .button { flex: 1 1 auto; }
+  .composer { padding: 15px; }
+  .composer__actions { gap: 16px; margin-left: 0; }
+  .community-tabs { overflow-x: auto; }
+  .community-tabs button, .community-tabs a { min-width: 155px; }
+  .filter-panel { padding: 17px 15px; }
+  .filter-panel__heading { align-items: center; }
+  .filter-panel h2 { font-size: 18px; }
+  .filter-nav { gap: 2px 14px; }
+  .post-card__header { padding: 16px 15px 13px; }
+  .post-card__body { padding-inline: 15px; }
+  .post-notice { margin-inline: 15px; }
+  .post-card__stats { padding-inline: 15px; gap: 10px; }
+  .post-card__actions { margin-inline: 15px; }
+  .comments-panel { margin-inline: 15px; }
+  .comment-list { padding-inline: 10px; }
+  .comment-replies { margin-left: 8px; }
+  .meetup-facts, .meetup-item p { margin-left: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>

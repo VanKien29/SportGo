@@ -197,25 +197,26 @@ class BookingController extends Controller
     {
         $validated = $request->validate([
             'status_group' => 'nullable|in:all,upcoming,completed,cancelled,refunded',
-            'status' => 'nullable|in:pending_approval,pending_payment,confirmed,checked_in,completed,cancelled,expired,rejected',
+            'status' => 'nullable|in:pending_approval,pending_payment,confirmed,checked_in,completed,no_show,cancelled,expired,rejected',
             'search' => 'nullable|string|max:100',
             'from_date' => 'nullable|date_format:Y-m-d',
             'to_date' => 'nullable|date_format:Y-m-d|after_or_equal:from_date',
             'booking_type' => 'nullable|in:single,recurring',
             'payment_status' => 'nullable|in:pending,paid,failed,refunded,not_required',
             'per_page' => 'nullable|integer|min:1|max:50',
+            'limit' => 'nullable|integer|min:1|max:50',
         ]);
 
         $query = Booking::query()
             ->with([
-                'venueCourt.venueCluster',
-                'venueCourt.courtType',
-                'venueCluster',
-                'items.venueCourt.courtType',
-                'items.requestedVenueCourt.courtType',
-                'payments' => fn ($query) => $query->latest('created_at'),
-                'refunds',
-                'playerPost.participants',
+                'venueCourt:id,venue_cluster_id,name',
+                'venueCourt.venueCluster:id,name',
+                'venueCluster:id,name',
+                'items:id,booking_id,venue_court_id,requested_venue_court_id,status,sort_order',
+                'items.venueCourt:id,venue_cluster_id,name',
+                'payments' => fn ($query) => $query
+                    ->select(['id', 'booking_id', 'amount', 'status', 'created_at'])
+                    ->latest('created_at'),
             ])
             ->where('customer_id', auth()->id());
 
@@ -247,8 +248,8 @@ class BookingController extends Controller
             ->orderByDesc('booking_date')
             ->orderByDesc('start_time')
             ->orderByDesc('created_at')
-            ->paginate((int) ($validated['per_page'] ?? 10))
-            ->through(fn (Booking $booking) => $this->historyPayload($booking));
+            ->paginate((int) ($validated['per_page'] ?? $validated['limit'] ?? 10))
+            ->through(fn (Booking $booking) => $this->historyListPayload($booking));
 
         return response()->json($bookings);
     }
@@ -571,7 +572,13 @@ class BookingController extends Controller
      */
     public function show(string $id)
     {
-        $booking = Booking::findOrFail($id);
+        $booking = Booking::find($id);
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Đơn đặt sân không còn tồn tại hoặc đã được làm mới. Vui lòng mở lại từ Lịch sử đặt sân.',
+            ], 404);
+        }
 
         // Bảo vệ quyền riêng tư: Người chơi chỉ được xem đơn đặt của chính mình
         if ($booking->customer_id !== auth()->id()) {
@@ -582,16 +589,11 @@ class BookingController extends Controller
 
         // Đính kèm các thông tin liên quan nếu cần
         $booking->load([
-            'venueCourt.venueCluster',
             'venueCourt.courtType',
             'venueCluster',
-            'venueCluster.venueCourts.courtType',
-            'items.venueCourt.courtType',
-            'items.requestedVenueCourt.courtType',
-            'payments.logs',
-            'payments.userWallet',
-            'refunds.statusHistories',
-            'playerPost.participants',
+            'items.venueCourt',
+            'payments',
+            'bookingServices',
         ]);
 
         // Tính thời gian giữ chỗ còn lại (giây)
@@ -606,6 +608,10 @@ class BookingController extends Controller
         }
 
         $bookingArray = $booking->toArray();
+        // FE dùng key `services`; không trả thêm tên relation Eloquent
+        // `booking_services` để payload chi tiết gọn và nhất quán.
+        $bookingArray['services'] = $booking->bookingServices->values()->toArray();
+        unset($bookingArray['booking_services']);
         $bookingArray['time_left_seconds'] = $timeLeftSeconds;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');
         $bookingArray['refunded_amount'] = (float) $booking->refunds->whereIn('status', [
@@ -859,6 +865,7 @@ class BookingController extends Controller
             'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
             'venue_court' => $booking->venueCourt,
             'items' => $booking->items->values(),
+            'services' => $booking->bookingServices->values(),
             'refunds' => $booking->refunds->values(),
             'matchmaking' => $this->matchmakingPayload($booking->playerPost),
             'has_court_change' => $booking->items->contains(fn ($item) =>
@@ -867,6 +874,100 @@ class BookingController extends Controller
             'has_partial_cancellation' => $booking->items->contains(fn ($item) =>
                 str_starts_with((string) $item->status, 'cancelled') || in_array($item->status, ['interrupted', 'interrupted_by_emergency'], true)
             ),
+        ];
+    }
+
+    public function addServices(Request $request, string $id)
+    {
+        $booking = Booking::query()
+            ->where('customer_id', $request->user()->id)
+            ->with(['bookingServices', 'venueCluster'])
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'services' => ['required', 'array', 'min:1'],
+            'services.*.service_id' => ['required', 'string', 'exists:venue_cluster_services,id'],
+            'services.*.quantity' => ['required', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $addedServices = [];
+        $addedTotal = 0;
+
+        DB::transaction(function () use ($booking, $validated, &$addedServices, &$addedTotal) {
+            foreach ($validated['services'] as $item) {
+                $service = \App\Models\VenueClusterService::query()
+                    ->where('venue_cluster_id', $booking->venue_cluster_id)
+                    ->where('id', $item['service_id'])
+                    ->first();
+
+                if (! $service) {
+                    continue;
+                }
+
+                $itemTotal = round((float) $service->price * (int) $item['quantity'], 2);
+                $addedTotal += $itemTotal;
+
+                $bookingServiceItem = \App\Models\BookingServiceItem::create([
+                    'booking_id' => $booking->id,
+                    'service_id' => $service->id,
+                    'service_name' => $service->name,
+                    'unit' => $service->unit ?? 'lượt',
+                    'unit_price' => (float) $service->price,
+                    'quantity' => (int) $item['quantity'],
+                    'total_price' => $itemTotal,
+                ]);
+
+                $addedServices[] = $bookingServiceItem;
+            }
+
+            $booking->total_price = round((float) $booking->total_price + $addedTotal, 2);
+            $booking->final_amount = round((float) $booking->final_amount + $addedTotal, 2);
+            $booking->required_payment_amount = round((float) $booking->required_payment_amount + $addedTotal, 2);
+            $booking->save();
+        });
+
+        return response()->json([
+            'message' => 'Đã thêm dịch vụ vào đơn đặt sân.',
+            'added_total' => $addedTotal,
+            'booking' => $booking->fresh(['bookingServices', 'venueCluster']),
+        ]);
+    }
+
+    /**
+     * Payload nhẹ cho danh sách lịch đặt. Chi tiết hoàn tiền, bài giao lưu và
+     * loại sân chỉ được tải khi mở trang chi tiết booking.
+     */
+    private function historyListPayload(Booking $booking): array
+    {
+        $payments = $booking->payments;
+        $latestPayment = $payments->first();
+        $isRefunded = $payments->contains(fn ($payment) => $payment->status === 'refunded');
+        $bookingDate = $booking->booking_date instanceof Carbon
+            ? $booking->booking_date->toDateString()
+            : $booking->booking_date;
+
+        return [
+            'id' => $booking->id,
+            'booking_code' => $booking->booking_code,
+            'booking_type' => $booking->booking_type,
+            'recurring_group_code' => $booking->recurring_group_code,
+            'booking_date' => $bookingDate,
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'duration_minutes' => (int) $booking->duration_minutes,
+            'total_price' => (float) $booking->total_price,
+            'required_payment_amount' => (float) $booking->required_payment_amount,
+            'payment_option' => $booking->payment_option,
+            'payment_status' => $isRefunded
+                ? 'refunded'
+                : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
+            'status' => $booking->status,
+            'status_reason' => $booking->status_reason,
+            'cancelled_at' => $booking->cancelled_at,
+            'can_cancel' => $this->canCustomerCancel($booking),
+            'venue_cluster' => $booking->venueCluster ?: $booking->venueCourt?->venueCluster,
+            'venue_court' => $booking->venueCourt,
+            'items' => $booking->items->values(),
         ];
     }
 

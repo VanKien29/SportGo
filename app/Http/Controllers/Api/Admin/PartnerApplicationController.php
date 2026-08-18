@@ -744,6 +744,9 @@ class PartnerApplicationController extends Controller
                     'file_available' => $fileAvailable,
                     'file_size' => $fileAvailable ? Storage::disk('local')->size($path) : 0,
                     'download_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download' : null,
+                    'preview_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download?mode=view' : null,
+                    'export_url' => $fileAvailable ? '/api/files/documents/' . $document->id . '/download?mode=export' : null,
+                    'mime_type' => 'application/pdf',
                     'signatures' => $document->signatures,
                     'signing_requests' => $document->signingRequests
                         ->sortByDesc('created_at')
@@ -807,8 +810,11 @@ class PartnerApplicationController extends Controller
             $document->media?->getRawOriginal('file_path'),
         ])->first(fn ($candidate): bool => is_string($candidate)
             && $candidate !== ''
-            && Storage::disk('public')->exists($candidate));
+            && (Storage::disk('local')->exists($candidate) || Storage::disk('public')->exists($candidate)));
         $fileAvailable = is_string($path) && $path !== '';
+        $storage = $fileAvailable && Storage::disk('local')->exists($path)
+            ? Storage::disk('local')
+            : Storage::disk('public');
 
         return [
             'id' => $document->id,
@@ -821,14 +827,18 @@ class PartnerApplicationController extends Controller
             'reject_reason' => $document->reject_reason,
             'reviewed_at' => $document->reviewed_at,
             'file_name' => $document->media?->file_name ?: ($fileAvailable ? basename($path) : null),
-            'mime_type' => $fileAvailable
-                ? (Storage::disk('public')->mimeType($path) ?: $document->media?->mime_type)
-                : $document->media?->mime_type,
-            'file_size' => $fileAvailable ? Storage::disk('public')->size($path) : 0,
+            'mime_type' => 'application/pdf',
+            'file_size' => $fileAvailable ? $storage->size($path) : 0,
             'file_available' => $fileAvailable,
             'uploaded_at' => $document->created_at,
             'download_url' => $fileAvailable
                 ? '/api/admin/partner-profiles/documents/' . $document->id . '/download'
+                : null,
+            'preview_url' => $fileAvailable
+                ? '/api/admin/partner-profiles/documents/' . $document->id . '/download?mode=view'
+                : null,
+            'export_url' => $fileAvailable
+                ? '/api/admin/partner-profiles/documents/' . $document->id . '/download?mode=export'
                 : null,
         ];
     }

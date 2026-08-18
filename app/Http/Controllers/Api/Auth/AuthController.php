@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -179,18 +180,35 @@ class AuthController extends Controller
 
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/'],
+            'bio' => ['nullable', 'string', 'max:2000'],
+            'preferred_sports' => ['nullable', 'array', 'max:5'],
+            'preferred_sports.*' => ['string', 'max:80'],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'full_name.required' => 'Vui lòng nhập họ và tên.',
             'full_name.min' => 'Họ và tên cần có ít nhất 2 ký tự.',
+            'email.email' => 'Địa chỉ email không đúng định dạng.',
+            'email.unique' => 'Email đã được sử dụng.',
             'phone.regex' => 'Số điện thoại không đúng định dạng.',
             'avatar.image' => 'Avatar phải là một tệp hình ảnh.',
             'avatar.max' => 'Avatar không được vượt quá 2MB.',
         ]);
 
         $user->full_name = trim($data['full_name']);
+        if (array_key_exists('email', $data) && $data['email'] !== null) {
+            $nextEmail = trim($data['email']);
+            if ($nextEmail !== (string) $user->email) {
+                $user->email = $nextEmail;
+                $user->email_verified_at = now();
+            }
+        }
         $user->phone = $data['phone'] ? trim($data['phone']) : null;
+        $user->bio = array_key_exists('bio', $data) ? trim((string) ($data['bio'] ?? '')) : $user->bio;
+        if (array_key_exists('preferred_sports', $data)) {
+            $user->preferred_sports = array_values(array_unique($data['preferred_sports'] ?: []));
+        }
 
         if ($request->hasFile('avatar')) {
             if ($user->avatar_url && str_starts_with($user->avatar_url, '/storage/')) {
@@ -206,7 +224,7 @@ class AuthController extends Controller
             'message' => 'Đã cập nhật thông tin cá nhân.',
             'user' => $user->only([
                 'id', 'username', 'full_name', 'email', 'phone', 'status',
-                'avatar_url', 'email_verified_at',
+                'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',
             ]),
         ]);
     }

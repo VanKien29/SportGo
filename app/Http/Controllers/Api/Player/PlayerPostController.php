@@ -57,7 +57,6 @@ class PlayerPostController extends Controller
                 'needed_players' => $post->needed_players,
                 'approved_players' => $post->participants->where('pivot.status', 'approved')->count(),
                 'total_players' => $post->participants->where('pivot.status', 'approved')->count() + (int) $post->needed_players,
-                'booking_id' => $post->booking_id,
                 'status' => $post->status,
                 'created_at' => $post->created_at,
                 'user_status' => $participations[$post->id] ?? null,
@@ -125,6 +124,95 @@ class PlayerPostController extends Controller
     }
 
     /**
+     * Participation history for the authenticated user. This is intentionally
+     * separate from the public feed so ended posts remain visible privately.
+     */
+    public function myRequests(Request $request): JsonResponse
+    {
+        $query = DB::table('player_post_participants as participant')
+            ->join('player_posts as post', 'post.id', '=', 'participant.post_id')
+            ->join('bookings as booking', 'booking.id', '=', 'post.booking_id')
+            ->join('venue_clusters as venue', 'venue.id', '=', 'booking.venue_cluster_id')
+            ->join('users as author', 'author.id', '=', 'post.author_id')
+            ->where('participant.user_id', $request->user()->id)
+            ->select([
+                'participant.id', 'participant.post_id', 'participant.status', 'participant.message',
+                'participant.created_at', 'participant.responded_at',
+                'post.title', 'post.description', 'post.status as post_status',
+                'post.needed_players', 'booking.booking_date', 'booking.start_time', 'booking.end_time',
+                'venue.name as venue_name', 'venue.address as venue_address',
+                'author.id as author_id', 'author.full_name as author_name', 'author.username as author_username',
+                'author.avatar_url as author_avatar',
+            ])
+            ->when($request->filled('status'), fn ($q) => $q->where('participant.status', $request->string('status')->toString()))
+            ->orderByDesc('participant.created_at');
+
+        $items = $query->paginate(min(max((int) $request->input('per_page', 15), 5), 50));
+        $data = collect($items->items())->map(fn ($item) => $this->participantPayload($item))->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+            'current_page' => $items->currentPage(),
+            'last_page' => $items->lastPage(),
+            'total' => $items->total(),
+        ]);
+    }
+
+    public function myRequest(Request $request, int $id): JsonResponse
+    {
+        $item = DB::table('player_post_participants as participant')
+            ->join('player_posts as post', 'post.id', '=', 'participant.post_id')
+            ->join('bookings as booking', 'booking.id', '=', 'post.booking_id')
+            ->join('venue_clusters as venue', 'venue.id', '=', 'booking.venue_cluster_id')
+            ->join('users as author', 'author.id', '=', 'post.author_id')
+            ->where('participant.id', $id)
+            ->where('participant.user_id', $request->user()->id)
+            ->select([
+                'participant.id', 'participant.post_id', 'participant.status', 'participant.message',
+                'participant.created_at', 'participant.responded_at',
+                'post.title', 'post.description', 'post.status as post_status',
+                'booking.booking_date', 'booking.start_time', 'booking.end_time',
+                'venue.name as venue_name', 'venue.address as venue_address',
+                'author.id as author_id', 'author.full_name as author_name', 'author.username as author_username',
+                'author.avatar_url as author_avatar',
+            ])
+            ->firstOrFail();
+
+        return response()->json(['status' => 'success', 'data' => $this->participantPayload($item)]);
+    }
+
+    private function participantPayload(object $item): array
+    {
+        return [
+            'id' => $item->id,
+            'post_id' => $item->post_id,
+            'status' => $item->status,
+            'message' => $item->message,
+            'created_at' => $item->created_at,
+            'responded_at' => $item->responded_at,
+            'post' => [
+                'title' => $item->title,
+                'description' => $item->description,
+                'status' => $item->post_status,
+            ],
+            'booking' => [
+                'date' => $item->booking_date,
+                'start_time' => substr((string) $item->start_time, 0, 5),
+                'end_time' => substr((string) $item->end_time, 0, 5),
+                'venue_name' => $item->venue_name,
+                'venue_address' => $item->venue_address,
+            ],
+            'author' => [
+                'id' => $item->author_id,
+                'name' => $item->author_name ?: $item->author_username ?: 'Người dùng',
+                'avatar' => $item->author_avatar,
+            ],
+            'can_leave' => in_array($item->status, ['pending', 'approved'], true),
+        ];
+    }
+
+    /**
      * Store a new matchmaking post.
      */
     public function store(Request $request): JsonResponse
@@ -187,6 +275,7 @@ class PlayerPostController extends Controller
                 'body' => 'Bài giao lưu của bạn cho lịch đặt sân ' . ($booking->venueCluster->name ?? '') . ' đã được đăng lên Cộng đồng.',
                 'reference_type' => 'player_post',
                 'reference_id' => $post->id,
+                'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
             ]);
 
             DB::commit();
@@ -294,6 +383,7 @@ class PlayerPostController extends Controller
                 'body' => ($request->user()->full_name ?? $request->user()->username ?? 'Một người chơi') . ' đã rút khỏi bài giao lưu tại ' . ($post->booking->venueCluster->name ?? 'sân') . '.',
                 'reference_type' => 'player_post',
                 'reference_id' => $post->id,
+                'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
             ]);
 
             DB::commit();
@@ -395,6 +485,7 @@ class PlayerPostController extends Controller
                 'body' => "{$userFullName} vừa xin tham gia bài giao lưu của bạn tại {$venueName}.",
                 'reference_type' => 'player_post',
                 'reference_id' => $post->id,
+                'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
             ]);
 
             DB::commit();
@@ -532,6 +623,7 @@ class PlayerPostController extends Controller
                 'body' => 'Chủ bài viết đã đồng ý cho bạn tham gia ghép kèo tại sân ' . ($post->booking->venueCluster->name ?? 'sân') . '.',
                 'reference_type' => 'player_post',
                 'reference_id' => $post->id,
+                'data' => ['action_url' => '/matchmaking-requests/' . $participant->id],
             ]);
 
             DB::commit();
@@ -593,6 +685,7 @@ class PlayerPostController extends Controller
                 'body' => 'Rất tiếc, chủ bài viết đã từ chối yêu cầu ghép kèo của bạn.',
                 'reference_type' => 'player_post',
                 'reference_id' => $post->id,
+                'data' => ['action_url' => '/matchmaking-requests/' . $participant->id],
             ]);
 
             DB::commit();
@@ -614,12 +707,12 @@ class PlayerPostController extends Controller
             return;
         }
 
-        $pendingUserIds = DB::table('player_post_participants')
+        $pendingParticipants = DB::table('player_post_participants')
             ->where('post_id', $post->id)
             ->where('status', 'pending')
-            ->pluck('user_id');
+            ->get(['id', 'user_id']);
 
-        if ($pendingUserIds->isEmpty()) {
+        if ($pendingParticipants->isEmpty()) {
             if (in_array($post->status, ['open', 'full'], true)) {
                 $post->status = 'closed';
                 $post->status_reason = 'matchmaking_session_ended';
@@ -642,14 +735,15 @@ class PlayerPostController extends Controller
         $post->status_reason = 'matchmaking_session_ended';
         $post->save();
 
-        foreach ($pendingUserIds as $pendingUserId) {
+        foreach ($pendingParticipants as $pendingParticipant) {
             Notification::create([
-                'user_id' => $pendingUserId,
+                'user_id' => $pendingParticipant->user_id,
                 'type' => 'matchmaking_request_expired',
                 'title' => 'Yêu cầu giao lưu đã tự hủy',
                 'body' => 'Buổi giao lưu đã kết thúc nên yêu cầu tham gia của bạn đã được tự động hủy.',
                 'reference_type' => 'player_post',
                 'reference_id' => $post->id,
+                'data' => ['action_url' => '/matchmaking-requests/' . $pendingParticipant->id],
             ]);
         }
     }

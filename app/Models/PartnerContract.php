@@ -59,7 +59,10 @@ class PartnerContract extends Model
 
     public function getGeneratedFilePathAttribute(): ?string
     {
-        return $this->generatedDocument?->generated_file_path;
+        // The public contract surface must never expose the private DOCX
+        // source path. The download endpoint resolves the controlled PDF.
+        return $this->generatedDocument?->final_pdf_path
+            ?: $this->generatedDocument?->generated_pdf_path;
     }
 
     public function profile()

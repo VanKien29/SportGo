@@ -64,6 +64,7 @@ use App\Http\Controllers\Api\Public\VenueController;
 use App\Http\Controllers\Api\Public\PublicAffiliateProductController;
 use App\Http\Controllers\Api\Public\SystemProfileController;
 use App\Http\Controllers\Api\Public\OfferController;
+use App\Http\Controllers\Api\Public\PolicyController as PublicPolicyController;
 use App\Http\Controllers\Api\Public\ReportController as PublicReportController;
 use App\Http\Controllers\Api\Common\ChatController;
 
@@ -75,6 +76,7 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
 Route::get('/banners/active/{position?}', [AdminBannerController::class, 'getActiveBanners']);
 Route::get('/system-profile', [SystemProfileController::class, 'show']);
 Route::get('/offers', [OfferController::class, 'index']);
+Route::get('/policies', [PublicPolicyController::class, 'index']);
 
 Route::get('/locations/provinces', [LocationController::class, 'provinces']);
 Route::get('/locations/wards', [LocationController::class, 'wards']);
@@ -105,6 +107,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
@@ -329,6 +332,7 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission
         Route::post('/moderation/posts/{type}/{id}/hide', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'hidePost']);
         Route::post('/moderation/posts/{type}/{id}/notify-author', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'notifyAuthor']);
         Route::delete('/moderation/posts/{type}/{id}', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'deletePost']);
+        Route::post('/moderation/posts/{type}/{id}/ai-recheck', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'aiRecheck']);
         Route::post('/moderation/reports/{id}/resolve', [\App\Http\Controllers\Api\Admin\AdminContentModerationController::class, 'resolveReport']);
 
         // Admin Venue Posts
@@ -372,6 +376,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\Owner\WalletController::class, 'getWithdrawals']);
         // Partner Profile
         Route::get('/partner-applications', [OwnerPartnerApplicationController::class, 'myApplications']);
+        Route::get('/partner-application/terms', [OwnerPartnerApplicationController::class, 'onboardingTerms']);
         Route::get('/partner-application', [OwnerPartnerApplicationController::class, 'myApplication']);
         Route::get('/my-partner-profile', [OwnerPartnerApplicationController::class, 'myApplication']);
         Route::get('/my-partner-profile/documents', [OwnerPartnerApplicationController::class, 'documents']);
@@ -450,6 +455,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/venue-policies/notices', [OwnerVenuePolicyController::class, 'storeNotice']);
         Route::put('/venue-policies/notices/{id}', [OwnerVenuePolicyController::class, 'updateNotice']);
         Route::get('/pricing', [OwnerPricingController::class, 'index']);
+        Route::get('/pricing-rules', [OwnerPricingController::class, 'index']);
         Route::patch('/booking-configs/{venueClusterId}/duration', [OwnerPricingController::class, 'updateDuration']);
         Route::put('/base-prices/{courtTypeId}', [OwnerPricingController::class, 'updateBasePrice']);
         Route::post('/price-slots', [OwnerPricingController::class, 'storePriceSlot']);
@@ -498,15 +504,6 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/venue-posts/{id}/restore', [OwnerVenuePostController::class, 'restore']);
         Route::apiResource('venue-posts', OwnerVenuePostController::class);
 
-        // Booking Management
-        Route::get('/bookings', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'index']);
-        Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'show']);
-        Route::post('/bookings/counter', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeCounter']);
-        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'previewRecurring']);
-        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'storeRecurring']);
-        Route::patch('/bookings/{id}/status', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'updateStatus']);
-        Route::patch('/bookings/{id}/court', [\App\Http\Controllers\Api\Owner\BookingManagementController::class, 'changeCourt']);
-
         // Matchmaking Posts (Giao lưu tại sân)
         Route::get('/matchmaking-posts', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'index']);
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Owner\OwnerPlayerPostController::class, 'eligibleBookings']);
@@ -551,6 +548,7 @@ Route::middleware('auth:sanctum')
         Route::post('/notifications/{id}/mark-read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
 
         Route::get('/user/partner-application', [UserPartnerApplicationController::class, 'show']);
+        Route::get('/user/partner-application/terms', [UserPartnerApplicationController::class, 'onboardingTerms']);
         Route::get('/user/partner-application/{id}', [UserPartnerApplicationController::class, 'detail'])->whereNumber('id');
         Route::get('/user/partner-application/banks', [UserPartnerApplicationController::class, 'banks']);
         Route::get('/user/partner-application/provinces', [UserPartnerApplicationController::class, 'provinces']);
@@ -585,10 +583,13 @@ Route::middleware('auth:sanctum')
         Route::get('/bookings/eligible-vouchers', [\App\Http\Controllers\Api\Player\BookingController::class, 'eligibleVouchers']);
         Route::get('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'index']);
         Route::get('/bookings/recurring-groups/{groupCode}', [\App\Http\Controllers\Api\Player\BookingController::class, 'recurringGroup']);
+        Route::post('/bookings/recurring/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'previewRecurring']);
+        Route::post('/bookings/recurring', [\App\Http\Controllers\Api\Player\BookingController::class, 'storeRecurring']);
         Route::post('/bookings', [\App\Http\Controllers\Api\Player\BookingController::class, 'store']);
         Route::get('/bookings/{id}', [\App\Http\Controllers\Api\Player\BookingController::class, 'show']);
         Route::post('/bookings/{id}/cancel', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancel']);
         Route::post('/bookings/{id}/cancel/preview', [\App\Http\Controllers\Api\Player\BookingController::class, 'cancelPreview']);
+        Route::post('/bookings/{id}/services', [\App\Http\Controllers\Api\Player\BookingController::class, 'addServices']);
         Route::post('/bookings/{id}/payments/sepay', [SepayPaymentController::class, 'create']);
         Route::post('/bookings/{id}/payments/cancel', [SepayPaymentController::class, 'cancel']);
 
@@ -598,16 +599,24 @@ Route::middleware('auth:sanctum')
         Route::get('/refunds/{id}', [\App\Http\Controllers\Api\Player\RefundController::class, 'show']);
 
         // Player Matchmaking Posts
+        Route::get('/matchmaking-requests', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myRequests']);
+        Route::get('/matchmaking-requests/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'myRequest']);
         Route::get('/matchmaking-posts/eligible-bookings', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'eligibleBookings']);
         Route::post('/matchmaking-posts', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'store'])->middleware('throttle:5,1');
         Route::post('/matchmaking-posts/{id}/join', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'join']);
-        
+        Route::post('/matchmaking-posts/{id}/leave', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'leave']);
+
         // Matchmaking Management
+        Route::patch('/matchmaking-posts/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'update']);
+        Route::delete('/matchmaking-posts/{id}', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'close']);
         Route::get('/matchmaking-posts/{id}/participants', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'participants']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/approve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'approveParticipant']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);
 
         // Player/Client Venue Posts (Community Posts)
+        Route::get('/my-community-posts', [PlayerVenuePostController::class, 'myPosts']);
+        Route::post('/my-community-posts/{id}/restore', [PlayerVenuePostController::class, 'restore']);
+        Route::post('/my-community-posts/{id}/appeal', [PlayerVenuePostController::class, 'appeal']);
         Route::post('/venue-posts', [PlayerVenuePostController::class, 'store'])->middleware('throttle:5,1');
         Route::post('/venue-posts/{id}', [PlayerVenuePostController::class, 'update']); // use POST with _method=PUT/PATCH for file uploads
         Route::delete('/venue-posts/{id}', [PlayerVenuePostController::class, 'destroy']);
@@ -624,10 +633,11 @@ Route::middleware('auth:sanctum')
         Route::post('/reports', [PublicReportController::class, 'store']);
 
         // Complaints (Player)
-        Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store']);
+        Route::post('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'store'])->middleware('throttle:5,10');
         Route::get('/complaints', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'index']);
+        Route::get('/complaints/eligible-bookings', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'eligibleBookings']);
         Route::get('/complaints/{id}', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'show']);
-        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'reply']);
+        Route::post('/complaints/{id}/reply', [\App\Http\Controllers\Api\Player\ComplaintController::class, 'reply'])->middleware('throttle:10,1');
 
         // Chat routes
         Route::prefix('chat')

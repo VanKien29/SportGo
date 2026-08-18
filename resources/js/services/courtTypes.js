@@ -1,8 +1,15 @@
-import { api, apiCached } from './api';
+import { api } from './api';
 
 export const courtTypeService = {
   getAll() {
-    return apiCached('/api/court-types');
+    return api('/api/court-types');
+  },
+  // Public/client screens consume the list directly while the admin screen
+  // uses the raw API envelope. Keep both shapes explicit so a missing helper
+  // cannot silently turn every sport combobox into an empty list.
+  async getCourtTypes() {
+    const response = await this.getAll();
+    return response?.data || response || [];
   },
   create(data) {
     return api('/api/admin/court-types', {

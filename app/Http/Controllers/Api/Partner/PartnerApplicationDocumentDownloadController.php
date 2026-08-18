@@ -3,14 +3,20 @@
 namespace App\Http\Controllers\Api\Partner;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocumentAccessLog;
 use App\Models\PartnerApplicationDocument;
+use App\Services\Partner\DocumentPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PartnerApplicationDocumentDownloadController extends Controller
 {
-    public function __invoke(Request $request, string $documentId): StreamedResponse
+    public function __construct(private readonly DocumentPdfService $pdfs)
+    {
+    }
+
+    public function __invoke(Request $request, string $documentId): BinaryFileResponse
     {
         $document = PartnerApplicationDocument::query()
             ->with(['partnerApplication:id,user_id', 'media'])
@@ -28,19 +34,60 @@ class PartnerApplicationDocumentDownloadController extends Controller
         ]);
 
         abort_unless($isAdmin || $document->partnerApplication?->user_id === $user->id, 403);
-        $path = $this->downloadPath($document);
-        abort_unless($path, 404);
+        [$disk, $path] = $this->sourcePath($document);
+        abort_unless($disk && $path, 404);
 
-        $fileName = $this->downloadName($document, $path);
+        $pdfPath = $document->getRawOriginal('pdf_file_path');
+        if (! $pdfPath || ! Storage::disk('local')->exists($pdfPath)) {
+            $pdfPath = 'partner-application-pdfs/' . $document->id . '.pdf';
+            $this->pdfs->convertSource(
+                Storage::disk($disk)->path($path),
+                Storage::disk('local')->path($pdfPath),
+                Storage::disk($disk)->mimeType($path) ?: $document->media?->mime_type ?: 'application/octet-stream',
+                'TÀI LIỆU HỒ SƠ KIỂM SOÁT | ' . ($document->title ?: 'Tài liệu') . ' | Mã ' . $document->id
+            );
 
-        return response()->streamDownload(function () use ($path): void {
-            echo Storage::disk('public')->get($path);
-        }, $fileName, [
-            'Content-Type' => Storage::disk('public')->mimeType($path) ?: 'application/octet-stream',
+            $document->forceFill([
+                'pdf_file_path' => $pdfPath,
+                'pdf_hash' => hash_file('sha256', Storage::disk('local')->path($pdfPath)),
+                'pdf_generated_at' => now(),
+            ])->save();
+        }
+
+        $fileName = $this->downloadName($document);
+        $absolutePath = Storage::disk('local')->path($pdfPath);
+        $mode = (string) $request->query('mode', 'download');
+        $isView = $mode === 'view';
+
+        DocumentAccessLog::query()->create([
+            'partner_application_document_id' => $document->id,
+            'user_id' => $user->id,
+            'action' => $isView ? 'view' : ($mode === 'export' ? 'export' : 'download'),
+            'delivery' => 'pdf',
+            'file_hash' => $document->getRawOriginal('pdf_hash'),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'metadata' => [
+                'document_type' => $document->document_type,
+                'application_id' => $document->partner_application_id,
+            ],
         ]);
+
+        $headers = [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Disposition' => ($isView ? 'inline' : 'attachment') . '; filename="' . $fileName . '"',
+        ];
+
+        return $isView
+            ? response()->file($absolutePath, $headers)
+            : response()->download($absolutePath, $fileName, $headers);
     }
 
-    private function downloadPath(PartnerApplicationDocument $document): ?string
+    /** @return array{0: string|null, 1: string|null} */
+    private function sourcePath(PartnerApplicationDocument $document): array
     {
         $candidates = [
             $document->getRawOriginal('file_path'),
@@ -48,22 +95,26 @@ class PartnerApplicationDocumentDownloadController extends Controller
         ];
 
         foreach ($candidates as $candidate) {
-            if (is_string($candidate) && $candidate !== '' && Storage::disk('public')->exists($candidate)) {
-                return $candidate;
+            if (! is_string($candidate) || $candidate === '') {
+                continue;
+            }
+            foreach (['local', 'public'] as $disk) {
+                if (Storage::disk($disk)->exists($candidate)) {
+                    return [$disk, $candidate];
+                }
             }
         }
 
-        return null;
+        return [null, null];
     }
 
-    private function downloadName(PartnerApplicationDocument $document, string $path): string
+    private function downloadName(PartnerApplicationDocument $document): string
     {
-        $extension = pathinfo($path, PATHINFO_EXTENSION);
         $base = str($document->document_type ?: 'tai-lieu')
             ->slug()
             ->append('-', (string) $document->id)
             ->toString();
 
-        return $extension ? $base . '.' . $extension : $base;
+        return $base . '.pdf';
     }
 }

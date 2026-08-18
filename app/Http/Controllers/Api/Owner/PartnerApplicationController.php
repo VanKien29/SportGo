@@ -7,13 +7,25 @@ use App\Models\GeneratedDocument;
 use App\Models\PartnerApplication;
 use App\Models\PartnerContract;
 use App\Services\Partner\PartnerApplicationService;
+use App\Services\Partner\PartnerOnboardingTermsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PartnerApplicationController extends Controller
 {
-    public function __construct(private readonly PartnerApplicationService $partners)
+    public function __construct(
+        private readonly PartnerApplicationService $partners,
+        private readonly PartnerOnboardingTermsService $onboardingTerms,
+    )
     {
+    }
+
+    public function onboardingTerms(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->onboardingTerms->payload(),
+        ]);
     }
 
     public function myApplications(Request $request): JsonResponse
@@ -62,6 +74,9 @@ class PartnerApplicationController extends Controller
                 'status' => $document->status,
                 'generated_at' => $document->generated_at,
                 'download_url' => '/api/files/documents/' . $document->id . '/download',
+                'preview_url' => '/api/files/documents/' . $document->id . '/download?mode=view',
+                'export_url' => '/api/files/documents/' . $document->id . '/download?mode=export',
+                'mime_type' => 'application/pdf',
                 'signatures' => $document->signatures,
             ]);
 

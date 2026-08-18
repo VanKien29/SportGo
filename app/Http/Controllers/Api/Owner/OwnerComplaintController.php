@@ -63,6 +63,9 @@ class OwnerComplaintController extends Controller
             'complaint_type' => $complaint->complaint_type,
             'content' => $complaint->content,
             'status' => $complaint->status,
+            'first_response_at' => $complaint->first_response_at,
+            'response_due_at' => $complaint->response_due_at,
+            'resolution_due_at' => $complaint->resolution_due_at,
             'customer' => $complaint->customer ? [
                 'id' => $complaint->customer->id,
                 'full_name' => $complaint->customer->full_name,
@@ -120,6 +123,9 @@ class OwnerComplaintController extends Controller
             'complaint_type' => $complaint->complaint_type,
             'content' => $complaint->content,
             'status' => $complaint->status,
+            'first_response_at' => $complaint->first_response_at,
+            'response_due_at' => $complaint->response_due_at,
+            'resolution_due_at' => $complaint->resolution_due_at,
             'customer' => $complaint->customer ? [
                 'id' => $complaint->customer->id,
                 'full_name' => $complaint->customer->full_name,
@@ -239,12 +245,20 @@ class OwnerComplaintController extends Controller
             }
 
             // Change complaint status to processing if it was open
+            $complaintUpdates = [];
             if ($complaint->status === 'open') {
                 $oldValues = $complaint->only(['status']);
-                $complaint->status = 'processing';
-                $complaint->save();
-                
-                $this->audit->log($request, 'complaint', 'complaint.processing', 'complaints', $complaint->id, $oldValues, $complaint->toArray());
+                $complaintUpdates['status'] = 'processing';
+            }
+            if (! $complaint->first_response_at) {
+                $complaintUpdates['first_response_at'] = now();
+            }
+            if ($complaintUpdates !== []) {
+                $complaint->forceFill($complaintUpdates)->save();
+
+                if (isset($oldValues)) {
+                    $this->audit->log($request, 'complaint', 'complaint.processing', 'complaints', $complaint->id, $oldValues, $complaint->toArray());
+                }
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {

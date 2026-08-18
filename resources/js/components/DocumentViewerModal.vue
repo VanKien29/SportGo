@@ -131,7 +131,7 @@ let resizeObserver = null;
 let scaleFrame = null;
 let loadSequence = 0;
 
-watch([() => props.show, () => props.document?.download_url], async ([show, downloadUrl]) => {
+watch([() => props.show, () => props.document?.preview_url || props.document?.download_url], async ([show, downloadUrl]) => {
   if (show && downloadUrl) {
     await nextTick();
     loadDocument();
@@ -157,7 +157,9 @@ async function loadDocument() {
   
   try {
     const token = readToken();
-    const response = await fetch(props.document.download_url, {
+    const response = await fetch(viewUrl(props.document), {
+      cache: 'no-store',
+      credentials: 'same-origin',
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     if (currentLoad !== loadSequence) return;
@@ -216,9 +218,6 @@ function cleanup() {
   }
   fileType.value = null;
   if (docxContainer.value) {
-    const page = docxContainer.value.querySelector('section.docx');
-    page?.style.removeProperty('width');
-    page?.style.removeProperty('min-width');
     docxContainer.value.innerHTML = '';
     docxContainer.value.style.removeProperty('--document-scale');
   }
@@ -245,6 +244,12 @@ function detectFileType(mimeType, response) {
   return 'unsupported';
 }
 
+function viewUrl(document) {
+  if (document?.preview_url) return document.preview_url;
+  if (!document?.download_url) return '';
+  return `${document.download_url}${document.download_url.includes('?') ? '&' : '?'}mode=view`;
+}
+
 function observeDocumentSize() {
   if (resizeObserver || !scrollContainer.value) return;
   resizeObserver = new ResizeObserver(scheduleDocumentScale);
@@ -265,18 +270,12 @@ function updateDocumentScale() {
   const section = container?.querySelector('section.docx');
   if (!container || !scrollArea || !section) return;
 
+  const wrapper = container.querySelector('.docx-wrapper');
+  wrapper?.style.setProperty('width', '100%', 'important');
+  wrapper?.style.setProperty('min-width', '100%', 'important');
+  wrapper?.style.setProperty('box-sizing', 'border-box', 'important');
+  wrapper?.style.setProperty('align-items', 'center', 'important');
   container.style.setProperty('--document-scale', '1');
-  section.style.removeProperty('width');
-  section.style.removeProperty('min-width');
-  const areaStyle = window.getComputedStyle(scrollArea);
-  const horizontalPadding = parseFloat(areaStyle.paddingLeft || 0) + parseFloat(areaStyle.paddingRight || 0);
-  const availableWidth = Math.max(0, scrollArea.clientWidth - horizontalPadding);
-  const pageWidth = section.offsetWidth || section.getBoundingClientRect().width;
-  const documentWidth = Math.max(pageWidth, section.scrollWidth || 0);
-  section.style.setProperty('width', `${documentWidth}px`, 'important');
-  section.style.setProperty('min-width', `${documentWidth}px`, 'important');
-  const scale = documentWidth > 0 ? Math.min(1, availableWidth / documentWidth) : 1;
-  container.style.setProperty('--document-scale', Math.max(0.25, scale).toFixed(4));
 }
 
 onMounted(() => window.addEventListener('resize', scheduleDocumentScale));
@@ -300,5 +299,3 @@ function formatDate(dateString) {
   return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 </script>
-
-

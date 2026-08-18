@@ -111,6 +111,39 @@ const onBlur = () => {
   position: relative;
   width: 100%;
 }
+.combo-wrapper .form-select {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 42px 12px 14px;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.combo-wrapper .form-select:hover:not(:disabled) {
+  border-color: #a8c3b0 !important;
+}
+.combo-wrapper .form-select:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12) !important;
+}
+.combo-wrapper .form-select.has-error {
+  border-color: #dc2626 !important;
+}
+.combo-wrapper .form-select.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+}
+.combo-wrapper .form-select:disabled {
+  cursor: not-allowed;
+  background: #f4f7f5;
+  color: #7b8d82;
+  opacity: 1;
+}
 .combo-wrapper input::placeholder {
   color: #64748b !important;
   opacity: 1 !important;

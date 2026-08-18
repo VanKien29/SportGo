@@ -834,7 +834,7 @@ export default {
     timelineBookingClass(booking) {
       if (booking.status === 'checked_in') return 'block-playing';
       if (['pending_approval', 'pending_payment'].includes(booking.status)) return 'block-pending';
-      if (['cancelled', 'rejected', 'expired'].includes(booking.status)) return 'block-muted';
+      if (['cancelled', 'rejected', 'expired', 'no_show'].includes(booking.status)) return 'block-muted';
       return 'block-confirmed';
     },
     selectTimelineItem(block) {
@@ -1235,6 +1235,7 @@ export default {
         confirmed: 'Đã xác nhận',
         checked_in: 'Đã check-in',
         completed: 'Hoàn thành',
+        no_show: 'Không check-in',
         cancelled: 'Đã hủy',
         rejected: 'Từ chối',
         expired: 'Hết hạn',

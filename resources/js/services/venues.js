@@ -1,4 +1,4 @@
-import { api, apiCached } from './api.js';
+import { api } from './api.js';
 
 function toQuery(params = {}) {
   const query = new URLSearchParams();
@@ -22,7 +22,7 @@ export const venueService = {
   },
 
   filterOptions() {
-    return apiCached('/api/venues/filter-options');
+    return api('/api/venues/filter-options');
   },
 
   show(id) {

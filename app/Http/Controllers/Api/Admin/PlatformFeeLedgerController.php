@@ -43,6 +43,7 @@ class PlatformFeeLedgerController extends Controller
                 'id',
                 'venue_cluster_id',
                 'creation_source',
+                'automation_key',
                 'tier_id',
                 'tier_name_snapshot',
                 'tier_min_courts_snapshot',
@@ -621,6 +622,7 @@ class PlatformFeeLedgerController extends Controller
             'code' => $code,
             'venue_cluster_id' => $ledger->venue_cluster_id,
             'creation_source' => $ledger->creation_source,
+            'automation_key' => $ledger->automation_key,
             'can_cancel' => ! in_array($ledger->status, ['paid', 'cancelled'], true)
                 && $amountPaid <= 0,
             'tier_id' => $ledger->tier_id,

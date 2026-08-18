@@ -7,47 +7,17 @@ const REDIRECT_KEY = 'auth_redirect_to';
 const PERMISSIONS_KEY = 'auth_permissions';
 const VENUE_STAFF_PERMISSIONS_KEY = 'venue_staff_permissions';
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
-const apiCache = new Map();
-const API_CACHE_TTL = 60000;
-const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
+const inFlightGetRequests = new Map();
 
-async function fetchWithTimeout(path, options = {}) {
-  const {
-    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
-    signal: externalSignal,
-    ...fetchOptions
-  } = options;
-  const controller = new AbortController();
-  let timedOut = false;
-  let timeoutId = null;
+// Request không bị hủy theo thời gian trên web. Component vẫn có thể truyền
+// AbortSignal để hủy request cũ khi người dùng đổi trang hoặc đổi bản ghi.
+async function fetchRequest(path, options = {}) {
+  const { timeoutMs: _ignoredTimeout, ...fetchOptions } = options;
   const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
 
-  const abortFromCaller = () => controller.abort(externalSignal.reason);
-  if (externalSignal) {
-    if (externalSignal.aborted) abortFromCaller();
-    else externalSignal.addEventListener('abort', abortFromCaller, { once: true });
-  }
-
-  if (timeoutMs > 0) {
-    timeoutId = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, timeoutMs);
-  }
-
   try {
-    return await fetch(path, { ...fetchOptions, signal: controller.signal });
-  } catch (error) {
-    if (timedOut) {
-      const timeoutError = new Error('Kết nối quá lâu. Vui lòng thử lại.');
-      timeoutError.status = 408;
-      timeoutError.code = 'REQUEST_TIMEOUT';
-      throw timeoutError;
-    }
-    throw error;
+    return await fetch(path, fetchOptions);
   } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-    externalSignal?.removeEventListener('abort', abortFromCaller);
     if (typeof performance !== 'undefined' && typeof performance.measure === 'function') {
       const duration = performance.now() - startedAt;
       if (duration > 800) {
@@ -57,26 +27,6 @@ async function fetchWithTimeout(path, options = {}) {
         });
       }
     }
-  }
-}
-
-export async function apiCached(path, options = {}) {
-  const { cacheTtl = API_CACHE_TTL, ...requestOptions } = options;
-  const method = String(requestOptions.method || 'GET').toUpperCase();
-  if (method !== 'GET' || cacheTtl <= 0) return api(path, requestOptions);
-
-  const key = `${method}:${path}`;
-  const cached = apiCache.get(key);
-  if (cached && Date.now() - cached.time < cacheTtl) return cached.data;
-
-  const data = await api(path, requestOptions);
-  apiCache.set(key, { data, time: Date.now() });
-  return data;
-}
-
-export function invalidateCache(pathPrefix = '') {
-  for (const key of apiCache.keys()) {
-    if (key.endsWith(pathPrefix) || key.includes(`:${pathPrefix}`)) apiCache.delete(key);
   }
 }
 
@@ -134,7 +84,7 @@ function venueClusterHeaders(path) {
     : {};
 }
 
-export async function api(path, options = {}) {
+async function requestApi(path, options = {}) {
   const headers = {
     Accept: 'application/json',
     ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
@@ -145,7 +95,7 @@ export async function api(path, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetchWithTimeout(path, { ...options, headers });
+  const response = await fetchRequest(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
 
   if (response.status === 401) {
@@ -153,7 +103,7 @@ export async function api(path, options = {}) {
     if (token && (!options.method || options.method.toUpperCase() === 'GET')) {
       const retryHeaders = { ...headers };
       delete retryHeaders.Authorization;
-      const retryResponse = await fetchWithTimeout(path, { ...options, headers: retryHeaders });
+      const retryResponse = await fetchRequest(path, { ...options, headers: retryHeaders });
       if (retryResponse.ok) {
         return await retryResponse.json().catch(() => ({}));
       }
@@ -172,6 +122,31 @@ export async function api(path, options = {}) {
   return data;
 }
 
+// Coalesce identical concurrent GETs only. Completed responses are removed
+// immediately, so this does not introduce response caching or stale data.
+export function api(path, options = {}) {
+  // Some screen bootstraps must always start a new request.  In particular,
+  // they cannot wait on a previously started navigation request that may have
+  // been abandoned by Vue while the user changed page or venue.
+  const { dedupe = true, ...requestOptions } = options;
+  const method = String(requestOptions.method || 'GET').toUpperCase();
+  if (method !== 'GET' || requestOptions.signal || !dedupe) {
+    return requestApi(path, requestOptions);
+  }
+
+  const requestKey = `${method}:${path}:${readToken() || ''}`;
+  const currentRequest = inFlightGetRequests.get(requestKey);
+  if (currentRequest) return currentRequest;
+
+  const request = requestApi(path, requestOptions).finally(() => {
+    if (inFlightGetRequests.get(requestKey) === request) {
+      inFlightGetRequests.delete(requestKey);
+    }
+  });
+  inFlightGetRequests.set(requestKey, request);
+  return request;
+}
+
 export async function apiFormData(path, formData, options = {}) {
   const headers = {
     Accept: 'application/json',
@@ -182,7 +157,7 @@ export async function apiFormData(path, formData, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetchWithTimeout(path, {
+  const response = await fetchRequest(path, {
     method: options.method || 'POST',
     ...options,
     headers,
@@ -207,6 +182,7 @@ export async function apiFormData(path, formData, options = {}) {
 }
 
 export async function apiDownload(path, options = {}) {
+  const { filename: requestedFilename, ...requestOptions } = options;
   const headers = {
     Accept: [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -224,7 +200,12 @@ export async function apiDownload(path, options = {}) {
   const token = readToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetchWithTimeout(path, { ...options, headers });
+  const response = await fetchRequest(path, {
+    ...requestOptions,
+    cache: 'no-store',
+    credentials: requestOptions.credentials || 'same-origin',
+    headers,
+  });
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -236,13 +217,20 @@ export async function apiDownload(path, options = {}) {
 
   const blob = await response.blob();
   const disposition = response.headers.get('Content-Disposition') || '';
-  const filename = disposition.match(/filename="?([^"]+)"?/i)?.[1] || 'export.xlsx';
+  const encodedFilename = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const plainFilename = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  const filename = requestedFilename
+    || (encodedFilename ? decodeURIComponent(encodedFilename) : plainFilename)
+    || 'download';
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // Chrome can cancel the download when the object URL is revoked in the
+  // same task as the synthetic click, especially for streamed responses.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

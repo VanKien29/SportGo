@@ -7,103 +7,142 @@
       aria-labelledby="complaint-modal-title"
     >
       <header class="modal-header">
-        <div>
-          <span class="modal-kicker">Trung tâm hỗ trợ</span>
-          <h2 id="complaint-modal-title">Gửi khiếu nại</h2>
+        <div class="modal-header-text">
+          <h2 id="complaint-modal-title" class="modal-title">Gửi khiếu nại</h2>
+          <p class="modal-subtitle">Tiếp nhận và phản hồi các vấn đề phát sinh khi sử dụng dịch vụ tại sân.</p>
         </div>
-        <button type="button" class="icon-button" aria-label="Đóng" @click="close">
-          <AppIcon name="x" size="18" />
+        <button type="button" class="modal-close-btn" aria-label="Đóng" @click="close">
+          <AppIcon name="x" :size="18" />
         </button>
       </header>
 
       <div class="modal-body">
-        <p class="modal-description">
-          Khiếu nại dùng cho vấn đề cần được hỗ trợ và phản hồi. Nếu bạn chỉ muốn thông báo nội dung vi phạm, hãy dùng chức năng báo cáo.
-        </p>
-
         <form class="complaint-form" @submit.prevent="submit">
-          <fieldset class="type-list">
-            <legend>Vấn đề liên quan</legend>
-            <label class="type-option" :class="{ selected: form.complaint_type === 'system' }">
-              <input v-model="form.complaint_type" type="radio" value="system" required />
-              <span>
-                <strong>Hệ thống SportGo</strong>
-                <small>Tài khoản, thanh toán hoặc lỗi sử dụng hệ thống.</small>
-              </span>
-            </label>
-            <label class="type-option" :class="{ selected: form.complaint_type === 'venue' }">
-              <input v-model="form.complaint_type" type="radio" value="venue" required />
-              <span>
-                <strong>Sân hoặc đơn vị vận hành</strong>
-                <small>Chất lượng dịch vụ, nhân viên hoặc thông tin lịch sân.</small>
-              </span>
-            </label>
-          </fieldset>
-
-          <template v-if="form.complaint_type === 'venue'">
-            <label class="field-block">
-              <span>Lịch đặt sân liên quan <small>Không bắt buộc</small></span>
-              <select v-model="form.booking_id" class="field-control" @change="onBookingChange">
-                <option value="">Không gắn với lịch đặt cụ thể</option>
-                <option v-for="booking in recentBookings" :key="booking.id" :value="booking.id">
-                  {{ bookingOptionLabel(booking) }}
-                </option>
-              </select>
+          <!-- Custom Booking Dropdown -->
+          <div ref="dropdownRef" class="field-group custom-dropdown-group">
+            <label class="field-label">
+              <span>Lịch đặt sân liên quan</span>
+              <span class="field-required">Bắt buộc</span>
             </label>
 
-            <label v-if="!form.booking_id" class="field-block">
-              <span>Cụm sân <small>Bắt buộc</small></span>
-              <select v-model="form.venue_cluster_id" class="field-control" required>
-                <option value="" disabled>Chọn cụm sân cần khiếu nại</option>
-                <option v-for="cluster in availableVenueClusters" :key="cluster.id" :value="cluster.id">
-                  {{ cluster.name }}
-                </option>
-              </select>
-              <small v-if="bookingsLoading" class="field-hint">Đang tải các sân từ lịch đặt gần đây...</small>
-              <small v-else-if="!availableVenueClusters.length" class="field-hint">
-                Chưa có cụm sân phù hợp trong lịch đặt của bạn.
-              </small>
-            </label>
-          </template>
+            <div class="custom-dropdown">
+              <button
+                type="button"
+                class="dropdown-trigger-btn"
+                :class="{ 'dropdown-trigger-btn--open': isDropdownOpen }"
+                aria-haspopup="listbox"
+                :aria-expanded="isDropdownOpen"
+                :disabled="bookingsLoading || !recentBookings.length"
+                @click="toggleDropdown"
+              >
+                <span
+                  class="dropdown-trigger-text"
+                  :class="{ 'dropdown-trigger-placeholder': !form.booking_id }"
+                >
+                  {{ currentSelectedLabel }}
+                </span>
+                <AppIcon
+                  name="chevron-down"
+                  :size="16"
+                  class="dropdown-chevron-icon"
+                  :class="{ 'dropdown-chevron-icon--rotated': isDropdownOpen }"
+                />
+              </button>
 
-          <label class="field-block">
-            <span>Nội dung chi tiết <small>Bắt buộc</small></span>
+              <!-- Dropdown Menu List -->
+              <div
+                v-if="isDropdownOpen"
+                class="dropdown-menu-list"
+                role="listbox"
+                tabindex="-1"
+              >
+                <div v-if="bookingsLoading" class="dropdown-empty-state">
+                  Đang tải danh sách booking...
+                </div>
+                <div v-else-if="!recentBookings.length" class="dropdown-empty-state">
+                  Hiện chưa có booking trong thời gian tiếp nhận khiếu nại.
+                </div>
+                <template v-else>
+                  <button
+                    v-for="booking in recentBookings"
+                    :key="booking.id"
+                    type="button"
+                    role="option"
+                    :aria-selected="String(form.booking_id) === String(booking.id)"
+                    class="dropdown-option-item"
+                    :class="{ 'dropdown-option-item--selected': String(form.booking_id) === String(booking.id) }"
+                    @click="selectBooking(booking)"
+                  >
+                    <span class="dropdown-option-text">{{ bookingOptionLabel(booking) }}</span>
+                    <AppIcon
+                      v-if="String(form.booking_id) === String(booking.id)"
+                      name="check"
+                      :size="15"
+                      class="dropdown-option-check"
+                    />
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <span v-if="bookingsLoading" class="field-hint">Đang tải danh sách booking...</span>
+            <span v-else-if="!recentBookings.length" class="field-hint">
+              Hiện chưa có booking trong thời gian tiếp nhận khiếu nại.
+            </span>
+          </div>
+
+          <!-- Content text -->
+          <div class="field-group">
+            <label class="field-label" for="complaint-content-input">
+              <span>Nội dung chi tiết</span>
+              <span class="field-required">Bắt buộc</span>
+            </label>
             <textarea
+              id="complaint-content-input"
               v-model.trim="form.content"
-              class="field-control"
+              class="field-control field-textarea"
               rows="4"
               maxlength="2000"
               required
-              placeholder="Mô tả sự việc, thời điểm và hỗ trợ bạn mong muốn"
+              placeholder="Mô tả cụ thể sự việc, thời điểm và yêu cầu hỗ trợ của bạn..."
             ></textarea>
-            <small class="character-count">{{ form.content.length }}/2000</small>
-          </label>
+            <div class="field-counter">{{ form.content.length }}/2000</div>
+          </div>
 
-          <label class="field-block">
-            <span>Ảnh minh chứng <small>JPG, PNG hoặc WebP, tối đa 5 MB</small></span>
+          <!-- Image evidence -->
+          <div class="field-group">
+            <label class="field-label" for="complaint-image-input">
+              <span>Ảnh minh chứng</span>
+              <span class="field-optional">Tối đa 5 MB</span>
+            </label>
             <input
+              id="complaint-image-input"
               ref="fileInput"
-              class="field-control file-control"
+              class="field-control file-input-control"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               @change="onImageSelected"
             />
-          </label>
+          </div>
 
-          <div v-if="imagePreview" class="image-preview">
-            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" />
-            <button type="button" class="remove-image" aria-label="Bỏ ảnh đã chọn" @click="removeImage">
-              <AppIcon name="trash" size="16" />
+          <!-- Image preview -->
+          <div v-if="imagePreview" class="image-preview-box">
+            <img :src="imagePreview" alt="Ảnh minh chứng đã chọn" class="preview-img" />
+            <button type="button" class="preview-remove-btn" aria-label="Xóa ảnh đã chọn" @click="removeImage">
+              <AppIcon name="trash" :size="15" />
             </button>
           </div>
 
           <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
 
+          <!-- Footer Actions -->
           <footer class="form-actions">
-            <SgButton type="secondary" :disabled="isSubmitting" @click="close">Hủy</SgButton>
-            <SgButton native-type="submit" type="primary" :loading="isSubmitting" :disabled="!isValid">
-              Gửi khiếu nại
-            </SgButton>
+            <button type="button" class="btn-cancel" :disabled="isSubmitting" @click="close">
+              Hủy
+            </button>
+            <button type="submit" class="btn-submit" :disabled="isSubmitting || !isValid">
+              {{ isSubmitting ? 'Đang gửi...' : 'Gửi khiếu nại' }}
+            </button>
           </footer>
         </form>
       </div>
@@ -112,56 +151,50 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import AppIcon from './AppIcon.vue';
-import SgButton from './common/SgButton.vue';
 import { api, apiFormData } from '@/services/api';
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
-  initialType: { type: String, default: 'system' },
   initialVenueId: { type: [String, Number], default: '' },
-  initialVenueName: { type: String, default: '' },
   initialBookingId: { type: [String, Number], default: '' },
 });
 
 const emit = defineEmits(['close', 'success']);
 const form = reactive({
-  complaint_type: 'system',
+  complaint_type: 'venue',
   venue_cluster_id: '',
   booking_id: '',
   content: '',
   imageFile: null,
 });
+
 const recentBookings = ref([]);
 const bookingsLoading = ref(false);
 const isSubmitting = ref(false);
 const errorMsg = ref('');
 const imagePreview = ref('');
 const fileInput = ref(null);
+const isDropdownOpen = ref(false);
+const dropdownRef = ref(null);
 
-const availableVenueClusters = computed(() => {
-  const clusters = new Map();
-  recentBookings.value.forEach((booking) => {
-    const cluster = booking.venue_cluster || booking.venueCluster || booking.venue_court?.venue_cluster;
-    if (cluster?.id) clusters.set(String(cluster.id), cluster);
-  });
-  if (props.initialVenueId) {
-    clusters.set(String(props.initialVenueId), {
-      id: props.initialVenueId,
-      name: props.initialVenueName || 'Cụm sân đang xem',
-    });
-  }
-  return Array.from(clusters.values());
+const isValid = computed(() => Boolean(
+  form.content.trim() && form.complaint_type === 'venue' && form.booking_id && form.venue_cluster_id
+));
+
+const currentSelectedLabel = computed(() => {
+  if (!form.booking_id) return 'Chọn booking đang hoạt động';
+  const found = recentBookings.value.find((b) => String(b.id) === String(form.booking_id));
+  return found ? bookingOptionLabel(found) : 'Chọn booking đang hoạt động';
 });
 
-const isValid = computed(() => {
-  if (!form.content || !form.complaint_type) return false;
-  return form.complaint_type !== 'venue' || Boolean(form.venue_cluster_id);
-});
+function bookingCluster(booking) {
+  return booking.venue_cluster || booking.venueCluster || booking.cluster || null;
+}
 
 function applyInitialContext() {
-  form.complaint_type = props.initialType === 'venue' ? 'venue' : 'system';
+  form.complaint_type = 'venue';
   form.venue_cluster_id = props.initialVenueId ? String(props.initialVenueId) : '';
   form.booking_id = props.initialBookingId ? String(props.initialBookingId) : '';
 }
@@ -169,8 +202,11 @@ function applyInitialContext() {
 async function fetchBookings() {
   bookingsLoading.value = true;
   try {
-    const response = await api('/api/bookings?per_page=50');
+    const response = await api('/api/complaints/eligible-bookings', { cache: 'no-store', dedupe: false });
     recentBookings.value = Array.isArray(response.data) ? response.data : [];
+    if (!form.booking_id && recentBookings.value.length) {
+      form.booking_id = String(recentBookings.value[0].id);
+    }
     if (form.booking_id) onBookingChange();
   } catch (error) {
     recentBookings.value = [];
@@ -180,10 +216,6 @@ async function fetchBookings() {
   } finally {
     bookingsLoading.value = false;
   }
-}
-
-function bookingCluster(booking) {
-  return booking?.venue_cluster || booking?.venueCluster || booking?.venue_court?.venue_cluster || null;
 }
 
 function bookingOptionLabel(booking) {
@@ -197,12 +229,29 @@ function bookingOptionLabel(booking) {
 
 function onBookingChange() {
   const booking = recentBookings.value.find((item) => String(item.id) === String(form.booking_id));
-  if (!booking) {
-    if (!props.initialVenueId) form.venue_cluster_id = '';
-    return;
+  if (booking) {
+    const cluster = bookingCluster(booking);
+    form.venue_cluster_id = cluster ? String(cluster.id) : '';
+  } else if (!props.initialVenueId) {
+    form.venue_cluster_id = '';
   }
-  const cluster = bookingCluster(booking);
-  form.venue_cluster_id = String(booking.venue_cluster_id || cluster?.id || '');
+}
+
+function toggleDropdown() {
+  if (bookingsLoading.value || !recentBookings.value.length) return;
+  isDropdownOpen.value = !isDropdownOpen.value;
+}
+
+function selectBooking(booking) {
+  form.booking_id = String(booking.id);
+  onBookingChange();
+  isDropdownOpen.value = false;
+}
+
+function handleClickOutside(event) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    isDropdownOpen.value = false;
+  }
 }
 
 function revokePreview() {
@@ -218,6 +267,7 @@ function removeImage() {
 
 function reset() {
   form.content = '';
+  isDropdownOpen.value = false;
   removeImage();
   errorMsg.value = '';
   applyInitialContext();
@@ -248,15 +298,18 @@ async function submit() {
   errorMsg.value = '';
   try {
     const payload = new FormData();
-    payload.append('complaint_type', form.complaint_type);
+    payload.append('complaint_type', 'venue');
     payload.append('content', form.content);
-    if (form.complaint_type === 'venue') {
-      payload.append('venue_cluster_id', String(form.venue_cluster_id));
-      if (form.booking_id) payload.append('booking_id', String(form.booking_id));
-    }
+    payload.append('venue_cluster_id', String(form.venue_cluster_id));
+    payload.append('booking_id', String(form.booking_id));
     if (form.imageFile) payload.append('evidence_image', form.imageFile);
 
-    const response = await apiFormData('/api/complaints', payload);
+    const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const response = await apiFormData('/api/complaints', payload, {
+      headers: { 'Idempotency-Key': idempotencyKey }
+    });
     emit('success', response);
     reset();
     emit('close');
@@ -267,15 +320,6 @@ async function submit() {
   }
 }
 
-watch(() => form.complaint_type, (type) => {
-  if (type === 'system') {
-    form.booking_id = '';
-    form.venue_cluster_id = '';
-  } else if (props.initialVenueId && !form.venue_cluster_id) {
-    form.venue_cluster_id = String(props.initialVenueId);
-  }
-});
-
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     applyInitialContext();
@@ -285,6 +329,405 @@ watch(() => props.isOpen, (isOpen) => {
   }
 });
 
-onBeforeUnmount(revokePreview);
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside);
+  revokePreview();
+});
 </script>
 
+<style scoped>
+/* ==========================================================================
+   COMPLAINT MODAL - UNIFIED WHITE, BORDERLESS & MINIMALIST FLAT STYLING
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.complaint-modal {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  color: #0f172a;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Reset all font-weights to 400 throughout */
+.complaint-modal *,
+.complaint-modal h2,
+.complaint-modal span,
+.complaint-modal label,
+.complaint-modal button {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+/* Header */
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: none !important;
+}
+
+.modal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-title {
+  font-size: 18px;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.modal-subtitle {
+  font-size: 13px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  background: #f1f5f9;
+}
+
+/* Body & Form */
+.modal-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.complaint-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.field-required {
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.field-optional {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ==========================================================================
+   CUSTOM DROPDOWN (Replaces native browser <select>)
+   ========================================================================== */
+.custom-dropdown-group {
+  position: relative;
+}
+
+.custom-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-trigger-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.dropdown-trigger-btn:hover:not(:disabled) {
+  border-color: #64748b;
+}
+
+.dropdown-trigger-btn--open {
+  border-color: #15803d !important;
+}
+
+.dropdown-trigger-btn:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+}
+
+.dropdown-trigger-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #0f172a;
+}
+
+.dropdown-trigger-placeholder {
+  color: #64748b;
+}
+
+.dropdown-chevron-icon {
+  color: #475569;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-chevron-icon--rotated {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu List Popover */
+.dropdown-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-option-item {
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  box-sizing: border-box;
+}
+
+.dropdown-option-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.dropdown-option-item--selected {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.dropdown-option-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.dropdown-option-check {
+  color: #15803d;
+  flex-shrink: 0;
+}
+
+.dropdown-empty-state {
+  padding: 12px;
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Field Controls */
+.field-control {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.field-control:focus {
+  border-color: #15803d;
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+.file-input-control {
+  padding: 7px 10px;
+}
+
+.field-hint {
+  font-size: 12.5px;
+  color: #475569;
+  margin-top: 2px;
+}
+
+.field-counter {
+  font-size: 12px;
+  color: #64748b;
+  text-align: right;
+  margin-top: 2px;
+}
+
+/* Image preview */
+.image-preview-box {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 160px;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.preview-remove-btn:hover {
+  background: #dc2626;
+}
+
+.form-error {
+  font-size: 13px;
+  color: #ef4444;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Footer Actions */
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  border: none !important;
+}
+
+.btn-cancel {
+  padding: 9px 18px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btn-submit {
+  padding: 9px 22px;
+  border: none;
+  background: #15803d;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-submit:hover {
+  background: #166534;
+}
+
+.btn-submit:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+</style>

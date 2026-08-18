@@ -164,9 +164,13 @@
                 <div>
                   <h2 class="cc-head-name">{{ activeConversation.title }}</h2>
                   <span class="cc-head-status">
-                    {{ activeConversation.is_ai ? "Trợ lý trí tuệ nhân tạo SportGo 24/7" : "Sân đấu trực tuyến" }}
+                    {{ conversationStatus(activeConversation) }}
                   </span>
                 </div>
+                <span v-if="activeConversation.type === 'venue_contact'" class="cc-venue-context">
+                  <AppIcon name="mapPin" size="13" />
+                  Cụm sân: {{ activeConversation.title }}
+                </span>
               </div>
 
               <div class="cc-head-actions">
@@ -209,7 +213,7 @@
                 </div>
 
                 <div class="cc-msg-bubble">
-                  <div class="cc-msg-text">{{ msg.content }}</div>
+                  <div class="cc-msg-text" v-html="renderContent(msg)"></div>
                   <div v-if="msg.image_url" class="cc-msg-img-wrap">
                     <img :src="msg.image_url" class="cc-msg-img" alt="Ảnh gửi" />
                   </div>
@@ -354,6 +358,14 @@ export default {
         this.currentUser = null;
       }
     },
+    conversationStatus(conversation) {
+      if (conversation?.is_ai) return "Trợ lý trí tuệ nhân tạo SportGo 24/7";
+      if (conversation?.type === "venue_contact") {
+        const ownerName = conversation.other_user?.full_name;
+        return ownerName ? `Trao đổi với chủ sân · ${ownerName}` : "Trao đổi với chủ sân";
+      }
+      return "Cuộc trò chuyện trực tuyến";
+    },
     async fetchConversations() {
       this.loadingConversations = true;
       try {
@@ -400,8 +412,9 @@ export default {
       if (q.user_id || q.venue_id) {
         try {
           const res = await chatService.startConversation({
+            type: q.venue_id ? "venue_contact" : "direct",
             user_id: q.user_id,
-            venue_cluster_id: q.venue_id,
+            venue_id: q.venue_id,
           });
           await this.fetchConversations();
           const found = this.conversations.find((c) => String(c.id) === String(res.id));
@@ -421,55 +434,66 @@ export default {
       this.mobileActiveView = "chat";
       this.fetchMessages();
     },
-    async fetchMessages() {
+    fetchMessages() {
       if (!this.activeConversation) return;
 
       if (this.activeConversation.is_ai) {
-        try {
-          const res = await chatService.getAiHistory();
-          if (res.messages && Array.isArray(res.messages) && res.messages.length > 0) {
-            this.messages = res.messages;
-            this.saveAiMessages();
-            this.scrollToBottom();
-            return;
-          }
-        } catch (e) {
-          console.warn("Lỗi tải lịch sử chat AI từ CSDL", e);
-        }
-
-        try {
-          const saved = localStorage.getItem("sportgo_ai_messages");
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              this.messages = parsed;
+        chatService.getAiHistory()
+          .then((res) => {
+            if (res.messages && Array.isArray(res.messages) && res.messages.length > 0) {
+              this.messages = res.messages.map((m) => ({
+                ...m,
+                sender_id: (m.sender_id === "me" || m.role === "user") ? "me" : "ai_assistant",
+              }));
+              this.saveAiMessages();
               this.scrollToBottom();
               return;
             }
-          }
-        } catch (e) {
-          console.warn("Lỗi đọc lịch sử chat AI local", e);
-        }
-
-        this.messages = [
-          {
-            id: "ai_welcome",
-            sender_id: "ai_assistant",
-            content: "Xin chào! Tôi là Trợ lý AI của SportGo. Bạn cần hỗ trợ tìm kiếm sân đấu, tư vấn khung giờ chơi hay giải đáp thắc mắc nào hôm nay?",
-            created_at: new Date().toISOString(),
-          },
-        ];
-        this.saveAiMessages();
+            this.loadSavedLocalAiMessages();
+          })
+          .catch(() => {
+            this.loadSavedLocalAiMessages();
+          });
         return;
       }
 
       try {
-        const res = await chatService.getMessages(this.activeConversation.id);
-        this.messages = res.messages || [];
-        this.scrollToBottom();
+        chatService.getMessages(this.activeConversation.id).then((res) => {
+          this.messages = res.messages || [];
+          this.scrollToBottom();
+        });
       } catch (err) {
         console.error("Không thể tải danh sách tin nhắn", err);
       }
+    },
+    loadSavedLocalAiMessages() {
+      try {
+        const saved = localStorage.getItem("sportgo_ai_messages");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.messages = parsed.map((m) => ({
+              ...m,
+              sender_id: (m.sender_id === "me" || m.role === "user") ? "me" : "ai_assistant",
+            }));
+            this.scrollToBottom();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Lỗi đọc lịch sử chat AI local", e);
+      }
+
+      this.messages = [
+        {
+          id: "ai_welcome",
+          sender_id: "ai_assistant",
+          role: "assistant",
+          content: "Xin chào! Tôi là Trợ lý AI của SportGo. Bạn cần hỗ trợ tìm kiếm sân đấu, tư vấn khung giờ chơi hay giải đáp thắc mắc nào hôm nay?",
+          created_at: new Date().toISOString(),
+        },
+      ];
+      this.saveAiMessages();
     },
     saveAiMessages() {
       try {
@@ -486,7 +510,8 @@ export default {
       if (this.activeConversation?.is_ai) {
         const userMsg = {
           id: "user_" + Date.now(),
-          sender_id: this.currentUser?.id || "me",
+          sender_id: "me",
+          role: "user",
           content: text,
           created_at: new Date().toISOString(),
         };
@@ -507,11 +532,10 @@ export default {
             this.messages.push({
               id: "ai_" + Date.now(),
               sender_id: "ai_assistant",
+              role: "assistant",
               content: replyText,
               created_at: new Date().toISOString(),
             });
-          } else if (res?.messages && Array.isArray(res.messages) && res.messages.length > 0) {
-            this.messages = res.messages;
           }
           this.saveAiMessages();
           this.scrollToBottom();
@@ -547,8 +571,99 @@ export default {
       if (file) this.selectedFile = file;
     },
     isMyMessage(msg) {
-      if (msg.sender_id === "ai_assistant") return false;
+      if (!msg) return false;
+      if (
+        msg.sender_id === "ai_assistant" ||
+        msg.role === "assistant" ||
+        msg.role === "system" ||
+        msg.is_ai
+      ) {
+        return false;
+      }
+      if (
+        msg.sender_id === "me" ||
+        msg.role === "user" ||
+        msg.is_user
+      ) {
+        return true;
+      }
+      if (this.currentUser?.id && String(msg.sender_id) === String(this.currentUser.id)) {
+        return true;
+      }
+      if (this.activeConversation?.is_ai && msg.sender_id !== "ai_assistant") {
+        return true;
+      }
       return String(msg.sender_id) === String(this.currentUser?.id);
+    },
+    renderContent(msg) {
+      const raw = msg.content || '';
+
+      // Process line-by-line to correctly handle lists and paragraphs
+      const lines = raw.split('\n');
+      const outputParts = [];
+      let inOrderedList = false;
+      let inBulletList = false;
+
+      const escapeLine = (str) =>
+        str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+      const applyInline = (str) => {
+        // Bold **text**
+        str = str.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // Bold __text__
+        str = str.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+        // Inline code
+        str = str.replace(/`([^`]+)`/g, '<code>$1</code>');
+        return str;
+      };
+
+      const closeLists = () => {
+        if (inOrderedList) { outputParts.push('</ol>'); inOrderedList = false; }
+        if (inBulletList)  { outputParts.push('</ul>'); inBulletList = false; }
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Numbered list: "1. " "2. " etc.
+        const numMatch = line.match(/^(\d+)\. (.+)$/);
+        if (numMatch) {
+          if (inBulletList) { outputParts.push('</ul>'); inBulletList = false; }
+          if (!inOrderedList) { outputParts.push('<ol class="cc-ordered-list">'); inOrderedList = true; }
+          outputParts.push('<li class="cc-list-item">' + applyInline(escapeLine(numMatch[2])) + '</li>');
+          continue;
+        }
+
+        // Bullet list: "- " or "* "
+        const bulletMatch = line.match(/^[-*] (.+)$/);
+        if (bulletMatch) {
+          if (inOrderedList) { outputParts.push('</ol>'); inOrderedList = false; }
+          if (!inBulletList) { outputParts.push('<ul class="cc-unordered-list">'); inBulletList = true; }
+          outputParts.push('<li class="cc-list-item">' + applyInline(escapeLine(bulletMatch[1])) + '</li>');
+          continue;
+        }
+
+        // Empty line = paragraph break
+        if (line.trim() === '') {
+          closeLists();
+          outputParts.push('<br>');
+          continue;
+        }
+
+        // Normal text line
+        closeLists();
+        outputParts.push(applyInline(escapeLine(line)) + '<br>');
+      }
+
+      closeLists();
+
+      // Trim trailing <br> tags
+      let html = outputParts.join('');
+      html = html.replace(/(<br>\s*)+$/, '');
+      return html;
     },
     scrollToBottom() {
       this.$nextTick(() => {
@@ -931,6 +1046,27 @@ export default {
   color: #64748b;
 }
 
+.cc-venue-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .cc-venue-context {
+    display: none;
+  }
+}
+
 .cc-head-btn {
   font-size: 12.5px;
   color: #15803d;
@@ -1034,6 +1170,42 @@ export default {
   margin-top: 4px;
   opacity: 0.7;
   text-align: right;
+}
+
+/* Rendered markdown inside AI bubbles */
+.cc-msg-text :deep(strong) {
+  font-weight: 600;
+}
+
+.cc-msg-text :deep(code) {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 12.5px;
+}
+
+.cc-msg-row--me .cc-msg-text :deep(code) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cc-msg-text :deep(.cc-ordered-list),
+.cc-msg-text :deep(.cc-unordered-list) {
+  margin: 6px 0 2px;
+  padding-left: 20px;
+}
+
+.cc-msg-text :deep(.cc-ordered-list) {
+  list-style-type: decimal;
+}
+
+.cc-msg-text :deep(.cc-unordered-list) {
+  list-style-type: disc;
+}
+
+.cc-msg-text :deep(.cc-list-item) {
+  margin-bottom: 3px;
+  line-height: 1.5;
 }
 
 .cc-msg-img-wrap {

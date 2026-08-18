@@ -1,0 +1,1151 @@
+/* ==========================================================================
+   VENUE POSTS TAB - HIGH CONTRAST, BORDERLESS & UNIFIED WHITE STYLING
+   - Không gạch ngang màu xám (No border-top, border-bottom or divider lines)
+   - Nền trắng đồng bộ 100%
+   - Bỏ các border card
+   - Avatar đồng bộ với Navbar & Chat (#15803d nền xanh, chữ trắng hoặc ảnh tròn)
+   - Tương phản cao: Chữ rõ ràng (#0f172a, #1e293b, #334155), không bị mờ nhạt
+   - Viền input rõ ràng (#94a3b8), dễ nhìn trên nền trắng
+   - Không badge, chip, pill
+   - Không emoji
+   - Không gradient
+   - Không chữ đậm (font-weight: 400 throughout)
+   ========================================================================== */
+
+.venue-posts-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+  font-family: inherit;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* Reset all font weights to 400 and remove gradients */
+.venue-posts-tab *,
+.venue-posts-tab h1,
+.venue-posts-tab h2,
+.venue-posts-tab h3,
+.venue-posts-tab h4,
+.venue-posts-tab strong,
+.venue-posts-tab b,
+.venue-posts-tab button,
+.venue-posts-tab span {
+  font-weight: 400 !important;
+  background-image: none !important;
+}
+
+/* 1. Header & Search Row (High contrast, no dividers) */
+.venue-posts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  background: #ffffff;
+  border: none !important;
+}
+
+.venue-posts-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.venue-posts-title {
+  font-size: 17px;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.venue-posts-subtitle {
+  font-size: 13.5px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.venue-posts-search-form {
+  flex-shrink: 0;
+  width: 260px;
+}
+
+.venue-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  padding: 0 10px 0 34px;
+}
+
+.venue-search-field:focus-within {
+  border-color: #15803d;
+}
+
+.venue-search-icon {
+  position: absolute;
+  left: 10px;
+  color: #334155;
+  pointer-events: none;
+}
+
+.venue-search-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.venue-search-input::placeholder {
+  color: #64748b;
+}
+
+.venue-search-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  padding: 2px;
+  margin-left: 4px;
+}
+
+.venue-search-clear-btn:hover {
+  color: #0f172a;
+}
+
+/* 2. Flat Filter Category Bar (No lines, high contrast text) */
+.venue-posts-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border: none !important;
+  padding: 0;
+  background: #ffffff;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.venue-posts-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.venue-filter-tab-btn {
+  background: transparent;
+  border: none !important;
+  padding: 6px 0;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.venue-filter-tab-btn:hover {
+  color: #0f172a;
+}
+
+.venue-filter-tab-btn.is-active {
+  color: #15803d;
+}
+
+.venue-filter-reset-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #334155;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.venue-filter-reset-btn:hover {
+  color: #ef4444;
+}
+
+/* 3. Skeleton Loading State (Unified White, Borderless) */
+.venue-posts-loading-list {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  background: #ffffff;
+}
+
+.venue-post-skeleton-card {
+  background: #ffffff;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.skeleton-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e2e8f0;
+}
+
+.skeleton-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.skeleton-line {
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.skeleton-line-title {
+  width: 140px;
+  height: 14px;
+}
+
+.skeleton-line-sub {
+  width: 90px;
+}
+
+.skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line-full {
+  width: 100%;
+}
+
+.skeleton-line-long {
+  width: 75%;
+}
+
+.skeleton-media {
+  height: 220px;
+  background: #e2e8f0;
+  border-radius: 8px;
+}
+
+/* 4. Empty & Error States (High contrast, borderless) */
+.venue-post-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 0;
+  background: #ffffff;
+  border: none !important;
+  color: #334155;
+  gap: 10px;
+}
+
+.venue-state-title {
+  font-size: 15.5px;
+  color: #0f172a;
+}
+
+.venue-state-desc {
+  font-size: 13.5px;
+  color: #334155;
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.venue-post-state--error {
+  color: #ef4444;
+}
+
+.venue-post-state--error .venue-state-title {
+  color: #ef4444;
+}
+
+.venue-btn-flat {
+  margin-top: 6px;
+  padding: 9px 20px;
+  background: #15803d;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.venue-btn-flat:hover {
+  background: #166534;
+}
+
+/* 5. Post Stream & Synchronized Brand Avatars */
+.venue-post-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  background: #ffffff;
+}
+
+.venue-post-card {
+  background: #ffffff;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: relative;
+}
+
+.venue-post-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 10px 0;
+  border: none !important;
+  gap: 12px;
+  background: #ffffff;
+}
+
+.venue-post-author-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Author Avatar: Unified Green #15803d with White text or circular image */
+.venue-author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #15803d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13.5px;
+  flex-shrink: 0;
+}
+
+.venue-author-avatar img,
+.venue-comment-avatar img,
+.venue-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.venue-author-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.venue-author-name {
+  font-size: 14.5px;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.venue-post-meta-text {
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.venue-post-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.venue-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.venue-menu-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.venue-post-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 30;
+  width: 180px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.venue-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13.5px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.venue-dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+/* Post Content Body */
+.venue-post-body {
+  padding: 0 0 10px 0;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffff;
+}
+
+.venue-post-card-title {
+  font-size: 16px;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.venue-post-card-title:hover {
+  color: #15803d;
+}
+
+.venue-post-hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.venue-hashtag-item {
+  font-size: 13px;
+  color: #15803d;
+}
+
+.venue-post-excerpt {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1e293b;
+  margin: 0;
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.venue-read-more-btn {
+  background: transparent;
+  border: none;
+  color: #15803d;
+  font-size: 13.5px;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.venue-read-more-btn:hover {
+  text-decoration: underline;
+}
+
+/* 6. Post Media Gallery (Flat Adaptive Grid) */
+.venue-post-media {
+  display: grid;
+  gap: 4px;
+  background: #ffffff;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: none !important;
+}
+
+.venue-post-media--1 {
+  grid-template-columns: 1fr;
+}
+
+.venue-post-media--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.venue-post-media--3 {
+  grid-template-columns: 2fr 1fr;
+}
+
+.venue-post-media--4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.venue-media-item-btn {
+  position: relative;
+  border: none !important;
+  background: #e2e8f0;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  height: 220px;
+  border-radius: 4px;
+}
+
+.venue-post-media--1 .venue-media-item-btn {
+  height: 320px;
+  border-radius: 8px;
+}
+
+.venue-post-media--3 .venue-media-item-btn:first-child {
+  grid-row: span 2;
+  height: 220px;
+}
+
+.venue-media-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.venue-media-more-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+/* 7. Stats & Action Rows (No lines, high contrast text) */
+.venue-post-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 0 4px 0;
+  border: none !important;
+  font-size: 13px;
+  color: #334155;
+  background: #ffffff;
+}
+
+.venue-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.venue-stat-item:hover {
+  color: #0f172a;
+}
+
+.venue-post-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0 0 0;
+  background: #ffffff;
+  border: none !important;
+}
+
+.venue-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 6px 12px 6px 0;
+  border: none !important;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13.5px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.venue-action-btn:hover {
+  color: #15803d;
+}
+
+.venue-action-btn.is-liked {
+  color: #ef4444;
+}
+
+.venue-action-btn.is-active {
+  color: #15803d;
+}
+
+/* 8. Comments Section (Unified White, Synchronized Avatars) */
+.venue-comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0 0 0;
+  background: #ffffff;
+  border: none !important;
+}
+
+.venue-comments-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: #334155;
+  font-size: 13.5px;
+}
+
+.venue-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.venue-comment-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Comment Avatar: Unified Green #15803d with White text or circular image */
+.venue-comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #15803d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.venue-comment-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.venue-comment-bubble {
+  background: #ffffff;
+  border: none !important;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.venue-comment-author {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.venue-comment-text {
+  font-size: 13.5px;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.venue-comment-time {
+  font-size: 12px;
+  color: #475569;
+}
+
+.venue-comments-more-btn {
+  background: transparent;
+  border: none;
+  color: #15803d;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  padding: 4px 0;
+}
+
+.venue-comments-more-btn:hover {
+  text-decoration: underline;
+}
+
+.venue-comments-empty-text {
+  font-size: 13.5px;
+  color: #334155;
+  margin: 0;
+  text-align: left;
+  padding: 4px 0;
+}
+
+.venue-comment-input-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.venue-comment-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  padding: 0 8px 0 12px;
+  height: 40px;
+}
+
+.venue-comment-input-wrap:focus-within {
+  border-color: #15803d;
+}
+
+.venue-comment-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13.5px;
+  color: #0f172a;
+}
+
+.venue-comment-input::placeholder {
+  color: #64748b;
+}
+
+.venue-comment-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #15803d;
+  color: #ffffff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.venue-comment-submit-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.venue-comment-guest-wrap {
+  text-align: left;
+  padding: 4px 0;
+}
+
+.venue-comment-login-btn {
+  background: transparent;
+  border: none;
+  color: #15803d;
+  font-size: 13.5px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* 9. Load More & Pagination */
+.venue-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.venue-load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.venue-load-more-btn:hover {
+  border-color: #15803d;
+  color: #15803d;
+}
+
+.venue-load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.venue-load-more-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: #ffffff;
+  border: none !important;
+  color: #ef4444;
+  font-size: 13.5px;
+}
+
+.venue-retry-link {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* 10. Minimalist Full Article Modal (Unified White, Borderless, High Contrast) */
+.venue-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.venue-article-modal {
+  background: #ffffff;
+  border: none !important;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.venue-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 10px;
+  border: none !important;
+  background: #ffffff;
+}
+
+.venue-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.venue-modal-category {
+  color: #15803d;
+}
+
+.venue-modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.venue-modal-close-btn:hover {
+  background: #f1f5f9;
+}
+
+.venue-modal-scroll-body {
+  padding: 10px 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #ffffff;
+}
+
+.venue-modal-title {
+  font-size: 18px;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.venue-modal-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border: none !important;
+}
+
+.venue-article-rich-content {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: #1e293b;
+}
+
+.venue-article-rich-content p {
+  margin: 0 0 10px 0;
+}
+
+.venue-article-rich-content img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+/* Modal Image Gallery (Adaptive Grid & Full-Width Showcase) */
+.venue-modal-gallery {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 12px 0 6px;
+  background: #ffffff;
+  border: none !important;
+}
+
+.venue-modal-gallery--1 {
+  grid-template-columns: 1fr;
+}
+
+.venue-modal-gallery--1 .venue-modal-media-btn {
+  height: 320px;
+}
+
+.venue-modal-gallery--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.venue-modal-gallery--2 .venue-modal-media-btn {
+  height: 220px;
+}
+
+.venue-modal-gallery--3 {
+  grid-template-columns: 2fr 1fr;
+}
+
+.venue-modal-gallery--3 .venue-modal-media-btn:first-child {
+  grid-row: span 2;
+  height: 260px;
+}
+
+.venue-modal-gallery--3 .venue-modal-media-btn {
+  height: 127px;
+}
+
+.venue-modal-gallery--4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.venue-modal-gallery--4 .venue-modal-media-btn {
+  height: 180px;
+}
+
+.venue-modal-media-btn {
+  position: relative;
+  border: none !important;
+  background: #f1f5f9;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 6px;
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+
+.venue-modal-gallery-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.venue-modal-media-btn:hover .venue-modal-gallery-img {
+  transform: scale(1.02);
+}
+
+.venue-modal-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  border: none !important;
+}
+
+.venue-modal-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+  border: none !important;
+}
+
+.venue-modal-comments-heading {
+  font-size: 14.5px;
+  color: #0f172a;
+  margin: 0;
+}
+
+/* 11. Lightbox (Minimalist) */
+.venue-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.venue-lightbox > section {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 900px;
+  max-height: 90vh;
+}
+
+.venue-lightbox img {
+  max-width: 100%;
+  max-height: 85vh;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.venue-lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.venue-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.venue-lightbox-nav--prev {
+  left: -48px;
+}
+
+.venue-lightbox-nav--next {
+  right: -48px;
+}
+
+.venue-lightbox-count {
+  position: absolute;
+  bottom: -30px;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+/* Spinners */
+.venue-spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #94a3b8;
+  border-top-color: #15803d;
+  border-radius: 50%;
+  animation: venueSpin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes venueSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .venue-posts-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .venue-posts-search-form {
+    width: 100%;
+  }
+
+  .venue-lightbox-nav--prev {
+    left: 8px;
+  }
+
+  .venue-lightbox-nav--next {
+    right: 8px;
+  }
+}

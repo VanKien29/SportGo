@@ -1,4 +1,4 @@
-import { api, apiCached, invalidateCache } from './api.js';
+import { api } from './api.js';
 
 function addOwnerNotification(venueId, title, content, link = '/owner/platform-fees') {
   return {
@@ -95,12 +95,12 @@ export const notificationService = {
       if (value !== undefined && value !== null && value !== '') query.set(key, value);
     });
     const suffix = query.toString() ? `?${query.toString()}` : '';
-    return apiCached(`/api/notifications${suffix}`, { cacheTtl: 30000 });
+    return api(`/api/notifications${suffix}`);
   },
   markAsRead(id) {
-    return api(`/api/notifications/${id}/mark-read`, { method: 'POST' }).then((response) => { invalidateCache('/api/notifications'); return response; });
+    return api(`/api/notifications/${id}/mark-read`, { method: 'POST' });
   },
   markAllAsRead() {
-    return api('/api/notifications/mark-all-read', { method: 'POST' }).then((response) => { invalidateCache('/api/notifications'); return response; });
+    return api('/api/notifications/mark-all-read', { method: 'POST' });
   }
 };

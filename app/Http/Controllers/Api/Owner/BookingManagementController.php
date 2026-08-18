@@ -12,6 +12,7 @@ use App\Services\BookingService;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
 use App\Services\VenueStaffAccessService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -38,7 +39,7 @@ class BookingManagementController extends Controller
             'venue_cluster_id' => ['nullable', 'integer', 'exists:venue_clusters,id'],
             'venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
-            'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])],
+            'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'no_show', 'cancelled', 'expired', 'rejected'])],
             'source' => ['nullable', Rule::in(['online', 'counter'])],
             'booking_type' => ['nullable', Rule::in(['single', 'recurring'])],
             'recurring_group_code' => ['nullable', 'string', 'max:30'],
@@ -111,7 +112,7 @@ class BookingManagementController extends Controller
         $validated = $request->validate([
             'venue_cluster_id' => ['nullable', 'integer', 'exists:venue_clusters,id'],
             'venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
-            'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'cancelled', 'expired', 'rejected'])],
+            'status' => ['nullable', Rule::in(['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed', 'no_show', 'cancelled', 'expired', 'rejected'])],
             'q' => ['nullable', 'string', 'max:120'],
         ]);
 
@@ -423,11 +424,23 @@ class BookingManagementController extends Controller
         ]);
 
         // Một số booking trả sau được tạo trước khi trạng thái chờ duyệt được chuẩn hóa
-        // và còn nằm ở pending_payment. Cho phép owner xử lý chúng như pending_approval.
+        // và còn nằm ở pending_payment. Booking cọc chỉ được duyệt sau khi đã
+        // nhận đủ khoản cọc bắt buộc.
         $isPayLater = $booking->payment_option === 'no_prepay';
+        $isDeposit = $booking->payment_option === 'deposit';
+        $paidAmount = (float) $booking->payments
+            ->where('status', 'paid')
+            ->sum('amount');
+        $depositPaid = $isDeposit
+            && ((float) $booking->required_payment_amount <= 0
+                || $paidAmount + 0.01 >= (float) $booking->required_payment_amount);
         $allowedActions = match ($booking->status) {
-            'pending_approval' => ['confirm', 'reject', 'cancel'],
-            'pending_payment' => $isPayLater ? ['confirm', 'reject', 'cancel'] : ['cancel'],
+            'pending_approval' => ($isDeposit && ! $depositPaid)
+                ? ['cancel']
+                : ['confirm', 'reject', 'cancel'],
+            'pending_payment' => ($isPayLater || $depositPaid)
+                ? ['confirm', 'reject', 'cancel']
+                : ['cancel'],
             'confirmed' => ['check_in', 'cancel'],
             'checked_in' => ['complete'],
             default => [],
@@ -435,7 +448,31 @@ class BookingManagementController extends Controller
 
         if (! in_array($validated['action'], $allowedActions, true)) {
             throw ValidationException::withMessages([
-                'action' => 'Thao tác không hợp lệ với trạng thái hiện tại của booking.',
+                'action' => $validated['action'] === 'confirm' && $isDeposit && ! $depositPaid
+                    ? 'Booking đặt cọc chưa thanh toán đủ tiền cọc nên chưa thể duyệt.'
+                    : 'Thao tác không hợp lệ với trạng thái hiện tại của booking.',
+            ]);
+        }
+
+        $sessionStart = $booking->booking_date && $booking->start_time
+            ? Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->start_time)
+            : null;
+        $sessionEnd = $booking->booking_date && $booking->end_time
+            ? Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->end_time)
+            : null;
+
+        if ($validated['action'] === 'check_in' && $sessionStart && $sessionEnd) {
+            $now = now();
+            if ($now->lessThan($sessionStart->copy()->subMinutes(30)) || $now->greaterThan($sessionEnd->copy()->addMinutes(30))) {
+                throw ValidationException::withMessages([
+                    'action' => 'Chỉ có thể check-in từ 30 phút trước giờ bắt đầu đến 30 phút sau giờ kết thúc.',
+                ]);
+            }
+        }
+
+        if ($validated['action'] === 'complete' && $sessionEnd && now()->lessThan($sessionEnd->copy()->addMinutes(15))) {
+            throw ValidationException::withMessages([
+                'action' => 'Chưa thể hoàn thành booking trước khi buổi chơi kết thúc.',
             ]);
         }
 
@@ -499,7 +536,7 @@ class BookingManagementController extends Controller
             'cancelled_at' => in_array($status, ['cancelled', 'rejected'], true) ? now() : $booking->cancelled_at,
         ]);
 
-        if ($validated['action'] === 'confirm' && $isPayLater) {
+        if ($validated['action'] === 'confirm' && ($isPayLater || $isDeposit)) {
             // Lock auto chỉ có nhiệm vụ chờ owner duyệt; sau khi duyệt booking
             // phải được giữ bởi trạng thái booking thay vì một lock tạm.
             SlotLock::query()

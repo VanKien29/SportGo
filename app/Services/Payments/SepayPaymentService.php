@@ -252,20 +252,18 @@ class SepayPaymentService
                         ? (float) $booking->payments()->where('status', 'paid')->sum('amount')
                         : 0.0;
 
-                    if (
-                        $booking?->source === 'counter'
-                        && $paidAmount >= (float) $booking->total_price
-                        && in_array($booking->status, ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'], true)
-                    ) {
+                    if (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
+                        // Trả sau và đặt cọc đều cần chủ sân duyệt. Với booking
+                        // cọc, chỉ chuyển sang chờ duyệt sau khi đã nhận đủ tiền cọc.
+                        $nextStatus = $booking?->payment_option === 'deposit'
+                            ? 'pending_approval'
+                            : 'confirmed';
                         $payment->booking()->update([
-                            'status' => 'completed',
+                            'status' => $nextStatus,
                         ]);
-                        $this->bookingService->syncMembershipForCompletedBooking($booking);
-                    } elseif (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
-                        $payment->booking()->update([
-                            'status' => 'confirmed',
-                        ]);
-                        $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
+                        if ($nextStatus === 'confirmed') {
+                            $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
+                        }
                     }
 
                     SlotLock::query()

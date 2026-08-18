@@ -14,13 +14,17 @@
         <MiniCalendar
           mode="single"
           :model-value="filters.booking_date"
-          @update:model-value="val => { filters.booking_date = val; loadBookings(); }"
+          @update:model-value="val => { filters.booking_date = val; }"
         />
       </div>
 
       <!-- Right: Filters + Metrics -->
       <div class="top-right">
-        <section class="filters">
+        <form class="filters" @submit.prevent="applyFilters">
+          <label class="booking-filter-search">
+            <span>Tìm booking hoặc khách</span>
+            <input v-model.trim="filters.q" type="search" placeholder="Mã booking, tên, SĐT..." />
+          </label>
           <label>
             <span>Cụm sân</span>
             <select v-model="filters.venue_cluster_id" @change="onClusterChange">
@@ -30,25 +34,51 @@
           </label>
           <label>
             <span>Sân con</span>
-            <select v-model="filters.venue_court_id" @change="loadBookings">
+            <select v-model="filters.venue_court_id">
               <option value="">Tất cả</option>
               <option v-for="court in courts" :key="court.id" :value="court.id">{{ court.name }}</option>
             </select>
           </label>
           <label>
             <span>Trạng thái</span>
-            <select v-model="filters.status" @change="loadBookings">
+            <select v-model="filters.status">
               <option value="">Tất cả</option>
               <option value="pending_approval">Chờ duyệt</option>
               <option value="pending_payment">Chờ thanh toán</option>
               <option value="confirmed">Đã xác nhận</option>
               <option value="checked_in">Đã check-in</option>
               <option value="completed">Hoàn thành</option>
+              <option value="no_show">Không check-in</option>
               <option value="cancelled">Đã hủy</option>
               <option value="rejected">Từ chối</option>
             </select>
           </label>
-        </section>
+          <label>
+            <span>Nguồn booking</span>
+            <select v-model="filters.source">
+              <option value="">Tất cả nguồn</option>
+              <option value="online">Đặt online</option>
+              <option value="counter">Tại quầy</option>
+            </select>
+          </label>
+          <label>
+            <span>Loại booking</span>
+            <select v-model="filters.booking_type">
+              <option value="">Tất cả loại</option>
+              <option value="single">Booking lẻ</option>
+              <option value="recurring">Lịch cố định</option>
+            </select>
+          </label>
+          <div class="booking-filter-actions">
+            <button type="submit" class="btn btn-primary"><AppIcon name="search" size="16" /> Áp dụng</button>
+            <button type="button" class="btn btn-outline" @click="resetFilters">Đặt lại</button>
+          </div>
+        </form>
+
+        <div v-if="activeFilterCount" class="booking-filter-summary">
+          <span>Đang lọc {{ activeFilterCount }} điều kiện</span>
+          <button type="button" class="booking-filter-clear" @click="resetFilters">Xóa bộ lọc</button>
+        </div>
 
         <div class="metric-row">
           <div v-for="metric in scheduleMetrics" :key="metric.label" class="metric-card">
@@ -380,6 +410,9 @@ export default {
         venue_court_id: '',
         booking_date: localIsoDate(),
         status: '',
+        source: '',
+        booking_type: '',
+        q: '',
       },
       loading: true,
       scheduleLoading: false,
@@ -473,6 +506,10 @@ export default {
         { label: 'Khóa sân', value: this.timelineBlocks.filter((block) => block.type === 'lock').length },
       ];
     },
+    activeFilterCount() {
+      return ['venue_cluster_id', 'venue_court_id', 'status', 'source', 'booking_type', 'q']
+        .filter((key) => String(this.filters[key] || '').trim() !== '').length;
+    },
     timelineBlocks() {
       const bookingBlocks = this.bookings.flatMap((booking) => {
         return this.bookingRanges(booking).map((range) => this.makeBookingBlock(booking, range)).filter(Boolean);
@@ -557,6 +594,15 @@ export default {
     if (query.status) {
       this.filters.status = query.status;
     }
+    if (query.source) {
+      this.filters.source = query.source;
+    }
+    if (query.booking_type) {
+      this.filters.booking_type = query.booking_type;
+    }
+    if (query.q) {
+      this.filters.q = query.q;
+    }
 
     await this.loadBookings();
     this.holdClockInterval = setInterval(() => {
@@ -571,7 +617,7 @@ export default {
   },
   methods: {
     async loadClusters() {
-      const response = await venueClusterService.getClusters();
+      const response = await venueClusterService.getClusters({ compact: 1 });
       this.clusters = response.data || [];
     },
     async onClusterChange() {
@@ -581,6 +627,21 @@ export default {
         const response = await venueClusterService.getCourts(this.filters.venue_cluster_id);
         this.courts = response.data || [];
       }
+    },
+    async applyFilters() {
+      await this.loadBookings();
+    },
+    async resetFilters() {
+      this.filters = {
+        venue_cluster_id: '',
+        venue_court_id: '',
+        booking_date: localIsoDate(),
+        status: '',
+        source: '',
+        booking_type: '',
+        q: '',
+      };
+      this.courts = [];
       await this.loadBookings();
     },
     async loadBookings() {
@@ -729,7 +790,7 @@ export default {
     timelineBookingClass(booking) {
       if (booking.status === 'checked_in') return 'block-playing';
       if (['pending_approval', 'pending_payment'].includes(booking.status)) return 'block-pending';
-      if (['cancelled', 'rejected', 'expired'].includes(booking.status)) return 'block-muted';
+      if (['cancelled', 'rejected', 'expired', 'no_show'].includes(booking.status)) return 'block-muted';
       return 'block-confirmed';
     },
     selectTimelineItem(block) {
@@ -765,8 +826,8 @@ export default {
       }
     },
     primaryAction(booking) {
-      if (booking.status === 'pending_approval') {
-        return { key: 'confirm', label: 'Xác nhận booking', icon: 'check', variant: 'success' };
+      if (this.canApproveBooking(booking)) {
+        return { key: 'confirm', label: 'Duyệt booking', icon: 'check', variant: 'success' };
       }
       if (booking.status === 'confirmed') {
         return { key: 'check_in', label: 'Check-in', icon: 'clock', variant: 'success' };
@@ -782,6 +843,17 @@ export default {
       }
       return null;
     },
+    canApproveBooking(booking) {
+      if (booking?.status === 'pending_approval') {
+        return booking.payment_option !== 'deposit'
+          || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0);
+      }
+      if (booking?.status !== 'pending_payment') return false;
+      if (booking.payment_option === 'no_prepay') return true;
+      return booking.payment_option === 'deposit'
+        && (Number(booking.required_payment_amount || 0) <= 0
+          || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0));
+    },
     secondaryActions(booking) {
       const primaryKey = this.primaryAction(booking)?.key;
       const actions = [];
@@ -792,7 +864,7 @@ export default {
       if (this.canChangeCourt(booking)) {
         actions.push({ key: 'change_court', label: 'Đổi sân', icon: 'pencil', variant: 'secondary' });
       }
-      if (booking.status === 'pending_approval') {
+      if (booking.status === 'pending_approval' || this.canApproveBooking(booking)) {
         actions.push({ key: 'reject', label: 'Từ chối booking', icon: 'x', variant: 'danger' });
       }
       if (['pending_approval', 'pending_payment', 'confirmed'].includes(booking.status)) {
@@ -1074,6 +1146,7 @@ export default {
         confirmed: 'Đã xác nhận',
         checked_in: 'Đã check-in',
         completed: 'Hoàn thành',
+        no_show: 'Không check-in',
         cancelled: 'Đã hủy',
         rejected: 'Từ chối',
         expired: 'Hết hạn',

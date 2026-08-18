@@ -1,51 +1,54 @@
 <template>
-  <div class="alb-app sg-client-page">
+  <div class="sg-venue-list-page">
     <PublicNavbar />
 
-    <main>
-      <!-- PAGE HEADER & PILL SEARCH BAR -->
-      <section class="alb-section" style="background: #0f172a; color: #ffffff; padding: 48px 0 36px;">
-        <div class="sg-container">
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px; margin-bottom: 32px;">
-            <div>
-              <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #4ade80; letter-spacing: 1px; margin-bottom: 8px; display: block;">TÌM KIẾM CỤM SÂN</span>
-              <h1 style="font-size: 28px; font-weight: 600; color: #ffffff; margin-bottom: 8px;">Hệ Thống Sân Thể Thao Đạt Chuẩn</h1>
-              <p style="font-size: 14.5px; color: #ffffff;">
-                {{ loading ? "Đang tìm kiếm sân trống phù hợp..." : `Tìm thấy ${venues.length} cụm sân khả dụng` }}
-              </p>
-            </div>
-            <router-link to="/bookings" class="alb-btn-owner" style="background: #1e293b; border: 1px solid #334155;">
-              <span>Lịch đã đặt của tôi</span>
-            </router-link>
+    <main class="sg-venue-main">
+      <!-- ───── HERO SECTION ───── -->
+      <section class="sg-venue-hero">
+        <div class="sg-container-wide">
+          <h1 class="sg-venue-hero__title">Tìm Sân Thể Thao</h1>
+          <p class="sg-venue-hero__sub">Chọn sân, chọn giờ, đặt lịch — nhanh chóng và tiện lợi.</p>
+          <div class="sg-venue-search-wrap">
+            <PillSearchBar />
           </div>
-
-          <!-- Integrated Pill Search Bar -->
-          <PillSearchBar />
+          <div class="sg-venue-hero__links">
+            <router-link to="/bookings" class="sg-venue-hero__link">Lịch đã đặt của tôi</router-link>
+            <span class="sg-venue-hero__link-sep">/</span>
+            <router-link to="/favorites" class="sg-venue-hero__link">Sân yêu thích</router-link>
+            <span class="sg-venue-hero__link-sep">/</span>
+            <router-link to="/venues/map" class="sg-venue-hero__link">Xem bản đồ</router-link>
+          </div>
         </div>
       </section>
 
-      <!-- SEARCH & FILTER CONTENT -->
-      <section class="alb-section">
-        <div class="sg-container" style="display: grid; grid-template-columns: 280px 1fr; gap: 32px;">
-          <!-- FILTER SIDEBAR (Frameless Flat Layout) -->
-          <aside style="background: transparent; border: none; padding: 0; align-self: flex-start;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h2 style="font-size: 15px; font-weight: 500; color: #111827;">Bộ Lọc Tìm Kiếm</h2>
-              <button type="button" style="background: transparent; border: none; font-size: 13px; color: #15803d; cursor: pointer; font-weight: 400;" @click="resetFilters">Xóa bộ lọc</button>
+      <!-- ───── SEARCH & FILTER CONTENT AREA ───── -->
+      <section class="sg-venue-body">
+        <div class="sg-container-wide sg-venue-layout">
+          <!-- FILTER SIDEBAR (FRAMELESS FLAT DESIGN) -->
+          <aside class="sg-venue-sidebar">
+            <div class="sg-sidebar-header">
+              <h2 class="sg-sidebar-title">Bộ Lọc Tìm Kiếm</h2>
+              <button type="button" class="sg-btn-reset" @click="resetFilters">Xóa bộ lọc</button>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 18px;">
-              <!-- Search text -->
-              <div>
-                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Từ khóa / Tên sân</label>
-                <div class="alb-search-input-wrap">
-                  <input v-model.trim="filters.q" type="text" placeholder="Ví dụ: Cầu lông Ba Đình..." @keyup.enter="applyFilters" />
+            <div class="sg-filter-group-list">
+              <!-- Keyword input -->
+              <div class="sg-filter-item">
+                <label class="sg-filter-label">Từ khóa / Tên sân</label>
+                <div class="sg-input-wrapper">
+                  <input
+                    v-model.trim="filters.q"
+                    type="text"
+                    placeholder="Ví dụ: Cầu lông Ba Đình..."
+                    class="sg-text-input"
+                    @keyup.enter="applyFilters"
+                  />
                 </div>
               </div>
 
               <!-- Court Type -->
-              <div>
-                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Môn thể thao</label>
+              <div class="sg-filter-item">
+                <label class="sg-filter-label">Môn thể thao</label>
                 <ClientCombobox
                   v-model="filters.court_type_id"
                   :options="courtTypeOptions"
@@ -54,9 +57,9 @@
                 />
               </div>
 
-              <!-- Dropdown 1: Tỉnh / Thành phố -->
-              <div>
-                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Tỉnh / Thành phố</label>
+              <!-- Province -->
+              <div class="sg-filter-item">
+                <label class="sg-filter-label">Tỉnh / Thành phố</label>
                 <ClientCombobox
                   v-model="filters.province_code"
                   :options="provinceOptions"
@@ -65,9 +68,9 @@
                 />
               </div>
 
-              <!-- Dropdown 2: Phường / Xã -->
-              <div>
-                <label style="font-size: 13.5px; font-weight: 400; color: #0f172a; display: block; margin-bottom: 6px;">Phường / Xã</label>
+              <!-- Ward -->
+              <div class="sg-filter-item">
+                <label class="sg-filter-label">Phường / Xã</label>
                 <ClientCombobox
                   v-model="filters.ward_code"
                   :options="wardOptions"
@@ -77,17 +80,17 @@
                 />
               </div>
 
-              <button class="alb-search-btn" type="button" style="width: 100%; justify-content: center; margin-top: 8px;" @click="applyFilters">
+              <button type="button" class="sg-btn-apply-filters" @click="applyFilters">
                 <span>Áp Dụng Tìm Kiếm</span>
               </button>
             </div>
           </aside>
 
           <!-- VENUES LIST GRID -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 4px;">
-              <span style="font-size: 15px; font-weight: 500; color: #111827;">Hiển thị {{ venues.length }} kết quả</span>
-              <div style="min-width: 175px;">
+          <div class="sg-venue-content">
+            <div class="sg-content-toolbar">
+              <span class="sg-result-count">Hiển thị {{ venues.length }} kết quả</span>
+              <div class="sg-sort-combobox">
                 <ClientCombobox
                   v-model="filters.sort"
                   :options="sortOptions"
@@ -97,6 +100,7 @@
               </div>
             </div>
 
+            <!-- Loading Skeleton -->
             <div v-if="loading" class="alb-venue-grid">
               <div v-for="n in 6" :key="n" class="alb-venue-card sg-skeleton-card">
                 <div class="alb-venue-card__thumb sg-skeleton-box"></div>
@@ -111,21 +115,18 @@
               </div>
             </div>
 
+            <!-- Empty State -->
             <div v-else-if="venues.length === 0" class="sg-empty-state-wrapper">
-              <div class="sg-empty-anim-container" style="width: 200px; height: 200px;">
-                <!-- Floating Question Marks -->
-                <div class="sg-qmark sg-qmark-left" style="top: 10px; left: -10px;">?</div>
-                <div class="sg-qmark sg-qmark-right" style="top: 30px; right: -10px;">?</div>
-
-                <!-- Generated Vector Art Illustration -->
+              <div class="sg-empty-anim-container" style="width: 180px; height: 180px;">
                 <img :src="'/images/sports_player_search_empty.png'" alt="Không tìm thấy sân" class="sg-empty-img" />
               </div>
 
-              <h3 style="font-size: 17px; font-weight: 500; color: #0f172a; margin-top: 16px; margin-bottom: 6px;">Không tìm thấy cụm sân phù hợp</h3>
-              <p style="font-size: 14px; color: #475569; margin-bottom: 20px; max-width: 420px; margin-left: auto; margin-right: auto;">Vui lòng thử điều chỉnh lại từ khóa tìm kiếm hoặc mở rộng phạm vi khu vực.</p>
-              <button class="alb-search-btn" type="button" style="display: inline-flex; font-weight: 400; padding: 10px 24px;" @click="resetFilters">Xem Tất Cả Cụm Sân</button>
+              <h3 class="sg-empty-title">Không tìm thấy cụm sân phù hợp</h3>
+              <p class="sg-empty-desc">Vui lòng thử điều chỉnh lại từ khóa tìm kiếm hoặc mở rộng phạm vi khu vực.</p>
+              <button class="sg-btn-reset-empty" type="button" @click="resetFilters">Xem Tất Cả Cụm Sân</button>
             </div>
 
+            <!-- Real Venues Grid -->
             <div v-else class="alb-venue-grid">
               <article v-for="venue in venues" :key="venue.id" class="alb-venue-card">
                 <div class="alb-venue-card__thumb">
@@ -156,6 +157,7 @@
         </div>
       </section>
     </main>
+
   </div>
 </template>
 
@@ -252,7 +254,6 @@ export default {
         const res = await api("/api/locations/provinces");
         this.provincesList = res.data || res || [];
 
-        // If query has province_code, fetch its wards
         if (this.filters.province_code) {
           this.fetchWardsForProvince(this.filters.province_code);
         }
@@ -340,9 +341,18 @@ export default {
     },
     venueImage(venue) {
       const img = venue.image_path || venue.cover_image || venue.thumbnail;
-      if (!img) return fallbackImage;
-      if (/^https?:\/\//.test(img)) return img;
-      return img.startsWith("/") ? img : `/storage/${img}`;
+      if (img && !/kitchen|cabinet|furniture/i.test(img)) {
+        if (/^https?:\/\//.test(img)) return img;
+        return img.startsWith("/") ? img : `/storage/${img}`;
+      }
+      const pool = [
+        "/images/home/badminton-cover.webp",
+        "/images/home/anhbia2.webp",
+        "/images/home/sportgo-home-hero-v2.webp",
+        "/images/about_hero.png",
+      ];
+      const index = (venue.id || 0) % pool.length;
+      return pool[index];
     },
     formatRating(venue) {
       const rating = Number(venue.rating_avg || venue.average_rating || 4.9);
@@ -356,3 +366,254 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+/* =========================================================================
+   VENUE LISTING PAGE DESIGN SYSTEM (CLEAN LIGHT & SPACE-OPTIMIZED)
+   ========================================================================= */
+
+.sg-venue-list-page {
+  font-family: var(--sg-font-main, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  background: #f8fafc;
+  color: #0f172a;
+  min-height: 100vh;
+}
+
+/* ───── HERO SECTION ───── */
+.sg-venue-hero {
+  padding: 64px 0 52px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sg-venue-hero .sg-container-wide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sg-venue-hero__eyebrow {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+.sg-venue-hero__title {
+  font-size: clamp(32px, 4.5vw, 56px);
+  font-weight: 400;
+  color: #0f172a;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.sg-venue-hero__sub {
+  font-size: 17px;
+  font-weight: 400;
+  color: #475569;
+  margin: 0 0 36px;
+  line-height: 1.6;
+}
+
+.sg-venue-search-wrap {
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 22px;
+}
+
+.sg-venue-hero__links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sg-venue-hero__link {
+  font-size: 13.5px;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.sg-venue-hero__link:hover {
+  color: #0f172a;
+}
+
+.sg-venue-hero__link-sep {
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+/* ───── MAIN CONTENT LAYOUT ───── */
+.sg-venue-body {
+  padding: 40px 0 80px;
+}
+
+.sg-venue-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 36px;
+  align-items: flex-start;
+}
+
+/* ───── SIDEBAR ───── */
+.sg-venue-sidebar {
+  background: transparent;
+  padding: 0;
+  align-self: flex-start;
+}
+
+.sg-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.sg-sidebar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.sg-btn-reset {
+  background: transparent;
+  border: none;
+  font-size: 13.5px;
+  color: #059669;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sg-btn-reset:hover {
+  text-decoration: underline;
+}
+
+.sg-filter-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sg-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sg-filter-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.sg-input-wrapper {
+  width: 100%;
+}
+
+.sg-text-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14.5px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.sg-text-input:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+}
+
+.sg-btn-apply-filters {
+  width: 100%;
+  padding: 12px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.2s ease;
+}
+.sg-btn-apply-filters:hover {
+  background: #047857;
+}
+
+/* ───── VENUE GRID TOOLBAR ───── */
+.sg-venue-content {
+  width: 100%;
+}
+
+.sg-content-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sg-result-count {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sg-sort-combobox {
+  min-width: 180px;
+}
+
+/* ───── EMPTY STATE ───── */
+.sg-empty-state-wrapper {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 60px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.sg-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 16px 0 8px;
+}
+
+.sg-empty-desc {
+  font-size: 14.5px;
+  color: #475569;
+  max-width: 420px;
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+.sg-btn-reset-empty {
+  padding: 10px 24px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.sg-btn-reset-empty:hover {
+  background: #047857;
+}
+
+/* ───── RESPONSIVE ───── */
+@media (max-width: 1024px) {
+  .sg-venue-layout {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}
+</style>

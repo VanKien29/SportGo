@@ -157,4 +157,14 @@ class Booking extends Model
     {
         return $this->belongsTo(VenueCourt::class, 'venue_court_id')->withTrashed();
     }
+
+    public function bookingServices()
+    {
+        return $this->hasMany(BookingServiceItem::class, 'booking_id');
+    }
+
+    public function statusHistories()
+    {
+        return $this->hasMany(BookingStatusHistory::class, 'booking_id')->latest('created_at');
+    }
 }

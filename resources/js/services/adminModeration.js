@@ -61,6 +61,12 @@ export const adminModerationService = {
     });
   },
 
+  aiRecheck(type, id) {
+    return api(`/api/admin/moderation/posts/${type}/${id}/ai-recheck`, {
+      method: 'POST',
+    });
+  },
+
   resolveReport(id, data) {
     return api(`/api/admin/moderation/reports/${id}/resolve`, {
       method: 'POST',

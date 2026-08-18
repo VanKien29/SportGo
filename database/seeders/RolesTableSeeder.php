@@ -15,7 +15,7 @@ class RolesTableSeeder extends Seeder
         }
 
         $roles = [
-            'super_admin' => ['Super Admin', 'Toàn quyền quản trị hệ thống SportGo. Chỉ nhóm này được tạo/gán Admin.'],
+            'super_admin' => ['Super Admin', 'Quyền toàn hệ thống SportGo; không phải nhóm quyền để cấu hình. Chỉ quyền này được quản lý nhóm Admin.'],
             'admin' => ['Admin', 'Quản trị vận hành hệ thống, không được tạo hoặc gán Super Admin/Admin khác.'],
             'system_staff' => ['Nhân viên hệ thống', 'Nhóm nền cho nhân sự vận hành nội bộ SportGo.'],
             'content_moderator' => ['Kiểm duyệt bài viết', 'Duyệt, từ chối, ẩn nội dung và xử lý báo cáo bài viết.'],

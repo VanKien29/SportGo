@@ -17,7 +17,9 @@ class VenueClusterController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $clusterIds = $this->accessibleClusterIds($request);
+        $clusterIds = $request->boolean('owned_only')
+            ? $this->ownedClusterIds($request)
+            : $this->accessibleClusterIds($request);
 
         if ($request->boolean('compact')) {
             $clusters = VenueCluster::query()
@@ -42,9 +44,7 @@ class VenueClusterController extends Controller
 
     private function accessibleClusterIds(Request $request)
     {
-        $ownedClusterIds = VenueCluster::query()
-            ->where('owner_id', $request->user()->id)
-            ->pluck('id');
+        $ownedClusterIds = $this->ownedClusterIds($request);
 
         $assignedClusterIds = \Illuminate\Support\Facades\DB::table('venue_staff_assignments')
             ->where('user_id', $request->user()->id)
@@ -52,6 +52,13 @@ class VenueClusterController extends Controller
             ->pluck('venue_cluster_id');
 
         return $ownedClusterIds->merge($assignedClusterIds)->unique()->values();
+    }
+
+    private function ownedClusterIds(Request $request)
+    {
+        return VenueCluster::query()
+            ->where('owner_id', $request->user()->id)
+            ->pluck('id');
     }
 
     public function show(Request $request, string $id): JsonResponse

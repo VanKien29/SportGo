@@ -34,7 +34,7 @@
 
           <section class="fixed-note">
             <AppIcon name="shield" size="18" />
-            <span>Vai trò người dùng, chủ sân và nhân viên sân là vai trò nghiệp vụ cố định, không cấu hình tại màn này.</span>
+            <span>Super Admin là quyền toàn hệ thống, không phải nhóm quyền để cấu hình. Vai trò người dùng, chủ sân và nhân viên sân cũng là vai trò nghiệp vụ cố định.</span>
           </section>
 
           <div class="table-card">
@@ -88,8 +88,8 @@
                     <ActionIconButton
                       icon="pencil"
                       label="Sửa thông tin"
-                      :disabled="!row.is_configurable"
-                      @click="row.is_configurable && openEditModal(row)"
+                      :disabled="!row.can_edit_role"
+                      @click="row.can_edit_role && openEditModal(row)"
                     />
                     <ActionIconButton icon="users" label="Xem nhân sự đang dùng" @click="goDetail(row, 'users')" />
                     <ActionIconButton
@@ -260,6 +260,9 @@ export default {
         const result = String(left).localeCompare(String(right), 'vi', { numeric: true, sensitivity: 'base' });
         return this.sortDir === 'asc' ? result : -result;
       });
+    },
+    canManagePermissions() {
+      return hasAllAdminPermissions(getAuth(), ['role.permission.manage']);
     },
   },
   mounted() {

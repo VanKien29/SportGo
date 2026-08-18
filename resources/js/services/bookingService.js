@@ -32,6 +32,14 @@ export const bookingService = {
     });
   },
 
+  // Gọi thêm dịch vụ tại sân vào booking
+  addServices(id, data) {
+    return api(`/api/bookings/${id}/services`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   listBookings(params = {}) {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -41,12 +49,21 @@ export const bookingService = {
     });
 
     const suffix = query.toString();
-    return api(`/api/bookings${suffix ? `?${suffix}` : ''}`);
+    return api(`/api/bookings${suffix ? `?${suffix}` : ''}`, {
+      cache: 'no-store',
+      dedupe: false,
+    });
   },
 
   // Lấy chi tiết đơn đặt sân
-  getBooking(id) {
-    return api(`/api/bookings/${id}`);
+  getBooking(id, options = {}) {
+    return api(`/api/bookings/${id}`, {
+      cache: 'no-store',
+      // Chi tiết booking không nên dùng chung promise với một lần tải cũ.
+      // Nếu request trước bị kẹt, lần mở lại vẫn phải tạo request mới.
+      dedupe: false,
+      ...options,
+    });
   },
 
   getRecurringGroup(groupCode) {

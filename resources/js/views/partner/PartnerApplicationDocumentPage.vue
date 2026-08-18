@@ -285,7 +285,7 @@ const viewerDescription = computed(() => {
 
   return canSign.value
     ? 'Kiểm tra toàn bộ nội dung file trước khi xác nhận và ký điện tử.'
-    : 'Xem nội dung từ file lưu trên hệ thống. Bạn có thể tải bản gốc để đối chiếu.';
+    : 'Xem nội dung từ bản PDF được kiểm soát trên hệ thống. Bạn có thể tải bản PDF để lưu trữ.';
 });
 const readonlyHint = computed(() => {
   if (document.value?.source === 'uploaded') return 'Tài liệu phụ lục chỉ hỗ trợ xem và tải xuống.';
@@ -583,4 +583,3 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
 }
 </script>
-

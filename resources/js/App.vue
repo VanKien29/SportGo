@@ -2,7 +2,11 @@
   <router-view v-slot="{ Component, route }">
     <Suspense timeout="0">
       <template #default>
-        <component :is="Component" :key="route.fullPath" />
+        <component v-if="Component" :is="Component" :key="route.fullPath" />
+        <main v-else class="app-route-loading" aria-live="polite">
+          <span class="app-route-loading__spinner" aria-hidden="true"></span>
+          <p>Đang mở trang...</p>
+        </main>
       </template>
       <template #fallback>
         <main class="app-route-loading" aria-live="polite">
@@ -52,7 +56,7 @@ export default {
     showClientFooter() {
       const path = this.$route.path;
       if (/^\/(?:admin|owner|staff)(?:\/|$)/.test(path)) return false;
-      if (/^\/(?:login|register|forgot-password|chat)(?:\/|$)/.test(path)) {
+      if (/^\/(?:login|register|forgot-password|chat|messages)(?:\/|$)/.test(path)) {
         return false;
       }
       return true;
