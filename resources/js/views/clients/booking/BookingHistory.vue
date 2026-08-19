@@ -1,15 +1,6 @@
 <template>
-  <div class="sg-client-page wallet-white-page">
-    <PublicNavbar />
-
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR NAVIGATION -->
-        <ClientAccountNav />
-
-        <!-- RIGHT PAGE CONTENT -->
-        <div class="w2-white-content">
-          <!-- PAGE HEADER -->
+  <div class="w2-white-content">
+    <!-- PAGE HEADER -->
           <div class="sg3-page-head">
             <div>
               <p class="sg3-kicker">Lịch sử hoạt động</p>
@@ -197,8 +188,6 @@
             </div>
           </section>
         </div>
-      </div>
-    </main>
 
     <!-- CANCELLATION MODAL -->
     <Teleport to="body">
@@ -258,19 +247,16 @@
         </div>
       </div>
     </Teleport>
-  </div>
 </template>
 
 <script>
 import ClientDatePicker from "../../../components/ClientDatePicker.vue";
 import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
-import PublicNavbar from "../../../components/PublicNavbar.vue";
-import ClientAccountNav from "../../../components/ClientAccountNav.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
   name: "BookingHistory",
-  components: { ClientDatePicker, ClientCustomSelect, PublicNavbar, ClientAccountNav },
+  components: { ClientDatePicker, ClientCustomSelect },
   data() {
     return {
       bookings: [],

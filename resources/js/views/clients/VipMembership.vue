@@ -1,14 +1,6 @@
 <template>
-  <div class="vip-shell sg-client-page wallet-white-page">
-    <PublicNavbar />
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR NAVIGATION -->
-        <ClientAccountNav />
-
-        <!-- RIGHT PAGE CONTENT -->
-        <div class="w2-white-content">
-          <!-- Header -->
+  <div class="w2-white-content">
+    <!-- Header -->
           <header class="page-head">
             <div class="page-head-copy">
               <p class="sg3-kicker">Đặc quyền hội viên</p>
@@ -164,8 +156,6 @@
             </div>
           </section>
         </div>
-      </div>
-    </main>
 
     <!-- Confirmation Modal -->
     <Teleport to="body">
@@ -219,18 +209,15 @@
         </section>
       </div>
     </Teleport>
-  </div>
 </template>
 
 <script>
-import PublicNavbar from "../../components/PublicNavbar.vue";
-import ClientAccountNav from "../../components/ClientAccountNav.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import { vipMembershipService } from "../../services/vipMembershipService.js";
 
 export default {
   name: "VipMembership",
-  components: { AppIcon, PublicNavbar, ClientAccountNav },
+  components: { AppIcon },
   data() {
     return {
       packages: [],

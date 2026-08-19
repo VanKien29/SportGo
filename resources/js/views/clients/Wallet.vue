@@ -1,42 +1,35 @@
 <!-- SportGo Client Wallet View - Pure White Page Layout -->
 <template>
-  <div class="sg-client-page wallet-white-page">
-    <PublicNavbar />
-
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR NAVIGATION -->
-        <ClientAccountNav />
-
-        <!-- SKELETON LOADING STATE -->
-        <div v-if="loading" class="w2-skeleton-wrapper">
-          <div class="w2-sk-hero">
-            <div class="w2-sk-line w2-sk-title"></div>
-            <div class="w2-sk-line w2-sk-amount"></div>
-            <div class="w2-sk-line w2-sk-sub"></div>
-          </div>
-          <div class="w2-sk-ledger">
-            <div v-for="n in 3" :key="n" class="w2-sk-row">
-              <div class="w2-sk-circle"></div>
-              <div class="w2-sk-col">
-                <div class="w2-sk-line w2-sk-text1"></div>
-                <div class="w2-sk-line w2-sk-text2"></div>
-              </div>
-            </div>
+  <div class="w2-white-content">
+    <!-- SKELETON LOADING STATE -->
+    <div v-if="loading" class="w2-skeleton-wrapper">
+      <div class="w2-sk-hero">
+        <div class="w2-sk-line w2-sk-title"></div>
+        <div class="w2-sk-line w2-sk-amount"></div>
+        <div class="w2-sk-line w2-sk-sub"></div>
+      </div>
+      <div class="w2-sk-ledger">
+        <div v-for="n in 3" :key="n" class="w2-sk-row">
+          <div class="w2-sk-circle"></div>
+          <div class="w2-sk-col">
+            <div class="w2-sk-line w2-sk-text1"></div>
+            <div class="w2-sk-line w2-sk-text2"></div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- ERROR STATE -->
-        <div v-else-if="error" class="w2-state-card w2-error">
-          <div>
-            <span>Không thể kết nối đến Ví SportGo</span>
-            <p>{{ error }}</p>
-            <button class="w2-btn w2-btn--primary" type="button" @click="loadWallet">Thử lại</button>
-          </div>
-        </div>
+    <!-- ERROR STATE -->
+    <div v-else-if="error" class="w2-state-card w2-error">
+      <div>
+        <span>Không thể kết nối đến Ví SportGo</span>
+        <p>{{ error }}</p>
+        <button class="w2-btn w2-btn--primary" type="button" @click="loadWallet">Thử lại</button>
+      </div>
+    </div>
 
-        <!-- MAIN CONTENT: PURE WHITE PAGE LAYOUT LIKE PROFILE PAGE -->
-        <div v-else class="w2-white-content">
+    <!-- MAIN CONTENT: PURE WHITE PAGE LAYOUT -->
+    <template v-else>
         <!-- TOP BALANCE BANNER ON PURE WHITE -->
         <section class="w2-white-hero">
           <div class="w2-hero-top">
@@ -224,8 +217,7 @@
             </article>
           </div>
         </section>
-      </div>
-      </div>
+      </template>
 
       <!-- TOAST NOTIFICATION -->
       <Transition name="w2-toast">
@@ -233,7 +225,7 @@
           <span>{{ toastMessage }}</span>
         </div>
       </Transition>
-    </main>
+    </div>
 
     <!-- TOP-UP / DEPOSIT VIETQR MODAL -->
     <Teleport to="body">
@@ -456,17 +448,14 @@
         </div>
       </div>
     </Teleport>
-  </div>
 </template>
 
 <script>
-import PublicNavbar from "../../components/PublicNavbar.vue";
-import ClientAccountNav from "../../components/ClientAccountNav.vue";
 import { bookingService } from "../../services/bookingService.js";
 
 export default {
   name: "ClientWallet",
-  components: { PublicNavbar, ClientAccountNav },
+  components: {},
   data() {
     return {
       wallet: { id: null, balance: 0, locked_balance: 0, status: "active" },

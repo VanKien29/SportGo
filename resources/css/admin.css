@@ -6079,6 +6079,8 @@ td:not(.docx td) small {
     width: 100%;
     max-width: none;
     margin: 0;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 /* ===== Top Strip: Calendar + Filters + Metrics ===== */

@@ -459,6 +459,7 @@ export const ICON_ALIASES = {
   list: 'menu',
   grid: 'dashboard',
   layout: 'dashboard',
+  layoutGrid: 'dashboard',
   maximize: 'externalLink',
   rotate: 'refresh',
   rotateCw: 'refresh',

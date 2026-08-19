@@ -1,164 +1,219 @@
 <template>
-  <div class="cluster-profile-surface standalone">
-    <div class="profile-section-card staff-schedules-main-content">
-      <section class="staff-schedules-page">
-    <header class="staff-schedules-head">
-      <div class="staff-schedules-header-left">
-        <div class="staff-view-switcher">
+  <div class="pos-schedule-view">
+    <!-- 1. TOP HEADER & SWITCHER -->
+    <header class="pos-schedule-head">
+      <div class="pos-schedule-left">
+        <div class="pos-view-tabs">
           <button
             type="button"
+            class="pos-view-tab"
             :class="{ active: scheduleViewMode === 'week' }"
             @click="scheduleViewMode = 'week'"
-          >Xem theo tuần</button>
+          >
+            <span>Xem theo tuần</span>
+          </button>
           <button
             type="button"
+            class="pos-view-tab"
             :class="{ active: scheduleViewMode === 'day' }"
             @click="scheduleViewMode = 'day'"
-          >Xem theo ngày</button>
+          >
+            <span>Xem theo ngày</span>
+          </button>
         </div>
-        <p v-if="scheduleViewMode === 'week'" class="staff-week-label">{{ weekLabel }}</p>
-        <p v-else class="staff-week-label">{{ formattedSelectedDate }}</p>
+
+        <h2 class="pos-schedule-title">
+          {{ scheduleViewMode === 'week' ? weekLabel : formattedSelectedDate }}
+        </h2>
       </div>
 
-      <!-- Điều hướng tuần (cho chế độ xem tuần) -->
-      <div v-if="scheduleViewMode === 'week'" class="staff-week-actions">
-        <button type="button" title="Tuần trước" @click="shiftWeek(-1)">
-          <AppIcon name="chevronLeft" size="14" />
+      <!-- Navigation buttons -->
+      <div class="pos-schedule-nav">
+        <button
+          type="button"
+          class="pos-nav-arrow"
+          :title="scheduleViewMode === 'week' ? 'Tuần trước' : 'Ngày trước'"
+          @click="scheduleViewMode === 'week' ? shiftWeek(-1) : shiftDay(-1)"
+        >
+          <AppIcon name="chevronLeft" :size="16" />
         </button>
-        <button type="button" class="staff-week-today" @click="goToCurrentWeek">Tuần này</button>
-        <button type="button" title="Tuần sau" @click="shiftWeek(1)">
-          <AppIcon name="chevronRight" size="14" />
+        <button
+          type="button"
+          class="pos-nav-today-btn"
+          @click="scheduleViewMode === 'week' ? goToCurrentWeek() : goToToday()"
+        >
+          {{ scheduleViewMode === 'week' ? 'Tuần này' : 'Hôm nay' }}
         </button>
-      </div>
-
-      <!-- Điều hướng ngày (cho chế độ xem ngày) -->
-      <div v-if="scheduleViewMode === 'day'" class="staff-week-actions">
-        <button type="button" title="Ngày trước" @click="shiftDay(-1)">
-          <AppIcon name="chevronLeft" size="14" />
-        </button>
-        <button type="button" class="staff-week-today" @click="goToToday">Hôm nay</button>
-        <button type="button" title="Ngày sau" @click="shiftDay(1)">
-          <AppIcon name="chevronRight" size="14" />
+        <button
+          type="button"
+          class="pos-nav-arrow"
+          :title="scheduleViewMode === 'week' ? 'Tuần sau' : 'Ngày sau'"
+          @click="scheduleViewMode === 'week' ? shiftWeek(1) : shiftDay(1)"
+        >
+          <AppIcon name="chevronRight" :size="16" />
         </button>
       </div>
     </header>
 
-    <p v-if="error" class="staff-schedules-alert">{{ error }}</p>
-    <div v-if="loading" class="state-box animate-fade-in">
-      <div class="spinner"></div>
-      <p>Đang tải lịch trực...</p>
+    <!-- Error Alert -->
+    <div v-if="error" class="pos-alert-box is-error">
+      <span>{{ error }}</span>
+      <button type="button" @click="error = ''">×</button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="pos-loading-state">
+      <div class="pos-spinner"></div>
+      <p>Đang tải lịch trực của bạn...</p>
     </div>
 
     <template v-else>
-      <!-- CHẾ ĐỘ XEM THEO TUẦN -->
-      <div v-if="scheduleViewMode === 'week'">
-        <div class="staff-week-grid" role="list" aria-label="Lịch trực trong tuần">
-          <article v-for="day in weekDays" :key="day.iso" class="staff-day" :class="{ 'is-today': day.iso === today }" role="listitem">
-            <header>
-              <span>{{ day.label }}</span>
-              <strong>{{ day.date }}</strong>
-            </header>
-            <div v-if="day.schedules.length" class="staff-day-shifts">
-              <div v-for="schedule in day.schedules" :key="schedule.id" class="staff-day-shift">
-                <span class="staff-day-time">{{ timeRange(schedule) }}</span>
-                <strong>{{ shiftName(schedule) }}</strong>
-                <small>{{ schedule.venue_cluster?.name || 'Cụm sân' }}</small>
-                <span class="staff-day-status" :class="schedule.status">{{ statusLabel(schedule.status) }}</span>
+      <!-- 2. WEEKLY CALENDAR VIEW -->
+      <div v-if="scheduleViewMode === 'week'" class="pos-week-container">
+        <div class="pos-week-grid">
+          <div
+            v-for="day in weekDays"
+            :key="day.iso"
+            class="pos-day-col"
+            :class="{ 'is-today': day.iso === today }"
+          >
+            <div class="pos-day-head">
+              <span class="pos-day-name">{{ day.label }}</span>
+              <strong class="pos-day-date">{{ day.date }}</strong>
+            </div>
+
+            <div v-if="day.schedules.length" class="pos-day-shifts">
+              <div
+                v-for="schedule in day.schedules"
+                :key="schedule.id"
+                class="pos-shift-card"
+                :class="schedule.status"
+              >
+                <div class="pos-shift-card-accent"></div>
+                <div class="pos-shift-card-body">
+                  <span class="pos-shift-time">{{ timeRange(schedule) }}</span>
+                  <strong class="pos-shift-name">{{ shiftName(schedule) }}</strong>
+                  <span class="pos-shift-venue">{{ schedule.venue_cluster?.name || 'Cụm sân' }}</span>
+                  <span class="pos-shift-status-tag" :class="schedule.status">
+                    {{ statusLabel(schedule.status) }}
+                  </span>
+                </div>
               </div>
             </div>
-            <p v-else>Không có ca</p>
-          </article>
+
+            <div v-else class="pos-day-empty">
+              <span>Không có ca</span>
+            </div>
+          </div>
         </div>
 
-        <section v-if="schedules.length" class="staff-schedules-list">
-          <h2>Tất cả ca trong tuần</h2>
-          <article v-for="schedule in schedules" :key="schedule.id" class="staff-schedule-item">
-            <time>{{ fullDate(schedule.date) }}</time>
-            <div>
-              <strong>{{ timeRange(schedule) }} · {{ shiftName(schedule) }}</strong>
-              <span>{{ schedule.venue_cluster?.name || 'Cụm sân được phân công' }}</span>
-              <small v-if="schedule.notes">{{ schedule.notes }}</small>
+        <!-- Summary List of All Shifts this Week -->
+        <section v-if="schedules.length" class="pos-week-summary">
+          <h3 class="pos-summary-title">Danh sách ca trực trong tuần ({{ schedules.length }} ca)</h3>
+          <div class="pos-summary-grid">
+            <div
+              v-for="schedule in schedules"
+              :key="schedule.id"
+              class="pos-summary-card"
+            >
+              <div class="pos-summary-date">
+                <strong>{{ fullDate(schedule.date) }}</strong>
+                <span>{{ timeRange(schedule) }}</span>
+              </div>
+              <div class="pos-summary-info">
+                <strong>{{ shiftName(schedule) }}</strong>
+                <small>{{ schedule.venue_cluster?.name || 'Cụm sân được phân công' }}</small>
+                <p v-if="schedule.notes">{{ schedule.notes }}</p>
+              </div>
+              <span class="pos-shift-status-tag" :class="schedule.status">
+                {{ statusLabel(schedule.status) }}
+              </span>
             </div>
-            <span class="staff-day-status" :class="schedule.status">{{ statusLabel(schedule.status) }}</span>
-          </article>
+          </div>
         </section>
       </div>
 
-      <!-- CHẾ ĐỘ XEM THEO NGÀY – 24h Horizontal Strip -->
-      <div v-else class="day-strip-view animate-fade-in">
-
-        <!-- Trục giờ -->
-        <div class="day-strip-ticks">
-          <span
-            v-for="tick in timelineTicks"
-            :key="tick.label"
-            class="day-strip-tick"
-            :style="{ left: tick.left + '%' }"
-          >{{ tick.label }}</span>
-        </div>
-
-        <!-- Thanh nền 24h -->
-        <div class="day-strip-track">
-          <!-- Ô giờ nền (để nhìn thấy lưới) -->
-          <div
-            v-for="h in 24"
-            :key="h"
-            class="day-strip-hour-cell"
-            :style="{ left: ((h - 1) / 24 * 100) + '%', width: (1 / 24 * 100) + '%' }"
-          ></div>
-
-          <!-- Các block ca trực -->
-          <div
-            v-for="block in todayTimelineBlocks"
-            :key="block.id"
-            class="day-strip-block"
-            :class="block.statusClass"
-            :style="block.style"
-            :title="block.title + ' · ' + block.timeLabel + ' · ' + block.statusLabel"
-          >
-            <span class="day-strip-block-label">{{ block.title }}</span>
-            <span class="day-strip-block-time">{{ block.timeLabel }}</span>
+      <!-- 3. DAILY 24H TIMELINE STRIP VIEW -->
+      <div v-else class="pos-day-container">
+        <!-- 24h Timeline Axis -->
+        <div class="pos-timeline-wrapper">
+          <div class="pos-timeline-ticks">
+            <span
+              v-for="tick in timelineTicks"
+              :key="tick.label"
+              class="pos-timeline-tick"
+              :style="{ left: tick.left + '%' }"
+            >
+              {{ tick.label }}
+            </span>
           </div>
 
+          <div class="pos-timeline-track">
+            <!-- Hour Grid Cells -->
+            <div
+              v-for="h in 24"
+              :key="h"
+              class="pos-hour-grid-cell"
+              :style="{ left: ((h - 1) / 24 * 100) + '%', width: (1 / 24 * 100) + '%' }"
+            ></div>
+
+            <!-- Shift Blocks -->
+            <div
+              v-for="block in todayTimelineBlocks"
+              :key="block.id"
+              class="pos-timeline-block"
+              :class="block.statusClass"
+              :style="block.style"
+              :title="block.title + ' · ' + block.timeLabel"
+            >
+              <span class="pos-tb-title">{{ block.title }}</span>
+              <span class="pos-tb-time">{{ block.timeLabel }}</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Danh sách ca bên dưới strip -->
-        <div v-if="sortedSelectedDaySchedules.length" class="day-strip-list">
+        <!-- Shift List Below -->
+        <div v-if="sortedSelectedDaySchedules.length" class="pos-day-list">
           <div
             v-for="sch in sortedSelectedDaySchedules"
             :key="sch.id"
-            class="day-strip-item"
+            class="pos-day-item"
           >
-            <span class="day-strip-item-dot" :class="sch.status"></span>
-            <div class="day-strip-item-body">
-              <strong>{{ shiftName(sch) }}</strong>
-              <span>{{ timeRange(sch) }}</span>
-              <span>{{ sch.venue_cluster?.name || 'Cụm sân' }}</span>
-              <span v-if="sch.notes" class="day-strip-item-note">{{ sch.notes }}</span>
+            <div class="pos-day-item-left">
+              <span class="pos-day-item-badge">{{ timeRange(sch) }}</span>
+              <div class="pos-day-item-meta">
+                <strong>{{ shiftName(sch) }}</strong>
+                <span>{{ sch.venue_cluster?.name || 'Cụm sân' }}</span>
+                <small v-if="sch.notes">{{ sch.notes }}</small>
+              </div>
             </div>
-            <span class="day-strip-item-status" :class="sch.status">{{ statusLabel(sch.status) }}</span>
+            <span class="pos-shift-status-tag" :class="sch.status">
+              {{ statusLabel(sch.status) }}
+            </span>
           </div>
         </div>
 
-        <!-- Empty state -->
-        <div v-else class="state-box animate-fade-in">
-          <p class="empty-msg">Không có ca trực nào trong ngày {{ formattedSelectedDate }}.</p>
+        <!-- Empty state with 3D model illustration -->
+        <div v-else class="pos-day-empty-state">
+          <img :src="'/images/staff/schedule_empty_3d.jpg'" alt="3D Schedule Illustration" class="pos-3d-schedule-img" />
+          <div class="pos-3d-empty-info">
+            <h4>Không có ca trực vào ngày này</h4>
+            <p>Bạn không có ca làm việc nào được phân công trong ngày {{ formattedSelectedDate }}.</p>
+          </div>
         </div>
-
       </div>
     </template>
-      </section>
-    </div>
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import SportIllustration from '../../components/common/SportIllustration.vue';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 
 export default {
   name: 'StaffSchedules',
-  components: { AppIcon },
+  components: { AppIcon, SportIllustration },
   data() {
     return {
       weekStart: this.getMonday(new Date()),
@@ -194,9 +249,6 @@ export default {
       const format = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
       return `${format.format(this.weekStart)} - ${format.format(end)}`;
     },
-    uniqueVenues() {
-      return new Set(this.schedules.map((schedule) => schedule.venue_cluster?.id || schedule.venue_cluster?.name).filter(Boolean)).size;
-    },
     selectedDaySchedules() {
       return this.schedules.filter((schedule) => schedule.date === this.selectedDate);
     },
@@ -221,27 +273,18 @@ export default {
       return this.sortedSelectedDaySchedules.map((sch) => {
         const startMins = parseTimeMins(sch.start_time);
         let endMins = parseTimeMins(sch.end_time);
-        // Ca qua đêm
         if (endMins <= startMins && endMins !== 0) endMins += totalMins;
         if (endMins > totalMins) endMins = totalMins;
         const left = (startMins / totalMins) * 100;
-        const width = Math.max(((endMins - startMins) / totalMins) * 100, 0.5);
+        const width = Math.max(((endMins - startMins) / totalMins) * 100, 1);
         return {
           id: sch.id,
           title: sch.shift?.name || 'Ca trực',
           timeLabel: `${(sch.start_time || '').substring(0, 5)} - ${(sch.end_time || '').substring(0, 5)}`,
           statusClass: sch.status,
-          statusLabel: this.statusLabel(sch.status),
-          notes: sch.notes || '',
-          venueName: sch.venue_cluster?.name || 'Cụm sân',
           style: { left: `${left}%`, width: `${width}%` },
         };
       });
-    },
-    nowLineLeft() {
-      const now = new Date();
-      const mins = now.getHours() * 60 + now.getMinutes();
-      return (mins / (24 * 60)) * 100;
     },
     timelineTicks() {
       const ticks = [];
@@ -288,22 +331,6 @@ export default {
       this.selectedWeekDate = this.isoDate(currentMonday);
       this.loadSchedules();
     },
-    onWeekDateChange(event) {
-      const selected = new Date(event.target.value);
-      if (!isNaN(selected.getTime())) {
-        this.weekStart = this.getMonday(selected);
-        this.loadSchedules();
-      }
-    },
-    onWeekDateChangePicker(iso) {
-      if (!iso) return;
-      const selected = new Date(iso + 'T00:00:00');
-      if (!isNaN(selected.getTime())) {
-        this.weekStart = this.getMonday(selected);
-        this.selectedWeekDate = iso;
-        this.loadSchedules();
-      }
-    },
     shiftDay(amount) {
       const next = new Date(this.selectedDate + 'T00:00:00');
       next.setDate(next.getDate() + amount);
@@ -324,7 +351,7 @@ export default {
         });
         this.schedules = (response.data || []).sort((a, b) => `${a.date} ${a.start_time}`.localeCompare(`${b.date} ${b.start_time}`));
       } catch (error) {
-        this.error = error.message || 'Không thể tải lịch trực. Vui lòng thử lại.';
+        this.error = error.message || 'Không thể tải lịch trực.';
       } finally {
         this.loading = false;
       }
@@ -339,984 +366,586 @@ export default {
       return new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
     },
     statusLabel(status) {
-      return { scheduled: 'Đã lên lịch', checked_in: 'Đang trực', checked_out: 'Đã hoàn thành', absent: 'Vắng mặt', cancelled: 'Đã hủy' }[status] || 'Đã lên lịch';
+      return {
+        scheduled: 'Đã lên lịch',
+        checked_in: 'Đang trực',
+        checked_out: 'Đã hoàn thành',
+        absent: 'Vắng mặt',
+        cancelled: 'Đã hủy',
+      }[status] || 'Đã lên lịch';
     },
   },
 };
 </script>
 
 <style scoped>
-.staff-schedules-page {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  color: var(--admin-text);
-}
-
-.staff-schedules-head {
+.pos-schedule-view {
+  padding: 20px 24px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 20px;
+  background: #ffffff;
+  min-height: calc(100vh - 56px);
 }
 
-.staff-schedules-header-left {
+/* 1. TOP VIEW & NAVIGATION BAR */
+.pos-schedule-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pos-schedule-left {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.staff-week-label {
-  font-size: var(--admin-font-size-base, 14px) !important;
-  font-weight: 500 !important;
-  color: var(--admin-text) !important;
-  margin: 0;
-}
-.staff-view-switcher {
-  display: flex;
-  gap: 8px;
-  padding: 0;
-}
-
-.staff-view-switcher button {
-  background: transparent;
-  border: none;
-  color: var(--admin-muted);
-  font-size: 14px;
-  font-weight: 400;
-  padding: 6px 12px;
-  cursor: pointer;
-}
-
-.staff-view-switcher button.active {
-  color: var(--admin-primary);
-}
-
-.staff-date-picker-input-mini {
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
-  color: var(--admin-text) !important;
-  -webkit-text-fill-color: var(--admin-text) !important;
-  padding: 4px 8px;
-  font-size: var(--admin-font-size-xs, 11px) !important;
-  font-weight: 500;
-  height: 36px !important;
-  box-sizing: border-box;
-  color-scheme: light !important;
-}
-
-.staff-date-picker-input-mini::-webkit-datetime-edit {
-  font-size: var(--admin-font-size-xs, 11px) !important;
-}
-
-:root[data-theme="dark"] .staff-date-picker-input-mini,
-[data-theme="dark"] .staff-date-picker-input-mini {
-  color-scheme: dark !important;
-}
-
-.staff-week-actions {
+.pos-view-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 2px;
+  border-radius: 6px;
+  height: 32px;
+  box-sizing: border-box;
 }
 
-.staff-week-actions button {
+.pos-view-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0 12px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.pos-view-tab:hover {
+  background: #f0fdf4;
+  color: #087642;
+}
+
+.pos-view-tab.active {
+  background: #087642;
+  color: #ffffff;
+  border-color: #087642;
+  font-weight: 500;
+}
+
+.pos-schedule-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.pos-schedule-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  padding: 2px;
+  border-radius: 6px;
+  height: 32px;
+  box-sizing: border-box;
+}
+
+.pos-nav-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 36px !important;
-  min-height: 36px !important;
-  padding: 0 8px;
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
-  color: var(--admin-text);
-  font-size: var(--admin-font-size-sm, 12px) !important;
-  font-weight: 500;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  border-radius: 4px;
   cursor: pointer;
+  transition: all 0.12s ease;
 }
 
-.staff-week-today {
-  font-size: var(--admin-font-size-sm, 12px) !important;
+.pos-nav-arrow:hover {
+  background: #f0fdf4;
+  color: #087642;
 }
 
-.staff-schedules-alert {
-  margin: 0 0 16px;
-  padding: 10px 12px;
-  color: var(--admin-danger);
-  background: var(--admin-danger-soft);
-  border-radius: var(--admin-radius);
-  font-size: 13px;
+.pos-nav-today-btn {
+  border: none;
+  background: transparent;
+  padding: 0 10px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0f172a;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
 }
 
-.staff-schedules-loading {
-  min-height: 160px;
+.pos-nav-today-btn:hover {
+  background: #f0fdf4;
+  color: #087642;
+}
+
+/* ERROR & LOADING */
+.pos-alert-box {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--admin-muted);
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+}
+
+.pos-loading-state {
+  padding: 60px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #64748b;
   font-size: 13px;
 }
 
-/* Week grid styling */
-.staff-week-grid {
+.pos-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #087642;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 2. WEEKLY CALENDAR GRID */
+.pos-week-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pos-week-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  border-top: 1px solid var(--admin-border-soft);
-  border-bottom: 1px solid var(--admin-border-soft);
-}
-
-.staff-day {
-  min-height: 200px;
-  padding: 12px;
-  border-right: 1px solid var(--admin-border-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.staff-day:first-child {
-  border-left: 1px solid var(--admin-border-soft);
-}
-
-.staff-day.is-today {
-  background: var(--admin-bg-soft);
-}
-
-.staff-day header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.staff-day header span {
-  color: var(--admin-muted);
-  font-size: var(--admin-font-size-sm, 12px);
-}
-
-.staff-day header strong {
-  font-size: var(--admin-font-size-base, 14px);
-  font-weight: 400;
-  color: var(--admin-text);
-}
-
-.staff-day > p {
-  color: var(--admin-faint);
-  font-size: var(--admin-font-size-sm, 12px);
-  margin: 0;
-}
-
-.staff-day-shifts {
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
 }
 
-.staff-day-shift {
+.pos-day-col {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 10px;
+  min-height: 280px;
 }
 
-.staff-day-time {
-  font-size: var(--admin-font-size-sm, 12px);
-  font-weight: 400;
-  color: var(--admin-text);
+.pos-day-col.is-today {
+  background: #ffffff;
+  border-color: #087642;
+  box-shadow: 0 0 0 1px #087642;
 }
 
-.staff-day-shift strong {
-  font-size: var(--admin-font-size-md, 13px);
-  font-weight: 400;
-  color: var(--admin-text);
-}
-
-.staff-day-shift small {
-  font-size: var(--admin-font-size-sm, 12px);
-  color: var(--admin-muted);
-}
-
-.staff-day-status {
-  font-size: var(--admin-font-size-sm, 12px);
-  font-weight: 400;
-  margin-top: 2px;
-}
-
-.staff-day-status.scheduled {
-  color: var(--admin-muted);
-}
-
-.staff-day-status.checked_in {
-  color: var(--admin-primary-dark);
-}
-
-.staff-day-status.checked_out {
-  color: var(--admin-muted);
-}
-
-.staff-day-status.absent {
-  color: var(--admin-danger);
-}
-
-.staff-day-status.cancelled {
-  color: var(--admin-muted);
-}
-
-.staff-schedules-list {
-  margin-top: 28px;
-}
-
-.staff-schedules-list h2 {
-  font-size: 16px;
-  font-weight: 400;
-  margin-bottom: 12px;
-}
-
-.staff-schedule-item {
+.pos-day-head {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 14px 0;
-  border-top: 1px solid var(--admin-border-soft);
-}
-
-.staff-schedule-item:last-child {
-  border-bottom: 1px solid var(--admin-border-soft);
-}
-
-.staff-schedule-item time {
-  width: 120px;
-  color: var(--admin-text);
-  font-size: 13px;
-  text-transform: capitalize;
-}
-
-.staff-schedule-item > div {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   gap: 2px;
-  min-width: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.staff-schedule-item strong {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--admin-text);
-}
-
-.staff-schedule-item span,
-.staff-schedule-item small {
-  color: var(--admin-muted);
-  font-size: 12px;
-}
-
-/* ===== 24h Horizontal Strip Day View ===== */
-.day-strip-view {
-  padding: 8px 0 0;
-}
-
-/* Tick labels */
-.day-strip-ticks {
-  position: relative;
-  height: 18px;
-  margin-bottom: 4px;
-}
-
-.day-strip-tick {
-  position: absolute;
-  transform: translateX(-50%);
+.pos-day-name {
   font-size: 11px;
-  font-weight: 400;
-  color: var(--admin-muted);
-  white-space: nowrap;
-  user-select: none;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
 }
 
-/* Main 24h track */
-.day-strip-track {
-  position: relative;
-  height: 56px;
-  background: var(--admin-bg-soft, #f8fafc);
-  border: 1px solid var(--admin-border-soft, #e2e8f0);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 20px;
+.pos-day-date {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-/* Alternating hour background cells */
-.day-strip-hour-cell {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  box-sizing: border-box;
-  border-right: 1px solid var(--admin-border-soft, #e2e8f0);
-}
-
-.day-strip-hour-cell:nth-child(odd) {
-  background: rgba(0, 0, 0, 0.015);
-}
-
-/* Shift blocks */
-.day-strip-block {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  border-radius: 3px;
-  padding: 0 6px;
+.pos-day-shifts {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 6px;
+}
+
+.pos-shift-card {
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  display: flex;
   overflow: hidden;
-  min-width: 2px;
-  box-sizing: border-box;
-  cursor: default;
-  transition: opacity 0.15s ease;
+  transition: border-color 0.12s ease;
 }
 
-.day-strip-block:hover {
-  opacity: 0.85;
+.pos-shift-card:hover {
+  border-color: #087642;
 }
 
-.day-strip-block-label {
-  font-size: 11px;
-  font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
+.pos-shift-card-accent {
+  width: 3px;
+  background: #087642;
+  flex-shrink: 0;
 }
 
-.day-strip-block-time {
-  font-size: 10px;
-  opacity: 0.8;
-  white-space: nowrap;
-  line-height: 1.3;
+.pos-shift-card.checked_in .pos-shift-card-accent { background: #087642; }
+.pos-shift-card.checked_out .pos-shift-card-accent { background: #64748b; }
+
+.pos-shift-card-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
 }
 
-/* Block status colors */
-.day-strip-block.scheduled {
-  background: #dbeafe;
-  color: #1e40af;
+.pos-shift-time {
+  font-size: 10.5px;
+  font-family: monospace;
+  font-weight: 600;
+  color: #087642;
 }
 
-.day-strip-block.checked_in {
-  background: #dcfce7;
-  color: #166534;
+.pos-shift-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
-.day-strip-block.checked_out {
-  background: #f1f5f9;
+.pos-shift-venue {
+  font-size: 10.5px;
   color: #64748b;
 }
 
-.day-strip-block.absent {
-  background: #fee2e2;
-  color: #b91c1c;
+.pos-shift-status-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  width: fit-content;
+  margin-top: 3px;
 }
 
-.day-strip-block.cancelled {
+.pos-shift-status-tag.scheduled {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.pos-shift-status-tag.checked_in {
+  background: #f0fdf4;
+  color: #087642;
+  border: 1px solid #bbf7d0;
+}
+
+.pos-shift-status-tag.checked_out {
   background: #f1f5f9;
-  color: #94a3b8;
-  text-decoration: line-through;
-  opacity: 0.6;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
-/* Now line */
-.day-strip-now-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: #ef4444;
-  border-radius: 1px;
-  z-index: 5;
-}
-
-.day-strip-now-line::before {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
-}
-
-/* Detail list below strip */
-.day-strip-list {
-  display: grid;
-  gap: 0;
-}
-
-.day-strip-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid var(--admin-border-soft, #e2e8f0);
-}
-
-.day-strip-item:last-child {
-  border-bottom: 1px solid var(--admin-border-soft, #e2e8f0);
-}
-
-.day-strip-item-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.day-strip-item-dot.scheduled  { background: #3b82f6; }
-.day-strip-item-dot.checked_in { background: #22c55e; }
-.day-strip-item-dot.checked_out { background: #94a3b8; }
-.day-strip-item-dot.absent     { background: #ef4444; }
-.day-strip-item-dot.cancelled  { background: #cbd5e1; }
-
-.day-strip-item-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.day-strip-item-body strong {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--admin-text);
-}
-
-.day-strip-item-body span {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--admin-muted);
-}
-
-.day-strip-item-note {
-  font-style: italic;
-}
-
-.day-strip-item-status {
-  font-size: 12px;
-  font-weight: 400;
-  flex-shrink: 0;
-}
-
-.day-strip-item-status.scheduled  { color: #3b82f6; }
-.day-strip-item-status.checked_in { color: #16a34a; }
-.day-strip-item-status.checked_out { color: var(--admin-muted); }
-.day-strip-item-status.absent     { color: #ef4444; }
-.day-strip-item-status.cancelled  { color: var(--admin-muted); }
-
-
-
-.staff-day-view-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.staff-day-title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.staff-day-title {
-  font-size: 18px;
-  font-weight: 400;
-  color: var(--admin-text);
-  margin: 0;
-}
-
-.staff-date-picker-input {
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius);
-  background: var(--admin-surface);
-  color: var(--admin-text) !important;
-  -webkit-text-fill-color: var(--admin-text) !important;
-  padding: 4px 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color-scheme: light !important;
-}
-
-:root[data-theme="dark"] .staff-date-picker-input,
-[data-theme="dark"] .staff-date-picker-input {
-  color-scheme: dark !important;
-}
-
-/* Vertical Timeline Layout */
-.staff-day-view-container {
-  padding: 8px 0;
-}
-
-.day-vertical-24h-timeline {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 4px 0;
-}
-
-.v-timeline-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--admin-border-soft, #f1f5f9);
-}
-
-.v-timeline-item:last-child {
-  border-bottom: none;
-}
-
-.v-time-col {
-  width: 100px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 400 !important;
-  color: var(--admin-text);
-  white-space: nowrap;
-}
-
-.v-time-dash {
-  color: var(--admin-muted);
-}
-
-.v-line-marker {
-  position: relative;
-  width: 12px;
+.pos-day-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.v-marker-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--admin-muted, #94a3b8);
-}
-
-.v-shift-info {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  color: #94a3b8;
+  font-size: 11.5px;
 }
 
-.v-shift-title {
-  font-size: 14px;
-  font-weight: 400 !important;
-  color: var(--admin-text);
-}
-
-.v-shift-venue {
-  font-size: 13px;
-  font-weight: 400 !important;
-  color: var(--admin-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.v-shift-notes {
-  font-size: 12px;
-  font-weight: 400 !important;
-  color: var(--admin-muted);
-}
-
-.v-shift-status {
-  font-size: 12px;
-  font-weight: 400 !important;
-  color: var(--admin-muted);
-  margin-left: auto;
-}
-
-.timeline-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.timeline-time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--admin-primary, #10b981);
-  font-size: 13px;
-}
-
-.timeline-card-body {
+/* WEEK SUMMARY */
+.pos-week-summary {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
 }
 
-.timeline-shift-name {
+.pos-summary-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--admin-text);
 }
 
-.timeline-venue {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--admin-muted);
+.pos-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
-.timeline-notes {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--admin-muted);
-  background: var(--admin-hover, #f8fafc);
-  padding: 6px 10px;
-  border-radius: 6px;
-  margin-top: 4px;
-}
-
-.staff-card-head {
+.pos-summary-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
 }
 
-.staff-card-time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--admin-text);
-}
-
-.staff-card-body {
+.pos-summary-date {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
-.staff-card-shift-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--admin-text);
-}
-
-.staff-card-venue {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.pos-summary-date strong {
   font-size: 13px;
-  color: var(--admin-muted);
+  font-weight: 600;
+  color: #0f172a;
 }
 
-.staff-card-notes {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--admin-muted);
-  background: var(--admin-hover, #f8fafc);
-  padding: 8px 10px;
-  border-radius: 6px;
+.pos-summary-date span {
+  font-size: 11.5px;
+  color: #087642;
+  font-family: monospace;
+  font-weight: 600;
 }
 
-.timeline-row {
+.pos-summary-info {
   display: flex;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px dashed var(--admin-border-soft);
-}
-
-.staff-meta {
-  width: 180px;
-  padding-right: 12px;
-}
-
-.staff-meta strong {
-  display: block;
-  font-size: 14px;
-  color: var(--admin-text);
-}
-
-.staff-meta span {
-  font-size: 11px;
-  color: var(--admin-faint);
-}
-
-.timeline-track {
-  position: relative;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
-  height: 54px;
-  background: var(--admin-bg-soft);
-  border-radius: 8px;
-  border: 1px solid var(--admin-border-soft);
 }
 
-.track-gridline {
+.pos-summary-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pos-summary-info small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pos-summary-info p {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 2px 0 0;
+}
+
+/* 3. DAILY TIMELINE STRIP */
+.pos-day-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pos-timeline-wrapper {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 16px;
+}
+
+.pos-timeline-ticks {
+  position: relative;
+  height: 18px;
+  margin-bottom: 6px;
+}
+
+.pos-timeline-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10.5px;
+  font-family: monospace;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.pos-timeline-track {
+  position: relative;
+  height: 48px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  overflow: hidden;
+}
+
+.pos-hour-grid-cell {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  border-left: 1px dashed var(--admin-border-soft);
-  opacity: 0.5;
+  border-right: 1px solid #e5e7eb;
 }
 
-.timeline-block {
+.pos-timeline-block {
   position: absolute;
   top: 4px;
   bottom: 4px;
-  border-radius: 6px;
-  padding: 2px 6px;
+  background: #087642;
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 3px 6px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  text-align: center;
   overflow: hidden;
-  border: 1px solid transparent;
-  box-sizing: border-box;
 }
 
-.timeline-block strong {
-  font-size: 12px;
-  font-weight: 400;
-  display: block;
+.pos-timeline-block.checked_in {
+  background: #087642;
+}
+
+.pos-tb-title {
+  font-size: 11px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
-  line-height: 1.2;
-  margin: 0;
 }
 
-.timeline-block .block-time {
-  font-size: 11px;
-  opacity: 0.85;
-  white-space: nowrap;
-  line-height: 1.2;
-  margin: 0;
-  margin-top: 2px;
+.pos-tb-time {
+  font-size: 9px;
+  opacity: 0.9;
 }
 
-/* Status colors matching theme variables dynamically */
-.timeline-block.scheduled {
-  background-color: var(--admin-primary-soft);
-  border-color: color-mix(in srgb, var(--admin-primary) 30%, transparent);
-  color: var(--admin-primary);
-}
-
-.timeline-block.checked_in {
-  background-color: color-mix(in srgb, #22c55e 12%, transparent);
-  border-color: color-mix(in srgb, #22c55e 35%, transparent);
-  color: #15803d;
-}
-
-.timeline-block.checked_out {
-  background-color: var(--admin-bg);
-  border-color: var(--admin-border-soft);
-  color: var(--admin-muted);
-}
-
-.timeline-block.absent {
-  background-color: color-mix(in srgb, var(--admin-danger) 12%, transparent);
-  border-color: color-mix(in srgb, var(--admin-danger) 35%, transparent);
-  color: var(--admin-danger);
-}
-
-.timeline-block.cancelled {
-  background-color: transparent;
-  border-color: var(--admin-border-soft);
-  color: var(--admin-muted);
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-
-/* Detail list under timeline */
-.staff-day-schedules-list {
-  margin-top: 24px;
-}
-
-.staff-detail-title {
-  font-size: 15px;
-  font-weight: 400;
-  margin-bottom: 12px;
-  color: var(--admin-text);
-}
-
-.staff-day-shift-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--admin-border-soft);
-}
-
-.staff-day-shift-row:first-child {
-  border-top: 1px solid var(--admin-border-soft);
-}
-
-.staff-day-shift-main {
+.pos-day-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.staff-day-shift-title-line {
-  display: flex;
-  align-items: baseline;
   gap: 8px;
 }
 
-.staff-day-shift-name {
-  font-size: 15px;
-  font-weight: 400;
-  color: var(--admin-text);
+.pos-day-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
 }
 
-.staff-day-shift-venue {
+.pos-day-item-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pos-day-item-badge {
+  font-family: monospace;
   font-size: 12px;
-  color: var(--admin-muted);
+  font-weight: 600;
+  color: #087642;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
-.staff-day-shift-time {
+.pos-day-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pos-day-item-meta strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pos-day-item-meta span {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.pos-day-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 50px 24px;
+  gap: 16px;
+  color: #64748b;
   font-size: 13px;
-  font-weight: 400;
-  color: var(--admin-text);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
 }
 
-.staff-day-shift-notes {
-  font-size: 12px;
-  color: var(--admin-muted);
-  margin-top: 4px;
+.pos-3d-schedule-img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(8, 118, 66, 0.15));
+  animation: float-slow 3s ease-in-out infinite alternate;
 }
 
-.staff-day-shift-status {
-  text-align: right;
+@keyframes float-slow {
+  from { transform: translateY(0); }
+  to { transform: translateY(-4px); }
 }
 
-.staff-empty-text {
-  color: var(--admin-muted);
-  font-size: 14px;
+.pos-3d-empty-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.pos-3d-empty-info h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
 }
 
-/* Responsive */
-@media (max-width: 820px) {
-  .staff-week-grid {
+.pos-3d-empty-info p {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+  max-width: 380px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .pos-week-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pos-summary-grid {
     grid-template-columns: 1fr;
-  }
-
-  .staff-day {
-    min-height: auto;
-    padding: 12px 0;
-    border-right: none;
-    border-left: none;
-    border-bottom: 1px solid var(--admin-border-soft);
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-  .staff-day:first-child {
-    border-left: none;
-  }
-
-  .staff-day.is-today {
-    background: transparent;
-    border-left: 3px solid var(--admin-primary);
-    padding-left: 8px;
-  }
-
-  .staff-day header {
-    width: 60px;
-    flex-shrink: 0;
-  }
-
-  .staff-day-shifts {
-    flex: 1;
-  }
-
-  .staff-day-shift {
-    display: grid;
-    grid-template-columns: 80px 1fr;
-    gap: 4px 12px;
-  }
-
-  .staff-day-time {
-    grid-row: span 3;
-  }
-
-  .staff-schedules-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .staff-week-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .staff-week-actions button {
-    flex: 1;
-  }
-
-  .staff-day-view-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .staff-day-title-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .staff-date-picker-input {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .staff-day-shift-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .staff-day-shift-status {
-    text-align: left;
   }
 }
 
-.profile-section-card.staff-schedules-main-content {
-  background: var(--admin-surface, #ffffff);
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+@media (max-width: 640px) {
+  .pos-week-grid {
+    grid-template-columns: 1fr;
+  }
+  .pos-schedule-view {
+    padding: 14px;
+  }
 }
 </style>

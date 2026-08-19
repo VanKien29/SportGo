@@ -27,7 +27,8 @@ import AdminLogin from "../views/admin/AdminLogin.vue";
 import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
 import AdminLayout from "../views/admin/AdminLayout.vue";
 import OwnerLayout from "../views/owner/OwnerLayout.vue";
-import StaffLayout from "../views/staff/StaffLayout.vue";
+import StaffPOSLayout from "../views/staff/StaffPOSLayout.vue";
+import ClientAccountLayout from "../views/clients/ClientAccountLayout.vue";
 
 const routes = [
     { path: "/", name: "home", component: Home },
@@ -54,10 +55,69 @@ const routes = [
         component: Login,
     },
     {
-        path: "/profile",
-        name: "profile",
-        component: () => import("../views/clients/ClientProfile.vue"),
+        path: "/account",
+        component: ClientAccountLayout,
         meta: { requiresAuth: true },
+        children: [
+            {
+                path: "",
+                redirect: { name: "profile" },
+            },
+            {
+                path: "/profile",
+                name: "profile",
+                component: () => import("../views/clients/ClientProfile.vue"),
+                meta: { requiresAuth: true, title: "Hồ sơ cá nhân - SportGo" },
+            },
+            {
+                path: "/bookings",
+                name: "booking-history",
+                component: () => import("../views/clients/booking/BookingHistory.vue"),
+                meta: { requiresAuth: true, title: "Lịch đặt sân - SportGo" },
+            },
+            {
+                path: "/wallet",
+                name: "client-wallet",
+                component: () => import("../views/clients/Wallet.vue"),
+                meta: { requiresAuth: true, title: "Ví SportGo" },
+            },
+            {
+                path: "/refunds",
+                name: "client-refunds",
+                component: () => import("../views/clients/Refunds.vue"),
+                meta: { requiresAuth: true, title: "Hoàn tiền - SportGo" },
+            },
+            {
+                path: "/notifications",
+                name: "client-notifications",
+                component: () => import("../views/clients/Notifications.vue"),
+                meta: { requiresAuth: true, title: "Thông báo - SportGo" },
+            },
+            {
+                path: "/complaints",
+                name: "client-complaints",
+                component: () => import("../views/clients/Complaints.vue"),
+                meta: { requiresAuth: true, title: "Khiếu nại - SportGo" },
+            },
+            {
+                path: "/complaints/new",
+                name: "client-complaint-create",
+                component: () => import("../views/clients/ComplaintCreate.vue"),
+                meta: { requiresAuth: true, title: "Tạo khiếu nại - SportGo" },
+            },
+            {
+                path: "/complaints/:id",
+                name: "client-complaint-detail",
+                component: () => import("../views/clients/ComplaintDetail.vue"),
+                meta: { requiresAuth: true, title: "Chi tiết khiếu nại - SportGo" },
+            },
+            {
+                path: "/vip-membership",
+                name: "vip-membership",
+                component: () => import("../views/clients/VipMembership.vue"),
+                meta: { requiresAuth: true, title: "Gói VIP - SportGo" },
+            },
+        ],
     },
     {
         path: "/news",
@@ -137,27 +197,9 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
-        path: "/bookings",
-        name: "booking-history",
-        component: () => import("../views/clients/booking/BookingHistory.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
         path: "/bookings/recurring/:groupCode",
         name: "booking-recurring-group",
         component: () => import("../views/clients/booking/RecurringGroupDetail.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/wallet",
-        name: "client-wallet",
-        component: () => import("../views/clients/Wallet.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/refunds",
-        name: "client-refunds",
-        component: () => import("../views/clients/Refunds.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -167,39 +209,9 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
-        path: "/notifications",
-        name: "client-notifications",
-        component: () => import("../views/clients/Notifications.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/complaints",
-        name: "client-complaints",
-        component: () => import("../views/clients/Complaints.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/complaints/new",
-        name: "client-complaint-create",
-        component: () => import("../views/clients/ComplaintCreate.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/complaints/:id",
-        name: "client-complaint-detail",
-        component: () => import("../views/clients/ComplaintDetail.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
         path: "/become-partner",
         name: "partner-registration",
         component: () => import("../views/partner/PartnerApplicationPortal.vue"),
-        meta: { requiresAuth: true },
-    },
-    {
-        path: "/vip-membership",
-        name: "vip-membership",
-        component: () => import("../views/clients/VipMembership.vue"),
         meta: { requiresAuth: true },
     },
     {
@@ -553,7 +565,7 @@ const routes = [
     },
     {
         path: "/staff",
-        component: StaffLayout,
+        component: StaffPOSLayout,
         meta: { requiresAuth: true, role: "staff" },
         children: [
             {

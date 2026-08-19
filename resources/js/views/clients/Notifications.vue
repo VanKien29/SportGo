@@ -1,15 +1,6 @@
 <template>
-  <div class="sg-client-page wallet-white-page">
-    <PublicNavbar />
-
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR NAVIGATION -->
-        <ClientAccountNav />
-
-        <!-- RIGHT PAGE CONTENT -->
-        <div class="w2-white-content">
-          <div class="sg3-page-head">
+  <div class="w2-white-content">
+    <div class="sg3-page-head">
             <div>
               <p class="sg3-kicker">Trung tâm cập nhật</p>
               <h1 class="page-head-title">Thông báo của tôi</h1>
@@ -70,22 +61,17 @@
               <span v-if="!notification.is_read" class="nt-dot-unread"></span>
               <AppIcon name="chevronRight" :size="16" class="nt-arrow" />
             </button>
-          </section>
-        </div>
-      </div>
-    </main>
+    </section>
   </div>
 </template>
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
-import PublicNavbar from "../../components/PublicNavbar.vue";
-import ClientAccountNav from "../../components/ClientAccountNav.vue";
 import { notificationService } from "../../services/notification.service.js";
 
 export default {
   name: "ClientNotifications",
-  components: { AppIcon, PublicNavbar, ClientAccountNav },
+  components: { AppIcon },
   data() {
     return {
       notifications: [],
