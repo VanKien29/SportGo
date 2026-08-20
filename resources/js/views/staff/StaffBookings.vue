@@ -101,6 +101,28 @@
           </button>
         </div>
 
+        <!-- Fast Action: Scan QR Ticket -->
+        <button
+          type="button"
+          class="pos-btn-tool"
+          title="Quét mã QR vé đặt sân"
+          @click="showQrScannerModal = true"
+        >
+          <AppIcon name="qrCode" :size="13" />
+          <span>Quét vé QR</span>
+        </button>
+
+        <!-- Fast Action: Quick Retail F&B -->
+        <button
+          type="button"
+          class="pos-btn-tool"
+          title="Bán nhanh nước uống & dịch vụ quầy"
+          @click="showQuickRetailModal = true"
+        >
+          <AppIcon name="shoppingBag" :size="13" />
+          <span>Bán F&B</span>
+        </button>
+
         <button
           type="button"
           class="pos-btn-refresh"
@@ -689,6 +711,23 @@
         </form>
       </div>
     </Teleport>
+
+    <!-- 7. QUICK RETAIL F&B MODAL -->
+    <StaffQuickRetailModal
+      :is-open="showQuickRetailModal"
+      :cluster-id="filters.venue_cluster_id"
+      @close="showQuickRetailModal = false"
+      @order-completed="onRetailOrderCompleted"
+    />
+
+    <!-- 8. QR TICKET SCANNER MODAL -->
+    <StaffQrScannerModal
+      :is-open="showQrScannerModal"
+      :cluster-id="filters.venue_cluster_id"
+      @close="showQrScannerModal = false"
+      @checked-in="onQrCheckedIn"
+      @collect-requested="openCollectPayment"
+    />
   </div>
 </template>
 
@@ -699,6 +738,9 @@ import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js
 import AppIcon from '../../components/AppIcon.vue';
 import MiniCalendar from '../../components/MiniCalendar.vue';
 import SportIllustration from '../../components/common/SportIllustration.vue';
+import StaffQuickRetailModal from '../../components/staff/StaffQuickRetailModal.vue';
+import StaffQrScannerModal from '../../components/staff/StaffQrScannerModal.vue';
+import { playSuccessChime } from '../../utils/audioChime.js';
 
 function localIsoDate(date = new Date()) {
   const year = date.getFullYear();
@@ -709,7 +751,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'StaffBookingsPOS',
-  components: { AppIcon, MiniCalendar, SportIllustration },
+  components: { AppIcon, MiniCalendar, SportIllustration, StaffQuickRetailModal, StaffQrScannerModal },
   data() {
     return {
       clusters: [],
@@ -734,6 +776,8 @@ export default {
       error: '',
       notice: '',
       showCalDropdown: false,
+      showQuickRetailModal: false,
+      showQrScannerModal: false,
 
       // Shift attendance state
       shiftLoading: false,
@@ -879,7 +923,8 @@ export default {
   async mounted() {
     this.syncClusterFromStorage();
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
-    await Promise.all([this.loadClusters(), this.loadTodayShift()]);
+    await this.loadClusters();
+    await this.loadTodayShift();
     await this.loadBookings();
   },
   beforeUnmount() {
@@ -932,6 +977,7 @@ export default {
         this.clusters = response.data || [];
         if (!this.filters.venue_cluster_id && this.clusters.length) {
           this.filters.venue_cluster_id = String(this.clusters[0].id);
+          localStorage.setItem('selected_cluster', this.filters.venue_cluster_id);
         }
       } catch {
         this.clusters = [];
@@ -958,15 +1004,28 @@ export default {
       this.scheduleError = '';
       this.error = '';
 
+      if (!this.filters.venue_cluster_id) {
+        this.syncClusterFromStorage();
+      }
+      if (!this.filters.venue_cluster_id && this.clusters.length) {
+        this.filters.venue_cluster_id = String(this.clusters[0].id);
+      }
+
+      if (!this.filters.venue_cluster_id) {
+        this.loading = false;
+        this.scheduleLoading = false;
+        return;
+      }
+
       try {
         const [bookingsRes, scheduleRes] = await Promise.all([
           ownerBookingService.list({
-            venue_cluster_id: this.filters.venue_cluster_id || undefined,
+            venue_cluster_id: this.filters.venue_cluster_id,
             venue_court_id: this.filters.venue_court_id || undefined,
             booking_date: this.filters.booking_date || undefined,
           }),
           ownerBookingService.getSchedule({
-            venue_cluster_id: this.filters.venue_cluster_id || undefined,
+            venue_cluster_id: this.filters.venue_cluster_id,
             booking_date: this.filters.booking_date || undefined,
             booking_type: 'single',
           }),
@@ -1015,9 +1074,24 @@ export default {
       const customer = this.customerName(booking);
       const paymentState = this.paymentState(booking);
 
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const isTodayBooking = this.isToday(this.filters.booking_date);
+
       let statusPill = null;
+      let turnoverClass = '';
       if (booking.status === 'checked_in') {
-        statusPill = { type: 'playing', label: 'Đang chơi' };
+        if (isTodayBooking && currentMinutes > end) {
+          const overMins = currentMinutes - end;
+          statusPill = { type: 'overtime', label: `Quá ${overMins}p` };
+          turnoverClass = 'is-overtime';
+        } else if (isTodayBooking && end - currentMinutes <= 10 && end - currentMinutes > 0) {
+          const remainingMins = end - currentMinutes;
+          statusPill = { type: 'ending-soon', label: `Còn ${remainingMins}p` };
+          turnoverClass = 'is-ending-soon';
+        } else {
+          statusPill = { type: 'playing', label: 'Đang chơi' };
+        }
       } else if (paymentState !== 'paid') {
         statusPill = { type: 'unpaid', label: 'Chưa thu' };
       } else {
@@ -1036,7 +1110,7 @@ export default {
         title: customer || booking.booking_code || 'Khách đặt sân',
         subtitle: `${booking.booking_code || 'Booking'} · ${this.statusLabel(booking.status)}`,
         timeLabel: `${this.formatTime(range.startTime)} - ${this.formatTime(range.endTime)}`,
-        kindClass: this.timelineBookingClass(booking),
+        kindClass: `${this.timelineBookingClass(booking)} ${turnoverClass}`.trim(),
         statusPill,
       };
     },
@@ -1131,6 +1205,7 @@ export default {
           this.startCounterPolling(response.data?.id);
         } else {
           this.notice = 'Đã tạo đơn đặt sân tại quầy thành công!';
+          playSuccessChime();
           await this.loadBookings();
           this.closeDrawer();
         }
@@ -1150,6 +1225,7 @@ export default {
           const booking = res.data || res;
           if (this.outstandingAmount(booking) <= 0 || booking.status === 'confirmed') {
             this.notice = 'Chuyển khoản SePay thành công!';
+            playSuccessChime();
             await this.loadBookings();
             this.closeDrawer();
           }
@@ -1178,6 +1254,17 @@ export default {
       if (['reject', 'cancel'].includes(action)) {
         this.openStatusAction(booking, action);
         return;
+      }
+      if (action === 'check_in') {
+        const outstanding = this.outstandingAmount(booking);
+        if (outstanding > 0) {
+          const formattedDue = this.formatCurrency(outstanding);
+          const proceed = confirm(`Đơn đặt sân này còn thiếu ${formattedDue}. Bạn có muốn tiếp tục Check-in cho khách vào sân (thu sau) không?\n\n- Nhấn "OK" để tiếp tục Check-in vào sân.\n- Nhấn "Hủy" để chuyển sang màn hình Thu tiền ngay.`);
+          if (!proceed) {
+            this.openCollectPayment(booking);
+            return;
+          }
+        }
       }
 
       this.updatingStatus = true;
@@ -1456,6 +1543,17 @@ export default {
       }).format(Number(amount || 0));
     },
 
+    onRetailOrderCompleted(orderData) {
+      this.notice = `Đã ghi nhận bán dịch vụ ${this.formatCurrency(orderData.totalAmount)} (${orderData.paymentMethod === 'cash' ? 'Tiền mặt' : 'VietQR'})!`;
+      playSuccessChime();
+    },
+
+    async onQrCheckedIn(booking) {
+      this.notice = `Đã Check-in vé #${booking.booking_code} vào sân thành công!`;
+      playSuccessChime();
+      await this.loadBookings();
+    },
+
     async copyText(text) {
       if (!text) return;
       try {
@@ -1704,6 +1802,30 @@ export default {
   font-size: 15px;
   padding: 0;
   line-height: 1;
+}
+
+.pos-btn-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  height: 32px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.pos-btn-tool:hover {
+  background: #f0fdf4;
+  border-color: #087642;
+  color: #087642;
 }
 
 .pos-btn-refresh {
@@ -2083,6 +2205,18 @@ export default {
 .pos-slot-status-text.playing { color: #087642; }
 .pos-slot-status-text.unpaid { color: #dc2626; }
 .pos-slot-status-text.confirmed { color: #087642; }
+.pos-slot-status-text.ending-soon { color: #d97706; }
+.pos-slot-status-text.overtime { color: #dc2626; font-weight: 700; }
+
+.pos-slot-card.is-ending-soon {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.pos-slot-card.is-overtime {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
 
 /* 4. MODAL & OFF-CANVAS DRAWER */
 .pos-drawer-backdrop {

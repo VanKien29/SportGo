@@ -314,7 +314,7 @@
             </div>
           </div>
 
-          <!-- Pinned Messages Banner (Premium Light Redesign) -->
+          <!-- Pinned Messages Banner -->
           <div
             v-if="pinnedMessages.length > 0"
             class="pinned-messages-banner"
@@ -503,13 +503,6 @@
                     </button>
                   </div>
 
-                  <!-- Pinned state small icon -->
-                  <div v-if="msg.is_pinned && !msg.is_recalled" class="absolute top-1 right-2 text-zinc-500 opacity-60" title="Tin nhắn đã ghim">
-                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                  </div>
-
                   <!-- Reply Quote Block -->
                   <div
                     v-if="msg.reply_to"
@@ -591,6 +584,13 @@
                     <span v-if="msg.is_recalled" class="italic opacity-60 select-none font-normal">Tin nhắn đã bị thu hồi</span>
                     <span v-else-if="msg.content !== '[Hình ảnh]' && msg.content !== '[H??nh ???nh]' && msg.reference_type !== 'booking' && msg.reference_type !== 'booking_support_request'">{{ msg.content }}</span>
                     <span class="bubble-meta">
+                       <!-- Pinned indicator -->
+                       <span v-if="msg.is_pinned && !msg.is_recalled" class="bubble-pinned-icon inline-flex items-center" title="Tin nhắn đã ghim">
+                         <svg class="h-2.5 w-2.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                         </svg>
+                       </span>
+
                        <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
 
                        <!-- Read checkmarks logic for sent messages -->
@@ -3114,6 +3114,7 @@ export default {
 .admin-chat-page .admin-chat-workspace,
 .admin-chat-page .tg-message-container,
 .admin-chat-page .tg-chat-header,
+.admin-chat-page .pinned-messages-banner,
 .admin-chat-page .tg-sidebar-header,
 .admin-chat-page .tg-drawer-panel,
 .admin-chat-page .tg-drawer-header,
@@ -3373,6 +3374,118 @@ export default {
   padding: 0 20px;
   display: flex;
   align-items: center;
+}
+
+/* Pinned Messages Banner */
+.pinned-messages-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background-color: var(--tg-header-bg, #ffffff);
+  border-bottom: 1px solid var(--tg-border, #e5e7eb);
+  flex-shrink: 0;
+  z-index: 10;
+  gap: 12px;
+}
+
+.pinned-banner-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pinned-accent-line {
+  width: 3px;
+  height: 32px;
+  background-color: #087642;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.pinned-banner-icon {
+  width: 16px;
+  height: 16px;
+  color: #087642;
+  flex-shrink: 0;
+}
+
+.pinned-banner-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pinned-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #087642;
+}
+
+.pinned-banner-sender {
+  color: #4b5563;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pinned-banner-text {
+  font-size: 12px;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pinned-banner-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pinned-more-btn {
+  font-size: 11px;
+  font-weight: 400;
+  color: #087642;
+  background: transparent;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.pinned-more-btn:hover {
+  background: #f0fdf4;
+}
+
+.pinned-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pinned-close-btn:hover {
+  color: #374151;
+  background: #f3f4f6;
 }
 
 /* Messages container spacing */

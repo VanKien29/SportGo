@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\User;
 use App\Models\VenueCluster;
 use App\Models\VenueStaffAssignment;
@@ -415,6 +417,80 @@ class StaffShiftController extends Controller
         ]);
     }
 
+    public function handoverSummary(Request $request, $id): JsonResponse
+    {
+        if (! $this->staffShiftTablesReady()) {
+            return $this->featurePendingResponse();
+        }
+
+        $userId = $request->user()->id;
+        $schedule = VenueStaffShiftSchedule::query()
+            ->with(['venueCluster:id,name', 'shift', 'user:id,full_name,username'])
+            ->where('user_id', $userId)
+            ->findOrFail($id);
+
+        $checkInAt = $schedule->check_in_at ? Carbon::parse($schedule->check_in_at) : Carbon::parse($schedule->date)->setTimeFromTimeString($schedule->start_time);
+        $checkOutAt = $schedule->check_out_at ? Carbon::parse($schedule->check_out_at) : now();
+
+        // Query bookings for this venue cluster on this shift date
+        $bookings = Booking::query()
+            ->where('venue_cluster_id', $schedule->venue_cluster_id)
+            ->where('booking_date', $schedule->date)
+            ->with(['payments'])
+            ->get();
+
+        $totalBookings = $bookings->count();
+        $confirmedBookings = $bookings->whereIn('status', ['confirmed', 'checked_in', 'completed'])->count();
+
+        $totalCash = 0;
+        $totalTransfer = 0;
+        $totalUnpaid = 0;
+
+        foreach ($bookings as $b) {
+            $paidPayments = $b->payments->where('status', 'paid');
+            $cashPaid = (float) $paidPayments->where('method', 'cash')->sum('amount');
+            $transferPaid = (float) $paidPayments->whereIn('method', ['sepay', 'vnpay', 'momo', 'bank_transfer', 'qr', 'transfer'])->sum('amount');
+            $totalPaid = (float) $paidPayments->sum('amount');
+
+            $totalCash += $cashPaid;
+            $totalTransfer += $transferPaid;
+
+            if (in_array($b->status, ['confirmed', 'checked_in', 'completed', 'pending_payment'])) {
+                $finalAmount = (float) ($b->final_amount ?: $b->total_price);
+                $outstanding = max(0, $finalAmount - $totalPaid);
+                $totalUnpaid += $outstanding;
+            }
+        }
+
+        $diffMinutes = max(0, $checkInAt->diffInMinutes($checkOutAt));
+        $hours = floor($diffMinutes / 60);
+        $mins = $diffMinutes % 60;
+        $workedDurationLabel = "{$hours} giờ {$mins} phút";
+
+        return response()->json([
+            'data' => [
+                'schedule_id' => $schedule->id,
+                'staff_name' => $schedule->user?->full_name ?: $schedule->user?->username,
+                'cluster_name' => $schedule->venueCluster?->name,
+                'shift_name' => $schedule->shift?->name ?: 'Ca đặc biệt',
+                'date' => $schedule->date,
+                'start_time' => substr((string) $schedule->start_time, 0, 5),
+                'end_time' => substr((string) $schedule->end_time, 0, 5),
+                'check_in_at' => $schedule->check_in_at ? Carbon::parse($schedule->check_in_at)->format('H:i:s d/m/Y') : null,
+                'check_out_at' => $schedule->check_out_at ? Carbon::parse($schedule->check_out_at)->format('H:i:s d/m/Y') : now()->format('H:i:s d/m/Y'),
+                'worked_duration_label' => $workedDurationLabel,
+                'total_bookings' => $totalBookings,
+                'confirmed_bookings' => $confirmedBookings,
+                'total_cash_amount' => $totalCash,
+                'total_transfer_amount' => $totalTransfer,
+                'total_revenue' => $totalCash + $totalTransfer,
+                'total_unpaid_amount' => $totalUnpaid,
+                'notes' => $schedule->notes,
+                'status' => $schedule->status,
+            ],
+        ]);
+    }
+
     public function checkOut(Request $request, $id): JsonResponse
     {
         if (! $this->staffShiftTablesReady()) {
@@ -432,15 +508,20 @@ class StaffShiftController extends Controller
             ], 422);
         }
 
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
         $schedule->update([
             'status' => 'checked_out',
             'check_out_at' => now(),
+            'notes' => $data['notes'] ?? $schedule->notes,
         ]);
 
         $this->audit($request, 'staff.attendance.check_out', 'venue_staff_shift_schedules', $schedule->id, [], $schedule->toArray());
 
         return response()->json([
-            'message' => 'Check-out thành công!',
+            'message' => 'Check-out hoàn thành ca trực thành công!',
             'data' => $schedule,
         ]);
     }

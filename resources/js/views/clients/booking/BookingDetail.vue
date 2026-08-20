@@ -188,6 +188,25 @@
               </div>
             </div>
 
+            <!-- QR CHECK-IN TICKET -->
+            <div v-if="['confirmed', 'checked_in'].includes(booking.status)" class="bd-ticket-panel">
+              <div class="bd-ticket-head">
+                <span class="bd-ticket-kicker">VÉ NHẬN SÂN ĐIỆN TỬ</span>
+                <strong class="bd-ticket-code">#{{ booking.booking_code }}</strong>
+              </div>
+              <div class="bd-ticket-qr-wrap">
+                <img
+                  :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(booking.booking_code)}`"
+                  :alt="`Mã QR ${booking.booking_code}`"
+                  class="bd-ticket-qr"
+                  loading="lazy"
+                />
+              </div>
+              <p class="bd-ticket-hint">
+                Đưa mã QR này cho nhân viên tại quầy để nhận sân nhanh chóng.
+              </p>
+            </div>
+
             <!-- ONLINE PAYMENT -->
             <section v-if="canPayOnline" class="bd-payment-panel" aria-labelledby="bd-payment-title">
               <div class="bd-payment-head">
@@ -943,6 +962,60 @@ export default {
 .bd-slots-section,
 .bd-pay-history {
   margin-top: 24px;
+}
+
+.bd-ticket-panel {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.bd-ticket-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bd-ticket-kicker {
+  font-size: 11px;
+  font-weight: 500;
+  color: #15803d;
+  letter-spacing: 0.5px;
+}
+
+.bd-ticket-code {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.bd-ticket-qr-wrap {
+  background: #ffffff;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bd-ticket-qr {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+}
+
+.bd-ticket-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .bd-sub-title {

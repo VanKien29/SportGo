@@ -1,233 +1,291 @@
 <template>
-  <div class="pos-schedule-view">
-    <!-- 1. TOP HEADER & SWITCHER -->
-    <header class="pos-schedule-head">
-      <div class="pos-schedule-left">
-        <div class="pos-view-tabs">
+  <div class="staff-schedule-container">
+    <!-- TOP CONTROLS & DATE NAVIGATION -->
+    <div class="schedule-header">
+      <div class="header-left">
+        <div class="view-switch">
           <button
             type="button"
-            class="pos-view-tab"
+            class="switch-btn"
             :class="{ active: scheduleViewMode === 'week' }"
             @click="scheduleViewMode = 'week'"
           >
-            <span>Xem theo tuần</span>
+            Xem theo tuần
           </button>
           <button
             type="button"
-            class="pos-view-tab"
+            class="switch-btn"
             :class="{ active: scheduleViewMode === 'day' }"
             @click="scheduleViewMode = 'day'"
           >
-            <span>Xem theo ngày</span>
+            Xem theo ngày
           </button>
         </div>
 
-        <h2 class="pos-schedule-title">
+        <span class="schedule-period-title">
           {{ scheduleViewMode === 'week' ? weekLabel : formattedSelectedDate }}
-        </h2>
+        </span>
       </div>
 
-      <!-- Navigation buttons -->
-      <div class="pos-schedule-nav">
+      <div class="header-right">
+        <div class="date-navigator">
+          <button
+            type="button"
+            class="nav-btn"
+            :title="scheduleViewMode === 'day' ? 'Ngày trước' : 'Tuần trước'"
+            @click="scheduleViewMode === 'day' ? shiftDay(-1) : shiftWeek(-1)"
+          >
+            <AppIcon name="chevronLeft" :size="16" />
+          </button>
+
+          <button
+            type="button"
+            class="nav-today-btn"
+            :class="{ 'is-current': isCurrentPeriodSelected }"
+            @click="scheduleViewMode === 'day' ? goToToday() : goToCurrentWeek()"
+          >
+            {{ scheduleViewMode === 'day' ? 'Hôm nay' : 'Tuần này' }}
+          </button>
+
+          <button
+            type="button"
+            class="nav-btn"
+            :title="scheduleViewMode === 'day' ? 'Ngày sau' : 'Tuần sau'"
+            @click="scheduleViewMode === 'day' ? shiftDay(1) : shiftWeek(1)"
+          >
+            <AppIcon name="chevronRight" :size="16" />
+          </button>
+        </div>
+
         <button
           type="button"
-          class="pos-nav-arrow"
-          :title="scheduleViewMode === 'week' ? 'Tuần trước' : 'Ngày trước'"
-          @click="scheduleViewMode === 'week' ? shiftWeek(-1) : shiftDay(-1)"
+          class="refresh-btn"
+          title="Làm mới"
+          @click="loadSchedules"
         >
-          <AppIcon name="chevronLeft" :size="16" />
-        </button>
-        <button
-          type="button"
-          class="pos-nav-today-btn"
-          @click="scheduleViewMode === 'week' ? goToCurrentWeek() : goToToday()"
-        >
-          {{ scheduleViewMode === 'week' ? 'Tuần này' : 'Hôm nay' }}
-        </button>
-        <button
-          type="button"
-          class="pos-nav-arrow"
-          :title="scheduleViewMode === 'week' ? 'Tuần sau' : 'Ngày sau'"
-          @click="scheduleViewMode === 'week' ? shiftWeek(1) : shiftDay(1)"
-        >
-          <AppIcon name="chevronRight" :size="16" />
+          <AppIcon name="refreshCw" :size="15" />
+          <span>Làm mới</span>
         </button>
       </div>
-    </header>
-
-    <!-- Error Alert -->
-    <div v-if="error" class="pos-alert-box is-error">
-      <span>{{ error }}</span>
-      <button type="button" @click="error = ''">×</button>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="pos-loading-state">
-      <div class="pos-spinner"></div>
-      <p>Đang tải lịch trực của bạn...</p>
+    <!-- NOTIFICATION MESSAGES -->
+    <div v-if="error" class="notice-msg error">
+      <span>{{ error }}</span>
+      <button type="button" class="notice-close" @click="error = ''">✕</button>
+    </div>
+    <div v-if="successMsg" class="notice-msg success">
+      <span>{{ successMsg }}</span>
+      <button type="button" class="notice-close" @click="successMsg = ''">✕</button>
+    </div>
+
+    <!-- LOADING STATE -->
+    <div v-if="loading" class="schedule-loading">
+      <div class="loading-spinner"></div>
+      <span>Đang tải lịch làm việc...</span>
     </div>
 
     <template v-else>
-      <!-- 2. WEEKLY CALENDAR VIEW -->
-      <div v-if="scheduleViewMode === 'week'" class="pos-week-container">
-        <div class="pos-week-grid">
+      <!-- ========================================================= -->
+      <!-- 1. WEEK VIEW                                              -->
+      <!-- ========================================================= -->
+      <div v-if="scheduleViewMode === 'week'" class="week-layout">
+        <div class="week-grid">
           <div
             v-for="day in weekDays"
             :key="day.iso"
-            class="pos-day-col"
+            class="day-column"
             :class="{ 'is-today': day.iso === today }"
           >
-            <div class="pos-day-head">
-              <span class="pos-day-name">{{ day.label }}</span>
-              <strong class="pos-day-date">{{ day.date }}</strong>
+            <div class="day-column-head">
+              <span class="day-name">{{ day.label }}</span>
+              <span class="day-date">{{ day.date }}</span>
             </div>
 
-            <div v-if="day.schedules.length" class="pos-day-shifts">
+            <div class="day-shifts-list">
               <div
-                v-for="schedule in day.schedules"
-                :key="schedule.id"
-                class="pos-shift-card"
-                :class="schedule.status"
+                v-for="sch in day.schedules"
+                :key="sch.id"
+                class="shift-entry"
+                :class="sch.status"
               >
-                <div class="pos-shift-card-accent"></div>
-                <div class="pos-shift-card-body">
-                  <span class="pos-shift-time">{{ timeRange(schedule) }}</span>
-                  <strong class="pos-shift-name">{{ shiftName(schedule) }}</strong>
-                  <span class="pos-shift-venue">{{ schedule.venue_cluster?.name || 'Cụm sân' }}</span>
-                  <span class="pos-shift-status-tag" :class="schedule.status">
-                    {{ statusLabel(schedule.status) }}
-                  </span>
+                <div class="shift-time">{{ timeRange(sch) }}</div>
+                <div class="shift-name">{{ shiftName(sch) }}</div>
+                <div class="shift-venue">{{ sch.venue_cluster?.name || 'Cụm sân' }}</div>
+                <div class="shift-status" :class="sch.status">
+                  {{ statusLabel(sch.status) }}
+                </div>
+
+                <div v-if="sch.notes" class="shift-notes-text">
+                  {{ sch.notes }}
+                </div>
+
+                <!-- Action Button if applicable -->
+                <div v-if="sch.date === today" class="shift-actions">
+                  <button
+                    v-if="sch.status === 'scheduled'"
+                    type="button"
+                    class="action-btn checkin"
+                    :disabled="!canCheckIn(sch) || actionLoading === sch.id"
+                    @click="handleCheckIn(sch.id)"
+                  >
+                    {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-in' }}
+                  </button>
+
+                  <button
+                    v-if="sch.status === 'checked_in'"
+                    type="button"
+                    class="action-btn checkout"
+                    :disabled="actionLoading === sch.id"
+                    @click="handleCheckOut(sch.id)"
+                  >
+                    {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-out' }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="!day.schedules.length" class="no-shift-msg">
+                Không có ca
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- 2. DAY VIEW                                               -->
+      <!-- ========================================================= -->
+      <div v-else class="day-layout">
+        <!-- Weekday Switcher Row -->
+        <div class="day-nav-bar">
+          <button
+            v-for="d in weekDays"
+            :key="'nav-' + d.iso"
+            type="button"
+            class="day-nav-item"
+            :class="{
+              'active': d.iso === selectedDate,
+              'is-today': d.iso === today
+            }"
+            @click="selectedDate = d.iso"
+          >
+            <span class="d-label">{{ d.label }}</span>
+            <span class="d-date">{{ d.date }}</span>
+          </button>
+        </div>
+
+        <!-- Shifts List for Selected Day -->
+        <div v-if="sortedSelectedDaySchedules.length" class="day-shifts-container">
+          <div
+            v-for="sch in sortedSelectedDaySchedules"
+            :key="'day-' + sch.id"
+            class="day-shift-row"
+            :class="sch.status"
+          >
+            <div class="shift-main-info">
+              <div class="shift-time-col">
+                <span class="time-text">{{ timeRange(sch) }}</span>
+                <span class="duration-text">{{ calculateDuration(sch) }}</span>
+              </div>
+
+              <div class="shift-desc-col">
+                <div class="name-text">{{ shiftName(sch) }}</div>
+                <div class="venue-text">{{ sch.venue_cluster?.name || 'Cụm sân' }}</div>
+                <div v-if="sch.notes" class="notes-text">{{ sch.notes }}</div>
+
+                <div v-if="sch.check_in_at || sch.check_out_at" class="logs-text">
+                  <span v-if="sch.check_in_at">Check-in: {{ formatTimeOnly(sch.check_in_at) }}</span>
+                  <span v-if="sch.check_out_at"> &middot; Check-out: {{ formatTimeOnly(sch.check_out_at) }}</span>
                 </div>
               </div>
             </div>
 
-            <div v-else class="pos-day-empty">
-              <span>Không có ca</span>
+            <div class="shift-side-info">
+              <div class="status-text" :class="sch.status">
+                {{ statusLabel(sch.status) }}
+              </div>
+
+              <div v-if="sch.status === 'checked_in'" class="live-timer-text">
+                Đã trực: {{ liveDuration(sch.check_in_at) }}
+              </div>
+
+              <div v-if="sch.date === today" class="shift-btn-wrap">
+                <button
+                  v-if="sch.status === 'scheduled'"
+                  type="button"
+                  class="action-btn checkin"
+                  :disabled="!canCheckIn(sch) || actionLoading === sch.id"
+                  @click="handleCheckIn(sch.id)"
+                >
+                  {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-in ca trực' }}
+                </button>
+
+                <button
+                  v-if="sch.status === 'checked_in'"
+                  type="button"
+                  class="action-btn checkout"
+                  :disabled="actionLoading === sch.id"
+                  @click="handleCheckOut(sch.id)"
+                >
+                  {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-out kết thúc ca' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Summary List of All Shifts this Week -->
-        <section v-if="schedules.length" class="pos-week-summary">
-          <h3 class="pos-summary-title">Danh sách ca trực trong tuần ({{ schedules.length }} ca)</h3>
-          <div class="pos-summary-grid">
-            <div
-              v-for="schedule in schedules"
-              :key="schedule.id"
-              class="pos-summary-card"
-            >
-              <div class="pos-summary-date">
-                <strong>{{ fullDate(schedule.date) }}</strong>
-                <span>{{ timeRange(schedule) }}</span>
-              </div>
-              <div class="pos-summary-info">
-                <strong>{{ shiftName(schedule) }}</strong>
-                <small>{{ schedule.venue_cluster?.name || 'Cụm sân được phân công' }}</small>
-                <p v-if="schedule.notes">{{ schedule.notes }}</p>
-              </div>
-              <span class="pos-shift-status-tag" :class="schedule.status">
-                {{ statusLabel(schedule.status) }}
-              </span>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <!-- 3. DAILY 24H TIMELINE STRIP VIEW -->
-      <div v-else class="pos-day-container">
-        <!-- 24h Timeline Axis -->
-        <div class="pos-timeline-wrapper">
-          <div class="pos-timeline-ticks">
-            <span
-              v-for="tick in timelineTicks"
-              :key="tick.label"
-              class="pos-timeline-tick"
-              :style="{ left: tick.left + '%' }"
-            >
-              {{ tick.label }}
-            </span>
-          </div>
-
-          <div class="pos-timeline-track">
-            <!-- Hour Grid Cells -->
-            <div
-              v-for="h in 24"
-              :key="h"
-              class="pos-hour-grid-cell"
-              :style="{ left: ((h - 1) / 24 * 100) + '%', width: (1 / 24 * 100) + '%' }"
-            ></div>
-
-            <!-- Shift Blocks -->
-            <div
-              v-for="block in todayTimelineBlocks"
-              :key="block.id"
-              class="pos-timeline-block"
-              :class="block.statusClass"
-              :style="block.style"
-              :title="block.title + ' · ' + block.timeLabel"
-            >
-              <span class="pos-tb-title">{{ block.title }}</span>
-              <span class="pos-tb-time">{{ block.timeLabel }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Shift List Below -->
-        <div v-if="sortedSelectedDaySchedules.length" class="pos-day-list">
-          <div
-            v-for="sch in sortedSelectedDaySchedules"
-            :key="sch.id"
-            class="pos-day-item"
-          >
-            <div class="pos-day-item-left">
-              <span class="pos-day-item-badge">{{ timeRange(sch) }}</span>
-              <div class="pos-day-item-meta">
-                <strong>{{ shiftName(sch) }}</strong>
-                <span>{{ sch.venue_cluster?.name || 'Cụm sân' }}</span>
-                <small v-if="sch.notes">{{ sch.notes }}</small>
-              </div>
-            </div>
-            <span class="pos-shift-status-tag" :class="sch.status">
-              {{ statusLabel(sch.status) }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Empty state with 3D model illustration -->
-        <div v-else class="pos-day-empty-state">
-          <img :src="'/images/staff/schedule_empty_3d.jpg'" alt="3D Schedule Illustration" class="pos-3d-schedule-img" />
-          <div class="pos-3d-empty-info">
-            <h4>Không có ca trực vào ngày này</h4>
-            <p>Bạn không có ca làm việc nào được phân công trong ngày {{ formattedSelectedDate }}.</p>
-          </div>
+        <div v-else class="day-empty-msg">
+          <p>Không có ca làm việc nào trong ngày {{ formattedSelectedDate }}.</p>
         </div>
       </div>
     </template>
+
+    <!-- SHIFT HANDOVER MODAL -->
+    <ShiftHandoverModal
+      :is-open="showHandoverModal"
+      :schedule-id="handoverScheduleId"
+      @close="showHandoverModal = false"
+      @checked-out="onShiftCheckedOut"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
-import SportIllustration from '../../components/common/SportIllustration.vue';
+import ShiftHandoverModal from '../../components/staff/ShiftHandoverModal.vue';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
+import { useToast } from 'vue-toastification';
 
 export default {
   name: 'StaffSchedules',
-  components: { AppIcon, SportIllustration },
+  components: { AppIcon, ShiftHandoverModal },
   data() {
     return {
       weekStart: this.getMonday(new Date()),
       schedules: [],
       loading: true,
       error: '',
+      successMsg: '',
       scheduleViewMode: 'week',
       selectedDate: this.isoDate(new Date()),
-      selectedWeekDate: this.isoDate(new Date()),
+      actionLoading: null,
+      showHandoverModal: false,
+      handoverScheduleId: null,
+      nowTime: new Date(),
+      timerInterval: null,
+      toast: null,
     };
   },
   computed: {
     today() {
       return this.isoDate(new Date());
+    },
+    isCurrentPeriodSelected() {
+      if (this.scheduleViewMode === 'day') {
+        return this.selectedDate === this.today;
+      }
+      const currentMonday = this.getMonday(new Date());
+      return this.weekStart.getTime() === currentMonday.getTime();
     },
     weekDays() {
       const labels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ nhật'];
@@ -247,7 +305,7 @@ export default {
       const end = new Date(this.weekStart);
       end.setDate(end.getDate() + 6);
       const format = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      return `${format.format(this.weekStart)} - ${format.format(end)}`;
+      return `${format.format(this.weekStart)} – ${format.format(end)}`;
     },
     selectedDaySchedules() {
       return this.schedules.filter((schedule) => schedule.date === this.selectedDate);
@@ -258,40 +316,17 @@ export default {
       });
     },
     formattedSelectedDate() {
-      return new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(this.selectedDate + 'T00:00:00'));
-    },
-    todayTimelineBlocks() {
-      const parseTimeMins = (timeStr) => {
-        if (!timeStr) return 0;
-        const parts = timeStr.split(':');
-        const h = parseInt(parts[0], 10) || 0;
-        const m = parseInt(parts[1], 10) || 0;
-        return h * 60 + m;
-      };
-
-      const totalMins = 24 * 60;
-      return this.sortedSelectedDaySchedules.map((sch) => {
-        const startMins = parseTimeMins(sch.start_time);
-        let endMins = parseTimeMins(sch.end_time);
-        if (endMins <= startMins && endMins !== 0) endMins += totalMins;
-        if (endMins > totalMins) endMins = totalMins;
-        const left = (startMins / totalMins) * 100;
-        const width = Math.max(((endMins - startMins) / totalMins) * 100, 1);
-        return {
-          id: sch.id,
-          title: sch.shift?.name || 'Ca trực',
-          timeLabel: `${(sch.start_time || '').substring(0, 5)} - ${(sch.end_time || '').substring(0, 5)}`,
-          statusClass: sch.status,
-          style: { left: `${left}%`, width: `${width}%` },
-        };
-      });
-    },
-    timelineTicks() {
-      const ticks = [];
-      for (let h = 0; h <= 24; h += 3) {
-        ticks.push({ label: `${String(h).padStart(2, '0')}:00`, left: (h / 24) * 100 });
+      try {
+        const d = new Date(`${this.selectedDate}T00:00:00`);
+        return new Intl.DateTimeFormat('vi-VN', {
+          weekday: 'long',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }).format(d);
+      } catch (e) {
+        return this.selectedDate;
       }
-      return ticks;
     },
   },
   watch: {
@@ -304,7 +339,18 @@ export default {
     },
   },
   mounted() {
+    try {
+      this.toast = useToast();
+    } catch (e) {
+      this.toast = null;
+    }
     this.loadSchedules();
+    this.timerInterval = setInterval(() => {
+      this.nowTime = new Date();
+    }, 1000);
+  },
+  beforeUnmount() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
   },
   methods: {
     getMonday(date) {
@@ -316,28 +362,27 @@ export default {
     },
     isoDate(date) {
       const offset = date.getTimezoneOffset();
-      return new Date(date.getTime() - (offset * 60000)).toISOString().slice(0, 10);
+      return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
     },
     shiftWeek(amount) {
       const next = new Date(this.weekStart);
-      next.setDate(next.getDate() + (amount * 7));
+      next.setDate(next.getDate() + amount * 7);
       this.weekStart = next;
-      this.selectedWeekDate = this.isoDate(next);
       this.loadSchedules();
     },
     goToCurrentWeek() {
       const currentMonday = this.getMonday(new Date());
       this.weekStart = currentMonday;
-      this.selectedWeekDate = this.isoDate(currentMonday);
+      this.selectedDate = this.today;
       this.loadSchedules();
     },
     shiftDay(amount) {
-      const next = new Date(this.selectedDate + 'T00:00:00');
+      const next = new Date(`${this.selectedDate}T00:00:00`);
       next.setDate(next.getDate() + amount);
       this.selectedDate = this.isoDate(next);
     },
     goToToday() {
-      this.selectedDate = this.isoDate(new Date());
+      this.selectedDate = this.today;
     },
     async loadSchedules() {
       this.loading = true;
@@ -351,184 +396,277 @@ export default {
         });
         this.schedules = (response.data || []).sort((a, b) => `${a.date} ${a.start_time}`.localeCompare(`${b.date} ${b.start_time}`));
       } catch (error) {
-        this.error = error.message || 'Không thể tải lịch trực.';
+        this.error = error.message || 'Không thể tải lịch làm việc.';
       } finally {
         this.loading = false;
       }
     },
     shiftName(schedule) {
-      return schedule.shift?.name || 'Ca trực';
+      if (!schedule) return 'Ca trực';
+      return schedule.shift?.name || 'Ca đặc biệt';
     },
     timeRange(schedule) {
+      if (!schedule) return '';
       return `${String(schedule.start_time || '').slice(0, 5)} - ${String(schedule.end_time || '').slice(0, 5)}`;
     },
-    fullDate(value) {
-      return new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' }).format(new Date(`${value}T00:00:00`));
+    calculateDuration(schedule) {
+      if (!schedule?.start_time || !schedule?.end_time) return '';
+      const [sh, sm] = schedule.start_time.split(':').map(Number);
+      let [eh, em] = schedule.end_time.split(':').map(Number);
+      let startM = sh * 60 + sm;
+      let endM = eh * 60 + em;
+      if (endM <= startM && endM !== 0) endM += 24 * 60;
+      const diffM = Math.max(0, endM - startM);
+      const hours = (diffM / 60).toFixed(1).replace('.0', '');
+      return `${hours} giờ`;
+    },
+    formatTimeOnly(dateTimeStr) {
+      if (!dateTimeStr) return '';
+      try {
+        const d = new Date(dateTimeStr);
+        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return dateTimeStr;
+      }
     },
     statusLabel(status) {
-      return {
-        scheduled: 'Đã lên lịch',
-        checked_in: 'Đang trực',
-        checked_out: 'Đã hoàn thành',
-        absent: 'Vắng mặt',
-        cancelled: 'Đã hủy',
-      }[status] || 'Đã lên lịch';
+      return (
+        {
+          scheduled: 'Đã lên lịch',
+          checked_in: 'Đang trực',
+          checked_out: 'Đã hoàn thành',
+          absent: 'Vắng mặt',
+          cancelled: 'Đã hủy',
+        }[status] || 'Đã lên lịch'
+      );
+    },
+    canCheckIn(schedule) {
+      if (!schedule) return false;
+      if (schedule.date !== this.today) return false;
+
+      const [startHour, startMin] = (schedule.start_time || '00:00').split(':').map(Number);
+      const shiftStart = new Date();
+      shiftStart.setHours(startHour, startMin, 0, 0);
+
+      const earlyLimit = new Date(shiftStart.getTime() - 30 * 60000);
+      return this.nowTime >= earlyLimit;
+    },
+    liveDuration(checkInAt) {
+      if (!checkInAt) return '00:00:00';
+      const checkInTime = new Date(checkInAt);
+      const diffMs = this.nowTime - checkInTime;
+      if (diffMs < 0) return '00:00:00';
+
+      const diffSecs = Math.floor(diffMs / 1000);
+      const hours = Math.floor(diffSecs / 3600);
+      const minutes = Math.floor((diffSecs % 3600) / 60);
+      const seconds = diffSecs % 60;
+
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    },
+    async handleCheckIn(scheduleId) {
+      this.actionLoading = scheduleId;
+      this.error = '';
+      this.successMsg = '';
+      try {
+        await ownerStaffShiftService.checkIn(scheduleId);
+        const msg = 'Check-in thành công.';
+        this.successMsg = msg;
+        if (this.toast) this.toast.success(msg);
+        await this.loadSchedules();
+      } catch (err) {
+        const errorMsg = err.message || 'Không thể thực hiện check-in.';
+        this.error = errorMsg;
+        if (this.toast) this.toast.error(errorMsg);
+      } finally {
+        this.actionLoading = null;
+      }
+    },
+    handleCheckOut(scheduleId) {
+      this.handoverScheduleId = scheduleId;
+      this.showHandoverModal = true;
+    },
+    async onShiftCheckedOut() {
+      this.showHandoverModal = false;
+      const msg = 'Check-out hoàn thành ca trực thành công.';
+      this.successMsg = msg;
+      if (this.toast) this.toast.success(msg);
+      await this.loadSchedules();
+      window.dispatchEvent(new CustomEvent('staff-attendance-updated'));
     },
   },
 };
 </script>
 
 <style scoped>
-.pos-schedule-view {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.staff-schedule-container {
+  padding: 20px;
   background: #ffffff;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 60px);
+  color: #111827;
+  font-weight: 400;
 }
 
-/* 1. TOP VIEW & NAVIGATION BAR */
-.pos-schedule-topbar {
+/* TOP HEADER & NAVIGATION */
+.schedule-header {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
-.pos-schedule-left {
+.header-left {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.pos-view-tabs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  padding: 2px;
-  border-radius: 6px;
-  height: 32px;
-  box-sizing: border-box;
-}
-
-.pos-view-tab {
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 0 12px;
-  height: 26px;
+.view-switch {
   display: inline-flex;
   align-items: center;
-  border-radius: 4px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.pos-view-tab:hover {
-  background: #f0fdf4;
-  color: #087642;
-}
-
-.pos-view-tab.active {
-  background: #087642;
-  color: #ffffff;
-  border-color: #087642;
-  font-weight: 500;
-}
-
-.pos-schedule-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-.pos-schedule-nav {
-  display: flex;
-  align-items: center;
-  gap: 2px;
   background: #ffffff;
   border: 1px solid #d1d5db;
-  padding: 2px;
   border-radius: 6px;
-  height: 32px;
-  box-sizing: border-box;
+  padding: 2px;
 }
 
-.pos-nav-arrow {
+.switch-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #374151;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.switch-btn.active {
+  background: #087642;
+  color: #ffffff;
+}
+
+.schedule-period-title {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date-navigator {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.nav-btn {
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
   background: transparent;
-  color: #334155;
-  border-radius: 4px;
+  border: none;
+  color: #374151;
   cursor: pointer;
-  transition: all 0.12s ease;
+  border-radius: 4px;
 }
 
-.pos-nav-arrow:hover {
+.nav-btn:hover {
   background: #f0fdf4;
   color: #087642;
 }
 
-.pos-nav-today-btn {
-  border: none;
+.nav-today-btn {
   background: transparent;
+  border: none;
   padding: 0 10px;
-  height: 26px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #374151;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.nav-today-btn.is-current {
+  background: #087642;
+  color: #ffffff;
+}
+
+.refresh-btn {
   display: inline-flex;
   align-items: center;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #0f172a;
-  border-radius: 4px;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  padding: 0 12px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #374151;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.12s ease;
 }
 
-.pos-nav-today-btn:hover {
+.refresh-btn:hover {
   background: #f0fdf4;
   color: #087642;
 }
 
-/* ERROR & LOADING */
-.pos-alert-box {
+/* NOTIFICATIONS */
+.notice-msg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 500;
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-  color: #dc2626;
+  margin-bottom: 16px;
 }
 
-.pos-loading-state {
-  padding: 60px 24px;
+.notice-msg.error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.notice-msg.success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.notice-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 14px;
+}
+
+/* LOADING */
+.schedule-loading {
+  padding: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  color: #64748b;
-  font-size: 13px;
+  gap: 12px;
+  font-size: 13.5px;
+  color: #374151;
 }
 
-.pos-spinner {
-  width: 28px;
-  height: 28px;
+.loading-spinner {
+  width: 24px;
+  height: 24px;
   border: 2px solid #e5e7eb;
   border-top-color: #087642;
   border-radius: 50%;
@@ -539,413 +677,343 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-/* 2. WEEKLY CALENDAR GRID */
-.pos-week-container {
+/* 1. WEEK VIEW */
+.week-layout {
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
-.pos-week-grid {
+.week-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
 
-.pos-day-col {
-  background: #ffffff;
+.day-column {
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 14px 10px;
+  border-radius: 6px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 280px;
-}
-
-.pos-day-col.is-today {
+  min-height: 260px;
   background: #ffffff;
-  border-color: #087642;
-  box-shadow: 0 0 0 1px #087642;
 }
 
-.pos-day-head {
+.day-column.is-today {
+  border-color: #087642;
+}
+
+.day-column-head {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
 }
 
-.pos-day-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-}
-
-.pos-day-date {
-  font-size: 17px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.pos-day-shifts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.pos-shift-card {
-  background: #ffffff;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  display: flex;
-  overflow: hidden;
-  transition: border-color 0.12s ease;
-}
-
-.pos-shift-card:hover {
-  border-color: #087642;
-}
-
-.pos-shift-card-accent {
-  width: 3px;
-  background: #087642;
-  flex-shrink: 0;
-}
-
-.pos-shift-card.checked_in .pos-shift-card-accent { background: #087642; }
-.pos-shift-card.checked_out .pos-shift-card-accent { background: #64748b; }
-
-.pos-shift-card-body {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-}
-
-.pos-shift-time {
-  font-size: 10.5px;
-  font-family: monospace;
-  font-weight: 600;
-  color: #087642;
-}
-
-.pos-shift-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.pos-shift-venue {
-  font-size: 10.5px;
-  color: #64748b;
-}
-
-.pos-shift-status-tag {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 3px;
-  width: fit-content;
-  margin-top: 3px;
-}
-
-.pos-shift-status-tag.scheduled {
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
-}
-
-.pos-shift-status-tag.checked_in {
-  background: #f0fdf4;
-  color: #087642;
-  border: 1px solid #bbf7d0;
-}
-
-.pos-shift-status-tag.checked_out {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-}
-
-.pos-day-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  color: #94a3b8;
+.day-name {
   font-size: 11.5px;
+  color: #6b7280;
 }
 
-/* WEEK SUMMARY */
-.pos-week-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.day-date {
+  font-size: 16px;
+  font-weight: 500;
+  color: #111827;
 }
 
-.pos-summary-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
-.pos-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.pos-summary-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.pos-summary-date {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pos-summary-date strong {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.pos-summary-date span {
-  font-size: 11.5px;
-  color: #087642;
-  font-family: monospace;
-  font-weight: 600;
-}
-
-.pos-summary-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-}
-
-.pos-summary-info strong {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.pos-summary-info small {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.pos-summary-info p {
-  font-size: 11px;
-  color: #94a3b8;
-  margin: 2px 0 0;
-}
-
-/* 3. DAILY TIMELINE STRIP */
-.pos-day-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.pos-timeline-wrapper {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 18px 16px;
-}
-
-.pos-timeline-ticks {
-  position: relative;
-  height: 18px;
-  margin-bottom: 6px;
-}
-
-.pos-timeline-tick {
-  position: absolute;
-  transform: translateX(-50%);
-  font-size: 10.5px;
-  font-family: monospace;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.pos-timeline-track {
-  position: relative;
-  height: 48px;
-  background: #ffffff;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  overflow: hidden;
-}
-
-.pos-hour-grid-cell {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-right: 1px solid #e5e7eb;
-}
-
-.pos-timeline-block {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  background: #087642;
-  color: #ffffff;
-  border-radius: 4px;
-  padding: 3px 6px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.pos-timeline-block.checked_in {
-  background: #087642;
-}
-
-.pos-tb-title {
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pos-tb-time {
-  font-size: 9px;
-  opacity: 0.9;
-}
-
-.pos-day-list {
+.day-shifts-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
 }
 
-.pos-day-item {
+.shift-entry {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #ffffff;
+}
+
+.shift-entry.checked_in {
+  border-left: 3px solid #087642;
+}
+
+.shift-entry.scheduled {
+  border-left: 3px solid #2563eb;
+}
+
+.shift-entry.checked_out {
+  border-left: 3px solid #9ca3af;
+}
+
+.shift-time {
+  font-size: 11.5px;
+  color: #087642;
+}
+
+.shift-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.shift-venue {
+  font-size: 11.5px;
+  color: #4b5563;
+}
+
+.shift-status {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.shift-status.checked_in { color: #087642; }
+.shift-status.scheduled { color: #2563eb; }
+.shift-status.checked_out { color: #4b5563; }
+
+.shift-notes-text {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.shift-actions {
+  margin-top: 6px;
+}
+
+.action-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 400;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.action-btn.checkin {
+  background: #087642;
+  color: #ffffff;
+}
+
+.action-btn.checkin:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.action-btn.checkout {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.no-shift-msg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-size: 11.5px;
+  color: #9ca3af;
+}
+
+/* 2. DAY VIEW */
+.day-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day-nav-bar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.day-nav-item {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.day-nav-item.active {
+  background: #087642;
+  color: #ffffff;
+  border-color: #087642;
+}
+
+.day-nav-item.active .d-label,
+.day-nav-item.active .d-date {
+  color: #ffffff;
+}
+
+.d-label {
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+.d-date {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.day-shifts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-shift-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  gap: 16px;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
 }
 
-.pos-day-item-left {
+.day-shift-row.checked_in {
+  border-left: 3px solid #087642;
+}
+
+.day-shift-row.scheduled {
+  border-left: 3px solid #2563eb;
+}
+
+.day-shift-row.checked_out {
+  border-left: 3px solid #9ca3af;
+}
+
+.shift-main-info {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 20px;
 }
 
-.pos-day-item-badge {
-  font-family: monospace;
-  font-size: 12px;
-  font-weight: 600;
+.shift-time-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+
+.time-text {
+  font-size: 13.5px;
   color: #087642;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  padding: 4px 8px;
-  border-radius: 4px;
+  font-weight: 500;
 }
 
-.pos-day-item-meta {
+.duration-text {
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+.shift-desc-col {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.pos-day-item-meta strong {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #0f172a;
+.name-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
 }
 
-.pos-day-item-meta span {
-  font-size: 11.5px;
-  color: #64748b;
-}
-
-.pos-day-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 50px 24px;
-  gap: 16px;
-  color: #64748b;
-  font-size: 13px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-}
-
-.pos-3d-schedule-img {
-  width: 120px;
-  height: 120px;
-  object-fit: contain;
-  filter: drop-shadow(0 10px 20px rgba(8, 118, 66, 0.15));
-  animation: float-slow 3s ease-in-out infinite alternate;
-}
-
-@keyframes float-slow {
-  from { transform: translateY(0); }
-  to { transform: translateY(-4px); }
-}
-
-.pos-3d-empty-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 4px;
-}
-
-.pos-3d-empty-info h4 {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
-.pos-3d-empty-info p {
+.venue-text {
   font-size: 12.5px;
-  color: #64748b;
-  margin: 0;
-  max-width: 380px;
+  color: #4b5563;
+}
+
+.notes-text {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.logs-text {
+  font-size: 11.5px;
+  color: #4b5563;
+  margin-top: 2px;
+}
+
+.shift-side-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.status-text {
+  font-size: 12.5px;
+}
+
+.status-text.checked_in { color: #087642; }
+.status-text.scheduled { color: #2563eb; }
+.status-text.checked_out { color: #4b5563; }
+
+.live-timer-text {
+  font-size: 11.5px;
+  color: #087642;
+}
+
+.shift-btn-wrap {
+  margin-top: 4px;
+}
+
+.day-empty-msg {
+  padding: 30px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 /* RESPONSIVE */
-@media (max-width: 1024px) {
-  .pos-week-grid {
+@media (max-width: 992px) {
+  .week-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .pos-summary-grid {
-    grid-template-columns: 1fr;
+  .day-nav-bar {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
 @media (max-width: 640px) {
-  .pos-week-grid {
+  .staff-schedule-container {
+    padding: 12px;
+  }
+  .week-grid {
     grid-template-columns: 1fr;
   }
-  .pos-schedule-view {
-    padding: 14px;
+  .day-nav-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .day-shift-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .shift-side-info {
+    align-items: flex-start;
+    width: 100%;
+  }
+  .shift-btn-wrap {
+    width: 100%;
   }
 }
 </style>
+
+

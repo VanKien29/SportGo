@@ -304,11 +304,20 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- SHIFT HANDOVER & END-OF-SHIFT MODAL -->
+    <ShiftHandoverModal
+      :is-open="showHandoverModal"
+      :schedule-id="handoverScheduleId"
+      @close="showHandoverModal = false"
+      @checked-out="onShiftCheckedOut"
+    />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
+import ShiftHandoverModal from '../../components/staff/ShiftHandoverModal.vue';
 import { venueClusterService } from '../../services/venueClusters.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 import { getAuth, logout } from '../../stores/auth.js';
@@ -320,7 +329,7 @@ const CACHED_CLUSTERS_KEY = 'cached_clusters';
 
 export default {
   name: 'StaffPOSLayout',
-  components: { AppIcon },
+  components: { AppIcon, ShiftHandoverModal },
   data() {
     let initialClusters = [];
     try {
@@ -337,6 +346,8 @@ export default {
       showUserMenu: false,
       showClusterDropdown: false,
       showHotkeyModal: false,
+      showHandoverModal: false,
+      handoverScheduleId: null,
       isFullscreen: false,
       currentTime: new Date(),
       clockTimer: null,
@@ -476,17 +487,13 @@ export default {
     },
     async handleCheckOut() {
       if (!this.todaySchedule) return;
-      if (!confirm('Bạn có chắc chắn muốn Kết ca trực này không?')) return;
-      this.shiftActionLoading = true;
-      try {
-        await ownerStaffShiftService.checkOut(this.todaySchedule.id);
-        await this.loadTodayShift();
-        window.dispatchEvent(new CustomEvent('staff-attendance-updated'));
-      } catch (e) {
-        alert(e.message || 'Kết thúc ca thất bại.');
-      } finally {
-        this.shiftActionLoading = false;
-      }
+      this.handoverScheduleId = this.todaySchedule.id;
+      this.showHandoverModal = true;
+    },
+    async onShiftCheckedOut() {
+      this.showHandoverModal = false;
+      await this.loadTodayShift();
+      window.dispatchEvent(new CustomEvent('staff-attendance-updated'));
     },
     toggleFullscreen() {
       if (!document.fullscreenElement) {
