@@ -83,6 +83,9 @@ export const ownerStaffShiftService = {
   handoverSummary(id) {
     return api(`/api/owner/staff-shifts/schedules/${id}/handover-summary`);
   },
+  getHandoverSummary(id) {
+    return this.handoverSummary(id);
+  },
   checkIn(id) {
     return api(`/api/owner/staff-shifts/schedules/${id}/check-in`, {
       method: 'POST',
@@ -93,5 +96,9 @@ export const ownerStaffShiftService = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+  checkoutShift(payload = {}) {
+    const id = payload.schedule_id || payload.id;
+    return this.checkOut(id, payload);
   },
 };

@@ -86,6 +86,10 @@ export const ownerBookingService = {
     });
   },
 
+  checkIn(id) {
+    return this.updateStatus(id, { action: 'check_in' });
+  },
+
   changeCourt(id, payload) {
     return api(`/api/owner/bookings/${id}/court`, {
       method: 'PATCH',
@@ -93,3 +97,4 @@ export const ownerBookingService = {
     });
   },
 };
+

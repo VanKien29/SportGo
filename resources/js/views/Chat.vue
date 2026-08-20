@@ -666,13 +666,13 @@
               </div>
 
               <!-- Text input row -->
-              <div class="zalo-input-row flex items-center px-4 py-2.5">
+              <div class="zalo-input-row flex items-center px-3 py-2">
                 <input
                   v-model="newMessage"
                   type="text"
                   placeholder="Nhập tin nhắn..."
                   @paste="handlePaste"
-                  class="zalo-input w-full bg-transparent text-sm focus:outline-none"
+                  class="zalo-input flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
                 />
 
                 <!-- Left Action: Share Booking -->
@@ -680,7 +680,7 @@
                   v-if="canShareBooking"
                   type="button"
                   @click="openBookingPicker"
-                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0 mr-1"
+                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0"
                   title="Chia sẻ booking"
                 >
                   <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -692,7 +692,7 @@
                 <button
                   type="button"
                   @click="clickAttachment"
-                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0 mr-1"
+                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0"
                   title="Thêm ảnh"
                 >
                   <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3816,7 +3816,19 @@ export default {
 }
 
 /* Zalo style input box styling */
+.tg-input-bar-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
 .zalo-chat-box {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
   background-color: var(--tg-received-bg) !important;
   border: 1px solid var(--tg-border) !important;
   border-radius: 16px !important;
@@ -3830,22 +3842,29 @@ export default {
 }
 
 .zalo-input-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 16px !important;
-  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 5px 8px !important;
+  box-sizing: border-box !important;
 }
 
-.sg-shell-admin .content-area input.zalo-input {
+.sg-shell-admin .content-area input.zalo-input,
+input.zalo-input {
   color: var(--tg-received-text) !important;
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
   min-height: auto !important;
-  padding: 8px 0 !important;
-  width: 100% !important;
+  padding: 6px 0 !important;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .sg-shell-admin .content-area input.zalo-input:focus {
@@ -3863,7 +3882,17 @@ export default {
   background: transparent !important;
   border: none !important;
   cursor: pointer !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  padding: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
 }
+
 .zalo-attach-btn.never-hover-class-placeholder {
   color: var(--tg-received-text) !important;
   background-color: var(--tg-active-row) !important;
@@ -3875,7 +3904,15 @@ export default {
   border: none !important;
   cursor: pointer !important;
   border-radius: 9999px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   transition: all 0.2s ease;
+  margin: 0 !important;
 }
 
 .zalo-send-btn.never-hover-class-placeholder:not(:disabled) {

@@ -1,4 +1,30 @@
 export const ICON_REGISTRY = {
+  printer: [
+    ['polyline', { points: '6 9 6 2 18 2 18 9' }],
+    ['path', { d: 'M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2' }],
+    ['rect', { width: 12, height: 8, x: 6, y: 14 }],
+  ],
+  barChart: [
+    ['line', { x1: 18, y1: 20, x2: 18, y2: 10 }],
+    ['line', { x1: 12, y1: 20, x2: 12, y2: 4 }],
+    ['line', { x1: 6, y1: 20, x2: 6, y2: 14 }],
+  ],
+  barChart2: [
+    ['line', { x1: 18, y1: 20, x2: 18, y2: 10 }],
+    ['line', { x1: 12, y1: 20, x2: 12, y2: 4 }],
+    ['line', { x1: 6, y1: 20, x2: 6, y2: 14 }],
+  ],
+  pieChart: [
+    ['path', { d: 'M21.21 15.89A10 10 0 1 1 8 2.83' }],
+    ['path', { d: 'M22 12A10 10 0 0 0 12 2v10z' }],
+  ],
+  trendingUp: [
+    ['polyline', { points: '23 6 13.5 15.5 8.5 10.5 1 18' }],
+    ['polyline', { points: '17 6 23 6 23 12' }],
+  ],
+  activity: [
+    ['polyline', { points: '22 12 18 12 15 21 9 3 6 12 2 12' }],
+  ],
   dashboard: [
     ['rect', { x: 3, y: 3, width: 7, height: 7, rx: 1 }],
     ['rect', { x: 14, y: 3, width: 7, height: 7, rx: 1 }],
@@ -517,6 +543,15 @@ export const ICON_ALIASES = {
   rotate: 'refresh',
   rotateCw: 'refresh',
   'refresh-cw': 'refresh',
+  'bar-chart': 'barChart',
+  'bar-chart-2': 'barChart2',
+  barchart: 'barChart',
+  chart: 'barChart',
+  analytics: 'barChart',
+  'pie-chart': 'pieChart',
+  'trending-up': 'trendingUp',
+  print: 'printer',
+  printer: 'printer',
 };
 
 export const NAV_ICON_MAP = {

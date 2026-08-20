@@ -79,6 +79,30 @@
       <button type="button" class="notice-close" @click="successMsg = ''">✕</button>
     </div>
 
+    <!-- PERSONAL ATTENDANCE STATS (Compact Structured Metric Bar) -->
+    <div class="attendance-metric-strip">
+      <div class="metric-item">
+        <span class="metric-label">Tổng giờ tuần</span>
+        <span class="metric-value text-forest">{{ totalHoursWorkedLabel }}</span>
+      </div>
+
+      <div class="metric-divider"></div>
+
+      <div class="metric-item">
+        <span class="metric-label">Đã hoàn thành</span>
+        <span class="metric-value text-blue">
+          {{ completedShiftsCount }} <span class="metric-total">/ {{ totalShiftsThisWeek }} ca</span>
+        </span>
+      </div>
+
+      <div class="metric-divider"></div>
+
+      <div class="metric-item">
+        <span class="metric-label">Sắp tới &amp; Trực</span>
+        <span class="metric-value text-amber">{{ activeOrUpcomingCount }} <span class="metric-total">ca</span></span>
+      </div>
+    </div>
+
     <!-- LOADING STATE -->
     <div v-if="loading" class="schedule-loading">
       <div class="loading-spinner"></div>
@@ -116,30 +140,56 @@
                   {{ statusLabel(sch.status) }}
                 </div>
 
+                <!-- Live or completed attendance log pill -->
+                <div v-if="sch.check_in_at || sch.check_out_at" class="shift-attend-pill">
+                  <div v-if="sch.check_in_at" class="attend-log-line">
+                    <span class="log-label">Vào:</span>
+                    <strong class="log-val">{{ formatTimeOnly(sch.check_in_at) }}</strong>
+                  </div>
+                  <div v-if="sch.check_out_at" class="attend-log-line">
+                    <span class="log-label">Ra:</span>
+                    <strong class="log-val">{{ formatTimeOnly(sch.check_out_at) }}</strong>
+                  </div>
+                  <div v-if="sch.check_in_at && sch.check_out_at" class="attend-log-duration">
+                    <span>Thực tế: {{ workedDurationText(sch) }}</span>
+                  </div>
+                </div>
+
                 <div v-if="sch.notes" class="shift-notes-text">
                   {{ sch.notes }}
                 </div>
 
                 <!-- Action Button if applicable -->
-                <div v-if="sch.date === today" class="shift-actions">
+                <div class="shift-actions">
                   <button
-                    v-if="sch.status === 'scheduled'"
+                    v-if="sch.status === 'scheduled' && sch.date === today"
                     type="button"
                     class="action-btn checkin"
                     :disabled="!canCheckIn(sch) || actionLoading === sch.id"
                     @click="handleCheckIn(sch.id)"
                   >
-                    {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-in' }}
+                    {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Vào ca' }}
                   </button>
 
                   <button
-                    v-if="sch.status === 'checked_in'"
+                    v-if="sch.status === 'checked_in' && sch.date === today"
                     type="button"
                     class="action-btn checkout"
                     :disabled="actionLoading === sch.id"
                     @click="handleCheckOut(sch.id)"
                   >
-                    {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-out' }}
+                    {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Kết ca' }}
+                  </button>
+
+                  <button
+                    v-if="sch.status === 'checked_out'"
+                    type="button"
+                    class="action-btn report"
+                    title="Xem báo cáo doanh thu & phiếu bàn giao ca"
+                    @click="openHandoverReport(sch.id)"
+                  >
+                    <AppIcon name="barChart2" :size="13" />
+                    <span>Báo cáo ca</span>
                   </button>
                 </div>
               </div>
@@ -185,17 +235,30 @@
             <div class="shift-main-info">
               <div class="shift-time-col">
                 <span class="time-text">{{ timeRange(sch) }}</span>
-                <span class="duration-text">{{ calculateDuration(sch) }}</span>
+                <span class="duration-text">Kế hoạch: {{ calculateDuration(sch) }}</span>
               </div>
 
               <div class="shift-desc-col">
                 <div class="name-text">{{ shiftName(sch) }}</div>
                 <div class="venue-text">{{ sch.venue_cluster?.name || 'Cụm sân' }}</div>
-                <div v-if="sch.notes" class="notes-text">{{ sch.notes }}</div>
 
-                <div v-if="sch.check_in_at || sch.check_out_at" class="logs-text">
-                  <span v-if="sch.check_in_at">Check-in: {{ formatTimeOnly(sch.check_in_at) }}</span>
-                  <span v-if="sch.check_out_at"> &middot; Check-out: {{ formatTimeOnly(sch.check_out_at) }}</span>
+                <!-- Structured Attendance Log Box -->
+                <div v-if="sch.check_in_at || sch.check_out_at" class="day-attend-box">
+                  <div class="day-attend-item">
+                    <span class="attend-dot is-in"></span>
+                    <span>Vào ca: <strong>{{ formatTimeOnly(sch.check_in_at) }}</strong></span>
+                  </div>
+                  <div v-if="sch.check_out_at" class="day-attend-item">
+                    <span class="attend-dot is-out"></span>
+                    <span>Kết ca: <strong>{{ formatTimeOnly(sch.check_out_at) }}</strong></span>
+                  </div>
+                  <div v-if="sch.check_in_at && sch.check_out_at" class="day-attend-duration">
+                    ⏱️ Đã làm: <strong>{{ workedDurationText(sch) }}</strong>
+                  </div>
+                </div>
+
+                <div v-if="sch.notes" class="notes-text">
+                  💬 Ghi chú: {{ sch.notes }}
                 </div>
               </div>
             </div>
@@ -206,28 +269,39 @@
               </div>
 
               <div v-if="sch.status === 'checked_in'" class="live-timer-text">
-                Đã trực: {{ liveDuration(sch.check_in_at) }}
+                ⏱️ Đang trực: {{ liveDuration(sch.check_in_at) }}
               </div>
 
-              <div v-if="sch.date === today" class="shift-btn-wrap">
+              <div class="shift-btn-wrap">
                 <button
-                  v-if="sch.status === 'scheduled'"
+                  v-if="sch.status === 'scheduled' && sch.date === today"
                   type="button"
                   class="action-btn checkin"
                   :disabled="!canCheckIn(sch) || actionLoading === sch.id"
                   @click="handleCheckIn(sch.id)"
                 >
-                  {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-in ca trực' }}
+                  {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Vào ca' }}
                 </button>
 
                 <button
-                  v-if="sch.status === 'checked_in'"
+                  v-if="sch.status === 'checked_in' && sch.date === today"
                   type="button"
                   class="action-btn checkout"
                   :disabled="actionLoading === sch.id"
                   @click="handleCheckOut(sch.id)"
                 >
-                  {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Check-out kết thúc ca' }}
+                  {{ actionLoading === sch.id ? 'Đang xử lý...' : 'Kết ca' }}
+                </button>
+
+                <button
+                  v-if="sch.status === 'checked_out'"
+                  type="button"
+                  class="action-btn report"
+                  title="Xem báo cáo doanh thu & phiếu bàn giao ca"
+                  @click="openHandoverReport(sch.id)"
+                >
+                  <AppIcon name="barChart2" :size="13" />
+                  <span>Báo cáo ca</span>
                 </button>
               </div>
             </div>
@@ -240,7 +314,7 @@
       </div>
     </template>
 
-    <!-- SHIFT HANDOVER MODAL -->
+    <!-- SHIFT HANDOVER / REPORT MODAL -->
     <ShiftHandoverModal
       :is-open="showHandoverModal"
       :schedule-id="handoverScheduleId"
@@ -328,6 +402,33 @@ export default {
         return this.selectedDate;
       }
     },
+    totalShiftsThisWeek() {
+      return this.schedules.length;
+    },
+    completedShiftsCount() {
+      return this.schedules.filter((s) => s.status === 'checked_out').length;
+    },
+    activeOrUpcomingCount() {
+      return this.schedules.filter((s) => s.status === 'scheduled' || s.status === 'checked_in').length;
+    },
+    totalMinutesWorkedThisWeek() {
+      return this.schedules.reduce((acc, sch) => {
+        if (!sch.check_in_at) return acc;
+        const start = new Date(sch.check_in_at);
+        const end = sch.check_out_at ? new Date(sch.check_out_at) : new Date(this.nowTime);
+        const diff = Math.max(0, Math.floor((end - start) / 60000));
+        return acc + diff;
+      }, 0);
+    },
+    totalHoursWorkedLabel() {
+      const mins = this.totalMinutesWorkedThisWeek;
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      if (h === 0 && m === 0) return '0 phút';
+      if (h === 0) return `${m} phút`;
+      if (m === 0) return `${h} giờ`;
+      return `${h} giờ ${m} phút`;
+    },
   },
   watch: {
     selectedDate(newDate) {
@@ -353,6 +454,22 @@ export default {
     if (this.timerInterval) clearInterval(this.timerInterval);
   },
   methods: {
+    workedDurationText(schedule) {
+      if (!schedule?.check_in_at) return '';
+      const start = new Date(schedule.check_in_at);
+      const end = schedule.check_out_at ? new Date(schedule.check_out_at) : new Date(this.nowTime);
+      const diffM = Math.max(0, Math.floor((end - start) / 60000));
+      const h = Math.floor(diffM / 60);
+      const m = diffM % 60;
+      if (h === 0 && m === 0) return '0 phút';
+      if (h === 0) return `${m} phút`;
+      if (m === 0) return `${h} giờ`;
+      return `${h} giờ ${m} phút`;
+    },
+    openHandoverReport(scheduleId) {
+      this.handoverScheduleId = scheduleId;
+      this.showHandoverModal = true;
+    },
     getMonday(date) {
       const value = new Date(date);
       const offset = value.getDay() === 0 ? -6 : 1 - value.getDay();
@@ -503,8 +620,7 @@ export default {
   padding: 20px;
   background: #ffffff;
   min-height: calc(100vh - 60px);
-  color: #111827;
-  font-weight: 400;
+  color: #0f172a;
 }
 
 /* TOP HEADER & NAVIGATION */
@@ -520,17 +636,17 @@ export default {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
 .view-switch {
   display: inline-flex;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 2px;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 8px;
+  padding: 3px;
 }
 
 .switch-btn {
@@ -538,70 +654,86 @@ export default {
   border: none;
   padding: 6px 14px;
   font-size: 13px;
-  font-weight: 400;
-  color: #374151;
-  border-radius: 4px;
+  font-weight: 500;
+  color: #475569;
+  border-radius: 6px;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.switch-btn:hover {
+  color: #0f172a;
 }
 
 .switch-btn.active {
-  background: #087642;
-  color: #ffffff;
+  background: #ffffff;
+  color: #166534;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .schedule-period-title {
-  font-size: 14.5px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .date-navigator {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 8px;
   padding: 2px;
 }
 
 .nav-btn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  color: #374151;
+  color: #475569;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
 }
 
 .nav-btn:hover {
-  background: #f0fdf4;
-  color: #087642;
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .nav-today-btn {
   background: transparent;
   border: none;
-  padding: 0 10px;
-  height: 28px;
+  padding: 0 12px;
+  height: 30px;
   font-size: 13px;
-  font-weight: 400;
-  color: #374151;
+  font-weight: 500;
+  color: #475569;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.nav-today-btn:hover {
+  color: #0f172a;
 }
 
 .nav-today-btn.is-current {
-  background: #087642;
-  color: #ffffff;
+  background: #ffffff;
+  color: #166534;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .refresh-btn {
@@ -609,19 +741,20 @@ export default {
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid #d1d5db;
-  padding: 0 12px;
-  height: 32px;
+  border: none;
+  padding: 6px 12px;
+  height: 34px;
   font-size: 13px;
-  font-weight: 400;
-  color: #374151;
-  border-radius: 6px;
+  font-weight: 600;
+  color: #166534;
+  border-radius: 7px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .refresh-btn:hover {
-  background: #f0fdf4;
-  color: #087642;
+  background: #f4f8f5;
+  color: #14532d;
 }
 
 /* NOTIFICATIONS */
@@ -630,7 +763,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -638,11 +771,13 @@ export default {
 .notice-msg.error {
   background: #fee2e2;
   color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
 .notice-msg.success {
   background: #dcfce7;
   color: #15803d;
+  border: 1px solid #bbf7d0;
 }
 
 .notice-close {
@@ -653,22 +788,76 @@ export default {
   font-size: 14px;
 }
 
+/* PERSONAL ATTENDANCE STATS (Compact Structured Metric Bar) */
+.attendance-metric-strip {
+  display: inline-flex;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 20px;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.2px;
+}
+
+.metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.metric-value.text-forest {
+  color: #166534;
+}
+
+.metric-value.text-blue {
+  color: #0284c7;
+}
+
+.metric-value.text-amber {
+  color: #d97706;
+}
+
+.metric-total {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.metric-divider {
+  width: 1px;
+  height: 28px;
+  background: #e2e8f0;
+}
+
 /* LOADING */
 .schedule-loading {
-  padding: 40px;
+  padding: 50px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
   font-size: 13.5px;
-  color: #374151;
+  color: #475569;
 }
 
 .loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #087642;
+  border: 2px solid #e2e8f0;
+  border-top-color: #166534;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -690,18 +879,21 @@ export default {
 }
 
 .day-column {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 12px;
+  background: #f8fafc;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 260px;
-  background: #ffffff;
+  gap: 12px;
+  min-height: 320px;
+  transition: all 0.15s ease;
 }
 
 .day-column.is-today {
-  border-color: #087642;
+  background: #f4f8f5;
+  border: 1px solid #cbdcd0;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.05);
 }
 
 .day-column-head {
@@ -709,102 +901,187 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.day-column.is-today .day-column-head {
+  border-bottom-color: rgba(203, 220, 208, 0.6);
 }
 
 .day-name {
-  font-size: 11.5px;
-  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
 }
 
 .day-date {
-  font-size: 16px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.day-column.is-today .day-date {
+  color: #166534;
+  font-weight: 700;
 }
 
 .day-shifts-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
 }
 
 .shift-entry {
-  padding: 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  background: #ffffff;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.shift-entry:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 .shift-entry.checked_in {
-  border-left: 3px solid #087642;
+  border-color: #cbdcd0;
 }
 
 .shift-entry.scheduled {
-  border-left: 3px solid #2563eb;
+  border-color: #e2e8f0;
 }
 
 .shift-entry.checked_out {
-  border-left: 3px solid #9ca3af;
+  border-color: #e2e8f0;
+  opacity: 0.92;
 }
 
 .shift-time {
-  font-size: 11.5px;
-  color: #087642;
+  font-size: 12px;
+  font-weight: 600;
+  color: #166534;
+  font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .shift-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .shift-venue {
-  font-size: 11.5px;
-  color: #4b5563;
+  font-size: 12px;
+  color: #475569;
 }
 
 .shift-status {
+  display: inline-block;
+  align-self: flex-start;
   font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
   margin-top: 2px;
 }
 
-.shift-status.checked_in { color: #087642; }
-.shift-status.scheduled { color: #2563eb; }
-.shift-status.checked_out { color: #4b5563; }
+.shift-status.checked_in {
+  background: #eaf3ed;
+  color: #166534;
+}
+
+.shift-status.scheduled {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.shift-status.checked_out {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* SHIFT ATTENDANCE LOG PILL */
+.shift-attend-pill {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.attend-log-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #334155;
+}
+
+.attend-log-line .log-label {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.attend-log-line .log-val {
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.attend-log-duration {
+  font-size: 11px;
+  color: #166534;
+  font-weight: 500;
+  margin-top: 1px;
+}
 
 .shift-notes-text {
-  font-size: 11px;
-  color: #6b7280;
+  font-size: 11.5px;
+  color: #64748b;
   margin-top: 2px;
+  font-style: italic;
 }
 
 .shift-actions {
-  margin-top: 6px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .action-btn {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 11.5px;
-  font-weight: 400;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   border: none;
   cursor: pointer;
   width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
 }
 
 .action-btn.checkin {
-  background: #087642;
+  background: #166534;
   color: #ffffff;
 }
 
+.action-btn.checkin:hover:not(:disabled) {
+  background: #14532d;
+}
+
 .action-btn.checkin:disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
+  background: #e2e8f0;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 
@@ -813,44 +1090,65 @@ export default {
   color: #ffffff;
 }
 
+.action-btn.checkout:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.action-btn.report {
+  background: #f1f5f9;
+  color: #166534;
+  border: 1px solid #e2e8f0;
+}
+
+.action-btn.report:hover {
+  background: #eaf3ed;
+  color: #14532d;
+  border-color: #cbdcd0;
+}
+
 .no-shift-msg {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 1;
-  font-size: 11.5px;
-  color: #9ca3af;
+  font-size: 12px;
+  color: #94a3b8;
 }
 
 /* 2. DAY VIEW */
 .day-layout {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .day-nav-bar {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .day-nav-item {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px;
+  background: #f8fafc;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.day-nav-item:hover {
+  background: #f1f5f9;
 }
 
 .day-nav-item.active {
-  background: #087642;
+  background: #166534;
   color: #ffffff;
-  border-color: #087642;
+  box-shadow: 0 4px 10px rgba(22, 101, 52, 0.2);
 }
 
 .day-nav-item.active .d-label,
@@ -859,116 +1157,169 @@ export default {
 }
 
 .d-label {
-  font-size: 11.5px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
 }
 
 .d-date {
-  font-size: 15px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .day-shifts-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .day-shift-row {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.day-shift-row:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
 }
 
 .day-shift-row.checked_in {
-  border-left: 3px solid #087642;
+  border-color: #cbdcd0;
 }
 
 .day-shift-row.scheduled {
-  border-left: 3px solid #2563eb;
+  border-color: #e2e8f0;
 }
 
 .day-shift-row.checked_out {
-  border-left: 3px solid #9ca3af;
+  border-color: #e2e8f0;
+  opacity: 0.92;
 }
 
 .shift-main-info {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
+  gap: 24px;
 }
 
 .shift-time-col {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 110px;
+  gap: 3px;
+  min-width: 120px;
 }
 
 .time-text {
-  font-size: 13.5px;
-  color: #087642;
-  font-weight: 500;
+  font-size: 14px;
+  color: #166534;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .duration-text {
-  font-size: 11.5px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .shift-desc-col {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .name-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .venue-text {
-  font-size: 12.5px;
-  color: #4b5563;
+  font-size: 13px;
+  color: #475569;
+}
+
+.day-attend-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.day-attend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #475569;
+}
+
+.day-attend-item strong {
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.attend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.attend-dot.is-in {
+  background: #166534;
+}
+
+.attend-dot.is-out {
+  background: #0284c7;
+}
+
+.day-attend-duration {
+  font-size: 12px;
+  color: #166534;
+  font-weight: 500;
 }
 
 .notes-text {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 12.5px;
+  color: #64748b;
   margin-top: 2px;
-}
-
-.logs-text {
-  font-size: 11.5px;
-  color: #4b5563;
-  margin-top: 2px;
+  font-style: italic;
 }
 
 .shift-side-info {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 8px;
 }
 
 .status-text {
-  font-size: 12.5px;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
 }
 
-.status-text.checked_in { color: #087642; }
-.status-text.scheduled { color: #2563eb; }
-.status-text.checked_out { color: #4b5563; }
+.status-text.checked_in { background: #eaf3ed; color: #166534; }
+.status-text.scheduled { background: #e0f2fe; color: #0369a1; }
+.status-text.checked_out { background: #f1f5f9; color: #475569; }
 
 .live-timer-text {
-  font-size: 11.5px;
-  color: #087642;
+  font-size: 12px;
+  color: #166534;
+  font-weight: 500;
 }
 
 .shift-btn-wrap {
@@ -976,14 +1327,19 @@ export default {
 }
 
 .day-empty-msg {
-  padding: 30px;
+  padding: 40px;
   text-align: center;
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 13.5px;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 10px;
 }
 
 /* RESPONSIVE */
 @media (max-width: 992px) {
+  .staff-schedule-container {
+    padding: 14px 16px 72px 16px;
+  }
   .week-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -994,17 +1350,80 @@ export default {
 
 @media (max-width: 640px) {
   .staff-schedule-container {
-    padding: 12px;
+    padding: 10px 12px 70px 12px;
   }
+  .schedule-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .header-left,
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .view-mode-toggle {
+    flex: 1;
+  }
+  .mode-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .nav-group {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* FLUID 3-COLUMN METRIC STRIP (ZERO OVERFLOW ON MOBILE) */
+  .attendance-metric-strip {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .metric-item {
+    min-width: 0;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .metric-value {
+    font-size: 14.5px;
+    white-space: nowrap;
+  }
+
+  .metric-total {
+    font-size: 11.5px;
+  }
+
+  .metric-divider {
+    height: 24px;
+  }
+
   .week-grid {
     grid-template-columns: 1fr;
   }
   .day-nav-bar {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
   .day-shift-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .shift-main-info {
+    flex-direction: column;
+    gap: 8px;
   }
   .shift-side-info {
     align-items: flex-start;

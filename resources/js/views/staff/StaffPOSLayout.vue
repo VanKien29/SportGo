@@ -208,6 +208,36 @@
       <router-view />
     </main>
 
+    <!-- MOBILE BOTTOM NAVIGATION (Only visible on screens < 900px) -->
+    <nav class="pos-mobile-bottom-nav">
+      <RouterLink
+        to="/staff/bookings"
+        class="pos-mob-tab"
+        :class="{ active: $route.name === 'staff-bookings' || $route.name === 'staff-counter-booking' }"
+      >
+        <AppIcon name="dashboard" :size="18" />
+        <span>Bàn làm việc</span>
+      </RouterLink>
+
+      <RouterLink
+        to="/staff/schedules"
+        class="pos-mob-tab"
+        :class="{ active: $route.name === 'staff-schedules' }"
+      >
+        <AppIcon name="calendar" :size="18" />
+        <span>Lịch trực</span>
+      </RouterLink>
+
+      <RouterLink
+        to="/staff/chat"
+        class="pos-mob-tab"
+        :class="{ active: $route.name === 'staff-chat' }"
+      >
+        <AppIcon name="messageSquare" :size="18" />
+        <span>Tin nhắn</span>
+      </RouterLink>
+    </nav>
+
     <!-- HOTKEY MODAL -->
     <Teleport to="body">
       <div
@@ -229,15 +259,6 @@
             >
               ✕
             </button>
-          </div>
-
-          <div class="pos-hotkey-hero">
-            <img :src="'/images/staff/hotkey_helper_3d.jpg'" alt="3D Hotkey Illustration" class="pos-hotkey-3d-img" />
-            <div class="pos-hotkey-hero-text">
-              <span class="pos-hotkey-hero-kicker">THAO TÁC SIÊU TỐC</span>
-              <h4>Phím tắt chuyên dụng cho Nhân viên</h4>
-              <p>Tối ưu 100% quy trình xử lý đơn đặt và điều phối sân tại quầy</p>
-            </div>
           </div>
 
           <div class="pos-modal-body">
@@ -461,13 +482,57 @@ export default {
     },
     async loadTodayShift() {
       try {
-        const todayStr = this.currentTime.toISOString().split('T')[0];
+        const y = this.currentTime.getFullYear();
+        const m = String(this.currentTime.getMonth() + 1).padStart(2, '0');
+        const d = String(this.currentTime.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
         const res = await ownerStaffShiftService.mySchedules({
           start_date: todayStr,
           end_date: todayStr,
         });
         const schedules = res.data || [];
-        this.todaySchedule = schedules[0] || null;
+        if (!schedules.length) {
+          this.todaySchedule = null;
+          return;
+        }
+
+        const nowMinutes = this.currentTime.getHours() * 60 + this.currentTime.getMinutes();
+
+        // 1. Prioritize any currently checked-in shift that hasn't checked out yet (Active ongoing shift)
+        const activeCheckedIn = schedules.find((s) => s.check_in_at && !s.check_out_at);
+        if (activeCheckedIn) {
+          this.todaySchedule = activeCheckedIn;
+          return;
+        }
+
+        // 2. Prioritize shift currently in progress (within [start_time - 30min, end_time])
+        const currentOngoing = schedules.find((s) => {
+          if (!s.shift) return false;
+          const [sh, sm] = (s.shift.start_time || '00:00').split(':').map(Number);
+          const [eh, em] = (s.shift.end_time || '23:59').split(':').map(Number);
+          const startM = sh * 60 + sm - 30; // allow check-in 30 mins before
+          const endM = eh * 60 + em;
+          return nowMinutes >= startM && nowMinutes <= endM && !s.check_out_at;
+        });
+        if (currentOngoing) {
+          this.todaySchedule = currentOngoing;
+          return;
+        }
+
+        // 3. Find next upcoming shift today that hasn't checked in yet
+        const upcomingShift = schedules.find((s) => {
+          if (!s.shift || s.check_out_at) return false;
+          const [sh, sm] = (s.shift.start_time || '00:00').split(':').map(Number);
+          return (sh * 60 + sm) > nowMinutes;
+        });
+        if (upcomingShift) {
+          this.todaySchedule = upcomingShift;
+          return;
+        }
+
+        // 4. If all shifts today are done or past, show the latest one
+        this.todaySchedule = schedules[schedules.length - 1] || schedules[0] || null;
       } catch (e) {
         console.warn('Failed to load today shift:', e);
       }
@@ -566,6 +631,28 @@ export default {
   color: #0f172a;
   font-family: inherit;
   scrollbar-gutter: stable;
+  overflow-x: hidden;
+  max-width: 100vw;
+  box-sizing: border-box;
+}
+
+.pos-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  .pos-main-content {
+    padding-bottom: 58px;
+    box-sizing: border-box;
+  }
 }
 
 /* TOP CLEAN HEADER */
@@ -580,7 +667,7 @@ export default {
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 /* LEFT BRAND & CLUSTER SELECTOR */
@@ -642,10 +729,10 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  border: 1px solid transparent;
   border-radius: 6px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   font-size: 13px;
   font-weight: 500;
   color: #0f172a;
@@ -657,7 +744,7 @@ export default {
 
 .pos-cluster-trigger:hover:not(:disabled),
 .pos-cluster-trigger.active {
-  border-color: #087642;
+  border-color: rgba(8, 118, 66, 0.2);
   color: #087642;
   background: #f0fdf4;
 }
@@ -780,8 +867,8 @@ export default {
 .pos-hotkey-badge {
   display: inline-block;
   padding: 1px 5px;
-  background: #e2e8f0;
-  color: #334155;
+  background: #f1f5f9;
+  color: #64748b;
   font-size: 9.5px;
   font-family: monospace;
   font-weight: 600;
@@ -798,14 +885,14 @@ export default {
 .pos-header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .pos-live-clock {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .pos-clock-time {
@@ -816,8 +903,8 @@ export default {
 }
 
 .pos-clock-date {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 11.5px;
+  color: #334155;
   font-weight: 500;
 }
 
@@ -826,24 +913,26 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .pos-shift-info {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .pos-shift-name {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   color: #0f172a;
 }
 
 .pos-shift-hours {
-  font-size: 10.5px;
-  color: #64748b;
+  font-size: 11px;
+  color: #334155;
+  font-weight: 500;
 }
 
 .pos-attend-btn {
@@ -856,16 +945,18 @@ export default {
   font-weight: 500;
   cursor: pointer;
   border: none;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
 .pos-attend-btn--in {
-  background: #087642;
+  background: #166534;
   color: #ffffff;
 }
 
 .pos-attend-btn--in:hover:not(:disabled) {
-  background: #065f35;
+  background: #14532d;
 }
 
 .pos-attend-btn--out {
@@ -881,19 +972,22 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #087642;
+  color: #166534;
   font-size: 11.5px;
   font-weight: 600;
-  background: #f0fdf4;
+  background: #f4f8f5;
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #cbdcd0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pos-no-shift {
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .pos-icon-btn {
@@ -902,9 +996,9 @@ export default {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: transparent;
+  background: #f8fafc;
   color: #334155;
-  border: 1px solid #e5e7eb;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -913,7 +1007,6 @@ export default {
 .pos-icon-btn:hover {
   background: #f0fdf4;
   color: #087642;
-  border-color: #087642;
 }
 
 /* USER PROFILE */
@@ -925,8 +1018,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: transparent;
-  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border: none;
   padding: 3px 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -937,7 +1030,7 @@ export default {
 .pos-user-btn:hover,
 .pos-user-btn.active {
   background: #f0fdf4;
-  border-color: #087642;
+  color: #087642;
 }
 
 .pos-user-avatar {
@@ -968,8 +1061,8 @@ export default {
 }
 
 .pos-user-role {
-  font-size: 10px;
-  color: #64748b;
+  font-size: 11px;
+  color: #334155;
   font-weight: 500;
 }
 
@@ -1002,8 +1095,8 @@ export default {
 }
 
 .pos-popover-head small {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 11.5px;
+  color: #334155;
 }
 
 .pos-popover-item {
@@ -1221,18 +1314,197 @@ export default {
   background: #065f35;
 }
 
+.pos-mobile-bottom-nav {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .pos-header {
-    padding: 0 14px;
+    height: 52px;
+    padding: 0 10px;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  .pos-header-left {
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .pos-cluster-trigger {
+    width: 100%;
+    max-width: 130px;
   }
   .pos-header-nav {
+    display: none;
+  }
+  .pos-header-right {
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .pos-live-clock {
     display: none;
   }
   .pos-hotkey-grid {
     grid-template-columns: 1fr;
   }
-  .pos-live-clock {
+
+  /* MOBILE BOTTOM NAV BAR */
+  .pos-mobile-bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    z-index: 99;
+    padding: 4px 10px;
+    box-sizing: border-box;
+  }
+
+  .pos-mob-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    text-decoration: none;
+    padding: 4px 0;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+  }
+
+  .pos-mob-tab.active {
+    color: #166534;
+    font-weight: 600;
+    background: #f4f8f5;
+  }
+
+  .pos-mob-tab:hover {
+    color: #166534;
+  }
+}
+
+@media (max-width: 640px) {
+  .pos-header {
+    height: 50px;
+    padding: 0 8px;
+    gap: 6px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .pos-header-left {
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pos-brand-text {
     display: none;
+  }
+
+  .pos-brand-logo {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .pos-cluster-wrapper {
+    flex: 1;
+    min-width: 0;
+    max-width: 115px;
+  }
+
+  .pos-cluster-trigger {
+    max-width: 100%;
+    width: 100%;
+    padding: 3px 6px;
+    font-size: 11.5px;
+  }
+
+  .pos-shift-info {
+    display: none;
+  }
+
+  .pos-header-right {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .pos-attendance-box {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .pos-attend-btn,
+  .pos-attend-done {
+    padding: 4px 6px;
+    font-size: 11px;
+    gap: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .pos-attend-btn span,
+  .pos-attend-done span {
+    display: inline;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .pos-user-wrapper {
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .pos-user-btn {
+    padding: 0;
+    gap: 2px;
+    background: transparent;
+  }
+
+  .pos-user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .pos-user-meta {
+    display: none;
+  }
+
+  .pos-icon-btn {
+    display: none;
+  }
+
+  .pos-user-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 195px;
+    max-width: calc(100vw - 16px);
+    z-index: 1000;
+  }
+
+  .pos-cluster-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 190px;
+    max-width: calc(100vw - 16px);
+    z-index: 1000;
   }
 }
 </style>

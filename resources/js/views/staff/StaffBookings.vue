@@ -1,89 +1,110 @@
 <template>
   <div class="pos-workspace">
-    <!-- 1. TOP OPERATIONAL BAR: DATE + TIME PERIOD + SEARCH -->
-    <header class="pos-top-bar">
-      <div class="pos-top-left">
-        <!-- Date Switcher -->
-        <div class="pos-date-group">
-          <div class="pos-date-nav">
-            <button
-              type="button"
-              class="pos-nav-btn"
-              title="Ngày trước"
-              aria-label="Ngày trước"
-              @click="shiftDate(-1)"
-            >
-              <AppIcon name="chevronLeft" :size="16" />
-            </button>
-            <button
-              type="button"
-              class="pos-chip-btn"
-              :class="{ active: isToday(filters.booking_date) }"
-              @click="setToday"
-            >
-              Hôm nay
-            </button>
-            <button
-              type="button"
-              class="pos-chip-btn"
-              :class="{ active: isTomorrow(filters.booking_date) }"
-              @click="setTomorrow"
-            >
-              Ngày mai
-            </button>
-            <button
-              type="button"
-              class="pos-nav-btn"
-              title="Ngày sau"
-              aria-label="Ngày sau"
-              @click="shiftDate(1)"
-            >
-              <AppIcon name="chevronRight" :size="16" />
-            </button>
-          </div>
+    <!-- 1. OPERATIONAL TOOLBAR: DATE + TIME PERIOD + ACTIONS -->
+    <header class="pos-top-toolbar">
+      <div class="pos-toolbar-left">
+        <!-- Date Navigator -->
+        <div class="pos-date-nav-wrap">
+          <button
+            type="button"
+            class="btn-date-nav-arrow"
+            title="Ngày trước"
+            aria-label="Ngày trước"
+            @click="shiftDate(-1)"
+          >
+            <AppIcon name="chevronLeft" :size="15" />
+          </button>
+          <button
+            type="button"
+            class="btn-date-nav-today"
+            :class="{ active: isToday(filters.booking_date) }"
+            @click="setToday"
+          >
+            HÔM NAY
+          </button>
+          <button
+            type="button"
+            class="btn-date-nav-arrow"
+            title="Ngày sau"
+            aria-label="Ngày sau"
+            @click="shiftDate(1)"
+          >
+            <AppIcon name="chevronRight" :size="15" />
+          </button>
+        </div>
 
-          <!-- MiniCalendar Dropdown Trigger -->
-          <div class="pos-cal-dropdown">
-            <button
-              type="button"
-              class="pos-cal-btn"
-              :class="{ active: showCalDropdown }"
-              @click="showCalDropdown = !showCalDropdown"
-            >
-              <AppIcon name="calendar" :size="15" />
-              <span>{{ formattedCurrentDate }}</span>
-              <AppIcon name="chevronDown" :size="13" />
-            </button>
-            <div v-if="showCalDropdown" class="pos-cal-popover">
-              <MiniCalendar
-                mode="single"
-                :model-value="filters.booking_date"
-                @update:model-value="onDateSelect"
-              />
-            </div>
+        <!-- Custom Date Dropdown Trigger -->
+        <div class="pos-cal-dropdown">
+          <button
+            type="button"
+            class="pos-cal-btn"
+            :class="{ active: showCalDropdown }"
+            title="Mở lịch chọn ngày"
+            @click="toggleCalDropdown"
+          >
+            <AppIcon name="calendar" :size="15" />
+            <span>{{ formattedCurrentDate }}</span>
+          </button>
+          <div v-if="showCalDropdown" class="pos-cal-popover">
+            <MiniCalendar
+              mode="single"
+              :model-value="filters.booking_date"
+              @update:model-value="onDateSelect"
+            />
           </div>
         </div>
 
-        <!-- Shift / Time Period Tabs -->
-        <div class="pos-period-tabs">
+        <!-- Custom Shift / Time Period Dropdown Trigger -->
+        <div class="pos-period-wrapper">
           <button
-            v-for="period in timePeriods"
-            :key="period.key"
             type="button"
             class="pos-period-btn"
-            :class="{ active: activeTimePeriod === period.key }"
-            @click="activeTimePeriod = period.key"
+            :class="{ active: showPeriodDropdown }"
+            title="Chọn khung giờ / ca làm việc"
+            @click="togglePeriodDropdown"
           >
-            <span>{{ period.label }}</span>
-            <small>{{ period.range }}</small>
+            <AppIcon name="clock" :size="14" />
+            <span class="pos-period-btn-label">
+              {{ activePeriod.label }} ({{ activePeriod.range }})
+            </span>
+            <AppIcon
+              name="chevronDown"
+              :size="12"
+              class="pos-period-arrow"
+              :class="{ 'is-open': showPeriodDropdown }"
+            />
           </button>
+
+          <!-- Custom Popover Menu -->
+          <div v-if="showPeriodDropdown" class="pos-period-popover">
+            <button
+              v-for="period in timePeriods"
+              :key="period.key"
+              type="button"
+              class="pos-period-option"
+              :class="{ active: activeTimePeriod === period.key }"
+              @click="selectTimePeriod(period.key)"
+            >
+              <div class="period-opt-info">
+                <strong>{{ period.label }}</strong>
+                <small>{{ period.range }}</small>
+              </div>
+              <AppIcon
+                v-if="activeTimePeriod === period.key"
+                name="check"
+                :size="14"
+                class="period-opt-check"
+              />
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Right: Search & Quick Refresh -->
-      <div class="pos-top-right">
+      <!-- Right Toolbar: Search, Mode Switch, Quick Actions, Refresh -->
+      <div class="pos-toolbar-right">
+        <!-- Search Box -->
         <div class="pos-search-box">
-          <AppIcon name="search" :size="13" class="pos-search-icon" />
+          <AppIcon name="search" :size="14" class="pos-search-icon" />
           <input
             v-model.trim="searchKeyword"
             type="text"
@@ -101,62 +122,114 @@
           </button>
         </div>
 
-        <!-- Fast Action: Scan QR Ticket -->
-        <button
-          type="button"
-          class="pos-btn-tool"
-          title="Quét mã QR vé đặt sân"
-          @click="showQrScannerModal = true"
-        >
-          <AppIcon name="qrCode" :size="13" />
-          <span>Quét vé QR</span>
-        </button>
+        <!-- Action Row (View Mode, Fast Actions, Refresh) -->
+        <div class="pos-toolbar-actions-row">
+          <!-- View Mode Switcher: Matrix vs Danh sách -->
+          <div class="pos-view-switcher">
+            <button
+              type="button"
+              class="pos-view-btn"
+              :class="{ active: viewMode === 'matrix' }"
+              title="Xem bảng lịch ma trận thời gian trong ngày"
+              @click="viewMode = 'matrix'"
+            >
+              <AppIcon name="grid" :size="13" />
+              <span>Ma trận</span>
+            </button>
+            <button
+              type="button"
+              class="pos-view-btn"
+              :class="{ active: viewMode === 'list' }"
+              title="Xem danh sách đơn đặt sân"
+              @click="viewMode = 'list'"
+            >
+              <AppIcon name="list" :size="13" />
+              <span>Danh sách</span>
+            </button>
+          </div>
 
-        <!-- Fast Action: Quick Retail F&B -->
-        <button
-          type="button"
-          class="pos-btn-tool"
-          title="Bán nhanh nước uống & dịch vụ quầy"
-          @click="showQuickRetailModal = true"
-        >
-          <AppIcon name="shoppingBag" :size="13" />
-          <span>Bán F&B</span>
-        </button>
+          <!-- Fast Action: Scan QR Ticket -->
+          <button
+            type="button"
+            class="pos-btn-action is-qr"
+            title="Quét mã QR vé đặt sân"
+            @click="showQrScannerModal = true"
+          >
+            <AppIcon name="qrCode" :size="14" />
+            <span>Quét vé</span>
+          </button>
 
-        <button
-          type="button"
-          class="pos-btn-refresh"
-          title="Tải lại dữ liệu (F3)"
-          @click="loadBookings"
-        >
-          <AppIcon name="rotateCw" :size="13" :class="{ 'animate-spin': loading || scheduleLoading }" />
-          <span>Tải lại</span>
-        </button>
+          <!-- Fast Action: Quick Retail F&B -->
+          <button
+            type="button"
+            class="pos-btn-action is-fnb"
+            title="Bán nhanh nước uống & dịch vụ quầy"
+            @click="showQuickRetailModal = true"
+          >
+            <AppIcon name="shoppingBag" :size="14" />
+            <span>Bán F&B</span>
+          </button>
+
+          <!-- Utility: Refresh -->
+          <button
+            type="button"
+            class="pos-btn-icon-refresh"
+            title="Tải lại dữ liệu (F3)"
+            @click="loadBookings"
+          >
+            <AppIcon name="rotateCw" :size="14" :class="{ 'animate-spin': loading || scheduleLoading }" />
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- 2. HIGH-IMPACT OPERATIONAL KPI STRIP -->
-    <section class="pos-kpi-strip">
-      <div class="pos-kpi-cell is-playing">
-        <span class="pos-kpi-val">{{ kpiStats.playingCount }}</span>
-        <span class="pos-kpi-label">Đang trong sân</span>
+    <!-- 2. COMPACT STRUCTURED KPI STATUS BAR -->
+    <section class="pos-kpi-bar">
+      <div class="pos-metric-strip">
+        <div class="pos-metric-item">
+          <span class="pos-metric-label">Đang chơi</span>
+          <span class="pos-metric-val text-green">{{ kpiStats.playingCount }}</span>
+        </div>
+
+        <div class="pos-metric-divider"></div>
+
+        <div class="pos-metric-item">
+          <span class="pos-metric-label">Chờ check-in</span>
+          <span class="pos-metric-val text-blue">{{ kpiStats.confirmedCount }}</span>
+        </div>
+
+        <div class="pos-metric-divider"></div>
+
+        <div class="pos-metric-item">
+          <span class="pos-metric-label">Chờ cọc</span>
+          <span class="pos-metric-val text-amber">{{ kpiStats.pendingCount }}</span>
+        </div>
+
+        <div class="pos-metric-divider"></div>
+
+        <div class="pos-metric-item">
+          <span class="pos-metric-label">Chưa thu</span>
+          <span class="pos-metric-val text-red">{{ formatCurrency(kpiStats.unpaidAmount) }}</span>
+        </div>
+
+        <div class="pos-metric-divider"></div>
+
+        <div class="pos-metric-item">
+          <span class="pos-metric-label">Đã thu hôm nay</span>
+          <span class="pos-metric-val text-forest">{{ formatCurrency(kpiStats.collectedAmount) }}</span>
+        </div>
       </div>
-      <div class="pos-kpi-cell is-confirmed">
-        <span class="pos-kpi-val">{{ kpiStats.confirmedCount }}</span>
-        <span class="pos-kpi-label">Chờ check-in</span>
-      </div>
-      <div class="pos-kpi-cell is-pending">
-        <span class="pos-kpi-val">{{ kpiStats.pendingCount }}</span>
-        <span class="pos-kpi-label">Chờ xử lý / Đợi cọc</span>
-      </div>
-      <div class="pos-kpi-cell is-unpaid">
-        <span class="pos-kpi-val">{{ formatCurrency(kpiStats.unpaidAmount) }}</span>
-        <span class="pos-kpi-label">Chưa thu tiền ({{ kpiStats.unpaidCount }} đơn)</span>
-      </div>
-      <div class="pos-kpi-cell is-revenue">
-        <span class="pos-kpi-val">{{ formatCurrency(kpiStats.collectedAmount) }}</span>
-        <span class="pos-kpi-label">Đã thu hôm nay</span>
-      </div>
+
+      <!-- Right Action: Clean borderless link button -->
+      <button
+        type="button"
+        class="btn-analytics-toggle"
+        title="Xem phân tích công suất, biểu đồ nhiệt và cơ cấu tiền két"
+        @click="showAnalyticsModal = true"
+      >
+        <AppIcon name="barChart" :size="14" />
+        <span>Báo cáo ca</span>
+      </button>
     </section>
 
     <!-- Alerts / Flash Notices -->
@@ -176,7 +249,9 @@
         <p>Đang đồng bộ dữ liệu thời gian thực...</p>
       </div>
       <div v-else-if="scheduleError" class="pos-state-box is-error">
-        <img :src="'/images/staff/pos_terminal_3d.jpg'" alt="3D POS Terminal" class="pos-3d-terminal-img" />
+        <div class="pos-state-icon-badge is-error">
+          <AppIcon name="alertCircle" :size="36" />
+        </div>
         <div class="pos-3d-empty-info">
           <h4>Không thể kết nối dữ liệu sân</h4>
           <p>{{ scheduleError }}</p>
@@ -184,27 +259,101 @@
         </div>
       </div>
       <div v-else-if="!visibleCourts.length" class="pos-state-box">
-        <img :src="'/images/staff/pos_terminal_3d.jpg'" alt="3D POS Terminal" class="pos-3d-terminal-img" />
+        <div class="pos-state-icon-badge">
+          <AppIcon name="grid" :size="36" />
+        </div>
         <div class="pos-3d-empty-info">
           <h4>Chưa có dữ liệu sân thi đấu</h4>
           <p>Cụm sân này hiện chưa có danh sách sân hoặc bạn chưa được phân quyền truy cập sân.</p>
         </div>
       </div>
 
-      <!-- Live Terminal Grid -->
+      <!-- A. LIST VIEW (DANH SÁCH ĐƠN ĐẶT SÂN) -->
+      <div v-else-if="viewMode === 'list'" class="pos-list-container">
+        <table class="pos-data-table">
+          <thead>
+            <tr>
+              <th>Mã đơn</th>
+              <th>Khách hàng</th>
+              <th>SĐT</th>
+              <th>Sân</th>
+              <th>Khung giờ</th>
+              <th>Trạng thái</th>
+              <th>Tổng tiền</th>
+              <th>Còn nợ</th>
+              <th class="th-actions">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="b in filteredBookingsList"
+              :key="b.id"
+              class="tr-clickable"
+              @click="openBookingDrawerFromList(b)"
+            >
+              <td><strong class="mono-code">#{{ b.booking_code }}</strong></td>
+              <td><strong>{{ customerName(b) }}</strong></td>
+              <td>{{ customerPhone(b) || '—' }}</td>
+              <td>{{ b.venue_court?.name || b.court?.name || courtName(b.venue_court_id) || '—' }}</td>
+              <td>{{ formatTime(b.start_time) }} - {{ formatTime(b.end_time) }}</td>
+              <td>
+                <span class="list-status-pill" :class="b.status">
+                  {{ statusLabel(b.status) }}
+                </span>
+              </td>
+              <td>{{ formatCurrency(b.total_price || b.final_amount || b.total_amount) }}</td>
+              <td>
+                <strong :class="{ 'text-danger': outstandingAmount(b) > 0 }">
+                  {{ outstandingAmount(b) > 0 ? formatCurrency(outstandingAmount(b)) : '0đ' }}
+                </strong>
+              </td>
+              <td class="td-actions" @click.stop>
+                <button
+                  v-if="['pending_approval', 'confirmed'].includes(b.status)"
+                  type="button"
+                  class="btn-table-action is-checkin"
+                  @click="quickCheckIn(b)"
+                >
+                  Check-in
+                </button>
+                <button
+                  v-if="outstandingAmount(b) > 0"
+                  type="button"
+                  class="btn-table-action is-collect"
+                  @click="openCollectPayment(b)"
+                >
+                  Thu tiền
+                </button>
+                <button
+                  type="button"
+                  class="btn-table-action"
+                  @click="openBookingDrawerFromList(b)"
+                >
+                  Chi tiết
+                </button>
+              </td>
+            </tr>
+            <tr v-if="!filteredBookingsList.length">
+              <td colspan="9" class="td-empty-list">Không tìm thấy đơn đặt sân nào phù hợp.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- B. Live Terminal Grid (Matrix View) -->
       <div v-else class="pos-grid-scroller">
         <table class="pos-table">
           <thead>
             <tr>
-              <th class="pos-th-time">Khung Giờ</th>
+              <th class="pos-th-time">Khung giờ</th>
               <th
                 v-for="court in visibleCourts"
                 :key="court.id"
                 class="pos-th-court"
               >
                 <div class="pos-court-header">
-                  <strong class="pos-court-name">{{ court.name }}</strong>
-                  <span class="pos-court-type">{{ court.court_type?.name || 'Sân chuẩn' }}</span>
+                  <strong class="pos-court-name">{{ formatCourtShortName(court.name) }}</strong>
+                  <span class="pos-court-type">{{ formatCourtTypeName(court) }}</span>
                 </div>
               </th>
             </tr>
@@ -213,65 +362,73 @@
             <tr
               v-for="slot in verticalHourlySlots"
               :key="slot.start"
+              :id="`slot-row-${Math.floor(slot.start / 60)}`"
               class="pos-tr-row"
+              :class="{ 'is-jump-highlight': highlightedHour === Math.floor(slot.start / 60) }"
             >
               <!-- Monospace Time Mark -->
               <td class="pos-td-time">
                 <span class="pos-time-mark">{{ slot.label }}</span>
               </td>
 
-              <!-- Court Slot Interactive Cells -->
-              <td
-                v-for="court in visibleCourts"
-                :key="`${court.id}-${slot.start}`"
-                class="pos-td-cell"
-                :class="{ 'is-highlight': isSlotHighlighted(court.id, slot) }"
-                @click="onCellClick(court, slot)"
-              >
-                <!-- Booked or Locked Block -->
-                <div
-                  v-if="getBlockForCourtAndSlot(court.id, slot)"
-                  class="pos-slot-card"
-                  :class="[
-                    getBlockForCourtAndSlot(court.id, slot).kindClass,
-                    { 'is-selected': selectedTimelineItem?.key === getBlockForCourtAndSlot(court.id, slot).key }
-                  ]"
-                  @click.stop="selectTimelineItem(getBlockForCourtAndSlot(court.id, slot))"
+              <!-- Court Slot Interactive Cells with Smart Rowspan -->
+              <template v-for="court in visibleCourts" :key="`${court.id}-${slot.start}`">
+                <td
+                  v-if="getSlotCellInfo(court.id, slot).shouldRender"
+                  :rowspan="getSlotCellInfo(court.id, slot).rowspan"
+                  class="pos-td-cell"
+                  :class="{
+                    'is-highlight': isSlotHighlighted(court.id, slot),
+                    'is-booked-cell': getSlotCellInfo(court.id, slot).type === 'block'
+                  }"
+                  @click="onCellClick(court, slot)"
                 >
-                  <div class="pos-slot-card-accent"></div>
-                  <div class="pos-slot-card-content">
-                    <div class="pos-slot-top">
-                      <strong class="pos-slot-title">
-                        {{ getBlockForCourtAndSlot(court.id, slot).title }}
-                      </strong>
-                      <span
-                        v-if="getBlockForCourtAndSlot(court.id, slot).type === 'booking'"
-                        class="pos-slot-code"
-                      >
-                        #{{ getBlockForCourtAndSlot(court.id, slot).booking?.booking_code || '' }}
-                      </span>
-                    </div>
+                  <!-- Booked or Locked Block -->
+                  <div
+                    v-if="getSlotCellInfo(court.id, slot).block"
+                    class="pos-booking-card"
+                    :class="[
+                      getSlotCellInfo(court.id, slot).block.kindClass,
+                      { 'is-selected': selectedTimelineItem?.key === getSlotCellInfo(court.id, slot).block.key }
+                    ]"
+                    @click.stop="selectTimelineItem(getSlotCellInfo(court.id, slot).block)"
+                  >
+                    <div class="pos-booking-status-stripe"></div>
+                    <div class="pos-booking-body">
+                      <div class="pos-booking-row-1">
+                        <strong class="pos-booking-customer">
+                          {{ getSlotCellInfo(court.id, slot).block.title }}
+                        </strong>
+                        <span
+                          v-if="getSlotCellInfo(court.id, slot).block.statusPill"
+                          class="pos-booking-status-badge"
+                          :class="getSlotCellInfo(court.id, slot).block.statusPill.type"
+                        >
+                          {{ getSlotCellInfo(court.id, slot).block.statusPill.label }}
+                        </span>
+                      </div>
 
-                    <div class="pos-slot-bottom">
-                      <span class="pos-slot-time">
-                        {{ getBlockForCourtAndSlot(court.id, slot).timeLabel }}
-                      </span>
-                      <span
-                        v-if="getBlockForCourtAndSlot(court.id, slot).statusPill"
-                        class="pos-slot-status-text"
-                        :class="getBlockForCourtAndSlot(court.id, slot).statusPill.type"
-                      >
-                        {{ getBlockForCourtAndSlot(court.id, slot).statusPill.label }}
-                      </span>
+                      <div class="pos-booking-row-2">
+                        <span class="pos-booking-time">
+                          <AppIcon name="clock" :size="11" />
+                          {{ getSlotCellInfo(court.id, slot).block.timeLabel }}
+                        </span>
+                        <span
+                          v-if="getSlotCellInfo(court.id, slot).block.booking"
+                          class="pos-booking-phone"
+                        >
+                          ☎ {{ customerPhone(getSlotCellInfo(court.id, slot).block.booking) }}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Empty Slot: Instant Walk-in Quick Book -->
-                <div v-else class="pos-empty-slot">
-                  <span class="pos-empty-action">+ Đặt nhanh</span>
-                </div>
-              </td>
+                  <!-- Empty Slot: Clean, inviting hover state -->
+                  <div v-else class="pos-empty-slot">
+                    <span class="pos-empty-hint">+ Đặt sân</span>
+                  </div>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -555,16 +712,32 @@
             <button type="button" class="pos-drawer-close-btn" @click="closeChangeCourt">✕</button>
           </header>
           <div class="pos-modal-body">
+            <div class="pos-field">
+              <span class="pos-field-label">Chọn sân đích mới <span class="req">*</span></span>
+              <div class="pos-court-select-grid">
+                <button
+                  v-for="court in changeCourtOptions"
+                  :key="court.id"
+                  type="button"
+                  class="pos-court-select-card"
+                  :class="{ active: String(changeCourtForm.venue_court_id) === String(court.id) }"
+                  @click="changeCourtForm.venue_court_id = court.id"
+                >
+                  <div class="court-opt-text">
+                    <strong>{{ court.name }}</strong>
+                    <span>{{ court.court_type?.name || 'Sân tiêu chuẩn' }}</span>
+                  </div>
+                  <AppIcon
+                    v-if="String(changeCourtForm.venue_court_id) === String(court.id)"
+                    name="check"
+                    :size="14"
+                    class="court-opt-check"
+                  />
+                </button>
+              </div>
+            </div>
             <label class="pos-field">
-              <span class="pos-field-label">Chọn sân đích mới</span>
-              <select v-model="changeCourtForm.venue_court_id" class="pos-input" required>
-                <option v-for="court in changeCourtOptions" :key="court.id" :value="court.id">
-                  {{ court.name }} · {{ court.court_type?.name }}
-                </option>
-              </select>
-            </label>
-            <label class="pos-field">
-              <span class="pos-field-label">Lý do đổi sân</span>
+              <span class="pos-field-label">Lý do đổi sân <span class="req">*</span></span>
               <textarea
                 v-model.trim="changeCourtForm.court_changed_reason"
                 class="pos-input"
@@ -712,6 +885,92 @@
       </div>
     </Teleport>
 
+    <!-- 5. ANALYTICS MODAL (OPERATIONAL REPORT & RECONCILIATION) -->
+    <Teleport to="body">
+      <div v-if="showAnalyticsModal" class="analytics-modal-backdrop" @click.self="showAnalyticsModal = false">
+        <div class="analytics-modal-dialog">
+          <header class="analytics-modal-head">
+            <div class="head-titles">
+              <h3>Báo cáo phân tích vận hành &amp; Ca trực</h3>
+              <span class="head-subtitle">{{ selectedClusterName }} · {{ formattedCurrentDate }}</span>
+            </div>
+            <button type="button" class="analytics-close-btn" @click="showAnalyticsModal = false">✕</button>
+          </header>
+
+          <div class="analytics-modal-body">
+            <!-- TOP ROW: 2 COLUMN METRIC CARDS -->
+            <div class="analytics-top-grid">
+              <!-- A. Live Utilization Radial Meter -->
+              <div class="analytic-card">
+                <div class="gauge-ring-wrap">
+                  <svg class="gauge-svg" viewBox="0 0 36 36">
+                    <path class="gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path class="gauge-fill" :stroke-dasharray="`${liveOccupancyPercent}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  </svg>
+                  <span class="gauge-num">{{ liveOccupancyPercent }}%</span>
+                </div>
+                <div class="gauge-meta">
+                  <span class="analytic-card-label">Công suất sân tức thì</span>
+                  <div class="gauge-val-highlight">{{ kpiStats.playingCount }} / {{ visibleCourts.length }} sân</div>
+                  <span class="gauge-desc">Đang có khách thi đấu thực tế</span>
+                </div>
+              </div>
+
+              <!-- C. Cash vs SePay QR Breakdown Ratio -->
+              <div class="analytic-card is-revenue-card">
+                <div class="cash-card-head">
+                  <span class="analytic-card-label">Cơ cấu thu ca</span>
+                  <strong class="cash-total">{{ formatCurrency(paymentBreakdown.total) }}</strong>
+                </div>
+                <div class="cash-segmented-bar">
+                  <div class="seg-fill is-qr" :style="{ width: `${paymentBreakdown.qrPct}%` }" :title="`VietQR: ${formatCurrency(paymentBreakdown.qr)} (${paymentBreakdown.qrPct}%)`"></div>
+                  <div class="seg-fill is-cash" :style="{ width: `${paymentBreakdown.cashPct}%` }" :title="`Tiền két: ${formatCurrency(paymentBreakdown.cash)} (${paymentBreakdown.cashPct}%)`"></div>
+                </div>
+                <div class="cash-metrics-row">
+                  <div class="cash-sub-metric">
+                    <span class="sub-dot is-qr"></span>
+                    <span class="sub-name">VietQR ({{ paymentBreakdown.qrPct }}%):</span>
+                    <span class="sub-val">{{ formatCurrency(paymentBreakdown.qr) }}</span>
+                  </div>
+                  <div class="cash-sub-metric">
+                    <span class="sub-dot is-cash"></span>
+                    <span class="sub-name">Tiền két ({{ paymentBreakdown.cashPct }}%):</span>
+                    <span class="sub-val">{{ formatCurrency(paymentBreakdown.cash) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- B. Peak-Hour Occupancy Heatmap Strip (FULL WIDTH) -->
+            <div class="analytic-card is-heatmap">
+              <div class="heat-card-head">
+                <span class="analytic-card-label">Mật độ lấp đầy theo khung giờ</span>
+                <div class="heat-legend">
+                  <span class="legend-item"><span class="legend-dot is-peak"></span>&ge;85%</span>
+                  <span class="legend-item"><span class="legend-dot is-high"></span>60-84%</span>
+                  <span class="legend-item"><span class="legend-dot is-medium"></span>30-59%</span>
+                  <span class="legend-item"><span class="legend-dot is-low"></span>&lt;30%</span>
+                </div>
+              </div>
+              <div class="heat-bars-grid">
+                <div
+                  v-for="slot in hourlyOccupancyHeatmap"
+                  :key="slot.hour"
+                  class="heat-bar-col"
+                  :title="`${slot.label}: ${slot.bookedCount}/${slot.totalCourts} sân (${slot.percent}%)`"
+                >
+                  <div class="heat-bar-track">
+                    <div class="heat-bar-fill" :class="`is-${slot.level}`" :style="{ height: `${Math.max(slot.percent, 8)}%` }"></div>
+                  </div>
+                  <span class="heat-hour-label">{{ slot.hour }}h</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 7. QUICK RETAIL F&B MODAL -->
     <StaffQuickRetailModal
       :is-open="showQuickRetailModal"
@@ -737,7 +996,6 @@ import { venueClusterService } from '../../services/venueClusters.js';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
 import AppIcon from '../../components/AppIcon.vue';
 import MiniCalendar from '../../components/MiniCalendar.vue';
-import SportIllustration from '../../components/common/SportIllustration.vue';
 import StaffQuickRetailModal from '../../components/staff/StaffQuickRetailModal.vue';
 import StaffQrScannerModal from '../../components/staff/StaffQrScannerModal.vue';
 import { playSuccessChime } from '../../utils/audioChime.js';
@@ -751,7 +1009,7 @@ function localIsoDate(date = new Date()) {
 
 export default {
   name: 'StaffBookingsPOS',
-  components: { AppIcon, MiniCalendar, SportIllustration, StaffQuickRetailModal, StaffQrScannerModal },
+  components: { AppIcon, MiniCalendar, StaffQuickRetailModal, StaffQrScannerModal },
   data() {
     return {
       clusters: [],
@@ -771,13 +1029,20 @@ export default {
       scheduleCourts: [],
       scheduleBusyIntervals: [],
       scheduleSlotStatuses: [],
+      scheduleOperatingHours: null,
       selectedTimelineItem: null,
       activeTimePeriod: 'business',
+      viewMode: 'matrix', // 'matrix' | 'arena' | 'list'
+      currentClockTime: '',
+      clockTimer: null,
+      highlightedHour: null,
       error: '',
       notice: '',
       showCalDropdown: false,
+      showPeriodDropdown: false,
       showQuickRetailModal: false,
       showQrScannerModal: false,
+      showAnalyticsModal: false,
 
       // Shift attendance state
       shiftLoading: false,
@@ -919,20 +1184,199 @@ export default {
       if (!this.todayShift) return '';
       return this.todayShift.shift?.name || `${this.formatTime(this.todayShift.start_time)} - ${this.formatTime(this.todayShift.end_time)}`;
     },
+    liveOccupancyPercent() {
+      const total = this.visibleCourts.length;
+      if (!total) return 0;
+      return Math.min(Math.round((this.kpiStats.playingCount / total) * 100), 100);
+    },
+    hourlyOccupancyHeatmap() {
+      const courts = this.visibleCourts;
+      const totalCourts = courts.length;
+      if (!totalCourts) return [];
+
+      let startHour = 6;
+      let endHour = 23;
+
+      if (this.scheduleOperatingHours) {
+        if (this.scheduleOperatingHours.open_time) {
+          startHour = parseInt(this.scheduleOperatingHours.open_time.split(':')[0], 10);
+        }
+        if (this.scheduleOperatingHours.close_time) {
+          const closeH = parseInt(this.scheduleOperatingHours.close_time.split(':')[0], 10);
+          const closeM = parseInt(this.scheduleOperatingHours.close_time.split(':')[1] || '0', 10);
+          endHour = closeM > 0 ? closeH : Math.max(closeH - 1, startHour);
+        }
+      }
+
+      const blocks = this.timelineBlocks.filter((b) => b.type === 'booking');
+      const hours = [];
+
+      for (let h = startHour; h <= endHour; h++) {
+        const slotStart = h * 60;
+        const slotEnd = (h + 1) * 60;
+        
+        const bookedCourts = new Set();
+        for (const b of blocks) {
+          if (b.start < slotEnd && b.end > slotStart && !['cancelled', 'rejected'].includes(b.booking?.status)) {
+            bookedCourts.add(String(b.courtId));
+          }
+        }
+        
+        const count = bookedCourts.size;
+        const percent = Math.min(Math.round((count / totalCourts) * 100), 100);
+        let level = 'empty';
+        if (percent >= 85) level = 'peak';
+        else if (percent >= 60) level = 'high';
+        else if (percent >= 30) level = 'medium';
+        else if (percent > 0) level = 'low';
+
+        hours.push({
+          hour: h,
+          label: `${String(h).padStart(2, '0')}:00`,
+          bookedCount: count,
+          totalCourts,
+          percent,
+          level,
+        });
+      }
+      return hours;
+    },
+    paymentBreakdown() {
+      let cash = 0;
+      let qr = 0;
+      for (const booking of this.bookings) {
+        if (!booking.payments || !Array.isArray(booking.payments)) continue;
+        for (const p of booking.payments) {
+          if (p.status === 'paid') {
+            const amt = Number(p.amount) || 0;
+            if (p.method === 'cash') cash += amt;
+            else qr += amt;
+          }
+        }
+      }
+      const total = cash + qr;
+      const cashPct = total > 0 ? Math.round((cash / total) * 100) : 0;
+      const qrPct = total > 0 ? 100 - cashPct : 0;
+
+      return {
+        cash,
+        qr,
+        total,
+        cashPct,
+        qrPct,
+      };
+    },
+    selectedClusterName() {
+      const c = this.clusters.find((cl) => String(cl.id) === String(this.filters.venue_cluster_id));
+      return c?.name || 'Cụm sân';
+    },
+    filteredBookingsList() {
+      if (!this.bookings || !Array.isArray(this.bookings)) return [];
+      let list = [...this.bookings];
+      if (this.searchKeyword) {
+        const kw = this.searchKeyword.toLowerCase();
+        list = list.filter((b) => {
+          const code = (b.booking_code || '').toLowerCase();
+          const name = this.customerName(b).toLowerCase();
+          const phone = (this.customerPhone(b) || '').toLowerCase();
+          const court = (b.court?.name || '').toLowerCase();
+          return code.includes(kw) || name.includes(kw) || phone.includes(kw) || court.includes(kw);
+        });
+      }
+      return list.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+    },
   },
   async mounted() {
     this.syncClusterFromStorage();
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
+    document.addEventListener('click', this.handleOutsideClick);
     await this.loadClusters();
     await this.loadTodayShift();
     await this.loadBookings();
   },
   beforeUnmount() {
     window.removeEventListener('owner-cluster-changed', this.handleClusterChanged);
+    document.removeEventListener('click', this.handleOutsideClick);
     this.clearCollectPolling();
     this.clearCounterPolling();
   },
   methods: {
+    handleOutsideClick(e) {
+      if (!e.target.closest('.pos-cal-dropdown')) {
+        this.showCalDropdown = false;
+      }
+      if (!e.target.closest('.pos-period-wrapper')) {
+        this.showPeriodDropdown = false;
+      }
+    },
+    toggleCalDropdown() {
+      this.showCalDropdown = !this.showCalDropdown;
+      if (this.showCalDropdown) {
+        this.showPeriodDropdown = false;
+      }
+    },
+    togglePeriodDropdown() {
+      this.showPeriodDropdown = !this.showPeriodDropdown;
+      if (this.showPeriodDropdown) {
+        this.showCalDropdown = false;
+      }
+    },
+    selectTimePeriod(key) {
+      this.activeTimePeriod = key;
+      this.showPeriodDropdown = false;
+    },
+    updateClock() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      this.currentClockTime = `${hh}:${mm}`;
+    },
+    async quickCheckIn(booking) {
+      if (!booking) return;
+      await this.runBookingAction(booking, 'check_in');
+    },
+    openBookingDrawerFromList(booking) {
+      const block = this.timelineBlocks.find((b) => String(b.bookingId) === String(booking.id)) || {
+        key: `booking-${booking.id}`,
+        type: 'booking',
+        bookingId: booking.id,
+        booking,
+        courtId: booking.venue_court_id,
+        courtName: booking.court?.name || this.courtName(booking.venue_court_id),
+        start: this.timeToMinutes(booking.start_time),
+        end: this.timeToMinutes(booking.end_time),
+        title: this.customerName(booking),
+        subtitle: `${booking.booking_code} · ${this.statusLabel(booking.status)}`,
+        timeLabel: `${this.formatTime(booking.start_time)} - ${this.formatTime(booking.end_time)}`,
+        kindClass: this.timelineBookingClass(booking),
+      };
+      this.selectTimelineItem(block);
+    },
+    formatCourtShortName(name) {
+      if (!name) return 'Sân';
+      return name.replace(/^Sân\s+(cầu lông|pickleball|tennis|bóng đá)?\s*/i, '').trim() || name;
+    },
+    formatCourtTypeName(court) {
+      return court.court_type?.name || 'Sân tiêu chuẩn';
+    },
+    toggleInfographic() {
+      this.isInfographicCollapsed = !this.isInfographicCollapsed;
+      localStorage.setItem('pos_infographic_collapsed', this.isInfographicCollapsed ? '1' : '0');
+    },
+    jumpToHour(h) {
+      this.highlightedHour = h;
+      this.$nextTick(() => {
+        const el = document.getElementById(`slot-row-${h}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+      setTimeout(() => {
+        if (this.highlightedHour === h) {
+          this.highlightedHour = null;
+        }
+      }, 2500);
+    },
     syncClusterFromStorage() {
       this.filters.venue_cluster_id = localStorage.getItem('selected_cluster') || '';
     },
@@ -1035,6 +1479,18 @@ export default {
         this.scheduleCourts = scheduleRes.courts || [];
         this.scheduleBusyIntervals = scheduleRes.busy_intervals || [];
         this.scheduleSlotStatuses = scheduleRes.statuses || [];
+        this.scheduleOperatingHours = scheduleRes.operating_hours || null;
+
+        // Dynamically sync business period with cluster operating hours
+        if (this.scheduleOperatingHours && this.scheduleOperatingHours.open_time && this.scheduleOperatingHours.close_time) {
+          const openM = this.timeToMinutes(this.scheduleOperatingHours.open_time);
+          const closeM = this.timeToMinutes(this.scheduleOperatingHours.close_time);
+          if (closeM > openM && this.timePeriods[0]) {
+            this.timePeriods[0].start = openM;
+            this.timePeriods[0].end = closeM;
+            this.timePeriods[0].range = `${this.formatTime(this.scheduleOperatingHours.open_time)} - ${this.formatTime(this.scheduleOperatingHours.close_time)}`;
+          }
+        }
       } catch (err) {
         this.scheduleError = err.message || 'Không thể tải lịch sân.';
         this.bookings = [];
@@ -1045,9 +1501,54 @@ export default {
       }
     },
 
+    getSlotCellInfo(courtId, slot) {
+      const block = this.timelineBlocks.find(
+        (b) => String(b.courtId) === String(courtId) && b.start < slot.end && b.end > slot.start
+      );
+
+      if (!block) {
+        return {
+          type: 'empty',
+          shouldRender: true,
+          rowspan: 1,
+          block: null,
+        };
+      }
+
+      // Find the first visible slot that intersects with this block
+      const firstVisibleSlot = this.verticalHourlySlots.find(
+        (s) => s.start < block.end && s.end > block.start
+      );
+
+      const isFirstSlot = firstVisibleSlot && firstVisibleSlot.start === slot.start;
+
+      if (isFirstSlot) {
+        // Calculate how many visible slots this block spans across
+        const spanningSlots = this.verticalHourlySlots.filter(
+          (s) => s.start >= slot.start && s.start < block.end
+        );
+        const rowspan = Math.max(spanningSlots.length, 1);
+
+        return {
+          type: 'block',
+          shouldRender: true,
+          rowspan,
+          block,
+        };
+      }
+
+      // If covered by a previous slot's rowspan, do not render <td>
+      return {
+        type: 'covered',
+        shouldRender: false,
+        rowspan: 0,
+        block,
+      };
+    },
+
     getBlockForCourtAndSlot(courtId, slot) {
       return this.timelineBlocks.find(
-        (block) => String(block.courtId) === String(courtId) && block.start <= slot.start && block.end > slot.start
+        (block) => String(block.courtId) === String(courtId) && block.start < slot.end && block.end > slot.start
       ) || null;
     },
 
@@ -1579,84 +2080,76 @@ export default {
   min-height: calc(100vh - 56px);
 }
 
-/* 1. TOP OPERATIONAL BAR */
-.pos-top-bar {
+/* 1. TOP OPERATIONAL TOOLBAR */
+.pos-top-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
-.pos-top-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.pos-date-group {
+.pos-toolbar-left {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.pos-date-nav {
+.pos-date-nav-wrap {
   display: flex;
   align-items: center;
   gap: 2px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  padding: 2px;
-  border-radius: 6px;
-  height: 32px;
+  background: #f1f5f9;
+  border: none;
+  padding: 3px;
+  border-radius: 8px;
+  height: 36px;
   box-sizing: border-box;
 }
 
-.pos-nav-btn {
+.btn-date-nav-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 30px;
   border: none;
   background: transparent;
-  color: #334155;
-  border-radius: 4px;
+  color: #475569;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
-.pos-nav-btn:hover {
-  background: #f0fdf4;
-  color: #087642;
+.btn-date-nav-arrow:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
-.pos-chip-btn {
-  border: 1px solid transparent;
+.btn-date-nav-today {
+  border: none;
   background: transparent;
-  padding: 0 10px;
-  height: 26px;
+  padding: 0 12px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   font-size: 12.5px;
-  font-weight: 500;
-  color: #334155;
-  border-radius: 4px;
+  font-weight: 600;
+  color: #475569;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
-.pos-chip-btn:hover {
-  color: #087642;
-  background: #f0fdf4;
+.btn-date-nav-today:hover {
+  color: #0f172a;
 }
 
-.pos-chip-btn.active {
-  background: #087642;
+.btn-date-nav-today.active {
+  background: #166534;
   color: #ffffff;
-  border-color: #087642;
-  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(22, 101, 52, 0.15);
 }
 
 /* CALENDAR POPOVER TRIGGER */
@@ -1667,25 +2160,24 @@ export default {
 .pos-cal-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  padding: 0 10px;
-  height: 32px;
-  border-radius: 6px;
-  font-size: 12.5px;
+  gap: 8px;
+  background: #f8fafc;
+  border: none;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 500;
   color: #0f172a;
   cursor: pointer;
   box-sizing: border-box;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
 }
 
 .pos-cal-btn:hover,
 .pos-cal-btn.active {
-  border-color: #087642;
-  color: #087642;
-  background: #f0fdf4;
+  background: #f1f5f9;
+  color: #166534;
 }
 
 .pos-cal-popover {
@@ -1694,83 +2186,215 @@ export default {
   left: 0;
   z-index: 100;
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
   padding: 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #cbd5e1;
 }
 
-/* PERIOD TABS */
-.pos-period-tabs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  padding: 2px;
-  border-radius: 6px;
-  height: 32px;
-  box-sizing: border-box;
+/* CUSTOM PERIOD DROPDOWN */
+.pos-period-wrapper {
+  position: relative;
 }
 
 .pos-period-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  height: 26px;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 4px;
-  color: #334155;
-  font-size: 12.5px;
+  gap: 8px;
+  background: #f8fafc;
+  border: none;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 500;
+  color: #0f172a;
   cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.pos-period-btn:hover,
+.pos-period-btn.active {
+  background: #f1f5f9;
+  color: #166534;
+}
+
+.pos-period-arrow {
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.pos-period-arrow.is-open {
+  transform: rotate(180deg);
+  color: #166534;
+}
+
+.pos-period-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 230px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid #cbd5e1;
+  animation: popover-drop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popover-drop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pos-period-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
   transition: all 0.12s ease;
 }
 
-.pos-period-btn small {
-  font-size: 10.5px;
-  color: inherit;
-  opacity: 0.8;
+.pos-period-option:hover {
+  background: #f1f5f9;
 }
 
-.pos-period-btn:hover {
-  color: #087642;
-  background: #f0fdf4;
+.pos-period-option.active {
+  background: #f4f8f5;
+  color: #166534;
 }
 
-.pos-period-btn.active {
-  background: #087642;
-  color: #ffffff;
-  border-color: #087642;
+.period-opt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.period-opt-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pos-period-option.active .period-opt-info strong {
+  color: #166534;
+}
+
+.period-opt-info small {
+  font-size: 11.5px;
+  color: #475569;
   font-weight: 500;
 }
 
-/* TOP RIGHT SEARCH & REFRESH */
-.pos-top-right {
+.period-opt-check {
+  color: #166534;
+  flex-shrink: 0;
+}
+
+/* CUSTOM COURT SELECT CARDS GRID */
+.pos-court-select-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.pos-court-select-card {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 9px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.pos-court-select-card:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.pos-court-select-card.active {
+  background: #f4f8f5;
+  border-color: #166534;
+  color: #166534;
+}
+
+.court-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.court-opt-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pos-court-select-card.active .court-opt-text strong {
+  color: #166534;
+}
+
+.court-opt-text span {
+  font-size: 11.5px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.court-opt-check {
+  color: #166534;
+  flex-shrink: 0;
+}
+
+/* RIGHT TOOLBAR */
+.pos-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pos-toolbar-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .pos-search-box {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  padding: 0 10px;
-  height: 32px;
-  border-radius: 6px;
-  width: 195px;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 36px;
   box-sizing: border-box;
-  transition: all 0.12s ease;
+  width: 240px;
+  transition: all 0.15s ease;
 }
 
 .pos-search-box:focus-within {
-  border-color: #087642;
-  box-shadow: 0 0 0 2px rgba(8, 118, 66, 0.15);
+  background: #ffffff;
+  border-color: #166534;
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.1);
 }
 
 .pos-search-icon {
@@ -1782,111 +2406,212 @@ export default {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 500;
   height: 100%;
   width: 100%;
   color: #0f172a;
-  font-weight: 400;
 }
 
 .pos-search-box input::placeholder {
-  color: #94a3b8;
-  font-size: 12px;
+  color: #64748b;
+  font-size: 12.5px;
 }
 
 .pos-search-clear {
   border: none;
   background: transparent;
-  color: #64748b;
+  color: #475569;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
   padding: 0;
   line-height: 1;
 }
 
-.pos-btn-tool {
+/* VIEW MODE SWITCHER */
+.pos-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: none;
+  height: 36px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.pos-view-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 0 10px;
-  height: 32px;
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  height: 30px;
   font-size: 12.5px;
   font-weight: 500;
+  color: #475569;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.pos-view-btn:hover {
+  color: #0f172a;
+}
+
+.pos-view-btn.active {
+  background: #ffffff;
+  color: #166534;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* FAST ACTION BUTTONS */
+.pos-btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
   cursor: pointer;
   box-sizing: border-box;
   transition: all 0.12s ease;
   white-space: nowrap;
 }
 
-.pos-btn-tool:hover {
-  background: #f0fdf4;
-  border-color: #087642;
-  color: #087642;
-}
-
-.pos-btn-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  height: 32px;
-  background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition: all 0.12s ease;
-  white-space: nowrap;
-}
-
-.pos-btn-refresh:hover {
-  background: #087642;
-  border-color: #087642;
+.pos-btn-action.is-qr {
+  background: #166534;
   color: #ffffff;
 }
 
-/* 2. OPERATIONAL KPI STRIP */
-.pos-kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+.pos-btn-action.is-qr:hover {
+  background: #14532d;
 }
 
-.pos-kpi-cell {
-  background: #ffffff;
+.pos-btn-action.is-fnb {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.pos-btn-action.is-fnb:hover {
+  background: #0369a1;
+}
+
+.pos-btn-icon-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: #166534;
+  border: none;
   border-radius: 8px;
-  padding: 12px 16px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.12s ease;
+}
+
+.pos-btn-icon-refresh:hover {
+  background: #f4f8f5;
+  color: #14532d;
+}
+
+/* 2. BORDERLESS SEAMLESS KPI STATUS BAR */
+/* 2. COMPACT STRUCTURED KPI STATUS BAR */
+.pos-kpi-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent;
+  border: none;
+  padding: 0 0 10px 0;
+  margin-bottom: 2px;
+}
+
+.pos-metric-strip {
+  display: inline-flex;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 18px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.pos-metric-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border: 1px solid #e5e7eb;
 }
 
-.pos-kpi-val {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #0f172a;
-  line-height: 1.2;
-}
-
-.pos-kpi-cell.is-playing .pos-kpi-val { color: #087642; }
-.pos-kpi-cell.is-confirmed .pos-kpi-val { color: #d97706; }
-.pos-kpi-cell.is-pending .pos-kpi-val { color: #0284c7; }
-.pos-kpi-cell.is-unpaid .pos-kpi-val { color: #dc2626; }
-.pos-kpi-cell.is-revenue .pos-kpi-val { color: #087642; }
-
-.pos-kpi-label {
+.pos-metric-label {
   font-size: 11.5px;
-  color: #64748b;
   font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.1px;
+}
+
+.pos-metric-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pos-metric-val.text-green {
+  color: #166534;
+}
+
+.pos-metric-val.text-blue {
+  color: #0284c7;
+}
+
+.pos-metric-val.text-amber {
+  color: #d97706;
+}
+
+.pos-metric-val.text-red {
+  color: #dc2626;
+}
+
+.pos-metric-val.text-forest {
+  color: #166534;
+}
+
+.pos-metric-divider {
+  width: 1px;
+  height: 26px;
+  background: #e2e8f0;
+}
+
+.btn-analytics-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #166534;
+  cursor: pointer;
+  box-shadow: none;
+  transition: all 0.15s ease;
+}
+
+.btn-analytics-toggle:hover {
+  background: #f1f5f9;
+  color: #14532d;
 }
 
 /* FLASH ALERTS */
@@ -1895,38 +2620,38 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .pos-alert.is-error {
   background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fca5a5;
+  color: #991b1b;
+  border: 1px solid #f87171;
 }
 
 .pos-alert.is-success {
   background: #f0fdf4;
-  color: #087642;
-  border: 1px solid #bbf7d0;
+  color: #065f46;
+  border: 1px solid #86efac;
 }
 
 .pos-alert button {
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
   color: inherit;
 }
 
-/* 3. OPERATIONAL MATRIX TERMINAL */
+/* 3. OPERATIONAL VIEW CONTAINER */
 .pos-matrix-container {
   flex: 1;
-  background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  overflow: hidden;
+  background: transparent;
+  border: none;
+  overflow: visible;
 }
 
 .pos-state-box {
@@ -1936,22 +2661,10 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 16px;
-  color: #64748b;
+  color: #334155;
   text-align: center;
-  font-size: 13px;
-}
-
-.pos-3d-terminal-img {
-  width: 130px;
-  height: 130px;
-  object-fit: contain;
-  filter: drop-shadow(0 12px 24px rgba(8, 118, 66, 0.15));
-  animation: float-slow 3s ease-in-out infinite alternate;
-}
-
-@keyframes float-slow {
-  from { transform: translateY(0); }
-  to { transform: translateY(-4px); }
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
 .pos-3d-empty-info {
@@ -1963,28 +2676,28 @@ export default {
 }
 
 .pos-3d-empty-info h4 {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .pos-3d-empty-info p {
-  font-size: 12.5px;
-  color: #64748b;
+  font-size: 13.5px;
+  color: #334155;
   margin: 0;
-  max-width: 400px;
+  max-width: 420px;
 }
 
 .pos-btn-retry {
-  margin-top: 6px;
+  margin-top: 8px;
   background: #087642;
   color: #ffffff;
   border: none;
-  padding: 7px 16px;
+  padding: 8px 18px;
   border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1995,7 +2708,7 @@ export default {
 .pos-spinner {
   width: 28px;
   height: 28px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #cbd5e1;
   border-top-color: #087642;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -2008,21 +2721,26 @@ export default {
 .pos-grid-scroller {
   overflow-x: auto;
   overflow-y: visible;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .pos-table {
   width: 100%;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 2px;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .pos-th-time {
-  width: 105px;
-  background: #ffffff;
+  width: 110px;
+  background: #f8fafc;
   border-bottom: 2px solid #087642;
-  padding: 10px 8px;
-  font-size: 11.5px;
+  padding: 12px 8px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #0f172a;
   text-align: center;
@@ -2032,36 +2750,36 @@ export default {
 }
 
 .pos-th-court {
-  background: #ffffff;
+  background: #f8fafc;
   border-bottom: 2px solid #087642;
-  padding: 10px 12px;
+  padding: 12px 14px;
   text-align: left;
-  min-width: 180px;
+  min-width: 190px;
 }
 
 .pos-court-header {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
+  gap: 2px;
 }
 
 .pos-court-name {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 14.5px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .pos-court-type {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 12px;
+  color: #334155;
   font-weight: 500;
 }
 
 /* ROW & CELL */
 .pos-td-time {
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  padding: 6px 4px;
+  background: #f8fafc;
+  border-right: 1px solid #cbd5e1;
+  padding: 8px 4px;
   text-align: center;
   position: sticky;
   left: 0;
@@ -2070,13 +2788,13 @@ export default {
 
 .pos-time-mark {
   font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .pos-td-cell {
-  height: 58px;
+  height: 60px;
   padding: 1px;
   vertical-align: stretch;
   cursor: pointer;
@@ -2090,20 +2808,20 @@ export default {
 .pos-empty-slot {
   width: 100%;
   height: 100%;
-  border-radius: 4px;
+  border-radius: 5px;
   background: #ffffff;
   border: 1px dashed #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.12s ease;
-  min-height: 52px;
+  min-height: 54px;
 }
 
-.pos-empty-action {
-  font-size: 11px;
+.pos-empty-hint {
+  font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
   opacity: 0;
   transition: opacity 0.12s ease;
 }
@@ -2113,116 +2831,167 @@ export default {
   border-color: #087642;
 }
 
-.pos-td-cell:hover .pos-empty-action {
+.pos-td-cell:hover .pos-empty-hint {
   opacity: 1;
   color: #087642;
 }
 
-/* BOOKED / LOCKED SLOT CARD */
-.pos-slot-card {
+/* BOOKING CARDS */
+.pos-booking-card {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 52px;
-  border-radius: 4px;
+  min-height: 54px;
+  border-radius: 6px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   display: flex;
   overflow: hidden;
-  transition: border-color 0.12s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.12s ease;
 }
 
-.pos-slot-card:hover {
-  border-color: #087642;
-}
-
-.pos-slot-card.is-selected {
-  border-color: #087642;
-  box-shadow: 0 0 0 1px #087642;
-}
-
-.pos-slot-card-accent {
-  width: 3px;
+.pos-booking-status-stripe {
+  width: 5px;
   flex-shrink: 0;
   background: #64748b;
 }
 
-.pos-slot-card.is-playing-block .pos-slot-card-accent { background: #087642; }
-.pos-slot-card.is-confirmed-block .pos-slot-card-accent { background: #d97706; }
-.pos-slot-card.is-pending-block .pos-slot-card-accent { background: #0284c7; }
-.pos-slot-card.is-locked-block .pos-slot-card-accent { background: #0f172a; }
+.pos-booking-card.is-playing-block {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.pos-booking-card.is-playing-block .pos-booking-status-stripe {
+  background: #059669;
+}
 
-.pos-slot-card-content {
+.pos-booking-card.is-confirmed-block {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+.pos-booking-card.is-confirmed-block .pos-booking-status-stripe {
+  background: #2563eb;
+}
+
+.pos-booking-card.is-pending-block {
+  background: #fefce8;
+  border-color: #fde047;
+}
+.pos-booking-card.is-pending-block .pos-booking-status-stripe {
+  background: #d97706;
+}
+
+.pos-booking-card.is-overtime {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+.pos-booking-card.is-overtime .pos-booking-status-stripe {
+  background: #dc2626;
+}
+
+.pos-booking-card.is-locked-block {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.pos-booking-card.is-locked-block .pos-booking-status-stripe {
+  background: #475569;
+}
+
+.pos-booking-card:hover,
+.pos-booking-card.is-selected {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transform: scale(1.01);
+  z-index: 5;
+}
+
+.pos-booking-body {
   flex: 1;
-  padding: 5px 8px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
+  gap: 3px;
 }
 
-.pos-slot-top {
+.pos-booking-row-1 {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.pos-slot-title {
-  font-size: 12px;
-  font-weight: 600;
+.pos-booking-customer {
+  font-size: 12.5px;
+  font-weight: 700;
   color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-.pos-slot-code {
+.pos-booking-status-badge {
   font-size: 10px;
-  font-family: monospace;
   font-weight: 600;
-  color: #64748b;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
 }
 
-.pos-slot-bottom {
+.pos-booking-status-badge.playing {
+  background: #dcfce7;
+  color: #15803d;
+}
+.pos-booking-status-badge.confirmed {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.pos-booking-status-badge.unpaid {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.pos-booking-status-badge.ending-soon {
+  background: #fef3c7;
+  color: #b45309;
+}
+.pos-booking-status-badge.overtime {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.pos-booking-row-2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 4px;
 }
 
-.pos-slot-time {
-  font-size: 10px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.pos-slot-status-text {
-  font-size: 9.5px;
+.pos-booking-time {
+  font-size: 11.5px;
   font-weight: 600;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
-.pos-slot-status-text.playing { color: #087642; }
-.pos-slot-status-text.unpaid { color: #dc2626; }
-.pos-slot-status-text.confirmed { color: #087642; }
-.pos-slot-status-text.ending-soon { color: #d97706; }
-.pos-slot-status-text.overtime { color: #dc2626; font-weight: 700; }
-
-.pos-slot-card.is-ending-soon {
-  border-color: #f59e0b;
-  background: #fffbeb;
-}
-
-.pos-slot-card.is-overtime {
-  border-color: #ef4444;
-  background: #fef2f2;
+.pos-booking-phone {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #334155;
 }
 
 /* 4. MODAL & OFF-CANVAS DRAWER */
 .pos-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(2px);
   z-index: 9999;
   display: flex;
@@ -2234,11 +3003,11 @@ export default {
   max-width: 420px;
   background: #ffffff;
   height: 100%;
-  box-shadow: -8px 0 25px rgba(0, 0, 0, 0.12);
+  box-shadow: -8px 0 25px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   animation: slide-left 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  border-left: 1px solid #e5e7eb;
+  border-left: 1px solid #cbd5e1;
 }
 
 @keyframes slide-left {
@@ -2247,39 +3016,40 @@ export default {
 }
 
 .pos-drawer-head {
-  padding: 20px;
+  padding: 18px 20px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .pos-drawer-kicker {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   color: #087642;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .pos-drawer-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: #0f172a;
   margin: 3px 0 2px;
 }
 
 .pos-drawer-subtitle {
-  font-size: 12.5px;
-  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
   margin: 0;
 }
 
 .pos-drawer-close-btn {
   background: transparent;
   border: none;
-  font-size: 18px;
-  color: #64748b;
+  font-size: 20px;
+  font-weight: 700;
+  color: #475569;
   cursor: pointer;
   padding: 2px;
 }
@@ -2308,11 +3078,12 @@ export default {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 .pos-info-label {
-  color: #64748b;
+  color: #334155;
+  font-weight: 500;
 }
 
 .pos-info-val {
@@ -2321,7 +3092,7 @@ export default {
 }
 
 .pos-info-val.is-money {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 700;
 }
 
@@ -2331,7 +3102,7 @@ export default {
 
 .pos-info-val.is-outstanding {
   color: #dc2626;
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 700;
 }
 
@@ -2354,7 +3125,7 @@ export default {
   gap: 6px;
   padding: 11px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -2386,7 +3157,7 @@ export default {
 
 .pos-action-btn.is-change {
   background: #ffffff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #cbd5e1;
   color: #0f172a;
 }
 
@@ -2420,7 +3191,7 @@ export default {
 }
 
 .pos-field-label {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: #0f172a;
 }
@@ -2431,10 +3202,11 @@ export default {
 
 .pos-input {
   background: #ffffff;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   padding: 9px 12px;
   font-size: 13.5px;
+  font-weight: 500;
   color: #0f172a;
   outline: none;
   transition: all 0.12s ease;
@@ -2460,7 +3232,7 @@ export default {
   gap: 3px;
   padding: 10px 6px;
   background: #ffffff;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -2478,14 +3250,14 @@ export default {
 }
 
 .pos-mode-card strong {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
 .pos-mode-card small {
-  font-size: 10px;
+  font-size: 10.5px;
   color: inherit;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 /* QR CONTAINER */
@@ -2495,7 +3267,7 @@ export default {
   align-items: center;
   gap: 8px;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #cbd5e1;
   padding: 14px;
   border-radius: 8px;
 }
@@ -2513,13 +3285,13 @@ export default {
   color: #087642;
   padding: 5px 10px;
   border-radius: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .pos-qr-status {
-  font-size: 11px;
+  font-size: 12px;
   color: #087642;
   font-weight: 600;
 }
@@ -2539,13 +3311,13 @@ export default {
   border: none;
   color: #64748b;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 10px 16px;
   cursor: pointer;
 }
 
 .pos-btn-primary {
-  background: #087642;
+  background: #166534;
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -2557,7 +3329,7 @@ export default {
 }
 
 .pos-btn-primary:hover:not(:disabled) {
-  background: #065f35;
+  background: #14532d;
 }
 
 .pos-btn-primary:disabled {
@@ -2571,12 +3343,12 @@ export default {
   max-width: 480px;
   background: #ffffff;
   margin: auto;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
 }
 
 .pos-modal-head {
@@ -2584,23 +3356,25 @@ export default {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .pos-modal-head h3 {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0 0 2px;
   color: #0f172a;
 }
 
 .pos-modal-head p {
-  font-size: 12px;
-  color: #64748b;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 400;
   margin: 0;
 }
 
 .pos-modal-body {
-  padding: 0 20px 16px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2609,27 +3383,28 @@ export default {
 .pos-collect-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  padding: 10px;
-  border-radius: 6px;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 12px;
+  border-radius: 8px;
 }
 
 .pos-cstat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .pos-cstat span {
-  font-size: 10.5px;
-  color: #64748b;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 400;
 }
 
 .pos-cstat strong {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14.5px;
+  font-weight: 600;
   color: #0f172a;
 }
 
@@ -2640,7 +3415,7 @@ export default {
 .pos-modal-foot {
   padding: 14px 20px;
   background: #ffffff;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -2654,7 +3429,7 @@ export default {
   border-radius: 6px;
   padding: 9px 18px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -2668,22 +3443,610 @@ export default {
   margin: 0;
 }
 
-/* RESPONSIVE */
-@media (max-width: 1024px) {
-  .pos-kpi-strip {
-    grid-template-columns: repeat(3, 1fr);
-  }
+/* 5. ANALYTICS MODAL DIALOG */
+.analytics-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 
-@media (max-width: 640px) {
+.analytics-modal-dialog {
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.analytics-modal-head {
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.head-titles h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.head-subtitle {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 400;
+  margin-top: 2px;
+  display: block;
+}
+
+.analytics-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.analytics-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.analytics-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.analytics-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.analytic-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.analytic-card.is-revenue-card {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.analytic-card.is-heatmap {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.analytic-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: 0.2px;
+}
+
+.gauge-ring-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.gauge-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gauge-bg {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 3.5;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke: #087642;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s ease;
+}
+
+.gauge-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.gauge-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gauge-val-highlight {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.gauge-desc {
+  font-size: 12.5px;
+  color: #475569;
+  font-weight: 400;
+}
+
+.heat-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.legend-dot.is-peak { background: #e11d48; }
+.legend-dot.is-high { background: #f59e0b; }
+.legend-dot.is-medium { background: #10b981; }
+.legend-dot.is-low { background: #94a3b8; }
+
+.heat-bars-grid {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 72px;
+  padding-top: 6px;
+}
+
+.heat-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.heat-bar-track {
+  flex: 1;
+  width: 100%;
+  max-width: 22px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.heat-bar-fill {
+  width: 100%;
+  border-radius: 3px;
+  transition: height 0.2s ease;
+}
+
+.heat-bar-fill.is-peak { background: #e11d48; }
+.heat-bar-fill.is-high { background: #f59e0b; }
+.heat-bar-fill.is-medium { background: #10b981; }
+.heat-bar-fill.is-low { background: #cbd5e1; }
+
+.heat-hour-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.cash-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.cash-total {
+  font-size: 18px;
+  font-weight: 600;
+  color: #087642;
+}
+
+.cash-segmented-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #e2e8f0;
+  width: 100%;
+}
+
+.seg-fill {
+  height: 100%;
+  transition: width 0.2s ease;
+}
+.seg-fill.is-qr { background: #087642; }
+.seg-fill.is-cash { background: #2563eb; }
+
+.cash-metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.cash-sub-metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.sub-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.sub-dot.is-qr { background: #087642; }
+.sub-dot.is-cash { background: #2563eb; }
+
+.sub-name { color: #475569; font-weight: 400; }
+.sub-val { color: #0f172a; font-weight: 600; }
+
+.pos-tr-row.is-jump-highlight td {
+  background: #ecfdf5 !important;
+  transition: background 0.3s ease;
+}
+
+/* 7. LIST VIEW (DANH SÁCH) */
+.pos-list-container {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+}
+
+.pos-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.pos-data-table th {
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 2px solid #cbd5e1;
+  white-space: nowrap;
+}
+
+.pos-data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pos-data-table .tr-clickable {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.pos-data-table .tr-clickable:hover {
+  background: #f8fafc;
+}
+
+.mono-code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12.5px;
+  color: #087642;
+  font-weight: 700;
+}
+
+.list-status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.list-status-pill.checked_in { background: #dcfce7; color: #15803d; }
+.list-status-pill.confirmed { background: #dbeafe; color: #1d4ed8; }
+.list-status-pill.pending_payment { background: #fef3c7; color: #b45309; }
+.list-status-pill.cancelled { background: #fee2e2; color: #b91c1c; }
+
+.td-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-table-action {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-table-action:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-table-action.is-checkin {
+  background: #087642;
+  color: #ffffff;
+  border-color: #087642;
+}
+
+.btn-table-action.is-checkin:hover {
+  background: #065f35;
+}
+
+.btn-table-action.is-collect {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+}
+
+.btn-table-action.is-collect:hover {
+  background: #b45309;
+}
+
+.td-empty-list {
+  text-align: center;
+  color: #475569;
+  font-weight: 500;
+  padding: 40px !important;
+}
+
+/* ========================================================= */
+/* COMPREHENSIVE RESPONSIVE BREAKPOINTS                      */
+/* ========================================================= */
+@media (max-width: 1024px) {
   .pos-workspace {
-    padding: 12px;
+    padding: 14px 16px 72px 16px;
+    gap: 14px;
   }
-  .pos-kpi-strip {
-    grid-template-columns: repeat(2, 1fr);
+  .pos-top-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .pos-toolbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .pos-toolbar-right {
+    width: 100%;
   }
   .pos-search-box {
     width: 100%;
+    max-width: 100%;
+  }
+  .pos-toolbar-actions-row {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .pos-workspace {
+    padding: 10px 12px 70px 12px;
+    gap: 12px;
+  }
+  .pos-toolbar-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+  .pos-date-nav-wrap {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .btn-date-nav-today {
+    padding: 0 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .pos-cal-btn {
+    flex: 1;
+    min-width: 130px;
+    padding: 0 10px;
+    font-size: 12px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .pos-period-btn {
+    flex: none;
+    padding: 0 10px;
+    font-size: 12px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .pos-toolbar-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+  .pos-view-switcher {
+    flex-shrink: 0;
+  }
+  .pos-view-btn {
+    padding: 0 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    justify-content: center;
+  }
+  .pos-btn-action.is-qr,
+  .pos-btn-action.is-fnb {
+    flex: 1;
+    padding: 0 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    justify-content: center;
+  }
+  .pos-btn-icon-refresh {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .pos-kpi-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .pos-metric-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    gap: 14px;
+    scrollbar-width: none;
+  }
+  .pos-metric-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .pos-metric-item {
+    flex-shrink: 0;
+  }
+  .pos-metric-divider {
+    flex-shrink: 0;
+  }
+  .btn-analytics-toggle {
+    width: 100%;
+    justify-content: center;
+    padding: 8px;
+  }
+  .pos-th-time {
+    width: 75px;
+    min-width: 75px;
+    max-width: 75px;
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+  .pos-td-time {
+    width: 75px;
+    min-width: 75px;
+    max-width: 75px;
+    padding: 6px 2px;
+  }
+  .pos-time-mark {
+    font-size: 11px;
+  }
+  .pos-th-court {
+    min-width: 165px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pos-toolbar-left {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pos-date-nav-wrap {
+    flex: none;
+  }
+  .pos-cal-btn {
+    flex: 1;
+    min-width: 120px;
+  }
+  .pos-period-btn {
+    width: 100%;
+  }
+  .pos-toolbar-actions-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pos-view-switcher {
+    flex: 1;
+  }
+  .pos-view-btn {
+    flex: 1;
+  }
+  .pos-btn-action.is-qr,
+  .pos-btn-action.is-fnb {
+    flex: 1;
   }
 }
 </style>

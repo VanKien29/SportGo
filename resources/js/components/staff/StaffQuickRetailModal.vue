@@ -4,9 +4,9 @@
       <div class="retail-dialog">
         <!-- HEADER -->
         <header class="retail-head">
-          <div class="retail-head-title">
-            <AppIcon name="shoppingBag" :size="18" class="text-green-main" />
+          <div class="header-titles">
             <h3>Bán nhanh Nước uống &amp; Dịch vụ quầy</h3>
+            <span class="retail-head-subtitle">Bán lẻ quầy thu ngân · Tiền mặt &amp; VietQR</span>
           </div>
           <button type="button" class="retail-close-btn" aria-label="Đóng" @click="onClose">✕</button>
         </header>
@@ -388,14 +388,34 @@ export default {
 .retail-head-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+.retail-head-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #087642;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #bbf7d0;
 }
 
 .retail-head-title h3 {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
-  font-size: 15px;
+}
+
+.retail-head-subtitle {
+  font-size: 12.5px;
+  color: #334155;
   font-weight: 500;
-  color: #111827;
+  margin: 0;
 }
 
 .text-green-main {

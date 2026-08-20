@@ -4,16 +4,16 @@
       <div class="scanner-dialog">
         <!-- HEADER -->
         <header class="scanner-head">
-          <div class="scanner-head-title">
-            <AppIcon name="qrCode" :size="18" class="text-green-main" />
-            <h3>Quét mã QR / Nhận diện vé đặt sân</h3>
+          <div class="header-titles">
+            <h3>Nhận diện &amp; Quét vé đặt sân</h3>
+            <span class="scanner-head-subtitle">Hỗ trợ súng quét mã vạch 2D/QR USB, tra cứu theo mã đơn hoặc SĐT khách</span>
           </div>
           <button type="button" class="scanner-close-btn" aria-label="Đóng" @click="onClose">✕</button>
         </header>
 
         <!-- BODY -->
         <div class="scanner-body">
-          <!-- Scanner Input & Camera Switch -->
+          <!-- Scanner Input Bar -->
           <div class="scanner-top-bar">
             <div class="scanner-input-wrap">
               <AppIcon name="search" :size="15" class="scanner-search-icon" />
@@ -22,7 +22,7 @@
                 v-model.trim="scannedCode"
                 type="text"
                 class="scanner-text-input"
-                placeholder="Quét mã QR vé hoặc nhập mã booking (BK-2026...)"
+                placeholder="Bắn súng quét QR vé hoặc nhập mã booking (#BK-1001), SĐT..."
                 autofocus
                 @keydown.enter.prevent="handleSearchBooking"
               />
@@ -32,33 +32,21 @@
                 :disabled="!scannedCode || searching"
                 @click="handleSearchBooking"
               >
-                {{ searching ? 'Đang tìm...' : 'Tìm vé' }}
+                {{ searching ? 'Đang tìm...' : 'Nhận diện vé' }}
               </button>
-            </div>
-
-            <button
-              type="button"
-              class="camera-toggle-btn"
-              :class="{ active: isCameraActive }"
-              @click="toggleCamera"
-            >
-              <AppIcon name="video" :size="14" />
-              <span>{{ isCameraActive ? 'Tắt Camera' : 'Bật Camera quét' }}</span>
-            </button>
-          </div>
-
-          <!-- Video Camera Stream (if active) -->
-          <div v-if="isCameraActive" class="camera-stream-box">
-            <video ref="videoElement" class="camera-video" playsinline autoplay></video>
-            <div class="camera-scan-overlay">
-              <div class="scan-target-box"></div>
-              <span>Đưa mã QR vé vào khung quét</span>
             </div>
           </div>
 
           <!-- Search Error Message -->
           <div v-if="error" class="scanner-msg error">
             {{ error }}
+          </div>
+
+          <!-- Empty State Hint -->
+          <div v-if="!matchedBooking && !error" class="scanner-hint-box">
+            <div class="hint-text">
+              <strong>Sẵn sàng quét vé:</strong> Đưa súng bắn mã vạch vào mã QR trên điện thoại khách hàng hoặc nhập mã đơn / SĐT để tra cứu nhanh.
+            </div>
           </div>
 
           <!-- Booking Result Found -->
@@ -76,15 +64,15 @@
             <div class="matched-grid">
               <div class="matched-field">
                 <span class="m-label">Khách hàng:</span>
-                <strong class="m-val">{{ customerName(matchedBooking) }}</strong>
+                <span class="m-val">{{ customerName(matchedBooking) }}</span>
               </div>
               <div class="matched-field">
                 <span class="m-label">Số điện thoại:</span>
-                <strong class="m-val">{{ customerPhone(matchedBooking) }}</strong>
+                <span class="m-val">{{ customerPhone(matchedBooking) }}</span>
               </div>
               <div class="matched-field">
                 <span class="m-label">Sân &amp; Khung giờ:</span>
-                <span class="m-val font-medium text-green-main">{{ matchedBooking.venue_court?.name || 'Sân thể thao' }} ({{ formatTime(matchedBooking.start_time) }} - {{ formatTime(matchedBooking.end_time) }})</span>
+                <span class="m-val text-green-main">{{ matchedBooking.venue_court?.name || 'Sân thể thao' }} ({{ formatTime(matchedBooking.start_time) }} - {{ formatTime(matchedBooking.end_time) }})</span>
               </div>
               <div class="matched-field">
                 <span class="m-label">Ngày đặt:</span>
@@ -96,7 +84,7 @@
             <div class="matched-payment-box">
               <div class="p-row">
                 <span>Tổng tiền sân:</span>
-                <strong>{{ formatCurrency(matchedBooking.total_price) }}</strong>
+                <strong class="p-total-val">{{ formatCurrency(matchedBooking.total_price) }}</strong>
               </div>
               <div v-if="outstandingAmount(matchedBooking) > 0" class="p-row is-due">
                 <span>Còn phải thu:</span>
@@ -111,13 +99,13 @@
             <!-- Action Buttons for this Ticket -->
             <div class="matched-actions">
               <button
-                v-if="matchedBooking.status === 'confirmed'"
+                v-if="['confirmed', 'pending_approval'].includes(matchedBooking.status)"
                 type="button"
                 class="ticket-btn btn-checkin"
                 :disabled="actionLoading"
                 @click="handleCheckInBooking"
               >
-                <AppIcon name="clock" :size="15" />
+                <AppIcon name="check" :size="15" />
                 <span>{{ actionLoading ? 'Đang check-in...' : 'Xác nhận Check-in vào sân' }}</span>
               </button>
 
@@ -144,8 +132,8 @@
 
 <script>
 import AppIcon from '../AppIcon.vue';
-import { ownerBookingService } from '../../services/ownerBookings.js';
 import { playSuccessChime, playWarningChime } from '../../utils/audioChime.js';
+import { ownerBookingService } from '../../services/ownerBookings.js';
 
 export default {
   name: 'StaffQrScannerModal',
@@ -168,8 +156,6 @@ export default {
       actionLoading: false,
       error: '',
       matchedBooking: null,
-      isCameraActive: false,
-      mediaStream: null,
     };
   },
   watch: {
@@ -183,13 +169,8 @@ export default {
             this.$refs.barcodeInput.focus();
           }
         });
-      } else {
-        this.stopCamera();
       }
     },
-  },
-  beforeUnmount() {
-    this.stopCamera();
   },
   methods: {
     async handleSearchBooking() {
@@ -239,88 +220,44 @@ export default {
       this.$emit('collect-requested', this.matchedBooking);
       this.onClose();
     },
-    async toggleCamera() {
-      if (this.isCameraActive) {
-        this.stopCamera();
-      } else {
-        await this.startCamera();
-      }
-    },
-    async startCamera() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        this.error = 'Trình duyệt không hỗ trợ quét camera trực tiếp.';
-        return;
-      }
-      try {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        });
-        this.isCameraActive = true;
-        this.$nextTick(() => {
-          if (this.$refs.videoElement) {
-            this.$refs.videoElement.srcObject = this.mediaStream;
-          }
-        });
-      } catch (e) {
-        this.error = 'Không thể truy cập camera. Vui lòng cấp quyền hoặc dùng ô nhập mã.';
-      }
-    },
-    stopCamera() {
-      if (this.mediaStream) {
-        this.mediaStream.getTracks().forEach((track) => track.stop());
-        this.mediaStream = null;
-      }
-      this.isCameraActive = false;
-    },
     onClose() {
-      this.stopCamera();
       this.$emit('close');
     },
-    customerName(booking) {
-      if (!booking) return 'Khách hàng';
-      return booking.customer?.full_name || booking.customer?.name || booking.walk_in_name || 'Khách đặt sân';
+    customerName(b) {
+      return b?.customer?.full_name || b?.customer?.username || b?.walk_in_name || 'Khách vãng lai';
     },
-    customerPhone(booking) {
-      if (!booking) return '-';
-      return booking.customer?.phone || booking.walk_in_phone || '-';
+    customerPhone(b) {
+      return b?.customer?.phone || b?.walk_in_phone || '—';
+    },
+    outstandingAmount(b) {
+      const paid = (b?.payments || [])
+        .filter((p) => p.status === 'paid')
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      return Math.max(Number(b?.total_price || 0) - paid, 0);
     },
     statusLabel(status) {
-      return (
-        {
-          pending_approval: 'Chờ duyệt',
-          pending_payment: 'Chờ thanh toán',
-          confirmed: 'Đã xác nhận',
-          checked_in: 'Đang chơi',
-          completed: 'Đã hoàn thành',
-          cancelled: 'Đã hủy',
-          rejected: 'Bị từ chối',
-        }[status] || 'Đã xác nhận'
-      );
-    },
-    outstandingAmount(booking) {
-      if (!booking) return 0;
-      const total = Number(booking.final_amount || booking.total_price) || 0;
-      const paid = (booking.payments || [])
-        .filter((p) => p.status === 'paid')
-        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      return Math.max(0, total - paid);
+      return {
+        pending_payment: 'Chờ thanh toán',
+        confirmed: 'Đã xác nhận',
+        checked_in: 'Đang chơi',
+        completed: 'Hoàn thành',
+        cancelled: 'Đã hủy',
+        rejected: 'Từ chối',
+      }[status] || status;
     },
     formatCurrency(val) {
-      if (val === undefined || val === null) return '0 đ';
-      return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
-      }).format(val);
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
     },
     formatTime(timeStr) {
-      return String(timeStr || '').slice(0, 5);
+      if (!timeStr) return '';
+      return String(timeStr).slice(0, 5);
     },
     formatDate(dateStr) {
       if (!dateStr) return '';
       try {
-        const d = new Date(`${dateStr}T00:00:00`);
-        return d.toLocaleDateString('vi-VN');
-      } catch (e) {
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+      } catch {
         return dateStr;
       }
     },
@@ -332,8 +269,9 @@ export default {
 .scanner-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17, 24, 39, 0.6);
-  z-index: 99999;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -341,59 +279,68 @@ export default {
 }
 
 .scanner-dialog {
-  background: #ffffff;
-  border-radius: 8px;
-  max-width: 580px;
   width: 100%;
-  max-height: 88vh;
+  max-width: 600px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.2);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  color: #111827;
-  font-weight: 400;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* HEADER */
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .scanner-head {
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
-.scanner-head-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.scanner-head-title h3 {
+.header-titles h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
-  font-size: 15px;
-  font-weight: 500;
 }
 
-.text-green-main {
-  color: #087642;
+.scanner-head-subtitle {
+  font-size: 12.5px;
+  color: #475569;
+  font-weight: 400;
+  margin-top: 2px;
+  display: block;
 }
 
 .scanner-close-btn {
   background: transparent;
   border: none;
-  font-size: 16px;
-  color: #6b7280;
+  font-size: 18px;
+  color: #64748b;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
 }
 
-/* BODY */
+.scanner-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 .scanner-body {
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-y: auto;
 }
 
 .scanner-top-bar {
@@ -411,227 +358,227 @@ export default {
 
 .scanner-search-icon {
   position: absolute;
-  left: 10px;
-  color: #9ca3af;
+  left: 12px;
+  color: #64748b;
 }
 
 .scanner-text-input {
   width: 100%;
-  padding: 8px 80px 8px 32px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 13px;
+  padding: 10px 110px 10px 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
   outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
 }
 
 .scanner-text-input:focus {
   border-color: #087642;
+  box-shadow: 0 0 0 3px rgba(8, 118, 66, 0.1);
 }
 
 .scanner-search-btn {
   position: absolute;
-  right: 4px;
+  right: 6px;
   background: #087642;
   color: #ffffff;
   border: none;
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.camera-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 6px 14px;
   font-size: 12.5px;
-  color: #374151;
+  font-weight: 500;
   cursor: pointer;
-  white-space: nowrap;
+  transition: background 0.12s ease;
 }
 
-.camera-toggle-btn.active {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
+.scanner-search-btn:hover:not(:disabled) {
+  background: #065f35;
 }
 
-/* CAMERA STREAM */
-.camera-stream-box {
-  position: relative;
-  width: 100%;
-  height: 220px;
-  background: #111827;
-  border-radius: 6px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.scanner-search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.camera-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.camera-scan-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: #ffffff;
-  font-size: 11.5px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.scan-target-box {
-  width: 130px;
-  height: 130px;
-  border: 2px dashed #087642;
+.scanner-hint-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
 }
 
-.scanner-msg {
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 12.5px;
+.scanner-hint-box strong {
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .scanner-msg.error {
   background: #fee2e2;
+  border: 1px solid #fca5a5;
   color: #b91c1c;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
 /* MATCHED BOOKING CARD */
 .matched-booking-card {
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  padding: 16px;
-  background: #f0fdf4;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .matched-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #dcfce7;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
 }
 
 .booking-tag {
-  font-size: 10px;
-  font-weight: 500;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
   color: #087642;
-  letter-spacing: 0.5px;
+  background: #dcfce7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
 }
 
 .matched-code {
-  margin: 2px 0 0 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 17px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .matched-status {
-  font-size: 12px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
+  font-size: 12px;
+  font-weight: 500;
 }
+.matched-status.confirmed { background: #dbeafe; color: #1d4ed8; }
+.matched-status.checked_in { background: #dcfce7; color: #15803d; }
+.matched-status.pending_payment { background: #fef3c7; color: #b45309; }
 
 .matched-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
+  gap: 10px 16px;
 }
 
 .matched-field {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .m-label {
-  font-size: 11px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #475569;
 }
 
 .m-val {
-  font-size: 12.5px;
-  color: #111827;
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.text-green-main {
+  color: #087642;
 }
 
 .matched-payment-box {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12.5px;
+  gap: 6px;
 }
 
 .p-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+}
+
+.p-total-val {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14.5px;
 }
 
 .text-due {
-  color: #d97706;
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .text-paid {
   color: #087642;
+  font-weight: 600;
 }
 
 .matched-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 4px;
+  padding-top: 4px;
 }
 
 .ticket-btn {
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
+  flex: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
   border: none;
+  transition: all 0.12s ease;
 }
 
 .btn-checkin {
   background: #087642;
   color: #ffffff;
-  flex: 1;
-  justify-content: center;
+}
+
+.btn-checkin:hover:not(:disabled) {
+  background: #065f35;
 }
 
 .btn-collect {
-  background: #ffffff;
-  border: 1px solid #087642;
-  color: #087642;
+  background: #d97706;
+  color: #ffffff;
+}
+
+.btn-collect:hover {
+  background: #b45309;
 }
 
 .already-in-msg {
-  font-size: 12.5px;
   color: #087642;
+  font-size: 13px;
   font-weight: 500;
 }
 </style>

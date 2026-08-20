@@ -389,16 +389,20 @@ class StaffShiftController extends Controller
             ], 422);
         }
 
-        $scheduleDate = Carbon::parse($schedule->date);
-        if (! $scheduleDate->isToday()) {
+        $tz = (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+        $now = Carbon::now($tz);
+
+        $dateStr = Carbon::parse($schedule->date, $tz)->format('Y-m-d');
+        if ($dateStr !== $now->format('Y-m-d')) {
             return response()->json([
-                'message' => 'Bạn chỉ có thể check-in vào đúng ngày của ca trực.',
+                'message' => 'Bạn chỉ có thể check-in vào đúng ngày của ca trực (' . Carbon::parse($schedule->date, $tz)->format('d/m/Y') . ').',
             ], 422);
         }
 
-        // Limit check-in to maximum 30 minutes before shift starts
-        $shiftStart = Carbon::parse($schedule->date)->setTimeFromTimeString($schedule->start_time);
-        if (now()->lt($shiftStart->copy()->subMinutes(30))) {
+        // Limit check-in to maximum 30 minutes before shift starts (in business timezone)
+        $timeStr = is_string($schedule->start_time) ? substr($schedule->start_time, 0, 8) : '00:00:00';
+        $shiftStart = Carbon::parse("{$dateStr} {$timeStr}", $tz);
+        if ($now->lt($shiftStart->copy()->subMinutes(30))) {
             return response()->json([
                 'message' => 'Chỉ có thể check-in trước giờ bắt đầu tối đa 30 phút.',
             ], 422);
@@ -429,8 +433,11 @@ class StaffShiftController extends Controller
             ->where('user_id', $userId)
             ->findOrFail($id);
 
-        $checkInAt = $schedule->check_in_at ? Carbon::parse($schedule->check_in_at) : Carbon::parse($schedule->date)->setTimeFromTimeString($schedule->start_time);
-        $checkOutAt = $schedule->check_out_at ? Carbon::parse($schedule->check_out_at) : now();
+        $tz = (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+        $dateStr = Carbon::parse($schedule->date, $tz)->format('Y-m-d');
+        $timeStr = is_string($schedule->start_time) ? substr($schedule->start_time, 0, 8) : '00:00:00';
+        $checkInAt = $schedule->check_in_at ? Carbon::parse($schedule->check_in_at)->timezone($tz) : Carbon::parse("{$dateStr} {$timeStr}", $tz);
+        $checkOutAt = $schedule->check_out_at ? Carbon::parse($schedule->check_out_at)->timezone($tz) : Carbon::now($tz);
 
         // Query bookings for this venue cluster on this shift date
         $bookings = Booking::query()
@@ -476,8 +483,8 @@ class StaffShiftController extends Controller
                 'date' => $schedule->date,
                 'start_time' => substr((string) $schedule->start_time, 0, 5),
                 'end_time' => substr((string) $schedule->end_time, 0, 5),
-                'check_in_at' => $schedule->check_in_at ? Carbon::parse($schedule->check_in_at)->format('H:i:s d/m/Y') : null,
-                'check_out_at' => $schedule->check_out_at ? Carbon::parse($schedule->check_out_at)->format('H:i:s d/m/Y') : now()->format('H:i:s d/m/Y'),
+                'check_in_at' => $schedule->check_in_at ? Carbon::parse($schedule->check_in_at)->timezone($tz)->format('H:i:s d/m/Y') : null,
+                'check_out_at' => $schedule->check_out_at ? Carbon::parse($schedule->check_out_at)->timezone($tz)->format('H:i:s d/m/Y') : Carbon::now($tz)->format('H:i:s d/m/Y'),
                 'worked_duration_label' => $workedDurationLabel,
                 'total_bookings' => $totalBookings,
                 'confirmed_bookings' => $confirmedBookings,

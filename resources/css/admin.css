@@ -29,12 +29,12 @@
     --admin-text: #101c15;
     --admin-muted: #2f3d34;
     --admin-faint: #45564a;
-    --admin-primary: #22a653;
+    --admin-primary: #166534;
     --admin-primary-text: #ffffff;
-    --admin-primary-light: #52b788;
-    --admin-primary-dark: #15733a;
-    --admin-primary-soft: #e2f6e8;
-    --admin-primary-ring: rgba(34, 166, 83, 0.22);
+    --admin-primary-light: #228b49;
+    --admin-primary-dark: #14532d;
+    --admin-primary-soft: #f4f8f5;
+    --admin-primary-ring: rgba(22, 101, 52, 0.2);
     --admin-floating-bg: #1f2937;
     --admin-floating-fg: #ffffff;
     --admin-floating-border: rgba(255, 255, 255, 0.16);
