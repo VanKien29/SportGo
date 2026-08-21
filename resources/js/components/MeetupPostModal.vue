@@ -263,16 +263,18 @@ async function submit() {
   isSubmitting.value = true;
   errorMsg.value = '';
   submitController?.abort();
-  submitController = new AbortController();
+  const controller = new AbortController();
+  submitController = controller;
   let timedOut = false;
-  submitTimer = setTimeout(() => {
+  const timer = setTimeout(() => {
     timedOut = true;
-    submitController?.abort();
-  }, 20_000);
+    controller.abort();
+  }, 12_000);
+  submitTimer = timer;
   try {
     const response = await api('/api/matchmaking-posts', {
       method: 'POST',
-      signal: submitController.signal,
+      signal: controller.signal,
       body: JSON.stringify({
         booking_id: form.booking_id,
         required_players: Number(form.required_players),
@@ -283,20 +285,22 @@ async function submit() {
       (booking) => String(booking.id) !== String(form.booking_id),
     );
     eligibleLoadedAt = 0;
-    emit('success', response.data);
     reset();
+    // Close and unlock before refreshing the community rail. A slow GET must
+    // never leave the create modal looking as if POST is still running.
+    isSubmitting.value = false;
     emit('close');
+    emit('success', response.data);
   } catch (error) {
+    if (controller.signal.aborted && !timedOut) return;
     errorMsg.value = timedOut
       ? 'Tạo bài giao lưu quá lâu. Vui lòng thử lại.'
       : error.message || 'Không thể đăng bài giao lưu.';
     toast.error(errorMsg.value);
   } finally {
-    if (submitTimer) {
-      clearTimeout(submitTimer);
-      submitTimer = null;
-    }
-    submitController = null;
+    clearTimeout(timer);
+    if (submitTimer === timer) submitTimer = null;
+    if (submitController === controller) submitController = null;
     isSubmitting.value = false;
   }
 }

@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Notification;
 use App\Models\PlayerPost;
 use App\Services\CommunityAuthorBadgeService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -239,10 +240,12 @@ class PlayerPostController extends Controller
 
         DB::beginTransaction();
         try {
-            // Lock the booking so two concurrent requests cannot create duplicate posts.
+            // Do not lock the booking row here. Booking creation/status updates can hold
+            // that lock for a long time, which made the matchmaking form look stuck.
+            // A unique index on player_posts.booking_id protects the one-post-per-booking
+            // rule for concurrent requests.
             $booking = Booking::with('venueCluster')
                 ->whereKey($data['booking_id'])
-                ->lockForUpdate()
                 ->firstOrFail();
 
             if ((string) $booking->customer_id !== (string) $userId) {
@@ -279,26 +282,51 @@ class PlayerPostController extends Controller
                 'status' => 'open', // Trạng thái mở để tuyển người
             ]);
 
-            // Notify user
-            Notification::create([
-                'user_id' => $userId,
-                'type' => 'matchmaking_post_created',
-                'title' => 'Đăng bài giao lưu thành công',
-                'body' => 'Bài giao lưu của bạn cho lịch đặt sân ' . ($booking->venueCluster->name ?? '') . ' đã được đăng lên Cộng đồng.',
-                'reference_type' => 'player_post',
-                'reference_id' => $post->id,
-                'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
-            ]);
-
             DB::commit();
+
+            // Notifications are a follow-up action. They must not keep the create
+            // transaction open or turn a successful post into a failed request.
+            try {
+                Notification::create([
+                    'user_id' => $userId,
+                    'type' => 'matchmaking_post_created',
+                    'title' => 'Đăng bài giao lưu thành công',
+                    'body' => 'Bài giao lưu của bạn cho lịch đặt sân ' . ($booking->venueCluster->name ?? '') . ' đã được đăng lên Cộng đồng.',
+                    'reference_type' => 'player_post',
+                    'reference_id' => $post->id,
+                    'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
+                ]);
+            } catch (\Throwable $notificationError) {
+                report($notificationError);
+            }
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đăng bài thành công.',
                 'data' => $post,
             ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
+        } catch (QueryException $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
+            if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'player_posts_booking_id_unique')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Lịch đặt sân này đã có bài giao lưu.',
+                ], 409);
+            }
+
+            \Illuminate\Support\Facades\Log::error('PlayerPost Create Error: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không thể tạo bài giao lưu. Vui lòng thử lại.',
+            ], 500);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
             \Illuminate\Support\Facades\Log::error('PlayerPost Create Error: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',

@@ -793,7 +793,9 @@ function handleCommunityPostSaved(response) {
 async function handleMeetupPostCreated() {
   showMeetupModal.value = false;
   toast.success('Bài giao lưu đã được tạo.');
-  await fetchMatchmakingPosts();
+  // Refresh in the background so the success state is not coupled to the
+  // modal's submit lifecycle.
+  void fetchMatchmakingPosts();
 }
 
 function visibleComments(post) {

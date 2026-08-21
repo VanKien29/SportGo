@@ -129,7 +129,9 @@ async function leave(post) {
 async function handleCreated() {
   showCreate.value = false;
   toast.success('Bài giao lưu đã được đăng.');
-  await loadPosts();
+  // The modal is already closed; a slow list refresh must not block the
+  // create flow or make the submit action appear stuck.
+  void loadPosts();
 }
 function isOwn(post) { return String(post.author?.id || '') === String(user?.id || ''); }
 function progress(post) { const total = Number(post.total_players || 0); return total ? Math.min(100, (Number(post.approved_players || 0) / total) * 100) : 0; }
