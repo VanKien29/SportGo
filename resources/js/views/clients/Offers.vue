@@ -398,39 +398,44 @@ h1, h2, h3, strong, b, code {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 22px;
+  padding: 10px 22px;
   border: none;
-  border-radius: 8px;
-  background: #16a34a;
+  border-radius: 999px;
+  background: #54656f;
   color: #ffffff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.15s ease;
 }
 
 .primary-button:hover {
-  background: #15803d;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .secondary-button {
   display: inline-flex;
   align-items: center;
-  padding: 11px 20px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 999px;
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .secondary-button:hover {
-  border-color: #16a34a;
-  color: #16a34a;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 .hero-illustration {
@@ -447,7 +452,7 @@ h1, h2, h3, strong, b, code {
 
 .how-it-works h2 {
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 700;
   color: #0f172a;
   margin: 0 0 18px;
 }
@@ -477,12 +482,12 @@ h1, h2, h3, strong, b, code {
 .step-number {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #16a34a;
+  border-radius: 8px;
+  background: #edf4f0;
+  border: 1px solid #cbd5e1;
+  color: #5c7e6e;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -490,7 +495,7 @@ h1, h2, h3, strong, b, code {
 
 .step-card h3 {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
 }
@@ -515,25 +520,27 @@ h1, h2, h3, strong, b, code {
 }
 
 .filter-tabs button {
-  padding: 8px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  padding: 8px 18px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .filter-tabs button:hover {
-  border-color: #16a34a;
-  color: #16a34a;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 .filter-tabs button.active {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #ffffff;
+  background: #edf4f0;
+  border-color: #cbd5e1;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 /* ─── STATE BLOCKS ─── */
@@ -554,7 +561,7 @@ h1, h2, h3, strong, b, code {
 
 .state-block strong {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: #0f172a;
 }
 
@@ -571,11 +578,11 @@ h1, h2, h3, strong, b, code {
 .retry-button {
   padding: 8px 18px;
   border: 1px solid #dc2626;
-  border-radius: 6px;
+  border-radius: 999px;
   background: #ffffff;
   color: #dc2626;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -583,8 +590,8 @@ h1, h2, h3, strong, b, code {
   display: block;
   width: 32px;
   height: 32px;
-  border: 3px solid #dcfce7;
-  border-top-color: #16a34a;
+  border: 3px solid #cbd5e1;
+  border-top-color: #5c7e6e;
   border-radius: 50%;
   animation: cm-spin 0.75s linear infinite;
 }
@@ -608,15 +615,16 @@ h1, h2, h3, strong, b, code {
 /* ─── COUPON TICKET LAYOUT ─── */
 .coupon-ticket {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   border-radius: 10px;
   display: flex;
   overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
 }
 
 .coupon-left {
   width: 110px;
-  background: #16a34a;
+  background: #54656f;
   color: #ffffff;
   display: flex;
   flex-direction: column;
@@ -628,14 +636,14 @@ h1, h2, h3, strong, b, code {
 
 .coupon-amount {
   font-size: 24px;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.1;
   color: #ffffff !important;
 }
 
 .coupon-label {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 1px;
   margin-top: 4px;
   color: #ffffff !important;
@@ -659,28 +667,28 @@ h1, h2, h3, strong, b, code {
 
 .coupon-source {
   font-size: 12px;
-  font-weight: 500;
-  color: #16a34a;
+  font-weight: 600;
+  color: #5c7e6e;
 }
 
 .code-box {
-  border: 1px dashed #16a34a;
+  border: 1.5px dashed #5c7e6e;
   border-radius: 6px;
   padding: 3px 8px;
-  background: #f0fdf4;
+  background: #edf4f0;
   cursor: pointer;
 }
 
 .code-box code {
   font-family: monospace;
   font-size: 13px;
-  font-weight: 500;
-  color: #16a34a !important;
+  font-weight: 600;
+  color: #5c7e6e !important;
 }
 
 .coupon-title {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: #0f172a;
   margin: 0;
   line-height: 1.3;
@@ -688,7 +696,7 @@ h1, h2, h3, strong, b, code {
 
 .coupon-desc {
   font-size: 13px;
-  color: #1e293b;
+  color: #475569;
   font-weight: 400;
   margin: 0;
   line-height: 1.45;
@@ -696,7 +704,7 @@ h1, h2, h3, strong, b, code {
 
 .coupon-details {
   font-size: 12px;
-  color: #1e293b;
+  color: #64748b;
   font-weight: 400;
   margin-top: 2px;
 }
@@ -713,34 +721,36 @@ h1, h2, h3, strong, b, code {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 7px 14px;
-  border-radius: 6px;
+  padding: 7px 16px;
+  border-radius: 999px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .copy-btn {
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
 }
 
 .copy-btn:hover {
-  border-color: #16a34a;
-  color: #16a34a;
+  border-color: #54656f;
+  color: #0f172a;
+  background: #f8fafc;
 }
 
 .use-btn {
-  border: 1px solid #16a34a;
-  background: #16a34a;
+  border: none;
+  background: #54656f;
   color: #ffffff;
+  box-shadow: 0 2px 8px rgba(84, 101, 111, 0.2);
 }
 
 .use-btn:hover {
-  background: #15803d;
-  border-color: #15803d;
+  background: #405059;
 }
 
 /* ─── SEO FAQ SECTION ─── */

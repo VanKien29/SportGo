@@ -51,8 +51,37 @@ class ChatController extends Controller
                 }
             } elseif ($conversation->type === 'venue_contact' && $conversation->reference_id) {
                 $venue = VenueCluster::find($conversation->reference_id);
-                $title = $venue ? $venue->name : 'Sân đấu';
-                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                $isStaffOrOwner = false;
+                if ($venue) {
+                    $isStaffOrOwner = ($venue->owner_id === $userId) || DB::table('venue_staff_assignments')
+                        ->where('venue_cluster_id', $venue->id)
+                        ->where('user_id', $userId)
+                        ->where('status', 'active')
+                        ->exists();
+                }
+
+                if ($isStaffOrOwner && $venue) {
+                    $staffIds = DB::table('venue_staff_assignments')
+                        ->where('venue_cluster_id', $venue->id)
+                        ->where('status', 'active')
+                        ->pluck('user_id')
+                        ->push($venue->owner_id)
+                        ->all();
+
+                    $customerParticipant = $conversation->participants->first(function ($p) use ($staffIds) {
+                        return !in_array($p->user_id, $staffIds);
+                    });
+
+                    $customerUser = $customerParticipant ? $customerParticipant->user : null;
+                    $title = $customerUser ? $customerUser->full_name : $venue->name;
+                    $avatarUrl = $customerUser ? $customerUser->avatar_url : null;
+                    if ($customerUser) {
+                        $otherUser = $customerUser;
+                    }
+                } else {
+                    $title = $venue ? $venue->name : 'Sân đấu';
+                    $avatarUrl = null;
+                }
             } else {
                 $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
                 $avatarUrl = $conversation->avatar_url ?: ($otherUser ? $otherUser->avatar_url : null);

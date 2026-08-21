@@ -214,6 +214,7 @@ class DatabaseSeeder extends Seeder
 
         $this->callIfTablesExist(ServiceCategoriesTableSeeder::class, ['service_categories']);
         $this->callIfTablesExist(VenueClusterServicesTableSeeder::class, ['venue_cluster_services', 'venue_clusters', 'service_categories']);
+        $this->callIfTablesExist(StaffDemoDataSeeder::class, ['users', 'venue_clusters', 'venue_staff_shifts', 'venue_staff_shift_schedules', 'bookings']);
     }
 
     private function callIfTablesExist(string $seeder, array $tables): void

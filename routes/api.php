@@ -424,6 +424,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::delete('/staff-shifts/schedules/{id}', [StaffShiftController::class, 'destroySchedule']);
         Route::get('/staff-shifts/attendance-report', [StaffShiftController::class, 'attendanceReport']);
         Route::get('/staff-shifts/my-schedules', [StaffShiftController::class, 'mySchedules']);
+        Route::get('/staff-shifts/schedules/{id}/handover-summary', [StaffShiftController::class, 'handoverSummary']);
         Route::post('/staff-shifts/schedules/{id}/check-in', [StaffShiftController::class, 'checkIn']);
         Route::post('/staff-shifts/schedules/{id}/check-out', [StaffShiftController::class, 'checkOut']);
         Route::get('/vouchers', [OwnerVoucherController::class, 'index']);
@@ -498,6 +499,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/bookings/{id}/payments/collect', [OwnerBookingManagementController::class, 'collectPayment']);
         Route::patch('/bookings/{id}/status', [OwnerBookingManagementController::class, 'updateStatus']);
         Route::patch('/bookings/{id}/court', [OwnerBookingManagementController::class, 'changeCourt']);
+        Route::post('/retail-orders', [OwnerBookingManagementController::class, 'createRetailOrder']);
 
         // Owner Venue Posts
         Route::post('/venue-posts/upload-editor-image', [OwnerVenuePostController::class, 'uploadEditorImage']);

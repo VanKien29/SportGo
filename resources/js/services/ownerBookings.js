@@ -22,6 +22,10 @@ export const ownerBookingService = {
     return api(`/api/owner/bookings/schedule${query ? `?${query}` : ''}`);
   },
 
+  getSchedule(params = {}) {
+    return this.schedule(params);
+  },
+
   recurringGroups(params = {}) {
     const query = toQuery(params);
     return api(`/api/owner/bookings/recurring-groups${query ? `?${query}` : ''}`);
@@ -41,6 +45,10 @@ export const ownerBookingService = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  storeCounter(payload) {
+    return this.createCounter(payload);
   },
 
   createRecurring(payload) {
@@ -78,6 +86,10 @@ export const ownerBookingService = {
     });
   },
 
+  checkIn(id) {
+    return this.updateStatus(id, { action: 'check_in' });
+  },
+
   changeCourt(id, payload) {
     return api(`/api/owner/bookings/${id}/court`, {
       method: 'PATCH',
@@ -85,3 +97,4 @@ export const ownerBookingService = {
     });
   },
 };
+

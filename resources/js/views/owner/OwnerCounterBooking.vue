@@ -5954,6 +5954,8 @@ export default {
 .owner-counter-page {
     display: grid;
     gap: 18px;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 .counter-board {

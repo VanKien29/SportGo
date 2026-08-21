@@ -5508,3 +5508,11 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.owner-counter-page {
+    padding: 10px;
+    box-sizing: border-box;
+}
+</style>
+

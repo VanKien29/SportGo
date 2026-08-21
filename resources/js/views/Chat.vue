@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'chat-page flex flex-col font-sans',
+      'chat-page flex flex-col font-sans w-full max-w-full overflow-hidden',
       usesAdminChatTheme ? 'admin-chat-page admin-chat' : 'client-chat-surface',
       isAdmin ? '' : 'client-chat-page min-h-screen'
     ]"
@@ -11,10 +11,9 @@
     <PublicNavbar v-if="!isAdmin" />
 
     <!-- Chat Workspace -->
-    <!-- Chat Workspace -->
     <div
       :class="[
-        'flex-1 flex overflow-hidden relative',
+        'flex-1 flex overflow-hidden relative w-full min-w-0 max-w-full',
         usesAdminChatTheme ? 'admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
       ]"
     >
@@ -205,7 +204,7 @@
       <!-- Right Main Chat Workspace -->
       <div
         :class="[
-          'flex-1 flex flex-col h-full bg-zinc-950 relative md:flex',
+          'flex-1 flex flex-col h-full bg-zinc-950 relative md:flex min-w-0 w-full max-w-full overflow-hidden',
           mobileShowChat ? 'flex' : 'hidden'
         ]"
       >
@@ -216,10 +215,10 @@
         </div>
 
         <!-- Main Chat Area -->
-        <div v-else class="flex-1 flex h-full relative overflow-hidden">
+        <div v-else class="flex-1 flex h-full relative overflow-hidden min-w-0 w-full max-w-full">
 
           <!-- Chat Messages Pane -->
-          <div class="flex-1 flex flex-col h-full bg-zinc-950 relative min-w-0">
+          <div class="flex-1 flex flex-col h-full bg-zinc-950 relative min-w-0 w-full max-w-full overflow-hidden">
           <!-- Active Conversation Header -->
           <div class="tg-chat-header flex items-center justify-between shrink-0">
             <div @click="showProfileSidebar = !showProfileSidebar" class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-90 select-none">
@@ -314,7 +313,7 @@
             </div>
           </div>
 
-          <!-- Pinned Messages Banner (Premium Light Redesign) -->
+          <!-- Pinned Messages Banner -->
           <div
             v-if="pinnedMessages.length > 0"
             class="pinned-messages-banner"
@@ -334,7 +333,7 @@
               <!-- Content details -->
               <div class="pinned-banner-content">
                 <div class="pinned-banner-title">
-                  <span>Tin nhắn đã ghim</span>
+                  <span class="pinned-banner-label">Tin nhắn đã ghim</span>
                   <span v-if="pinnedMessages[0].sender?.full_name" class="pinned-banner-sender">
                     • {{ pinnedMessages[0].sender.full_name }}
                   </span>
@@ -503,13 +502,6 @@
                     </button>
                   </div>
 
-                  <!-- Pinned state small icon -->
-                  <div v-if="msg.is_pinned && !msg.is_recalled" class="absolute top-1 right-2 text-zinc-500 opacity-60" title="Tin nhắn đã ghim">
-                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                  </div>
-
                   <!-- Reply Quote Block -->
                   <div
                     v-if="msg.reply_to"
@@ -547,7 +539,12 @@
                     </div>
                     <div v-if="canCreateSupportRequest" class="booking-message-card__actions">
                       <button type="button" class="booking-message-card__action" @click="openSupportRequestModal(msg.booking)">
-                        Y&#234;u c&#7847;u h&#7895; tr&#7907;
+                        Yêu cầu hỗ trợ
+                      </button>
+                    </div>
+                    <div v-else-if="canViewRelatedBookings" class="booking-message-card__actions">
+                      <button type="button" class="booking-message-card__action" @click="openBookingDetailFromChat(msg.booking)">
+                        Xem chi tiết booking
                       </button>
                     </div>
                   </div>
@@ -591,6 +588,13 @@
                     <span v-if="msg.is_recalled" class="italic opacity-60 select-none font-normal">Tin nhắn đã bị thu hồi</span>
                     <span v-else-if="msg.content !== '[Hình ảnh]' && msg.content !== '[H??nh ???nh]' && msg.reference_type !== 'booking' && msg.reference_type !== 'booking_support_request'">{{ msg.content }}</span>
                     <span class="bubble-meta">
+                       <!-- Pinned indicator -->
+                       <span v-if="msg.is_pinned && !msg.is_recalled" class="bubble-pinned-icon inline-flex items-center" title="Tin nhắn đã ghim">
+                         <svg class="h-2.5 w-2.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                         </svg>
+                       </span>
+
                        <span class="bubble-time">{{ formatTimeOnly(msg.created_at) }}</span>
 
                        <!-- Read checkmarks logic for sent messages -->
@@ -666,50 +670,53 @@
               </div>
 
               <!-- Text input row -->
-              <div class="zalo-input-row flex items-center px-4 py-2.5">
+              <div class="zalo-input-row flex items-center px-2 py-1.5 gap-1">
                 <input
                   v-model="newMessage"
                   type="text"
                   placeholder="Nhập tin nhắn..."
                   @paste="handlePaste"
-                  class="zalo-input w-full bg-transparent text-sm focus:outline-none"
+                  class="zalo-input flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
                 />
 
-                <!-- Left Action: Share Booking -->
-                <button
-                  v-if="canShareBooking"
-                  type="button"
-                  @click="openBookingPicker"
-                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0 mr-1"
-                  title="Chia sẻ booking"
-                >
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                  </svg>
-                </button>
+                <div class="zalo-actions-group flex items-center gap-1 shrink-0">
+                  <!-- Left Action: Share Booking -->
+                  <button
+                    v-if="canShareBooking"
+                    type="button"
+                    @click="openBookingPicker"
+                    class="zalo-attach-btn"
+                    title="Chia sẻ booking"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                  </button>
 
-                <!-- Left Action: File Attachment -->
-                <button
-                  type="button"
-                  @click="clickAttachment"
-                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0 mr-1"
-                  title="Thêm ảnh"
-                >
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                </button>
+                  <!-- Left Action: File Attachment -->
+                  <button
+                    type="button"
+                    @click="clickAttachment"
+                    class="zalo-attach-btn"
+                    title="Thêm ảnh"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
 
-                <!-- Right Action: Circular Send Button -->
-                <button
-                  type="submit"
-                  :disabled="!newMessage.trim() && selectedImageFiles.length === 0"
-                  class="zalo-send-btn h-8 w-8 rounded-full transition-all shrink-0 flex items-center justify-center"
-                >
-                  <svg class="h-4 w-4 fill-current text-current" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                  </svg>
-                </button>
+                  <!-- Right Action: Circular Send Button -->
+                  <button
+                    type="submit"
+                    :disabled="!newMessage.trim() && selectedImageFiles.length === 0"
+                    class="zalo-send-btn"
+                    title="Gửi tin nhắn"
+                  >
+                    <svg class="h-3.5 w-3.5 fill-current text-current" viewBox="0 0 24 24">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <!-- Divider -->
@@ -1486,11 +1493,14 @@ export default {
     },
     canViewRelatedBookings() {
       if (!this.activeConversation || !this.currentUser) return false;
-      return this.currentUser.role_group === 'owner' || this.$route.path.startsWith('/owner');
+      return this.isAdmin || this.currentUser.role_group === 'owner' || this.currentUser.role_group === 'staff' || this.currentUser.role_group === 'venue_staff' || this.$route.path.startsWith('/owner') || this.$route.path.startsWith('/staff');
     },
     canCreateSupportRequest() {
       if (!this.activeConversation || !this.currentUser) return false;
-      return this.currentUser.role_group !== 'owner' && this.currentUser.role_group !== 'admin';
+      if (this.isAdmin || this.currentUser.role_group === 'owner' || this.currentUser.role_group === 'staff' || this.currentUser.role_group === 'venue_staff' || this.currentUser.role_group === 'admin') {
+        return false;
+      }
+      return true;
     },
     canHandleSupportRequest() {
       return this.canViewRelatedBookings;
@@ -1514,6 +1524,15 @@ export default {
       if (this.activeConversation.other_user) return this.activeConversation.other_user;
 
       const participants = this.activeConversationParticipants || [];
+      if (this.activeConversation.type === 'venue_contact' && this.isAdmin) {
+        const customerParticipant = participants.find((p) => {
+          if (String(p.user_id) === String(this.currentUser?.id)) return false;
+          const role = p.user?.role_group || p.user?.role?.name || '';
+          return role !== 'owner' && role !== 'venue_staff' && role !== 'staff' && role !== 'admin';
+        });
+        if (customerParticipant?.user) return customerParticipant.user;
+      }
+
       const otherParticipant = participants.find((participant) => String(participant.user_id) !== String(this.currentUser?.id));
       if (otherParticipant?.user) return otherParticipant.user;
 
@@ -1521,6 +1540,12 @@ export default {
       return null;
     },
     profileDisplayName() {
+      if (this.activeConversation?.type === 'venue_contact') {
+        if (this.isAdmin) {
+          return this.profileUser?.full_name || this.profileUser?.name || this.activeConversation?.title || 'Khách hàng';
+        }
+        return this.activeConversation?.title || this.profileUser?.full_name || 'Sân đấu';
+      }
       return this.profileUser?.full_name
         || this.profileUser?.name
         || this.activeConversation?.title
@@ -1534,7 +1559,16 @@ export default {
       return this.profileUser?.avatar_url || null;
     },
     profileStatusText() {
-      if (this.activeConversation?.type === 'venue_contact') return 'Hội thoại Sân đấu';
+      if (this.activeConversation?.type === 'venue_contact') {
+        if (this.isAdmin) {
+          return this.activeConversation?.title ? `Hội thoại • ${this.activeConversation.title}` : 'Khách liên hệ sân';
+        }
+        return 'Hội thoại Sân đấu';
+      }
+      if (this.activeConversation?.type === 'group') {
+        const count = this.activeConversationParticipants?.length || 0;
+        return `${count} thành viên`;
+      }
       return '';
     },
     profilePrimaryContact() {
@@ -2189,6 +2223,14 @@ export default {
         this.relatedBookingsError = error.message || 'Kh\u00f4ng th\u1ec3 t\u1ea3i booking li\u00ean quan.';
       } finally {
         this.loadingRelatedBookings = false;
+      }
+    },
+    openBookingDetailFromChat(booking) {
+      if (!booking?.id) return;
+      if (this.$route.path.startsWith('/staff')) {
+        this.$router.push({ path: '/staff/bookings', query: { code: booking.booking_code } });
+      } else if (this.$route.path.startsWith('/owner')) {
+        this.$router.push({ path: '/owner/counter-booking', query: { code: booking.booking_code } });
       }
     },
     openSupportRequestModal(booking) {
@@ -3114,6 +3156,7 @@ export default {
 .admin-chat-page .admin-chat-workspace,
 .admin-chat-page .tg-message-container,
 .admin-chat-page .tg-chat-header,
+.admin-chat-page .pinned-messages-banner,
 .admin-chat-page .tg-sidebar-header,
 .admin-chat-page .tg-drawer-panel,
 .admin-chat-page .tg-drawer-header,
@@ -3373,6 +3416,129 @@ export default {
   padding: 0 20px;
   display: flex;
   align-items: center;
+}
+
+/* Pinned Messages Banner */
+.pinned-messages-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background-color: var(--tg-header-bg, #ffffff);
+  border-bottom: 1px solid var(--tg-border, #e5e7eb);
+  flex-shrink: 0;
+  z-index: 10;
+  gap: 12px;
+}
+
+.pinned-banner-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pinned-accent-line {
+  width: 3px;
+  height: 32px;
+  background-color: #087642;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.pinned-banner-icon {
+  width: 16px;
+  height: 16px;
+  color: #087642;
+  flex-shrink: 0;
+}
+
+.pinned-banner-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pinned-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #087642;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pinned-banner-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: #087642;
+  font-weight: 600;
+}
+
+.pinned-banner-sender {
+  color: #4b5563;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.pinned-banner-text {
+  font-size: 12px;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pinned-banner-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pinned-more-btn {
+  font-size: 11px;
+  font-weight: 400;
+  color: #087642;
+  background: transparent;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.pinned-more-btn:hover {
+  background: #f0fdf4;
+}
+
+.pinned-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pinned-close-btn:hover {
+  color: #374151;
+  background: #f3f4f6;
 }
 
 /* Messages container spacing */
@@ -3703,10 +3869,23 @@ export default {
 }
 
 /* Zalo style input box styling */
+.tg-input-bar-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  padding: 6px 10px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
 .zalo-chat-box {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
   background-color: var(--tg-received-bg) !important;
   border: 1px solid var(--tg-border) !important;
-  border-radius: 16px !important;
+  border-radius: 12px !important;
   overflow: hidden !important;
   box-shadow: var(--admin-shadow-sm) !important;
   transition: border-color 150ms ease;
@@ -3717,22 +3896,36 @@ export default {
 }
 
 .zalo-input-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 16px !important;
-  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 6px !important;
+  box-sizing: border-box !important;
 }
 
-.sg-shell-admin .content-area input.zalo-input {
+.zalo-actions-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+
+.sg-shell-admin .content-area input.zalo-input,
+input.zalo-input {
   color: var(--tg-received-text) !important;
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
   min-height: auto !important;
-  padding: 8px 0 !important;
+  padding: 6px 4px !important;
+  flex: 1 1 auto !important;
+  min-width: 50px !important;
   width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .sg-shell-admin .content-area input.zalo-input:focus {
@@ -3750,19 +3943,38 @@ export default {
   background: transparent !important;
   border: none !important;
   cursor: pointer !important;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  padding: 2px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  border-radius: 4px !important;
 }
+
 .zalo-attach-btn.never-hover-class-placeholder {
   color: var(--tg-received-text) !important;
   background-color: var(--tg-active-row) !important;
 }
 
 .zalo-send-btn {
-  background-color: var(--admin-primary) !important;
-  color: var(--admin-primary-text) !important;
+  background-color: #087642 !important;
+  color: #ffffff !important;
   border: none !important;
   cursor: pointer !important;
-  border-radius: 9999px !important;
+  border-radius: 50% !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   transition: all 0.2s ease;
+  margin: 0 !important;
 }
 
 .zalo-send-btn.never-hover-class-placeholder:not(:disabled) {

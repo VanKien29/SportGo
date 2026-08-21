@@ -188,6 +188,25 @@
               </div>
             </div>
 
+            <!-- QR CHECK-IN TICKET -->
+            <div v-if="['confirmed', 'checked_in'].includes(booking.status)" class="bd-ticket-panel">
+              <div class="bd-ticket-head">
+                <span class="bd-ticket-kicker">VÉ NHẬN SÂN ĐIỆN TỬ</span>
+                <strong class="bd-ticket-code">#{{ booking.booking_code }}</strong>
+              </div>
+              <div class="bd-ticket-qr-wrap">
+                <img
+                  :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(booking.booking_code)}`"
+                  :alt="`Mã QR ${booking.booking_code}`"
+                  class="bd-ticket-qr"
+                  loading="lazy"
+                />
+              </div>
+              <p class="bd-ticket-hint">
+                Đưa mã QR này cho nhân viên tại quầy để nhận sân nhanh chóng.
+              </p>
+            </div>
+
             <!-- ONLINE PAYMENT -->
             <section v-if="canPayOnline" class="bd-payment-panel" aria-labelledby="bd-payment-title">
               <div class="bd-payment-head">
@@ -790,14 +809,14 @@ export default {
 
 .bd-back-link {
   font-size: 13px;
-  color: #15803d;
+  color: #5c7e6e;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .bd-title {
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 700;
   color: #0f172a;
   margin: 4px 0 0;
 }
@@ -812,27 +831,41 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 8px 18px;
   font-size: 13px;
-  font-weight: 500;
-  border-radius: 4px;
+  font-weight: 600;
+  border-radius: 999px;
   cursor: pointer;
   text-decoration: none;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
+  transition: all 0.15s ease;
 }
 
 .bd-btn--primary {
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  border-color: #15803d;
+  border: none;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+}
+
+.bd-btn--primary:hover:not(:disabled) {
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .bd-btn--outline {
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
   border-color: #cbd5e1;
+}
+
+.bd-btn--outline:hover {
+  border-color: #54656f;
+  color: #0f172a;
+  background: #f8fafc;
 }
 
 .bd-btn--danger {
@@ -865,8 +898,8 @@ export default {
 }
 
 .bh-status-value {
-  font-weight: 500;
-  color: #15803d;
+  font-weight: 600;
+  color: #5c7e6e;
 }
 
 .bh-status-value.cancelled,
@@ -943,6 +976,60 @@ export default {
 .bd-slots-section,
 .bd-pay-history {
   margin-top: 24px;
+}
+
+.bd-ticket-panel {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.bd-ticket-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bd-ticket-kicker {
+  font-size: 11px;
+  font-weight: 500;
+  color: #15803d;
+  letter-spacing: 0.5px;
+}
+
+.bd-ticket-code {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.bd-ticket-qr-wrap {
+  background: #ffffff;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bd-ticket-qr {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+}
+
+.bd-ticket-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .bd-sub-title {

@@ -51,13 +51,13 @@
 
           <div class="alb-orbit-container">
             <div class="alb-orbit-wrapper">
-              <!-- Center Core Logo -->
-              <div class="alb-orbit-center">
-                <img v-if="brandLogo" :src="brandLogo" :alt="brandName" style="max-width: 64px; max-height: 48px; object-fit: contain;" />
-                <template v-else>
-                  <span class="alb-orbit-center__logo">SportGo</span>
-                  <span class="alb-orbit-center__sub">Nền tảng</span>
-                </template>
+              <!-- Center Core 3D Model Illustration (Transparent, No border, No text, No hover) -->
+              <div class="alb-orbit-center" title="Hệ sinh thái thể thao SportGo">
+                <img
+                  :src="'/images/home/sportgo_hub_3d.png'"
+                  alt="SportGo 3D Sports Complex Model"
+                  class="alb-orbit-center__illus"
+                />
               </div>
 
               <!-- Inner Ring (Ring 1) -->

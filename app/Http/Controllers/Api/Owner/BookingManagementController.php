@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Models\SlotLock;
 use App\Models\VenueCluster;
+use App\Models\VenueClusterService;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
 use App\Services\BookingService;
@@ -17,6 +20,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -207,12 +212,12 @@ class BookingManagementController extends Controller
         );
 
         if ($allowedCourtTypeIds !== null && empty($validated['court_type_id'])) {
-            throw ValidationException::withMessages([
-                'court_type_id' => 'Vui lòng chọn loại sân được phân công để xem lịch.',
-            ]);
+            if ($allowedCourtTypeIds->isNotEmpty()) {
+                $validated['court_type_id'] = $allowedCourtTypeIds->first();
+            }
         }
 
-        if ($allowedCourtTypeIds !== null) {
+        if ($allowedCourtTypeIds !== null && ! empty($validated['court_type_id'])) {
             abort_unless($allowedCourtTypeIds->contains((int) $validated['court_type_id']), 403);
         }
 
@@ -1100,5 +1105,101 @@ class BookingManagementController extends Controller
             'occurrences' => $occurrences,
             'has_conflict_sensitive_items' => $bookings->contains(fn (Booking $booking): bool => in_array($booking->status, ['pending_payment', 'confirmed', 'checked_in'], true)),
         ];
+    }
+
+    public function createRetailOrder(Request $request): JsonResponse
+    {
+        $clusterIds = $this->visibleClusterIds($request->user()->id);
+
+        $validated = $request->validate([
+            'venue_cluster_id' => ['required', 'integer', Rule::in($clusterIds)],
+            'services' => ['required', 'array', 'min:1'],
+            'services.*.service_id' => ['required', 'string', 'exists:venue_cluster_services,id'],
+            'services.*.quantity' => ['required', 'integer', 'min:1', 'max:100'],
+            'payment_method' => ['required', Rule::in(['cash', 'sepay'])],
+            'customer_note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $cluster = VenueCluster::query()->findOrFail($validated['venue_cluster_id']);
+        $this->ensureClusterCanMutate($request, $cluster);
+
+        $totalAmount = 0;
+        $orderItems = [];
+
+        foreach ($validated['services'] as $item) {
+            $service = VenueClusterService::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->where('id', $item['service_id'])
+                ->first();
+
+            if (! $service) {
+                continue;
+            }
+
+            $lineTotal = round((float) $service->price * (int) $item['quantity'], 2);
+            $totalAmount += $lineTotal;
+
+            $orderItems[] = [
+                'service_id' => $service->id,
+                'service_name' => $service->name,
+                'unit' => $service->unit ?? 'món',
+                'unit_price' => (float) $service->price,
+                'quantity' => (int) $item['quantity'],
+                'total_price' => $lineTotal,
+            ];
+        }
+
+        if ($totalAmount <= 0) {
+            throw ValidationException::withMessages([
+                'services' => 'Không có sản phẩm nào hợp lệ để tạo đơn.',
+            ]);
+        }
+
+        $paymentCode = 'RT' . Str::upper(Str::random(10));
+        $payment = Payment::create([
+            'payment_code' => $paymentCode,
+            'payment_context' => 'retail_order',
+            'payment_kind' => 'retail',
+            'amount' => $totalAmount,
+            'gateway_amount' => $totalAmount,
+            'method' => $validated['payment_method'],
+            'status' => $validated['payment_method'] === 'cash' ? 'paid' : 'pending',
+            'paid_at' => $validated['payment_method'] === 'cash' ? now() : null,
+            'gateway_response' => [
+                'retail_items' => $orderItems,
+                'customer_note' => $validated['customer_note'] ?? null,
+                'created_by' => $request->user()->id,
+                'cluster_id' => $cluster->id,
+            ],
+        ]);
+
+        if (Schema::hasTable('audit_logs')) {
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'actor_id' => $request->user()->id,
+                'action' => 'staff.retail_order.created',
+                'entity_type' => 'payments',
+                'entity_id' => (string) $payment->id,
+                'new_values' => [
+                    'payment_code' => $paymentCode,
+                    'amount' => $totalAmount,
+                    'method' => $validated['payment_method'],
+                    'items_count' => count($orderItems),
+                ],
+                'context' => 'owner',
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 500),
+                'created_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Đã ghi nhận đơn bán lẻ thành công!',
+            'data' => [
+                'payment' => $payment,
+                'total_amount' => $totalAmount,
+                'items' => $orderItems,
+            ],
+        ], 201);
     }
 }

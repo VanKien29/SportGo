@@ -80,14 +80,25 @@ export const ownerStaffShiftService = {
     if (params.end_date) searchParams.set('end_date', params.end_date);
     return api(`${url}?${searchParams.toString()}`);
   },
+  handoverSummary(id) {
+    return api(`/api/owner/staff-shifts/schedules/${id}/handover-summary`);
+  },
+  getHandoverSummary(id) {
+    return this.handoverSummary(id);
+  },
   checkIn(id) {
     return api(`/api/owner/staff-shifts/schedules/${id}/check-in`, {
       method: 'POST',
     });
   },
-  checkOut(id) {
+  checkOut(id, payload = {}) {
     return api(`/api/owner/staff-shifts/schedules/${id}/check-out`, {
       method: 'POST',
+      body: JSON.stringify(payload),
     });
+  },
+  checkoutShift(payload = {}) {
+    const id = payload.schedule_id || payload.id;
+    return this.checkOut(id, payload);
   },
 };

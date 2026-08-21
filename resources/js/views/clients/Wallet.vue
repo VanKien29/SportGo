@@ -1,42 +1,35 @@
 <!-- SportGo Client Wallet View - Pure White Page Layout -->
 <template>
-  <div class="sg-client-page wallet-white-page">
-    <PublicNavbar />
-
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR NAVIGATION -->
-        <ClientAccountNav />
-
-        <!-- SKELETON LOADING STATE -->
-        <div v-if="loading" class="w2-skeleton-wrapper">
-          <div class="w2-sk-hero">
-            <div class="w2-sk-line w2-sk-title"></div>
-            <div class="w2-sk-line w2-sk-amount"></div>
-            <div class="w2-sk-line w2-sk-sub"></div>
-          </div>
-          <div class="w2-sk-ledger">
-            <div v-for="n in 3" :key="n" class="w2-sk-row">
-              <div class="w2-sk-circle"></div>
-              <div class="w2-sk-col">
-                <div class="w2-sk-line w2-sk-text1"></div>
-                <div class="w2-sk-line w2-sk-text2"></div>
-              </div>
-            </div>
+  <div class="w2-white-content">
+    <!-- SKELETON LOADING STATE -->
+    <div v-if="loading" class="w2-skeleton-wrapper">
+      <div class="w2-sk-hero">
+        <div class="w2-sk-line w2-sk-title"></div>
+        <div class="w2-sk-line w2-sk-amount"></div>
+        <div class="w2-sk-line w2-sk-sub"></div>
+      </div>
+      <div class="w2-sk-ledger">
+        <div v-for="n in 3" :key="n" class="w2-sk-row">
+          <div class="w2-sk-circle"></div>
+          <div class="w2-sk-col">
+            <div class="w2-sk-line w2-sk-text1"></div>
+            <div class="w2-sk-line w2-sk-text2"></div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- ERROR STATE -->
-        <div v-else-if="error" class="w2-state-card w2-error">
-          <div>
-            <span>Không thể kết nối đến Ví SportGo</span>
-            <p>{{ error }}</p>
-            <button class="w2-btn w2-btn--primary" type="button" @click="loadWallet">Thử lại</button>
-          </div>
-        </div>
+    <!-- ERROR STATE -->
+    <div v-else-if="error" class="w2-state-card w2-error">
+      <div>
+        <span>Không thể kết nối đến Ví SportGo</span>
+        <p>{{ error }}</p>
+        <button class="w2-btn w2-btn--primary" type="button" @click="loadWallet">Thử lại</button>
+      </div>
+    </div>
 
-        <!-- MAIN CONTENT: PURE WHITE PAGE LAYOUT LIKE PROFILE PAGE -->
-        <div v-else class="w2-white-content">
+    <!-- MAIN CONTENT: PURE WHITE PAGE LAYOUT -->
+    <template v-else>
         <!-- TOP BALANCE BANNER ON PURE WHITE -->
         <section class="w2-white-hero">
           <div class="w2-hero-top">
@@ -224,8 +217,7 @@
             </article>
           </div>
         </section>
-      </div>
-      </div>
+      </template>
 
       <!-- TOAST NOTIFICATION -->
       <Transition name="w2-toast">
@@ -233,7 +225,7 @@
           <span>{{ toastMessage }}</span>
         </div>
       </Transition>
-    </main>
+    </div>
 
     <!-- TOP-UP / DEPOSIT VIETQR MODAL -->
     <Teleport to="body">
@@ -456,17 +448,14 @@
         </div>
       </div>
     </Teleport>
-  </div>
 </template>
 
 <script>
-import PublicNavbar from "../../components/PublicNavbar.vue";
-import ClientAccountNav from "../../components/ClientAccountNav.vue";
 import { bookingService } from "../../services/bookingService.js";
 
 export default {
   name: "ClientWallet",
-  components: { PublicNavbar, ClientAccountNav },
+  components: {},
   data() {
     return {
       wallet: { id: null, balance: 0, locked_balance: 0, status: "active" },
@@ -827,9 +816,10 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 9px 18px;
+  padding: 8px 18px;
   font-size: 13.5px;
-  border-radius: 4px;
+  font-weight: 600;
+  border-radius: 999px;
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -837,25 +827,28 @@ export default {
 }
 
 .w2-btn--primary {
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  border-color: #15803d;
+  border: none;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
 }
 
 .w2-btn--primary:hover:not(:disabled) {
-  background: #166534;
-  border-color: #166534;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .w2-btn--outline {
   background: #ffffff;
-  color: #0f172a;
-  border-color: #cbd5e1;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
 }
 
 .w2-btn--outline:hover:not(:disabled) {
   background: #f8fafc;
-  border-color: #0f172a;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 .w2-btn:disabled {
@@ -910,9 +903,8 @@ export default {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: w2SkShimmer 1.5s infinite;
+  background: #f1f5f9;
+  flex-shrink: 0;
 }
 
 .w2-sk-col {
@@ -922,41 +914,56 @@ export default {
   flex: 1;
 }
 
-.w2-sk-text1 { width: 45%; height: 16px; }
-.w2-sk-text2 { width: 28%; height: 12px; }
+.w2-sk-text1 { width: 45%; height: 14px; }
+.w2-sk-text2 { width: 25%; height: 12px; }
 
 @keyframes w2SkShimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
-/* STATE CARDS */
+/* STATE SCREENS */
 .w2-state-card {
-  flex: 1;
-  width: 100%;
+  padding: 48px 24px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.w2-error span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ef4444;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.w2-error p {
+  color: #64748b;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+
+.w2-loading-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 48px 24px;
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 6px;
+  min-height: 240px;
   gap: 16px;
-  color: #0f172a;
 }
 
-.w2-loading span {
-  font-size: 16px;
-  color: #0f172a;
+.w2-loading-text {
+  font-size: 14px;
+  color: #64748b;
 }
 
 .w2-spinner {
   width: 32px;
   height: 32px;
   border: 3px solid #cbd5e1;
-  border-top-color: #15803d;
+  border-top-color: #5c7e6e;
   border-radius: 50%;
   animation: w2Spin 0.7s linear infinite;
 }
@@ -994,12 +1001,13 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 7px 14px;
-  font-size: 13.5px;
-  color: #334155;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
@@ -1011,9 +1019,10 @@ export default {
 }
 
 .w2-tab.is-active {
-  color: #15803d;
-  background: #ffffff;
-  border-color: #15803d;
+  color: #5c7e6e;
+  background: #edf4f0;
+  border-color: #cbd5e1;
+  font-weight: 600;
 }
 
 .w2-tab-count {

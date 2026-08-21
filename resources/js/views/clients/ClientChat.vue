@@ -1696,11 +1696,28 @@ export default {
               created_at: new Date().toISOString(),
             });
             this.playNotificationSound();
+          } else if (res?.message) {
+            this.messages.push({
+              id: "ai_err_" + Date.now(),
+              sender_id: "ai_assistant",
+              role: "assistant",
+              content: res.message,
+              created_at: new Date().toISOString(),
+            });
           }
           this.saveAiMessages();
           this.scrollToBottom();
         } catch (e) {
           console.error("Lỗi kết nối AI:", e);
+          this.messages.push({
+            id: "ai_err_" + Date.now(),
+            sender_id: "ai_assistant",
+            role: "assistant",
+            content: "Không thể kết nối tới máy chủ AI. Vui lòng thử lại sau giây lát.",
+            created_at: new Date().toISOString(),
+          });
+          this.saveAiMessages();
+          this.scrollToBottom();
         } finally {
           this.sendingAi = false;
         }

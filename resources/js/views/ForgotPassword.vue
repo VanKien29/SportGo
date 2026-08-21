@@ -3,8 +3,9 @@
     class="sg-account-auth"
     :title="titleText"
     :subtitle="subtitleText"
+    quote-title="Khôi phục mật khẩu"
+    quote-text="Nhận mã xác thực qua email để tiếp tục lịch thi đấu và trải nghiệm thể thao."
     :image-src="authVisual"
-    quote-text="Khôi phục quyền truy cập để tiếp tục lịch chơi của bạn."
     back-to="/"
   >
     <div class="sg-account-form">
@@ -177,7 +178,7 @@ export default {
   },
   data() {
     return {
-      authVisual: '/images/home/badminton-cover.webp',
+      authVisual: '/images/auth/sportgo_art.png',
       step: 'identify',
       resetSteps: [
         { key: 'identify', label: 'Tài khoản' },

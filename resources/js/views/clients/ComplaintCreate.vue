@@ -1,15 +1,6 @@
 <template>
-  <div class="sg-client-page wallet-white-page">
-    <PublicNavbar />
-
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR -->
-        <ClientAccountNav />
-
-        <!-- RIGHT CONTENT -->
-        <div class="w2-white-content">
-          <!-- TOP HEADER -->
+  <div class="w2-white-content">
+    <!-- TOP HEADER -->
           <div class="cpc-header">
             <button type="button" class="cpc-back-btn" @click="$router.push({ name: 'client-complaints' })">
               <AppIcon name="arrowLeft" :size="16" /> Quay lại danh sách khiếu nại
@@ -132,21 +123,16 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </main>
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
-import PublicNavbar from '../../components/PublicNavbar.vue';
-import ClientAccountNav from '../../components/ClientAccountNav.vue';
 import { complaintService } from '../../services/complaintService.js';
 
 export default {
   name: 'ComplaintCreate',
-  components: { AppIcon, PublicNavbar, ClientAccountNav },
+  components: { AppIcon },
   data() {
     return {
       form: {

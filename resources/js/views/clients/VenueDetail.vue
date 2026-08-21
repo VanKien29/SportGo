@@ -161,7 +161,37 @@
               </div>
             </div>
 
-            <div v-if="!venue.description && !amenities.length && !groupedServices.length" class="sg-detail-block sg-empty-block">
+            <!-- Dụng cụ & Phụ kiện gợi ý (Tiếp thị liên kết) -->
+            <div v-if="affiliateProducts.length" class="sg-detail-block">
+              <div class="sg-section-title-row">
+                <h2 class="sg-section-title">Dụng cụ &amp; Phụ kiện khuyên dùng</h2>
+                <button type="button" class="sg-link-btn" @click="setActiveTab('products')">
+                  Xem tất cả ({{ affiliateProducts.length }}) →
+                </button>
+              </div>
+              <div class="sg-affiliate-grid sg-affiliate-grid--preview">
+                <article v-for="prod in affiliateProducts.slice(0, 4)" :key="prod.id" class="sg-affiliate-card">
+                  <div class="sg-affiliate-img-wrap">
+                    <img :src="productImage(prod)" :alt="prod.name" class="sg-affiliate-img" />
+                    <span v-if="prod.platform_name || prod.platform" class="sg-affiliate-platform-tag">{{ platformLabel(prod.platform_name || prod.platform) }}</span>
+                  </div>
+                  <div class="sg-affiliate-body">
+                    <h3 class="sg-affiliate-name" :title="prod.name">{{ prod.name }}</h3>
+                    <div class="sg-affiliate-price-row">
+                      <span class="sg-affiliate-price">{{ formatCurrency(prod.price || prod.discount_price || prod.original_price) }}</span>
+                      <span v-if="prod.original_price && (prod.price || prod.discount_price) && Number(prod.price || prod.discount_price) < Number(prod.original_price)" class="sg-affiliate-old-price">
+                        {{ formatCurrency(prod.original_price) }}
+                      </span>
+                    </div>
+                    <button type="button" class="sg-affiliate-buy-btn" @click="openAffiliateLink(prod)">
+                      <span>Mua trên {{ platformLabel(prod.platform_name || prod.platform) }}</span>
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <div v-if="!venue.description && !amenities.length && !groupedServices.length && !affiliateProducts.length" class="sg-detail-block sg-empty-block">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               <h3 class="sg-empty-title">Thông tin tổng quan đang cập nhật</h3>
               <p class="sg-empty-desc">Bạn vẫn có thể xem lịch trống và đặt sân trực tiếp bên phải.</p>
@@ -464,6 +494,52 @@
             </div>
           </template>
 
+          <!-- TAB: CỬA HÀNG PHỤ KIỆN (TIẾP THỊ LIÊN KẾT) -->
+          <template v-else-if="activeTab === 'products'">
+            <div class="sg-affiliate-section">
+              <div class="sg-affiliate-head">
+                <h2 class="sg-section-title">Cửa hàng Dụng cụ &amp; Phụ kiện thể thao</h2>
+                <p class="sg-section-desc">Sản phẩm chính hãng, phụ kiện thi đấu và trang thiết bị chất lượng do ban quản lý cụm sân chọn lọc và giới thiệu.</p>
+              </div>
+
+              <!-- Danh sách sản phẩm -->
+              <div v-if="affiliateProducts.length" class="sg-affiliate-grid">
+                <article v-for="prod in affiliateProducts" :key="prod.id" class="sg-affiliate-card">
+                  <div class="sg-affiliate-img-wrap">
+                    <img :src="productImage(prod)" :alt="prod.name" class="sg-affiliate-img" />
+                    <span v-if="prod.platform_name || prod.platform" class="sg-affiliate-platform-tag">{{ platformLabel(prod.platform_name || prod.platform) }}</span>
+                  </div>
+                  <div class="sg-affiliate-body">
+                    <h3 class="sg-affiliate-name" :title="prod.name">{{ prod.name }}</h3>
+                    <div class="sg-affiliate-price-row">
+                      <span class="sg-affiliate-price">{{ formatCurrency(prod.price || prod.discount_price || prod.original_price) }}</span>
+                      <span v-if="prod.original_price && (prod.price || prod.discount_price) && Number(prod.price || prod.discount_price) < Number(prod.original_price)" class="sg-affiliate-old-price">
+                        {{ formatCurrency(prod.original_price) }}
+                      </span>
+                    </div>
+                    <button type="button" class="sg-affiliate-buy-btn" @click="openAffiliateLink(prod)">
+                      <span>Mua trên {{ platformLabel(prod.platform_name || prod.platform) }}</span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    </button>
+                  </div>
+                </article>
+              </div>
+
+              <!-- Trạng thái trống -->
+              <div v-else class="sg-affiliate-empty">
+                <svg width="160" height="120" viewBox="0 0 160 120" fill="none" class="sg-empty-illustration">
+                  <circle cx="80" cy="60" r="50" fill="#f0fdf4" />
+                  <rect x="52" y="44" width="56" height="42" rx="4" fill="#ffffff" stroke="#15803d" stroke-width="1.8" />
+                  <path d="M68 44V36a12 12 0 0 1 24 0v8" stroke="#15803d" stroke-width="1.8" stroke-linecap="round" />
+                  <circle cx="80" cy="65" r="5" stroke="#15803d" stroke-width="1.8" />
+                  <line x1="80" y1="70" x2="80" y2="76" stroke="#15803d" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+                <h3 class="sg-empty-title">Chưa có sản phẩm phụ kiện nào</h3>
+                <p class="sg-empty-desc">Cụm sân đang cập nhật các sản phẩm vợt, cầu và phụ kiện chính hãng để phục vụ người chơi.</p>
+              </div>
+            </div>
+          </template>
+
           <!-- TAB 3: BÀI VIẾT -->
           <template v-else-if="activeTab === 'posts'">
             <VenuePostsTab
@@ -650,6 +726,7 @@ import ReportModal from "../../components/ReportModal.vue";
 import VenuePostsTab from "../../components/VenuePostsTab.vue";
 import { venueService } from "../../services/venues.js";
 import { chatService } from "../../services/chat.service.js";
+import { affiliateProductService } from "../../services/affiliateProducts.js";
 import { getAuth, restoreAuth } from "../../stores/auth.js";
 import { useToast } from "vue-toastification";
 
@@ -671,6 +748,7 @@ export default {
       venueTabs: [
         { id: "overview", label: "Tổng quan & tiện ích" },
         { id: "courts", label: "Sân & bảng giá" },
+        { id: "products", label: "Cửa hàng phụ kiện" },
         { id: "membership", label: "Hội viên sân" },
         { id: "posts", label: "Bài viết" },
         { id: "reviews", label: "Đánh giá" },
@@ -693,6 +771,9 @@ export default {
     };
   },
   computed: {
+    affiliateProducts() {
+      return this.venue?.affiliate_products || [];
+    },
     searchQuery() {
       const query = { ...this.$route.query };
       delete query.id;
@@ -985,6 +1066,36 @@ export default {
         .slice(0, 2)
         .map((part) => part.charAt(0).toUpperCase())
         .join("");
+    },
+
+    platformLabel(platform) {
+      const map = {
+        shopee: "Shopee",
+        tiktok: "TikTok Shop",
+        lazada: "Lazada",
+        tiki: "Tiki",
+        other: "Gian hàng",
+      };
+      return map[String(platform).toLowerCase()] || "Shopee";
+    },
+
+    productImage(prod) {
+      const img = prod?.image_path || prod?.image;
+      if (!img) return "/images/home/badminton-cover.webp";
+      if (/^https?:\/\//i.test(img)) return img;
+      return img.startsWith("/") ? img : `/storage/${img}`;
+    },
+
+    async openAffiliateLink(prod) {
+      if (!prod?.affiliate_url) return;
+      try {
+        if (prod.id) {
+          affiliateProductService.trackClick(prod.id).catch(() => {});
+        }
+      } catch (e) {
+        // ignore tracking error
+      }
+      window.open(prod.affiliate_url, "_blank", "noopener,noreferrer");
     },
 
     formatCurrency(value) {
@@ -1613,18 +1724,22 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 18px;
-  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.15s ease;
 }
 
 .sg-btn-primary-action:hover {
-  background: #15803d;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .sg-btn-ghost-action {
@@ -1632,19 +1747,20 @@ export default {
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  color: #334155;
+  color: #475569;
   font-size: 13px;
-  font-weight: 500;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .sg-btn-ghost-action:hover {
   background: #f8fafc;
-  border-color: #94a3b8;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 /* NAVIGATION TABS WRAPPER */
@@ -1676,8 +1792,8 @@ export default {
   border: none;
   padding: 14px 0;
   font-size: 13.5px;
-  font-weight: 400;
-  color: #334155;
+  font-weight: 500;
+  color: #475569;
   cursor: pointer;
   position: relative;
   transition: color 0.15s ease;
@@ -1692,8 +1808,8 @@ export default {
 }
 
 .sg-detail-tab-btn.is-active {
-  color: #15803d;
-  font-weight: 500;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .sg-detail-tab-btn.is-active::after {
@@ -1703,7 +1819,7 @@ export default {
   left: 0;
   right: 0;
   height: 2px;
-  background: #15803d;
+  background: #5c7e6e;
   border-radius: 2px 2px 0 0;
 }
 
@@ -1719,8 +1835,8 @@ export default {
 }
 
 .sg-detail-tab-btn.is-active .sg-tab-count-badge {
-  background: #dcfce7;
-  color: #15803d;
+  background: #edf4f0;
+  color: #5c7e6e;
 }
 
 /* MAIN LAYOUT 2 COLUMNS */
@@ -3060,6 +3176,192 @@ export default {
   .sg-membership-progress-meta {
     flex-direction: column;
     gap: 4px;
+  }
+}
+
+/* =========================================================================
+   AFFILIATE SHOP / PRODUCTS STYLES
+   ========================================================================= */
+.sg-affiliate-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sg-affiliate-head {
+  margin-bottom: 4px;
+}
+
+.sg-affiliate-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.sg-affiliate-grid--preview {
+  margin-top: 14px;
+}
+
+.sg-affiliate-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sg-affiliate-card:hover {
+  border-color: #15803d;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.sg-affiliate-img-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  background: #f8fafc;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-affiliate-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.sg-affiliate-card:hover .sg-affiliate-img {
+  transform: scale(1.03);
+}
+
+.sg-affiliate-platform-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.sg-affiliate-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+}
+
+.sg-affiliate-name {
+  font-size: 13.5px;
+  color: #0f172a;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  min-height: 38px;
+}
+
+.sg-affiliate-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+.sg-affiliate-price {
+  font-size: 14.5px;
+  color: #15803d;
+}
+
+.sg-affiliate-old-price {
+  font-size: 11.5px;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.sg-affiliate-buy-btn {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #15803d;
+  background: #f0fdf4;
+  color: #15803d;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.sg-affiliate-buy-btn:hover {
+  background: #15803d;
+  color: #ffffff;
+}
+
+.sg-affiliate-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sg-link-btn {
+  background: transparent;
+  border: none;
+  color: #15803d;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.sg-link-btn:hover {
+  background: #f0fdf4;
+}
+
+@media (max-width: 1100px) {
+  .sg-affiliate-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .sg-affiliate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 440px) {
+  .sg-affiliate-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
