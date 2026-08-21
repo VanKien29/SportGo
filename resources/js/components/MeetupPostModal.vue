@@ -115,6 +115,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import ClientCustomSelect from '@/components/ClientCustomSelect.vue';
 import SgButton from '@/components/common/SgButton.vue';
@@ -122,6 +123,7 @@ import { api } from '@/services/api';
 import { getAuth } from '@/stores/auth.js';
 
 const router = useRouter();
+const toast = useToast();
 const props = defineProps({ isOpen: { type: Boolean, default: false } });
 const emit = defineEmits(['close', 'success']);
 const user = getAuth();
@@ -132,6 +134,12 @@ const bookingsLoading = ref(false);
 const bookingsError = ref('');
 const isSubmitting = ref(false);
 const errorMsg = ref('');
+let eligibleRequestController = null;
+let eligibleRequestId = 0;
+let eligibleLoadedAt = 0;
+let eligibleRequestTimer = null;
+let submitController = null;
+let submitTimer = null;
 
 function goToBooking() {
   close();
@@ -191,17 +199,58 @@ function close() {
   emit('close');
 }
 
-async function fetchEligibleBookings() {
+function abortEligibleRequest() {
+  eligibleRequestController?.abort();
+  eligibleRequestController = null;
+  if (eligibleRequestTimer) {
+    clearTimeout(eligibleRequestTimer);
+    eligibleRequestTimer = null;
+  }
+}
+
+async function fetchEligibleBookings({ force = false } = {}) {
+  if (bookingsLoading.value) return;
+  if (!force && userBookings.value.length && Date.now() - eligibleLoadedAt < 30_000) return;
+
+  abortEligibleRequest();
+  const requestId = ++eligibleRequestId;
+  const controller = new AbortController();
+  let timedOut = false;
+  eligibleRequestController = controller;
+  eligibleRequestTimer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 12_000);
   bookingsLoading.value = true;
   bookingsError.value = '';
   try {
-    const response = await api('/api/matchmaking-posts/eligible-bookings');
-    userBookings.value = Array.isArray(response.data) ? response.data : [];
+    const response = await api('/api/matchmaking-posts/eligible-bookings', {
+      signal: controller.signal,
+      dedupe: false,
+    });
+    if (requestId !== eligibleRequestId) return;
+    const payload = response?.data;
+    userBookings.value = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+    eligibleLoadedAt = Date.now();
   } catch (error) {
+    if ((controller.signal.aborted && !timedOut) || requestId !== eligibleRequestId) return;
     userBookings.value = [];
-    bookingsError.value = error.message || 'Không thể tải lịch sân đủ điều kiện.';
+    bookingsError.value = timedOut || error.name === 'AbortError'
+      ? 'Tải danh sách lịch sân quá lâu. Vui lòng thử lại.'
+      : error.message || 'Không thể tải lịch sân đủ điều kiện.';
   } finally {
-    bookingsLoading.value = false;
+    if (requestId === eligibleRequestId) {
+      if (eligibleRequestTimer) {
+        clearTimeout(eligibleRequestTimer);
+        eligibleRequestTimer = null;
+      }
+      bookingsLoading.value = false;
+      eligibleRequestController = null;
+    }
   }
 }
 
@@ -213,21 +262,41 @@ async function submit() {
   if (!isValid.value || isSubmitting.value) return;
   isSubmitting.value = true;
   errorMsg.value = '';
+  submitController?.abort();
+  submitController = new AbortController();
+  let timedOut = false;
+  submitTimer = setTimeout(() => {
+    timedOut = true;
+    submitController?.abort();
+  }, 20_000);
   try {
     const response = await api('/api/matchmaking-posts', {
       method: 'POST',
+      signal: submitController.signal,
       body: JSON.stringify({
         booking_id: form.booking_id,
         required_players: Number(form.required_players),
         content: form.content || null,
       }),
     });
+    userBookings.value = userBookings.value.filter(
+      (booking) => String(booking.id) !== String(form.booking_id),
+    );
+    eligibleLoadedAt = 0;
     emit('success', response.data);
     reset();
     emit('close');
   } catch (error) {
-    errorMsg.value = error.message || 'Không thể đăng bài giao lưu.';
+    errorMsg.value = timedOut
+      ? 'Tạo bài giao lưu quá lâu. Vui lòng thử lại.'
+      : error.message || 'Không thể đăng bài giao lưu.';
+    toast.error(errorMsg.value);
   } finally {
+    if (submitTimer) {
+      clearTimeout(submitTimer);
+      submitTimer = null;
+    }
+    submitController = null;
     isSubmitting.value = false;
   }
 }
@@ -244,7 +313,13 @@ watch(() => props.isOpen, (isOpen) => {
 });
 
 onMounted(() => document.addEventListener('keydown', handleEscape));
-onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
+onBeforeUnmount(() => {
+  abortEligibleRequest();
+  submitController?.abort();
+  if (submitTimer) clearTimeout(submitTimer);
+  eligibleRequestId += 1;
+  document.removeEventListener('keydown', handleEscape);
+});
 </script>
 
 <style scoped>
@@ -521,4 +596,3 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape));
   margin: 0;
 }
 </style>
-

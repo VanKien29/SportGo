@@ -620,10 +620,14 @@ import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 import echo from "../../../echo.js";
+import { useToast } from "vue-toastification";
 
 export default {
   name: "ClientBookingWorkspace",
   components: { PublicNavbar, AdminDatePicker, ClientCustomSelect },
+  setup() {
+    return { toast: useToast() };
+  },
   data() {
     return {
       steps: [
@@ -1529,10 +1533,15 @@ export default {
           venue_voucher_id: this.venueVoucher?.id || null,
           vip_voucher_id: this.vipVoucher?.id || null,
         });
+        this.toast.success("Đặt sân thành công. Đang mở chi tiết đơn...");
         this.$router.push({ name: "booking-detail", params: { id: booking.id } });
       } catch (err) {
-        this.submitError = err.message || "Không thể tạo đơn đặt sân. Vui lòng thử lại.";
-        await this.loadSchedule();
+        const message = err.message || "Không thể tạo đơn đặt sân. Vui lòng thử lại.";
+        this.submitError = message;
+        this.toast.error(message);
+        // Refresh in the background so a failed submit does not keep the
+        // submit button spinning while the availability matrix reloads.
+        void this.loadSchedule();
       } finally {
         this.submitting = false;
       }
@@ -1761,6 +1770,7 @@ export default {
           try {
             const payRes = await bookingService.createSepayPayment(firstBooking.id);
             if (payRes?.payment_url) {
+              this.toast.success("Đơn đặt lịch cố định đã được tạo. Đang chuyển sang thanh toán...");
               window.location.href = payRes.payment_url;
               return;
             }
@@ -1768,12 +1778,16 @@ export default {
         }
 
         if (groupCode) {
+          this.toast.success("Đã tạo lịch đặt sân cố định thành công.");
           this.$router.push({ path: "/bookings/history", query: { group: groupCode } });
         } else {
+          this.toast.success("Đã tạo lịch đặt sân cố định thành công.");
           this.$router.push({ path: "/bookings/history" });
         }
       } catch (err) {
-        this.recurringSubmitError = err?.message || "Không thể tạo lịch cố định. Vui lòng thử lại.";
+        const message = err?.message || "Không thể tạo lịch cố định. Vui lòng thử lại.";
+        this.recurringSubmitError = message;
+        this.toast.error(message);
       } finally {
         this.recurringSubmitting = false;
       }

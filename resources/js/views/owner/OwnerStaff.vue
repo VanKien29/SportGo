@@ -81,12 +81,16 @@
           <label>Email<input v-model.trim="form.email" type="email" /></label>
           <label>SĐT<input v-model.trim="form.phone" /></label>
           <label v-if="!form.id">Mật khẩu tạm<input v-model="form.password" type="password" required minlength="8" /></label>
-          <label v-else>Trạng thái
-            <select v-model="form.status">
-              <option value="active">Đang hoạt động</option>
-              <option value="locked">Đã khóa</option>
-              <option value="deactivated">Đã vô hiệu hóa</option>
-            </select>
+          <label v-else class="field-label">Trạng thái
+            <span class="status-select-wrap">
+              <span class="status-select-dot" :class="form.status" aria-hidden="true"></span>
+              <select v-model="form.status" class="staff-status-select">
+                <option value="active">Đang hoạt động</option>
+                <option value="locked">Đã khóa</option>
+                <option value="deactivated">Đã vô hiệu hóa</option>
+              </select>
+              <span class="status-select-chevron" aria-hidden="true"></span>
+            </span>
           </label>
         </div>
 
@@ -185,11 +189,13 @@ export default {
     },
     statusTabsUi() {
       const activeCount = this.staff.filter((s) => s.status === 'active').length;
-      const inactiveCount = this.staff.filter((s) => s.status === 'inactive').length;
+      const lockedCount = this.staff.filter((s) => s.status === 'locked').length;
+      const deactivatedCount = this.staff.filter((s) => s.status === 'deactivated').length;
       return [
         { value: '', label: 'Tất cả', count: this.staff.length },
         { value: 'active', label: 'Hoạt động', count: activeCount },
-        { value: 'inactive', label: 'Tạm ngưng', count: inactiveCount },
+        { value: 'locked', label: 'Đã khóa', count: lockedCount },
+        { value: 'deactivated', label: 'Vô hiệu hóa', count: deactivatedCount },
       ];
     },
     tableColumns() {
@@ -458,9 +464,11 @@ export default {
 
 .modal {
   width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
   padding: 22px;
   display: grid;
   gap: 16px;
+  overflow-y: auto;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -472,17 +480,80 @@ export default {
   gap: 12px;
 }
 
-label {
+.grid > label,
+.field-label {
   display: grid;
   gap: 6px;
   font-weight: 400;
+  color: #334155;
+  font-size: 12px;
 }
 
-input, select {
+.grid input,
+.grid select,
+.staff-status-select {
+  width: 100%;
   border: 1px solid #dbe3ef;
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: 10px;
+  padding: 10px 12px;
   font: inherit;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.grid input:focus,
+.grid select:focus,
+.staff-status-select:focus {
+  border-color: #22a653;
+  box-shadow: 0 0 0 3px rgba(34, 166, 83, .13);
+}
+
+.grid input:disabled {
+  color: #64748b;
+  background: #f8fafc;
+  cursor: not-allowed;
+}
+
+.status-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.status-select-dot {
+  position: absolute;
+  left: 13px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22a653;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.status-select-dot.locked,
+.status-select-dot.deactivated {
+  background: #ef4444;
+}
+
+.staff-status-select {
+  appearance: none;
+  padding-left: 29px;
+  padding-right: 34px;
+  cursor: pointer;
+}
+
+.status-select-chevron {
+  position: absolute;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid #64748b;
+  border-bottom: 1.5px solid #64748b;
+  transform: translateY(-2px) rotate(45deg);
+  pointer-events: none;
 }
 
 .scope-box {
@@ -493,18 +564,186 @@ input, select {
   padding: 12px;
 }
 
+.scope-box > span,
+.permission-box > div > strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .check {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #e5eaf1;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease;
 }
 
-.check input { width: auto; }
+.check:hover {
+  background: #f8fafc;
+  border-color: #b8d9c2;
+}
+
+.check input,
+.permission-option input {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid #94a3b8;
+  border-radius: 5px;
+  background: #ffffff;
+  position: relative;
+  cursor: pointer;
+}
+
+.check input[type="radio"] {
+  border-radius: 50%;
+}
+
+.check input:checked,
+.permission-option input:checked {
+  border-color: #168542;
+  background: #168542;
+}
+
+.check input[type="checkbox"]:checked::after,
+.permission-option input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.check input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.check input:focus-visible,
+.permission-option input:focus-visible {
+  outline: 3px solid rgba(34, 166, 83, .2);
+  outline-offset: 1px;
+}
+
 .court-types { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+.permission-box {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fbfefd;
+}
+
+.permission-box p {
+  margin: 4px 0 0;
+  color: #64748b !important;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.permission-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 74px;
+  padding: 10px;
+  border: 1px solid #e5eaf1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.permission-option > span {
+  display: grid;
+  gap: 3px;
+}
+
+.permission-option strong {
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.permission-option small,
+.permission-option em {
+  color: #64748b !important;
+  font-size: 10.5px;
+  line-height: 1.4;
+  font-style: normal;
+}
+
+.permission-option em {
+  color: #b45309 !important;
+}
+
+.permission-option.disabled {
+  opacity: .55;
+  background: #f8fafc;
+  cursor: not-allowed;
+}
+
+.owner-only-note {
+  color: #64748b !important;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+:global(.sg-shell-admin .content-area .modal .staff-status-select) {
+  appearance: none !important;
+  padding-right: 34px !important;
+  background-image: none !important;
+}
+
+:global(.sg-shell-admin .content-area .modal .permission-box p),
+:global(.sg-shell-admin .content-area .modal .permission-box .permission-option small),
+:global(.sg-shell-admin .content-area .modal .permission-box .permission-option em) {
+  color: #64748b !important;
+}
+
+:global(.sg-shell-admin .content-area .modal .permission-box .permission-option em) {
+  color: #b45309 !important;
+}
+
+:global(.sg-shell-admin .content-area .modal) {
+  max-height: calc(100vh - 40px) !important;
+  overflow-y: auto !important;
+}
+
+.modal > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+}
 
 @media(max-width: 720px) {
-  .grid, .court-types { grid-template-columns: 1fr; }
+  .grid, .court-types, .permission-grid { grid-template-columns: 1fr; }
 }
 
 .profile-section-card.staff-main-content {

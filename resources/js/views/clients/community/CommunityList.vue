@@ -316,6 +316,9 @@ const matchmakingPosts = ref([]);
 const matchmakingLoading = ref(true);
 const matchmakingError = ref('');
 const joiningPostId = ref(null);
+let matchmakingRequestController = null;
+let matchmakingRequestId = 0;
+let matchmakingRequestTimer = null;
 
 async function loadCurrentFeed({ page = 1, append = false } = {}) {
   if (feedTab.value === 'my_posts') {
@@ -404,16 +407,42 @@ function setMyPostStatus(status) {
 }
 
 async function fetchMatchmakingPosts() {
+  matchmakingRequestController?.abort();
+  const requestId = ++matchmakingRequestId;
+  const controller = new AbortController();
+  let timedOut = false;
+  matchmakingRequestController = controller;
+  if (matchmakingRequestTimer) clearTimeout(matchmakingRequestTimer);
+  matchmakingRequestTimer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 12_000);
   matchmakingLoading.value = true;
   matchmakingError.value = '';
   try {
-    const response = await api('/api/matchmaking-posts');
-    matchmakingPosts.value = Array.isArray(response.data) ? response.data.slice(0, 5) : [];
+    const response = await api('/api/matchmaking-posts', {
+      signal: controller.signal,
+      dedupe: false,
+    });
+    if (requestId !== matchmakingRequestId) return;
+    const payload = response?.data;
+    const items = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+    matchmakingPosts.value = items.slice(0, 5);
   } catch (requestError) {
+    if ((controller.signal.aborted && !timedOut) || requestId !== matchmakingRequestId) return;
     matchmakingPosts.value = [];
-    matchmakingError.value = requestError.message || 'Không thể tải các kèo sắp tới.';
+    matchmakingError.value = timedOut
+      ? 'Tải các kèo sắp tới quá lâu. Vui lòng thử lại.'
+      : requestError.message || 'Không thể tải các kèo sắp tới.';
   } finally {
-    matchmakingLoading.value = false;
+    if (requestId === matchmakingRequestId) {
+      if (matchmakingRequestTimer) {
+        clearTimeout(matchmakingRequestTimer);
+        matchmakingRequestTimer = null;
+      }
+      matchmakingLoading.value = false;
+      matchmakingRequestController = null;
+    }
   }
 }
 
@@ -761,10 +790,10 @@ function handleCommunityPostSaved(response) {
   fetchMyPosts({ page: 1 });
 }
 
-function handleMeetupPostCreated() {
+async function handleMeetupPostCreated() {
   showMeetupModal.value = false;
   toast.success('Bài giao lưu đã được tạo.');
-  fetchMatchmakingPosts();
+  await fetchMatchmakingPosts();
 }
 
 function visibleComments(post) {
@@ -858,7 +887,12 @@ onMounted(() => {
   document.addEventListener('click', closePostMenu);
 });
 
-onBeforeUnmount(() => document.removeEventListener('click', closePostMenu));
+onBeforeUnmount(() => {
+  matchmakingRequestId += 1;
+  matchmakingRequestController?.abort();
+  if (matchmakingRequestTimer) clearTimeout(matchmakingRequestTimer);
+  document.removeEventListener('click', closePostMenu);
+});
 </script>
 
 <style scoped>

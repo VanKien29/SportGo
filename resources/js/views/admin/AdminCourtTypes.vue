@@ -477,7 +477,7 @@ export default {
             this.form = {
                 name: "",
                 parent_id: null,
-                player_count: 0,
+                player_count: 1,
                 description: "",
                 is_active: true,
                 default_layout_w: null,
@@ -505,7 +505,7 @@ export default {
             this.form = {
                 name: type.name,
                 parent_id: type.parent_id || null,
-                player_count: type.player_count,
+                player_count: Math.max(1, Number(type.player_count) || 1),
                 description: type.description || "",
                 is_active: !!type.is_active,
                 default_layout_w: type.default_layout_w ? type.default_layout_w / 100 : null,
@@ -522,9 +522,11 @@ export default {
             this.submitting = true;
             this.modalError = null;
             
-            // Nếu là bộ môn thể thao độc lập (cha), gán player_count mặc định là 0 để qua validation backend
+            // Backend yêu cầu player_count tối thiểu là 1 cho cả môn thể thao cha
+            // và loại sân con. Môn cha chưa dùng giá trị này nhưng vẫn cần gửi
+            // một giá trị hợp lệ để không bị lỗi validation khi tạo mới.
             if (this.form.parent_id === null) {
-                this.form.player_count = 0;
+                this.form.player_count = Math.max(1, Number(this.form.player_count) || 1);
             }
             
             const payload = {

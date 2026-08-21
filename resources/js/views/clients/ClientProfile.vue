@@ -149,6 +149,7 @@
                         type="checkbox"
                         :value="sport.id"
                         class="cp-hidden-check"
+                        @change="enforceSportLimit"
                       />
                       <span>{{ sport.name }}</span>
                     </label>
@@ -654,6 +655,12 @@ export default {
         console.warn("Không thể tải danh sách môn thể thao", error);
       }
     },
+    enforceSportLimit() {
+      if (!Array.isArray(this.formData.sports) || this.formData.sports.length <= MAX_PROFILE_SPORTS) return;
+      this.formData.sports = this.formData.sports.slice(0, MAX_PROFILE_SPORTS);
+      this.saveStatusClass = "is-error";
+      this.saveMessage = `Bạn chỉ có thể chọn tối đa ${MAX_PROFILE_SPORTS} môn thể thao.`;
+    },
     async loadOverview() {
       try {
         const [bookingsResponse, walletResponse] = await Promise.allSettled([
@@ -778,20 +785,29 @@ export default {
       this.saveMessage = "";
       try {
         const payload = new FormData();
-        payload.append("full_name", this.formData.fullName.trim());
+        payload.append("full_name", String(this.formData.fullName || "").trim());
         payload.append("email", finalEmail || "");
         payload.append("phone", finalPhone || "");
         payload.append("bio", this.formData.bio || "");
-        this.formData.sports.forEach((sport) => payload.append("preferred_sports[]", sport));
+
+        // Always send the array field, including when the user removes every
+        // selection. Laravel otherwise cannot distinguish "clear all" from
+        // "do not update" when FormData has no preferred_sports[] entries.
+        const selectedSports = Array.isArray(this.formData.sports)
+          ? this.formData.sports.slice(0, MAX_PROFILE_SPORTS).filter(Boolean)
+          : [];
+        selectedSports.forEach((sport) => payload.append("preferred_sports[]", String(sport)));
+        if (!selectedSports.length) payload.append("preferred_sports[]", "");
 
         const response = await authService.updateProfile(payload);
-        const currentAuth = getAuth();
+        const currentAuth = getAuth() || {};
+        const mergedUser = {
+          ...(currentAuth.user || {}),
+          ...(response?.user || {}),
+        };
         this.user = saveAuth({
           ...currentAuth,
-          user: {
-            ...(currentAuth?.user || {}),
-            ...(response?.user || {}),
-          },
+          user: mergedUser,
         });
         this.formData.email = this.user?.email || finalEmail;
         this.formData.phone = this.user?.phone || finalPhone;

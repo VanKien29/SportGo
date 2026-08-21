@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import MeetupPostModal from '@/components/MeetupPostModal.vue';
@@ -57,6 +57,9 @@ const loading = ref(true);
 const error = ref('');
 const joining = ref(null);
 const showCreate = ref(false);
+let postsRequestController = null;
+let postsRequestId = 0;
+let postsRequestTimer = null;
 const steps = [
   { title: 'Chọn booking đã xác nhận', description: 'Thanh toán đủ, đặt cọc hoặc trả sau nhưng đã được chủ sân duyệt đều có thể tạo bài.' },
   { title: 'Đăng số người cần thêm', description: 'Mô tả trình độ, thời gian và lưu ý để người chơi phù hợp dễ quyết định.' },
@@ -67,10 +70,44 @@ const confirmedCount = computed(() => posts.value.filter((post) => post.booking?
 const myRequestCount = computed(() => posts.value.filter((post) => post.user_status).length);
 
 async function loadPosts() {
+  postsRequestController?.abort();
+  const requestId = ++postsRequestId;
+  const controller = new AbortController();
+  let timedOut = false;
+  postsRequestController = controller;
+  if (postsRequestTimer) clearTimeout(postsRequestTimer);
+  postsRequestTimer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 12_000);
   loading.value = true; error.value = '';
-  try { const response = await api('/api/matchmaking-posts?per_page=30'); posts.value = response.data || []; }
-  catch (requestError) { error.value = requestError.message || 'Vui lòng thử lại.'; }
-  finally { loading.value = false; }
+  try {
+    const response = await api('/api/matchmaking-posts?per_page=30', {
+      signal: controller.signal,
+      dedupe: false,
+    });
+    if (requestId !== postsRequestId) return;
+    const payload = response?.data;
+    posts.value = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+  } catch (requestError) {
+    if ((controller.signal.aborted && !timedOut) || requestId !== postsRequestId) return;
+    error.value = timedOut
+      ? 'Tải danh sách bài giao lưu quá lâu. Vui lòng thử lại.'
+      : requestError.message || 'Vui lòng thử lại.';
+  } finally {
+    if (requestId === postsRequestId) {
+      if (postsRequestTimer) {
+        clearTimeout(postsRequestTimer);
+        postsRequestTimer = null;
+      }
+      loading.value = false;
+      postsRequestController = null;
+    }
+  }
 }
 
 async function join(post) {
@@ -89,7 +126,11 @@ async function leave(post) {
   finally { joining.value = null; }
 }
 
-function handleCreated() { showCreate.value = false; toast.success('Bài giao lưu đã được đăng.'); loadPosts(); }
+async function handleCreated() {
+  showCreate.value = false;
+  toast.success('Bài giao lưu đã được đăng.');
+  await loadPosts();
+}
 function isOwn(post) { return String(post.author?.id || '') === String(user?.id || ''); }
 function progress(post) { const total = Number(post.total_players || 0); return total ? Math.min(100, (Number(post.approved_players || 0) / total) * 100) : 0; }
 function statusLabel(status) { return { open: 'Đang tuyển', full: 'Đã đủ người', closed: 'Đã đóng', cancelled: 'Đã hủy' }[status] || status; }
@@ -98,6 +139,11 @@ function formatDate(value) { if (!value) return 'chưa rõ'; const date = new Da
 function assetUrl(path) { return !path || path.startsWith('/') || /^https?:\/\//.test(path) ? path : `/storage/${path}`; }
 function initial(name) { return String(name || 'N').trim().charAt(0).toUpperCase(); }
 onMounted(loadPosts);
+onBeforeUnmount(() => {
+  postsRequestId += 1;
+  postsRequestController?.abort();
+  if (postsRequestTimer) clearTimeout(postsRequestTimer);
+});
 </script>
 
 <style scoped>

@@ -158,13 +158,11 @@
       </section>
     </main>
 
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
-import ClientFooter from "../../components/ClientFooter.vue";
 import PillSearchBar from "../../components/PillSearchBar.vue";
 import ClientCombobox from "../../components/ClientCombobox.vue";
 import ClientDatePicker from "../../components/ClientDatePicker.vue";
@@ -186,7 +184,6 @@ export default {
   name: "VenueList",
   components: {
     PublicNavbar,
-    ClientFooter,
     PillSearchBar,
     ClientCombobox,
     ClientDatePicker,

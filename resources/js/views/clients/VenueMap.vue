@@ -35,21 +35,18 @@
         </aside>
       </section>
     </main>
-
-    <ClientFooter />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import PublicNavbar from '../../components/PublicNavbar.vue';
-import ClientFooter from '../../components/ClientFooter.vue';
 import VenueResultsMap from '../../components/VenueResultsMap.vue';
 import { venueService } from '../../services/venues.js';
 
 export default {
   name: 'VenueMap',
-  components: { AppIcon, PublicNavbar, ClientFooter, VenueResultsMap },
+  components: { AppIcon, PublicNavbar, VenueResultsMap },
   data() { return { venues: [], search: '', loading: true, error: '' }; },
   computed: { mapVenues() { return this.venues.filter((venue) => Number.isFinite(Number(venue.latitude)) && Number.isFinite(Number(venue.longitude))); } },
   mounted() { this.loadVenues(); },

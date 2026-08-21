@@ -184,7 +184,7 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/'],
             'bio' => ['nullable', 'string', 'max:2000'],
             'preferred_sports' => ['nullable', 'array', 'max:5'],
-            'preferred_sports.*' => ['string', 'max:80'],
+            'preferred_sports.*' => ['nullable', 'string', 'max:80'],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'full_name.required' => 'Vui lòng nhập họ và tên.',
@@ -207,7 +207,10 @@ class AuthController extends Controller
         $user->phone = $data['phone'] ? trim($data['phone']) : null;
         $user->bio = array_key_exists('bio', $data) ? trim((string) ($data['bio'] ?? '')) : $user->bio;
         if (array_key_exists('preferred_sports', $data)) {
-            $user->preferred_sports = array_values(array_unique($data['preferred_sports'] ?: []));
+            $user->preferred_sports = array_values(array_unique(array_filter(array_map(
+                static fn ($sport) => trim((string) $sport),
+                $data['preferred_sports'] ?: [],
+            ))));
         }
 
         if ($request->hasFile('avatar')) {

@@ -20,12 +20,20 @@ class PlayerPostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $posts = PlayerPost::with(['author', 'booking.venueCluster', 'participants'])
+        $posts = PlayerPost::with([
+                'author:id,full_name,username,avatar_url',
+                'booking.venueCluster:id,name,address',
+            ])
+            ->withCount([
+                'participants as approved_players_count' => fn ($query) => $query
+                    ->where('player_post_participants.status', 'approved'),
+            ])
             ->where('status', 'open')
             ->whereHas('booking', function ($q) {
                 $q->where('status', 'confirmed')
                     ->where(function ($query) {
-                        $query->where('booking_date', '>', now()->toDateString())
+                        $today = now()->toDateString();
+                        $query->where('booking_date', '>', $today)
                             ->orWhere(function ($sub) {
                                 $sub->where('booking_date', '=', now()->toDateString())
                                     ->where('end_time', '>', now()->toTimeString());
@@ -55,8 +63,8 @@ class PlayerPostController extends Controller
                 'title' => $post->title,
                 'description' => $post->description,
                 'needed_players' => $post->needed_players,
-                'approved_players' => $post->participants->where('pivot.status', 'approved')->count(),
-                'total_players' => $post->participants->where('pivot.status', 'approved')->count() + (int) $post->needed_players,
+                'approved_players' => (int) $post->approved_players_count,
+                'total_players' => (int) $post->approved_players_count + (int) $post->needed_players,
                 'status' => $post->status,
                 'created_at' => $post->created_at,
                 'user_status' => $participations[$post->id] ?? null,
@@ -91,14 +99,18 @@ class PlayerPostController extends Controller
         $userId = $request->user()->id;
 
         // Fetch bookings that are in the future and confirmed/paid
-        $bookings = Booking::with(['venueCluster'])
+        $today = now()->toDateString();
+        $time = now()->toTimeString();
+        $bookings = Booking::query()
+            ->select(['id', 'venue_cluster_id', 'booking_date', 'start_time'])
+            ->with(['venueCluster:id,name,address'])
             ->where('customer_id', $userId)
             ->where('status', 'confirmed')
-            ->where(function ($query) {
-                $query->whereDate('booking_date', '>', now()->toDateString())
-                    ->orWhere(function ($todayQuery) {
-                        $todayQuery->whereDate('booking_date', now()->toDateString())
-                            ->where('end_time', '>', now()->toTimeString());
+            ->where(function ($query) use ($today, $time) {
+                $query->where('booking_date', '>', $today)
+                    ->orWhere(function ($todayQuery) use ($today, $time) {
+                        $todayQuery->where('booking_date', '=', $today)
+                            ->where('end_time', '>', $time);
                     });
             })
             ->whereNotIn('id', PlayerPost::query()->select('booking_id'))
