@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'chat-page flex flex-col font-sans',
+      'chat-page flex flex-col font-sans w-full max-w-full overflow-hidden',
       usesAdminChatTheme ? 'admin-chat-page admin-chat' : 'client-chat-surface',
       isAdmin ? '' : 'client-chat-page min-h-screen'
     ]"
@@ -11,10 +11,9 @@
     <PublicNavbar v-if="!isAdmin" />
 
     <!-- Chat Workspace -->
-    <!-- Chat Workspace -->
     <div
       :class="[
-        'flex-1 flex overflow-hidden relative',
+        'flex-1 flex overflow-hidden relative w-full min-w-0 max-w-full',
         usesAdminChatTheme ? 'admin-chat-workspace' : 'border-t border-zinc-800 h-[calc(100vh-64px)]'
       ]"
     >
@@ -205,7 +204,7 @@
       <!-- Right Main Chat Workspace -->
       <div
         :class="[
-          'flex-1 flex flex-col h-full bg-zinc-950 relative md:flex',
+          'flex-1 flex flex-col h-full bg-zinc-950 relative md:flex min-w-0 w-full max-w-full overflow-hidden',
           mobileShowChat ? 'flex' : 'hidden'
         ]"
       >
@@ -216,10 +215,10 @@
         </div>
 
         <!-- Main Chat Area -->
-        <div v-else class="flex-1 flex h-full relative overflow-hidden">
+        <div v-else class="flex-1 flex h-full relative overflow-hidden min-w-0 w-full max-w-full">
 
           <!-- Chat Messages Pane -->
-          <div class="flex-1 flex flex-col h-full bg-zinc-950 relative min-w-0">
+          <div class="flex-1 flex flex-col h-full bg-zinc-950 relative min-w-0 w-full max-w-full overflow-hidden">
           <!-- Active Conversation Header -->
           <div class="tg-chat-header flex items-center justify-between shrink-0">
             <div @click="showProfileSidebar = !showProfileSidebar" class="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-90 select-none">
@@ -666,7 +665,7 @@
               </div>
 
               <!-- Text input row -->
-              <div class="zalo-input-row flex items-center px-3 py-2">
+              <div class="zalo-input-row flex items-center px-2 py-1.5 gap-1">
                 <input
                   v-model="newMessage"
                   type="text"
@@ -675,41 +674,44 @@
                   class="zalo-input flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
                 />
 
-                <!-- Left Action: Share Booking -->
-                <button
-                  v-if="canShareBooking"
-                  type="button"
-                  @click="openBookingPicker"
-                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0"
-                  title="Chia sẻ booking"
-                >
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                  </svg>
-                </button>
+                <div class="zalo-actions-group flex items-center gap-1 shrink-0">
+                  <!-- Left Action: Share Booking -->
+                  <button
+                    v-if="canShareBooking"
+                    type="button"
+                    @click="openBookingPicker"
+                    class="zalo-attach-btn"
+                    title="Chia sẻ booking"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                  </button>
 
-                <!-- Left Action: File Attachment -->
-                <button
-                  type="button"
-                  @click="clickAttachment"
-                  class="zalo-attach-btn p-1.5 rounded-full transition-colors shrink-0"
-                  title="Thêm ảnh"
-                >
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                </button>
+                  <!-- Left Action: File Attachment -->
+                  <button
+                    type="button"
+                    @click="clickAttachment"
+                    class="zalo-attach-btn"
+                    title="Thêm ảnh"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
 
-                <!-- Right Action: Circular Send Button -->
-                <button
-                  type="submit"
-                  :disabled="!newMessage.trim() && selectedImageFiles.length === 0"
-                  class="zalo-send-btn h-8 w-8 rounded-full transition-all shrink-0 flex items-center justify-center"
-                >
-                  <svg class="h-4 w-4 fill-current text-current" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                  </svg>
-                </button>
+                  <!-- Right Action: Circular Send Button -->
+                  <button
+                    type="submit"
+                    :disabled="!newMessage.trim() && selectedImageFiles.length === 0"
+                    class="zalo-send-btn"
+                    title="Gửi tin nhắn"
+                  >
+                    <svg class="h-3.5 w-3.5 fill-current text-current" viewBox="0 0 24 24">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <!-- Divider -->
@@ -3820,8 +3822,9 @@ export default {
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  padding: 8px 10px !important;
+  padding: 6px 10px !important;
   box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
 .zalo-chat-box {
@@ -3831,7 +3834,7 @@ export default {
   box-sizing: border-box !important;
   background-color: var(--tg-received-bg) !important;
   border: 1px solid var(--tg-border) !important;
-  border-radius: 16px !important;
+  border-radius: 12px !important;
   overflow: hidden !important;
   box-shadow: var(--admin-shadow-sm) !important;
   transition: border-color 150ms ease;
@@ -3847,9 +3850,17 @@ export default {
   min-width: 0 !important;
   display: flex !important;
   align-items: center !important;
-  gap: 4px !important;
-  padding: 5px 8px !important;
+  gap: 6px !important;
+  padding: 4px 6px !important;
   box-sizing: border-box !important;
+}
+
+.zalo-actions-group {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
 }
 
 .sg-shell-admin .content-area input.zalo-input,
@@ -3859,11 +3870,10 @@ input.zalo-input {
   border: none !important;
   box-shadow: none !important;
   min-height: auto !important;
-  padding: 6px 0 !important;
-  flex: 1 1 0% !important;
-  min-width: 0 !important;
-  width: 0 !important;
-  max-width: 100% !important;
+  padding: 6px 4px !important;
+  flex: 1 1 auto !important;
+  min-width: 50px !important;
+  width: 100% !important;
   box-sizing: border-box !important;
 }
 
@@ -3882,15 +3892,16 @@ input.zalo-input {
   background: transparent !important;
   border: none !important;
   cursor: pointer !important;
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  padding: 4px !important;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  padding: 2px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0 !important;
   margin: 0 !important;
+  border-radius: 4px !important;
 }
 
 .zalo-attach-btn.never-hover-class-placeholder {
@@ -3899,16 +3910,16 @@ input.zalo-input {
 }
 
 .zalo-send-btn {
-  background-color: var(--admin-primary) !important;
-  color: var(--admin-primary-text) !important;
+  background-color: #087642 !important;
+  color: #ffffff !important;
   border: none !important;
   cursor: pointer !important;
-  border-radius: 9999px !important;
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
+  border-radius: 50% !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
   flex-shrink: 0 !important;
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   transition: all 0.2s ease;

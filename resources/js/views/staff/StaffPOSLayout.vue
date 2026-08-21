@@ -105,8 +105,8 @@
             <div class="pos-shift-info">
               <span class="pos-shift-name">{{ todaySchedule.shift?.name || 'Ca hôm nay' }}</span>
               <span class="pos-shift-hours">
-                {{ todaySchedule.shift?.start_time ? todaySchedule.shift.start_time.slice(0, 5) : '' }} - 
-                {{ todaySchedule.shift?.end_time ? todaySchedule.shift.end_time.slice(0, 5) : '' }}
+                {{ (todaySchedule.start_time || todaySchedule.shift?.start_time || '').slice(0, 5) }} - 
+                {{ (todaySchedule.end_time || todaySchedule.shift?.end_time || '').slice(0, 5) }}
               </span>
             </div>
 
@@ -508,9 +508,10 @@ export default {
 
         // 2. Prioritize shift currently in progress (within [start_time - 30min, end_time])
         const currentOngoing = schedules.find((s) => {
-          if (!s.shift) return false;
-          const [sh, sm] = (s.shift.start_time || '00:00').split(':').map(Number);
-          const [eh, em] = (s.shift.end_time || '23:59').split(':').map(Number);
+          const startTime = s.start_time || s.shift?.start_time || '00:00';
+          const endTime = s.end_time || s.shift?.end_time || '23:59';
+          const [sh, sm] = startTime.split(':').map(Number);
+          const [eh, em] = endTime.split(':').map(Number);
           const startM = sh * 60 + sm - 30; // allow check-in 30 mins before
           const endM = eh * 60 + em;
           return nowMinutes >= startM && nowMinutes <= endM && !s.check_out_at;
@@ -522,8 +523,9 @@ export default {
 
         // 3. Find next upcoming shift today that hasn't checked in yet
         const upcomingShift = schedules.find((s) => {
-          if (!s.shift || s.check_out_at) return false;
-          const [sh, sm] = (s.shift.start_time || '00:00').split(':').map(Number);
+          if (s.check_out_at) return false;
+          const startTime = s.start_time || s.shift?.start_time || '00:00';
+          const [sh, sm] = startTime.split(':').map(Number);
           return (sh * 60 + sm) > nowMinutes;
         });
         if (upcomingShift) {
@@ -636,6 +638,12 @@ export default {
   box-sizing: border-box;
 }
 
+.pos-app-root:has(.admin-chat-page) {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
 .pos-main-content {
   flex: 1;
   display: flex;
@@ -648,10 +656,23 @@ export default {
   overflow-x: hidden;
 }
 
+.pos-main-content:has(.admin-chat-page) {
+  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
+  overflow: hidden;
+}
+
 @media (max-width: 900px) {
   .pos-main-content {
     padding-bottom: 58px;
     box-sizing: border-box;
+  }
+
+  .pos-main-content:has(.admin-chat-page) {
+    height: calc(100vh - 50px - 58px);
+    max-height: calc(100vh - 50px - 58px);
+    padding-bottom: 0;
+    overflow: hidden;
   }
 }
 

@@ -483,8 +483,10 @@ class StaffShiftController extends Controller
                 'date' => $schedule->date,
                 'start_time' => substr((string) $schedule->start_time, 0, 5),
                 'end_time' => substr((string) $schedule->end_time, 0, 5),
+                'is_checked_out' => in_array($schedule->status, ['checked_out', 'completed']) || ! empty($schedule->check_out_at),
                 'check_in_at' => $schedule->check_in_at ? Carbon::parse($schedule->check_in_at)->timezone($tz)->format('H:i:s d/m/Y') : null,
-                'check_out_at' => $schedule->check_out_at ? Carbon::parse($schedule->check_out_at)->timezone($tz)->format('H:i:s d/m/Y') : Carbon::now($tz)->format('H:i:s d/m/Y'),
+                'check_out_at' => $schedule->check_out_at ? Carbon::parse($schedule->check_out_at)->timezone($tz)->format('H:i:s d/m/Y') : null,
+                'preview_check_out_at' => Carbon::now($tz)->format('H:i:s d/m/Y'),
                 'worked_duration_label' => $workedDurationLabel,
                 'total_bookings' => $totalBookings,
                 'confirmed_bookings' => $confirmedBookings,
@@ -517,12 +519,13 @@ class StaffShiftController extends Controller
 
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:1000'],
+            'handover_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $schedule->update([
             'status' => 'checked_out',
             'check_out_at' => now(),
-            'notes' => $data['notes'] ?? $schedule->notes,
+            'notes' => $data['handover_notes'] ?? $data['notes'] ?? $schedule->notes,
         ]);
 
         $this->audit($request, 'staff.attendance.check_out', 'venue_staff_shift_schedules', $schedule->id, [], $schedule->toArray());

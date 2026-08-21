@@ -61,7 +61,7 @@
                   </div>
                   <div class="info-item">
                     <span class="info-label">Giờ kết ca:</span>
-                    <span class="info-val">{{ summaryData.check_out_at }}</span>
+                    <span class="info-val">{{ summaryData.check_out_at || (isAlreadyCheckedOut ? 'Đã kết ca' : (summaryData.preview_check_out_at || 'Đang kết ca')) }}</span>
                   </div>
                 </div>
               </div>
@@ -231,7 +231,11 @@ export default {
   },
   computed: {
     isAlreadyCheckedOut() {
-      return Boolean(this.summaryData?.status === 'checked_out' || this.summaryData?.check_out_at);
+      return Boolean(
+        this.summaryData?.is_checked_out ||
+        this.summaryData?.status === 'checked_out' ||
+        this.summaryData?.status === 'completed'
+      );
     },
   },
   methods: {
@@ -243,7 +247,7 @@ export default {
         const res = await ownerStaffShiftService.handoverSummary(this.scheduleId);
         if (res && (res.success || res.data)) {
           this.summaryData = res.data || res;
-          this.handoverNotes = this.summaryData.handover_notes || '';
+          this.handoverNotes = this.summaryData.handover_notes || this.summaryData.notes || '';
         } else {
           this.error = res?.message || 'Không thể lấy dữ liệu ca trực.';
         }
@@ -260,6 +264,7 @@ export default {
       try {
         const payload = {
           handover_notes: this.handoverNotes,
+          notes: this.handoverNotes,
         };
         const res = await ownerStaffShiftService.checkOut(this.scheduleId, payload);
         if (res && (res.success || res.data)) {
