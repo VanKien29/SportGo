@@ -333,7 +333,7 @@
               <!-- Content details -->
               <div class="pinned-banner-content">
                 <div class="pinned-banner-title">
-                  <span>Tin nhắn đã ghim</span>
+                  <span class="pinned-banner-label">Tin nhắn đã ghim</span>
                   <span v-if="pinnedMessages[0].sender?.full_name" class="pinned-banner-sender">
                     • {{ pinnedMessages[0].sender.full_name }}
                   </span>
@@ -539,7 +539,12 @@
                     </div>
                     <div v-if="canCreateSupportRequest" class="booking-message-card__actions">
                       <button type="button" class="booking-message-card__action" @click="openSupportRequestModal(msg.booking)">
-                        Y&#234;u c&#7847;u h&#7895; tr&#7907;
+                        Yêu cầu hỗ trợ
+                      </button>
+                    </div>
+                    <div v-else-if="canViewRelatedBookings" class="booking-message-card__actions">
+                      <button type="button" class="booking-message-card__action" @click="openBookingDetailFromChat(msg.booking)">
+                        Xem chi tiết booking
                       </button>
                     </div>
                   </div>
@@ -1488,11 +1493,14 @@ export default {
     },
     canViewRelatedBookings() {
       if (!this.activeConversation || !this.currentUser) return false;
-      return this.currentUser.role_group === 'owner' || this.$route.path.startsWith('/owner');
+      return this.isAdmin || this.currentUser.role_group === 'owner' || this.currentUser.role_group === 'staff' || this.currentUser.role_group === 'venue_staff' || this.$route.path.startsWith('/owner') || this.$route.path.startsWith('/staff');
     },
     canCreateSupportRequest() {
       if (!this.activeConversation || !this.currentUser) return false;
-      return this.currentUser.role_group !== 'owner' && this.currentUser.role_group !== 'admin';
+      if (this.isAdmin || this.currentUser.role_group === 'owner' || this.currentUser.role_group === 'staff' || this.currentUser.role_group === 'venue_staff' || this.currentUser.role_group === 'admin') {
+        return false;
+      }
+      return true;
     },
     canHandleSupportRequest() {
       return this.canViewRelatedBookings;
@@ -1516,6 +1524,15 @@ export default {
       if (this.activeConversation.other_user) return this.activeConversation.other_user;
 
       const participants = this.activeConversationParticipants || [];
+      if (this.activeConversation.type === 'venue_contact' && this.isAdmin) {
+        const customerParticipant = participants.find((p) => {
+          if (String(p.user_id) === String(this.currentUser?.id)) return false;
+          const role = p.user?.role_group || p.user?.role?.name || '';
+          return role !== 'owner' && role !== 'venue_staff' && role !== 'staff' && role !== 'admin';
+        });
+        if (customerParticipant?.user) return customerParticipant.user;
+      }
+
       const otherParticipant = participants.find((participant) => String(participant.user_id) !== String(this.currentUser?.id));
       if (otherParticipant?.user) return otherParticipant.user;
 
@@ -1523,6 +1540,12 @@ export default {
       return null;
     },
     profileDisplayName() {
+      if (this.activeConversation?.type === 'venue_contact') {
+        if (this.isAdmin) {
+          return this.profileUser?.full_name || this.profileUser?.name || this.activeConversation?.title || 'Khách hàng';
+        }
+        return this.activeConversation?.title || this.profileUser?.full_name || 'Sân đấu';
+      }
       return this.profileUser?.full_name
         || this.profileUser?.name
         || this.activeConversation?.title
@@ -1536,7 +1559,16 @@ export default {
       return this.profileUser?.avatar_url || null;
     },
     profileStatusText() {
-      if (this.activeConversation?.type === 'venue_contact') return 'Hội thoại Sân đấu';
+      if (this.activeConversation?.type === 'venue_contact') {
+        if (this.isAdmin) {
+          return this.activeConversation?.title ? `Hội thoại • ${this.activeConversation.title}` : 'Khách liên hệ sân';
+        }
+        return 'Hội thoại Sân đấu';
+      }
+      if (this.activeConversation?.type === 'group') {
+        const count = this.activeConversationParticipants?.length || 0;
+        return `${count} thành viên`;
+      }
       return '';
     },
     profilePrimaryContact() {
@@ -2191,6 +2223,14 @@ export default {
         this.relatedBookingsError = error.message || 'Kh\u00f4ng th\u1ec3 t\u1ea3i booking li\u00ean quan.';
       } finally {
         this.loadingRelatedBookings = false;
+      }
+    },
+    openBookingDetailFromChat(booking) {
+      if (!booking?.id) return;
+      if (this.$route.path.startsWith('/staff')) {
+        this.$router.push({ path: '/staff/bookings', query: { code: booking.booking_code } });
+      } else if (this.$route.path.startsWith('/owner')) {
+        this.$router.push({ path: '/owner/counter-booking', query: { code: booking.booking_code } });
       }
     },
     openSupportRequestModal(booking) {
@@ -3427,10 +3467,19 @@ export default {
 .pinned-banner-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: 12px;
   font-weight: 500;
   color: #087642;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pinned-banner-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: #087642;
+  font-weight: 600;
 }
 
 .pinned-banner-sender {
@@ -3439,6 +3488,8 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
 }
 
 .pinned-banner-text {

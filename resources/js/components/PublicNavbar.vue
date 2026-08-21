@@ -124,7 +124,11 @@
                 </router-link>
 
                 <router-link v-if="isOwner" to="/owner/dashboard" class="dd-item" @click="showDropdown = false">
-                  Vào trang chủ sân
+                  Kênh Chủ sân
+                </router-link>
+
+                <router-link v-if="isStaff" to="/staff/bookings" class="dd-item" @click="showDropdown = false">
+                  Bàn làm việc Nhân viên
                 </router-link>
 
                 <button v-if="isAdmin" type="button" class="dd-item" @click="goToDashboard">
@@ -208,10 +212,13 @@ export default {
       return Boolean(this.user);
     },
     isOwner() {
-      return this.user?.role === "owner";
+      return this.user?.role === "owner" || this.user?.role_group === "owner";
+    },
+    isStaff() {
+      return this.user?.role === "venue_staff" || this.user?.role === "staff" || this.user?.role_group === "staff";
     },
     isAdmin() {
-      return this.user?.role === "admin";
+      return this.user?.role === "admin" || this.user?.role_group === "admin";
     },
     profileRoute() {
       return "/profile";

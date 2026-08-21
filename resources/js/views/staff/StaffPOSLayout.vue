@@ -190,6 +190,14 @@
               <AppIcon name="calendar" :size="14" />
               <span>Bảng chấm công cá nhân</span>
             </RouterLink>
+            <RouterLink
+              to="/"
+              class="pos-popover-item"
+              @click="showUserMenu = false"
+            >
+              <AppIcon name="externalLink" :size="14" />
+              <span>Về trang khách hàng / Đặt sân</span>
+            </RouterLink>
             <button
               type="button"
               class="pos-popover-item is-danger"
@@ -1033,37 +1041,46 @@ export default {
 /* USER PROFILE */
 .pos-user-wrapper {
   position: relative;
+  flex-shrink: 0;
 }
 
 .pos-user-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background: #f8fafc;
-  border: none;
-  padding: 3px 8px;
-  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 8px;
   cursor: pointer;
   color: #0f172a;
   transition: all 0.15s ease;
+  height: 38px;
+  max-width: 220px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .pos-user-btn:hover,
 .pos-user-btn.active {
   background: #f0fdf4;
+  border-color: #bbf7d0;
   color: #087642;
 }
 
 .pos-user-avatar {
-  width: 28px;
-  height: 28px;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  flex-shrink: 0 !important;
   background: #087642;
   color: #ffffff;
   border: none;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 12.5px;
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
@@ -1073,68 +1090,93 @@ export default {
   flex-direction: column;
   align-items: flex-start;
   line-height: 1.2;
+  min-width: 0;
+  max-width: 140px;
+  overflow: hidden;
 }
 
 .pos-user-name {
   font-size: 12.5px;
   font-weight: 600;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .pos-user-role {
-  font-size: 11px;
-  color: #334155;
+  font-size: 10.5px;
+  color: #64748b;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .pos-user-popover {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  width: 210px;
+  width: max-content;
+  min-width: 235px;
+  max-width: min(300px, calc(100vw - 16px));
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
   padding: 6px;
-  z-index: 100;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 2px;
   border: 1px solid #e5e7eb;
+  box-sizing: border-box;
 }
 
 .pos-popover-head {
   padding: 6px 10px;
   display: flex;
   flex-direction: column;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
 }
 
 .pos-popover-head strong {
   font-size: 13px;
   font-weight: 600;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pos-popover-head small {
   font-size: 11.5px;
-  color: #334155;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pos-popover-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-size: 12.5px;
   color: #334155;
   text-decoration: none;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   width: 100%;
   text-align: left;
   transition: all 0.12s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.pos-popover-item span {
+  white-space: nowrap;
 }
 
 .pos-popover-item:hover {
@@ -1365,6 +1407,16 @@ export default {
   }
   .pos-live-clock {
     display: none;
+  }
+  .pos-user-meta {
+    display: none;
+  }
+  .pos-user-btn {
+    padding: 2px 4px;
+    border: none;
+    background: transparent;
+    height: auto;
+    max-width: none;
   }
   .pos-hotkey-grid {
     grid-template-columns: 1fr;
