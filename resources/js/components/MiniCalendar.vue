@@ -379,11 +379,13 @@ export default {
     display: flex;
     flex-direction: column;
     width: fit-content;
-    padding: 12px 16px;
+    max-width: calc(100vw - 20px);
+    box-sizing: border-box;
+    padding: 12px 14px;
     border: 1px solid var(--admin-border-soft, #e2e8f0);
     border-radius: 12px;
     background: #ffffff;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
     user-select: none;
     font-family: inherit;
 }
@@ -393,6 +395,7 @@ export default {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
+    width: 100%;
 }
 
 .mini-cal-arrow-btn {
@@ -406,6 +409,7 @@ export default {
     cursor: pointer;
     border-radius: 8px;
     transition: background 0.15s ease;
+    flex-shrink: 0;
 }
 
 .mini-cal-arrow-btn:hover {
@@ -416,11 +420,13 @@ export default {
     font-size: 15px;
     font-weight: 600;
     color: var(--admin-text, #0f172a);
+    white-space: nowrap;
 }
 
 .mini-cal-months-body {
     display: flex;
     gap: 20px;
+    width: 100%;
 }
 
 @media (max-width: 640px) {
@@ -434,6 +440,8 @@ export default {
     display: flex;
     flex-direction: column;
     width: 252px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .mini-cal-month-heading {

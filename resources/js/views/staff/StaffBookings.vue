@@ -183,47 +183,54 @@
       </div>
     </header>
 
-    <!-- 2. COMPACT STRUCTURED KPI STATUS BAR -->
-    <section class="pos-kpi-bar">
-      <div class="pos-metric-strip">
-        <div class="pos-metric-item">
-          <span class="pos-metric-label">Đang chơi</span>
-          <span class="pos-metric-val text-green">{{ kpiStats.playingCount }}</span>
+    <!-- 2. STREAMLINED CAPACITY & SHIFT BAR (STYLE 4 - NO BOXES, NO DOTS) -->
+    <section class="pos-capacity-bar">
+      <!-- Left: Visual Capacity Meter -->
+      <div class="pos-capacity-meter-wrap" title="Tỷ lệ công suất sân tức thời">
+        <div class="pos-cap-header">
+          <span class="pos-cap-label">Công suất sân</span>
+          <strong class="pos-cap-val">{{ liveOccupancyPercent }}%</strong>
+          <span class="pos-cap-sub">({{ kpiStats.playingCount }}/{{ visibleCourts.length }} sân)</span>
         </div>
-
-        <div class="pos-metric-divider"></div>
-
-        <div class="pos-metric-item">
-          <span class="pos-metric-label">Chờ check-in</span>
-          <span class="pos-metric-val text-blue">{{ kpiStats.confirmedCount }}</span>
-        </div>
-
-        <div class="pos-metric-divider"></div>
-
-        <div class="pos-metric-item">
-          <span class="pos-metric-label">Chờ cọc</span>
-          <span class="pos-metric-val text-amber">{{ kpiStats.pendingCount }}</span>
-        </div>
-
-        <div class="pos-metric-divider"></div>
-
-        <div class="pos-metric-item">
-          <span class="pos-metric-label">Chưa thu</span>
-          <span class="pos-metric-val text-red">{{ formatCurrency(kpiStats.unpaidAmount) }}</span>
-        </div>
-
-        <div class="pos-metric-divider"></div>
-
-        <div class="pos-metric-item">
-          <span class="pos-metric-label">Đã thu hôm nay</span>
-          <span class="pos-metric-val text-forest">{{ formatCurrency(kpiStats.collectedAmount) }}</span>
+        
+        <!-- Visual Track Bar -->
+        <div class="pos-cap-track">
+          <div
+            class="pos-cap-fill"
+            :style="{ width: `${liveOccupancyPercent}%` }"
+          ></div>
         </div>
       </div>
 
-      <!-- Right Action: Clean borderless link button -->
+      <div class="pos-bar-sep"></div>
+
+      <!-- Center: Streamlined Operational & Financial Metrics -->
+      <div class="pos-metrics-cluster">
+        <div class="pos-metric-cell" v-if="kpiStats.confirmedCount > 0" title="Số đơn đã xác nhận chờ check-in">
+          <span class="pos-metric-title">Chờ vào sân</span>
+          <strong class="pos-metric-num is-blue">{{ kpiStats.confirmedCount }}</strong>
+        </div>
+
+        <div class="pos-metric-cell" v-if="kpiStats.pendingCount > 0" title="Số đơn cần xác nhận / chờ cọc">
+          <span class="pos-metric-title">Chờ cọc</span>
+          <strong class="pos-metric-num is-amber">{{ kpiStats.pendingCount }}</strong>
+        </div>
+
+        <div class="pos-metric-cell" v-if="kpiStats.unpaidAmount > 0" title="Tổng tiền còn nợ / thu sau">
+          <span class="pos-metric-title">Chưa thu</span>
+          <strong class="pos-metric-num is-red">{{ formatCurrency(kpiStats.unpaidAmount) }}</strong>
+        </div>
+
+        <div class="pos-metric-cell" title="Tổng tiền mặt và chuyển khoản đã thực thu hôm nay">
+          <span class="pos-metric-title">Đã thu ca</span>
+          <strong class="pos-metric-num is-green">{{ formatCurrency(kpiStats.collectedAmount) }}</strong>
+        </div>
+      </div>
+
+      <!-- Right Action: Analytics Modal Trigger -->
       <button
         type="button"
-        class="btn-analytics-toggle"
+        class="pos-btn-analytics"
         title="Xem phân tích công suất, biểu đồ nhiệt và cơ cấu tiền két"
         @click="showAnalyticsModal = true"
       >
@@ -367,7 +374,7 @@
               :class="{ 'is-jump-highlight': highlightedHour === Math.floor(slot.start / 60) }"
             >
               <!-- Monospace Time Mark -->
-              <td class="pos-td-time">
+              <td class="pos-td-time" :class="{ 'is-past-time': isSlotPast(slot) }">
                 <span class="pos-time-mark">{{ slot.label }}</span>
               </td>
 
@@ -379,7 +386,8 @@
                   class="pos-td-cell"
                   :class="{
                     'is-highlight': isSlotHighlighted(court.id, slot),
-                    'is-booked-cell': getSlotCellInfo(court.id, slot).type === 'block'
+                    'is-booked-cell': getSlotCellInfo(court.id, slot).type === 'block',
+                    'is-past-slot': !getSlotCellInfo(court.id, slot).block && isSlotPast(slot)
                   }"
                   @click="onCellClick(court, slot)"
                 >
@@ -411,10 +419,10 @@
                       <div class="pos-booking-row-2">
                         <span class="pos-booking-time">
                           <AppIcon name="clock" :size="11" />
-                          {{ getSlotCellInfo(court.id, slot).block.timeLabel }}
+                          <span>{{ getSlotCellInfo(court.id, slot).block.timeLabel }}</span>
                         </span>
                         <span
-                          v-if="getSlotCellInfo(court.id, slot).block.booking"
+                          v-if="customerPhone(getSlotCellInfo(court.id, slot).block.booking) && customerPhone(getSlotCellInfo(court.id, slot).block.booking) !== '-'"
                           class="pos-booking-phone"
                         >
                           ☎ {{ customerPhone(getSlotCellInfo(court.id, slot).block.booking) }}
@@ -424,8 +432,14 @@
                   </div>
 
                   <!-- Empty Slot: Clean, inviting hover state -->
-                  <div v-else class="pos-empty-slot">
-                    <span class="pos-empty-hint">+ Đặt sân</span>
+                  <div
+                    v-else
+                    class="pos-empty-slot"
+                    :class="{ 'is-past': isSlotPast(slot) }"
+                    :title="isSlotPast(slot) ? 'Khung giờ đã qua' : 'Bấm để đặt sân nhanh'"
+                  >
+                    <span v-if="!isSlotPast(slot)" class="pos-empty-hint">+ Đặt sân</span>
+                    <span v-else class="pos-empty-past-hover-hint">Đã qua</span>
                   </div>
                 </td>
               </template>
@@ -509,6 +523,18 @@
 
               <!-- FAST POS ACTION BUTTONS -->
               <div class="pos-actions-stack">
+                <!-- 0. Confirm/Approve Button (if pending_approval) -->
+                <button
+                  v-if="selectedTimelineBooking.status === 'pending_approval'"
+                  type="button"
+                  class="pos-action-btn is-checkin"
+                  :disabled="updatingStatus"
+                  @click="runBookingAction(selectedTimelineBooking, 'confirm')"
+                >
+                  <AppIcon name="circleCheck" :size="18" />
+                  <span>Duyệt & Xác nhận đơn</span>
+                </button>
+
                 <!-- 1. Check-in Button -->
                 <button
                   v-if="selectedTimelineBooking.status === 'confirmed'"
@@ -607,6 +633,10 @@
           </header>
 
           <form class="pos-drawer-body" @submit.prevent="submitCounterBooking">
+            <div v-if="counterError" class="pos-drawer-error-banner">
+              {{ counterError }}
+            </div>
+
             <!-- Customer Information -->
             <div class="pos-field-group">
               <label class="pos-field">
@@ -1057,6 +1087,7 @@ export default {
         walk_in_phone: '',
         collection_mode: 'cash',
       },
+      counterError: '',
       counterSubmitting: false,
       counterQr: null,
       counterPollInterval: null,
@@ -1593,10 +1624,18 @@ export default {
         } else {
           statusPill = { type: 'playing', label: 'Đang chơi' };
         }
-      } else if (paymentState !== 'paid') {
-        statusPill = { type: 'unpaid', label: 'Chưa thu' };
+      } else if (booking.status === 'completed') {
+        statusPill = { type: 'confirmed', label: 'Hoàn tất' };
+      } else if (booking.status === 'pending_approval') {
+        statusPill = { type: 'unpaid', label: 'Chờ duyệt' };
+      } else if (booking.status === 'pending_payment') {
+        statusPill = { type: 'unpaid', label: 'Chờ thanh toán' };
+      } else if (paymentState === 'paid') {
+        statusPill = { type: 'confirmed', label: 'Đã thanh toán' };
+      } else if (paymentState === 'partial') {
+        statusPill = { type: 'ending-soon', label: 'Đã cọc' };
       } else {
-        statusPill = { type: 'confirmed', label: 'Đã xong' };
+        statusPill = { type: 'unpaid', label: 'Chưa thu' };
       }
 
       return {
@@ -1643,13 +1682,27 @@ export default {
       return 'is-confirmed-block';
     },
 
+    isSlotPast(slot) {
+      if (!this.filters.booking_date) return false;
+      const today = localIsoDate();
+      if (this.filters.booking_date < today) return true;
+      if (this.filters.booking_date > today) return false;
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      return slot.start <= nowMinutes;
+    },
+
     onCellClick(court, slot) {
       const existing = this.getBlockForCourtAndSlot(court.id, slot);
       if (existing) {
         this.selectTimelineItem(existing);
-      } else {
-        this.openCreateDrawer(court, slot);
+        return;
       }
+      if (this.isSlotPast(slot)) {
+        this.error = 'Khung giờ này đã kết thúc trong quá khứ. Không thể tạo đơn đặt sân mới.';
+        return;
+      }
+      this.openCreateDrawer(court, slot);
     },
 
     selectTimelineItem(block) {
@@ -1665,6 +1718,7 @@ export default {
         walk_in_phone: '',
         collection_mode: 'cash',
       };
+      this.counterError = '';
       this.counterQr = null;
       this.selectedTimelineItem = null;
       this.drawerMode = 'create';
@@ -1675,12 +1729,14 @@ export default {
       this.selectedTimelineItem = null;
       this.createSlot = null;
       this.counterQr = null;
+      this.counterError = '';
       this.clearCounterPolling();
     },
 
     async submitCounterBooking() {
       if (!this.counterFormValid || this.counterSubmitting || !this.createSlot) return;
       this.counterSubmitting = true;
+      this.counterError = '';
       this.error = '';
       this.notice = '';
 
@@ -1711,7 +1767,8 @@ export default {
           this.closeDrawer();
         }
       } catch (err) {
-        this.error = err.message || 'Không thể tạo đặt sân tại quầy.';
+        this.counterError = err.message || 'Không thể tạo đặt sân tại quầy.';
+        this.error = this.counterError;
       } finally {
         this.counterSubmitting = false;
       }
@@ -2184,12 +2241,11 @@ export default {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 100;
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
-  padding: 10px;
-  border: 1px solid #cbd5e1;
+  z-index: 1000;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 /* CUSTOM PERIOD DROPDOWN */
@@ -2511,106 +2567,155 @@ export default {
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: transparent;
+  background: #f8fafc;
   color: #166534;
-  border: none;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   cursor: pointer;
   box-sizing: border-box;
   transition: all 0.12s ease;
+  flex-shrink: 0;
 }
 
 .pos-btn-icon-refresh:hover {
-  background: #f4f8f5;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
   color: #14532d;
 }
 
-/* 2. BORDERLESS SEAMLESS KPI STATUS BAR */
-/* 2. COMPACT STRUCTURED KPI STATUS BAR */
-.pos-kpi-bar {
+/* 2. STREAMLINED CAPACITY & METRICS BAR (STYLE 4 - NO BOXES, NO DOTS) */
+.pos-capacity-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   background: transparent;
   border: none;
-  padding: 0 0 10px 0;
+  padding: 0 2px 10px 2px;
   margin-bottom: 2px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.pos-metric-strip {
-  display: inline-flex;
-  align-items: center;
-  background: #f8fafc;
-  border-radius: 10px;
-  padding: 8px 18px;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.pos-metric-item {
+.pos-capacity-meter-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  min-width: 180px;
 }
 
-.pos-metric-label {
-  font-size: 11.5px;
-  font-weight: 500;
+.pos-cap-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pos-cap-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
   color: #64748b;
-  letter-spacing: 0.1px;
 }
 
-.pos-metric-val {
-  font-size: 15px;
+.pos-cap-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.pos-cap-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.pos-cap-track {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pos-cap-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 999px;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pos-bar-sep {
+  width: 1px;
+  height: 24px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.pos-metrics-cluster {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pos-metrics-cluster::-webkit-scrollbar {
+  display: none;
+}
+
+.pos-metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pos-metric-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #64748b;
+}
+
+.pos-metric-num {
+  font-size: 13.5px;
   font-weight: 700;
   color: #0f172a;
 }
 
-.pos-metric-val.text-green {
-  color: #166534;
-}
+.pos-metric-num.is-blue { color: #0284c7; }
+.pos-metric-num.is-amber { color: #d97706; }
+.pos-metric-num.is-red { color: #dc2626; }
+.pos-metric-num.is-green { color: #166534; }
 
-.pos-metric-val.text-blue {
-  color: #0284c7;
-}
-
-.pos-metric-val.text-amber {
-  color: #d97706;
-}
-
-.pos-metric-val.text-red {
-  color: #dc2626;
-}
-
-.pos-metric-val.text-forest {
-  color: #166534;
-}
-
-.pos-metric-divider {
-  width: 1px;
-  height: 26px;
-  background: #e2e8f0;
-}
-
-.btn-analytics-toggle {
+.pos-btn-analytics {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #f8fafc;
-  border: none;
-  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 6px 14px;
+  height: 34px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #166534;
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.btn-analytics-toggle:hover {
-  background: #f1f5f9;
+.pos-btn-analytics:hover {
+  background: #f0fdf4;
+  border-color: #166534;
   color: #14532d;
 }
 
@@ -2720,23 +2825,30 @@ export default {
 
 .pos-grid-scroller {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   background: #ffffff;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  transform: translateZ(0);
+  will-change: scroll-position;
 }
 
 .pos-table {
-  width: 100%;
+  width: max-content;
   min-width: 100%;
   border-collapse: separate;
   border-spacing: 2px;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 .pos-th-time {
   width: 110px;
+  min-width: 110px;
+  max-width: 110px;
   background: #f8fafc;
   border-bottom: 2px solid #087642;
   padding: 12px 8px;
@@ -2747,6 +2859,9 @@ export default {
   position: sticky;
   left: 0;
   z-index: 20;
+  white-space: nowrap;
+  transform: translateZ(0);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.03);
 }
 
 .pos-th-court {
@@ -2754,7 +2869,9 @@ export default {
   border-bottom: 2px solid #087642;
   padding: 12px 14px;
   text-align: left;
-  min-width: 190px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
 }
 
 .pos-court-header {
@@ -2767,12 +2884,17 @@ export default {
   font-size: 14.5px;
   font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
 }
 
 .pos-court-type {
   font-size: 12px;
   color: #334155;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
 }
 
 /* ROW & CELL */
@@ -2784,6 +2906,11 @@ export default {
   position: sticky;
   left: 0;
   z-index: 10;
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+  transform: translateZ(0);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.03);
 }
 
 .pos-time-mark {
@@ -2791,6 +2918,12 @@ export default {
   font-size: 12px;
   font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
+}
+
+.pos-td-time.is-past-time .pos-time-mark {
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 .pos-td-cell {
@@ -2798,6 +2931,9 @@ export default {
   padding: 1px;
   vertical-align: stretch;
   cursor: pointer;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
 }
 
 .pos-td-cell.is-highlight {
@@ -2818,22 +2954,33 @@ export default {
   min-height: 54px;
 }
 
+.pos-empty-slot.is-past {
+  background-color: #f8fafc;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    rgba(226, 232, 240, 0.45) 6px,
+    rgba(226, 232, 240, 0.45) 12px
+  );
+  border: 1px solid #edf2f7;
+  cursor: not-allowed;
+}
+
+.pos-empty-past-hover-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
 .pos-empty-hint {
   font-size: 12px;
   font-weight: 600;
   color: #475569;
   opacity: 0;
   transition: opacity 0.12s ease;
-}
-
-.pos-td-cell:hover .pos-empty-slot {
-  background: #f0fdf4;
-  border-color: #087642;
-}
-
-.pos-td-cell:hover .pos-empty-hint {
-  opacity: 1;
-  color: #087642;
 }
 
 /* BOOKING CARDS */
@@ -2897,7 +3044,32 @@ export default {
   background: #475569;
 }
 
-.pos-booking-card:hover,
+@media (hover: hover) {
+  .pos-td-cell:hover .pos-empty-slot:not(.is-past) {
+    background: #f0fdf4;
+    border-color: #087642;
+  }
+
+  .pos-td-cell:hover .pos-empty-slot:not(.is-past) .pos-empty-hint {
+    opacity: 1;
+    color: #087642;
+  }
+
+  .pos-td-cell:hover .pos-empty-slot.is-past {
+    background-color: #f1f5f9;
+  }
+
+  .pos-td-cell:hover .pos-empty-slot.is-past .pos-empty-past-hover-hint {
+    opacity: 0.85;
+  }
+
+  .pos-booking-card:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    transform: scale(1.01);
+    z-index: 5;
+  }
+}
+
 .pos-booking-card.is-selected {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   transform: scale(1.01);
@@ -2912,6 +3084,7 @@ export default {
   justify-content: space-between;
   overflow: hidden;
   gap: 3px;
+  min-width: 0;
 }
 
 .pos-booking-row-1 {
@@ -2969,22 +3142,29 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .pos-booking-time {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  color: #334155;
+  color: #475569;
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pos-booking-phone {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
-  color: #334155;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
 }
 
 /* 4. MODAL & OFF-CANVAS DRAWER */
@@ -3065,6 +3245,17 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.pos-drawer-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 /* INFO LIST */
@@ -3454,11 +3645,12 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .analytics-modal-dialog {
   width: 100%;
-  max-width: 960px;
+  max-width: 900px;
   max-height: 90vh;
   background: #ffffff;
   border-radius: 12px;
@@ -3468,6 +3660,7 @@ export default {
   overflow: hidden;
   border: 1px solid #cbd5e1;
   animation: pop-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 @keyframes pop-in {
@@ -3476,25 +3669,26 @@ export default {
 }
 
 .analytics-modal-head {
-  padding: 16px 24px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .head-titles h3 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .head-subtitle {
-  font-size: 13px;
-  color: #475569;
-  font-weight: 400;
+  font-size: 12.5px;
+  color: #64748b;
+  font-weight: 500;
   margin-top: 2px;
   display: block;
 }
@@ -3508,6 +3702,7 @@ export default {
   padding: 4px 8px;
   border-radius: 6px;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .analytics-close-btn:hover {
@@ -3516,54 +3711,57 @@ export default {
 }
 
 .analytics-modal-body {
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .analytics-top-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 16px;
 }
 
 .analytic-card {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 18px 20px;
+  padding: 16px 18px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
 }
 
 .analytic-card.is-revenue-card {
   flex-direction: column;
   align-items: stretch;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
 }
 
 .analytic-card.is-heatmap {
   flex-direction: column;
   align-items: stretch;
-  gap: 14px;
+  gap: 12px;
 }
 
 .analytic-card-label {
   font-size: 13px;
   font-weight: 600;
   color: #334155;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
 }
 
 .gauge-ring-wrap {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
   flex-shrink: 0;
 }
 
@@ -3581,7 +3779,7 @@ export default {
 
 .gauge-fill {
   fill: none;
-  stroke: #087642;
+  stroke: #166534;
   stroke-width: 3.5;
   stroke-linecap: round;
   transition: stroke-dasharray 0.3s ease;
@@ -3593,26 +3791,28 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .gauge-meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .gauge-val-highlight {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
 }
 
 .gauge-desc {
-  font-size: 12.5px;
-  color: #475569;
+  font-size: 12px;
+  color: #64748b;
   font-weight: 400;
 }
 
@@ -3620,27 +3820,32 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .heat-legend {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #475569;
+  gap: 4px;
+  font-size: 11.5px;
+  color: #64748b;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 .legend-dot.is-peak { background: #e11d48; }
 .legend-dot.is-high { background: #f59e0b; }
@@ -3650,18 +3855,23 @@ export default {
 .heat-bars-grid {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  height: 72px;
+  gap: 6px;
+  height: 76px;
   padding-top: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .heat-bar-col {
   flex: 1;
+  min-width: 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   height: 100%;
+  flex-shrink: 0;
 }
 
 .heat-bar-track {
@@ -3688,9 +3898,10 @@ export default {
 .heat-bar-fill.is-low { background: #cbd5e1; }
 
 .heat-hour-label {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
-  color: #475569;
+  color: #64748b;
+  white-space: nowrap;
 }
 
 .cash-card-head {
@@ -3698,12 +3909,14 @@ export default {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  gap: 8px;
 }
 
 .cash-total {
-  font-size: 18px;
-  font-weight: 600;
-  color: #087642;
+  font-size: 17px;
+  font-weight: 700;
+  color: #166534;
+  white-space: nowrap;
 }
 
 .cash-segmented-bar {
@@ -3719,34 +3932,37 @@ export default {
   height: 100%;
   transition: width 0.2s ease;
 }
-.seg-fill.is-qr { background: #087642; }
-.seg-fill.is-cash { background: #2563eb; }
+.seg-fill.is-qr { background: #166534; }
+.seg-fill.is-cash { background: #0284c7; }
 
 .cash-metrics-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .cash-sub-metric {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 5px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .sub-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
-.sub-dot.is-qr { background: #087642; }
-.sub-dot.is-cash { background: #2563eb; }
+.sub-dot.is-qr { background: #166534; }
+.sub-dot.is-cash { background: #0284c7; }
 
-.sub-name { color: #475569; font-weight: 400; }
-.sub-val { color: #0f172a; font-weight: 600; }
+.sub-name { color: #64748b; font-weight: 500; }
+.sub-val { color: #0f172a; font-weight: 700; }
 
 .pos-tr-row.is-jump-highlight td {
   background: #ecfdf5 !important;
@@ -3965,55 +4181,64 @@ export default {
     height: 36px;
     flex-shrink: 0;
   }
-  .pos-kpi-bar {
+  .pos-capacity-bar {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 10px;
+    padding: 0 0 6px 0;
   }
-  .pos-metric-strip {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 12px;
-    gap: 14px;
-    scrollbar-width: none;
-  }
-  .pos-metric-strip::-webkit-scrollbar {
+  .pos-bar-sep {
     display: none;
   }
-  .pos-metric-item {
-    flex-shrink: 0;
+  .pos-metrics-cluster {
+    width: 100%;
+    gap: 14px;
+    padding: 2px 0;
   }
-  .pos-metric-divider {
-    flex-shrink: 0;
-  }
-  .btn-analytics-toggle {
+  .pos-btn-analytics {
     width: 100%;
     justify-content: center;
     padding: 8px;
+    height: 36px;
   }
   .pos-th-time {
-    width: 75px;
-    min-width: 75px;
-    max-width: 75px;
-    padding: 8px 4px;
+    width: 86px;
+    min-width: 86px;
+    max-width: 86px;
+    padding: 8px 2px;
     font-size: 11px;
+    white-space: nowrap;
   }
   .pos-td-time {
-    width: 75px;
-    min-width: 75px;
-    max-width: 75px;
+    width: 86px;
+    min-width: 86px;
+    max-width: 86px;
     padding: 6px 2px;
   }
   .pos-time-mark {
-    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    display: block;
+    text-align: center;
+    letter-spacing: -0.3px;
+  }
+  .pos-th-court,
+  .pos-td-cell {
+    width: 175px;
+    min-width: 175px;
+    max-width: 175px;
   }
   .pos-th-court {
-    min-width: 165px;
-    padding: 10px;
+    padding: 8px 10px;
+  }
+  .pos-court-name {
+    font-size: 13.5px;
+  }
+  .pos-court-type {
+    font-size: 11px;
+    max-width: 165px;
   }
 }
 
@@ -4023,30 +4248,92 @@ export default {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 6px;
+    width: 100%;
   }
   .pos-date-nav-wrap {
-    flex: none;
+    flex: 1;
+    min-width: 140px;
   }
   .pos-cal-btn {
+    width: 100%;
+  }
+  .pos-period-btn {
     flex: 1;
     min-width: 120px;
   }
-  .pos-period-btn {
+  .pos-toolbar-actions-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 6px;
     width: 100%;
   }
-  .pos-toolbar-actions-row {
-    flex-wrap: wrap;
-    gap: 6px;
+  .pos-toolbar-actions-row::-webkit-scrollbar {
+    display: none;
   }
   .pos-view-switcher {
-    flex: 1;
-  }
-  .pos-view-btn {
-    flex: 1;
+    flex-shrink: 0;
   }
   .pos-btn-action.is-qr,
   .pos-btn-action.is-fnb {
-    flex: 1;
+    flex-shrink: 0;
+    padding: 0 10px;
+  }
+  .pos-btn-icon-refresh {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics-modal-backdrop {
+    padding: 10px;
+  }
+  .analytics-modal-dialog {
+    max-height: 88vh;
+    border-radius: 12px;
+  }
+  .analytics-modal-head {
+    padding: 12px 14px;
+  }
+  .head-titles h3 {
+    font-size: 15px;
+  }
+  .analytics-modal-body {
+    padding: 12px;
+    gap: 12px;
+  }
+  .analytics-top-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .analytic-card {
+    padding: 14px;
+    gap: 12px;
+  }
+  .heat-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .heat-legend {
+    gap: 8px;
+  }
+  .pos-cal-popover {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 16px);
+  }
+  .pos-period-popover {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 16px);
+  }
+  .pos-court-popover {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 16px);
   }
 }
 </style>
