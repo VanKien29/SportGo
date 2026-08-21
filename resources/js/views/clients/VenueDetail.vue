@@ -1724,18 +1724,22 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 18px;
-  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.15s ease;
 }
 
 .sg-btn-primary-action:hover {
-  background: #15803d;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .sg-btn-ghost-action {
@@ -1743,19 +1747,20 @@ export default {
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  color: #334155;
+  color: #475569;
   font-size: 13px;
-  font-weight: 500;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .sg-btn-ghost-action:hover {
   background: #f8fafc;
-  border-color: #94a3b8;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 /* NAVIGATION TABS WRAPPER */
@@ -1787,8 +1792,8 @@ export default {
   border: none;
   padding: 14px 0;
   font-size: 13.5px;
-  font-weight: 400;
-  color: #334155;
+  font-weight: 500;
+  color: #475569;
   cursor: pointer;
   position: relative;
   transition: color 0.15s ease;
@@ -1803,8 +1808,8 @@ export default {
 }
 
 .sg-detail-tab-btn.is-active {
-  color: #15803d;
-  font-weight: 500;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .sg-detail-tab-btn.is-active::after {
@@ -1814,7 +1819,7 @@ export default {
   left: 0;
   right: 0;
   height: 2px;
-  background: #15803d;
+  background: #5c7e6e;
   border-radius: 2px 2px 0 0;
 }
 
@@ -1830,8 +1835,8 @@ export default {
 }
 
 .sg-detail-tab-btn.is-active .sg-tab-count-badge {
-  background: #dcfce7;
-  color: #15803d;
+  background: #edf4f0;
+  color: #5c7e6e;
 }
 
 /* MAIN LAYOUT 2 COLUMNS */

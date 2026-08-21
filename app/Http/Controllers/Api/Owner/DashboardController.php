@@ -169,6 +169,50 @@ class DashboardController extends Controller
             'online_bookings' => (clone $periodBookingQuery)->where('source', 'online')->count(),
             'counter_bookings' => (clone $periodBookingQuery)->where('source', '!=', 'online')->count(),
         ];
+        $onlineRevenue = (float) DB::table('payments')
+            ->join('bookings', 'payments.booking_id', '=', 'bookings.id')
+            ->whereIn('bookings.venue_cluster_id', $clusterIds)
+            ->whereBetween('bookings.booking_date', [$period['date_from'], $period['date_to']])
+            ->where('bookings.source', 'online')
+            ->where('payments.status', 'paid')
+            ->sum('payments.amount');
+
+        $counterRevenue = max(0, $periodRevenue - $onlineRevenue);
+
+        $channelDistribution = [
+            'online' => [
+                'label' => 'Đặt qua App / Web SportGo',
+                'count' => (int) ($periodSummary['online_bookings'] ?? 0),
+                'revenue' => $onlineRevenue,
+                'percent' => $periodBookingsCount > 0 ? round(($periodSummary['online_bookings'] / $periodBookingsCount) * 100, 1) : 0,
+            ],
+            'counter' => [
+                'label' => 'Đặt trực tiếp tại quầy',
+                'count' => (int) ($periodSummary['counter_bookings'] ?? 0),
+                'revenue' => $counterRevenue,
+                'percent' => $periodBookingsCount > 0 ? round(($periodSummary['counter_bookings'] / $periodBookingsCount) * 100, 1) : 0,
+            ],
+        ];
+
+        $hourlyCounts = DB::table('bookings')
+            ->whereIn('venue_cluster_id', $clusterIds)
+            ->whereBetween('booking_date', [$period['date_from'], $period['date_to']])
+            ->whereNotIn('status', ['cancelled', 'rejected', 'expired'])
+            ->selectRaw("SUBSTRING(start_time, 1, 2) as hour_slot, COUNT(*) as total")
+            ->groupBy('hour_slot')
+            ->pluck('total', 'hour_slot');
+
+        $hourlyDistribution = [];
+        for ($h = 6; $h <= 23; $h++) {
+            $hourKey = sprintf('%02d', $h);
+            $hourlyDistribution[] = [
+                'hour' => $h,
+                'slot' => sprintf('%02d:00', $h),
+                'label' => sprintf('%02dh', $h),
+                'count' => (int) ($hourlyCounts[$hourKey] ?? 0),
+            ];
+        }
+
         $bookingStatuses = $this->bookingStatusBreakdown($periodStatusCounts);
         $revenueTrend = $this->revenueTrend($clusterIds, $period);
 
@@ -364,6 +408,8 @@ class DashboardController extends Controller
             'golden_hours' => $goldenHours,
             'court_revenues' => $courtRevenues,
             'published_posts' => $publishedPosts,
+            'channel_distribution' => $channelDistribution,
+            'hourly_distribution' => $hourlyDistribution,
         ]);
     }
 

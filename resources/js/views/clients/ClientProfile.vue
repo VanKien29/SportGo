@@ -926,47 +926,51 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   font-size: 13.5px;
-  border-radius: 4px;
+  font-weight: 600;
+  border-radius: 999px;
   cursor: pointer;
   text-decoration: none;
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   transition: all 0.15s ease;
 }
 
 .w2-btn--sm {
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-size: 12.5px;
 }
 
 .w2-btn--primary {
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  border-color: #15803d;
+  border: none;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
 }
 
 .w2-btn--primary:hover:not(:disabled) {
-  background: #166534;
-  border-color: #166534;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .w2-btn--outline {
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
   border-color: #cbd5e1;
 }
 
 .w2-btn--outline:hover:not(:disabled) {
-  border-color: #94a3b8;
+  border-color: #54656f;
   color: #0f172a;
+  background: #f8fafc;
 }
 
 .w2-input {
-  padding: 9px 12px;
+  padding: 9px 14px;
   font-size: 13.5px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
   background: #ffffff;
   color: #0f172a;
   outline: none;
@@ -977,7 +981,8 @@ export default {
 }
 
 .w2-input:focus {
-  border-color: #15803d;
+  border-color: #54656f;
+  box-shadow: 0 0 0 3px rgba(84, 101, 111, 0.12);
 }
 
 /* USER IDENTITY (NO BORDER) */
@@ -993,15 +998,17 @@ export default {
 }
 
 .cp-avatar {
-  width: 50px;
-  height: 50px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
   font-size: 20px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 0 4px #edf4f0;
 }
 
 .cp-identity-body {
@@ -1021,15 +1028,18 @@ export default {
 
 .cp-name-row h2 {
   font-size: 18px;
+  font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .cp-role-badge {
   font-size: 12px;
-  color: #15803d;
+  font-weight: 600;
+  color: #5c7e6e;
   padding: 1px 6px;
-  background: #ffffff;
+  background: #edf4f0;
+  border-radius: 4px;
 }
 
 .cp-meta-text {

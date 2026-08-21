@@ -809,14 +809,14 @@ export default {
 
 .bd-back-link {
   font-size: 13px;
-  color: #15803d;
+  color: #5c7e6e;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .bd-title {
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 700;
   color: #0f172a;
   margin: 4px 0 0;
 }
@@ -831,27 +831,41 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 8px 18px;
   font-size: 13px;
-  font-weight: 500;
-  border-radius: 4px;
+  font-weight: 600;
+  border-radius: 999px;
   cursor: pointer;
   text-decoration: none;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
+  transition: all 0.15s ease;
 }
 
 .bd-btn--primary {
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  border-color: #15803d;
+  border: none;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+}
+
+.bd-btn--primary:hover:not(:disabled) {
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .bd-btn--outline {
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
   border-color: #cbd5e1;
+}
+
+.bd-btn--outline:hover {
+  border-color: #54656f;
+  color: #0f172a;
+  background: #f8fafc;
 }
 
 .bd-btn--danger {
@@ -884,8 +898,8 @@ export default {
 }
 
 .bh-status-value {
-  font-weight: 500;
-  color: #15803d;
+  font-weight: 600;
+  color: #5c7e6e;
 }
 
 .bh-status-value.cancelled,

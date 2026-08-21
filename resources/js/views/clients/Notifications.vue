@@ -202,19 +202,26 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   font-size: 13.5px;
-  border-radius: 4px;
+  font-weight: 600;
+  border-radius: 999px;
   cursor: pointer;
   text-decoration: none;
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   transition: all 0.15s ease;
 }
 
 .w2-btn--outline {
   background: #ffffff;
-  color: #0f172a;
+  color: #475569;
   border-color: #cbd5e1;
+}
+
+.w2-btn--outline:hover:not(:disabled) {
+  border-color: #54656f;
+  color: #0f172a;
+  background: #f8fafc;
 }
 
 .sg3-card,
@@ -239,36 +246,47 @@ export default {
   justify-content: space-between;
   padding: 0 0 12px 0 !important;
   font-size: 14px;
+  font-weight: 600;
   color: #0f172a;
 }
 
 .sg3-notification-row {
   display: flex;
   align-items: center;
-  padding: 14px 0 !important;
+  padding: 14px 12px !important;
   gap: 16px;
   width: 100%;
   background: transparent;
   border: none;
+  border-radius: 8px;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
-.sg3-notification-row.is-unread {
+.sg3-notification-row:hover {
   background: #f8fafc;
 }
 
+.sg3-notification-row.is-unread {
+  background: #edf4f0;
+}
+
 .nt-icon-box {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #edf4f0;
+  color: #5c7e6e;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.sg3-notification-row.is-unread .nt-icon-box {
+  background: #54656f;
+  color: #ffffff;
 }
 
 .nt-body-col {
@@ -280,6 +298,7 @@ export default {
 
 .nt-title {
   font-size: 14.5px;
+  font-weight: 600;
   color: #0f172a;
 }
 
@@ -298,7 +317,7 @@ export default {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #15803d;
+  background: #5c7e6e;
   flex-shrink: 0;
 }
 

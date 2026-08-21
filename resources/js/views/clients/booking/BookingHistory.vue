@@ -573,9 +573,9 @@ export default {
 }
 
 .w2-btn.is-active {
-  border-color: #15803d;
-  color: #15803d;
-  background: #f0fdf4;
+  border-color: #54656f;
+  color: #0f172a;
+  background: #edf4f0;
 }
 
 .bh-filter-count {
@@ -586,7 +586,7 @@ export default {
   height: 18px;
   padding: 0 4px;
   border-radius: 9px;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
   font-size: 11px;
 }
@@ -648,19 +648,20 @@ export default {
   width: 100%;
   height: 38px;
   padding: 0 12px 0 34px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
   background: #ffffff;
   color: #0f172a;
   font-size: 13.5px;
-  font-weight: 400;
+  font-weight: 500;
   box-sizing: border-box;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .bh-text-input:focus {
-  border-color: #15803d;
+  border-color: #54656f;
+  box-shadow: 0 0 0 3px rgba(84, 101, 111, 0.12);
 }
 
 .bh-text-input::placeholder {
@@ -699,21 +700,28 @@ export default {
 .w2-tab {
   display: inline-flex;
   align-items: center;
-  padding: 7px 14px;
-  font-size: 13.5px;
-  color: #334155;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
 }
 
+.w2-tab:hover {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
 .w2-tab.is-active {
-  color: #15803d;
-  background: #ffffff;
-  border-color: #15803d;
+  color: #5c7e6e;
+  background: #edf4f0;
+  border-color: #cbd5e1;
+  font-weight: 600;
 }
 
 .bh-filter-form {
@@ -823,12 +831,13 @@ export default {
   background: transparent;
   border: none;
   padding: 0;
+  font-weight: 600;
 }
 
 .sg3-status-pill.confirmed,
 .sg3-status-pill.completed,
 .sg3-status-pill.checked_in {
-  color: #15803d;
+  color: #5c7e6e;
 }
 
 .sg3-status-pill.pending,

@@ -734,7 +734,8 @@ export default {
 
 .plan-current-indicator {
   font-size: 13px;
-  color: #15803d;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .plan-desc {
@@ -753,6 +754,7 @@ export default {
 
 .plan-price-val {
   font-size: 24px;
+  font-weight: 700;
   color: #0f172a;
 }
 
@@ -777,12 +779,14 @@ export default {
 
 .block-title {
   font-size: 13.5px;
+  font-weight: 600;
   color: #0f172a;
 }
 
 .saving-note {
   font-size: 12px;
-  color: #15803d;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .cycle-buttons-stack {
@@ -797,8 +801,8 @@ export default {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border: 1px solid #94a3b8;
-  border-radius: 6px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
   background: #ffffff;
   color: #0f172a;
   cursor: pointer;
@@ -808,7 +812,7 @@ export default {
 }
 
 .cycle-btn:hover:not(:disabled) {
-  border-color: #0f172a;
+  border-color: #54656f;
   background: #f8fafc;
 }
 
@@ -816,7 +820,7 @@ export default {
   background: #ffffff;
   color: #94a3b8;
   cursor: not-allowed;
-  border-color: #cbd5e1;
+  border-color: #e2e8f0;
 }
 
 .cycle-btn-left {
@@ -827,12 +831,14 @@ export default {
 
 .cycle-title {
   font-size: 13px;
+  font-weight: 600;
   color: #0f172a;
 }
 
 .cycle-saving-label {
   font-size: 11.5px;
-  color: #15803d;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .cycle-btn-right {
@@ -844,12 +850,13 @@ export default {
 
 .cycle-total {
   font-size: 13.5px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .cycle-monthly {
   font-size: 11.5px;
-  color: #475569;
+  color: #64748b;
 }
 
 /* Features Block (NO circular icon wrappers) */
@@ -877,7 +884,7 @@ export default {
 }
 
 .feature-check-icon {
-  color: #0f172a;
+  color: #5c7e6e;
   flex-shrink: 0;
   margin-top: 3px;
 }
@@ -894,7 +901,7 @@ export default {
 
 .feature-sub {
   font-size: 12px;
-  color: #475569;
+  color: #64748b;
 }
 
 /* Confirmation Modal */
@@ -913,7 +920,7 @@ export default {
   width: 100%;
   max-width: 440px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -931,13 +938,14 @@ export default {
 
 .confirm-modal-title {
   font-size: 18px;
+  font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .confirm-modal-subtitle {
   font-size: 13px;
-  color: #334155;
+  color: #475569;
   margin: 0;
 }
 
@@ -956,16 +964,17 @@ export default {
 }
 
 .confirm-label {
-  color: #475569;
+  color: #64748b;
 }
 
 .confirm-val {
   color: #0f172a;
+  font-weight: 600;
 }
 
 .confirm-note {
   font-size: 13px;
-  color: #334155;
+  color: #475569;
   line-height: 1.5;
   margin: 0;
 }
@@ -980,39 +989,46 @@ export default {
 }
 
 .btn-cancel {
-  padding: 8px 16px;
-  border: 1px solid #94a3b8;
+  padding: 8px 18px;
+  border: 1.5px solid #cbd5e1;
   background: #ffffff;
-  color: #334155;
-  border-radius: 6px;
+  color: #475569;
+  border-radius: 999px;
   font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .btn-cancel:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
+  border-color: #54656f;
   color: #0f172a;
 }
 
 .btn-confirm {
-  padding: 8px 18px;
+  padding: 8px 20px;
   border: none;
-  background: #0f172a;
+  background: #54656f;
   color: #ffffff;
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.15s ease;
 }
 
 .btn-confirm:hover {
-  background: #1e293b;
+  background: #405059;
+  transform: translateY(-1px);
 }
 
 .btn-confirm:disabled {
   background: #cbd5e1;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Responsive */

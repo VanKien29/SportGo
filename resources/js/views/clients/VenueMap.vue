@@ -35,18 +35,21 @@
         </aside>
       </section>
     </main>
+
+    <ClientFooter />
   </div>
 </template>
 
 <script>
 import AppIcon from '../../components/AppIcon.vue';
 import PublicNavbar from '../../components/PublicNavbar.vue';
+import ClientFooter from '../../components/ClientFooter.vue';
 import VenueResultsMap from '../../components/VenueResultsMap.vue';
 import { venueService } from '../../services/venues.js';
 
 export default {
   name: 'VenueMap',
-  components: { AppIcon, PublicNavbar, VenueResultsMap },
+  components: { AppIcon, PublicNavbar, ClientFooter, VenueResultsMap },
   data() { return { venues: [], search: '', loading: true, error: '' }; },
   computed: { mapVenues() { return this.venues.filter((venue) => Number.isFinite(Number(venue.latitude)) && Number.isFinite(Number(venue.longitude))); } },
   mounted() { this.loadVenues(); },
@@ -69,24 +72,24 @@ export default {
 <style scoped>
 .sg-venue-map-main { padding-bottom: 64px; }
 .sg-venue-map-head { padding-bottom: 20px; }
-.sg-venue-map-toolbar { display:flex; align-items:end; gap:14px; padding:15px; margin-bottom:16px; }
+.sg-venue-map-toolbar { display:flex; align-items:end; gap:14px; padding:15px; margin-bottom:16px; border: 1.5px solid var(--sg3-line); border-radius: 12px; }
 .sg-venue-map-toolbar label { display:grid; gap:6px; flex:1; }
-.sg-venue-map-toolbar label span { color:var(--sg3-muted); font-size:11px; font-weight:800; }
-.sg-venue-map-toolbar input { min-height:42px; padding:0 12px; border:1px solid var(--sg3-line); border-radius:8px; outline:0; }
-.sg-venue-map-toolbar input:focus { border-color:var(--sg3-green); box-shadow:0 0 0 3px rgba(7,148,71,.12); }
+.sg-venue-map-toolbar label span { color:var(--sg3-muted); font-size:11px; font-weight:700; text-transform: uppercase; letter-spacing: 0.05em; }
+.sg-venue-map-toolbar input { min-height:42px; padding:0 14px; border:1.5px solid var(--sg3-line); border-radius:8px; outline:0; font-size: 13.5px; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.sg-venue-map-toolbar input:focus { border-color:#54656f; box-shadow:0 0 0 3px rgba(84,101,111,.12); }
 .sg-venue-map-count { padding-bottom:12px; color:var(--sg3-muted); font-size:12px; white-space:nowrap; }
-.sg-venue-map-count strong { color:var(--sg3-green-dark); }
+.sg-venue-map-count strong { color:#5c7e6e; font-weight: 700; }
 .sg-venue-map-layout { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(300px,.75fr); gap:16px; align-items:start; }
-.sg-venue-map-canvas { padding:10px; min-height:490px; }
+.sg-venue-map-canvas { padding:10px; min-height:490px; border: 1.5px solid var(--sg3-line); border-radius: 12px; }
 .sg-venue-map-canvas :deep(.venue-results-map) { min-height:470px; border:0; border-radius:10px; }
 .sg-venue-map-loading { display:grid; min-height:470px; place-items:center; align-content:center; gap:10px; color:var(--sg3-muted); }
-.sg-venue-map-list { overflow:hidden; }
+.sg-venue-map-list { overflow:hidden; border: 1.5px solid var(--sg3-line); border-radius: 12px; }
 .sg-venue-map-list > header { display:flex; justify-content:space-between; gap:10px; padding:18px; border-bottom:1px solid var(--sg3-line); }
-.sg-venue-map-list h2 { margin:0; font-size:19px; }
+.sg-venue-map-list h2 { margin:0; font-size:18px; font-weight: 700; }
 .sg-venue-map-list > header > span { color:var(--sg3-muted); font-size:12px; }
-.sg-venue-map-item { display:grid; grid-template-columns:48px minmax(0,1fr) 17px; align-items:center; gap:11px; width:100%; padding:13px 15px; border:0; border-bottom:1px solid var(--sg3-line); background:#fff; color:var(--sg3-ink); text-align:left; cursor:pointer; }
-.sg-venue-map-item:hover { background:var(--sg3-green-soft); }
-.sg-venue-map-item__image { display:grid; width:48px; height:48px; place-items:center; overflow:hidden; border-radius:10px; background:var(--sg3-green-soft); color:var(--sg3-green-dark); font-weight:900; }
+.sg-venue-map-item { display:grid; grid-template-columns:48px minmax(0,1fr) 17px; align-items:center; gap:11px; width:100%; padding:13px 15px; border:0; border-bottom:1px solid var(--sg3-line); background:#fff; color:var(--sg3-ink); text-align:left; cursor:pointer; transition: background-color 0.15s ease; }
+.sg-venue-map-item:hover { background:#edf4f0; }
+.sg-venue-map-item__image { display:grid; width:48px; height:48px; place-items:center; overflow:hidden; border-radius:10px; background:#edf4f0; color:#5c7e6e; font-weight:700; }
 .sg-venue-map-item__image img { width:100%; height:100%; object-fit:cover; }
 .sg-venue-map-item__copy { display:grid; gap:4px; min-width:0; }
 .sg-venue-map-item__copy strong,.sg-venue-map-item__copy small,.sg-venue-map-item__copy > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

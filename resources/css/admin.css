@@ -23,18 +23,18 @@
     --admin-surface: #ffffff;
     --admin-surface-muted: #ffffff;
     --admin-sidebar: #ffffff;
-    --admin-hover: #edf7ed;
-    --admin-border: #cfded1;
-    --admin-border-soft: #e3ece4;
-    --admin-text: #101c15;
-    --admin-muted: #2f3d34;
-    --admin-faint: #45564a;
-    --admin-primary: #166534;
+    --admin-hover: #edf4f0;
+    --admin-border: #cbd5e1;
+    --admin-border-soft: #e2e8f0;
+    --admin-text: #0f172a;
+    --admin-muted: #475569;
+    --admin-faint: #64748b;
+    --admin-primary: #5c7e6e;
     --admin-primary-text: #ffffff;
-    --admin-primary-light: #228b49;
-    --admin-primary-dark: #14532d;
-    --admin-primary-soft: #f4f8f5;
-    --admin-primary-ring: rgba(22, 101, 52, 0.2);
+    --admin-primary-light: #6e9483;
+    --admin-primary-dark: #446153;
+    --admin-primary-soft: #edf4f0;
+    --admin-primary-ring: rgba(92, 126, 110, 0.2);
     --admin-floating-bg: #1f2937;
     --admin-floating-fg: #ffffff;
     --admin-floating-border: rgba(255, 255, 255, 0.16);
@@ -99,12 +99,12 @@
     --admin-text: #f4f4f5;
     --admin-muted: #cbd5e1;
     --admin-faint: #94a3b8;
-    --admin-primary: #22a653;
+    --admin-primary: #5c7e6e;
     --admin-primary-text: #ffffff;
-    --admin-primary-light: #26c263;
-    --admin-primary-dark: #16a34a;
-    --admin-primary-soft: rgba(34, 166, 83, 0.16);
-    --admin-primary-ring: rgba(34, 166, 83, 0.25);
+    --admin-primary-light: #6e9483;
+    --admin-primary-dark: #446153;
+    --admin-primary-soft: rgba(92, 126, 110, 0.16);
+    --admin-primary-ring: rgba(92, 126, 110, 0.25);
     --admin-floating-bg: #27272a;
     --admin-floating-fg: #ffffff;
     --admin-floating-border: rgba(255, 255, 255, 0.14);
@@ -596,10 +596,10 @@
     padding: 0 !important;
 }
 
-/* Keep both dashboards aligned with the spacing used by the portal pages. */
+/* Keep both dashboards aligned with the spacing used by the portal pages (10px). */
 .sg-shell-admin .content-area:has(.admin-dashboard-page),
 .sg-shell-admin .content-area:has(.owner-dashboard-page) {
-    padding: 28px clamp(22px, 2.4vw, 42px) 36px !important;
+    padding: 10px !important;
 }
 
 .sg-shell-admin .content-area .hero-integrated-tabs,
@@ -717,7 +717,7 @@
 
     .sg-shell-admin .content-area:has(.admin-dashboard-page),
     .sg-shell-admin .content-area:has(.owner-dashboard-page) {
-        padding: 20px 16px 28px !important;
+        padding: 10px !important;
     }
 
     .admin-footer {

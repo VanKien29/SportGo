@@ -425,7 +425,8 @@
                           v-if="customerPhone(getSlotCellInfo(court.id, slot).block.booking) && customerPhone(getSlotCellInfo(court.id, slot).block.booking) !== '-'"
                           class="pos-booking-phone"
                         >
-                          ☎ {{ customerPhone(getSlotCellInfo(court.id, slot).block.booking) }}
+                          <AppIcon name="phone" :size="11" />
+                          <span>{{ customerPhone(getSlotCellInfo(court.id, slot).block.booking) }}</span>
                         </span>
                       </div>
                     </div>
@@ -2641,7 +2642,7 @@ export default {
 
 .pos-cap-fill {
   height: 100%;
-  background: linear-gradient(90deg, #10b981, #059669);
+  background: linear-gradient(90deg, #8da89b, #5c7e6e);
   border-radius: 999px;
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -2692,20 +2693,20 @@ export default {
 .pos-metric-num.is-blue { color: #0284c7; }
 .pos-metric-num.is-amber { color: #d97706; }
 .pos-metric-num.is-red { color: #dc2626; }
-.pos-metric-num.is-green { color: #166534; }
+.pos-metric-num.is-green { color: #5c7e6e; }
 
 .pos-btn-analytics {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   padding: 6px 14px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: 999px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #166534;
+  color: #475569;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: all 0.15s ease;
@@ -2714,9 +2715,9 @@ export default {
 }
 
 .pos-btn-analytics:hover {
-  background: #f0fdf4;
-  border-color: #166534;
-  color: #14532d;
+  background: #f8fafc;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 /* FLASH ALERTS */

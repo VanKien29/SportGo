@@ -253,12 +253,12 @@
                     <span>Kết ca: <strong>{{ formatTimeOnly(sch.check_out_at) }}</strong></span>
                   </div>
                   <div v-if="sch.check_in_at && sch.check_out_at" class="day-attend-duration">
-                    ⏱️ Đã làm: <strong>{{ workedDurationText(sch) }}</strong>
+                    Đã làm: <strong>{{ workedDurationText(sch) }}</strong>
                   </div>
                 </div>
 
                 <div v-if="sch.notes" class="notes-text">
-                  💬 Ghi chú: {{ sch.notes }}
+                  Ghi chú: {{ sch.notes }}
                 </div>
               </div>
             </div>
@@ -269,7 +269,7 @@
               </div>
 
               <div v-if="sch.status === 'checked_in'" class="live-timer-text">
-                ⏱️ Đang trực: {{ liveDuration(sch.check_in_at) }}
+                Đang trực: {{ liveDuration(sch.check_in_at) }}
               </div>
 
               <div class="shift-btn-wrap">
