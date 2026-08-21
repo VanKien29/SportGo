@@ -81,7 +81,7 @@
         </div>
       </div>
       <div class="od-spotlight-illustration">
-        <img src="/images/admin_command_center.png" alt="Admin Dashboard" class="od-spotlight-img" />
+        <img :src="'/images/admin_command_center.png'" alt="Admin Dashboard" class="od-spotlight-img" />
       </div>
     </div>
 
