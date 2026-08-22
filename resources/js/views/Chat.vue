@@ -302,6 +302,22 @@
                   <span>Xóa lịch sử tin nhắn</span>
                 </button>
 
+                <button
+                  v-if="activeConversation.type === 'player_post' && activeConversation.is_active && String(activeConversation.created_by) !== String(currentUser?.id)"
+                  @click="leaveMatchmakingGroup"
+                  class="tg-dropdown-item tg-dropdown-item-danger"
+                >
+                  <span>Rời nhóm giao lưu</span>
+                </button>
+
+                <button
+                  v-if="activeConversation.type === 'player_post' && String(activeConversation.created_by) === String(currentUser?.id)"
+                  @click="dissolveMatchmakingGroup"
+                  class="tg-dropdown-item tg-dropdown-item-danger"
+                >
+                  <span>Giải tán nhóm giao lưu</span>
+                </button>
+
                 <!-- Delete chat -->
                 <button @click="deleteActiveConversation" class="tg-dropdown-item tg-dropdown-item-danger">
                   <svg class="tg-dropdown-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -639,6 +655,9 @@
 
           <!-- Bottom Message Input Editor -->
           <div class="tg-input-bar-container p-3 shrink-0 flex flex-col items-center bg-transparent">
+            <div v-if="activeConversation?.is_group && activeConversation?.is_active === false" class="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Bạn đã rời nhóm. Lịch sử và thời điểm vào/rời nhóm vẫn được lưu để tra cứu.
+            </div>
             <!-- Hidden Image File Input -->
             <input
               type="file"
@@ -677,6 +696,7 @@
                   placeholder="Nhập tin nhắn..."
                   @paste="handlePaste"
                   class="zalo-input flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
+                  :disabled="!canSendMessage"
                 />
 
                 <div class="zalo-actions-group flex items-center gap-1 shrink-0">
@@ -686,6 +706,7 @@
                     type="button"
                     @click="openBookingPicker"
                     class="zalo-attach-btn"
+                    :disabled="!canSendMessage"
                     title="Chia sẻ booking"
                   >
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -698,6 +719,7 @@
                     type="button"
                     @click="clickAttachment"
                     class="zalo-attach-btn"
+                    :disabled="!canSendMessage"
                     title="Thêm ảnh"
                   >
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -708,9 +730,9 @@
                   <!-- Right Action: Circular Send Button -->
                   <button
                     type="submit"
-                    :disabled="!newMessage.trim() && selectedImageFiles.length === 0"
                     class="zalo-send-btn"
                     title="Gửi tin nhắn"
+                    :disabled="!canSendMessage || (!newMessage.trim() && selectedImageFiles.length === 0)"
                   >
                     <svg class="h-3.5 w-3.5 fill-current text-current" viewBox="0 0 24 24">
                       <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -1489,7 +1511,11 @@ export default {
     canShareBooking() {
       if (!this.activeConversation || !this.currentUser) return false;
       if (this.currentUser.role_group === 'admin') return false;
+      if (this.activeConversation.type === 'player_post') return false;
       return this.activeConversation.type !== 'direct' || Boolean(this.activeConversation.other_user);
+    },
+    canSendMessage() {
+      return !this.activeConversation?.is_group || this.activeConversation?.is_active !== false;
     },
     canViewRelatedBookings() {
       if (!this.activeConversation || !this.currentUser) return false;
@@ -1497,6 +1523,7 @@ export default {
     },
     canCreateSupportRequest() {
       if (!this.activeConversation || !this.currentUser) return false;
+      if (this.activeConversation.type === 'player_post') return false;
       if (this.isAdmin || this.currentUser.role_group === 'owner' || this.currentUser.role_group === 'staff' || this.currentUser.role_group === 'venue_staff' || this.currentUser.role_group === 'admin') {
         return false;
       }
@@ -1565,7 +1592,7 @@ export default {
         }
         return 'Hội thoại Sân đấu';
       }
-      if (this.activeConversation?.type === 'group') {
+      if (this.activeConversation?.is_group || this.activeConversation?.type === 'group' || this.activeConversation?.type === 'player_post') {
         const count = this.activeConversationParticipants?.length || 0;
         return `${count} thành viên`;
       }
@@ -2019,6 +2046,12 @@ export default {
         const previousLength = this.messages.length;
         this.messages = response.messages || [];
         this.activeConversationParticipants = response.participants || [];
+        const selfParticipant = this.activeConversationParticipants.find((participant) => String(participant.user_id) === String(this.currentUser?.id));
+        if (selfParticipant && this.activeConversation.is_group) {
+          this.activeConversation.is_active = selfParticipant.is_active;
+          this.activeConversation.joined_at = selfParticipant.joined_at;
+          this.activeConversation.left_at = selfParticipant.left_at;
+        }
 
         // Scroll to bottom if new messages arrived
         if (this.messages.length > previousLength) {
@@ -2060,6 +2093,7 @@ export default {
     },
 
     async submitMessage() {
+      if (!this.canSendMessage) return;
       const content = this.newMessage.trim();
       if (!content && this.selectedImageFiles.length === 0) return;
 
@@ -2540,6 +2574,34 @@ export default {
         this.confirmChatError = error.message || 'Không thể thực hiện thao tác.';
       } finally {
         this.confirmChatLoading = false;
+      }
+    },
+
+    async leaveMatchmakingGroup() {
+      if (!this.activeConversation) return;
+      this.showChatMenu = false;
+      try {
+        await chatService.leaveConversation(this.activeConversation.id);
+        this.toast.success('Bạn đã rời nhóm giao lưu.');
+        await this.fetchConversations();
+        this.activeConversation = this.conversations.find((item) => item.id === this.activeConversation?.id) || null;
+        if (this.activeConversation) await this.fetchMessages();
+      } catch (error) {
+        this.toast.error(error.message || 'Không thể rời nhóm giao lưu.');
+      }
+    },
+
+    async dissolveMatchmakingGroup() {
+      if (!this.activeConversation) return;
+      this.showChatMenu = false;
+      try {
+        await chatService.dissolveConversation(this.activeConversation.id);
+        this.toast.success('Đã giải tán nhóm giao lưu.');
+        this.conversations = this.conversations.filter((item) => item.id !== this.activeConversation.id);
+        this.activeConversation = null;
+        this.messages = [];
+      } catch (error) {
+        this.toast.error(error.message || 'Chỉ được giải tán nhóm sau khi booking hoàn thành.');
       }
     },
 
@@ -5328,4 +5390,3 @@ input.zalo-input {
 </style>
 
 <!-- Global style override using [data-admin-chat] for scoping layout values -->
-

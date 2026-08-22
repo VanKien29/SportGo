@@ -50,7 +50,9 @@ class VenueController extends Controller
             'has_services' => ['nullable', 'boolean'],
             'has_map' => ['nullable', 'boolean'],
             'payment_option' => ['nullable', 'in:full_payment,deposit,no_prepay,wallet'],
-            'sort' => ['nullable', 'in:recommended,name,price,courts,rating'],
+            'sort' => ['nullable', 'in:recommended,name,price,courts,rating,distance'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
             'booking_date' => ['nullable', 'date_format:Y-m-d'],
             'start_time' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
@@ -73,7 +75,10 @@ class VenueController extends Controller
 
         $query = VenueCluster::query()
             ->with(['venueCourts' => function ($query) {
-                $query->with('courtType:id,name,parent_id')
+                $query->with([
+                    'courtType:id,name,parent_id,icon_key',
+                    'courtType.parent:id,name,parent_id,icon_key',
+                ])
                     ->where('status', 'active')
                     ->orderBy('sort_order')
                     ->orderBy('name');
@@ -220,7 +225,9 @@ class VenueController extends Controller
             ->orderByDesc('rating_avg')
             ->orderBy('name');
 
-        if (! empty($validated['limit']) && (empty($validated['booking_date']) || empty($validated['start_time']) || empty($validated['end_time']))) {
+        if (! empty($validated['limit'])
+            && ($validated['sort'] ?? 'recommended') !== 'distance'
+            && (empty($validated['booking_date']) || empty($validated['start_time']) || empty($validated['end_time']))) {
             $clusters->limit((int) $validated['limit']);
         }
 
@@ -247,8 +254,25 @@ class VenueController extends Controller
             })->values();
         }
 
+        $referenceLatitude = isset($validated['latitude']) ? (float) $validated['latitude'] : null;
+        $referenceLongitude = isset($validated['longitude']) ? (float) $validated['longitude'] : null;
+        $hasReferencePoint = $referenceLatitude !== null && $referenceLongitude !== null;
+
         $clusters = $clusters
-            ->map(fn (VenueCluster $cluster) => $this->summaryPayload($cluster))
+            ->map(function (VenueCluster $cluster) use ($referenceLatitude, $referenceLongitude, $hasReferencePoint): array {
+                $payload = $this->summaryPayload($cluster);
+
+                if ($hasReferencePoint && $cluster->latitude !== null && $cluster->longitude !== null) {
+                    $payload['distance_km'] = round($this->distanceKm(
+                        $referenceLatitude,
+                        $referenceLongitude,
+                        (float) $cluster->latitude,
+                        (float) $cluster->longitude,
+                    ), 2);
+                }
+
+                return $payload;
+            })
             ->filter(function (array $cluster) use ($validated) {
                 return empty($validated['min_courts'])
                     || (int) $cluster['court_count'] >= (int) $validated['min_courts'];
@@ -272,6 +296,7 @@ class VenueController extends Controller
                     'price' => ($left['min_price'] ?? PHP_INT_MAX) <=> ($right['min_price'] ?? PHP_INT_MAX),
                     'courts' => ((int) ($right['court_count'] ?? 0)) <=> ((int) ($left['court_count'] ?? 0)),
                     'rating' => ((float) ($right['rating_avg'] ?? 0)) <=> ((float) ($left['rating_avg'] ?? 0)),
+                    'distance' => ($left['distance_km'] ?? PHP_INT_MAX) <=> ($right['distance_km'] ?? PHP_INT_MAX),
                     default => ((float) ($right['rating_avg'] ?? 0)) <=> ((float) ($left['rating_avg'] ?? 0))
                         ?: (($left['min_price'] ?? PHP_INT_MAX) <=> ($right['min_price'] ?? PHP_INT_MAX))
                         ?: strnatcasecmp($left['name'] ?? '', $right['name'] ?? ''),
@@ -310,7 +335,10 @@ class VenueController extends Controller
                 'bookingConfig',
                 'amenityCatalog',
                 'venueCourts' => function ($query) {
-                    $query->with('courtType:id,name,parent_id')
+                    $query->with([
+                        'courtType:id,name,parent_id,icon_key',
+                        'courtType.parent:id,name,parent_id,icon_key',
+                    ])
                         ->where('status', 'active')
                         ->orderBy('sort_order')
                         ->orderBy('name');
@@ -356,21 +384,34 @@ class VenueController extends Controller
                 'policies' => $this->policyPayload($cluster),
                 'venue_courts' => $cluster->venueCourts,
                 'price_slots' => PriceSlot::query()
-                    ->with('courtType:id,name,parent_id')
+                    ->with([
+                        'courtType:id,name,parent_id,icon_key',
+                        'courtType.parent:id,name,parent_id,icon_key',
+                    ])
                     ->where('venue_cluster_id', $cluster->id)
                     ->where('is_active', true)
                     ->orderBy('court_type_id')
                     ->orderBy('start_time')
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
                     ->get(),
                 'holiday_prices' => HolidayPrice::query()
-                    ->with('courtType:id,name,parent_id')
+                    ->with([
+                        'courtType:id,name,parent_id,icon_key',
+                        'courtType.parent:id,name,parent_id,icon_key',
+                    ])
                     ->where('venue_cluster_id', $cluster->id)
                     ->where('is_active', true)
                     ->orderBy('holiday_date')
                     ->orderBy('start_time')
+                    ->orderByDesc('updated_at')
+                    ->orderByDesc('id')
                     ->get(),
                 'base_prices' => VenueBasePrice::query()
-                    ->with('courtType:id,name,parent_id')
+                    ->with([
+                        'courtType:id,name,parent_id,icon_key',
+                        'courtType.parent:id,name,parent_id,icon_key',
+                    ])
                     ->where('venue_cluster_id', $cluster->id)
                     ->orderBy('court_type_id')
                     ->get(),
@@ -437,6 +478,9 @@ class VenueController extends Controller
                 'id' => $type->id,
                 'name' => $type->name,
                 'parent_id' => $type->parent_id,
+                'icon_key' => ($type->icon_key && $type->icon_key !== 'activity')
+                    ? $type->icon_key
+                    : ($type->parent?->icon_key ?: 'activity'),
             ]);
 
         return [
@@ -720,6 +764,17 @@ class VenueController extends Controller
         [$hour, $minute] = array_map('intval', explode(':', substr($time, 0, 5)));
 
         return $hour * 60 + $minute;
+    }
+
+    private function distanceKm(float $latitudeA, float $longitudeA, float $latitudeB, float $longitudeB): float
+    {
+        $earthRadius = 6371.0;
+        $deltaLatitude = deg2rad($latitudeB - $latitudeA);
+        $deltaLongitude = deg2rad($longitudeB - $longitudeA);
+        $a = sin($deltaLatitude / 2) ** 2
+            + cos(deg2rad($latitudeA)) * cos(deg2rad($latitudeB)) * sin($deltaLongitude / 2) ** 2;
+
+        return $earthRadius * (2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a))));
     }
 
     private function courtTypeIdsWithAncestors(Collection $courtTypeIds): array

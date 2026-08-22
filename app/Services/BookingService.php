@@ -1127,6 +1127,10 @@ class BookingService
             ->where('start_time', '<=', $startTime)
             ->where('end_time', '>=', $endTime)
             ->orderByRaw('CASE WHEN booking_type = ? THEN 0 ELSE 1 END', [$bookingType])
+            // If legacy data contains overlapping rules, the latest owner
+            // configuration is the effective one shown to the player.
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->first();
 
         if ($holidayPrice) {
@@ -1152,6 +1156,9 @@ class BookingService
             ->where('start_time', '<=', $startTime)
             ->where('end_time', '>=', $endTime)
             ->orderByRaw('CASE WHEN booking_type = ? THEN 0 ELSE 1 END', [$bookingType])
+            // Keep the same deterministic precedence as the public price table.
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->first();
 
         if ($priceSlot) {

@@ -66,6 +66,16 @@ export const chatService = {
       method: 'POST'
     });
   },
+  leaveConversation(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}/leave`, {
+      method: 'POST'
+    });
+  },
+  dissolveConversation(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}/dissolve`, {
+      method: 'POST'
+    });
+  },
   deleteConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}`, {
       method: 'DELETE',

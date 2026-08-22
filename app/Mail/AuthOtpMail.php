@@ -24,9 +24,11 @@ class AuthOtpMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->purpose === 'register'
-                ? 'SportGo - Mã xác thực đăng ký tài khoản'
-                : 'SportGo - Mã xác thực đặt lại mật khẩu',
+            subject: match ($this->purpose) {
+                'register' => 'SportGo - Mã xác thực đăng ký tài khoản',
+                'change_email' => 'SportGo - Mã xác thực email mới',
+                default => 'SportGo - Mã xác thực đặt lại mật khẩu',
+            },
         );
     }
 

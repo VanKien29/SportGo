@@ -16,6 +16,7 @@ class ConversationParticipant extends Model
         'user_id',
         'last_read_at',
         'joined_at',
+        'left_at',
         'cleared_history_at',
     ];
 
@@ -24,6 +25,7 @@ class ConversationParticipant extends Model
         return [
             'last_read_at' => 'datetime',
             'joined_at' => 'datetime',
+            'left_at' => 'datetime',
             'cleared_history_at' => 'datetime',
         ];
     }

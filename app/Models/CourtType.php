@@ -14,6 +14,7 @@ class CourtType extends Model
         'name',
         'parent_id',
         'description',
+        'icon_key',
         'player_count',
         'is_active',
         'default_layout_w',

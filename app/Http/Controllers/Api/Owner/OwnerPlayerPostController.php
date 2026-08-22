@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlayerPost;
 use App\Models\VenueCluster;
 use App\Models\Report;
+use App\Services\MatchmakingChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
  
 class OwnerPlayerPostController extends Controller
 {
+    public function __construct(private MatchmakingChatService $matchmakingChat) {}
+
     /**
      * Get owned or assigned cluster IDs for the authenticated user.
      */
@@ -71,7 +74,17 @@ class OwnerPlayerPostController extends Controller
             })
             ->latest()
             ->paginate($request->integer('per_page', 10));
- 
+
+        $groupChatIds = DB::table('conversations')
+            ->where('type', 'player_post')
+            ->where('reference_type', 'player_post')
+            ->whereIn('reference_id', $posts->getCollection()->pluck('id')->map(fn ($id) => (string) $id)->all())
+            ->pluck('id', 'reference_id');
+        $posts->getCollection()->transform(function (PlayerPost $post) use ($groupChatIds): PlayerPost {
+            $post->setAttribute('group_chat_id', $groupChatIds[(string) $post->id] ?? null);
+            return $post;
+        });
+
         return response()->json([
             'status' => 'success',
             'data' => $posts,
@@ -103,15 +116,21 @@ class OwnerPlayerPostController extends Controller
             ], 403);
         }
 
-        // Check if booking already has an active post
-        $existingPost = PlayerPost::where('booking_id', $booking->id)
-            ->whereIn('status', ['open', 'full'])
-            ->first();
+        if ($booking->status !== 'confirmed' || ! $this->isBeforeBookingStart($booking)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Chỉ có thể tạo bài giao lưu cho booking đã xác nhận và chưa bắt đầu.',
+            ], 409);
+        }
+
+        // A booking can have one matchmaking post for its full audit trail,
+        // including after the session has been closed.
+        $existingPost = PlayerPost::where('booking_id', $booking->id)->first();
 
         if ($existingPost) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Lịch đặt sân này đã có bài giao lưu đang mở.',
+                'message' => 'Lịch đặt sân này đã có bài giao lưu.',
             ], 422);
         }
 
@@ -131,6 +150,10 @@ class OwnerPlayerPostController extends Controller
             'status' => 'open',
         ]);
 
+        // Every matchmaking post owns one persistent private group. Approved
+        // participants are added to it by the player post lifecycle.
+        $group = $this->matchmakingChat->ensureGroup($post->load('booking.venueCluster'));
+
         // Trả về post kèm relation để append vào list trên UI
         $post->load([
             'author:id,username,full_name,email,phone,avatar_url',
@@ -142,7 +165,7 @@ class OwnerPlayerPostController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Đã đăng bài giao lưu thành công.',
-            'data' => $post,
+            'data' => array_merge($post->toArray(), ['group_chat_id' => $group->id]),
         ]);
     }
  
@@ -195,11 +218,19 @@ class OwnerPlayerPostController extends Controller
 
         $queryClusterIds = $venueClusterId ? [$venueClusterId] : $clusterIds;
 
+        $businessNow = now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+        $today = $businessNow->toDateString();
+        $time = $businessNow->toTimeString();
         $bookings = \App\Models\Booking::query()
             ->whereIn('venue_cluster_id', $queryClusterIds)
-            ->whereIn('status', ['confirmed', 'checked_in'])
-            ->where('booking_date', '>=', date('Y-m-d'))
-            ->whereNotIn('id', \App\Models\PlayerPost::whereIn('status', ['open', 'full'])->pluck('booking_id'))
+            ->where('status', 'confirmed')
+            ->where(function ($query) use ($today, $time) {
+                $query->where('booking_date', '>', $today)
+                    ->orWhere(function ($sub) use ($today, $time) {
+                        $sub->where('booking_date', $today)->where('start_time', '>', $time);
+                    });
+            })
+            ->whereNotIn('id', \App\Models\PlayerPost::pluck('booking_id'))
             ->with(['venueCourt:id,name,court_type_id', 'venueCourt.courtType:id,name'])
             ->orderBy('booking_date')
             ->orderBy('start_time')
@@ -210,6 +241,15 @@ class OwnerPlayerPostController extends Controller
             'status' => 'success',
             'data' => $bookings,
         ]);
+    }
+
+    private function isBeforeBookingStart(\App\Models\Booking $booking): bool
+    {
+        $businessNow = now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+        $date = $booking->booking_date?->format('Y-m-d') ?? (string) $booking->booking_date;
+
+        return $date > $businessNow->toDateString()
+            || ($date === $businessNow->toDateString() && substr((string) $booking->start_time, 0, 8) > $businessNow->toTimeString());
     }
  
     /**
