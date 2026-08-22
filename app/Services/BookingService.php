@@ -1615,7 +1615,7 @@ class BookingService
 
         if ($pastRange) {
             throw ValidationException::withMessages([
-                $errorKey => 'Không thể đặt khung giờ đã qua trong hôm nay. Vui lòng chọn giờ bắt đầu sau thời điểm hiện tại.',
+                $errorKey => 'Không thể đặt khung giờ đã bắt đầu hoặc đã qua trong hôm nay. Vui lòng chọn khung giờ bắt đầu sau thời điểm hiện tại.',
             ]);
         }
     }
@@ -1998,7 +1998,7 @@ class BookingService
         }
 
         if ($isPaid) {
-            return 'pending_approval';
+            return 'confirmed';
         }
 
         return 'pending_payment';

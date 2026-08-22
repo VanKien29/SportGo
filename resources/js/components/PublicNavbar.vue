@@ -124,7 +124,11 @@
                 </router-link>
 
                 <router-link v-if="isOwner" to="/owner/dashboard" class="dd-item" @click="showDropdown = false">
-                  Vào trang chủ sân
+                  Kênh Chủ sân
+                </router-link>
+
+                <router-link v-if="isStaff" to="/staff/bookings" class="dd-item" @click="showDropdown = false">
+                  Bàn làm việc Nhân viên
                 </router-link>
 
                 <button v-if="isAdmin" type="button" class="dd-item" @click="goToDashboard">
@@ -208,10 +212,13 @@ export default {
       return Boolean(this.user);
     },
     isOwner() {
-      return this.user?.role === "owner";
+      return this.user?.role === "owner" || this.user?.role_group === "owner";
+    },
+    isStaff() {
+      return this.user?.role === "venue_staff" || this.user?.role === "staff" || this.user?.role_group === "staff";
     },
     isAdmin() {
-      return this.user?.role === "admin";
+      return this.user?.role === "admin" || this.user?.role_group === "admin";
     },
     profileRoute() {
       return "/profile";
@@ -366,10 +373,10 @@ export default {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -391,6 +398,42 @@ export default {
   color: #0f172a;
 }
 
+/* GUEST BUTTONS */
+.anc-btn-login {
+  display: inline-flex;
+  align-items: center;
+  color: #475569 !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 6px 12px;
+  transition: color 0.15s ease;
+}
+
+.anc-btn-login:hover {
+  color: #0f172a !important;
+}
+
+.anc-btn-register {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #54656f;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 999px;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(84, 101, 111, 0.2);
+  transition: all 0.15s ease;
+}
+
+.anc-btn-register:hover {
+  background: #405059;
+  transform: translateY(-1px);
+}
+
 /* DROPDOWN PANEL */
 .dropdown {
   position: absolute;
@@ -399,8 +442,8 @@ export default {
   width: 230px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   padding: 6px 0;
   display: flex;
@@ -420,10 +463,10 @@ export default {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -440,7 +483,7 @@ export default {
 
 .dd-name {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
@@ -470,7 +513,7 @@ export default {
 
 .dd-item:hover {
   background: #f8fafc;
-  color: #15803d;
+  color: #5c7e6e;
 }
 
 .dd-item.logout {
@@ -556,9 +599,9 @@ export default {
 .sg3-popover-panel header button {
   background: transparent;
   border: none;
-  color: #16a34a;
+  color: #5c7e6e;
   font-size: 12.5px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
 }
@@ -606,7 +649,7 @@ export default {
 .sg3-notification-item.is-unread {
   background: #ffffff;
   border-color: #cbd5e1;
-  border-left: 3px solid #16a34a;
+  border-left: 3px solid #5c7e6e;
 }
 
 .sg3-notification-item__content {

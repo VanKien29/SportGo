@@ -51,8 +51,37 @@ class ChatController extends Controller
                 }
             } elseif ($conversation->type === 'venue_contact' && $conversation->reference_id) {
                 $venue = VenueCluster::find($conversation->reference_id);
-                $title = $venue ? $venue->name : 'Sân đấu';
-                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                $isStaffOrOwner = false;
+                if ($venue) {
+                    $isStaffOrOwner = ($venue->owner_id === $userId) || DB::table('venue_staff_assignments')
+                        ->where('venue_cluster_id', $venue->id)
+                        ->where('user_id', $userId)
+                        ->where('status', 'active')
+                        ->exists();
+                }
+
+                if ($isStaffOrOwner && $venue) {
+                    $staffIds = DB::table('venue_staff_assignments')
+                        ->where('venue_cluster_id', $venue->id)
+                        ->where('status', 'active')
+                        ->pluck('user_id')
+                        ->push($venue->owner_id)
+                        ->all();
+
+                    $customerParticipant = $conversation->participants->first(function ($p) use ($staffIds) {
+                        return !in_array($p->user_id, $staffIds);
+                    });
+
+                    $customerUser = $customerParticipant ? $customerParticipant->user : null;
+                    $title = $customerUser ? $customerUser->full_name : $venue->name;
+                    $avatarUrl = $customerUser ? $customerUser->avatar_url : null;
+                    if ($customerUser) {
+                        $otherUser = $customerUser;
+                    }
+                } else {
+                    $title = $venue ? $venue->name : 'Sân đấu';
+                    $avatarUrl = null;
+                }
             } else {
                 $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
                 $avatarUrl = $conversation->avatar_url ?: ($otherUser ? $otherUser->avatar_url : null);
@@ -712,7 +741,14 @@ class ChatController extends Controller
     {
         $currentUser = $request->user();
         $userId = $currentUser->id;
-        $type = $request->input('type', 'direct');
+        $type = $request->input('type');
+
+        if (!$type && ($request->filled('venue_id') || $request->filled('venue_cluster_id') || $request->filled('venueId'))) {
+            $type = 'venue_contact';
+        }
+        if (!$type) {
+            $type = 'direct';
+        }
 
         if ($type === 'group') {
             $name = trim($request->input('name') ?: 'Nhóm chat mới');
@@ -827,7 +863,7 @@ class ChatController extends Controller
         }
 
         if ($type === 'venue_contact') {
-            $venueId = $request->input('venue_id');
+            $venueId = $request->input('venue_id') ?: $request->input('venue_cluster_id') ?: $request->input('venueId');
             if (!$venueId) {
                 return response()->json(['message' => 'Mã sân đấu là bắt buộc.'], 400);
             }
@@ -890,7 +926,7 @@ class ChatController extends Controller
             return response()->json(['id' => $conversation->id]);
         }
 
-        if ($type === 'saved') {
+        if ($type === 'saved' || $type === 'saved_messages') {
             // Check if saved conversation (direct type with only 1 participant) already exists
             $existing = Conversation::where('type', 'direct')
                 ->whereHas('participants', function ($q) use ($userId) {

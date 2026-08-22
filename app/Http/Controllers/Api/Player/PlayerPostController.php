@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Notification;
 use App\Models\PlayerPost;
 use App\Services\CommunityAuthorBadgeService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,12 +21,20 @@ class PlayerPostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $posts = PlayerPost::with(['author', 'booking.venueCluster', 'participants'])
+        $posts = PlayerPost::with([
+                'author:id,full_name,username,avatar_url',
+                'booking.venueCluster:id,name,address',
+            ])
+            ->withCount([
+                'participants as approved_players_count' => fn ($query) => $query
+                    ->where('player_post_participants.status', 'approved'),
+            ])
             ->where('status', 'open')
             ->whereHas('booking', function ($q) {
                 $q->where('status', 'confirmed')
                     ->where(function ($query) {
-                        $query->where('booking_date', '>', now()->toDateString())
+                        $today = now()->toDateString();
+                        $query->where('booking_date', '>', $today)
                             ->orWhere(function ($sub) {
                                 $sub->where('booking_date', '=', now()->toDateString())
                                     ->where('end_time', '>', now()->toTimeString());
@@ -55,8 +64,8 @@ class PlayerPostController extends Controller
                 'title' => $post->title,
                 'description' => $post->description,
                 'needed_players' => $post->needed_players,
-                'approved_players' => $post->participants->where('pivot.status', 'approved')->count(),
-                'total_players' => $post->participants->where('pivot.status', 'approved')->count() + (int) $post->needed_players,
+                'approved_players' => (int) $post->approved_players_count,
+                'total_players' => (int) $post->approved_players_count + (int) $post->needed_players,
                 'status' => $post->status,
                 'created_at' => $post->created_at,
                 'user_status' => $participations[$post->id] ?? null,
@@ -91,14 +100,18 @@ class PlayerPostController extends Controller
         $userId = $request->user()->id;
 
         // Fetch bookings that are in the future and confirmed/paid
-        $bookings = Booking::with(['venueCluster'])
+        $today = now()->toDateString();
+        $time = now()->toTimeString();
+        $bookings = Booking::query()
+            ->select(['id', 'venue_cluster_id', 'booking_date', 'start_time'])
+            ->with(['venueCluster:id,name,address'])
             ->where('customer_id', $userId)
             ->where('status', 'confirmed')
-            ->where(function ($query) {
-                $query->whereDate('booking_date', '>', now()->toDateString())
-                    ->orWhere(function ($todayQuery) {
-                        $todayQuery->whereDate('booking_date', now()->toDateString())
-                            ->where('end_time', '>', now()->toTimeString());
+            ->where(function ($query) use ($today, $time) {
+                $query->where('booking_date', '>', $today)
+                    ->orWhere(function ($todayQuery) use ($today, $time) {
+                        $todayQuery->where('booking_date', '=', $today)
+                            ->where('end_time', '>', $time);
                     });
             })
             ->whereNotIn('id', PlayerPost::query()->select('booking_id'))
@@ -227,10 +240,12 @@ class PlayerPostController extends Controller
 
         DB::beginTransaction();
         try {
-            // Lock the booking so two concurrent requests cannot create duplicate posts.
+            // Do not lock the booking row here. Booking creation/status updates can hold
+            // that lock for a long time, which made the matchmaking form look stuck.
+            // A unique index on player_posts.booking_id protects the one-post-per-booking
+            // rule for concurrent requests.
             $booking = Booking::with('venueCluster')
                 ->whereKey($data['booking_id'])
-                ->lockForUpdate()
                 ->firstOrFail();
 
             if ((string) $booking->customer_id !== (string) $userId) {
@@ -267,26 +282,51 @@ class PlayerPostController extends Controller
                 'status' => 'open', // Trạng thái mở để tuyển người
             ]);
 
-            // Notify user
-            Notification::create([
-                'user_id' => $userId,
-                'type' => 'matchmaking_post_created',
-                'title' => 'Đăng bài giao lưu thành công',
-                'body' => 'Bài giao lưu của bạn cho lịch đặt sân ' . ($booking->venueCluster->name ?? '') . ' đã được đăng lên Cộng đồng.',
-                'reference_type' => 'player_post',
-                'reference_id' => $post->id,
-                'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
-            ]);
-
             DB::commit();
+
+            // Notifications are a follow-up action. They must not keep the create
+            // transaction open or turn a successful post into a failed request.
+            try {
+                Notification::create([
+                    'user_id' => $userId,
+                    'type' => 'matchmaking_post_created',
+                    'title' => 'Đăng bài giao lưu thành công',
+                    'body' => 'Bài giao lưu của bạn cho lịch đặt sân ' . ($booking->venueCluster->name ?? '') . ' đã được đăng lên Cộng đồng.',
+                    'reference_type' => 'player_post',
+                    'reference_id' => $post->id,
+                    'data' => ['action_url' => '/matchmaking-posts/' . $post->id . '/manage'],
+                ]);
+            } catch (\Throwable $notificationError) {
+                report($notificationError);
+            }
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đăng bài thành công.',
                 'data' => $post,
             ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
+        } catch (QueryException $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
+            if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'player_posts_booking_id_unique')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Lịch đặt sân này đã có bài giao lưu.',
+                ], 409);
+            }
+
+            \Illuminate\Support\Facades\Log::error('PlayerPost Create Error: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không thể tạo bài giao lưu. Vui lòng thử lại.',
+            ], 500);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
             \Illuminate\Support\Facades\Log::error('PlayerPost Create Error: ' . $e->getMessage() . '\n' . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',

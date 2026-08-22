@@ -482,7 +482,7 @@ export default {
   background: transparent;
   border: none;
   font-size: 13.5px;
-  color: #059669;
+  color: #5c7e6e;
   font-weight: 600;
   cursor: pointer;
 }
@@ -515,34 +515,37 @@ export default {
 .sg-text-input {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   border-radius: 8px;
-  font-size: 14.5px;
+  font-size: 14px;
   color: #0f172a;
   background: #ffffff;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .sg-text-input:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+  border-color: #54656f;
+  box-shadow: 0 0 0 3px rgba(84, 101, 111, 0.12);
 }
 
 .sg-btn-apply-filters {
   width: 100%;
-  padding: 12px;
-  background: #059669;
+  padding: 11px;
+  background: #54656f;
   color: #ffffff;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   margin-top: 6px;
-  transition: background 0.2s ease;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.2s ease;
 }
 .sg-btn-apply-filters:hover {
-  background: #047857;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 /* ───── VENUE GRID TOOLBAR ───── */
@@ -596,17 +599,19 @@ export default {
 
 .sg-btn-reset-empty {
   padding: 10px 24px;
-  background: #059669;
+  background: #54656f;
   color: #ffffff;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.2s ease;
 }
 .sg-btn-reset-empty:hover {
-  background: #047857;
+  background: #405059;
+  transform: translateY(-1px);
 }
 
 /* ───── RESPONSIVE ───── */

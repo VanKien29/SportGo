@@ -1,15 +1,6 @@
 <template>
-  <div class="sg-client-page wallet-white-page">
-    <PublicNavbar />
-
-    <main class="wallet-white-main">
-      <div class="wallet-layout-grid">
-        <!-- LEFT SIDEBAR NAVIGATION -->
-        <ClientAccountNav />
-
-        <!-- RIGHT PAGE CONTENT -->
-        <div class="w2-white-content">
-          <!-- PAGE HEADER -->
+  <div class="w2-white-content">
+    <!-- PAGE HEADER -->
           <div class="sg3-page-head">
             <div>
               <p class="sg3-kicker">Lịch sử hoạt động</p>
@@ -47,34 +38,47 @@
           <form class="bh-filter-panel" :class="{ 'is-open': showAdvancedFilters }" @submit.prevent="applyFilters">
             <div class="bh-filter-field bh-filter-field--search">
               <label for="bookingSearch">Tìm theo mã booking</label>
-              <input id="bookingSearch" v-model.trim="searchInput" type="search" class="w2-search-input" placeholder="Nhập mã booking..." />
+              <div class="bh-input-with-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="bh-search-svg">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  id="bookingSearch"
+                  v-model.trim="searchInput"
+                  type="search"
+                  class="bh-text-input"
+                  placeholder="Nhập mã booking..."
+                />
+              </div>
             </div>
-            <div class="bh-filter-field">
+
+            <div class="bh-filter-field bh-filter-field--date">
               <label>Khoảng ngày</label>
               <div class="bh-date-range">
                 <ClientDatePicker v-model="fromDate" placeholder="Từ ngày" />
                 <ClientDatePicker v-model="toDate" placeholder="Đến ngày" />
               </div>
             </div>
-            <div class="bh-filter-field">
-              <label for="bookingType">Loại booking</label>
-              <select id="bookingType" v-model="bookingType" class="bh-select-inline">
-                <option value="">Tất cả</option>
-                <option value="single">Booking lẻ</option>
-                <option value="recurring">Lịch cố định</option>
-              </select>
+
+            <div class="bh-filter-field bh-filter-field--type">
+              <label>Loại booking</label>
+              <ClientCustomSelect
+                v-model="bookingType"
+                :options="bookingTypeOptions"
+                placeholder="Tất cả loại"
+              />
             </div>
-            <div class="bh-filter-field">
-              <label for="paymentStatus">Thanh toán</label>
-              <select id="paymentStatus" v-model="paymentStatus" class="bh-select-inline">
-                <option value="">Tất cả</option>
-                <option value="pending">Chờ thanh toán</option>
-                <option value="paid">Đã thanh toán</option>
-                <option value="not_required">Thanh toán tại sân</option>
-                <option value="refunded">Đã hoàn tiền</option>
-                <option value="failed">Thanh toán lỗi</option>
-              </select>
+
+            <div class="bh-filter-field bh-filter-field--payment">
+              <label>Thanh toán</label>
+              <ClientCustomSelect
+                v-model="paymentStatus"
+                :options="paymentStatusOptions"
+                placeholder="Tất cả trạng thái"
+              />
             </div>
+
             <div class="bh-filter-panel-actions">
               <button type="submit" class="w2-btn w2-btn--primary">Áp dụng</button>
               <button v-if="activeFilterCount" type="button" class="w2-btn w2-btn--outline" @click="resetFilters">Xóa lọc</button>
@@ -184,8 +188,6 @@
             </div>
           </section>
         </div>
-      </div>
-    </main>
 
     <!-- CANCELLATION MODAL -->
     <Teleport to="body">
@@ -245,18 +247,16 @@
         </div>
       </div>
     </Teleport>
-  </div>
 </template>
 
 <script>
 import ClientDatePicker from "../../../components/ClientDatePicker.vue";
-import PublicNavbar from "../../../components/PublicNavbar.vue";
-import ClientAccountNav from "../../../components/ClientAccountNav.vue";
+import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
 
 export default {
   name: "BookingHistory",
-  components: { ClientDatePicker, PublicNavbar, ClientAccountNav },
+  components: { ClientDatePicker, ClientCustomSelect },
   data() {
     return {
       bookings: [],
@@ -271,6 +271,19 @@ export default {
       toDate: "",
       bookingType: "",
       paymentStatus: "",
+      bookingTypeOptions: [
+        { value: "", label: "Tất cả loại" },
+        { value: "single", label: "Booking lẻ" },
+        { value: "recurring", label: "Lịch cố định" },
+      ],
+      paymentStatusOptions: [
+        { value: "", label: "Tất cả trạng thái" },
+        { value: "pending", label: "Chờ thanh toán" },
+        { value: "paid", label: "Đã thanh toán" },
+        { value: "not_required", label: "Thanh toán tại sân" },
+        { value: "refunded", label: "Đã hoàn tiền" },
+        { value: "failed", label: "Thanh toán lỗi" },
+      ],
       showAdvancedFilters: true,
       filterError: "",
       statusFilters: [
@@ -560,9 +573,9 @@ export default {
 }
 
 .w2-btn.is-active {
-  border-color: #15803d;
-  color: #15803d;
-  background: #f0fdf4;
+  border-color: #54656f;
+  color: #0f172a;
+  background: #edf4f0;
 }
 
 .bh-filter-count {
@@ -573,29 +586,109 @@ export default {
   height: 18px;
   padding: 0 4px;
   border-radius: 9px;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
   font-size: 11px;
 }
 
 .bh-filter-panel {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.1fr) minmax(260px, 1.4fr) minmax(140px, .8fr) minmax(160px, .9fr) auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 12px;
-  align-items: end;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
+  padding: 16px 0 20px;
+  background: #ffffff;
+  border: none;
+  border-radius: 0;
+  width: 100%;
 }
 
-.bh-filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.bh-filter-field label { color: #475569; font-size: 12px; }
-.bh-filter-field .w2-search-input { width: 100%; box-sizing: border-box; }
-.bh-date-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.bh-select-inline { width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #0f172a; font-size: 13px; }
-.bh-filter-panel-actions { display: flex; align-items: center; gap: 8px; }
-.bh-filter-error { margin: -14px 0 0; color: #b91c1c; font-size: 12.5px; }
+.bh-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bh-filter-field--search {
+  flex: 1.2 1 180px;
+  min-width: 170px;
+}
+
+.bh-filter-field--date {
+  flex: 1.6 1 250px;
+  min-width: 230px;
+}
+
+.bh-filter-field--type {
+  flex: 1 1 140px;
+  min-width: 130px;
+}
+
+.bh-filter-field--payment {
+  flex: 1.1 1 160px;
+  min-width: 140px;
+}
+
+.bh-input-with-icon {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.bh-search-svg {
+  position: absolute;
+  left: 11px;
+  pointer-events: none;
+  color: #64748b;
+}
+
+.bh-text-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px 0 34px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bh-text-input:focus {
+  border-color: #54656f;
+  box-shadow: 0 0 0 3px rgba(84, 101, 111, 0.12);
+}
+
+.bh-text-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.bh-date-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.bh-filter-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.bh-filter-error {
+  margin: -10px 0 12px;
+  color: #b91c1c;
+  font-size: 12.5px;
+  font-weight: 400;
+}
 
 .w2-tabs {
   display: flex;
@@ -607,21 +700,28 @@ export default {
 .w2-tab {
   display: inline-flex;
   align-items: center;
-  padding: 7px 14px;
-  font-size: 13.5px;
-  color: #334155;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
 }
 
+.w2-tab:hover {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
 .w2-tab.is-active {
-  color: #15803d;
-  background: #ffffff;
-  border-color: #15803d;
+  color: #5c7e6e;
+  background: #edf4f0;
+  border-color: #cbd5e1;
+  font-weight: 600;
 }
 
 .bh-filter-form {
@@ -731,12 +831,13 @@ export default {
   background: transparent;
   border: none;
   padding: 0;
+  font-weight: 600;
 }
 
 .sg3-status-pill.confirmed,
 .sg3-status-pill.completed,
 .sg3-status-pill.checked_in {
-  color: #15803d;
+  color: #5c7e6e;
 }
 
 .sg3-status-pill.pending,
@@ -815,18 +916,21 @@ export default {
   100% { background-position: -200% 0; }
 }
 
-@media (max-width: 1000px) {
-  .bh-filter-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .bh-filter-field--search { grid-column: span 2; }
-  .bh-filter-panel-actions { grid-column: span 2; }
-}
-
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   .bh-toolbar-actions { width: 100%; margin-left: 0; justify-content: space-between; }
-  .bh-filter-panel { grid-template-columns: 1fr; }
+  .bh-filter-panel { gap: 12px; }
   .bh-filter-field--search,
-  .bh-filter-panel-actions { grid-column: auto; }
-  .bh-date-range { grid-template-columns: 1fr; }
+  .bh-filter-field--date,
+  .bh-filter-field--type,
+  .bh-filter-field--payment {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+  .bh-filter-panel-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
 }
 
 .w2-state-card {

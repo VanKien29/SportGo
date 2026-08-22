@@ -236,10 +236,11 @@ export default {
   color: #0f172a;
   font-size: 14px;
   font-weight: 400;
+  line-height: 1.45;
 }
 
 .agree-row.disabled {
-  opacity: 0.45;
+  color: #64748b;
   cursor: not-allowed;
 }
 
@@ -248,6 +249,11 @@ export default {
   height: 18px;
   margin-top: 1px;
   accent-color: #16a34a;
+  flex: 0 0 18px;
+}
+
+.agree-row.disabled input {
+  opacity: 0.75;
 }
 
 .policy-error {

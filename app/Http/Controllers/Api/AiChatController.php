@@ -167,9 +167,7 @@ class AiChatController extends Controller
             $bookingQuery = Booking::with(['venueCluster', 'venueCourt']);
 
             if ($userId) {
-                $bookingQuery->where('user_id', $userId);
-            } else if ($sessionToken) {
-                $bookingQuery->where('session_token', $sessionToken);
+                $bookingQuery->where('customer_id', $userId);
             }
 
             $booking = $bookingQuery->where(function ($q) use ($bookingId, $code) {
@@ -208,7 +206,7 @@ class AiChatController extends Controller
         // 3b. Lịch sử đặt sân của người dùng hiện tại (nếu đã đăng nhập)
         if ($userId) {
             $recentBookings = \App\Models\Booking::with(['venueCluster', 'venueCourt'])
-                ->where('user_id', $userId)
+                ->where('customer_id', $userId)
                 ->orderByDesc('created_at')
                 ->limit(5)
                 ->get();

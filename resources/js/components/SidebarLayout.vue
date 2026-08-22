@@ -167,26 +167,26 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  color: rgba(0, 0, 0, 0.6) !important;
-  font-size: 14px;
-  font-weight: 400;
-  transition: all 0.2s ease;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #475569 !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
   text-decoration: none;
 }
 
-:deep(.nav-item.never-hover-class-placeholder) {
-  background: rgba(0, 0, 0, 0.03) !important;
-  color: #000000 !important;
+:deep(.nav-item:hover) {
+  background: #f8fafc !important;
+  color: #0f172a !important;
 }
 
 :deep(.nav-active) {
-  background: rgba(0, 0, 0, 0.05) !important;
-  color: #000000 !important;
-  font-weight: 400;
-  border-left: 3px solid #000000;
-  padding-left: 13px;
+  background: #edf4f0 !important;
+  color: #1e293b !important;
+  font-weight: 600;
+  border-left: 3px solid #5c7e6e;
+  padding-left: 11px;
 }
 
 .sidebar-view-user {
@@ -195,25 +195,25 @@ export default {
 
 .view-user-btn {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: #000000;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   text-align: left;
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
-.view-user-btn.never-hover-class-placeholder {
-  background: rgba(0, 0, 0, 0.05);
-  color: #000000;
-  border-color: rgba(0, 0, 0, 0.15);
+.view-user-btn:hover {
+  background: #edf4f0;
+  color: #1e293b;
+  border-color: #cbd5e1;
 }
 
 .icon-btn {
@@ -222,9 +222,9 @@ export default {
 
 .sidebar-user {
   position: relative;
-  padding: 16px;
-  border-top: 1px solid #e5e7eb;
-  background: rgba(0, 0, 0, 0.02);
+  padding: 14px 16px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
 }
 
 .user-trigger {
@@ -232,30 +232,30 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
   text-align: left;
   border: none;
   background: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
-.user-trigger.never-hover-class-placeholder {
-  background: rgba(0, 0, 0, 0.03);
+.user-trigger:hover {
+  background: #edf4f0;
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #000000;
+  background: #54656f;
   color: #ffffff;
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 13.5px;
+  font-weight: 600;
 }
 
 .user-info {

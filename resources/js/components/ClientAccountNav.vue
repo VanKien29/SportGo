@@ -71,7 +71,7 @@ function isActive(key) {
   if (key === 'wallet') return route.name === 'client-wallet';
   if (key === 'vip') return route.name === 'vip-membership';
   if (key === 'notifications') return route.name === 'client-notifications';
-  if (key === 'complaints') return route.name === 'client-complaints' || route.name === 'client-complaint-detail';
+  if (key === 'complaints') return route.name === 'client-complaints' || route.name === 'client-complaint-detail' || route.name === 'client-complaint-create';
   if (key === 'policies') return route.name === 'policies';
   if (route.name !== 'profile') return false;
   if (key === 'refunds') return route.query.tab === 'refunds';

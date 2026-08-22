@@ -3,8 +3,9 @@
     class="sg-account-auth"
     :title="step === 'register' ? 'Tạo tài khoản SportGo' : 'Xác thực email'"
     :subtitle="step === 'register' ? 'Một tài khoản cho đặt sân, lịch chơi và cộng đồng' : 'Nhập mã gồm 6 chữ số đã gửi đến email đăng ký'"
+    quote-title="Gia nhập SportGo"
+    quote-text="Tạo tài khoản để tìm sân, kết nối đối thủ và bứt phá từng điểm số."
     :image-src="authVisual"
-    quote-text="Tạo tài khoản để tìm sân, đặt lịch và kết nối cùng cộng đồng thể thao."
     back-to="/"
   >
     <form
@@ -275,7 +276,7 @@ export default {
   },
   data() {
     return {
-      authVisual: '/images/home/anhbia2.webp',
+      authVisual: '/images/auth/sportgo_art.png',
       form: {
         username: '',
         full_name: '',

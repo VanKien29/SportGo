@@ -1,172 +1,164 @@
 <template>
-  <div class="vip-shell sg-client-page">
-    <PublicNavbar />
-    <main class="vip-page sg-client-shell">
-      <!-- Header -->
-      <header class="page-head">
-        <div class="page-head-copy">
-          <h1>Gói hội viên VIP</h1>
-          <p class="page-subtitle">Đặc quyền hoàn tiền sau mỗi lượt đặt sân, ưu đãi voucher và ưu tiên hỗ trợ cho người chơi thể thao thường xuyên.</p>
-        </div>
-        <div class="head-actions">
-          <button class="back-btn" type="button" @click="goBack">
-            ← Quay lại hồ sơ
-          </button>
-        </div>
-      </header>
+  <div class="w2-white-content">
+    <!-- Header -->
+          <header class="page-head">
+            <div class="page-head-copy">
+              <p class="sg3-kicker">Đặc quyền hội viên</p>
+              <h1>Gói hội viên VIP</h1>
+              <p class="page-subtitle">Đặc quyền hoàn tiền sau mỗi lượt đặt sân, ưu đãi voucher và ưu tiên hỗ trợ cho người chơi thể thao thường xuyên.</p>
+            </div>
+          </header>
 
-      <!-- Alert notifications -->
-      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
-      <div v-if="success" class="alert success" role="status">{{ success }}</div>
-      <div v-if="hasActiveSubscription" class="alert info" role="status">
-        Bạn đang có gói VIP còn hiệu lực. Hệ thống hiện áp dụng 1 gói VIP tại một thời điểm cho mỗi tài khoản.
-      </div>
-
-      <!-- Current Active Plan Strip (Flat plain text, NO card box) -->
-      <section v-if="subscription" class="current-plan-strip" aria-label="Gói hiện tại">
-        <div class="current-plan-item">
-          <span class="current-plan-label">Gói đang sử dụng:</span>
-          <span class="current-plan-val">{{ subscription.package?.label || subscription.package?.name }}</span>
-        </div>
-        <div class="current-plan-item">
-          <span class="current-plan-label">Hạn sử dụng:</span>
-          <span class="current-plan-val">{{ date(subscription.expires_at) }}</span>
-        </div>
-        <div class="current-plan-item">
-          <span class="current-plan-label">Đã thanh toán:</span>
-          <span class="current-plan-val">{{ money(subscription.paid_amount) }}</span>
-        </div>
-      </section>
-
-      <!-- QR Payment Section (Flat layout on white, NO card box) -->
-      <section
-        v-if="paymentInfo && !hasActiveSubscription"
-        class="payment-section"
-        aria-label="Thông tin thanh toán"
-      >
-        <div class="payment-intro">
-          <span class="payment-title">Thanh toán kích hoạt gói VIP</span>
-          <span class="payment-amount">{{ money(paymentInfo.payment?.amount) }}</span>
-          <p class="payment-hint">Vui lòng quét mã QR hoặc chuyển khoản chính xác nội dung bên dưới để hệ thống tự động kích hoạt gói.</p>
-        </div>
-
-        <div class="payment-layout">
-          <div v-if="paymentInfo.qr_url" class="payment-qr-frame">
-            <img :src="paymentInfo.qr_url" alt="QR thanh toán VIP" class="payment-qr-img" />
+          <!-- Alert notifications -->
+          <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+          <div v-if="success" class="alert success" role="status">{{ success }}</div>
+          <div v-if="hasActiveSubscription" class="alert info" role="status">
+            Bạn đang có gói VIP còn hiệu lực. Hệ thống hiện áp dụng 1 gói VIP tại một thời điểm cho mỗi tài khoản.
           </div>
 
-          <div class="payment-details-list">
-            <div class="payment-field">
-              <span class="payment-field-label">Ngân hàng:</span>
-              <span class="payment-field-val">
-                {{ paymentInfo.payment_account?.bank_name || paymentInfo.system_bank_account?.bank_name || "-" }}
-              </span>
+          <!-- Current Active Plan Strip -->
+          <section v-if="subscription" class="current-plan-strip" aria-label="Gói hiện tại">
+            <div class="current-plan-item">
+              <span class="current-plan-label">Gói đang sử dụng:</span>
+              <span class="current-plan-val">{{ subscription.package?.label || subscription.package?.name }}</span>
+            </div>
+            <div class="current-plan-item">
+              <span class="current-plan-label">Hạn sử dụng:</span>
+              <span class="current-plan-val">{{ date(subscription.expires_at) }}</span>
+            </div>
+            <div class="current-plan-item">
+              <span class="current-plan-label">Đã thanh toán:</span>
+              <span class="current-plan-val">{{ money(subscription.paid_amount) }}</span>
+            </div>
+          </section>
+
+          <!-- QR Payment Section -->
+          <section
+            v-if="paymentInfo && !hasActiveSubscription"
+            class="payment-section"
+            aria-label="Thông tin thanh toán"
+          >
+            <div class="payment-intro">
+              <span class="payment-title">Thanh toán kích hoạt gói VIP</span>
+              <span class="payment-amount">{{ money(paymentInfo.payment?.amount) }}</span>
+              <p class="payment-hint">Vui lòng quét mã QR hoặc chuyển khoản chính xác nội dung bên dưới để hệ thống tự động kích hoạt gói.</p>
             </div>
 
-            <div class="payment-field">
-              <span class="payment-field-label">Số tài khoản:</span>
-              <span class="payment-field-val">{{ paymentInfo.payment_account?.account_number || paymentInfo.system_bank_account?.account_number || "-" }}</span>
-              <button
-                type="button"
-                class="btn-copy-inline"
-                @click="copyText(paymentInfo.payment_account?.account_number || paymentInfo.system_bank_account?.account_number)"
-              >
-                Sao chép
-              </button>
-            </div>
+            <div class="payment-layout">
+              <div v-if="paymentInfo.qr_url" class="payment-qr-frame">
+                <img :src="paymentInfo.qr_url" alt="QR thanh toán VIP" class="payment-qr-img" />
+              </div>
 
-            <div class="payment-field">
-              <span class="payment-field-label">Nội dung chuyển khoản:</span>
-              <span class="payment-field-val">{{ paymentInfo.transfer_content }}</span>
-              <button
-                type="button"
-                class="btn-copy-inline"
-                @click="copyText(paymentInfo.transfer_content)"
-              >
-                Sao chép
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Loading / Empty states -->
-      <div v-if="loading" class="state-text">Đang tải danh sách gói VIP...</div>
-      <div v-else-if="!paidPackages.length" class="state-text">
-        Hiện chưa có gói VIP đang mở bán. Vui lòng quay lại sau.
-      </div>
-
-      <!-- Packages Grid (Flat side-by-side columns, NO background cards, NO icon circles) -->
-      <section v-else class="plans-columns" aria-label="Danh sách gói VIP">
-        <div
-          v-for="pkg in paidPackages"
-          :key="pkg.id"
-          class="plan-column"
-        >
-          <!-- Plan Title & Description (NO icon wrap) -->
-          <div class="plan-header">
-            <div class="plan-title-line">
-              <h2 class="plan-name">{{ pkg.label || pkg.name }}</h2>
-              <span v-if="isCurrentPackage(pkg)" class="plan-current-indicator">(Đang sử dụng)</span>
-            </div>
-            <p class="plan-desc">{{ packageDescription(pkg) }}</p>
-          </div>
-
-          <!-- Price Display (Clean flat text on white) -->
-          <div class="plan-price-display">
-            <span class="plan-price-val">{{ money(pkg.monthly_price) }}</span>
-            <span class="plan-price-period">/ tháng</span>
-          </div>
-
-          <!-- Cycles Options -->
-          <div class="plan-cycles-block">
-            <div class="cycles-header">
-              <span class="block-title">Chọn chu kỳ thanh toán</span>
-              <span v-if="cycleDiscount(pkg, 'yearly') > 0" class="saving-note">
-                Tiết kiệm đến {{ formatPercent(cycleDiscount(pkg, 'yearly')) }}%/năm
-              </span>
-            </div>
-
-            <div class="cycle-buttons-stack">
-              <button
-                v-for="cycle in pkg.available_cycles"
-                :key="cycle.key"
-                type="button"
-                class="cycle-btn"
-                :disabled="!canPurchasePackage(pkg) || Boolean(subscribing)"
-                @click="openConfirm(pkg, cycle)"
-              >
-                <div class="cycle-btn-left">
-                  <span class="cycle-title">{{ cycleLabel(cycle) }}</span>
-                  <span v-if="cycleDiscount(pkg, cycle.key) > 0" class="cycle-saving-label">
-                    Tiết kiệm {{ formatPercent(cycleDiscount(pkg, cycle.key)) }}%
+              <div class="payment-details-list">
+                <div class="payment-field">
+                  <span class="payment-field-label">Ngân hàng:</span>
+                  <span class="payment-field-val">
+                    {{ paymentInfo.payment_account?.bank_name || paymentInfo.system_bank_account?.bank_name || "-" }}
                   </span>
                 </div>
-                <div class="cycle-btn-right">
-                  <span class="cycle-total">{{ money(cycle.price) }}</span>
-                  <span class="cycle-monthly">{{ money(cycleUnitPrice(cycle)) }}/tháng</span>
+
+                <div class="payment-field">
+                  <span class="payment-field-label">Số tài khoản:</span>
+                  <span class="payment-field-val">{{ paymentInfo.payment_account?.account_number || paymentInfo.system_bank_account?.account_number || "-" }}</span>
+                  <button
+                    type="button"
+                    class="btn-copy-inline"
+                    @click="copyText(paymentInfo.payment_account?.account_number || paymentInfo.system_bank_account?.account_number)"
+                  >
+                    Sao chép
+                  </button>
                 </div>
-              </button>
+
+                <div class="payment-field">
+                  <span class="payment-field-label">Nội dung chuyển khoản:</span>
+                  <span class="payment-field-val">{{ paymentInfo.transfer_content }}</span>
+                  <button
+                    type="button"
+                    class="btn-copy-inline"
+                    @click="copyText(paymentInfo.transfer_content)"
+                  >
+                    Sao chép
+                  </button>
+                </div>
+              </div>
             </div>
+          </section>
+
+          <!-- Loading / Empty states -->
+          <div v-if="loading" class="state-text">Đang tải danh sách gói VIP...</div>
+          <div v-else-if="!paidPackages.length" class="state-text">
+            Hiện chưa có gói VIP đang mở bán. Vui lòng quay lại sau.
           </div>
 
-          <!-- Features (Clean plain list, NO icon circles) -->
-          <div class="plan-features-block">
-            <span class="block-title">Quyền lợi thành viên</span>
-            <ul class="features-list">
-              <li v-for="feature in packageFeatures(pkg)" :key="feature.key" class="feature-row">
-                <AppIcon name="check" :size="14" class="feature-check-icon" />
-                <div class="feature-texts">
-                  <span class="feature-main">{{ feature.value }}</span>
-                  <span class="feature-sub">{{ feature.label }}</span>
+          <!-- Packages Grid -->
+          <section v-else class="plans-columns" aria-label="Danh sách gói VIP">
+            <div
+              v-for="pkg in paidPackages"
+              :key="pkg.id"
+              class="plan-column"
+            >
+              <div class="plan-header">
+                <div class="plan-title-line">
+                  <h2 class="plan-name">{{ pkg.label || pkg.name }}</h2>
+                  <span v-if="isCurrentPackage(pkg)" class="plan-current-indicator">(Đang sử dụng)</span>
                 </div>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
+                <p class="plan-desc">{{ packageDescription(pkg) }}</p>
+              </div>
 
-      <!-- Confirmation Modal -->
+              <div class="plan-price-display">
+                <span class="plan-price-val">{{ money(pkg.monthly_price) }}</span>
+                <span class="plan-price-period">/ tháng</span>
+              </div>
+
+              <div class="plan-cycles-block">
+                <div class="cycles-header">
+                  <span class="block-title">Chọn chu kỳ thanh toán</span>
+                  <span v-if="cycleDiscount(pkg, 'yearly') > 0" class="saving-note">
+                    Tiết kiệm đến {{ formatPercent(cycleDiscount(pkg, 'yearly')) }}%/năm
+                  </span>
+                </div>
+
+                <div class="cycle-buttons-stack">
+                  <button
+                    v-for="cycle in pkg.available_cycles"
+                    :key="cycle.key"
+                    type="button"
+                    class="cycle-btn"
+                    :disabled="!canPurchasePackage(pkg) || Boolean(subscribing)"
+                    @click="openConfirm(pkg, cycle)"
+                  >
+                    <div class="cycle-btn-left">
+                      <span class="cycle-title">{{ cycleLabel(cycle) }}</span>
+                      <span v-if="cycleDiscount(pkg, cycle.key) > 0" class="cycle-discount-tag">
+                        Tiết kiệm {{ formatPercent(cycleDiscount(pkg, cycle.key)) }}%
+                      </span>
+                    </div>
+                    <div class="cycle-btn-right">
+                      <span class="cycle-price-total">{{ money(cycle.price) }}</span>
+                      <span class="cycle-price-breakdown">{{ money(cycleUnitPrice(cycle)) }}/tháng</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="plan-perks-block">
+                <span class="block-title">Quyền lợi thành viên</span>
+                <ul class="perks-list">
+                  <li v-for="feature in packageFeatures(pkg)" :key="feature.key" class="perk-row">
+                    <span class="perk-check-glyph" aria-hidden="true">✓</span>
+                    <div class="perk-body">
+                      <span class="perk-label">{{ feature.value }}</span>
+                      <span class="perk-sub">{{ feature.label }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+        </div>
+
+    <!-- Confirmation Modal -->
+    <Teleport to="body">
       <div
         v-if="pendingPurchase"
         class="modal-overlay"
@@ -216,18 +208,16 @@
           </footer>
         </section>
       </div>
-    </main>
-  </div>
+    </Teleport>
 </template>
 
 <script>
-import PublicNavbar from "../../components/PublicNavbar.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import { vipMembershipService } from "../../services/vipMembershipService.js";
 
 export default {
   name: "VipMembership",
-  components: { AppIcon, PublicNavbar },
+  components: { AppIcon },
   data() {
     return {
       packages: [],
@@ -458,10 +448,39 @@ export default {
   background-image: none !important;
 }
 
-.vip-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 24px 64px;
+.wallet-white-page {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.wallet-white-main {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 24px 32px 60px !important;
+  color: #0f172a;
+}
+
+.wallet-layout-grid {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.w2-white-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sg3-kicker {
+  font-size: 12px;
+  color: #475569;
+  letter-spacing: 0.05em;
+  margin: 0 0 4px;
 }
 
 /* Page Header - No bottom border */
@@ -470,7 +489,7 @@ export default {
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 24px;
+  padding-bottom: 12px;
   border: none !important;
 }
 
@@ -715,7 +734,8 @@ export default {
 
 .plan-current-indicator {
   font-size: 13px;
-  color: #15803d;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .plan-desc {
@@ -734,6 +754,7 @@ export default {
 
 .plan-price-val {
   font-size: 24px;
+  font-weight: 700;
   color: #0f172a;
 }
 
@@ -758,12 +779,14 @@ export default {
 
 .block-title {
   font-size: 13.5px;
+  font-weight: 600;
   color: #0f172a;
 }
 
 .saving-note {
   font-size: 12px;
-  color: #15803d;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .cycle-buttons-stack {
@@ -778,8 +801,8 @@ export default {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border: 1px solid #94a3b8;
-  border-radius: 6px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
   background: #ffffff;
   color: #0f172a;
   cursor: pointer;
@@ -789,7 +812,7 @@ export default {
 }
 
 .cycle-btn:hover:not(:disabled) {
-  border-color: #0f172a;
+  border-color: #54656f;
   background: #f8fafc;
 }
 
@@ -797,7 +820,7 @@ export default {
   background: #ffffff;
   color: #94a3b8;
   cursor: not-allowed;
-  border-color: #cbd5e1;
+  border-color: #e2e8f0;
 }
 
 .cycle-btn-left {
@@ -808,12 +831,14 @@ export default {
 
 .cycle-title {
   font-size: 13px;
+  font-weight: 600;
   color: #0f172a;
 }
 
 .cycle-saving-label {
   font-size: 11.5px;
-  color: #15803d;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .cycle-btn-right {
@@ -825,12 +850,13 @@ export default {
 
 .cycle-total {
   font-size: 13.5px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .cycle-monthly {
   font-size: 11.5px;
-  color: #475569;
+  color: #64748b;
 }
 
 /* Features Block (NO circular icon wrappers) */
@@ -858,7 +884,7 @@ export default {
 }
 
 .feature-check-icon {
-  color: #0f172a;
+  color: #5c7e6e;
   flex-shrink: 0;
   margin-top: 3px;
 }
@@ -875,7 +901,7 @@ export default {
 
 .feature-sub {
   font-size: 12px;
-  color: #475569;
+  color: #64748b;
 }
 
 /* Confirmation Modal */
@@ -894,7 +920,7 @@ export default {
   width: 100%;
   max-width: 440px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -912,13 +938,14 @@ export default {
 
 .confirm-modal-title {
   font-size: 18px;
+  font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .confirm-modal-subtitle {
   font-size: 13px;
-  color: #334155;
+  color: #475569;
   margin: 0;
 }
 
@@ -937,16 +964,17 @@ export default {
 }
 
 .confirm-label {
-  color: #475569;
+  color: #64748b;
 }
 
 .confirm-val {
   color: #0f172a;
+  font-weight: 600;
 }
 
 .confirm-note {
   font-size: 13px;
-  color: #334155;
+  color: #475569;
   line-height: 1.5;
   margin: 0;
 }
@@ -961,43 +989,66 @@ export default {
 }
 
 .btn-cancel {
-  padding: 8px 16px;
-  border: 1px solid #94a3b8;
+  padding: 8px 18px;
+  border: 1.5px solid #cbd5e1;
   background: #ffffff;
-  color: #334155;
-  border-radius: 6px;
+  color: #475569;
+  border-radius: 999px;
   font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .btn-cancel:hover {
-  background: #f1f5f9;
+  background: #f8fafc;
+  border-color: #54656f;
   color: #0f172a;
 }
 
 .btn-confirm {
-  padding: 8px 18px;
+  padding: 8px 20px;
   border: none;
-  background: #0f172a;
+  background: #54656f;
   color: #ffffff;
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.15s ease;
 }
 
 .btn-confirm:hover {
-  background: #1e293b;
+  background: #405059;
+  transform: translateY(-1px);
 }
 
 .btn-confirm:disabled {
   background: #cbd5e1;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+  .wallet-white-main {
+    padding: 16px !important;
+  }
+
+  .wallet-layout-grid {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .wallet-layout-grid :deep(.an-sidebar) {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 12px;
+  }
+
   .plans-columns {
     grid-template-columns: 1fr;
     gap: 32px;

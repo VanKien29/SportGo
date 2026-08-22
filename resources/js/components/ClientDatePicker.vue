@@ -259,20 +259,21 @@ const selectPreset = (type) => {
 
 .sg-date-trigger {
   width: 100%;
-  min-width: 140px;
+  min-width: 0;
+  box-sizing: border-box;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 8px 12px;
+  border-radius: 6px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   user-select: none;
   font-size: 13.5px;
   color: #0f172a;
-  font-weight: 500;
+  font-weight: 400;
   white-space: nowrap;
 }
 
