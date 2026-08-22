@@ -90,8 +90,16 @@
 
             <!-- Actions -->
             <td class="action-col">
-              <div v-if="post.status === 'open' || post.status === 'full'" class="table-actions">
+              <div class="table-actions">
+                <router-link
+                  v-if="post.group_chat_id"
+                  :to="{ name: 'owner-chat', query: { conversation_id: post.group_chat_id } }"
+                  class="action-btn"
+                >
+                  Mở nhóm chat
+                </router-link>
                 <button
+                  v-if="post.status === 'open' || post.status === 'full'"
                   type="button"
                   class="action-btn"
                   title="Ẩn bài viết"
@@ -100,6 +108,7 @@
                   Ẩn bài
                 </button>
                 <button
+                  v-if="post.status === 'open' || post.status === 'full'"
                   type="button"
                   class="action-btn delete-btn"
                   title="Báo cáo vi phạm"
@@ -108,7 +117,7 @@
                   Báo cáo
                 </button>
               </div>
-              <span v-else class="muted-dash">-</span>
+              <span v-if="!post.group_chat_id && post.status !== 'open' && post.status !== 'full'" class="muted-dash">-</span>
             </td>
           </tr>
         </tbody>

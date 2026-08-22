@@ -45,6 +45,7 @@
           <footer class="request-card__footer">
             <span>Chủ bài: {{ item.author.name }}</span>
             <span>{{ formatDateTime(item.created_at) }}</span>
+            <router-link v-if="item.status === 'approved' && item.group_chat_id" class="request-chat-link" :to="{ name: 'client-messages', query: { conversation_id: item.group_chat_id } }">Mở nhóm chat</router-link>
           </footer>
         </article>
       </section>
@@ -140,4 +141,5 @@ watch(() => route.query.status, (value) => {
 .requests-state strong { color: #30483a; font-size: 16px; }
 .requests-state--error { border-color: #fecaca; color: #991b1b; }
 @media (max-width: 640px) { .requests-shell { width: min(100% - 24px, 560px); padding-top: 22px; } .requests-heading { display: grid; align-items: start; } .request-card { padding: 15px; } .request-card__top, .request-card__footer { flex-direction: column; } .request-card__footer { gap: 5px; } }
+.request-chat-link { color: #166534; font-weight: 800; }
 </style>

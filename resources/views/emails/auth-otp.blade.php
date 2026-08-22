@@ -11,6 +11,8 @@
 
         @if ($purpose === 'register')
             <p>Bạn đang đăng ký tài khoản SportGo.</p>
+        @elseif ($purpose === 'change_email')
+            <p>Bạn đang yêu cầu thay đổi địa chỉ email tài khoản SportGo sang địa chỉ này.</p>
         @else
             <p>SportGo nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
         @endif
@@ -22,7 +24,7 @@
 
         <p>Mã này có hiệu lực trong {{ $minutes }} phút. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
 
-        @if ($purpose === 'register')
+        @if ($purpose === 'register' || $purpose === 'change_email')
             <p>Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.</p>
         @else
             <p>Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này hoặc đổi mật khẩu để bảo vệ tài khoản.</p>

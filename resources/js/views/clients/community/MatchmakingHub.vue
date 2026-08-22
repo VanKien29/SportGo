@@ -59,7 +59,7 @@ const joining = ref(null);
 const showCreate = ref(false);
 let postsRequestController = null;
 let postsRequestId = 0;
-let postsRequestTimer = null;
+let lifecycleRefreshTimer = null;
 const steps = [
   { title: 'Chọn booking đã xác nhận', description: 'Thanh toán đủ, đặt cọc hoặc trả sau nhưng đã được chủ sân duyệt đều có thể tạo bài.' },
   { title: 'Đăng số người cần thêm', description: 'Mô tả trình độ, thời gian và lưu ý để người chơi phù hợp dễ quyết định.' },
@@ -73,13 +73,7 @@ async function loadPosts() {
   postsRequestController?.abort();
   const requestId = ++postsRequestId;
   const controller = new AbortController();
-  let timedOut = false;
   postsRequestController = controller;
-  if (postsRequestTimer) clearTimeout(postsRequestTimer);
-  postsRequestTimer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, 12_000);
   loading.value = true; error.value = '';
   try {
     const response = await api('/api/matchmaking-posts?per_page=30', {
@@ -94,16 +88,10 @@ async function loadPosts() {
         ? payload.data
         : [];
   } catch (requestError) {
-    if ((controller.signal.aborted && !timedOut) || requestId !== postsRequestId) return;
-    error.value = timedOut
-      ? 'Tải danh sách bài giao lưu quá lâu. Vui lòng thử lại.'
-      : requestError.message || 'Vui lòng thử lại.';
+    if (controller.signal.aborted || requestId !== postsRequestId) return;
+    error.value = requestError.message || 'Vui lòng thử lại.';
   } finally {
     if (requestId === postsRequestId) {
-      if (postsRequestTimer) {
-        clearTimeout(postsRequestTimer);
-        postsRequestTimer = null;
-      }
       loading.value = false;
       postsRequestController = null;
     }
@@ -140,11 +128,15 @@ function requestLabel(status) { return { pending: 'Đang chờ chủ bài duyệ
 function formatDate(value) { if (!value) return 'chưa rõ'; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toLocaleDateString('vi-VN'); }
 function assetUrl(path) { return !path || path.startsWith('/') || /^https?:\/\//.test(path) ? path : `/storage/${path}`; }
 function initial(name) { return String(name || 'N').trim().charAt(0).toUpperCase(); }
-onMounted(loadPosts);
+onMounted(() => {
+  loadPosts();
+  // Reconcile the feed around booking start without requiring a manual reload.
+  lifecycleRefreshTimer = setInterval(() => void loadPosts(), 60_000);
+});
 onBeforeUnmount(() => {
   postsRequestId += 1;
   postsRequestController?.abort();
-  if (postsRequestTimer) clearTimeout(postsRequestTimer);
+  if (lifecycleRefreshTimer) clearInterval(lifecycleRefreshTimer);
 });
 </script>
 

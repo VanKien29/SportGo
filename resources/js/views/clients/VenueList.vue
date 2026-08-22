@@ -6,17 +6,29 @@
       <!-- ───── HERO SECTION ───── -->
       <section class="sg-venue-hero">
         <div class="sg-container-wide">
-          <h1 class="sg-venue-hero__title">Tìm Sân Thể Thao</h1>
-          <p class="sg-venue-hero__sub">Chọn sân, chọn giờ, đặt lịch — nhanh chóng và tiện lợi.</p>
-          <div class="sg-venue-search-wrap">
-            <PillSearchBar />
-          </div>
-          <div class="sg-venue-hero__links">
-            <router-link to="/bookings" class="sg-venue-hero__link">Lịch đã đặt của tôi</router-link>
-            <span class="sg-venue-hero__link-sep">/</span>
-            <router-link to="/favorites" class="sg-venue-hero__link">Sân yêu thích</router-link>
-            <span class="sg-venue-hero__link-sep">/</span>
-            <router-link to="/venues/map" class="sg-venue-hero__link">Xem bản đồ</router-link>
+          <div class="sg-venue-hero-grid">
+            <div class="sg-venue-hero-copy">
+              <h1 class="sg-venue-hero__title">Tìm Sân Thể Thao</h1>
+              <p class="sg-venue-hero__sub">Chọn sân, chọn giờ, đặt lịch — nhanh chóng và tiện lợi.</p>
+              <div class="sg-venue-search-wrap">
+                <PillSearchBar />
+              </div>
+              <div class="sg-venue-hero__links">
+                <router-link to="/bookings" class="sg-venue-hero__link">Lịch đã đặt của tôi</router-link>
+                <span class="sg-venue-hero__link-sep">/</span>
+                <router-link to="/favorites" class="sg-venue-hero__link">Sân yêu thích</router-link>
+                <span class="sg-venue-hero__link-sep">/</span>
+                <router-link to="/venues/map" class="sg-venue-hero__link">Xem bản đồ</router-link>
+              </div>
+            </div>
+
+            <div class="sg-venue-hero-media" aria-label="Không gian sân thể thao SportGo">
+              <img :src="'/images/home/sportgo-home-hero-v2.webp'" alt="Không gian sân thể thao SportGo" />
+              <div class="sg-venue-hero-media__caption">
+                <strong>Sân thể thao quanh bạn</strong>
+                <span>Khám phá lịch trống và đặt chỗ nhanh</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -90,15 +102,31 @@
           <div class="sg-venue-content">
             <div class="sg-content-toolbar">
               <span class="sg-result-count">Hiển thị {{ venues.length }} kết quả</span>
-              <div class="sg-sort-combobox">
+              <div class="sg-toolbar-actions">
+                <button
+                  type="button"
+                  class="sg-nearby-btn"
+                  :class="{ 'is-active': filters.sort === 'distance' }"
+                  :disabled="locationLoading"
+                  @click="activateNearbySort"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                  </svg>
+                  <span>{{ locationLoading ? 'Đang định vị...' : 'Sân gần tôi' }}</span>
+                </button>
+                <div class="sg-sort-combobox">
                 <ClientCombobox
                   v-model="filters.sort"
                   :options="sortOptions"
                   placeholder="Sắp xếp"
-                  @change="applyFilters"
+                  @change="onSortChange"
                 />
+                </div>
               </div>
             </div>
+            <p v-if="locationMessage" class="sg-location-message" role="status">{{ locationMessage }}</p>
 
             <!-- Loading Skeleton -->
             <div v-if="loading" class="alb-venue-grid">
@@ -137,6 +165,9 @@
                   <h3 class="alb-venue-card__title">{{ venue.name }}</h3>
                   <div class="alb-venue-card__address">
                     <span>{{ venue.address || venue.province || "Đang cập nhật địa chỉ" }}</span>
+                    <span v-if="venue.distance_km !== undefined && venue.distance_km !== null" class="sg-venue-card__distance">
+                      · {{ formatDistance(venue.distance_km) }}
+                    </span>
                   </div>
 
                   <div class="alb-venue-card__footer">
@@ -209,6 +240,10 @@ export default {
         start_time: "18:00:00",
         sort: "recommended",
       },
+      userLatitude: null,
+      userLongitude: null,
+      locationLoading: false,
+      locationMessage: "",
       timeOptions: ["06:00", "08:00", "10:00", "14:00", "16:00", "18:00", "20:00"],
     };
   },
@@ -237,6 +272,7 @@ export default {
     sortOptions() {
       return [
         { value: "recommended", label: "Gợi ý phù hợp" },
+        { value: "distance", label: "Gần tôi nhất" },
         { value: "price", label: "Giá thấp trước" },
         { value: "rating", label: "Đánh giá cao" },
       ];
@@ -246,7 +282,11 @@ export default {
     this.loadProvinces();
     this.syncQueryToFilters();
     this.loadCourtTypes();
-    this.loadVenues();
+    if (this.filters.sort === "distance") {
+      this.activateNearbySort();
+    } else {
+      this.loadVenues();
+    }
   },
   methods: {
     async loadProvinces() {
@@ -300,6 +340,7 @@ export default {
       if (q.area) this.filters.area = q.area;
       if (q.booking_date) this.filters.booking_date = q.booking_date;
       if (q.start_time) this.filters.start_time = q.start_time;
+      if (q.sort) this.filters.sort = q.sort;
     },
     async loadCourtTypes() {
       try {
@@ -312,7 +353,12 @@ export default {
     async loadVenues() {
       this.loading = true;
       try {
-        const res = await venueService.list(this.filters);
+        const params = { ...this.filters };
+        if (params.sort === "distance" && this.userLatitude !== null && this.userLongitude !== null) {
+          params.latitude = this.userLatitude;
+          params.longitude = this.userLongitude;
+        }
+        const res = await venueService.list(params);
         this.venues = res.data || res || [];
       } catch (e) {
         this.venues = [];
@@ -322,6 +368,49 @@ export default {
     },
     applyFilters() {
       this.loadVenues();
+    },
+    onSortChange() {
+      if (this.filters.sort === "distance") {
+        this.activateNearbySort();
+        return;
+      }
+      this.locationMessage = "";
+      this.loadVenues();
+    },
+    activateNearbySort() {
+      this.filters.sort = "distance";
+
+      if (this.userLatitude !== null && this.userLongitude !== null) {
+        this.locationMessage = "Đang hiển thị sân theo khoảng cách từ vị trí của bạn.";
+        this.loadVenues();
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        this.filters.sort = "recommended";
+        this.locationMessage = "Trình duyệt không hỗ trợ định vị. Bạn có thể xem sân trên bản đồ để chọn khu vực.";
+        this.loadVenues();
+        return;
+      }
+
+      this.locationLoading = true;
+      this.locationMessage = "Đang lấy vị trí để tìm sân gần nhất...";
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          this.userLatitude = position.coords.latitude;
+          this.userLongitude = position.coords.longitude;
+          this.locationLoading = false;
+          this.locationMessage = "Đang hiển thị sân theo khoảng cách từ vị trí của bạn.";
+          this.loadVenues();
+        },
+        () => {
+          this.locationLoading = false;
+          this.filters.sort = "recommended";
+          this.locationMessage = "Không thể lấy vị trí. Hãy cho phép định vị để tìm sân gần nhất.";
+          this.loadVenues();
+        },
+        { enableHighAccuracy: true, maximumAge: 60000 }
+      );
     },
     resetFilters() {
       this.filters = {
@@ -337,6 +426,7 @@ export default {
         sort: "recommended",
       };
       this.wardsList = [];
+      this.locationMessage = "";
       this.loadVenues();
     },
     venueImage(venue) {
@@ -357,6 +447,11 @@ export default {
     formatRating(venue) {
       const rating = Number(venue.rating_avg || venue.average_rating || 4.9);
       return rating.toFixed(1);
+    },
+    formatDistance(distance) {
+      const value = Number(distance);
+      if (!Number.isFinite(value)) return "";
+      return value < 10 ? `${value.toFixed(1)} km` : `${Math.round(value)} km`;
     },
     priceLabel(venue) {
       if (!venue.min_price) return "Liên hệ";
@@ -387,9 +482,66 @@ export default {
 }
 
 .sg-venue-hero .sg-container-wide {
+  display: block;
+}
+
+.sg-venue-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.72fr);
+  align-items: center;
+  gap: 56px;
+}
+
+.sg-venue-hero-copy {
+  min-width: 0;
+}
+
+.sg-venue-hero-media {
+  position: relative;
+  min-height: 248px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #dbe9e0;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+}
+
+.sg-venue-hero-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 35, 23, 0.02) 28%, rgba(5, 35, 23, 0.64) 100%);
+  pointer-events: none;
+}
+
+.sg-venue-hero-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 248px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.sg-venue-hero-media__caption {
+  position: absolute;
+  z-index: 1;
+  right: 18px;
+  bottom: 16px;
+  left: 18px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: 3px;
+  color: #ffffff;
+}
+
+.sg-venue-hero-media__caption strong {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.sg-venue-hero-media__caption span {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
 }
 
 .sg-venue-hero__eyebrow {
@@ -560,6 +712,13 @@ export default {
   margin-bottom: 24px;
 }
 
+.sg-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .sg-result-count {
   font-size: 15px;
   font-weight: 600;
@@ -568,6 +727,48 @@ export default {
 
 .sg-sort-combobox {
   min-width: 180px;
+}
+
+.sg-nearby-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.sg-nearby-btn:hover,
+.sg-nearby-btn.is-active {
+  border-color: #15803d;
+  background: #effaf2;
+  color: #166534;
+}
+
+.sg-nearby-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.sg-location-message {
+  margin: -12px 0 18px;
+  color: #166534;
+  font-size: 13px;
+}
+
+.sg-venue-card__distance {
+  color: #166534;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 /* ───── EMPTY STATE ───── */
@@ -616,9 +817,45 @@ export default {
 
 /* ───── RESPONSIVE ───── */
 @media (max-width: 1024px) {
+  .sg-venue-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .sg-venue-hero-media {
+    max-width: 560px;
+  }
+
   .sg-venue-layout {
     grid-template-columns: 1fr;
     gap: 30px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sg-venue-hero {
+    padding: 40px 0 36px;
+  }
+
+  .sg-venue-hero-media,
+  .sg-venue-hero-media img {
+    min-height: 190px;
+  }
+
+  .sg-content-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .sg-toolbar-actions {
+    width: 100%;
+  }
+
+  .sg-nearby-btn,
+  .sg-sort-combobox {
+    flex: 1;
+    min-width: 0;
   }
 }
 </style>

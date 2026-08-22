@@ -25,6 +25,35 @@ export const ICON_REGISTRY = {
   activity: [
     ['polyline', { points: '22 12 18 12 15 21 9 3 6 12 2 12' }],
   ],
+  badminton: [
+    ['circle', { cx: 12, cy: 7, r: 3 }],
+    ['path', { d: 'M9.5 9.5 5 15a4 4 0 0 0 5.7 5.6l3.8-3.8' }],
+    ['path', { d: 'm14 10 5 5' }],
+  ],
+  pickleball: [
+    ['path', { d: 'M7 21h3a4 4 0 0 0 4-4V9H7a4 4 0 0 0-4 4v4a4 4 0 0 0 4 4Z' }],
+    ['circle', { cx: 18, cy: 6, r: 3 }],
+    ['circle', { cx: 17, cy: 5, r: 0.5 }],
+    ['circle', { cx: 19, cy: 7, r: 0.5 }],
+  ],
+  football: [
+    ['path', { d: 'm12 3 3.2 2.3-1.2 3.8h-4L8.8 5.3 12 3Z' }],
+    ['path', { d: 'm8.8 5.3-4.2 1.5L3 11l3.2 2.4 3.8-2.3' }],
+    ['path', { d: 'm15.2 5.3 4.2 1.5L21 11l-3.2 2.4-3.8-2.3' }],
+    ['path', { d: 'm6.2 13.4.4 5L12 21l5.4-2.6.4-5' }],
+  ],
+  basketball: [
+    ['circle', { cx: 12, cy: 12, r: 9 }],
+    ['path', { d: 'M3.5 9h17M3.5 15h17M12 3c3 3 3 15 0 18M12 3C9 6 9 18 12 21' }],
+  ],
+  tennis: [
+    ['circle', { cx: 12, cy: 12, r: 9 }],
+    ['path', { d: 'M5 5c4 0 7 3 7 7s3 7 7 7M19 5c-4 0-7 3-7 7s-3 7-7 7' }],
+  ],
+  volleyball: [
+    ['circle', { cx: 12, cy: 12, r: 9 }],
+    ['path', { d: 'M12 3c1 4 4 7 9 7M3 12c4-1 7-4 7-9M7 20c1-4 4-7 9-7' }],
+  ],
   dashboard: [
     ['rect', { x: 3, y: 3, width: 7, height: 7, rx: 1 }],
     ['rect', { x: 14, y: 3, width: 7, height: 7, rx: 1 }],

@@ -107,6 +107,8 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp']);
+        Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp']);
         Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
@@ -614,6 +616,7 @@ Route::middleware('auth:sanctum')
         Route::get('/matchmaking-posts/{id}/participants', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'participants']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/approve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'approveParticipant']);
         Route::post('/matchmaking-posts/{id}/participants/{userId}/reject', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'rejectParticipant']);
+        Route::post('/matchmaking-posts/{id}/group/dissolve', [\App\Http\Controllers\Api\Player\PlayerPostController::class, 'dissolveGroup']);
 
         // Player/Client Venue Posts (Community Posts)
         Route::get('/my-community-posts', [PlayerVenuePostController::class, 'myPosts']);
@@ -659,6 +662,8 @@ Route::middleware('auth:sanctum')
             Route::patch('/support-requests/{id}', [ChatController::class, 'updateBookingSupportRequest']);
             Route::post('/conversations/{id}/bookings', [ChatController::class, 'sendBooking']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
+            Route::post('/conversations/{id}/leave', [ChatController::class, 'leaveConversation']);
+            Route::post('/conversations/{id}/dissolve', [ChatController::class, 'dissolveConversation']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
             Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);
             Route::get('/users/search', [ChatController::class, 'searchUsers']);

@@ -5,7 +5,7 @@
             <div>
               <p class="sg3-kicker">Quản lý tài khoản</p>
               <h1 class="page-head-title">Hồ sơ cá nhân</h1>
-              <p class="page-head-desc">Quản lý thông tin tài khoản, môn thể thao yêu thích và cài đặt bảo mật.</p>
+              <p class="page-head-desc">Quản lý thông tin tài khoản và cài đặt bảo mật.</p>
             </div>
             <div class="sg3-head-actions">
               <router-link to="/vip-membership" class="w2-btn w2-btn--outline">
@@ -15,6 +15,8 @@
             </div>
           </div>
 
+          <div class="cp-profile-shell">
+            <div class="cp-profile-primary">
           <!-- USER IDENTITY (SEAMLESS) -->
           <div class="cp-identity-strip">
             <div class="cp-avatar-wrap">
@@ -82,13 +84,11 @@
             </div>
           </div>
 
-          <!-- 2-COLUMN MAIN CONTENT (SEAMLESS PURE WHITE) -->
-          <div class="cp-main-grid">
-            <!-- LEFT: PROFILE FORM -->
+          <!-- PROFILE FORM -->
             <div class="cp-form-column">
               <div class="cp-col-head">
                 <h3 class="cp-title-sm">Thông tin cá nhân</h3>
-                <p class="cp-desc-sm">Cập nhật họ tên, liên hệ và môn thể thao bạn quan tâm.</p>
+                <p class="cp-desc-sm">Cập nhật họ tên và thông tin liên hệ.</p>
               </div>
 
               <form class="cp-form" @submit.prevent="handleSaveProfile">
@@ -108,7 +108,6 @@
                   <div class="cp-field">
                     <label for="phone">
                       Số điện thoại
-                      <span v-if="formData.phone !== user?.phone" class="cp-hint-opt">(Cần OTP)</span>
                     </label>
                     <input
                       id="phone"
@@ -122,7 +121,10 @@
                   <div class="cp-field">
                     <label for="email">
                       Địa chỉ Email <span class="cp-req">*</span>
-                      <span v-if="formData.email !== user?.email" class="cp-hint-opt">(Cần OTP)</span>
+                      <span
+                        v-if="(formData.email || '').trim().toLowerCase() !== (user?.email || '').trim().toLowerCase()"
+                        class="cp-hint-opt"
+                      >(Cần OTP)</span>
                     </label>
                     <input
                       id="email"
@@ -132,27 +134,6 @@
                       class="w2-input"
                       required
                     />
-                  </div>
-                </div>
-
-                <div class="cp-field">
-                  <label>Môn thể thao yêu thích</label>
-                  <div class="cp-sports-row">
-                    <label
-                      v-for="sport in sportsList"
-                      :key="sport.id"
-                      class="cp-sport-pill"
-                      :class="{ 'is-active': formData.sports.includes(sport.id) }"
-                    >
-                      <input
-                        v-model="formData.sports"
-                        type="checkbox"
-                        :value="sport.id"
-                        class="cp-hidden-check"
-                        @change="enforceSportLimit"
-                      />
-                      <span>{{ sport.name }}</span>
-                    </label>
                   </div>
                 </div>
 
@@ -178,6 +159,8 @@
                   </button>
                 </div>
               </form>
+            </div>
+
             </div>
 
             <!-- RIGHT: ACCOUNT & SECURITY UTILITIES -->
@@ -252,7 +235,7 @@
             </p>
 
             <div class="w2-otp-badge">
-              <span>Mã OTP dùng thử: <strong>123456</strong></span>
+              <span>Kiểm tra hộp thư đến hoặc mục thư rác của email mới.</span>
             </div>
 
             <div class="cp-field">
@@ -294,69 +277,6 @@
               @click="verifyEmailOtp"
             >
               <span>{{ emailOtpVerifying ? "Đang xác thực..." : "Xác nhận & Cập nhật Email" }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- PHONE OTP VERIFICATION MODAL -->
-    <Teleport to="body">
-      <div v-if="showPhoneOtpModal" class="w2-modal-backdrop" @click.self="closeOtpModal">
-        <div class="w2-modal">
-          <div class="w2-modal-head">
-            <h3>Xác minh số điện thoại mới</h3>
-            <button type="button" class="w2-modal-close" @click="closeOtpModal">✕</button>
-          </div>
-
-          <div class="w2-modal-body">
-            <p class="w2-modal-desc">
-              Hệ thống đã gửi mã xác thực OTP 6 chữ số đến số điện thoại mới: <strong>{{ pendingNewPhone }}</strong>.
-            </p>
-
-            <div class="w2-otp-badge">
-              <span>Mã OTP dùng thử: <strong>123456</strong></span>
-            </div>
-
-            <div class="cp-field">
-              <label for="otpInput">Nhập mã OTP (6 chữ số)</label>
-              <input
-                id="otpInput"
-                v-model.trim="otpInput"
-                type="text"
-                maxlength="6"
-                placeholder="Ví dụ: 123456"
-                class="w2-input cp-otp-field"
-                autofocus
-              />
-            </div>
-
-            <div v-if="otpError" class="cp-alert-banner is-error">
-              {{ otpError }}
-            </div>
-
-            <div class="cp-resend-row">
-              <span v-if="otpCountdown > 0">Gửi lại mã sau {{ otpCountdown }}s</span>
-              <button
-                v-else
-                type="button"
-                class="cp-link-btn"
-                @click="sendPhoneOtp"
-              >
-                Gửi lại mã OTP
-              </button>
-            </div>
-          </div>
-
-          <div class="w2-modal-foot">
-            <button type="button" class="w2-btn w2-btn--outline" @click="closeOtpModal">Hủy bỏ</button>
-            <button
-              type="button"
-              class="w2-btn w2-btn--primary"
-              :disabled="otpInput.length !== 6 || otpVerifying"
-              @click="verifyPhoneOtp"
-            >
-              <span>{{ otpVerifying ? "Đang xác thực..." : "Xác nhận & Cập nhật" }}</span>
             </button>
           </div>
         </div>
@@ -446,47 +366,7 @@ import ClientAuthorBadges from "../../components/ClientAuthorBadges.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import { authService } from "../../services/authService.js";
 import { bookingService } from "../../services/bookingService.js";
-import { courtTypeService } from "../../services/courtTypes.js";
 import { getAuth, saveAuth } from "../../stores/auth.js";
-
-const MAX_PROFILE_SPORTS = 5;
-const PROFILE_SPORT_PRIORITY = [
-  "badminton",
-  "football",
-  "pickleball",
-  "tennis",
-  "basketball",
-  "volleyball",
-];
-const FALLBACK_SPORTS = [
-  { id: "badminton", name: "Cầu lông" },
-  { id: "football", name: "Bóng đá" },
-  { id: "pickleball", name: "Pickleball" },
-  { id: "tennis", name: "Tennis" },
-  { id: "basketball", name: "Bóng rổ" },
-];
-
-function sportIdFromName(name) {
-  const normalizedName = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  const aliases = {
-    "cau-long": "badminton",
-    "bong-da": "football",
-    pickleball: "pickleball",
-    tennis: "tennis",
-    "bong-ro": "basketball",
-    "bong-chuyen": "volleyball",
-  };
-
-  return aliases[normalizedName] || normalizedName;
-}
 
 export default {
   name: "ClientProfile",
@@ -507,13 +387,7 @@ export default {
         email: user?.email || "",
         phone: user?.phone || "",
         bio: user?.bio || "",
-        sports: Array.isArray(user?.sports) && user.sports.length
-          ? user.sports.map((sport) => String(typeof sport === "object" ? sport.id || sport.code || sport.name : sport))
-          : (Array.isArray(user?.preferred_sports) && user.preferred_sports.length
-            ? user.preferred_sports.map((sport) => String(sport))
-            : ["badminton", "football"]),
       },
-      courtTypes: [],
       // EMAIL OTP VERIFICATION STATE
       showEmailOtpModal: false,
       pendingNewEmail: "",
@@ -522,14 +396,6 @@ export default {
       emailOtpError: "",
       emailOtpCountdown: 0,
       emailOtpTimer: null,
-      // PHONE OTP VERIFICATION STATE
-      showPhoneOtpModal: false,
-      pendingNewPhone: "",
-      otpInput: "",
-      otpVerifying: false,
-      otpError: "",
-      otpCountdown: 0,
-      otpTimer: null,
       // PASSWORD CHANGE MODAL STATE
       showPasswordModal: false,
       pwdData: {
@@ -584,23 +450,6 @@ export default {
             ? "Nhân viên sân"
             : "Người chơi";
     },
-    sportsList() {
-      const dynamicSports = this.courtTypes
-        .filter((type) => type?.is_active !== false && !type.parent_id)
-        .map((type) => ({
-          id: sportIdFromName(type.name),
-          name: type.name,
-        }))
-        .sort((a, b) => {
-          const aIndex = PROFILE_SPORT_PRIORITY.indexOf(a.id);
-          const bIndex = PROFILE_SPORT_PRIORITY.indexOf(b.id);
-          return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex)
-            - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
-        })
-        .slice(0, MAX_PROFILE_SPORTS);
-
-      return dynamicSports.length ? dynamicSports : FALLBACK_SPORTS;
-    },
     vipSubscription() {
       return this.user?.vip_subscription || null;
     },
@@ -621,10 +470,8 @@ export default {
     }
     this.refreshAccountData();
     this.loadOverview();
-    this.loadCourtTypes();
   },
   beforeUnmount() {
-    if (this.otpTimer) clearInterval(this.otpTimer);
     if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
   },
   methods: {
@@ -636,30 +483,12 @@ export default {
         this.formData.email = this.user?.email || this.formData.email;
         this.formData.phone = this.user?.phone || "";
         this.formData.bio = this.user?.bio || "";
-        this.formData.sports = Array.isArray(this.user?.preferred_sports) && this.user.preferred_sports.length
-          ? this.user.preferred_sports.map((sport) => String(sport))
-          : this.formData.sports;
         this.membershipLabel = this.user?.membership_tier?.tier?.label
           || this.user?.membership_tier?.tier?.tier_label
           || "Thường";
       } catch (error) {
         console.warn("Không thể làm mới quyền lợi tài khoản", error);
       }
-    },
-    async loadCourtTypes() {
-      try {
-        const courtTypes = await courtTypeService.getCourtTypes();
-        this.courtTypes = Array.isArray(courtTypes) ? courtTypes : [];
-      } catch (error) {
-        this.courtTypes = [];
-        console.warn("Không thể tải danh sách môn thể thao", error);
-      }
-    },
-    enforceSportLimit() {
-      if (!Array.isArray(this.formData.sports) || this.formData.sports.length <= MAX_PROFILE_SPORTS) return;
-      this.formData.sports = this.formData.sports.slice(0, MAX_PROFILE_SPORTS);
-      this.saveStatusClass = "is-error";
-      this.saveMessage = `Bạn chỉ có thể chọn tối đa ${MAX_PROFILE_SPORTS} môn thể thao.`;
     },
     async loadOverview() {
       try {
@@ -680,33 +509,35 @@ export default {
         console.warn("Không thể tải thông tin ví", error);
       }
     },
-    handleSaveProfile() {
+    async handleSaveProfile() {
+      const normalizedEmail = (this.formData.email || "").trim().toLowerCase();
+      const currentEmail = (this.user?.email || "").trim().toLowerCase();
       const isEmailChanged = Boolean(
-        this.formData.email &&
-        this.formData.email.trim() !== (this.user?.email || "").trim()
-      );
-
-      const isPhoneChanged = Boolean(
-        this.formData.phone &&
-        this.formData.phone.trim() !== (this.user?.phone || "").trim()
+        normalizedEmail &&
+        normalizedEmail !== currentEmail
       );
 
       if (isEmailChanged) {
-        this.pendingNewEmail = this.formData.email.trim();
-        this.showEmailOtpModal = true;
-        this.sendEmailOtp();
-      } else if (isPhoneChanged) {
-        this.pendingNewPhone = this.formData.phone.trim();
-        this.showPhoneOtpModal = true;
-        this.sendPhoneOtp();
+        this.pendingNewEmail = normalizedEmail;
+        await this.sendEmailOtp();
       } else {
-        this.executeSaveProfile(this.user?.email || "", this.user?.phone || "");
+        await this.executeSaveProfile(this.user?.email || "", this.formData.phone.trim());
       }
     },
     // EMAIL OTP METHODS
-    sendEmailOtp() {
+    async sendEmailOtp() {
       this.emailOtpInput = "";
       this.emailOtpError = "";
+      try {
+        await authService.requestEmailChangeOtp(this.pendingNewEmail);
+        this.showEmailOtpModal = true;
+        this.startEmailOtpCountdown();
+      } catch (error) {
+        this.saveStatusClass = "is-error";
+        this.saveMessage = error.message || "Không thể gửi OTP đến email mới.";
+      }
+    },
+    startEmailOtpCountdown() {
       this.emailOtpCountdown = 60;
       if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
       this.emailOtpTimer = setInterval(() => {
@@ -720,64 +551,28 @@ export default {
     async verifyEmailOtp() {
       this.emailOtpVerifying = true;
       this.emailOtpError = "";
-
-      setTimeout(() => {
-        if (this.emailOtpInput === "123456" || this.emailOtpInput.length === 6) {
-          this.showEmailOtpModal = false;
-          const isPhoneChanged = Boolean(
-            this.formData.phone &&
-            this.formData.phone.trim() !== (this.user?.phone || "").trim()
-          );
-          if (isPhoneChanged) {
-            this.pendingNewPhone = this.formData.phone.trim();
-            this.showPhoneOtpModal = true;
-            this.sendPhoneOtp();
-          } else {
-            this.executeSaveProfile(this.pendingNewEmail, this.user?.phone || "");
-          }
-        } else {
-          this.emailOtpError = "Mã xác thực không hợp lệ. Vui lòng thử lại.";
-        }
+      try {
+        const response = await authService.verifyEmailChangeOtp(this.pendingNewEmail, this.emailOtpInput);
+        const currentAuth = getAuth() || {};
+        const mergedUser = {
+          ...(currentAuth.user || {}),
+          ...(response?.user || {}),
+        };
+        this.user = saveAuth({ ...currentAuth, user: mergedUser });
+        this.formData.email = this.user?.email || this.pendingNewEmail;
+        this.showEmailOtpModal = false;
+        if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
+        await this.executeSaveProfile(this.formData.email, this.formData.phone.trim());
+      } catch (error) {
+        this.emailOtpError = error.message || "Mã xác thực không hợp lệ. Vui lòng thử lại.";
+      } finally {
         this.emailOtpVerifying = false;
-      }, 600);
+      }
     },
     closeEmailOtpModal() {
       this.showEmailOtpModal = false;
       this.formData.email = this.user?.email || "";
       if (this.emailOtpTimer) clearInterval(this.emailOtpTimer);
-    },
-    // PHONE OTP METHODS
-    sendPhoneOtp() {
-      this.otpInput = "";
-      this.otpError = "";
-      this.otpCountdown = 60;
-      if (this.otpTimer) clearInterval(this.otpTimer);
-      this.otpTimer = setInterval(() => {
-        if (this.otpCountdown > 0) {
-          this.otpCountdown--;
-        } else {
-          clearInterval(this.otpTimer);
-        }
-      }, 1000);
-    },
-    async verifyPhoneOtp() {
-      this.otpVerifying = true;
-      this.otpError = "";
-
-      setTimeout(() => {
-        if (this.otpInput === "123456" || this.otpInput.length === 6) {
-          this.showPhoneOtpModal = false;
-          this.executeSaveProfile(this.pendingNewEmail || this.user?.email || "", this.pendingNewPhone);
-        } else {
-          this.otpError = "Mã xác thực OTP không chính xác.";
-        }
-        this.otpVerifying = false;
-      }, 600);
-    },
-    closeOtpModal() {
-      this.showPhoneOtpModal = false;
-      this.formData.phone = this.user?.phone || "";
-      if (this.otpTimer) clearInterval(this.otpTimer);
     },
     // EXECUTE SAVE PROFILE
     async executeSaveProfile(finalEmail, finalPhone) {
@@ -789,15 +584,6 @@ export default {
         payload.append("email", finalEmail || "");
         payload.append("phone", finalPhone || "");
         payload.append("bio", this.formData.bio || "");
-
-        // Always send the array field, including when the user removes every
-        // selection. Laravel otherwise cannot distinguish "clear all" from
-        // "do not update" when FormData has no preferred_sports[] entries.
-        const selectedSports = Array.isArray(this.formData.sports)
-          ? this.formData.sports.slice(0, MAX_PROFILE_SPORTS).filter(Boolean)
-          : [];
-        selectedSports.forEach((sport) => payload.append("preferred_sports[]", String(sport)));
-        if (!selectedSports.length) payload.append("preferred_sports[]", "");
 
         const response = await authService.updateProfile(payload);
         const currentAuth = getAuth() || {};
@@ -812,9 +598,6 @@ export default {
         this.formData.email = this.user?.email || finalEmail;
         this.formData.phone = this.user?.phone || finalPhone;
         this.formData.bio = this.user?.bio || this.formData.bio;
-        this.formData.sports = Array.isArray(this.user?.preferred_sports)
-          ? this.user.preferred_sports.map((sport) => String(sport))
-          : this.formData.sports;
         this.saveStatusClass = "is-success";
         this.saveMessage = response?.message || "Thông tin hồ sơ đã được cập nhật thành công.";
       } catch (err) {
@@ -1185,11 +968,19 @@ export default {
   margin-left: 12px;
 }
 
-/* 2-COLUMN MAIN CONTENT */
-.cp-main-grid {
+/* PROFILE WORKSPACE */
+.cp-profile-shell {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 48px;
+  align-items: start;
+}
+
+.cp-profile-primary {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 
 .cp-form-column,
@@ -1258,40 +1049,6 @@ export default {
 
 .cp-textarea {
   resize: vertical;
-}
-
-.cp-sports-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.cp-sport-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  font-size: 12.5px;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  background: #ffffff;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.15s ease;
-}
-
-.cp-sport-pill:hover {
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-
-.cp-sport-pill.is-active {
-  border-color: #15803d;
-  color: #15803d;
-}
-
-.cp-hidden-check {
-  display: none;
 }
 
 .cp-alert-banner {
@@ -1496,7 +1253,7 @@ export default {
 
 /* RESPONSIVE */
 @media (max-width: 960px) {
-  .cp-main-grid {
+  .cp-profile-shell {
     grid-template-columns: 1fr;
     gap: 32px;
   }

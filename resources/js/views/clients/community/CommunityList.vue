@@ -318,7 +318,6 @@ const matchmakingError = ref('');
 const joiningPostId = ref(null);
 let matchmakingRequestController = null;
 let matchmakingRequestId = 0;
-let matchmakingRequestTimer = null;
 
 async function loadCurrentFeed({ page = 1, append = false } = {}) {
   if (feedTab.value === 'my_posts') {
@@ -410,13 +409,7 @@ async function fetchMatchmakingPosts() {
   matchmakingRequestController?.abort();
   const requestId = ++matchmakingRequestId;
   const controller = new AbortController();
-  let timedOut = false;
   matchmakingRequestController = controller;
-  if (matchmakingRequestTimer) clearTimeout(matchmakingRequestTimer);
-  matchmakingRequestTimer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, 12_000);
   matchmakingLoading.value = true;
   matchmakingError.value = '';
   try {
@@ -429,17 +422,11 @@ async function fetchMatchmakingPosts() {
     const items = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
     matchmakingPosts.value = items.slice(0, 5);
   } catch (requestError) {
-    if ((controller.signal.aborted && !timedOut) || requestId !== matchmakingRequestId) return;
+    if (controller.signal.aborted || requestId !== matchmakingRequestId) return;
     matchmakingPosts.value = [];
-    matchmakingError.value = timedOut
-      ? 'Tải các kèo sắp tới quá lâu. Vui lòng thử lại.'
-      : requestError.message || 'Không thể tải các kèo sắp tới.';
+    matchmakingError.value = requestError.message || 'Không thể tải các kèo sắp tới.';
   } finally {
     if (requestId === matchmakingRequestId) {
-      if (matchmakingRequestTimer) {
-        clearTimeout(matchmakingRequestTimer);
-        matchmakingRequestTimer = null;
-      }
       matchmakingLoading.value = false;
       matchmakingRequestController = null;
     }
@@ -892,7 +879,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   matchmakingRequestId += 1;
   matchmakingRequestController?.abort();
-  if (matchmakingRequestTimer) clearTimeout(matchmakingRequestTimer);
   document.removeEventListener('click', closePostMenu);
 });
 </script>
