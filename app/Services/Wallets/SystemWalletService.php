@@ -69,8 +69,14 @@ class SystemWalletService
             throw new RuntimeException('SePay chưa trả về tài khoản '.$account->account_number.'.');
         }
 
+        $remoteAccountId = $this->value($remoteAccount, ['id', 'uuid', 'xid']);
+
+        if (! is_string($remoteAccountId) || trim($remoteAccountId) === '') {
+            throw new RuntimeException('SePay bank account id is missing.');
+        }
+
         $balanceValue = $this->value($remoteAccount, [
-            'balance', 'current_balance', 'currentBalance', 'account_balance',
+            'accumulated', 'balance', 'current_balance', 'currentBalance', 'account_balance',
             'accountBalance', 'available_balance', 'availableBalance',
         ]);
 
@@ -88,7 +94,7 @@ class SystemWalletService
             return $wallet->fresh();
         });
 
-        $this->syncTransactions($account, $wallet, $token, $baseUrl);
+        $this->syncTransactions($account, $wallet, $token, $baseUrl, trim($remoteAccountId));
         $wallet = $this->snapshot($account)->fresh();
 
         return $wallet;
@@ -434,9 +440,10 @@ class SystemWalletService
         SystemWalletBalance $wallet,
         string $token,
         string $baseUrl,
+        string $remoteAccountId,
     ): void {
         $response = Http::acceptJson()->withToken($token)->get($baseUrl.'/transactions', [
-            'account_number' => $account->account_number,
+            'bank_account_id' => $remoteAccountId,
             'transaction_date_from' => now()->subDays(30)->format('Y-m-d 00:00:00'),
             'transaction_date_to' => now()->format('Y-m-d 23:59:59'),
             'transaction_date_sort' => 'desc',
@@ -498,11 +505,14 @@ class SystemWalletService
 
         return [
             'transaction_ref' => (string) $this->value($item, [
-                'id', 'transaction_id', 'transactionId', 'reference_code', 'referenceCode',
+                'id', 'transaction_id', 'transactionId', 'reference_number', 'referenceNumber',
+                'reference_code', 'referenceCode', 'code',
             ]),
             'direction' => $direction,
             'amount' => round($direction === 'out' ? ($amountOut ?: $genericAmount) : ($amountIn ?: $genericAmount), 2),
-            'content' => (string) $this->value($item, ['content', 'description']),
+            'content' => (string) $this->value($item, [
+                'transaction_content', 'transactionContent', 'content', 'description',
+            ]),
             'transacted_at' => $this->value($item, ['transaction_date', 'transactionDate', 'created_at', 'createdAt']) ?: now(),
         ];
     }

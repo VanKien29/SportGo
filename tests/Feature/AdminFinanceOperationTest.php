@@ -830,7 +830,7 @@ class AdminFinanceOperationTest extends TestCase
 
         $transferCode = $qr->json('data.transfer_code');
         $this->assertStringStartsWith('UW', $transferCode);
-        $this->assertStringContainsString('qr.sepay.vn/img', $qr->json('data.qr_url'));
+        $this->assertStringContainsString('vietqr.app/img', $qr->json('data.qr_url'));
 
         Http::fake([
             'https://userapi.sepay.vn/v2/transactions*' => Http::response([

@@ -619,7 +619,7 @@ class SepayPayoutService
 
     private function qrUrl(string $accountNumber, string $bank, int $amount, string $content): string
     {
-        return rtrim((string) config('services.sepay.qr_base_url', 'https://qr.sepay.vn/img'), '?').'?'.http_build_query([
+        return rtrim((string) config('services.sepay.qr_base_url', 'https://vietqr.app/img'), '?').'?'.http_build_query([
             'acc' => $accountNumber,
             'bank' => $bank,
             'amount' => $amount,

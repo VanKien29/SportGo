@@ -401,30 +401,6 @@
                 </div>
               </div>
 
-              <div class="w2-otp-card">
-                <div class="w2-form-group">
-                  <label for="w2Otp">Mã OTP xác nhận giao dịch</label>
-                  <div class="w2-otp-input-group">
-                    <input
-                      id="w2Otp"
-                      v-model.trim="wdrData.otp"
-                      type="text"
-                      maxlength="6"
-                      placeholder="123456"
-                      required
-                      class="w2-input w2-otp-input"
-                    />
-                    <button
-                      type="button"
-                      class="w2-fill-otp-btn"
-                      @click="wdrData.otp = '123456'"
-                    >
-                      Điền OTP test (123456)
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               <div v-if="wdrError" class="w2-alert is-error">
                 <span>{{ wdrError }}</span>
               </div>
@@ -479,7 +455,6 @@ export default {
         bank_account_number: "",
         bank_account_name: "",
         amount: 50000,
-        otp: "123456",
       },
     };
   },
@@ -1467,41 +1442,6 @@ export default {
 .w2-chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.w2-otp-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 12px;
-}
-
-.w2-otp-input-group {
-  display: flex;
-  gap: 8px;
-}
-
-.w2-otp-input {
-  letter-spacing: 4px;
-  font-size: 16px !important;
-  text-align: center;
-  font-family: monospace;
-  flex: 1;
-}
-
-.w2-fill-otp-btn {
-  padding: 7px 12px;
-  font-size: 12px;
-  border-radius: 4px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #15803d;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.w2-fill-otp-btn:hover {
-  background: #f0fdf4;
 }
 
 .w2-alert {
