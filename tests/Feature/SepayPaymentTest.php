@@ -135,7 +135,7 @@ class SepayPaymentTest extends TestCase
             ->assertJsonPath('payment_account.account_number', '1234567890')
             ->assertJsonPath('transfer_content', $response->json('payment.payment_code'));
 
-        $this->assertStringContainsString('https://qr.sepay.vn/img?', $response->json('qr_url'));
+        $this->assertStringContainsString('https://vietqr.app/img?', $response->json('qr_url'));
         $this->assertStringContainsString('acc=1234567890', $response->json('qr_url'));
     }
 

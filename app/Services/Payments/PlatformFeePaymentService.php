@@ -302,7 +302,7 @@ class PlatformFeePaymentService
 
     private function qrUrl(string $paymentCode, float $amount, SystemBankAccount $account): string
     {
-        return rtrim((string) config('services.sepay.qr_base_url', 'https://qr.sepay.vn/img'), '?').'?'.http_build_query([
+        return rtrim((string) config('services.sepay.qr_base_url', 'https://vietqr.app/img'), '?').'?'.http_build_query([
             'acc' => $account->account_number,
             'bank' => $account->bank_code ?: $account->bank_name,
             'amount' => (int) round($amount),

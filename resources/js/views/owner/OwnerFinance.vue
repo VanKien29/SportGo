@@ -30,6 +30,139 @@
             </div>
 
             <template v-else-if="activeTab === 'wallets'">
+                <section class="wallet-dashboard">
+                    <div class="wallet-balance-hero">
+                        <div class="wallet-hero-copy">
+                            <div class="eyebrow">
+                                <span class="eyebrow-icon"><AppIcon name="wallet" size="16" /></span>
+                                Ví chủ sân
+                            </div>
+                            <h1>Tổng quan dòng tiền</h1>
+                            <p>Số tiền có thể rút ngay từ tất cả cụm sân của bạn.</p>
+                            <div class="wallet-hero-balance">{{ formatCurrency(financeSummary.available_balance) }}</div>
+                            <div class="wallet-hero-meta">
+                                <span><i class="hero-dot"></i> {{ wallets.length }} ví đang theo dõi</span>
+                                <span v-if="financeSummary.pending_withdrawal_balance > 0">
+                                    {{ formatCurrency(financeSummary.pending_withdrawal_balance) }} đang tạm giữ
+                                </span>
+                            </div>
+                        </div>
+                        <div class="wallet-hero-action">
+                            <AppIcon name="trending-up" size="76" />
+                            <button
+                                v-if="withdrawableWallets.length && bankAccounts.length"
+                                class="btn-hero-withdraw"
+                                type="button"
+                                @click="openWithdrawalModal(withdrawableWallets[0])"
+                            >
+                                <AppIcon name="banknote" size="17" />
+                                Rút tiền
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="wallet-metrics-grid">
+                        <div class="wallet-metric-card available">
+                            <span class="metric-icon"><AppIcon name="wallet" size="19" /></span>
+                            <span class="metric-label">Số dư khả dụng</span>
+                            <strong>{{ formatCurrency(financeSummary.available_balance) }}</strong>
+                            <small>Có thể tạo yêu cầu rút</small>
+                        </div>
+                        <div class="wallet-metric-card pending">
+                            <span class="metric-icon"><AppIcon name="clock" size="19" /></span>
+                            <span class="metric-label">Đang tạm giữ</span>
+                            <strong>{{ formatCurrency(financeSummary.pending_withdrawal_balance) }}</strong>
+                            <small>Chờ xử lý yêu cầu rút</small>
+                        </div>
+                        <div class="wallet-metric-card income">
+                            <span class="metric-icon"><AppIcon name="plus" size="19" /></span>
+                            <span class="metric-label">Tổng thu online</span>
+                            <strong>{{ formatCurrency(financeSummary.total_earned) }}</strong>
+                            <small>Tổng tiền đã ghi nhận</small>
+                        </div>
+                        <div class="wallet-metric-card outgoing">
+                            <span class="metric-icon"><AppIcon name="banknote" size="19" /></span>
+                            <span class="metric-label">Đã rút về ngân hàng</span>
+                            <strong>{{ formatCurrency(financeSummary.total_withdrawn) }}</strong>
+                            <small>Tiền đã chuyển thành công</small>
+                        </div>
+                    </div>
+
+                    <div class="wallet-dashboard-grid">
+                        <section class="flow-card">
+                            <div class="flow-card-header">
+                                <div>
+                                    <span class="section-kicker">Theo dõi biến động</span>
+                                    <h2>Dòng tiền 6 tháng gần đây</h2>
+                                </div>
+                                <span class="flow-period">Đơn vị: VND</span>
+                            </div>
+                            <div class="flow-legend">
+                                <span><i class="legend-dot income"></i> Tiền vào</span>
+                                <span><i class="legend-dot outgoing"></i> Tiền ra</span>
+                            </div>
+                            <div v-if="hasCashflow" class="cashflow-chart">
+                                <div class="chart-scale">
+                                    <span>{{ compactCurrency(chartMax) }}</span>
+                                    <span>{{ compactCurrency(chartMax / 2) }}</span>
+                                    <span>0</span>
+                                </div>
+                                <div class="chart-columns">
+                                    <div v-for="point in cashflow" :key="point.period" class="chart-column">
+                                        <div class="chart-bars">
+                                            <span
+                                                class="chart-bar income"
+                                                :style="{ height: chartHeight(point.income) }"
+                                                :title="'Tiền vào: ' + formatCurrency(point.income)"
+                                            ></span>
+                                            <span
+                                                class="chart-bar outgoing"
+                                                :style="{ height: chartHeight(point.outgoing) }"
+                                                :title="'Tiền ra: ' + formatCurrency(point.outgoing)"
+                                            ></span>
+                                        </div>
+                                        <small>{{ point.label }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="chart-empty">
+                                Chưa có giao dịch để tạo biểu đồ dòng tiền.
+                            </div>
+                            <div class="flow-card-foot">
+                                <span><strong>{{ formatCurrency(financeSummary.total_balance) }}</strong> tổng giá trị đang quản lý</span>
+                                <span>{{ formatCurrency(financeSummary.total_earned - financeSummary.total_withdrawn) }} chênh lệch thu - rút</span>
+                            </div>
+                        </section>
+
+                        <section class="flow-card recent-flow-card">
+                            <div class="flow-card-header">
+                                <div>
+                                    <span class="section-kicker">Cập nhật mới nhất</span>
+                                    <h2>Dòng tiền gần đây</h2>
+                                </div>
+                                <button type="button" class="text-link" @click="openLedgers()">Xem tất cả</button>
+                            </div>
+                            <div v-if="recentLedgers.length" class="recent-flow-list">
+                                <div v-for="ledger in recentLedgers" :key="'recent-' + ledger.id" class="recent-flow-row">
+                                    <span class="recent-flow-icon" :class="ledger.type">
+                                        <AppIcon :name="ledger.type === 'credit' || ledger.type === 'release' ? 'plus' : 'banknote'" size="15" />
+                                    </span>
+                                    <div class="recent-flow-info">
+                                        <strong>{{ ledger.description || ledgerType(ledger.type) }}</strong>
+                                        <small>{{ ledger.venue_cluster?.name || "Ví chủ sân" }} · {{ formatDateTime(ledger.created_at) }}</small>
+                                    </div>
+                                    <strong class="recent-flow-amount" :class="ledger.type">
+                                        {{ ledgerAmountPrefix(ledger) }}{{ formatCurrency(ledger.amount) }}
+                                    </strong>
+                                </div>
+                            </div>
+                            <div v-else class="chart-empty">
+                                Chưa có giao dịch dòng tiền.
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
                 <div class="services-table-section">
                     <div v-if="wallets.length === 0" class="table-state-card">
                         <span>Chưa có doanh thu online để tạo ví.</span>
@@ -363,6 +496,15 @@ export default {
         return {
             activeTab: "wallets",
             wallets: [],
+            summary: {
+                available_balance: 0,
+                pending_withdrawal_balance: 0,
+                total_balance: 0,
+                total_earned: 0,
+                total_withdrawn: 0,
+                wallet_count: 0,
+            },
+            cashflow: [],
             ledgers: [],
             withdrawals: [],
             bankAccounts: [],
@@ -388,6 +530,22 @@ export default {
         };
     },
     computed: {
+        financeSummary() {
+            return this.summary;
+        },
+        recentLedgers() {
+            return this.ledgers.slice(0, 6);
+        },
+        hasCashflow() {
+            return this.cashflow.some((item) => Number(item.count || 0) > 0);
+        },
+        chartMax() {
+            const values = this.cashflow.flatMap((item) => [
+                Number(item.income || 0),
+                Number(item.outgoing || 0),
+            ]);
+            return Math.max(...values, 1);
+        },
         financeTabsForAppTabs() {
             return [
                 { key: "wallets", value: "wallets", label: "Số dư ví" },
@@ -415,24 +573,32 @@ export default {
         window.removeEventListener("scroll", this.handleScroll);
     },
     methods: {
-        selectFinanceTab(tabKey) {
+        async selectFinanceTab(tabKey) {
             const k = String(tabKey || '');
             if (k === 'wallets') {
                 this.activeTab = 'wallets';
+                await this.loadInitialData();
             } else if (k === 'ledgers') {
-                this.openLedgers();
+                await this.openLedgers();
             } else if (k === 'withdrawals') {
-                this.openWithdrawals();
+                await this.openWithdrawals();
             }
         },
         async loadInitialData() {
             this.loading = true;
             this.error = "";
             try {
-                const response = await api("/api/owner/finance/wallets");
-                this.wallets = response.wallets || [];
+                const [response, ledgerResponse] = await Promise.all([
+                    api("/api/owner/finance/wallets"),
+                    api("/api/owner/finance/ledgers?page=1"),
+                ]);
+                this.wallets = response.data || response.wallets || [];
                 this.bankAccounts = response.bank_accounts || [];
                 this.minimumWithdrawal = response.minimum_withdrawal || 100000;
+                this.summary = response.summary || this.buildFinanceSummary(this.wallets);
+                this.cashflow = response.cashflow || [];
+                this.ledgers = ledgerResponse.data || [];
+                this.ledgerMeta = ledgerResponse.meta || this.ledgerMeta;
             } catch (error) {
                 this.error =
                     error.message || "Không thể tải dữ liệu số dư ví.";
@@ -586,6 +752,41 @@ export default {
                     release: "Giải tỏa",
                 }[type] || type
             );
+        },
+        buildFinanceSummary(wallets) {
+            const values = (wallets || []).reduce(
+                (result, wallet) => {
+                    result.available_balance += Number(wallet.available_balance || 0);
+                    result.pending_withdrawal_balance += Number(wallet.pending_withdrawal_balance || 0);
+                    result.total_earned += Number(wallet.total_earned || 0);
+                    result.total_withdrawn += Number(wallet.total_withdrawn || 0);
+                    return result;
+                },
+                {
+                    available_balance: 0,
+                    pending_withdrawal_balance: 0,
+                    total_earned: 0,
+                    total_withdrawn: 0,
+                    wallet_count: (wallets || []).length,
+                },
+            );
+            values.total_balance = values.available_balance + values.pending_withdrawal_balance;
+            return values;
+        },
+        chartHeight(value) {
+            const numericValue = Number(value || 0);
+            if (!numericValue) return "3px";
+            return Math.max(8, Math.round((numericValue / this.chartMax) * 142)) + "px";
+        },
+        compactCurrency(value) {
+            const amount = Number(value || 0);
+            if (amount >= 1000000000) return (amount / 1000000000).toFixed(1) + " tỷ";
+            if (amount >= 1000000) return (amount / 1000000).toFixed(1) + " tr";
+            if (amount >= 1000) return Math.round(amount / 1000) + "k";
+            return Math.round(amount).toString();
+        },
+        ledgerAmountPrefix(ledger) {
+            return ledger.type === "debit" || ledger.type === "hold" ? "-" : "+";
         },
         withdrawalStatus(status) {
             return (
@@ -1046,6 +1247,540 @@ export default {
 button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+.wallet-dashboard {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.wallet-balance-hero {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    min-height: 214px;
+    overflow: hidden;
+    padding: 28px 32px;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 86% 14%, rgba(129, 238, 168, 0.32), transparent 25%),
+        linear-gradient(122deg, #113b2b 0%, #17633d 58%, #268052 100%);
+    color: #fff;
+    box-shadow: 0 12px 28px rgba(24, 92, 57, 0.18);
+}
+
+.wallet-balance-hero::after {
+    position: absolute;
+    right: -54px;
+    bottom: -92px;
+    width: 290px;
+    height: 290px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50%;
+    box-shadow: 0 0 0 22px rgba(255, 255, 255, 0.03), 0 0 0 44px rgba(255, 255, 255, 0.025);
+    content: "";
+}
+
+.wallet-hero-copy {
+    position: relative;
+    z-index: 1;
+}
+
+.eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.eyebrow-icon {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    color: #b6f3ca;
+}
+
+.wallet-hero-copy h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(23px, 3vw, 30px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.wallet-hero-copy p {
+    margin: 7px 0 19px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+}
+
+.wallet-hero-balance {
+    color: #fff;
+    font-size: clamp(25px, 3.5vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+}
+
+.wallet-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 9px;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 12px;
+}
+
+.hero-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: #8ff0b1;
+    box-shadow: 0 0 0 3px rgba(143, 240, 177, 0.16);
+}
+
+.wallet-hero-action {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    color: rgba(188, 250, 207, 0.55);
+}
+
+.btn-hero-withdraw {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 17px;
+    border: 0;
+    border-radius: 9px;
+    background: #fff;
+    color: #17633d;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12);
+}
+
+.btn-hero-withdraw:hover {
+    background: #ecfff2;
+    transform: translateY(-1px);
+}
+
+.wallet-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.wallet-metric-card {
+    position: relative;
+    display: grid;
+    min-height: 137px;
+    padding: 17px 17px 15px;
+    border: 1px solid #e9eef1;
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
+}
+
+.wallet-metric-card::before {
+    position: absolute;
+    top: 0;
+    left: 17px;
+    width: 28px;
+    height: 3px;
+    border-radius: 0 0 4px 4px;
+    background: #2ba86c;
+    content: "";
+}
+
+.wallet-metric-card.pending::before {
+    background: #e9a83b;
+}
+
+.wallet-metric-card.income::before {
+    background: #3488e7;
+}
+
+.wallet-metric-card.outgoing::before {
+    background: #c568e5;
+}
+
+.metric-icon {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 9px;
+    place-items: center;
+    border-radius: 9px;
+    background: #eaf8ef;
+    color: #1e8b54;
+}
+
+.pending .metric-icon {
+    background: #fff6e5;
+    color: #bd7b12;
+}
+
+.income .metric-icon {
+    background: #edf5ff;
+    color: #347fd0;
+}
+
+.outgoing .metric-icon {
+    background: #fbf0ff;
+    color: #aa4ec9;
+}
+
+.metric-label {
+    color: #65757c;
+    font-size: 12px;
+}
+
+.wallet-metric-card strong {
+    margin-top: 4px;
+    color: #172b22;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.wallet-metric-card small {
+    margin-top: 3px;
+    color: #9aa7ac;
+    font-size: 11px;
+}
+
+.wallet-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+    gap: 16px;
+}
+
+.flow-card {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid #e9eef1;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.flow-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.section-kicker {
+    display: block;
+    margin-bottom: 4px;
+    color: #89979b;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.flow-card h2 {
+    margin: 0;
+    color: #1b3026;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.flow-period {
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: #f5f8f7;
+    color: #81908b;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.flow-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    color: #778782;
+    font-size: 11px;
+}
+
+.flow-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.legend-dot.income {
+    background: #2ca86b;
+}
+
+.legend-dot.outgoing {
+    background: #e47a77;
+}
+
+.cashflow-chart {
+    display: flex;
+    min-height: 205px;
+    margin-top: 14px;
+    padding: 10px 0 0;
+}
+
+.chart-scale {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 43px;
+    padding: 0 7px 19px 0;
+    color: #a2adaf;
+    font-size: 10px;
+    text-align: right;
+}
+
+.chart-columns {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(6, minmax(35px, 1fr));
+    gap: 10px;
+    align-items: end;
+    border-bottom: 1px solid #dfe8e4;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 47px,
+        #edf2f0 48px,
+        transparent 49px
+    );
+}
+
+.chart-column {
+    display: flex;
+    min-width: 0;
+    height: 184px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.chart-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    height: 150px;
+}
+
+.chart-bar {
+    display: block;
+    width: min(18px, 34%);
+    min-height: 3px;
+    border-radius: 5px 5px 0 0;
+    transition: height 0.3s ease;
+}
+
+.chart-bar.income {
+    background: linear-gradient(180deg, #59c487, #2da869);
+}
+
+.chart-bar.outgoing {
+    background: linear-gradient(180deg, #efaaa6, #de7471);
+}
+
+.chart-column small {
+    width: 100%;
+    margin-top: 9px;
+    overflow: hidden;
+    color: #889793;
+    font-size: 10px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chart-empty {
+    display: grid;
+    min-height: 185px;
+    place-items: center;
+    color: #98a6a2;
+    font-size: 12px;
+}
+
+.flow-card-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 13px;
+    border-top: 1px solid #edf1ef;
+    color: #85938e;
+    font-size: 11px;
+}
+
+.flow-card-foot strong {
+    color: #294b3a;
+    font-size: 12px;
+}
+
+.text-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #238a56;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.text-link:hover {
+    color: #125b38;
+    text-decoration: underline;
+}
+
+.recent-flow-list {
+    display: grid;
+    gap: 1px;
+    margin-top: 14px;
+}
+
+.recent-flow-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 9px 0;
+    border-bottom: 1px solid #f0f3f2;
+}
+
+.recent-flow-row:last-child {
+    border-bottom: 0;
+}
+
+.recent-flow-icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 27px;
+    height: 27px;
+    place-items: center;
+    border-radius: 8px;
+    background: #eaf8ef;
+    color: #238b55;
+}
+
+.recent-flow-icon.debit,
+.recent-flow-icon.hold {
+    background: #fff0ef;
+    color: #d16d68;
+}
+
+.recent-flow-icon.release {
+    background: #edf5ff;
+    color: #397fc1;
+}
+
+.recent-flow-info {
+    display: grid;
+    min-width: 0;
+    flex: 1;
+    gap: 3px;
+}
+
+.recent-flow-info strong {
+    overflow: hidden;
+    color: #33473d;
+    font-size: 12px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-flow-info small {
+    overflow: hidden;
+    color: #9aa6a2;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-flow-amount {
+    flex: 0 0 auto;
+    color: #248951;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.recent-flow-amount.debit,
+.recent-flow-amount.hold {
+    color: #d16d68;
+}
+
+.recent-flow-amount.release {
+    color: #397fc1;
+}
+
+@media (max-width: 1060px) {
+    .wallet-metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wallet-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 620px) {
+    .wallet-balance-hero {
+        min-height: 0;
+        padding: 22px 20px;
+    }
+
+    .wallet-hero-action {
+        display: none;
+    }
+
+    .wallet-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .flow-card {
+        padding: 15px;
+    }
+
+    .flow-card-foot {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .chart-columns {
+        gap: 4px;
+    }
+
+    .chart-bar {
+        width: 30%;
+    }
 }
 
 @media (max-width: 720px) {
