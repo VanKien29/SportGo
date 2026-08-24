@@ -854,7 +854,7 @@ const faqList = [
   position: relative;
   padding: 80px 24px 60px;
   text-align: center;
-  background: #ffffff;
+  background: var(--sg-surface, #f8fafc);
   color: #0f172a;
 }
 
@@ -905,16 +905,16 @@ const faqList = [
 }
 
 .pl-btn--primary {
-  background: #54656f;
+  background: linear-gradient(135deg, #5c7e6e 0%, #486858 100%);
   color: #ffffff;
   border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  box-shadow: 0 4px 14px rgba(92, 126, 110, 0.28);
 }
 
 .pl-btn--primary:hover {
-  background: #405059;
+  background: linear-gradient(135deg, #486858 0%, #385244 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
+  box-shadow: 0 6px 18px rgba(92, 126, 110, 0.38);
 }
 
 .pl-btn--secondary {
@@ -926,8 +926,8 @@ const faqList = [
 
 .pl-btn--secondary:hover {
   background: #f8fafc;
-  border-color: #54656f;
-  color: #0f172a;
+  border-color: #5c7e6e;
+  color: #5c7e6e;
 }
 
 .pl-btn--lg {
@@ -945,11 +945,12 @@ const faqList = [
   align-items: center;
   justify-content: center;
   gap: 40px;
-  background: #f8fafc;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   padding: 20px 32px;
   border-radius: 12px;
   flex-wrap: wrap;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
 }
 
 .pl-trust-item {
@@ -975,9 +976,7 @@ const faqList = [
    ========================================================================== */
 .pl-bento-showcase-section {
   padding: 88px 24px 96px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--sg-surface, #f8fafc);
   color: #0f172a;
 }
 
@@ -995,8 +994,9 @@ const faqList = [
 .pl-bento-badge {
   display: inline-block;
   padding: 6px 14px;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -1070,9 +1070,9 @@ const faqList = [
 }
 
 .pl-bento-card.is-active {
-  background: #8da89b;
-  border-color: #8da89b;
-  box-shadow: 0 8px 20px rgba(141, 168, 155, 0.22);
+  background: linear-gradient(135deg, #5c7e6e 0%, #486858 100%);
+  border-color: #486858;
+  box-shadow: 0 8px 20px rgba(92, 126, 110, 0.22);
   padding: 22px 22px;
   cursor: default;
 }
@@ -1123,9 +1123,9 @@ const faqList = [
 .pl-canvas-top-chip {
   align-self: flex-start;
   padding: 6px 14px;
-  background: #edf4f0;
-  border: 1px solid #c9ded3;
-  color: #3b5c4e;
+  background: #f2f6f4;
+  border: 1px solid #d2e0d8;
+  color: #385244;
   font-size: 12.5px;
   font-weight: 600;
   border-radius: 999px;
@@ -1148,7 +1148,7 @@ const faqList = [
 }
 
 .pl-canvas-floating-kpi strong {
-  color: #5c7e6e;
+  color: #16a34a;
   font-size: 14.5px;
 }
 
@@ -1197,7 +1197,7 @@ const faqList = [
   border-radius: 2px;
 }
 
-.legend-booked::before { background: #5c7e6e; }
+.legend-booked::before { background: #16a34a; }
 .legend-hold::before { background: #d97706; }
 .legend-empty::before { background: #e2e8f0; }
 
@@ -1251,7 +1251,7 @@ const faqList = [
 }
 
 .slot-booked {
-  background: #5c7e6e;
+  background: #16a34a;
   color: #ffffff;
 }
 
@@ -1267,9 +1267,9 @@ const faqList = [
 }
 
 .slot-empty:hover {
-  background: #edf4f0;
-  border-color: #5c7e6e;
-  color: #5c7e6e;
+  background: #f0fdf4;
+  border-color: #16a34a;
+  color: #16a34a;
 }
 
 .pl-slot-user {
@@ -1313,7 +1313,7 @@ const faqList = [
 .pl-stat-sub {
   font-size: 11.5px;
   font-weight: 500;
-  color: #5c7e6e;
+  color: #16a34a;
 }
 
 .pl-chart-box {
@@ -1349,7 +1349,7 @@ const faqList = [
 .pl-bar-fill {
   width: 100%;
   max-width: 22px;
-  background: #5c7e6e;
+  background: #16a34a;
   border-radius: 3px 3px 0 0;
 }
 
@@ -1393,8 +1393,8 @@ const faqList = [
 }
 
 .pl-pos-prod-card:hover {
-  border-color: #5c7e6e;
-  background: #edf4f0;
+  border-color: #16a34a;
+  background: #f0fdf4;
 }
 
 .pl-pos-prod-info strong {
@@ -1412,7 +1412,7 @@ const faqList = [
 .pl-pos-prod-price {
   font-size: 13px;
   font-weight: 700;
-  color: #5c7e6e;
+  color: #16a34a;
 }
 
 .pl-pos-cart {
@@ -1478,7 +1478,7 @@ const faqList = [
 .pl-pos-pay-btn {
   width: 100%;
   padding: 10px 14px;
-  background: #54656f;
+  background: #16a34a;
   color: #ffffff;
   border: none;
   border-radius: 999px;
@@ -1489,7 +1489,7 @@ const faqList = [
 }
 
 .pl-pos-pay-btn:hover {
-  background: #405059;
+  background: #15803d;
 }
 
 /* SHIFTS TAB */
@@ -1549,13 +1549,13 @@ const faqList = [
   display: block;
   font-size: 15px;
   font-weight: 700;
-  color: #5c7e6e !important;
+  color: #16a34a !important;
 }
 
 .status-done {
   font-size: 11px;
   font-weight: 500;
-  color: #5c7e6e;
+  color: #16a34a;
 }
 
 .status-running {
@@ -1606,16 +1606,16 @@ const faqList = [
 .pl-venue-features span {
   font-size: 11px;
   font-weight: 500;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f0fdf4;
+  color: #16a34a;
   padding: 3px 8px;
   border-radius: 6px;
 }
 
-/* KEY ADVANTAGES SECTION (MODERN SAGE & SLATE) */
+/* KEY ADVANTAGES SECTION (MODERN SPORTGO STYLE) */
 .pl-features-section {
   padding: 96px 24px 104px;
-  background: #ffffff;
+  background: var(--sg-surface, #f8fafc);
   color: #0f172a;
 }
 
@@ -1633,8 +1633,9 @@ const faqList = [
 .pl-features-badge {
   display: inline-block;
   padding: 6px 16px;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -1678,19 +1679,20 @@ const faqList = [
 }
 
 .pl-feature-item {
-  background: #f8fafc;
-  border: none;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 18px;
   padding: 26px 22px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
-  transition: background-color 0.15s ease;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+  transition: all 0.15s ease;
 }
 
 .pl-feature-item:hover {
-  background: #f1f5f9;
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .pl-feature-illus-wrap {
@@ -1709,7 +1711,7 @@ const faqList = [
   width: auto;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 10px 20px rgba(84, 101, 111, 0.1));
+  filter: drop-shadow(0 10px 20px rgba(22, 163, 74, 0.12));
 }
 
 .pl-feature-item__top {
@@ -1722,14 +1724,15 @@ const faqList = [
 .pl-feature-step-num {
   font-size: 24px;
   font-weight: 800;
-  color: #8da89b;
+  color: #5c7e6e;
   line-height: 1;
 }
 
 .pl-feature-tag {
   padding: 3px 8px;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   font-size: 11px;
   font-weight: 600;
   border-radius: 6px;
@@ -1753,8 +1756,8 @@ const faqList = [
 
 /* HIGHLIGHT BOX */
 .pl-highlight-box {
-  background: #f8fafc;
-  border: none;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 40px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.03);
@@ -1788,8 +1791,8 @@ const faqList = [
   font-size: 13.5px;
   color: #475569;
   line-height: 1.6;
-  background: #ffffff;
-  border: none;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   padding: 20px;
   border-radius: 14px;
   display: flex;
@@ -1809,10 +1812,10 @@ const faqList = [
   justify-content: center;
 }
 
-/* CALCULATOR SECTION - MODERN SAGE & SLATE */
+/* CALCULATOR SECTION - MODERN SPORTGO STYLE */
 .pl-calc-section {
   padding: 96px 24px 104px;
-  background: #ffffff;
+  background: var(--sg-surface, #f8fafc);
   color: #0f172a;
 }
 
@@ -1842,8 +1845,9 @@ const faqList = [
 .pl-calc-badge {
   display: inline-block;
   padding: 6px 16px;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
@@ -1888,8 +1892,9 @@ const faqList = [
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   font-size: 13.5px;
   font-weight: 700;
   border-radius: 8px;
@@ -1897,7 +1902,7 @@ const faqList = [
 
 .pl-slider {
   width: 100%;
-  accent-color: #8da89b;
+  accent-color: #5c7e6e;
   height: 6px;
   border-radius: 999px;
   background: #e2e8f0;
@@ -1907,19 +1912,19 @@ const faqList = [
 }
 
 .pl-calc-result-panel {
-  background: #f8fafc;
-  border: none;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 24px;
   padding: 36px 32px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
 }
 
 .pl-result-top {
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 20px;
-  margin-bottom: 24px;
+  border-bottom: none;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
 }
 
 .pl-result-head {
@@ -1946,7 +1951,8 @@ const faqList = [
 }
 
 .pl-result-kpi-item {
-  background: #ffffff;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   padding: 14px 16px;
   border-radius: 12px;
   display: flex;
@@ -1970,7 +1976,7 @@ const faqList = [
 /* CORE SYSTEM CAPABILITIES (2-COLUMN FAST-MOSS STYLE) */
 .pl-core-section {
   padding: 96px 24px 104px;
-  background: #f8fafc;
+  background: var(--sg-surface, #f8fafc);
   color: #0f172a;
 }
 
@@ -2036,8 +2042,8 @@ const faqList = [
 }
 
 .pl-core-tab-card.is-active {
-  background: #8da89b;
-  box-shadow: 0 8px 24px rgba(141, 168, 155, 0.25);
+  background: linear-gradient(135deg, #5c7e6e 0%, #486858 100%);
+  box-shadow: 0 8px 24px rgba(92, 126, 110, 0.25);
   cursor: default;
 }
 
@@ -2095,8 +2101,9 @@ const faqList = [
 .pl-qr-badge {
   font-size: 11px;
   font-weight: 700;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   padding: 4px 10px;
   border-radius: 6px;
 }
@@ -2164,8 +2171,9 @@ const faqList = [
   display: inline-block;
   font-size: 12px;
   font-weight: 600;
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   padding: 4px 10px;
   border-radius: 6px;
 }
@@ -2208,7 +2216,7 @@ const faqList = [
 }
 
 .pl-rev-row.total {
-  background: #edf4f0;
+  background: #f2f6f4;
   color: #0f172a;
   font-weight: 700;
   font-size: 15px;
@@ -2354,17 +2362,18 @@ const faqList = [
 /* FINAL CTA BANNER */
 .pl-final-cta {
   padding: 60px 24px 90px;
+  background: var(--sg-surface, #f8fafc);
 }
 
 .pl-cta-box {
   max-width: 900px;
   margin: 0 auto;
-  background: #54656f;
+  background: linear-gradient(135deg, #5c7e6e 0%, #486858 100%);
   color: #ffffff;
   padding: 48px 36px;
-  border-radius: 16px;
+  border-radius: 20px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(84, 101, 111, 0.25);
+  box-shadow: 0 14px 36px rgba(92, 126, 110, 0.28);
 }
 
 .pl-cta-box h2 {
