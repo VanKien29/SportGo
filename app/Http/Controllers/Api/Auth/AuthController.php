@@ -184,7 +184,7 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/'],
             'bio' => ['nullable', 'string', 'max:2000'],
             'preferred_sports' => ['nullable', 'array', 'max:5'],
-            'preferred_sports.*' => ['string', 'max:80'],
+            'preferred_sports.*' => ['nullable', 'string', 'max:80'],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'full_name.required' => 'Vui lòng nhập họ và tên.',
@@ -199,15 +199,19 @@ class AuthController extends Controller
         $user->full_name = trim($data['full_name']);
         if (array_key_exists('email', $data) && $data['email'] !== null) {
             $nextEmail = trim($data['email']);
-            if ($nextEmail !== (string) $user->email) {
-                $user->email = $nextEmail;
-                $user->email_verified_at = now();
+            if (strcasecmp($nextEmail, (string) $user->email) !== 0) {
+                throw ValidationException::withMessages([
+                    'email' => 'Vui lòng xác thực email mới bằng mã OTP trước khi lưu thay đổi.',
+                ]);
             }
         }
         $user->phone = $data['phone'] ? trim($data['phone']) : null;
         $user->bio = array_key_exists('bio', $data) ? trim((string) ($data['bio'] ?? '')) : $user->bio;
         if (array_key_exists('preferred_sports', $data)) {
-            $user->preferred_sports = array_values(array_unique($data['preferred_sports'] ?: []));
+            $user->preferred_sports = array_values(array_unique(array_filter(array_map(
+                static fn ($sport) => trim((string) $sport),
+                $data['preferred_sports'] ?: [],
+            ))));
         }
 
         if ($request->hasFile('avatar')) {
@@ -222,6 +226,74 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Đã cập nhật thông tin cá nhân.',
+            'user' => $user->only([
+                'id', 'username', 'full_name', 'email', 'phone', 'status',
+                'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',
+            ]),
+        ]);
+    }
+
+    public function requestEmailChangeOtp(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+        ], [
+            'email.required' => 'Vui lòng nhập email mới.',
+            'email.email' => 'Địa chỉ email không đúng định dạng.',
+            'email.unique' => 'Email đã được sử dụng.',
+        ]);
+
+        $email = strtolower(trim($data['email']));
+        if (strcasecmp($email, (string) $user->email) === 0) {
+            return response()->json(['message' => 'Email mới trùng với email hiện tại.']);
+        }
+
+        $otp = $this->otpService->generate();
+        $this->otpService->create($user, $email, 'change_email', $otp);
+        Mail::to($email)->send(new AuthOtpMail($user, $otp, 'change_email', OtpService::EXPIRE_MINUTES));
+
+        return response()->json([
+            'message' => 'Đã gửi mã OTP đến email mới. Mã có hiệu lực trong '.OtpService::EXPIRE_MINUTES.' phút.',
+            'email' => $email,
+        ]);
+    }
+
+    public function verifyEmailChangeOtp(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'otp' => ['required', 'digits:6'],
+        ], [
+            'email.required' => 'Vui lòng nhập email cần xác thực.',
+            'otp.required' => 'Vui lòng nhập mã OTP.',
+            'otp.digits' => 'Mã OTP phải gồm đúng 6 chữ số.',
+        ]);
+
+        $email = strtolower(trim($data['email']));
+        $code = $this->otpService->verify($email, 'change_email', $data['otp']);
+        if ((int) $code->user_id !== (int) $user->id) {
+            throw ValidationException::withMessages(['otp' => 'Mã OTP không thuộc yêu cầu của tài khoản này.']);
+        }
+
+        if (User::query()
+            ->where('email', $email)
+            ->where('id', '<>', $user->id)
+            ->exists()) {
+            throw ValidationException::withMessages(['email' => 'Email đã được sử dụng.']);
+        }
+
+        $code->forceFill(['is_used' => true])->save();
+        $user->forceFill([
+            'email' => $email,
+            'email_verified_at' => now(),
+        ])->save();
+
+        return response()->json([
+            'message' => 'Email mới đã được xác thực.',
             'user' => $user->only([
                 'id', 'username', 'full_name', 'email', 'phone', 'status',
                 'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',

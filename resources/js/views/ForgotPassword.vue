@@ -3,19 +3,27 @@
     class="sg-account-auth"
     :title="titleText"
     :subtitle="subtitleText"
+    quote-title="Khôi phục mật khẩu"
+    quote-text="Nhận mã xác thực qua email để tiếp tục lịch thi đấu và trải nghiệm thể thao."
     :image-src="authVisual"
-    quote-text="Khôi phục quyền truy cập để tiếp tục lịch chơi của bạn."
     back-to="/"
   >
     <div class="sg-account-form">
-      <div class="sg-reset-progress" aria-label="Tiến độ khôi phục mật khẩu">
-        <span
+      <div class="sg-reset-progress" role="list" aria-label="Tiến độ khôi phục mật khẩu">
+        <div
           v-for="(item, index) in resetSteps"
           :key="item.key"
+          class="sg-reset-step"
           :class="{ active: step === item.key, passed: currentStepIndex > index }"
+          role="listitem"
+          :aria-current="step === item.key ? 'step' : undefined"
         >
-          {{ index + 1 }}. {{ item.label }}
-        </span>
+          <span class="sg-reset-step-marker" aria-hidden="true">{{ index + 1 }}</span>
+          <span class="sg-reset-step-copy">
+            <small>Bước {{ index + 1 }}</small>
+            <strong>{{ item.label }}</strong>
+          </span>
+        </div>
       </div>
 
       <div
@@ -65,11 +73,13 @@
         </button>
       </form>
 
-      <form v-else-if="step === 'otp'" class="sg-auth-step" novalidate @submit.prevent="handleVerifyOtp">
-        <p class="sg-auth-context">
-          Nhập mã 6 chữ số được gửi đến email của tài khoản <strong>{{ identifier }}</strong>.
-        </p>
-        <div class="sg-auth-field">
+      <form v-else-if="step === 'otp'" class="sg-auth-step sg-auth-otp-step" novalidate @submit.prevent="handleVerifyOtp">
+        <div class="sg-auth-otp-intro">
+          <p class="sg-auth-context">Nhập mã xác thực gồm 6 chữ số đã được gửi đến email của tài khoản.</p>
+          <p class="sg-auth-otp-recipient"><AppIcon name="messageSquare" :size="16" /><strong>{{ identifier }}</strong></p>
+          <p class="sg-auth-otp-hint">Mã chỉ có hiệu lực trong thời gian giới hạn. Kiểm tra cả thư mục thư rác nếu bạn chưa thấy email.</p>
+        </div>
+        <div class="sg-auth-field sg-auth-otp-field">
           <label for="otp">Mã OTP</label>
           <input
             id="otp"
@@ -88,11 +98,11 @@
           />
           <p v-if="fieldErrors.otp" class="sg-auth-field-error">{{ fieldErrors.otp }}</p>
         </div>
-        <button class="sg-auth-submit" type="submit" :disabled="isLoading || isResending">
+        <button class="sg-auth-submit sg-auth-otp-submit" type="submit" :disabled="isLoading || isResending">
           <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
           <span>{{ isLoading ? 'Đang xác nhận...' : 'Xác nhận mã OTP' }}</span>
         </button>
-        <div class="sg-auth-inline-actions">
+        <div class="sg-auth-inline-actions sg-auth-otp-actions">
           <button type="button" :disabled="isLoading || isResending" @click="resendOtp">
             {{ isResending ? 'Đang gửi lại...' : 'Gửi lại mã' }}
           </button>
@@ -177,7 +187,7 @@ export default {
   },
   data() {
     return {
-      authVisual: '/images/home/badminton-cover.webp',
+      authVisual: '/images/auth/sportgo_art.png',
       step: 'identify',
       resetSteps: [
         { key: 'identify', label: 'Tài khoản' },
@@ -350,5 +360,3 @@ export default {
   },
 };
 </script>
-
-

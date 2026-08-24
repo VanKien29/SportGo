@@ -259,7 +259,7 @@
                       <template v-else-if="activeConversation.type === 'venue_contact'">
                         Cụm sân thể thao
                       </template>
-                      <template v-else-if="activeConversation.type === 'group'">
+                      <template v-else-if="activeConversation.is_group || activeConversation.type === 'group' || activeConversation.type === 'player_post'">
                         Nhóm trò chuyện ({{ activeConversation.participants?.length || 'Nhiều' }} thành viên)
                       </template>
                       <template v-else>
@@ -334,7 +334,7 @@
 
                   <div v-if="showChatActionsMenu" class="cc-dropdown-menu" @click.stop>
                     <button
-                      v-if="activeConversation.type === 'group'"
+                      v-if="activeConversation.is_group || activeConversation.type === 'group' || activeConversation.type === 'player_post'"
                       type="button"
                       class="cc-dropdown-item"
                       @click="openGroupInfoModal"
@@ -344,13 +344,23 @@
                     </button>
 
                     <button
-                      v-if="activeConversation.type === 'group'"
+                      v-if="(activeConversation.is_group || activeConversation.type === 'group' || activeConversation.type === 'player_post') && String(activeConversation.created_by) !== String(currentUser?.id) && activeConversation.is_active !== false"
                       type="button"
                       class="cc-dropdown-item cc-dropdown-item--danger"
                       @click="leaveGroupConversation"
                     >
                       <AppIcon name="logOut" size="14" />
                       <span>Rời nhóm trò chuyện</span>
+                    </button>
+
+                    <button
+                      v-if="isMatchmakingGroup && String(activeConversation.created_by) === String(currentUser?.id)"
+                      type="button"
+                      class="cc-dropdown-item cc-dropdown-item--danger"
+                      @click="dissolveMatchmakingGroup"
+                    >
+                      <AppIcon name="trash" size="14" />
+                      <span>Giải tán nhóm giao lưu</span>
                     </button>
 
                     <button
@@ -486,7 +496,7 @@
                   <!-- MESSAGE BUBBLE -->
                   <div class="cc-msg-bubble">
                     <!-- Sender Name for Group Chat -->
-                    <span v-if="activeConversation.type === 'group' && !isMyMessage(msg) && msg.sender" class="cc-group-sender-name">
+                    <span v-if="(activeConversation.is_group || activeConversation.type === 'group' || activeConversation.type === 'player_post') && !isMyMessage(msg) && msg.sender" class="cc-group-sender-name">
                       {{ msg.sender.full_name || msg.sender.username }}
                     </span>
 
@@ -636,6 +646,9 @@
 
             <!-- INPUT BAR -->
             <div class="cc-input-bar">
+              <div v-if="isMatchmakingGroup && activeConversation.is_active === false" class="cc-group-left-note">
+                Bạn đã rời nhóm. Lịch sử và thời điểm vào/rời nhóm vẫn được lưu để tra cứu.
+              </div>
               <label class="cc-attach-btn" title="Đính kèm ảnh">
                 <AppIcon name="image" size="18" />
                 <input
@@ -679,7 +692,7 @@
                 type="text"
                 placeholder="Nhập nội dung tin nhắn..."
                 class="cc-chat-input"
-                :disabled="sendingAi"
+                  :disabled="sendingAi || !canSendChat"
                 @input="handleTypingInput"
                 @keyup.enter="sendMessage"
               />
@@ -687,7 +700,7 @@
               <button
                 type="button"
                 class="cc-send-btn"
-                :disabled="(!inputContent.trim() && !selectedFile) || sendingAi"
+                :disabled="(!inputContent.trim() && !selectedFile) || sendingAi || !canSendChat"
                 @click="sendMessage"
               >
                 <span>Gửi</span>
@@ -867,7 +880,7 @@
             <div class="cc-group-search-results">
               <div
                 v-for="p in activeConversation?.participants || []"
-                :key="p.id"
+                :key="p.user_id"
                 class="cc-gsr-item"
               >
                 <div class="cc-avatar cc-avatar--sm" :style="{ backgroundColor: getAvatarColor(p.user?.full_name || p.user?.username) }">
@@ -875,7 +888,7 @@
                 </div>
                 <div class="cc-gsr-info">
                   <span class="cc-gsr-name">{{ p.user?.full_name || p.user?.username || 'Thành viên' }}</span>
-                  <span class="cc-gsr-sub">{{ p.user?.phone || p.user?.email || '' }}</span>
+                  <span class="cc-gsr-sub">{{ p.left_at ? `Đã rời lúc ${formatDateTime(p.left_at)}` : `Tham gia lúc ${formatDateTime(p.joined_at)}` }}</span>
                 </div>
                 <span v-if="String(p.user_id) === String(activeConversation?.created_by)" class="cc-gsr-added">Trưởng nhóm</span>
               </div>
@@ -888,6 +901,7 @@
             Đóng
           </button>
           <button
+            v-if="String(activeConversation?.created_by) !== String(currentUser?.id) && activeConversation?.is_active !== false"
             type="button"
             class="cc-btn-ghost cc-dropdown-item--danger"
             @click="leaveGroupConversation"
@@ -1165,6 +1179,12 @@ export default {
     pinnedMessage() {
       if (!this.messages.length) return null;
       return this.messages.find((m) => m.is_pinned && !m.is_recalled) || null;
+    },
+    isMatchmakingGroup() {
+      return this.activeConversation?.type === 'player_post';
+    },
+    canSendChat() {
+      return !this.isMatchmakingGroup || this.activeConversation?.is_active !== false;
     },
     currentCategoryEmojis() {
       return this.emojiMap[this.selectedEmojiCategory] || [];
@@ -1557,14 +1577,33 @@ export default {
       this.showGroupInfoModal = false;
       if (!confirm("Bạn có chắc chắn muốn rời khỏi nhóm trò chuyện này?")) return;
       try {
-        await chatService.deleteConversation(this.activeConversation.id);
-        this.conversations = this.conversations.filter((c) => c.id !== this.activeConversation.id);
-        this.activeConversation = null;
-        if (this.conversations.length > 0) {
-          this.selectConversation(this.conversations[0]);
+        const conversationId = this.activeConversation.id;
+        if (this.isMatchmakingGroup) {
+          await chatService.leaveConversation(conversationId);
+          await this.fetchConversations();
+          const updated = this.conversations.find((c) => String(c.id) === String(conversationId));
+          if (updated) this.selectConversation(updated);
+        } else {
+          await chatService.deleteConversation(conversationId);
+          this.conversations = this.conversations.filter((c) => c.id !== conversationId);
+          this.activeConversation = null;
+          if (this.conversations.length > 0) this.selectConversation(this.conversations[0]);
         }
       } catch (err) {
         console.error("Lỗi rời nhóm", err);
+      }
+    },
+    async dissolveMatchmakingGroup() {
+      this.showChatActionsMenu = false;
+      if (!this.isMatchmakingGroup || !this.activeConversation) return;
+      try {
+        const conversationId = this.activeConversation.id;
+        await chatService.dissolveConversation(conversationId);
+        this.conversations = this.conversations.filter((c) => String(c.id) !== String(conversationId));
+        this.activeConversation = null;
+        this.messages = [];
+      } catch (err) {
+        console.error("Lỗi giải tán nhóm giao lưu", err);
       }
     },
     async openSavedMessages() {
@@ -1615,6 +1654,15 @@ export default {
       try {
         chatService.getMessages(this.activeConversation.id).then((res) => {
           this.messages = res.messages || [];
+          if (Array.isArray(res.participants)) {
+            this.activeConversation.participants = res.participants;
+            const self = res.participants.find((participant) => String(participant.user_id) === String(this.currentUser?.id));
+            if (self) {
+              this.activeConversation.is_active = self.is_active;
+              this.activeConversation.joined_at = self.joined_at;
+              this.activeConversation.left_at = self.left_at;
+            }
+          }
           this.scrollToBottom();
           chatService.markAsRead(this.activeConversation.id);
         });
@@ -1659,6 +1707,7 @@ export default {
       }
     },
     async sendMessage() {
+      if (!this.canSendChat) return;
       const text = this.inputContent.trim();
       if (!text && !this.selectedFile) return;
 
@@ -2040,6 +2089,11 @@ export default {
         return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false });
       }
       return timeStr.substring(0, 5);
+    },
+    formatDateTime(value) {
+      if (!value) return 'chưa rõ';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
     },
     formatSupportType(type) {
       const map = {
@@ -3844,4 +3898,5 @@ export default {
     display: none;
   }
 }
+.cc-group-left-note { width: 100%; margin-bottom: 8px; padding: 7px 10px; border: 1px solid #fde68a; border-radius: 7px; background: #fffbeb; color: #92400e; font-size: 12px; }
 </style>

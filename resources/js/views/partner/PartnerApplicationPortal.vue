@@ -27,42 +27,69 @@
         <section v-if="onboardingTerms" class="partner-terms-band" aria-labelledby="partner-terms-title">
           <div class="partner-terms-inner">
             <div class="partner-terms-heading">
-              <div>
-                <p class="partner-terms-kicker">Thông tin cần biết trước khi đăng ký</p>
-                <h2 id="partner-terms-title">Phí nền tảng và chính sách áp dụng</h2>
-                <p>{{ onboardingTerms.notice }}</p>
+              <div class="partner-terms-heading-left">
+                <span class="partner-terms-kicker">THÔNG TIN CẦN BIẾT TRƯỚC KHI ĐĂNG KÝ</span>
+                <h2 id="partner-terms-title" class="partner-terms-title">Phí nền tảng và chính sách áp dụng</h2>
+                <p class="partner-terms-notice">{{ onboardingTerms.notice }}</p>
               </div>
-              <span class="partner-terms-version">Cập nhật theo phiên bản đang hiệu lực</span>
+              <div class="partner-terms-version-badge">
+                <span>Cập nhật theo phiên bản đang hiệu lực</span>
+              </div>
             </div>
 
             <div class="partner-terms-grid">
+              <!-- FEE MATRIX CARD -->
               <div class="partner-fee-panel">
                 <div class="partner-panel-title-row">
-                  <h3>{{ onboardingTerms.platform_fee.title }}</h3>
-                  <span>{{ onboardingTerms.platform_fee.billing_cycle_label }}</span>
+                  <div>
+                    <h3 class="partner-panel-main-title">{{ onboardingTerms.platform_fee.title }}</h3>
+                    <p class="partner-panel-summary">{{ onboardingTerms.platform_fee.summary }}</p>
+                  </div>
+                  <span class="partner-billing-pill">{{ onboardingTerms.platform_fee.billing_cycle_label }}</span>
                 </div>
-                <p class="partner-panel-summary">{{ onboardingTerms.platform_fee.summary }}</p>
-                <div class="partner-fee-table-wrap">
-                  <table class="partner-fee-table">
-                    <thead><tr><th>Bậc sân</th><th>Phí / sân / tháng</th><th>Đóng năm</th></tr></thead>
-                    <tbody>
-                      <tr v-for="tier in onboardingTerms.platform_fee.tiers" :key="tier.id">
-                        <td>{{ tier.name }}</td>
-                        <td>{{ money(tier.price_per_court_month) }}</td>
-                        <td>Giảm {{ tier.annual_discount_percent }}%</td>
-                      </tr>
-                    </tbody>
-                  </table>
+
+                <div class="partner-fee-rows-list">
+                  <div
+                    v-for="tier in onboardingTerms.platform_fee.tiers"
+                    :key="tier.id"
+                    class="partner-fee-tier-row"
+                  >
+                    <div class="partner-fee-tier-name">
+                      <span class="tier-dot"></span>
+                      <span>{{ tier.name }}</span>
+                    </div>
+                    <div class="partner-fee-tier-price">
+                      <strong>{{ money(tier.price_per_court_month) }}</strong>
+                      <small>/sân/tháng</small>
+                    </div>
+                    <div class="partner-fee-tier-discount" v-if="tier.annual_discount_percent > 0">
+                      <span class="discount-tag">Giảm {{ tier.annual_discount_percent }}% năm</span>
+                    </div>
+                  </div>
                 </div>
-                <p class="partner-terms-note">{{ onboardingTerms.platform_fee.settings.default_due_days }} ngày nhắc trước hạn; quá hạn có thể bị giới hạn quyền vận hành theo chính sách.</p>
+
+                <div class="partner-terms-footer-note">
+                  <p>{{ onboardingTerms.platform_fee.settings.default_due_days }} ngày nhắc trước hạn; quá hạn có thể bị giới hạn quyền vận hành theo chính sách.</p>
+                </div>
               </div>
 
+              <!-- POLICIES LIST CARD -->
               <div class="partner-policy-panel">
-                <h3>Chính sách liên quan</h3>
-                <details v-for="policy in onboardingTerms.policies" :key="policy.key" class="partner-policy-item">
-                  <summary>{{ policy.title }} <span>v{{ policy.version }}</span></summary>
-                  <p>{{ policy.content }}</p>
-                </details>
+                <div class="partner-policy-head">
+                  <h3 class="partner-panel-main-title">Chính sách liên quan</h3>
+                </div>
+                
+                <div class="partner-policy-items-list">
+                  <details v-for="policy in onboardingTerms.policies" :key="policy.key" class="partner-policy-item">
+                    <summary class="partner-policy-summary">
+                      <span class="partner-policy-item-title">{{ policy.title }}</span>
+                      <span class="partner-policy-ver">v{{ policy.version }}</span>
+                    </summary>
+                    <div class="partner-policy-content">
+                      <p>{{ policy.content }}</p>
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
           </div>
@@ -1665,14 +1692,13 @@ function money(value) {
 }
 
 .partner-terms-band {
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 36px 20px 44px;
+  background: #ffffff;
+  padding: 80px 24px 100px;
+  color: #0f172a;
 }
 
 .partner-terms-inner {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -1680,89 +1706,236 @@ function money(value) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 24px;
+  margin-bottom: 44px;
+}
+
+@media (max-width: 768px) {
+  .partner-terms-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .partner-terms-kicker {
-  margin: 0 0 6px;
-  color: #15803d;
+  display: inline-block;
+  color: #5c7e6e;
   font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
 }
 
-.partner-terms-heading h2 {
-  margin: 0 0 6px;
+.partner-terms-title {
+  margin: 0 0 10px;
   color: #0f172a;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.partner-terms-heading p,
-.partner-panel-summary,
-.partner-terms-note,
-.partner-policy-item p {
+.partner-terms-notice {
   color: #475569;
-  font-size: 13.5px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 760px;
 }
 
-.partner-terms-heading p { margin: 0; max-width: 720px; }
-.partner-terms-version { color: #64748b; font-size: 12px; white-space: nowrap; }
+.partner-terms-version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 .partner-terms-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
-  gap: 16px;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 32px;
+  align-items: stretch;
+}
+
+@media (max-width: 960px) {
+  .partner-terms-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 }
 
 .partner-fee-panel,
 .partner-policy-panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 20px;
+  background: #f8fafc;
+  border: none;
+  border-radius: 20px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.03);
 }
 
 .partner-panel-title-row {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.partner-panel-main-title {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.partner-panel-summary {
+  margin: 0;
+  color: #64748b;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.partner-billing-pill {
+  background: #edf4f0;
+  color: #5c7e6e;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.partner-fee-rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.partner-fee-tier-row {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
 }
 
-.partner-panel-title-row h3,
-.partner-policy-panel h3 {
-  margin: 0;
-  color: #0f172a;
+.partner-fee-tier-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 100px;
+}
+
+.tier-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8da89b;
+}
+
+.partner-fee-tier-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.partner-fee-tier-price strong {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.partner-panel-title-row span {
-  color: #15803d;
+.partner-fee-tier-price small {
   font-size: 12px;
-  font-weight: 600;
+  color: #64748b;
 }
 
-.partner-panel-summary { margin: 8px 0 14px; }
-.partner-fee-table-wrap { overflow-x: auto; }
-.partner-fee-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.partner-fee-table th,
-.partner-fee-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; text-align: left; }
-.partner-fee-table th { color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-.partner-fee-table td { color: #334155; }
-.partner-fee-table td:nth-child(2) { color: #0f172a; font-weight: 600; }
-.partner-terms-note { margin: 14px 0 0; font-size: 12px; }
+.discount-tag {
+  background: #edf4f0;
+  color: #5c7e6e;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
 
-.partner-policy-panel h3 { margin-bottom: 4px; }
-.partner-policy-item { border-bottom: 1px solid #f1f5f9; padding: 11px 0; }
-.partner-policy-item:last-child { border-bottom: 0; }
-.partner-policy-item summary { cursor: pointer; color: #0f172a; font-size: 13.5px; font-weight: 600; }
-.partner-policy-item summary span { color: #64748b; font-size: 11px; font-weight: 400; margin-left: 4px; }
-.partner-policy-item p { margin: 8px 0 0; white-space: pre-line; font-size: 13px; }
+.partner-terms-footer-note {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.partner-terms-footer-note p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.partner-policy-head {
+  margin-bottom: 20px;
+}
+
+.partner-policy-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.partner-policy-item {
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
+}
+
+.partner-policy-summary {
+  cursor: pointer;
+  padding: 16px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  user-select: none;
+}
+
+.partner-policy-ver {
+  font-size: 11px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.partner-policy-content {
+  padding: 0 18px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #475569;
+  border-top: 1px solid #f8fafc;
+}
+
+.partner-policy-content p {
+  margin: 8px 0 0;
+  white-space: pre-line;
+}
 
 .portal-modal-backdrop {
   position: fixed;

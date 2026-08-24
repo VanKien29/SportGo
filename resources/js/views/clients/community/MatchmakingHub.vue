@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import MeetupPostModal from '@/components/MeetupPostModal.vue';
@@ -57,6 +57,9 @@ const loading = ref(true);
 const error = ref('');
 const joining = ref(null);
 const showCreate = ref(false);
+let postsRequestController = null;
+let postsRequestId = 0;
+let lifecycleRefreshTimer = null;
 const steps = [
   { title: 'Chọn booking đã xác nhận', description: 'Thanh toán đủ, đặt cọc hoặc trả sau nhưng đã được chủ sân duyệt đều có thể tạo bài.' },
   { title: 'Đăng số người cần thêm', description: 'Mô tả trình độ, thời gian và lưu ý để người chơi phù hợp dễ quyết định.' },
@@ -67,10 +70,32 @@ const confirmedCount = computed(() => posts.value.filter((post) => post.booking?
 const myRequestCount = computed(() => posts.value.filter((post) => post.user_status).length);
 
 async function loadPosts() {
+  postsRequestController?.abort();
+  const requestId = ++postsRequestId;
+  const controller = new AbortController();
+  postsRequestController = controller;
   loading.value = true; error.value = '';
-  try { const response = await api('/api/matchmaking-posts?per_page=30'); posts.value = response.data || []; }
-  catch (requestError) { error.value = requestError.message || 'Vui lòng thử lại.'; }
-  finally { loading.value = false; }
+  try {
+    const response = await api('/api/matchmaking-posts?per_page=30', {
+      signal: controller.signal,
+      dedupe: false,
+    });
+    if (requestId !== postsRequestId) return;
+    const payload = response?.data;
+    posts.value = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : [];
+  } catch (requestError) {
+    if (controller.signal.aborted || requestId !== postsRequestId) return;
+    error.value = requestError.message || 'Vui lòng thử lại.';
+  } finally {
+    if (requestId === postsRequestId) {
+      loading.value = false;
+      postsRequestController = null;
+    }
+  }
 }
 
 async function join(post) {
@@ -89,7 +114,13 @@ async function leave(post) {
   finally { joining.value = null; }
 }
 
-function handleCreated() { showCreate.value = false; toast.success('Bài giao lưu đã được đăng.'); loadPosts(); }
+async function handleCreated() {
+  showCreate.value = false;
+  toast.success('Bài giao lưu đã được đăng.');
+  // The modal is already closed; a slow list refresh must not block the
+  // create flow or make the submit action appear stuck.
+  void loadPosts();
+}
 function isOwn(post) { return String(post.author?.id || '') === String(user?.id || ''); }
 function progress(post) { const total = Number(post.total_players || 0); return total ? Math.min(100, (Number(post.approved_players || 0) / total) * 100) : 0; }
 function statusLabel(status) { return { open: 'Đang tuyển', full: 'Đã đủ người', closed: 'Đã đóng', cancelled: 'Đã hủy' }[status] || status; }
@@ -97,7 +128,16 @@ function requestLabel(status) { return { pending: 'Đang chờ chủ bài duyệ
 function formatDate(value) { if (!value) return 'chưa rõ'; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toLocaleDateString('vi-VN'); }
 function assetUrl(path) { return !path || path.startsWith('/') || /^https?:\/\//.test(path) ? path : `/storage/${path}`; }
 function initial(name) { return String(name || 'N').trim().charAt(0).toUpperCase(); }
-onMounted(loadPosts);
+onMounted(() => {
+  loadPosts();
+  // Reconcile the feed around booking start without requiring a manual reload.
+  lifecycleRefreshTimer = setInterval(() => void loadPosts(), 60_000);
+});
+onBeforeUnmount(() => {
+  postsRequestId += 1;
+  postsRequestController?.abort();
+  if (lifecycleRefreshTimer) clearInterval(lifecycleRefreshTimer);
+});
 </script>
 
 <style scoped>

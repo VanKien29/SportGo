@@ -1,153 +1,158 @@
-﻿<template>
+<template>
   <AuthLayout
+    class="sg-account-auth sg-admin-auth"
     :title="titleText"
     :subtitle="subtitleText"
-    imageSrc="https://i.ibb.co/XrkdGrrv/original-ccdd6d6195fff2386a31b684b7abdd2e-removebg-preview.png"
-    quoteText="Khôi phục quyền truy cập quản trị hệ thống."
-    quoteAuthor="SportGo Admin"
-    backTo="/admin/login"
+    quote-title="Khôi phục quyền truy cập"
+    quote-text="Bảo vệ và lấy lại quyền quản trị tài khoản hệ thống SportGo an toàn."
+    :image-src="authVisual"
+    back-to="/admin/login"
   >
-    <!-- Success message -->
+    <!-- Success Alert -->
     <transition name="fade">
-      <div v-if="successMsg" class="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-sm mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <div v-if="successMsg" class="flex items-center gap-2.5 p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-medium mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         <span>{{ successMsg }}</span>
       </div>
     </transition>
 
-    <!-- Error message -->
+    <!-- Error Alert -->
     <transition name="shake">
-      <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 text-sm mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+      <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-200 bg-red-50 text-red-600 text-xs font-medium mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <span>{{ error }}</span>
       </div>
     </transition>
 
     <!-- STEP 1: IDENTIFY -->
-    <form v-if="step === 'identify'" @submit.prevent="handleSendOtp" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
-      <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
-        <input type="text" autocomplete="username" tabindex="-1" />
-        <input type="email" autocomplete="email" tabindex="-1" />
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <label for="admin-forgot-identifier" class="text-sm font-medium text-zinc-200 text-left">
-          Tên đăng nhập / Email / Số điện thoại
-        </label>
+    <form v-if="step === 'identify'" @submit.prevent="handleSendOtp" class="sg-lovebirds-form flex flex-col gap-5 w-full text-left" novalidate>
+      <div class="sg-lovebirds-field">
+        <label for="admin-forgot-identifier" class="sg-lovebirds-label">Tài khoản Quản trị</label>
         <input
           id="admin-forgot-identifier"
           v-model.trim="identifier"
           type="text"
-          placeholder="Nhập tài khoản quản trị"
+          placeholder="Tên đăng nhập, email hoặc số điện thoại"
           autocomplete="username"
-          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 transition-all"
+          class="sg-lovebirds-input"
         />
       </div>
 
-      <button
-        type="submit"
-        :disabled="isLoading"
-        class="flex h-10 w-full items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600 transition-all font-medium text-sm mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span v-if="!isLoading">Gửi mã OTP</span>
-        <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-      </button>
+      <div class="flex justify-center mt-2">
+        <button type="submit" :disabled="isLoading" class="sg-lovebirds-submit-btn">
+          <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
+          <span>{{ isLoading ? 'Đang gửi mã...' : 'Gửi mã OTP' }}</span>
+        </button>
+      </div>
 
-      <div class="text-center text-sm text-zinc-400 mt-6 pt-5 border-t border-zinc-900">
-        <router-link to="/admin/login" class="font-normal text-zinc-100 hover:underline">
-          Tôi nhớ mật khẩu
+      <div class="text-center mt-4 pt-3 border-t border-slate-100">
+        <router-link to="/admin/login" class="sg-lovebirds-forgot text-xs">
+          ← Quay lại đăng nhập Quản trị
         </router-link>
       </div>
     </form>
 
     <!-- STEP 2: OTP VERIFICATION -->
-    <form v-else-if="step === 'otp'" @submit.prevent="handleVerifyOtp" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
-      <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
-        <input type="text" autocomplete="one-time-code" tabindex="-1" />
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <label for="admin-forgot-otp" class="text-sm font-medium text-zinc-200 text-left">
-          Mã OTP <span class="text-red-500">*</span>
-        </label>
+    <form v-else-if="step === 'otp'" @submit.prevent="handleVerifyOtp" class="sg-lovebirds-form flex flex-col gap-5 w-full text-left" novalidate>
+      <div class="sg-lovebirds-field">
+        <label for="admin-forgot-otp" class="sg-lovebirds-label">Mã xác thực OTP (6 chữ số)</label>
         <input
           id="admin-forgot-otp"
           v-model.trim="otp"
           type="text"
           inputmode="numeric"
           maxlength="6"
-          placeholder="Nhập mã OTP 6 số"
+          placeholder="000000"
           autocomplete="one-time-code"
-          class="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-950 !px-3 !py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 focus:border-zinc-700 tracking-widest text-center font-normal"
+          class="sg-lovebirds-input text-center tracking-widest font-semibold text-lg"
         />
       </div>
 
-      <div class="flex flex-col gap-3 mt-2">
-        <button
-          type="submit"
-          :disabled="isLoading"
-          class="flex h-10 w-full items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600 transition-all font-medium text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span v-if="!isLoading">Xác nhận OTP</span>
-          <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+      <div class="flex flex-col items-center gap-3 mt-2">
+        <button type="submit" :disabled="isLoading" class="sg-lovebirds-submit-btn w-full">
+          <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
+          <span>{{ isLoading ? 'Đang xác thực...' : 'Xác nhận mã OTP' }}</span>
         </button>
 
         <button
           type="button"
           :disabled="isLoading"
           @click.prevent="handleResendOtp"
-          class="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-950 text-zinc-100 hover:bg-zinc-900 hover:border-zinc-600 transition-all font-medium text-sm cursor-pointer"
+          class="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer transition-colors"
         >
-          <span>Gửi lại mã OTP</span>
+          Chưa nhận được mã? Gửi lại OTP
         </button>
       </div>
 
-      <button
-        type="button"
-        :disabled="isLoading"
-        @click="goBackToIdentify"
-        class="text-center text-sm text-zinc-400 hover:text-zinc-200 transition-colors mt-2 bg-transparent border-0 cursor-pointer"
-      >
-        Đổi tài khoản nhận mã
-      </button>
-
-      <div class="text-center text-sm text-zinc-400 mt-4 pt-4 border-t border-zinc-900">
-        <router-link to="/admin/login" class="font-normal text-zinc-100 hover:underline">
-          Quay lại đăng nhập
+      <div class="flex items-center justify-between text-xs mt-4 pt-3 border-t border-slate-100">
+        <button
+          type="button"
+          :disabled="isLoading"
+          @click="goBackToIdentify"
+          class="text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer"
+        >
+          ← Đổi tài khoản khác
+        </button>
+        <router-link to="/admin/login" class="sg-lovebirds-forgot">
+          Hủy bỏ
         </router-link>
       </div>
     </form>
 
     <!-- STEP 3: RESET PASSWORD -->
-    <form v-else @submit.prevent="handleResetPassword" class="flex flex-col gap-5 w-full text-left mt-2" novalidate>
-      <div style="width: 0; height: 0; overflow: hidden; position: absolute; z-index: -1;">
-        <input type="password" autocomplete="new-password" tabindex="-1" />
+    <form v-else @submit.prevent="handleResetPassword" class="sg-lovebirds-form flex flex-col gap-5 w-full text-left" novalidate>
+      <div class="sg-lovebirds-field">
+        <label for="admin-new-password" class="sg-lovebirds-label">Mật khẩu mới</label>
+        <div class="sg-lovebirds-password-wrap">
+          <input
+            id="admin-new-password"
+            v-model="password"
+            :type="showNewPassword ? 'text' : 'password'"
+            class="sg-lovebirds-input"
+            placeholder="Tối thiểu 8 ký tự, 1 hoa, 1 số, 1 ký tự đặc biệt"
+            autocomplete="new-password"
+          />
+          <button
+            type="button"
+            class="sg-lovebirds-eye"
+            @click="showNewPassword = !showNewPassword"
+            aria-label="Xem mật khẩu"
+          >
+            <svg v-if="showNewPassword" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="flex flex-col gap-4">
-        <PasswordInput
-          v-model="password"
-          label="Mật khẩu mới"
-          placeholder="Nhập mật khẩu mới"
-          autocomplete="new-password"
-        />
-
-        <PasswordInput
-          v-model="passwordConfirmation"
-          label="Xác nhận mật khẩu"
-          placeholder="Nhập lại mật khẩu mới"
-          autocomplete="new-password"
-        />
+      <div class="sg-lovebirds-field">
+        <label for="admin-confirm-password" class="sg-lovebirds-label">Xác nhận mật khẩu mới</label>
+        <div class="sg-lovebirds-password-wrap">
+          <input
+            id="admin-confirm-password"
+            v-model="passwordConfirmation"
+            :type="showConfirmPassword ? 'text' : 'password'"
+            class="sg-lovebirds-input"
+            placeholder="Nhập lại mật khẩu mới"
+            autocomplete="new-password"
+          />
+          <button
+            type="button"
+            class="sg-lovebirds-eye"
+            @click="showConfirmPassword = !showConfirmPassword"
+            aria-label="Xem mật khẩu"
+          >
+            <svg v-if="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
 
-      <button
-        type="submit"
-        :disabled="isLoading"
-        class="flex h-10 w-full items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-600 transition-all font-medium text-sm mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <span v-if="!isLoading">Đặt lại mật khẩu Admin</span>
-        <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-      </button>
+      <div class="flex justify-center mt-2">
+        <button type="submit" :disabled="isLoading" class="sg-lovebirds-submit-btn">
+          <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
+          <span>{{ isLoading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu Admin' }}</span>
+        </button>
+      </div>
     </form>
   </AuthLayout>
 </template>
@@ -155,21 +160,22 @@
 <script>
 import { resetAdminPassword, sendAdminForgotOtp, verifyAdminForgotOtp } from '../../stores/auth.js';
 import AuthLayout from '../../components/ui/AuthLayout.vue';
-import PasswordInput from '../../components/ui/PasswordInput.vue';
 
 export default {
   name: 'AdminForgotPassword',
   components: {
     AuthLayout,
-    PasswordInput,
   },
   data() {
     return {
+      authVisual: '/images/auth/sportgo_art.png',
       step: 'identify', // identify, otp, reset
       identifier: '',
       otp: '',
       password: '',
       passwordConfirmation: '',
+      showNewPassword: false,
+      showConfirmPassword: false,
       error: '',
       successMsg: '',
       isLoading: false,
@@ -206,8 +212,8 @@ export default {
         const response = await sendAdminForgotOtp(this.identifier);
         this.successMsg = response.message || 'Mã OTP đã được gửi về email quản trị.';
         this.step = 'otp';
-      } catch (error) {
-        this.error = error.message || 'Không thể gửi mã OTP.';
+      } catch (err) {
+        this.error = err.message || 'Không thể gửi mã OTP.';
       } finally {
         this.isLoading = false;
       }
@@ -230,8 +236,8 @@ export default {
         const response = await verifyAdminForgotOtp(this.identifier, this.otp);
         this.successMsg = response.message || 'OTP hợp lệ. Vui lòng đặt mật khẩu mới.';
         this.step = 'reset';
-      } catch (error) {
-        this.error = error.message || 'Mã OTP không đúng.';
+      } catch (err) {
+        this.error = err.message || 'Mã OTP không đúng.';
       } finally {
         this.isLoading = false;
       }
@@ -274,8 +280,8 @@ export default {
         const response = await resetAdminPassword(this.identifier, this.otp, this.password, this.passwordConfirmation);
         this.successMsg = response.message || 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.';
         setTimeout(() => this.$router.push('/admin/login'), 1200);
-      } catch (error) {
-        this.error = error.message || 'Không thể đặt lại mật khẩu Admin.';
+      } catch (err) {
+        this.error = err.message || 'Không thể đặt lại mật khẩu Admin.';
       } finally {
         this.isLoading = false;
       }

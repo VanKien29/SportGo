@@ -49,7 +49,7 @@ class PlayerPost extends Model
     public function participants()
     {
         return $this->belongsToMany(User::class, 'player_post_participants', 'post_id', 'user_id')
-            ->withPivot(['status', 'message', 'responded_at'])
+            ->withPivot(['status', 'message', 'responded_at', 'left_at'])
             ->withTimestamps();
     }
 }

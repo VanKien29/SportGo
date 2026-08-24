@@ -59,6 +59,20 @@ export const authService = {
     return apiFormData('/api/auth/profile', formData);
   },
 
+  requestEmailChangeOtp(email) {
+    return api('/api/auth/profile/email/request-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  verifyEmailChangeOtp(email, otp) {
+    return api('/api/auth/profile/email/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
+  },
+
   googleExchange(code) {
     return api('/api/auth/google/exchange', {
       method: 'POST',

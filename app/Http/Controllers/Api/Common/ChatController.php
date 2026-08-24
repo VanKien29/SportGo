@@ -10,8 +10,10 @@ use App\Models\Booking;
 use App\Models\BookingSupportRequest;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
+use App\Models\PlayerPost;
 use App\Models\User;
 use App\Models\VenueCluster;
+use App\Services\MatchmakingChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -35,6 +37,7 @@ class ChatController extends Controller
         ->get();
 
         $formatted = $conversations->map(function ($conversation) use ($userId) {
+            $isMatchmakingGroup = $conversation->type === 'player_post';
             // Find the other participant in direct/venue chats
             $otherParticipant = $conversation->participants->first(function ($p) use ($userId) {
                 return $p->user_id !== $userId;
@@ -51,11 +54,44 @@ class ChatController extends Controller
                 }
             } elseif ($conversation->type === 'venue_contact' && $conversation->reference_id) {
                 $venue = VenueCluster::find($conversation->reference_id);
-                $title = $venue ? $venue->name : 'Sân đấu';
-                $avatarUrl = $otherUser ? $otherUser->avatar_url : null;
+                $isStaffOrOwner = false;
+                if ($venue) {
+                    $isStaffOrOwner = ($venue->owner_id === $userId) || DB::table('venue_staff_assignments')
+                        ->where('venue_cluster_id', $venue->id)
+                        ->where('user_id', $userId)
+                        ->where('status', 'active')
+                        ->exists();
+                }
+
+                if ($isStaffOrOwner && $venue) {
+                    $staffIds = DB::table('venue_staff_assignments')
+                        ->where('venue_cluster_id', $venue->id)
+                        ->where('status', 'active')
+                        ->pluck('user_id')
+                        ->push($venue->owner_id)
+                        ->all();
+
+                    $customerParticipant = $conversation->participants->first(function ($p) use ($staffIds) {
+                        return !in_array($p->user_id, $staffIds);
+                    });
+
+                    $customerUser = $customerParticipant ? $customerParticipant->user : null;
+                    $title = $customerUser ? $customerUser->full_name : $venue->name;
+                    $avatarUrl = $customerUser ? $customerUser->avatar_url : null;
+                    if ($customerUser) {
+                        $otherUser = $customerUser;
+                    }
+                } else {
+                    $title = $venue ? $venue->name : 'Sân đấu';
+                    $avatarUrl = null;
+                }
             } else {
                 $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
                 $avatarUrl = $conversation->avatar_url ?: ($otherUser ? $otherUser->avatar_url : null);
+            }
+            if ($isMatchmakingGroup) {
+                // A matchmaking group exposes display names and avatars only.
+                $otherUser = null;
             }
 
             // Calculate unread messages & last message considering cleared_history_at
@@ -88,6 +124,7 @@ class ChatController extends Controller
                 'type' => $conversation->type,
                 'reference_type' => $conversation->reference_type,
                 'reference_id' => $conversation->reference_id,
+                'created_by' => $conversation->created_by,
                 'title' => $title,
                 'avatar_url' => $avatarUrl,
                 'other_user' => $otherUser ? [
@@ -105,6 +142,10 @@ class ChatController extends Controller
                 ] : null,
                 'unread_count' => $unreadCount,
                 'last_message_at' => $conversation->last_message_at ? $conversation->last_message_at->toIso8601String() : null,
+                'is_group' => in_array($conversation->type, ['group', 'player_post'], true),
+                'is_active' => $myParticipant?->left_at === null,
+                'joined_at' => $myParticipant?->joined_at?->toIso8601String(),
+                'left_at' => $myParticipant?->left_at?->toIso8601String(),
             ];
         });
 
@@ -118,6 +159,7 @@ class ChatController extends Controller
     public function getMessages(Request $request, $conversationId)
     {
         $userId = $request->user()->id;
+        $conversation = Conversation::query()->findOrFail($conversationId);
 
         $participant = ConversationParticipant::where('conversation_id', $conversationId)
             ->where('user_id', $userId)
@@ -142,19 +184,27 @@ class ChatController extends Controller
             ->with('user:id,full_name,username,avatar_url,email,phone')
             ->get();
 
+        $messagePayloads = $messages->map(fn (Message $message) => $this->messagePayload($message))->values();
+        if ($conversation->type === 'player_post') {
+            $messagePayloads = $messagePayloads->map(fn (array $payload) => $this->sanitizeMatchmakingMessage($payload));
+        }
+
         return response()->json([
-            'messages' => $messages->map(fn (Message $message) => $this->messagePayload($message))->values(),
+            'messages' => $messagePayloads,
             'participants' => $participants->map(function ($p) {
                 return [
                     'user_id' => $p->user_id,
                     'last_read_at' => $p->last_read_at ? $p->last_read_at->toIso8601String() : null,
+                    'joined_at' => $p->joined_at ? $p->joined_at->toIso8601String() : null,
+                    'left_at' => $p->left_at ? $p->left_at->toIso8601String() : null,
+                    'is_active' => $p->left_at === null,
                     'user' => $p->user ? [
                         'id' => $p->user->id,
                         'full_name' => $p->user->full_name,
                         'username' => $p->user->username,
                         'avatar_url' => $p->user->avatar_url,
-                        'email' => $p->user->email,
-                        'phone' => $p->user->phone,
+                        'email' => $conversation->type === 'player_post' ? null : $p->user->email,
+                        'phone' => $conversation->type === 'player_post' ? null : $p->user->phone,
                     ] : null,
                 ];
             }),
@@ -170,6 +220,7 @@ class ChatController extends Controller
 
         $isParticipant = ConversationParticipant::where('conversation_id', $conversationId)
             ->where('user_id', $userId)
+            ->whereNull('left_at')
             ->exists();
 
         if (!$isParticipant) {
@@ -265,7 +316,11 @@ class ChatController extends Controller
         // Broadcast real-time update to all other participants
         $this->broadcastMessage($message, $conversationId, $userId);
 
-        return response()->json($this->messagePayload($message));
+        $payload = $this->messagePayload($message);
+        if (Conversation::query()->whereKey($conversationId)->where('type', 'player_post')->exists()) {
+            $payload = $this->sanitizeMatchmakingMessage($payload);
+        }
+        return response()->json($payload);
     }
 
     /**
@@ -371,6 +426,9 @@ class ChatController extends Controller
     private function broadcastMessage(Message $message, string $conversationId, int|string $senderId): void
     {
         $messageData = $this->messagePayload($message);
+        if (Conversation::query()->whereKey($conversationId)->where('type', 'player_post')->exists()) {
+            $messageData = $this->sanitizeMatchmakingMessage($messageData);
+        }
 
         // Broadcast to the conversation channel (all participants listening)
         broadcast(new MessageSent($conversationId, $messageData))->toOthers();
@@ -398,6 +456,9 @@ class ChatController extends Controller
     public function getEligibleBookings(Request $request, $conversationId)
     {
         $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        if ($conversation->type === 'player_post') {
+            return response()->json([]);
+        }
         $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
 
         if (empty($clusterIds)) {
@@ -433,6 +494,7 @@ class ChatController extends Controller
             return response()->json([]);
         }
 
+        $businessDate = now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'))->toDateString();
         $bookings = Booking::query()
             ->with([
                 'venueCourt.venueCluster',
@@ -442,11 +504,11 @@ class ChatController extends Controller
             ])
             ->whereIn('customer_id', $customerIds)
             ->whereIn('venue_cluster_id', $clusterIds)
-            ->orderByRaw("CASE WHEN booking_date >= ? THEN 0 ELSE 1 END", [now()->toDateString()])
-            ->orderByRaw("CASE WHEN booking_date >= ? THEN booking_date END ASC", [now()->toDateString()])
-            ->orderByRaw("CASE WHEN booking_date >= ? THEN start_time END ASC", [now()->toDateString()])
-            ->orderByRaw("CASE WHEN booking_date < ? THEN booking_date END DESC", [now()->toDateString()])
-            ->orderByRaw("CASE WHEN booking_date < ? THEN start_time END DESC", [now()->toDateString()])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN 0 ELSE 1 END", [$businessDate])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN booking_date END ASC", [$businessDate])
+            ->orderByRaw("CASE WHEN booking_date >= ? THEN start_time END ASC", [$businessDate])
+            ->orderByRaw("CASE WHEN booking_date < ? THEN booking_date END DESC", [$businessDate])
+            ->orderByRaw("CASE WHEN booking_date < ? THEN start_time END DESC", [$businessDate])
             ->limit(12)
             ->get()
             ->map(fn (Booking $booking) => $this->bookingMessagePayload($booking))
@@ -462,6 +524,9 @@ class ChatController extends Controller
         ]);
 
         $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        if ($conversation->type === 'player_post') {
+            return response()->json(['message' => 'Nhóm giao lưu chỉ hiển thị thông tin buổi chơi, không hỗ trợ gửi mã booking.'], 409);
+        }
         $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
         $operatorClusterIds = $this->conversationOperatorClusterIds($conversation, $request->user()->id);
         $customerIds = $this->conversationCustomerIds($conversation, $operatorClusterIds);
@@ -543,6 +608,9 @@ class ChatController extends Controller
         ]);
 
         $conversation = $this->participantConversation($conversationId, $request->user()->id);
+        if ($conversation->type === 'player_post') {
+            return response()->json(['message' => 'Nhóm giao lưu không dùng luồng hỗ trợ booking.'], 409);
+        }
         $clusterIds = $this->conversationManagedClusterIds($conversation, $request->user()->id);
 
         $booking = Booking::query()
@@ -1088,6 +1156,31 @@ class ChatController extends Controller
         return $clusterIds->filter()->unique()->values()->all();
     }
 
+    private function sanitizeMatchmakingMessage(array $payload): array
+    {
+        if (isset($payload['sender']) && is_array($payload['sender'])) {
+            $payload['sender']['email'] = null;
+            $payload['sender']['phone'] = null;
+        }
+        if (isset($payload['booking']) && is_array($payload['booking'])) {
+            $booking = $payload['booking'];
+            $payload['booking'] = [
+                'booking_date' => $booking['booking_date'] ?? null,
+                'start_time' => $booking['start_time'] ?? null,
+                'end_time' => $booking['end_time'] ?? null,
+                'duration_minutes' => $booking['duration_minutes'] ?? null,
+                'venue_cluster' => isset($booking['venue_cluster']) && is_array($booking['venue_cluster'])
+                    ? ['name' => $booking['venue_cluster']['name'] ?? null, 'address' => $booking['venue_cluster']['address'] ?? null]
+                    : null,
+                'venue_court' => isset($booking['venue_court']) && is_array($booking['venue_court'])
+                    ? ['name' => $booking['venue_court']['name'] ?? null, 'court_type' => $booking['venue_court']['court_type'] ?? null]
+                    : null,
+            ];
+        }
+        unset($payload['support_request']);
+        return $payload;
+    }
+
     private function messagePayload(Message $message): array
     {
         $message->loadMissing([
@@ -1283,10 +1376,100 @@ class ChatController extends Controller
     /**
      * Delete a conversation (for self or for everyone)
      */
+    public function leaveConversation(Request $request, $id)
+    {
+        $userId = (int) $request->user()->id;
+        $conversation = Conversation::query()->findOrFail($id);
+        if ($conversation->type !== 'player_post' || $conversation->reference_type !== 'player_post') {
+            return response()->json(['message' => 'Chỉ nhóm giao lưu mới có luồng rời nhóm riêng.'], 409);
+        }
+        if ((int) $conversation->created_by === $userId) {
+            return response()->json(['message' => 'Người tạo bài không thể rời nhóm. Hãy giải tán nhóm sau khi booking hoàn thành.'], 409);
+        }
+
+        $participant = ConversationParticipant::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('user_id', $userId)
+            ->first();
+        if (! $participant || $participant->left_at) {
+            return response()->json(['message' => 'Bạn đã rời nhóm này trước đó.'], 409);
+        }
+
+        DB::transaction(function () use ($request, $conversation, $participant, $userId): void {
+            $post = PlayerPost::with('booking')->find($conversation->reference_id);
+            $postParticipant = $post
+                ? DB::table('player_post_participants')->where('post_id', $post->id)->where('user_id', $userId)->lockForUpdate()->first()
+                : null;
+
+            if ($postParticipant && in_array($postParticipant->status, ['pending', 'approved'], true)) {
+                $wasApproved = $postParticipant->status === 'approved';
+                DB::table('player_post_participants')
+                    ->where('post_id', $post->id)
+                    ->where('user_id', $userId)
+                    ->update(['status' => 'cancelled', 'responded_at' => now(), 'left_at' => now(), 'updated_at' => now()]);
+
+                if ($wasApproved && $post && ! $this->bookingStarted($post->booking)) {
+                    $post->needed_players += 1;
+                    if ($post->status === 'full') $post->status = 'open';
+                    $post->save();
+                }
+            }
+
+            app(MatchmakingChatService::class)->markLeft(
+                $post ?: (int) $conversation->reference_id,
+                $userId,
+                $request->user()->full_name ?? $request->user()->username,
+            );
+        });
+
+        return response()->json(['status' => 'success', 'message' => 'Bạn đã rời nhóm giao lưu.', 'left_at' => now()->toIso8601String()]);
+    }
+
+    public function dissolveConversation(Request $request, $id)
+    {
+        $conversation = Conversation::query()->findOrFail($id);
+        if ($conversation->type !== 'player_post' || $conversation->reference_type !== 'player_post') {
+            return response()->json(['message' => 'Đây không phải nhóm giao lưu.'], 409);
+        }
+        if ((int) $conversation->created_by !== (int) $request->user()->id) {
+            return response()->json(['message' => 'Chỉ người tạo bài mới được giải tán nhóm.'], 403);
+        }
+        $post = PlayerPost::with('booking')->find($conversation->reference_id);
+        if (! $post || ! $post->booking || ! $this->bookingEnded($post->booking) || $post->booking->status !== 'completed') {
+            return response()->json(['message' => 'Chỉ được giải tán nhóm sau khi booking đã kết thúc và hoàn thành.'], 409);
+        }
+
+        if (in_array($post->status, ['open', 'full'], true)) {
+            $post->forceFill([
+                'status' => 'closed',
+                'status_reason' => 'matchmaking_session_ended',
+            ])->save();
+        }
+        DB::table('player_post_participants')
+            ->where('post_id', $post->id)
+            ->where('status', 'pending')
+            ->update([
+                'status' => 'cancelled',
+                'responded_at' => now(),
+                'left_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        app(MatchmakingChatService::class)->dissolve($post);
+        return response()->json(['status' => 'success', 'message' => 'Đã giải tán nhóm giao lưu.']);
+    }
+
     public function deleteConversation(Request $request, $id)
     {
         $userId = $request->user()->id;
         $deleteForEveryone = filter_var($request->input('delete_for_everyone', false), FILTER_VALIDATE_BOOLEAN);
+
+        $conversation = Conversation::query()->findOrFail($id);
+        if ($conversation->type === 'player_post') {
+            return $deleteForEveryone
+                ? $this->dissolveConversation($request, $id)
+                : $this->leaveConversation($request, $id);
+        }
 
         $participant = ConversationParticipant::where('conversation_id', $id)
             ->where('user_id', $userId)
@@ -1323,6 +1506,24 @@ class ChatController extends Controller
         });
 
         return response()->json(['success' => true]);
+    }
+
+    private function bookingStarted(?Booking $booking): bool
+    {
+        if (! $booking) return false;
+        $businessNow = now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+        $date = $booking->booking_date?->format('Y-m-d') ?? (string) $booking->booking_date;
+        return $date < $businessNow->toDateString()
+            || ($date === $businessNow->toDateString() && substr((string) $booking->start_time, 0, 8) <= $businessNow->toTimeString());
+    }
+
+    private function bookingEnded(?Booking $booking): bool
+    {
+        if (! $booking) return false;
+        $businessNow = now((string) config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
+        $date = $booking->booking_date?->format('Y-m-d') ?? (string) $booking->booking_date;
+        return $date < $businessNow->toDateString()
+            || ($date === $businessNow->toDateString() && substr((string) $booking->end_time, 0, 8) <= $businessNow->toTimeString());
     }
 
     /**

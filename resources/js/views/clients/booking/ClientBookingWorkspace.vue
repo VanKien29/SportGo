@@ -163,6 +163,16 @@
             </table>
           </div>
 
+          <div v-if="!scheduleLoading && courts.length" class="cbw-status-legend" aria-label="Chú thích trạng thái khung giờ">
+            <span><i class="cbw-legend-dot cbw-legend-dot--available"></i>Trống</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--selected"></i>Đã chọn</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--booked"></i>Đã đặt</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--pending"></i>Chờ xác nhận</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--payment"></i>Chờ thanh toán</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--locked"></i>Đang khóa</span>
+            <span><i class="cbw-legend-dot cbw-legend-dot--past"></i>Đã qua / quá sát giờ</span>
+          </div>
+
           <!-- SELECTION FEEDBACK BAR -->
           <div v-if="selectedSlotKeys.length || validationError" class="cbw-sel-bar" :class="{ 'cbw-sel-bar--error': validationError }">
             <div class="cbw-sel-info">
@@ -620,10 +630,14 @@ import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 import echo from "../../../echo.js";
+import { useToast } from "vue-toastification";
 
 export default {
   name: "ClientBookingWorkspace",
   components: { PublicNavbar, AdminDatePicker, ClientCustomSelect },
+  setup() {
+    return { toast: useToast() };
+  },
   data() {
     return {
       steps: [
@@ -1297,6 +1311,7 @@ export default {
       const status = this.slotStatus(courtId, slot);
       if (this.slotPast(slot)) return "Đã qua";
       if (this.slotTooSoon(slot)) return "Quá sát giờ";
+      if (status?.status_label) return status.status_label;
       if (status?.busy_source === "slot_lock") return "Đang khóa";
       if (status?.is_available === false) return "Đã đặt";
       return "-";
@@ -1306,10 +1321,18 @@ export default {
     },
     slotClasses(courtId, slot) {
       const status = this.slotStatus(courtId, slot);
+      const slotStatus = status?.slot_status;
       return {
         "is-selected": this.isSelectedSlot(courtId, slot),
-        "is-booked": status?.is_available === false && status?.busy_source !== "slot_lock",
-        "is-locked": status?.busy_source === "slot_lock",
+        "is-booked": slotStatus === "booked" || (status?.is_available === false && status?.busy_source !== "slot_lock"),
+        "is-locked": slotStatus === "locked" || status?.busy_source === "slot_lock",
+        "is-status-available": slotStatus === "available",
+        "is-status-pending-approval": slotStatus === "pending_approval",
+        "is-status-pending-payment": slotStatus === "pending_payment",
+        "is-status-locked": slotStatus === "locked",
+        "is-status-busy": slotStatus === "busy",
+        "is-status-past": slotStatus === "past",
+        "is-status-too-early": slotStatus === "too_early",
         "is-past": this.slotPast(slot) || this.slotTooSoon(slot),
       };
     },
@@ -1529,10 +1552,15 @@ export default {
           venue_voucher_id: this.venueVoucher?.id || null,
           vip_voucher_id: this.vipVoucher?.id || null,
         });
+        this.toast.success("Đặt sân thành công. Đang mở chi tiết đơn...");
         this.$router.push({ name: "booking-detail", params: { id: booking.id } });
       } catch (err) {
-        this.submitError = err.message || "Không thể tạo đơn đặt sân. Vui lòng thử lại.";
-        await this.loadSchedule();
+        const message = err.message || "Không thể tạo đơn đặt sân. Vui lòng thử lại.";
+        this.submitError = message;
+        this.toast.error(message);
+        // Refresh in the background so a failed submit does not keep the
+        // submit button spinning while the availability matrix reloads.
+        void this.loadSchedule();
       } finally {
         this.submitting = false;
       }
@@ -1761,6 +1789,7 @@ export default {
           try {
             const payRes = await bookingService.createSepayPayment(firstBooking.id);
             if (payRes?.payment_url) {
+              this.toast.success("Đơn đặt lịch cố định đã được tạo. Đang chuyển sang thanh toán...");
               window.location.href = payRes.payment_url;
               return;
             }
@@ -1768,12 +1797,16 @@ export default {
         }
 
         if (groupCode) {
+          this.toast.success("Đã tạo lịch đặt sân cố định thành công.");
           this.$router.push({ path: "/bookings/history", query: { group: groupCode } });
         } else {
+          this.toast.success("Đã tạo lịch đặt sân cố định thành công.");
           this.$router.push({ path: "/bookings/history" });
         }
       } catch (err) {
-        this.recurringSubmitError = err?.message || "Không thể tạo lịch cố định. Vui lòng thử lại.";
+        const message = err?.message || "Không thể tạo lịch cố định. Vui lòng thử lại.";
+        this.recurringSubmitError = message;
+        this.toast.error(message);
       } finally {
         this.recurringSubmitting = false;
       }
@@ -2166,8 +2199,8 @@ export default {
   width: 100%;
   height: 100%;
   min-height: 38px;
-  background: transparent;
-  border: none;
+  background: #f0fdf4;
+  border: 1px solid #c8ead2;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -2181,29 +2214,67 @@ export default {
 }
 
 .cbw-slot-btn:hover:not(:disabled):not(.is-selected) {
-  background: #f8fafc;
+  background: #dcfce7;
   color: #166534;
+}
+
+.cbw-slot-btn.is-status-available {
+  background: #ecfdf3;
+  border-color: #b8e3c5;
+  color: #167548;
+}
+
+.cbw-slot-btn.is-booked,
+.cbw-slot-btn.is-status-booked {
+  background: #eaf2ff;
+  border-color: #b9cef2;
+  color: #24569e;
+  cursor: not-allowed;
+}
+
+.cbw-slot-btn.is-status-pending-approval {
+  background: #fff8dc;
+  border-color: #f0d275;
+  color: #8a6100;
+  cursor: not-allowed;
+}
+
+.cbw-slot-btn.is-status-pending-payment {
+  background: #fff0e5;
+  border-color: #efb47e;
+  color: #984d16;
+  cursor: not-allowed;
+}
+
+.cbw-slot-btn.is-locked,
+.cbw-slot-btn.is-status-locked {
+  background: #f3eefe;
+  border-color: #cdbdf0;
+  color: #6841a5;
+  cursor: not-allowed;
+}
+
+.cbw-slot-btn.is-status-busy {
+  background: #ffeaea;
+  border-color: #f1b6b6;
+  color: #a83f3f;
+  cursor: not-allowed;
+}
+
+.cbw-slot-btn.is-past,
+.cbw-slot-btn.is-status-past,
+.cbw-slot-btn.is-status-too-early {
+  background: #f1f3f5;
+  border-color: #d8dde3;
+  color: #697586;
+  cursor: not-allowed;
 }
 
 .cbw-slot-btn.is-selected {
   background: #15803d;
+  border-color: #15803d;
   color: #ffffff;
   font-weight: 500;
-}
-
-.cbw-slot-btn.is-booked,
-.cbw-slot-btn.is-past {
-  background: transparent;
-  border: none;
-  color: #cbd5e1;
-  cursor: not-allowed;
-}
-
-.cbw-slot-btn.is-locked {
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  cursor: not-allowed;
 }
 
 .cbw-slot-label {
@@ -2215,19 +2286,53 @@ export default {
 .cbw-slot-price {
   font-size: 12px;
   font-weight: 400;
-  color: #15803d;
+  color: #167548;
 }
 
 .cbw-slot-disabled-text {
   font-size: 11.5px;
-  color: #cbd5e1;
+  color: currentColor;
   font-weight: 400;
 }
 
-.cbw-slot-btn.is-locked .cbw-slot-disabled-text {
-  color: #f87171;
+.cbw-slot-btn.is-locked .cbw-slot-disabled-text,
+.cbw-slot-btn.is-status-locked .cbw-slot-disabled-text {
+  color: #6841a5;
   font-size: 11px;
 }
+
+.cbw-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 12px;
+  color: #475569;
+  font-size: 11.5px;
+}
+
+.cbw-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.cbw-legend-dot {
+  width: 12px;
+  height: 12px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.cbw-legend-dot--available { background: #ecfdf3; border-color: #b8e3c5; }
+.cbw-legend-dot--selected { background: #15803d; border-color: #15803d; }
+.cbw-legend-dot--booked { background: #eaf2ff; border-color: #b9cef2; }
+.cbw-legend-dot--pending { background: #fff8dc; border-color: #f0d275; }
+.cbw-legend-dot--payment { background: #fff0e5; border-color: #efb47e; }
+.cbw-legend-dot--locked { background: #f3eefe; border-color: #cdbdf0; }
+.cbw-legend-dot--past { background: #f1f3f5; border-color: #d8dde3; }
 
 /* ===== SELECTION FEEDBACK BAR ===== */
 .cbw-sel-bar {

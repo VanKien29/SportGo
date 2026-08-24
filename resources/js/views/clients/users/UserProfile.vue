@@ -489,15 +489,16 @@ onMounted(loadPage);
 
 <style scoped>
 .user-profile-page {
-  --profile-ink: #12251c;
-  --profile-muted: #66756d;
-  --profile-border: #dce8e0;
-  --profile-soft: #f4f8f5;
-  --profile-green: #128143;
-  --profile-green-dark: #0d6936;
+  --profile-ink: #1e293b;
+  --profile-muted: #64748b;
+  --profile-border: #e2e8f0;
+  --profile-soft: #f8fafc;
+  --profile-green: #54656f;
+  --profile-green-dark: #5c7e6e;
   min-height: 100vh;
-  background: #f5f8f6;
+  background: #f8fafc;
   color: var(--profile-ink);
+  font-family: var(--sportgo-font-body, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
 
 .profile-shell {
@@ -537,8 +538,9 @@ onMounted(loadPage);
 .profile-content,
 .meetup-card,
 .post-card {
-  border: 1px solid var(--profile-border) !important;
-  box-shadow: 0 8px 26px rgba(18, 37, 28, .045) !important;
+  border: 1.5px solid var(--profile-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, .03) !important;
 }
 
 .profile-hero {
@@ -567,7 +569,7 @@ onMounted(loadPage);
   height: 88px;
   border-radius: 50%;
   font-size: 30px;
-  box-shadow: 0 0 0 6px #e6f3ea;
+  box-shadow: 0 0 0 6px #edf4f0;
 }
 
 .profile-avatar img,

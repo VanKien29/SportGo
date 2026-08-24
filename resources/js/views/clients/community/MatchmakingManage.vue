@@ -31,6 +31,8 @@
           <div class="manage-actions">
             <button v-if="canManagePost" type="button" class="sg-client-button" @click="openEditor"><AppIcon name="pencil" size="16" /> Sửa bài</button>
             <button v-if="canManagePost" type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="closePost"><AppIcon name="close" size="16" /> Đóng tuyển</button>
+            <router-link v-if="post.group_chat_id" class="sg-client-button" :to="{ name: 'client-messages', query: { conversation_id: post.group_chat_id } }"><AppIcon name="messageCircle" size="16" /> Mở nhóm chat</router-link>
+            <button v-if="canDissolve" type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="dissolveGroup"><AppIcon name="trash" size="16" /> Giải tán nhóm</button>
           </div>
         </header>
 
@@ -253,6 +255,7 @@ const canApprove = computed(() => post.value?.status === 'open'
   && !isSessionExpired.value);
 
 const canManagePost = computed(() => ['open', 'full'].includes(post.value?.status) && !isSessionExpired.value);
+const canDissolve = computed(() => Boolean(post.value?.group_chat_id && post.value?.booking_status === 'completed' && isSessionExpired.value));
 
 const displayPostStatus = computed(() => isSessionExpired.value ? 'expired' : post.value?.status);
 
@@ -379,6 +382,20 @@ async function closePost() {
     await fetchParticipants(true);
   } catch (requestError) {
     toast.error(requestError.message || 'Không thể đóng bài giao lưu.');
+  } finally {
+    savingPost.value = false;
+  }
+}
+
+async function dissolveGroup() {
+  if (savingPost.value || !window.confirm('Giải tán nhóm giao lưu? Lịch sử nhóm sẽ không còn trong hộp thư.')) return;
+  savingPost.value = true;
+  try {
+    await api(`/api/matchmaking-posts/${route.params.id}/group/dissolve`, { method: 'POST' });
+    toast.success('Đã giải tán nhóm giao lưu.');
+    await fetchParticipants(true);
+  } catch (requestError) {
+    toast.error(requestError.message || 'Chỉ được giải tán nhóm sau khi booking hoàn thành.');
   } finally {
     savingPost.value = false;
   }

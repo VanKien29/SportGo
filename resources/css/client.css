@@ -61,13 +61,13 @@ textarea:focus-visible {
 
 :root {
   --sg-font-main: var(--sportgo-font-body, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
-  --alb-primary: #15803d;
-  --alb-dark-bg: #0f172a;
+  --alb-primary: #5c7e6e;
+  --alb-dark-bg: #475569;
   --alb-page-bg: #ffffff;
   --alb-alt-bg: #f8fafc;
-  --alb-border: #d1d5db;
-  --alb-text-dark: #111827;
-  --alb-text-muted: #374151;
+  --alb-border: #e2e8f0;
+  --alb-text-dark: #1e293b;
+  --alb-text-muted: #64748b;
   --alb-text-light: #ffffff;
   
   --sg-container-width: 100%;
@@ -172,7 +172,7 @@ body {
   display: flex;
   align-items: center;
   border-top: none !important;
-  border-bottom: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
   background: #ffffff;
 }
 
@@ -193,13 +193,13 @@ body {
 .alb-brand__mark {
   width: 32px;
   height: 32px;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
 }
 
@@ -215,28 +215,40 @@ body {
 }
 
 .alb-nav-link {
-  color: #111827;
+  color: #334155;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.alb-nav-link:hover {
+  color: #5c7e6e;
 }
 
 .alb-nav-link.active-link {
-  color: #15803d;
+  color: #5c7e6e;
   font-weight: 600;
 }
 
 .alb-btn-owner {
-  background: #15803d;
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 500;
-  padding: 7px 14px;
-  border-radius: 4px;
+  background: #54656f;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  box-shadow: 0 2px 8px rgba(84, 101, 111, 0.2);
+  transition: all 0.15s ease;
+}
+
+.alb-btn-owner:hover {
+  background: #405059;
+  transform: translateY(-1px);
 }
 
 /* Solid Hero Section */
@@ -255,19 +267,19 @@ body {
 
 .alb-hero__headline {
   font-size: clamp(26px, 3.5vw, 34px);
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.3;
   margin-bottom: 14px;
   color: #0f172a;
 }
 
 .alb-hero__headline span {
-  color: #16a34a;
+  color: #5c7e6e;
 }
 
 .alb-hero__subtitle {
   font-size: 15px;
-  color: #1e293b;
+  color: #475569;
   font-weight: 400;
   line-height: 1.6;
   margin-bottom: 20px;
@@ -305,34 +317,37 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 22px;
-  border-radius: 8px;
+  padding: 11px 24px;
+  border-radius: 999px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .hero-btn.primary {
-  background: #16a34a;
+  background: #54656f;
   color: #ffffff;
-  border: 1px solid #16a34a;
+  border: none;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
 }
 
 .hero-btn.primary:hover {
-  background: #15803d;
-  border-color: #15803d;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .hero-btn.secondary {
   background: #ffffff;
-  color: #0f172a;
-  border: 1px solid #cbd5e1;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
 }
 
 .hero-btn.secondary:hover {
-  border-color: #16a34a;
-  color: #16a34a;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 .hero-illustration-img {
@@ -576,8 +591,8 @@ body {
 .alb-story-badge {
   display: inline-block;
   font-size: 13px;
-  font-weight: 500; /* Regular medium weight - NO BOLD */
-  color: #15803d; /* High contrast emerald text */
+  font-weight: 600;
+  color: #5c7e6e;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
@@ -585,13 +600,13 @@ body {
 }
 
 .alb-story-badge--owner {
-  color: #0369a1; /* High contrast sky blue text */
+  color: #475569;
 }
 
 .alb-story-card__title {
   font-size: 22px;
-  font-weight: 500; /* Regular medium weight - NO BOLD */
-  color: #0f172a; /* Deep dark slate for 100% legibility */
+  font-weight: 700;
+  color: #0f172a;
   line-height: 1.35;
   margin: 0;
   font-family: var(--sg-font-main);
@@ -645,8 +660,8 @@ body {
 /* Index number - pure typography floating badge, NO rounded square icon box wrapper */
 .alb-story-step__index {
   font-size: 17px;
-  font-weight: 500; /* Regular medium weight - NO BOLD */
-  color: #15803d;
+  font-weight: 700;
+  color: #5c7e6e;
   font-family: var(--sg-font-main);
   line-height: 1.2;
   padding-top: 2px;
@@ -654,13 +669,13 @@ body {
 }
 
 .alb-story-card--owner .alb-story-step__index {
-  color: #0369a1;
+  color: #475569;
 }
 
 .alb-story-step__content h4 {
   font-size: 15.5px;
-  font-weight: 500; /* Regular medium weight - NO BOLD */
-  color: #0f172a; /* Sharp high contrast dark slate */
+  font-weight: 600;
+  color: #0f172a;
   margin: 0 0 4px 0;
   line-height: 1.4;
   font-family: var(--sg-font-main);
@@ -668,8 +683,8 @@ body {
 
 .alb-story-step__content p {
   font-size: 14px;
-  font-weight: 400; /* Normal weight */
-  color: #334155; /* High contrast dark body text - NO light grey! */
+  font-weight: 400;
+  color: #334155;
   line-height: 1.55;
   margin: 0;
   font-family: var(--sg-font-main);
@@ -685,24 +700,26 @@ body {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 13px 20px;
-  background: #15803d; /* Solid emerald - NO GRADIENT */
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 500; /* Regular medium weight - NO BOLD */
-  border-radius: 8px;
+  padding: 12px 20px;
+  background: #54656f;
+  color: #ffffff !important;
+  font-size: 14.5px;
+  font-weight: 600;
+  border-radius: 999px;
   text-decoration: none;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
   font-family: var(--sg-font-main);
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .alb-story-btn:hover {
-  background: #166534;
-  transform: translateY(-2px);
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .alb-story-btn--owner {
-  background: #0f172a; /* Solid dark slate button */
+  background: #334155;
 }
 
 .alb-story-btn--owner:hover {
@@ -900,7 +917,7 @@ body {
 .alb-venue-card__price {
   font-size: 15px;
   font-weight: 700;
-  color: #15803d;
+  color: #5c7e6e;
   white-space: nowrap;
 }
 
@@ -909,19 +926,23 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: #15803d;
-  color: #ffffff;
-  font-size: 13.5px;
+  background: #54656f;
+  color: #ffffff !important;
+  font-size: 13px;
   font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(84, 101, 111, 0.2);
+  transition: all 0.15s ease;
 }
 
 .alb-venue-card__btn:hover {
-  background: #166534;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(84, 101, 111, 0.3);
 }
 
 /* Stats Section */
@@ -954,49 +975,146 @@ body {
   font-weight: 500;
 }
 
-/* Footer Section (Borderless Top & Bottom) */
+/* Footer Section - Brand Sage/Forest Green Aesthetic */
 .alb-footer {
-  background: #0f172a;
-  color: #ffffff;
-  padding-top: 56px;
+  background: #2d483a;
+  color: #f1f7f4;
+  padding-top: 72px;
   border-top: none !important;
   border-bottom: none !important;
 }
 
 .alb-footer-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
-  gap: 36px;
-  padding-bottom: 40px;
+  grid-template-columns: 1.4fr 1fr 1fr 1.1fr;
+  gap: 48px;
+  padding-bottom: 56px;
 }
 
-.alb-footer-col h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4ade80;
+.alb-footer-brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.alb-footer-logo-row {
+  margin-bottom: 18px;
+}
+
+.alb-footer-logo {
+  max-height: 40px;
+  object-fit: contain;
+}
+
+.alb-footer-fallback-logo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.alb-footer-fallback-logo .logo-txt {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.alb-footer-fallback-logo .logo-sub {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #a7dfc4;
   text-transform: uppercase;
-  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+
+.alb-footer-desc {
+  font-size: 14px;
+  color: #d0e4da;
+  line-height: 1.65;
+  margin: 0 0 24px;
+  max-width: 320px;
+}
+
+.alb-footer-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #e0eee7;
+}
+
+.alb-footer-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alb-footer-contact-item .contact-icon {
+  color: #a7dfc4;
+  flex-shrink: 0;
+}
+
+.alb-footer-contact-item strong {
+  color: #ffffff;
+}
+
+.alb-footer-heading {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #bbf0d7;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 20px;
 }
 
 .alb-footer-links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   font-size: 13.5px;
 }
 
 .alb-footer-links a {
+  color: #d0e4da;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  width: fit-content;
+}
+
+.alb-footer-links a:hover {
   color: #ffffff;
   text-decoration: none;
 }
 
 .alb-footer-bottom {
-  background: #070a12;
-  border-top: none !important;
-  border-bottom: none !important;
-  padding: 16px 0;
+  background: #21372b;
+  padding: 20px 0;
   font-size: 13px;
-  color: #ffffff;
+  color: #b8d2c4;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.alb-footer-bottom-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.alb-footer-badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #e0eee7;
+}
+
+.status-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #52e098;
+  box-shadow: 0 0 8px rgba(82, 224, 152, 0.7);
 }
 
 /* Responsive */

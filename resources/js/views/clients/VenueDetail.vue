@@ -434,40 +434,50 @@
                 </div>
               </div>
 
-              <!-- Bảng giá thuê sân (Clean Modern Table) -->
-              <div v-if="basePrices.length || priceSlots.length || holidayPrices.length" class="sg-courts-block">
-                <h2 class="sg-section-title">Bảng giá thuê sân</h2>
-                <div class="sg-price-table-flat">
-                  <div class="sg-price-table-head">
-                    <span class="sg-price-th-type">Loại sân &amp; Khung giờ</span>
-                    <span class="sg-price-th-val">Đơn giá thuê</span>
+              <!-- Bảng giá thuê sân -->
+              <div v-if="pricingRows.length" class="sg-courts-block">
+                <div class="sg-price-heading-row">
+                  <div>
+                    <h2 class="sg-section-title">Bảng giá thuê sân</h2>
+                    <p class="sg-section-sub">Giá hiển thị theo đúng cấu hình của cụm sân. Khi đặt sân, hệ thống ưu tiên ngày đặc biệt, ngày thường rồi mới dùng giá chung.</p>
                   </div>
-                  <div class="sg-price-table-body">
-                    <article v-for="price in basePrices" :key="`base-${price.id}`" class="sg-price-row">
-                      <div class="sg-price-info">
-                        <span class="sg-price-name">{{ price.court_type?.name || "Tất cả loại sân" }}</span>
-                        <span class="sg-price-sub">Giờ tiêu chuẩn</span>
-                      </div>
-                      <span class="sg-price-val">{{ formatCurrency(price.price) }}/giờ</span>
-                    </article>
-
-                    <article v-for="slot in priceSlots" :key="`slot-${slot.id}`" class="sg-price-row">
-                      <div class="sg-price-info">
-                        <span class="sg-price-name">{{ slot.court_type?.name || "Tất cả loại sân" }}</span>
-                        <span class="sg-price-sub">{{ timeLabel(slot.start_time) }} - {{ timeLabel(slot.end_time) }}</span>
-                      </div>
-                      <span class="sg-price-val">{{ formatCurrency(slot.price) }}/giờ</span>
-                    </article>
-
-                    <article v-for="holiday in holidayPrices" :key="`holiday-${holiday.id}`" class="sg-price-row sg-price-holiday">
-                      <div class="sg-price-info">
-                        <span class="sg-price-name">{{ holiday.court_type?.name || "Tất cả loại sân" }}</span>
-                        <span class="sg-price-sub">Ngày lễ {{ formatDate(holiday.holiday_date) }} ({{ timeLabel(holiday.start_time) }} - {{ timeLabel(holiday.end_time) }})</span>
-                      </div>
-                      <span class="sg-price-val">{{ formatCurrency(holiday.price) }}/giờ</span>
-                    </article>
-                  </div>
+                  <span class="sg-price-count">{{ pricingRows.length }} mức giá</span>
                 </div>
+
+                <div class="sg-price-table-wrap">
+                  <table class="sg-price-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Loại sân</th>
+                        <th scope="col">Cấu hình giá</th>
+                        <th scope="col">Ngày áp dụng</th>
+                        <th scope="col">Khung giờ</th>
+                        <th scope="col">Loại đặt</th>
+                        <th scope="col" class="sg-price-cell-right">Đơn giá / giờ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in pricingRows" :key="row.key" :class="`is-${row.source}`">
+                        <td>
+                          <strong class="sg-price-court-name">{{ row.courtName }}</strong>
+                          <span v-if="row.note" class="sg-price-note">{{ row.note }}</span>
+                        </td>
+                        <td>
+                          <span class="sg-price-source">{{ row.sourceLabel }}</span>
+                        </td>
+                        <td>{{ row.daysLabel }}</td>
+                        <td>{{ row.timeLabel }}</td>
+                        <td>{{ row.bookingTypeLabel }}</td>
+                        <td class="sg-price-cell-right">
+                          <strong class="sg-price-value">{{ formatCurrency(row.price) }}</strong>
+                          <span v-if="row.isSpecial" class="sg-price-promo">Giá ưu đãi</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <p class="sg-price-footnote">Voucher, hạng thành viên và ưu đãi theo tài khoản (nếu đủ điều kiện) sẽ được trừ ở bước xác nhận đặt sân.</p>
               </div>
 
               <!-- Chính sách & Quy định -->
@@ -875,6 +885,48 @@ export default {
     basePrices() { return this.venue?.base_prices || []; },
     priceSlots() { return this.venue?.price_slots || []; },
     holidayPrices() { return this.venue?.holiday_prices || []; },
+    pricingRows() {
+      const baseRows = this.basePrices.map((price) => ({
+        key: `base-${price.id}`,
+        source: 'base',
+        sourceLabel: 'Giá chung',
+        courtName: price.court_type?.name || 'Tất cả loại sân',
+        daysLabel: 'Mọi ngày',
+        timeLabel: 'Khung giờ chưa có quy tắc',
+        bookingTypeLabel: 'Mọi loại đặt',
+        price: Number(price.price || 0),
+        note: 'Mức mặc định khi không có cấu hình khung giờ.',
+        isSpecial: false,
+      }));
+
+      const weeklyRows = this.priceSlots.map((slot) => ({
+        key: `slot-${slot.id}`,
+        source: 'weekly',
+        sourceLabel: 'Giá ngày thường',
+        courtName: slot.court_type?.name || 'Tất cả loại sân',
+        daysLabel: this.daysLabel(slot.apply_to_days),
+        timeLabel: `${this.timeLabel(slot.start_time)} - ${this.timeLabel(slot.end_time)}`,
+        bookingTypeLabel: this.bookingTypeLabel(slot.booking_type),
+        price: Number(slot.price || 0),
+        note: '',
+        isSpecial: false,
+      }));
+
+      const specialRows = this.holidayPrices.map((holiday) => ({
+        key: `holiday-${holiday.id}`,
+        source: 'special',
+        sourceLabel: holiday.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ',
+        courtName: holiday.court_type?.name || 'Tất cả loại sân',
+        daysLabel: `${holiday.date_type === 'special_date' ? 'Ngày đặc biệt' : 'Ngày lễ'} ${this.formatDate(holiday.holiday_date)}`,
+        timeLabel: `${this.timeLabel(holiday.start_time)} - ${this.timeLabel(holiday.end_time)}`,
+        bookingTypeLabel: this.bookingTypeLabel(holiday.booking_type),
+        price: Number(holiday.price || 0),
+        note: holiday.note || '',
+        isSpecial: true,
+      }));
+
+      return [...baseRows, ...weeklyRows, ...specialRows];
+    },
     policyNotices() { return this.venue?.policies?.display_notices || []; },
     policyNoticeSourceLabel() {
       return this.venue?.policies?.display_notice_source_label || 'Theo chính sách hệ thống';
@@ -1133,6 +1185,38 @@ export default {
 
     timeLabel(value) {
       return String(value || "").slice(0, 5) || "--:--";
+    },
+
+    daysLabel(days) {
+      let values = days;
+      if (typeof values === 'string') {
+        try { values = JSON.parse(values); } catch { values = []; }
+      }
+      const labels = {
+        1: 'T2',
+        2: 'T3',
+        3: 'T4',
+        4: 'T5',
+        5: 'T6',
+        6: 'T7',
+        7: 'CN',
+        0: 'CN',
+      };
+      const normalized = [...new Set((Array.isArray(values) ? values : [])
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 7)
+        .map((day) => (day === 0 ? 7 : day))
+        .sort((a, b) => a - b)
+        .map((day) => labels[day]))];
+      return normalized.length ? normalized.join(', ') : 'Mọi ngày';
+    },
+
+    bookingTypeLabel(type) {
+      return {
+        all: 'Mọi loại đặt',
+        single: 'Đặt lẻ',
+        recurring: 'Đặt định kỳ',
+      }[String(type || 'all')] || 'Mọi loại đặt';
     },
 
     shortTime(value) {
@@ -1724,18 +1808,22 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #15803d;
+  background: #54656f;
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 18px;
-  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
+  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  transition: all 0.15s ease;
 }
 
 .sg-btn-primary-action:hover {
-  background: #15803d;
+  background: #405059;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .sg-btn-ghost-action {
@@ -1743,19 +1831,20 @@ export default {
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  color: #334155;
+  color: #475569;
   font-size: 13px;
-  font-weight: 500;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .sg-btn-ghost-action:hover {
   background: #f8fafc;
-  border-color: #94a3b8;
+  border-color: #54656f;
+  color: #0f172a;
 }
 
 /* NAVIGATION TABS WRAPPER */
@@ -1787,8 +1876,8 @@ export default {
   border: none;
   padding: 14px 0;
   font-size: 13.5px;
-  font-weight: 400;
-  color: #334155;
+  font-weight: 500;
+  color: #475569;
   cursor: pointer;
   position: relative;
   transition: color 0.15s ease;
@@ -1803,8 +1892,8 @@ export default {
 }
 
 .sg-detail-tab-btn.is-active {
-  color: #15803d;
-  font-weight: 500;
+  color: #5c7e6e;
+  font-weight: 600;
 }
 
 .sg-detail-tab-btn.is-active::after {
@@ -1814,7 +1903,7 @@ export default {
   left: 0;
   right: 0;
   height: 2px;
-  background: #15803d;
+  background: #5c7e6e;
   border-radius: 2px 2px 0 0;
 }
 
@@ -1830,8 +1919,8 @@ export default {
 }
 
 .sg-detail-tab-btn.is-active .sg-tab-count-badge {
-  background: #dcfce7;
-  color: #15803d;
+  background: #edf4f0;
+  color: #5c7e6e;
 }
 
 /* MAIN LAYOUT 2 COLUMNS */
@@ -2143,61 +2232,140 @@ export default {
   margin: 0;
 }
 
-/* Price Table Flat */
-.sg-price-table-flat {
+/* Compact pricing table */
+.sg-price-heading-row {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sg-price-heading-row .sg-section-sub {
+  max-width: 760px;
+  margin: 4px 0 0;
+}
+
+.sg-price-count {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border: 1px solid #dbe5df;
+  border-radius: 999px;
+  color: #166534;
+  background: #f0fdf4;
+  font-size: 11px;
+  font-weight: 600 !important;
+  white-space: nowrap;
+}
+
+.sg-price-table-wrap {
   width: 100%;
+  overflow-x: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
 }
 
-.sg-price-table-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: none;
+.sg-price-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #334155;
   font-size: 12px;
-  color: #64748b;
-  letter-spacing: 0.02em;
 }
 
-.sg-price-table-body {
-  display: flex;
-  flex-direction: column;
+.sg-price-table th,
+.sg-price-table td {
+  padding: 8px 10px;
+  border: 1px solid #dbe3ea;
+  text-align: left;
+  vertical-align: middle;
+  line-height: 1.35;
 }
 
-.sg-price-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: none;
-  background: transparent !important;
+.sg-price-table th {
+  background: #f1f5f9 !important;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-.sg-price-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.sg-price-table tbody tr:nth-child(even) td {
+  background: #fbfdff !important;
 }
 
-.sg-price-name {
-  font-size: 13.5px;
+.sg-price-table tbody tr:hover td {
+  background: #f0fdf4 !important;
+}
+
+.sg-price-table th:nth-child(1),
+.sg-price-table td:nth-child(1) { width: 22%; }
+
+.sg-price-table th:nth-child(2),
+.sg-price-table td:nth-child(2) { width: 16%; }
+
+.sg-price-table th:nth-child(3),
+.sg-price-table td:nth-child(3) { width: 16%; }
+
+.sg-price-table th:nth-child(4),
+.sg-price-table td:nth-child(4) { width: 16%; }
+
+.sg-price-table th:nth-child(5),
+.sg-price-table td:nth-child(5) { width: 13%; }
+
+.sg-price-table th:nth-child(6),
+.sg-price-table td:nth-child(6) { width: 17%; }
+
+.sg-price-court-name,
+.sg-price-source,
+.sg-price-note,
+.sg-price-promo {
+  display: block;
+}
+
+.sg-price-court-name {
   color: #0f172a;
+  font-weight: 650 !important;
 }
 
-.sg-price-sub {
-  font-size: 12px;
+.sg-price-source {
+  color: #475569;
+  font-weight: 600 !important;
+}
+
+.sg-price-table tr.is-special .sg-price-source {
+  color: #b45309;
+}
+
+.sg-price-note {
+  margin-top: 2px;
   color: #64748b;
+  font-size: 11px;
 }
 
-.sg-price-val {
-  font-size: 14px;
+.sg-price-cell-right {
+  text-align: right !important;
+}
+
+.sg-price-value {
   color: #15803d;
+  font-size: 12.5px;
+  font-weight: 700 !important;
+  white-space: nowrap;
 }
 
-.sg-price-holiday .sg-price-val {
-  color: #d97706;
+.sg-price-promo {
+  margin-top: 2px;
+  color: #b45309;
+  font-size: 10.5px;
+}
+
+.sg-price-footnote {
+  margin: -3px 0 0;
+  color: #64748b;
+  font-size: 11.5px;
 }
 
 /* Policy Flat Grid */
@@ -2276,6 +2444,12 @@ export default {
 }
 
 @media (max-width: 640px) {
+  .sg-price-heading-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .sg-policy-grid-flat {
     grid-template-columns: 1fr;
     gap: 12px;

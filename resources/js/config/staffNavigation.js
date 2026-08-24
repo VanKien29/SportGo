@@ -1,10 +1,10 @@
 export const staffNavigationSections = [
   {
-    label: 'Công việc',
+    label: 'Vận hành',
     items: [
-      { label: 'Lịch trực của tôi', icon: 'clock', to: '/staff/schedules', activeNames: ['staff-schedules'] },
-      { label: 'Lịch đặt sân', icon: 'calendar', to: '/staff/bookings', activeNames: ['staff-bookings'] },
-      { label: 'Đặt sân tại quầy', icon: 'plus', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'] },
+      { label: 'Bàn làm việc quầy (POS)', icon: 'layoutGrid', to: '/staff/bookings', activeNames: ['staff-bookings'] },
+      { label: 'Lịch trực & Chấm công', icon: 'clock', to: '/staff/schedules', activeNames: ['staff-schedules'] },
+      { label: 'Đặt lịch cố định', icon: 'calendar', to: '/staff/counter-booking', activeNames: ['staff-counter-booking'] },
     ],
   },
   {
@@ -22,10 +22,10 @@ export const staffNavigationSections = [
 ];
 
 export const staffRouteTitles = {
-  'staff-dashboard': 'Tổng quan ca trực',
-  'staff-schedules': 'Lịch trực của tôi',
-  'staff-bookings': 'Lịch đặt sân',
-  'staff-counter-booking': 'Booking tại quầy',
+  'staff-dashboard': 'Bàn làm việc quầy',
+  'staff-schedules': 'Lịch trực & Chấm công',
+  'staff-bookings': 'Bàn làm việc quầy (POS)',
+  'staff-counter-booking': 'Đặt lịch cố định nâng cao',
   'staff-vouchers': 'Quản lý voucher sân',
   'staff-settings': 'Cài đặt giao diện',
   'staff-chat': 'Trò chuyện',
@@ -33,12 +33,13 @@ export const staffRouteTitles = {
 };
 
 export const staffRouteSections = {
-  'staff-dashboard': 'Công việc',
-  'staff-schedules': 'Công việc',
-  'staff-bookings': 'Công việc',
-  'staff-counter-booking': 'Công việc',
-  'staff-vouchers': 'Công việc',
+  'staff-dashboard': 'Vận hành',
+  'staff-schedules': 'Vận hành',
+  'staff-bookings': 'Vận hành',
+  'staff-counter-booking': 'Vận hành',
+  'staff-vouchers': 'Vận hành',
   'staff-settings': 'Hệ thống',
   'staff-chat': 'Tin nhắn',
   'staff-profile': 'Tài khoản',
 };
+

@@ -56,7 +56,7 @@
                             :aria-expanded="isCategoryExpanded(parent.id)"
                             @click="toggleCategory(parent.id)"
                         >
-                            <span class="category-icon"><AppIcon name="building2" size="17" /></span>
+                            <span class="category-icon"><AppIcon :name="parent.icon_key || 'activity'" size="17" /></span>
                             <span class="category-heading">
                                 <strong>{{ parent.name }}</strong>
                                 <span>{{ getChildren(parent.id).length }} loại sân · {{ parent.is_active ? 'Đang hoạt động' : 'Tạm khóa' }}</span>
@@ -102,7 +102,7 @@
                             </div>
                             <div v-for="child in getVisibleChildren(parent)" :key="child.id" class="child-row">
                                 <div class="child-name-cell">
-                                    <span class="child-marker"><AppIcon name="layers" size="15" /></span>
+                                    <span class="child-marker"><AppIcon :name="parent.icon_key || 'activity'" size="15" /></span>
                                     <span>
                                         <strong>{{ child.name }}</strong>
                                         <small v-if="child.description">{{ child.description }}</small>
@@ -186,6 +186,19 @@
                                 :placeholder="form.parent_id === null ? 'Ví dụ: Bóng đá, Cầu lông, Pickleball...' : 'Ví dụ: Sân 5 người, Sân đơn...'"
                                 required
                             />
+                        </div>
+
+                        <div v-if="form.parent_id === null" class="form-group court-icon-field">
+                            <label for="icon_key">Biểu tượng ghim trên bản đồ</label>
+                            <div class="court-icon-picker">
+                                <span class="court-icon-preview"><AppIcon :name="form.icon_key || 'activity'" size="20" /></span>
+                                <select id="icon_key" v-model="form.icon_key" class="form-control">
+                                    <option v-for="option in iconOptions" :key="option.key" :value="option.key">
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+                            </div>
+                            <small class="text-muted">Icon này sẽ xuất hiện trong ghim sân trên bản đồ khách hàng.</small>
                         </div>
 
                         <div v-if="form.parent_id !== null" class="form-group">
@@ -396,7 +409,18 @@ export default {
             }
             const parent = this.courtTypes.find(type => type.id === this.form.parent_id);
             return parent ? parent.name : "-- Không chọn (Là môn thể thao độc lập) --";
-        }
+        },
+        iconOptions() {
+            return [
+                { key: "activity", label: "Hoạt động thể thao" },
+                { key: "badminton", label: "Cầu lông" },
+                { key: "pickleball", label: "Pickleball" },
+                { key: "football", label: "Bóng đá" },
+                { key: "basketball", label: "Bóng rổ" },
+                { key: "tennis", label: "Tennis / Quần vợt" },
+                { key: "volleyball", label: "Bóng chuyền" },
+            ];
+        },
     },
     methods: {
         getChildren(parentId) {
@@ -477,7 +501,8 @@ export default {
             this.form = {
                 name: "",
                 parent_id: null,
-                player_count: 0,
+                icon_key: "activity",
+                player_count: 1,
                 description: "",
                 is_active: true,
                 default_layout_w: null,
@@ -491,6 +516,7 @@ export default {
             this.form = {
                 name: "",
                 parent_id: parentId,
+                icon_key: "activity",
                 player_count: 4,
                 description: "",
                 is_active: true,
@@ -505,7 +531,8 @@ export default {
             this.form = {
                 name: type.name,
                 parent_id: type.parent_id || null,
-                player_count: type.player_count,
+                icon_key: type.icon_key || "activity",
+                player_count: Math.max(1, Number(type.player_count) || 1),
                 description: type.description || "",
                 is_active: !!type.is_active,
                 default_layout_w: type.default_layout_w ? type.default_layout_w / 100 : null,
@@ -522,9 +549,11 @@ export default {
             this.submitting = true;
             this.modalError = null;
             
-            // Nếu là bộ môn thể thao độc lập (cha), gán player_count mặc định là 0 để qua validation backend
+            // Backend yêu cầu player_count tối thiểu là 1 cho cả môn thể thao cha
+            // và loại sân con. Môn cha chưa dùng giá trị này nhưng vẫn cần gửi
+            // một giá trị hợp lệ để không bị lỗi validation khi tạo mới.
             if (this.form.parent_id === null) {
-                this.form.player_count = 0;
+                this.form.player_count = Math.max(1, Number(this.form.player_count) || 1);
             }
             
             const payload = {
@@ -580,6 +609,35 @@ export default {
 </script>
 
 <style scoped>
+.court-icon-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.court-icon-preview {
+    width: 42px;
+    height: 42px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid #cfe1d5;
+    border-radius: 8px;
+    color: #176b3d;
+    background: #f2f9f4;
+}
+
+.court-icon-picker .form-control {
+    flex: 1;
+    min-width: 0;
+}
+
+.court-icon-field small {
+    display: block;
+    margin-top: 6px;
+    line-height: 1.45;
+}
+
 .court-types-container {
     display: flex;
     flex-direction: column;

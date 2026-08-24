@@ -702,7 +702,17 @@
               <option value="cancelled">Hủy ca trực</option>
             </select>
           </label>
-          <label class="full-width">Ghi chú <input v-model.trim="editScheduleForm.notes" /></label>
+
+          <!-- Attendance Tracking Information -->
+          <div v-if="editingSchedule?.check_in_at || editingSchedule?.check_out_at" class="full-width attendance-info-box">
+            <span class="info-tag">Thời gian trực thực tế:</span>
+            <p>
+              <strong>Check-in:</strong> {{ formatDateTime(editingSchedule?.check_in_at) || 'Chưa check-in' }} · 
+              <strong>Check-out:</strong> {{ formatDateTime(editingSchedule?.check_out_at) || 'Chưa check-out' }}
+            </p>
+          </div>
+
+          <label class="full-width">Ghi chú bàn giao ca <textarea v-model.trim="editScheduleForm.notes" rows="2" placeholder="Ghi chú tình trạng ca trực hoặc sự cố..."></textarea></label>
         </div>
         <footer>
           <button class="btn secondary" type="button" @click="closeEditScheduleModal">Hủy</button>
@@ -1535,14 +1545,23 @@ export default {
         cancelled: 'Đã hủy',
       }[status] || 'Không rõ';
     },
-    formatTime(t) {
-      if (!t) return '';
-      return t.substring(0, 5);
+    formatTime(timeStr) {
+      if (!timeStr) return '';
+      return String(timeStr).slice(0, 5);
     },
     formatDateTime(dt) {
       if (!dt) return '';
-      const date = new Date(dt);
-      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+      try {
+        const d = new Date(dt);
+        if (isNaN(d.getTime())) return dt;
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const mon = String(d.getMonth() + 1).padStart(2, '0');
+        return `${h}:${m} ${day}/${mon}`;
+      } catch (e) {
+        return dt;
+      }
     },
     canCheckIn(sch) {
       if (sch.status !== 'scheduled') return false;
@@ -3819,5 +3838,28 @@ input[type="time"].styled-input::-webkit-calendar-picker-indicator {
   border-radius: 0 !important;
   box-shadow: none !important;
   background: transparent !important;
+}
+
+.attendance-info-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.attendance-info-box p {
+  margin: 0;
+}
+.attendance-info-box strong {
+  color: #0f172a;
+}
+.attendance-info-box .info-tag {
+  font-size: 11px;
+  color: #087642;
+  font-weight: 500;
 }
 </style>

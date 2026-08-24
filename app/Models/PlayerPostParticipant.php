@@ -15,12 +15,14 @@ class PlayerPostParticipant extends Model
         'status',
         'message',
         'responded_at',
+        'left_at',
     ];
 
     protected function casts(): array
     {
         return [
             'responded_at' => 'datetime',
+            'left_at' => 'datetime',
         ];
     }
 
