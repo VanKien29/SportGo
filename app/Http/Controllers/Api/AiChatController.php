@@ -120,6 +120,8 @@ class AiChatController extends Controller
             ->get();
 
         if ($venues->isNotEmpty()) {
+            $contextLines[] = "TỔNG SỐ CỤM SÂN ĐANG HOẠT ĐỘNG TRÊN SPORTGO: " . $venues->count() . " CỤM SÂN.";
+            
             // Tổng hợp giá thực tế toàn hệ thống để AI trả lời đúng khoảng giá
             $allPrices = VenueBasePrice::whereIn('venue_cluster_id', $venues->pluck('id'))
                 ->pluck('price')
@@ -154,11 +156,12 @@ class AiChatController extends Controller
                 $contextLines[] = "- Cụm sân: {$v->name}";
                 $contextLines[] = "  + Địa chỉ: {$v->address}";
                 $contextLines[] = "  + Hotline liên hệ: " . ($v->phone_contact ?? 'Chưa cập nhật');
-                $contextLines[] = "  + Danh sách sân chơi: " . ($courtNames ?: 'Sân cầu lông A1, Sân cầu lông A2');
+                $contextLines[] = "  + Danh sách sân chơi: " . ($courtNames ?: 'Chưa cập nhật cụ thể');
                 $contextLines[] = "  + Giá thuê sân: {$priceText}";
             }
         } else {
-            $contextLines[] = "Hệ thống SportGo hiện đang hỗ trợ đặt lịch cho Cụm sân Green Sport Ba Đình (Địa chỉ: Số 12 Kim Mã, Ba Đình - Hotline: 0902000003).";
+            $contextLines[] = "TỔNG SỐ CỤM SÂN ĐANG HOẠT ĐỘNG TRÊN SPORTGO: 0 CỤM SÂN.";
+            $contextLines[] = "Hiện tại hệ thống SportGo chưa có cụm sân nào đang hoạt động công khai trên nền tảng. Hãy thông tin chân thực với người dùng rằng hệ thống đang cập nhật danh sách sân mới và chưa có sân để đặt lịch.";
         }
 
         // Kiểm tra bảo mật quyền sở hữu đơn hàng (Booking Ownership Scope)

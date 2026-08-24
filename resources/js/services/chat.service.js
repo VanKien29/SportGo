@@ -176,5 +176,17 @@ export const chatService = {
       console.error('Lỗi askAiAssistant:', e);
       return { success: false, reply: null };
     }
+  },
+  addMembers(conversationId, userIds) {
+    return api(`/api/chat/conversations/${conversationId}/add-members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: userIds })
+    });
+  },
+  removeMember(conversationId, userId) {
+    return api(`/api/chat/conversations/${conversationId}/remove-member`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId })
+    });
   }
 };

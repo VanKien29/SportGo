@@ -293,7 +293,7 @@
 
     <!-- MAIN MAP AREA -->
     <main class="sg-map-main">
-      <!-- TOP FLOATING SPORTS CHIPS BAR -->
+      <!-- TOP FLOATING SPORTS CHIPS BAR (MULTI-LINE WRAPPING) -->
       <div class="sg-map-sports-bar">
         <button
           v-for="sport in sportsList"
@@ -303,7 +303,7 @@
           :class="{ 'is-active': selectedSportId === sport.id }"
           @click="filterBySport(sport.id)"
         >
-          <AppIcon :name="sport.iconKey || 'activity'" size="15" />
+          <AppIcon :name="sport.iconKey || iconKeyFromName(sport.name)" size="16" />
           <span>{{ sport.name }}</span>
         </button>
       </div>
@@ -407,6 +407,9 @@ export default {
       userLocationLayer: null,
       map: null,
       markersGroup: null,
+      isDraggingSports: false,
+      sportsDragStartX: 0,
+      sportsDragScrollLeft: 0,
     };
   },
   computed: {
@@ -449,13 +452,17 @@ export default {
         { id: "football", name: "Bóng đá", color: "#15803d", iconKey: "football" },
         { id: "basketball", name: "Bóng rổ", color: "#ea580c", iconKey: "basketball" },
         { id: "tennis", name: "Quần vợt", color: "#d97706", iconKey: "tennis" },
-        { id: "multi", name: "Đa năng", color: "#b91c1c", iconKey: "activity" },
+        { id: "volleyball", name: "Bóng chuyền", color: "#0284c7", iconKey: "activity" },
       ];
       if (this.courtTypes.length === 0) return defaultSports;
 
+      // Filter only main sports categories (parent_id is null/empty)
+      const mainCategories = this.courtTypes.filter((ct) => !ct.parent_id);
+      const targetList = mainCategories.length ? mainCategories : this.courtTypes;
+
       const dynamicSports = [
         { id: "all", name: "Tất cả", color: "#15803d", iconKey: "activity" },
-        ...this.courtTypes.map((ct) => ({
+        ...targetList.map((ct) => ({
           id: String(ct.id),
           name: ct.name,
           color: this.getSportColor(ct.name),
@@ -480,13 +487,21 @@ export default {
 
       // Filter by sport type
       if (this.selectedSportId && this.selectedSportId !== "all") {
+        const targetSport = this.sportsList.find((s) => String(s.id) === String(this.selectedSportId));
+        const targetName = targetSport ? targetSport.name.toLowerCase() : String(this.selectedSportId).toLowerCase();
+
         result = result.filter((v) => {
           if (!v.court_types || v.court_types.length === 0) return true;
-          return v.court_types.some(
-            (ct) =>
-              String(ct.id) === String(this.selectedSportId) ||
-              ct.name?.toLowerCase().includes(this.selectedSportId.toLowerCase())
-          );
+          return v.court_types.some((ct) => {
+            const ctId = String(ct.id);
+            const ctParentId = ct.parent_id ? String(ct.parent_id) : null;
+            const ctName = (ct.name || "").toLowerCase();
+            return (
+              ctId === String(this.selectedSportId) ||
+              ctParentId === String(this.selectedSportId) ||
+              ctName.includes(targetName)
+            );
+          });
         });
       }
 
@@ -520,11 +535,46 @@ export default {
     }
   },
   methods: {
+    startSportsDrag(e) {
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      this.isDraggingSports = true;
+      this.sportsDragStartX = e.pageX - container.offsetLeft;
+      this.sportsDragScrollLeft = container.scrollLeft;
+    },
+    stopSportsDrag() {
+      this.isDraggingSports = false;
+    },
+    onSportsDrag(e) {
+      if (!this.isDraggingSports) return;
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - this.sportsDragStartX) * 1.6;
+      container.scrollLeft = this.sportsDragScrollLeft - walk;
+    },
+    onSportsWheel(e) {
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      if (e.deltaY !== 0) {
+        container.scrollLeft += e.deltaY * 0.8;
+      }
+    },
+    scrollSportsBar(direction) {
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      const scrollAmount = direction === "left" ? -220 : 220;
+      container.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    },
     initLeafletMap() {
       if (!this.$refs.mapContainer) return;
       this.map = L.map(this.$refs.mapContainer, {
         scrollWheelZoom: true,
         zoomControl: false,
+        minZoom: 4,
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0,
       }).setView([this.userLat, this.userLng], 12);
 
       L.control.zoom({ position: "topright" }).addTo(this.map);
@@ -532,7 +582,10 @@ export default {
       // OpenStreetMap Tiles
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        minZoom: 4,
         maxZoom: 19,
+        noWrap: true,
+        bounds: [[-90, -180], [90, 180]],
       }).addTo(this.map);
 
       this.markersGroup = L.layerGroup().addTo(this.map);
@@ -1004,7 +1057,7 @@ export default {
   height: 100%;
 }
 
-/* TOP SPORTS CHIPS BAR */
+/* TOP SPORTS CHIPS BAR (MULTI-LINE WRAPPING) */
 .sg-map-sports-bar {
   position: absolute;
   top: 16px;
@@ -1012,17 +1065,16 @@ export default {
   right: 16px;
   z-index: 500;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-}
-
-.sg-map-sports-bar::-webkit-scrollbar {
-  display: none;
+  pointer-events: none;
+  max-height: 40vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .sg-map-sport-chip {
+  pointer-events: auto;
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 9999px;
@@ -1032,11 +1084,11 @@ export default {
   color: #334155;
   cursor: pointer;
   white-space: nowrap;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  transition: border-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .sg-map-sport-chip:focus,

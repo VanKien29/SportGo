@@ -13,7 +13,7 @@ class GeminiService
 
     public function __construct()
     {
-        $this->apiKey = (string) env('GEMINI_API_KEY');
+        $this->apiKey = (string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY'));
     }
 
     /**
@@ -26,8 +26,10 @@ class GeminiService
         $systemInstruction = "Bạn là Trợ lý AI thông minh của nền tảng đặt sân thể thao SportGo (SportGo AI Assistant).\n"
             . "Nhiệm vụ của bạn là hỗ trợ người chơi tìm kiếm sân đấu, tư vấn khung giờ chơi, hướng dẫn quy định hoàn hủy và giải đáp thắc mắc dịch vụ.\n"
             . "QUY TẮC NGUYÊN TẮC BẮT BUỘC:\n"
-            . "1. ĐƯA KẾT QUẢ/CON SỐ TRỌNG TÂM LÊN ĐẦU CÂU TRẢ LỜI NGAY LẬP TỨC (ví dụ: 'Hiện tại hệ thống SportGo có 8 cụm sân tại Hà Nội...').\n"
-            . "2. Trả lời ngắn gọn, súc tích, đi thẳng vào vấn đề. Tránh liệt kê dông dài hoặc chào hỏi rườm rà.\n"
+            . "1. PHÂN BIỆT LOẠI CÂU HỎI:\n"
+            . "   - Nếu khách hàng CHỈ CHÀO HỎI ĐƠN THUẦN (ví dụ: 'Hi', 'Xin chào', 'Hello', 'Chào bạn'): Hãy đáp lại ngắn gọn 1-2 câu, chào mừng thân thiện và hỏi xem bạn có thể hỗ trợ họ tìm sân hoặc giải đáp thắc mắc gì. TUYỆT ĐỐI KHÔNG tự động xả danh sách cụm sân, giá thuê hay chính sách hoàn hủy khi chưa được hỏi.\n"
+            . "   - Nếu khách hàng HỎI TÌM SÂN / TRA CỨU / THẮC MẮC: Hãy đưa ngay thông tin/kết quả trọng tâm lên đầu câu trả lời.\n"
+            . "2. Trả lời ngắn gọn, súc tích, đi thẳng vào vấn đề.\n"
             . "3. Nếu có danh sách nhiều hơn 5 mục, chỉ nêu 3-4 cụm sân nổi bật nhất và gợi ý người dùng xem danh sách đầy đủ tại trang Tìm Sân (/venues).\n"
             . "4. TUYỆT ĐỐI KHÔNG SỬ DỤNG BẤT KỲ EMOJI NÀO TRONG CÂU TRẢ LỜI.\n"
             . "5. ĐỊNH DẠNG TRẢ LỜI BẰNG MARKDOWN:\n"
@@ -35,7 +37,11 @@ class GeminiService
             . "   - Dùng danh sách có số (1. 2. 3.) khi liệt kê nhiều mục.\n"
             . "   - Dùng dấu gạch đầu dòng (- ) khi liệt kê tính năng hoặc lưu ý.\n"
             . "   - Xuống dòng giữa các ý để bố cục thoáng mắt, dễ đọc.\n"
-            . "   - KHÔNG viết thành một đoạn văn xuôi liền mạch dài dòng.";
+            . "   - KHÔNG viết thành một đoạn văn xuôi liền mạch dài dòng.\n"
+            . "6. QUY TẮC BẢO ĐẢM NGUYÊN TẮC DỮ LIỆU THỰC TẾ (ANTI-HALLUCINATION):\n"
+            . "   - CHỈ ĐƯỢC PHÁP LIỆT KÊ CÁC CỤM SÂN CÓ TRONG DỮ LIỆU NGỮ CẢNH CỦA SPORTGO.\n"
+            . "   - TUYỆT ĐỐI KHÔNG TỰ BỊA ĐẶT TÊN CỤM SÂN, ĐỊA CHỈ HOẶC CON SỐ (ví dụ: Không được tự bịa ra '11 cụm sân' hay 'Green Sport', 'Sun Sport' nếu dữ liệu ngữ cảnh không có).\n"
+            . "   - Nếu dữ liệu ghi nhận 0 cụm sân hoặc không có sân phù hợp, hãy thông báo chân thực rằng hệ thống đang cập nhật danh sách sân mới.";
 
         $fullPrompt = $systemInstruction . "\n\n--- DỮ LIỆU NGỮ CẢNH SPORTGO ---\n" . $systemContext . "\n\n--- CÂU HỎI CỦA KHÁCH HÀNG ---\n" . $userPrompt;
 
