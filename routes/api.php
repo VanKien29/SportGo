@@ -662,6 +662,8 @@ Route::middleware('auth:sanctum')
             Route::patch('/support-requests/{id}', [ChatController::class, 'updateBookingSupportRequest']);
             Route::post('/conversations/{id}/bookings', [ChatController::class, 'sendBooking']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
+            Route::post('/conversations/{id}/add-members', [ChatController::class, 'addMembers']);
+            Route::post('/conversations/{id}/remove-member', [ChatController::class, 'removeMember']);
             Route::post('/conversations/{id}/leave', [ChatController::class, 'leaveConversation']);
             Route::post('/conversations/{id}/dissolve', [ChatController::class, 'dissolveConversation']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);

@@ -99,274 +99,278 @@
       <!-- ───── FORM VIEW WIZARD ───── -->
       <template v-else>
         <div class="portal-form-wrapper">
-          <div class="wizard-top-header">
-            <button type="button" class="wizard-back-btn" @click="closeForm">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-              <span>Quay lại</span>
-            </button>
-            <h1 class="wizard-heading-title">Thông tin đối tác và cụm sân</h1>
-            <p class="wizard-heading-sub">Hoàn thành lần lượt các nhóm thông tin bên dưới. Hồ sơ của bạn sẽ tự động được lưu nháp.</p>
-          </div>
-
-          <nav class="wizard-steps-nav" aria-label="Các phần của hồ sơ">
-            <a href="#partner-step-personal" class="wizard-step-link"><span>1</span>Người đăng ký</a>
-            <a href="#partner-step-business" class="wizard-step-link"><span>2</span>Kinh doanh</a>
-            <a href="#partner-step-venue" class="wizard-step-link"><span>3</span>Thông tin Cụm sân</a>
-            <a href="#partner-step-documents" class="wizard-step-link"><span>4</span>Ngân hàng & Giấy tờ</a>
-          </nav>
-
-          <aside v-if="onboardingTerms" class="wizard-terms-summary">
-            <div>
-              <strong>Điều kiện phí hiện tại</strong>
-              <span>{{ selectedFeeTier ? `${money(selectedFeeTier.price_per_court_month)} / sân / tháng` : 'Chọn số sân để xem mức phí dự kiến' }}</span>
-            </div>
-            <details>
-              <summary>Xem phí và chính sách</summary>
-              <div class="wizard-terms-detail">
-                <p>{{ onboardingTerms.platform_fee.summary }}</p>
-                <p v-for="policy in onboardingTerms.policies" :key="policy.key"><strong>{{ policy.title }}:</strong> {{ policy.content }}</p>
-              </div>
-            </details>
-          </aside>
-
-          <form class="wizard-form" novalidate @submit.prevent="submit">
-            <div class="wizard-body">
-              <div v-if="formBanner" class="notice error mb-4 form-banner">
-                {{ formBanner }}
-              </div>
-
-              <!-- STEP 1: Cá nhân -->
-              <div id="partner-step-personal" class="step-content section-anchor">
-                <FormSection title="Thông tin người đăng ký / đại diện">
-                  <div class="form-grid">
-                    <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
-                      <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
-                    </FormField>
-                    <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
-                      <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="sanitizePhoneCharacters('applicant_phone')" />
-                    </FormField>
-                    <FormField label="Email" required :error="fieldErrors.applicant_email">
-                      <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
-                    </FormField>
-                    <FormField label="Ngày sinh" required :error="fieldErrors.applicant_birth_date">
-                      <input v-model="form.applicant_birth_date" :class="inputClass(fieldErrors.applicant_birth_date)" type="date" />
-                    </FormField>
-                    <FormField label="Loại chủ thể" required :error="fieldErrors.applicant_type">
-                      <BaseCombobox v-model="form.applicant_type" :options="applicantTypeOptions" placeholder="Chọn loại chủ thể" :invalid="Boolean(fieldErrors.applicant_type)" />
-                    </FormField>
-                    <FormField label="Người đại diện pháp luật" required :error="fieldErrors.representative_name">
-                      <input v-model.trim="form.representative_name" :class="inputClass(fieldErrors.representative_name)" />
-                    </FormField>
-                    <FormField label="Loại giấy tờ đại diện" required :error="fieldErrors.representative_identity_type">
-                      <BaseCombobox v-model="form.representative_identity_type" :options="identityTypeOptions" placeholder="Chọn loại giấy tờ" :invalid="Boolean(fieldErrors.representative_identity_type)" @update:model-value="normalizeIdentityNumber" />
-                    </FormField>
-                    <FormField label="Số CCCD/CMND/Hộ chiếu" required :error="fieldErrors.representative_identity_number">
-                      <input v-model.trim="form.representative_identity_number" :class="inputClass(fieldErrors.representative_identity_number)" @input="normalizeIdentityNumber" />
-                    </FormField>
-                    <FormField label="Ngày cấp" :error="fieldErrors.representative_identity_issued_date">
-                      <input v-model="form.representative_identity_issued_date" :class="inputClass(fieldErrors.representative_identity_issued_date)" type="date" />
-                    </FormField>
-                    <FormField label="Nơi cấp" :error="fieldErrors.representative_identity_issued_place">
-                      <input v-model.trim="form.representative_identity_issued_place" :class="inputClass(fieldErrors.representative_identity_issued_place)" />
-                    </FormField>
-                  </div>
-                </FormSection>
-              </div>
-
-              <!-- STEP 2: Kinh doanh -->
-              <div id="partner-step-business" class="step-content step-content--spaced section-anchor">
-                <FormSection title="Thông tin kinh doanh">
-                  <div class="form-grid">
-                    <FormField label="Tên đơn vị / Cá nhân kinh doanh" required :error="fieldErrors.business_name">
-                      <input v-model.trim="form.business_name" :class="inputClass(fieldErrors.business_name)" />
-                    </FormField>
-                    <FormField label="Mã số thuế" :error="fieldErrors.tax_code">
-                      <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" inputmode="numeric" @input="normalizeTaxCode" />
-                    </FormField>
-                    <FormField label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
-                      <input v-model.trim="form.business_license_number" :class="inputClass(fieldErrors.business_license_number)" />
-                    </FormField>
-                    <FormField label="Mã doanh nghiệp/hộ kinh doanh (nếu có)" :error="fieldErrors.business_code">
-                      <input v-model.trim="form.business_code" :class="inputClass(fieldErrors.business_code)" />
-                    </FormField>
-                    <FormField class="full-width" label="Địa chỉ liên hệ" required :error="fieldErrors.applicant_address">
-                      <textarea v-model.trim="form.applicant_address" :class="textareaClass(fieldErrors.applicant_address)" rows="2"></textarea>
-                    </FormField>
-                    <FormField class="full-width" label="Địa chỉ pháp lý (trên giấy tờ)" required :error="fieldErrors.business_address">
-                      <textarea v-model.trim="form.business_address" :class="textareaClass(fieldErrors.business_address)" rows="2"></textarea>
-                    </FormField>
-                  </div>
-                </FormSection>
-              </div>
-
-              <!-- STEP 3: Cụm sân -->
-              <div id="partner-step-venue" class="step-content step-content--spaced section-anchor">
-                <FormSection title="Địa chỉ và thông tin Cụm sân">
-                  <div class="form-grid">
-                    <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
-                      <BaseCombobox v-model="form.venue_province_code" :options="provinceOptions" placeholder="Tìm Tỉnh/Thành phố" :invalid="Boolean(fieldErrors.venue_province_code)" @select="onProvinceSelect" />
-                    </FormField>
-                    <FormField label="Phường/Xã" required :error="fieldErrors.venue_ward_code">
-                      <BaseCombobox v-model="form.venue_ward_code" :options="wardOptions" placeholder="Tìm Phường/Xã" :disabled="!form.venue_province_code" :invalid="Boolean(fieldErrors.venue_ward_code)" @select="syncVenueAddress" />
-                    </FormField>
-                    <FormField class="full-width" label="Số nhà, tên đường" required :error="fieldErrors.street_address">
-                      <input v-model.trim="form.street_address" :class="inputClass(fieldErrors.street_address)" placeholder="Ví dụ: 123 Nguyễn Hữu Cảnh" @input="syncVenueAddress" />
-                    </FormField>
-                    <FormField class="full-width" label="Link Google Maps (Bắt buộc để lấy tọa độ)" required :error="mapError || fieldErrors.venue_map_url">
-                      <input v-model.trim="form.venue_map_url" :class="inputClass(mapError || fieldErrors.venue_map_url)" placeholder="Dán link Google Maps có tọa độ" @input="onMapUrlInput" />
-                      <div v-if="mapSuggestion" class="map-suggestion">
-                        <p>{{ mapSuggestion.message }}</p>
-                        <button v-if="mapSuggestion.province_code || mapSuggestion.ward_code" type="button" class="btn btn-secondary btn-compact" @click="applyMapSuggestion">Cập nhật theo Google Maps</button>
+          <div class="portal-form-grid">
+            <!-- LEFT SIDEBAR: STEP PERSISTENT NAV & TERMS SUMMARY -->
+            <aside class="portal-form-sidebar">
+              <div class="portal-form-sidebar-sticky">
+                <div class="portal-sidebar-card">
+                  <h3 class="portal-sidebar-title">Các bước hồ sơ</h3>
+                  <nav class="wizard-steps-nav" aria-label="Các phần của hồ sơ">
+                    <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 1 }" @click="scrollToStep(1, 'partner-step-personal')">
+                      <span>1</span>
+                      <div class="step-text">
+                        <strong>Người đăng ký</strong>
+                        <small>Chủ thể & Đại diện</small>
                       </div>
-                      <p v-else-if="mapStatus" class="map-status">{{ mapStatus }}</p>
-                    </FormField>
-                    <FormField class="full-width" label="Chọn vị trí trên bản đồ" required :error="fieldErrors.venue_coordinates">
-                      <div class="map-picker-shell">
-                        <div id="partner-application-map" class="map-picker"></div>
-                        <div class="map-coordinate-grid">
-                          <label :class="{ invalid: fieldErrors.venue_latitude }">
-                            <span>Vĩ độ</span>
-                            <input v-model.trim="form.venue_latitude" :class="inputClass(fieldErrors.venue_latitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_latitude')" />
-                          </label>
-                          <label :class="{ invalid: fieldErrors.venue_longitude }">
-                            <span>Kinh độ</span>
-                            <input v-model.trim="form.venue_longitude" :class="inputClass(fieldErrors.venue_longitude)" inputmode="decimal" @input="sanitizeCoordinate('venue_longitude')" />
-                          </label>
-                        </div>
-                        <button type="button" class="btn btn-secondary btn-sm current-location-button" @click="getCurrentLocation">
-                          <AppIcon name="mapPin" size="16" />
-                          Lấy vị trí hiện tại
-                        </button>
-                        <p class="map-help">Click trên bản đồ hoặc kéo marker để chọn tọa độ cụm sân. Link Google Maps nếu có tọa độ sẽ tự đặt marker.</p>
+                    </button>
+                    <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 2 }" @click="scrollToStep(2, 'partner-step-business')">
+                      <span>2</span>
+                      <div class="step-text">
+                        <strong>Kinh doanh</strong>
+                        <small>Đơn vị & Mã số thuế</small>
                       </div>
-                    </FormField>
-                    <input type="hidden" :value="form.venue_latitude" name="venue_latitude" />
-                    <input type="hidden" :value="form.venue_longitude" name="venue_longitude" />
-                    
-                    <FormField label="Tên cụm sân" required :error="fieldErrors.venue_name">
-                      <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" />
-                    </FormField>
-                    <FormField label="Số điện thoại tại sân" required :error="fieldErrors.venue_phone">
-                      <input v-model.trim="form.venue_phone" :class="inputClass(fieldErrors.venue_phone)" inputmode="tel" @input="sanitizePhoneCharacters('venue_phone')" />
-                    </FormField>
-                    <FormField label="Giờ mở cửa dự kiến" :error="fieldErrors.expected_opening_hours">
-                      <input v-model.trim="form.expected_opening_hours" :class="inputClass(fieldErrors.expected_opening_hours)" placeholder="05:00 - 23:00" />
-                    </FormField>
-                    <FormField label="Email tại sân" :error="fieldErrors.venue_email">
-                      <input v-model.trim="form.venue_email" :class="inputClass(fieldErrors.venue_email)" type="email" />
-                    </FormField>
-                  </div>
-                </FormSection>
-
-                <FormSection class="section-spaced" title="Cấu hình sân con">
-                  <div class="form-grid">
-                    <FormField label="Số lượng sân con" required :error="fieldErrors.court_count_total">
-                      <input v-model.trim="form.court_count_total" :class="inputClass(fieldErrors.court_count_total)" inputmode="numeric" @input="onCourtCountInput" />
-                    </FormField>
-                    <FormField label="Giá cơ bản/giờ (VNĐ)" required :error="fieldErrors.base_price_per_hour">
-                      <input v-model.trim="form.base_price_per_hour" :class="inputClass(fieldErrors.base_price_per_hour)" inputmode="numeric" @input="sanitizeDigitsField('base_price_per_hour')" />
-                    </FormField>
-                  </div>
-
-                  <div class="court-config-list">
-                    <div
-                      v-for="(court, index) in form.courts"
-                      :key="court.local_id"
-                      class="court-config-row"
-                    >
-                      <FormField :label="'Tên sân ' + (index + 1)" required :error="fieldErrors['courts.' + index + '.name']">
-                        <input v-model.trim="court.name" :class="inputClass(fieldErrors['courts.' + index + '.name'])" />
-                      </FormField>
-                      <FormField label="Loại sân" required :error="fieldErrors['courts.' + index + '.court_type_id']">
-                        <BaseCombobox v-model="court.court_type_id" :options="courtTypeOptions" placeholder="Chọn loại sân" :invalid="Boolean(fieldErrors['courts.' + index + '.court_type_id'])" />
-                      </FormField>
-                      <button
-                        type="button"
-                        class="btn btn-outline btn-danger"
-                        :disabled="form.courts.length <= 1"
-                        @click="removeCourt(index)"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div v-if="amenities.length" class="amenities-field">
-                    <p class="form-label amenities-label">Tiện ích có sẵn</p>
-                    <div class="amenities-list">
-                      <label
-                        v-for="amenity in amenities"
-                        :key="amenity.id || amenity.name"
-                        class="amenity-option"
-                        :class="{ selected: form.amenities.includes(amenity.name) }"
-                      >
-                        <input v-model="form.amenities" type="checkbox" :value="amenity.name" />
-                        {{ amenity.name }}
-                      </label>
-                    </div>
-                  </div>
-                </FormSection>
-              </div>
-
-              <!-- STEP 4: Tài liệu & Ngân hàng -->
-              <div id="partner-step-documents" class="step-content step-content--spaced section-anchor">
-                <FormSection title="Thông tin ngân hàng">
-                  <div class="form-grid">
-                    <FormField label="Ngân hàng" required :error="fieldErrors.bank_code">
-                      <BaseCombobox v-model="form.bank_code" :options="bankOptions" placeholder="Tìm ngân hàng" :invalid="Boolean(fieldErrors.bank_code)" @select="selectBank" />
-                    </FormField>
-                    <FormField label="Số tài khoản" required :error="fieldErrors.account_number">
-                      <input v-model.trim="form.account_number" :class="inputClass(fieldErrors.account_number)" inputmode="numeric" @input="onAccountNumberInput" />
-                    </FormField>
-                    <FormField label="Tên chủ tài khoản" required :error="fieldErrors.account_holder_name">
-                      <input
-                        v-model.trim="form.account_holder_name"
-                        :class="inputClass(fieldErrors.account_holder_name)"
-                        placeholder="Viết IN HOA không dấu"
-                        @input="onManualBankHolderInput()"
-                      />
-                    </FormField>
-                    <FormField label="Chi nhánh" :error="fieldErrors.bank_branch">
-                      <input v-model.trim="form.bank_branch" :class="inputClass(fieldErrors.bank_branch)" />
-                    </FormField>
-                  </div>
-                </FormSection>
-
-                <FormSection class="section-spaced" title="Tài liệu đính kèm">
-                  <div class="form-grid">
-                    <UploadBox :key="`identity-${uploadResetKey}`" title="CCCD/CMND người đại diện" required :max-files="5" :files="files.identity" :existing-files="existingDocuments.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
-                    <UploadBox :key="`business-${uploadResetKey}`" title="Giấy ĐKKD/Pháp lý" required :max-files="5" :files="files.business_license" :existing-files="existingDocuments.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
-                    <UploadBox :key="`facility-${uploadResetKey}`" title="Hình ảnh cơ sở/sân" required :max-files="12" :files="files.facility" :existing-files="existingDocuments.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
-                    <UploadBox :key="`bank-${uploadResetKey}`" title="Chứng từ ngân hàng" required :max-files="5" :files="files.bank" :existing-files="existingDocuments.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
-                    <UploadBox :key="`lease-${uploadResetKey}`" title="Hợp đồng thuê mặt bằng" required :max-files="5" :files="files.lease" :existing-files="existingDocuments.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
-                    <UploadBox :key="`additional-${uploadResetKey}`" title="Giấy tờ khác" :max-files="10" :files="files.additional" :existing-files="existingDocuments.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
-                  </div>
-                </FormSection>
-
-                <div class="portal-card confirmation-card" :class="fieldErrors.confirmed ? 'has-error' : ''">
-                  <label class="confirmation-label">
-                    <input v-model="confirmed" type="checkbox" />
-                    <span>
-                      Tôi xác nhận thông tin trong hồ sơ là chính xác, đã đọc phí nền tảng và các chính sách liên quan, đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.
-                    </span>
-                  </label>
-                  <p v-if="fieldErrors.confirmed" class="confirmation-error">{{ fieldErrors.confirmed }}</p>
+                    </button>
+                    <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 3 }" @click="scrollToStep(3, 'partner-step-venue')">
+                      <span>3</span>
+                      <div class="step-text">
+                        <strong>Cụm sân</strong>
+                        <small>Thông tin & Quy mô</small>
+                      </div>
+                    </button>
+                    <button type="button" class="wizard-step-link" :class="{ 'is-active': activeStep === 4 }" @click="scrollToStep(4, 'partner-step-documents')">
+                      <span>4</span>
+                      <div class="step-text">
+                        <strong>Ngân hàng & Giấy tờ</strong>
+                        <small>Tài khoản & Hồ sơ</small>
+                      </div>
+                    </button>
+                  </nav>
                 </div>
-              </div>
-            </div>
 
-            <!-- Form Actions -->
-            <div class="wizard-footer">
-              <div class="wizard-footer-note"><AppIcon name="save" size="16" /><span>Hồ sơ có thể lưu nháp bất kỳ lúc nào. Bạn sẽ được chuyển sang bước ký điện tử sau khi gửi.</span></div>
-              <div class="wizard-actions">
-                <button type="button" class="btn btn-outline" @click="saveDraft">Lưu nháp</button>
-                <button type="submit" class="btn btn-primary" :disabled="submitDisabled">
-                  <span v-if="submitting" class="submit-spinner"></span>
-                  {{ submitting ? 'Đang xử lý...' : 'Gửi hồ sơ đăng ký' }}
+                <!-- TERMS & POLICY MODAL TRIGGER BUTTON -->
+                <button v-if="onboardingTerms" type="button" class="portal-sidebar-terms-btn" @click="showTermsModal = true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <span>Biểu phí & Chính sách</span>
+                </button>
+
+                <button type="button" class="portal-sidebar-exit-btn" @click="closeForm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                  <span>Quay lại trang giới thiệu</span>
                 </button>
               </div>
+            </aside>
+
+            <!-- RIGHT MAIN FORM CONTENT -->
+            <div class="portal-form-content">
+              <form class="wizard-form" novalidate @submit.prevent="submit">
+                <div class="wizard-body">
+                  <div v-if="formBanner" class="notice error mb-4 form-banner">
+                    {{ formBanner }}
+                  </div>
+
+                  <!-- STEP 1: Cá nhân -->
+                  <div id="partner-step-personal" class="step-content section-anchor">
+                    <FormSection title="Thông tin người đăng ký / đại diện">
+                      <div class="form-grid">
+                        <FormField label="Họ tên người đăng ký" required :error="fieldErrors.applicant_full_name">
+                          <input v-model.trim="form.applicant_full_name" :class="inputClass(fieldErrors.applicant_full_name)" />
+                        </FormField>
+                        <FormField label="Số điện thoại" required :error="fieldErrors.applicant_phone">
+                          <input v-model.trim="form.applicant_phone" :class="inputClass(fieldErrors.applicant_phone)" inputmode="tel" @input="sanitizePhoneCharacters('applicant_phone')" />
+                        </FormField>
+                        <FormField label="Email" required :error="fieldErrors.applicant_email">
+                          <input v-model.trim="form.applicant_email" :class="inputClass(fieldErrors.applicant_email)" type="email" />
+                        </FormField>
+                        <FormField label="Ngày sinh" required :error="fieldErrors.applicant_birth_date">
+                          <input v-model="form.applicant_birth_date" :class="inputClass(fieldErrors.applicant_birth_date)" type="date" />
+                        </FormField>
+                        <FormField label="Loại chủ thể" required :error="fieldErrors.applicant_type">
+                          <BaseCombobox v-model="form.applicant_type" :options="applicantTypeOptions" placeholder="Chọn loại chủ thể" :invalid="Boolean(fieldErrors.applicant_type)" />
+                        </FormField>
+                        <FormField label="Người đại diện pháp luật" required :error="fieldErrors.representative_name">
+                          <input v-model.trim="form.representative_name" :class="inputClass(fieldErrors.representative_name)" />
+                        </FormField>
+                        <FormField label="Loại giấy tờ đại diện" required :error="fieldErrors.representative_identity_type">
+                          <BaseCombobox v-model="form.representative_identity_type" :options="identityTypeOptions" placeholder="Chọn loại giấy tờ" :invalid="Boolean(fieldErrors.representative_identity_type)" @update:model-value="normalizeIdentityNumber" />
+                        </FormField>
+                        <FormField label="Số CCCD/CMND/Hộ chiếu" required :error="fieldErrors.representative_identity_number">
+                          <input v-model.trim="form.representative_identity_number" :class="inputClass(fieldErrors.representative_identity_number)" @input="normalizeIdentityNumber" />
+                        </FormField>
+                        <FormField label="Ngày cấp" :error="fieldErrors.representative_identity_issued_date">
+                          <input v-model="form.representative_identity_issued_date" :class="inputClass(fieldErrors.representative_identity_issued_date)" type="date" />
+                        </FormField>
+                        <FormField label="Nơi cấp" :error="fieldErrors.representative_identity_issued_place">
+                          <input v-model.trim="form.representative_identity_issued_place" :class="inputClass(fieldErrors.representative_identity_issued_place)" />
+                        </FormField>
+                      </div>
+                    </FormSection>
+                  </div>
+
+                  <!-- STEP 2: Kinh doanh -->
+                  <div id="partner-step-business" class="step-content step-content--spaced section-anchor">
+                    <FormSection title="Thông tin kinh doanh">
+                      <div class="form-grid">
+                        <FormField label="Tên đơn vị / Cá nhân kinh doanh" required :error="fieldErrors.business_name">
+                          <input v-model.trim="form.business_name" :class="inputClass(fieldErrors.business_name)" />
+                        </FormField>
+                        <FormField label="Mã số thuế" :error="fieldErrors.tax_code">
+                          <input v-model.trim="form.tax_code" :class="inputClass(fieldErrors.tax_code)" inputmode="numeric" @input="normalizeTaxCode" />
+                        </FormField>
+                        <FormField label="Số giấy đăng ký kinh doanh/pháp lý" required :error="fieldErrors.business_license_number">
+                          <input v-model.trim="form.business_license_number" :class="inputClass(fieldErrors.business_license_number)" />
+                        </FormField>
+                        <FormField label="Mã doanh nghiệp/hộ kinh doanh (nếu có)" :error="fieldErrors.business_code">
+                          <input v-model.trim="form.business_code" :class="inputClass(fieldErrors.business_code)" />
+                        </FormField>
+                        <FormField class="full-width" label="Địa chỉ liên hệ" required :error="fieldErrors.applicant_address">
+                          <textarea v-model.trim="form.applicant_address" :class="textareaClass(fieldErrors.applicant_address)" rows="2"></textarea>
+                        </FormField>
+                        <FormField class="full-width" label="Địa chỉ pháp lý (trên giấy tờ)" required :error="fieldErrors.business_address">
+                          <textarea v-model.trim="form.business_address" :class="textareaClass(fieldErrors.business_address)" rows="2"></textarea>
+                        </FormField>
+                      </div>
+                    </FormSection>
+                  </div>
+
+                  <!-- STEP 3: Cụm sân -->
+                  <div id="partner-step-venue" class="step-content step-content--spaced section-anchor">
+                    <FormSection title="Địa chỉ và thông tin Cụm sân">
+                      <div class="form-grid">
+                        <!-- GOOGLE MAPS LINK INPUT (ĐẶT Ở ĐẦU FORM RÕ RÀNG) -->
+                        <FormField class="full-width" label="Liên kết Google Maps (Google Maps Link)" :error="fieldErrors.venue_map_url">
+                          <div class="input-with-action">
+                            <input
+                              v-model.trim="form.venue_map_url"
+                              :class="inputClass(fieldErrors.venue_map_url)"
+                              placeholder="Dán liên kết Google Maps (VD: https://www.google.com/maps/@21.028,105.854... hoặc link chia sẻ)"
+                              @input="onGoogleMapUrlInput"
+                              @paste="onGoogleMapUrlPaste"
+                              @change="parseGoogleMapUrl(false)"
+                            />
+                            <button type="button" class="btn-parse-map" @click="parseGoogleMapUrl(false)">Trích xuất vị trí</button>
+                          </div>
+                          <p class="form-hint">Dán liên kết Google Maps và bấm Trích xuất vị trí để hệ thống tự động chọn Tỉnh/Thành phố & Phường/Xã.</p>
+                        </FormField>
+
+                        <!-- BANNER ĐỀ XUẤT / THÔNG BÁO TỰ ĐỘNG CHỌN TỈNH/THÀNH & PHƯỜNG/XÃ -->
+                        <div v-if="mapSuggestion" class="full-width map-suggestion-card">
+                          <div class="map-suggestion-content">
+                            <div class="map-suggestion-icon-wrap">
+                              <AppIcon name="map-pin" class="map-suggestion-icon" />
+                            </div>
+                            <div class="map-suggestion-text">
+                              <span class="map-suggestion-title">Đề xuất vị trí từ Google Maps</span>
+                              <p class="map-suggestion-desc">{{ mapSuggestion.message }}</p>
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-sm btn-primary btn-apply-map-suggestion" @click="applyMapSuggestion">
+                            Xác nhận chọn {{ mapSuggestion.ward_name ? mapSuggestion.ward_name + ', ' : '' }}{{ mapSuggestion.province_name }}
+                          </button>
+                        </div>
+
+                        <div v-else-if="mapStatus" class="full-width map-status-card">
+                          <AppIcon name="check-circle" class="map-status-icon" />
+                          <span>{{ mapStatus }}</span>
+                        </div>
+
+                        <!-- 2 Ô CHỌN TỈNH/THÀNH PHỐ VÀ PHƯỜNG/XÃ -->
+                        <FormField label="Tỉnh/Thành phố" required :error="fieldErrors.venue_province_code">
+                          <BaseCombobox v-model="form.venue_province_code" :options="provinceOptions" placeholder="Tìm Tỉnh/Thành phố" :invalid="Boolean(fieldErrors.venue_province_code)" @select="onProvinceSelect" />
+                        </FormField>
+                        <FormField label="Phường/Xã" required :error="fieldErrors.venue_ward_code">
+                          <BaseCombobox v-model="form.venue_ward_code" :options="wardOptions" placeholder="Tìm Phường/Xã" :disabled="!form.venue_province_code" :invalid="Boolean(fieldErrors.venue_ward_code)" @select="syncVenueAddress" />
+                        </FormField>
+                        <FormField class="full-width" label="Số nhà, tên đường" required :error="fieldErrors.street_address">
+                          <input v-model.trim="form.street_address" :class="inputClass(fieldErrors.street_address)" placeholder="Ví dụ: 123 Đường Nguyễn Văn Cừ" @input="syncVenueAddress" />
+                        </FormField>
+                        <FormField class="full-width" label="Tên Cụm sân hiển thị" required :error="fieldErrors.venue_name">
+                          <input v-model.trim="form.venue_name" :class="inputClass(fieldErrors.venue_name)" placeholder="Ví dụ: Cụm sân Cầu lông SportGo Tân Bình" />
+                        </FormField>
+                        <FormField label="Môn thể thao chính" required :error="fieldErrors.court_type_id">
+                          <BaseCombobox v-model="form.court_type_id" :options="courtTypeOptions" placeholder="Chọn bộ môn" :invalid="Boolean(fieldErrors.court_type_id)" />
+                        </FormField>
+                        <FormField label="Số sân vận hành" required :error="fieldErrors.court_count">
+                          <input v-model.number="form.court_count" :class="inputClass(fieldErrors.court_count)" type="number" min="1" max="200" />
+                        </FormField>
+                        <FormField label="Quy mô diện tích (m²)" :error="fieldErrors.venue_area_sqm">
+                          <input v-model.number="form.venue_area_sqm" :class="inputClass(fieldErrors.venue_area_sqm)" type="number" min="10" />
+                        </FormField>
+
+                        <!-- MAP DISPLAY -->
+                        <div class="form-group full-width map-picker-group">
+                          <div class="map-picker-header">
+                            <label class="form-label"><span class="form-label-text">Vị trí chính xác trên bản đồ</span></label>
+                            <button type="button" class="current-location-btn" @click="getCurrentLocation">
+                              <AppIcon name="mapPin" size="14" /> Lấy vị trí hiện tại của tôi
+                            </button>
+                          </div>
+
+                          <div class="map-coordinates-bar">
+                            <span>Vĩ độ (Lat): <strong>{{ form.venue_latitude || form.latitude || 'Chưa chọn' }}</strong></span>
+                            <span>Kinh độ (Lng): <strong>{{ form.venue_longitude || form.longitude || 'Chưa chọn' }}</strong></span>
+                          </div>
+
+                          <div id="partner-application-map" ref="mapContainer" class="portal-map-picker"></div>
+                          <p class="form-hint">Kéo thả ghim đỏ hoặc nhấp trực tiếp vào bản đồ để chọn vị trí cụm sân của bạn.</p>
+                        </div>
+                      </div>
+                    </FormSection>
+                  </div>
+
+                  <!-- STEP 4: Giấy tờ & Ngân hàng -->
+                  <div id="partner-step-documents" class="step-content step-content--spaced section-anchor">
+                    <FormSection title="Thông tin ngân hàng">
+                      <div class="form-grid">
+                        <FormField label="Ngân hàng" required :error="fieldErrors.bank_code">
+                          <BaseCombobox v-model="form.bank_code" :options="bankOptions" placeholder="Tìm ngân hàng" :invalid="Boolean(fieldErrors.bank_code)" @select="selectBank" />
+                        </FormField>
+                        <FormField label="Số tài khoản" required :error="fieldErrors.account_number">
+                          <input v-model.trim="form.account_number" :class="inputClass(fieldErrors.account_number)" inputmode="numeric" @input="onAccountNumberInput" />
+                        </FormField>
+                        <FormField label="Tên chủ tài khoản" required :error="fieldErrors.account_holder_name">
+                          <input
+                            v-model.trim="form.account_holder_name"
+                            :class="inputClass(fieldErrors.account_holder_name)"
+                            placeholder="Viết IN HOA không dấu"
+                            @input="onManualBankHolderInput()"
+                          />
+                        </FormField>
+                        <FormField label="Chi nhánh" :error="fieldErrors.bank_branch">
+                          <input v-model.trim="form.bank_branch" :class="inputClass(fieldErrors.bank_branch)" />
+                        </FormField>
+                      </div>
+                    </FormSection>
+
+                    <FormSection class="section-spaced" title="Tài liệu đính kèm">
+                      <div class="form-grid">
+                        <UploadBox :key="`identity-${uploadResetKey}`" title="CCCD/CMND người đại diện" required :max-files="5" :files="files.identity" :existing-files="existingDocuments.identity" :error="fieldErrors.identity_documents" @change="setFiles('identity', $event)" @remove="removeFile('identity', $event)" />
+                        <UploadBox :key="`business-${uploadResetKey}`" title="Giấy ĐKKD/Pháp lý" required :max-files="5" :files="files.business_license" :existing-files="existingDocuments.business_license" :error="fieldErrors.business_license_documents" @change="setFiles('business_license', $event)" @remove="removeFile('business_license', $event)" />
+                        <UploadBox :key="`facility-${uploadResetKey}`" title="Hình ảnh cơ sở/sân" required :max-files="12" :files="files.facility" :existing-files="existingDocuments.facility" :error="fieldErrors.facility_images" @change="setFiles('facility', $event)" @remove="removeFile('facility', $event)" />
+                        <UploadBox :key="`bank-${uploadResetKey}`" title="Chứng từ ngân hàng" required :max-files="5" :files="files.bank" :existing-files="existingDocuments.bank" :error="fieldErrors.bank_documents" @change="setFiles('bank', $event)" @remove="removeFile('bank', $event)" />
+                        <UploadBox :key="`lease-${uploadResetKey}`" title="Hợp đồng thuê mặt bằng" required :max-files="5" :files="files.lease" :existing-files="existingDocuments.lease" :error="fieldErrors.lease_documents" @change="setFiles('lease', $event)" @remove="removeFile('lease', $event)" />
+                        <UploadBox :key="`additional-${uploadResetKey}`" title="Giấy tờ khác" :max-files="10" :files="files.additional" :existing-files="existingDocuments.additional" :error="fieldErrors.additional_documents" @change="setFiles('additional', $event)" @remove="removeFile('additional', $event)" />
+                      </div>
+                    </FormSection>
+
+                    <div class="portal-card confirmation-card" :class="fieldErrors.confirmed ? 'has-error' : ''">
+                      <label class="confirmation-label">
+                        <input v-model="confirmed" type="checkbox" />
+                        <span>
+                          Tôi xác nhận thông tin trong hồ sơ là chính xác, đã đọc phí nền tảng và các chính sách liên quan, đồng ý để SportGo kiểm tra tài liệu trước khi duyệt đối tác.
+                        </span>
+                      </label>
+                      <p v-if="fieldErrors.confirmed" class="confirmation-error">{{ fieldErrors.confirmed }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="wizard-footer">
+                  <div class="wizard-footer-note">
+                    <AppIcon name="save" size="16" />
+                    <span>Hồ sơ có thể lưu nháp bất kỳ lúc nào. Bạn sẽ được chuyển sang bước ký điện tử sau khi gửi.</span>
+                  </div>
+                  <div class="wizard-actions">
+                    <button type="button" class="btn btn-outline" @click="saveDraft">Lưu nháp</button>
+                    <button type="submit" class="btn btn-primary" :disabled="submitDisabled">
+                      <span v-if="submitting" class="submit-spinner"></span>
+                      {{ submitting ? 'Đang xử lý...' : 'Gửi hồ sơ đăng ký' }}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
       </template>
 
@@ -472,6 +476,62 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- TERMS & POLICY MODAL POPUP -->
+    <Teleport to="body">
+      <div v-if="showTermsModal && onboardingTerms" class="portal-modal-backdrop" @click.self="showTermsModal = false">
+        <div class="portal-modal-container portal-terms-modal-container">
+          <header class="portal-modal-header">
+            <div>
+              <h3>{{ onboardingTerms.platform_fee.title || 'Biểu phí nền tảng & Chính sách' }}</h3>
+              <p>{{ onboardingTerms.platform_fee.summary }}</p>
+            </div>
+            <button type="button" class="portal-modal-close" @click="showTermsModal = false">✕</button>
+          </header>
+
+          <div class="portal-modal-body">
+            <!-- FEE MATRIX TIERS -->
+            <div class="modal-terms-section">
+              <h4 class="modal-terms-subtitle">Bảng phí vận hành cụm sân</h4>
+              <div class="modal-fee-grid">
+                <div v-for="tier in onboardingTerms.platform_fee.tiers" :key="tier.id" class="modal-fee-card">
+                  <div class="modal-fee-head">
+                    <span class="tier-name">{{ tier.name }}</span>
+                  </div>
+                  <div class="modal-fee-amount">
+                    <span class="tier-price-val">{{ money(tier.price_per_court_month) }}</span>
+                    <small class="tier-price-unit">/sân/tháng</small>
+                  </div>
+                  <div v-if="tier.annual_discount_percent > 0" class="modal-fee-discount">
+                    <span class="discount-tag">Giảm {{ tier.annual_discount_percent }}% năm</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- POLICIES -->
+            <div v-if="onboardingTerms.policies && onboardingTerms.policies.length" class="modal-terms-section" style="margin-top: 24px;">
+              <h4 class="modal-terms-subtitle">Các chính sách liên quan</h4>
+              <div class="modal-policies-list">
+                <details v-for="policy in onboardingTerms.policies" :key="policy.key" class="modal-policy-item">
+                  <summary class="modal-policy-summary">
+                    <span class="policy-title-text">{{ policy.title }}</span>
+                    <span class="modal-policy-ver">v{{ policy.version }}</span>
+                  </summary>
+                  <div class="modal-policy-body">
+                    <p>{{ policy.content }}</p>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+
+          <footer class="portal-modal-footer">
+            <button type="button" class="btn btn-secondary" @click="showTermsModal = false">Đóng cửa sổ</button>
+          </footer>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -508,11 +568,11 @@ const FormSection = defineComponent({
     title: { type: String, required: true },
   },
   setup(props, { slots, attrs }) {
-    return () => h('div', { ...attrs, class: ['portal-card', 'form-section', attrs.class] }, [
-      h('div', { class: 'form-section-header' }, [
-        h('h2', { class: 'form-section-title' }, props.title),
+    return () => h('div', { ...attrs, class: ['portal-card', 'portal-form-section', attrs.class] }, [
+      h('div', { class: 'portal-section-header', style: { marginBottom: '16px', paddingBottom: '0px', border: 'none', borderBottom: 'none' } }, [
+        h('h2', { class: 'portal-section-title', style: { fontSize: '18px', fontWeight: '600', color: '#0f172a', margin: '0', padding: '0', border: 'none', borderBottom: 'none', outline: 'none' } }, props.title),
       ]),
-      h('div', { class: 'form-section-body' }, slots.default?.()),
+      h('div', { class: 'portal-section-body', style: { border: 'none', borderTop: 'none', borderBottom: 'none', paddingTop: '0' } }, slots.default?.()),
     ]);
   },
 });
@@ -525,7 +585,7 @@ const FormField = defineComponent({
     error: { type: String, default: '' },
   },
   setup(props, { slots, attrs }) {
-    return () => h('div', { class: ['form-group', attrs.class] }, [
+    return () => h('div', { class: ['form-group', props.error ? 'has-error' : '', attrs.class] }, [
       h('label', { class: 'form-label' }, [
         h('span', { class: 'form-label-text' }, [
           props.label,
@@ -553,7 +613,20 @@ const canRegister = ref(false);
 const pageError = ref('');
 const draft = ref(null);
 const formOpen = ref(false);
+const activeStep = ref(1);
+
+function scrollToStep(stepIndex, elementId) {
+  activeStep.value = stepIndex;
+  const el = document.getElementById(elementId);
+  if (el) {
+    const yOffset = -90;
+    const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+}
+
 const showApplicationsModal = ref(false);
+const showTermsModal = ref(false);
 const fieldErrors = reactive({});
 const formBanner = ref('');
 const provinces = ref([]);
@@ -579,6 +652,31 @@ const mapMarker = ref(null);
 const mapReverseBusy = ref(false);
 const editingApplicationId = ref('');
 const editingApplicationStatus = ref('');
+let scrollObserver = null;
+
+function initScrollSpy() {
+  if (scrollObserver) scrollObserver.disconnect();
+  const stepIds = [
+    { id: 'partner-step-personal', step: 1 },
+    { id: 'partner-step-business', step: 2 },
+    { id: 'partner-step-venue', step: 3 },
+    { id: 'partner-step-documents', step: 4 },
+  ];
+  if (typeof IntersectionObserver === 'undefined') return;
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const matched = stepIds.find(s => s.id === entry.target.id);
+        if (matched) activeStep.value = matched.step;
+      }
+    });
+  }, { threshold: 0.2 });
+
+  stepIds.forEach(s => {
+    const el = document.getElementById(s.id);
+    if (el) scrollObserver.observe(el);
+  });
+}
 
 // ─── Static options ───────────────────────────────────────────────────────────
 const applicantTypeOptions = [
@@ -660,9 +758,11 @@ watch(formOpen, async (open) => {
   if (open) {
     await nextTick();
     initMapPicker();
+    initScrollSpy();
     return;
   }
   destroyMapPicker();
+  if (scrollObserver) scrollObserver.disconnect();
 });
 watch(() => [form.venue_latitude, form.venue_longitude], updateMapPickerMarker);
 watch(() => route.query.editDraft, async () => {
@@ -706,7 +806,7 @@ function readCache(key) {
 function writeCache(key, value, ttl) { localStorage.setItem(key, JSON.stringify({ value, expires_at: Date.now() + ttl })); }
 
 function inputClass(error, extra = '') {
-  return ['form-control', error ? 'has-error' : '', extra].filter(Boolean).join(' ');
+  return ['form-control', error ? 'has-error is-invalid' : '', extra].filter(Boolean).join(' ');
 }
 function textareaClass(error) { return ['form-textarea', error ? 'has-error' : '']; }
 // ─── Data loaders ─────────────────────────────────────────────────────────────
@@ -1022,7 +1122,6 @@ function applicationCourtsForForm(application) {
   return rows.length ? rows : [{ local_id: localId(), name: 'Sân 1', court_type_id: '', note: '' }];
 }
 
-// ─── Input handlers ───────────────────────────────────────────────────────────
 function sanitizePhoneCharacters(field) {
   let value = String(form[field] || '').replace(/[^\d+]/g, '');
   if (value.includes('+')) value = `+${value.replace(/\+/g, '')}`;
@@ -1071,6 +1170,148 @@ function syncVenueAddress() {
     mapSuggestion.value = null;
     mapStatus.value = 'Đã cập nhật địa chỉ theo tọa độ bản đồ.';
   }
+}
+
+function onGoogleMapUrlInput() {
+  parseGoogleMapUrl(true);
+}
+
+function onGoogleMapUrlPaste() {
+  setTimeout(() => parseGoogleMapUrl(false), 120);
+}
+
+async function parseGoogleMapUrl(silent = false) {
+  const rawUrl = String(form.venue_map_url || '').trim();
+  if (!rawUrl) {
+    if (!silent) toast.info('Vui lòng dán liên kết Google Maps trước khi bấm trích xuất.');
+    return false;
+  }
+
+  let lat = null;
+  let lng = null;
+
+  // Pattern 1: @lat,lng e.g. @10.801234,106.691234
+  const atMatch = rawUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+
+  // Pattern 2: !3d10.801234...!4d106.691234
+  const d3d4Match = rawUrl.match(/!3d(-?\d+\.\d+)(?:.*?)!4d(-?\d+\.\d+)/);
+
+  // Pattern 3: ?q=10.801234,106.691234 or ?query=10.801234,106.691234 or &ll=10.801234,106.691234
+  const qMatch = rawUrl.match(/[?&](?:q|ll|query)=(-?\d+\.\d+)[,%2C\s]+(-?\d+\.\d+)/i);
+
+  // Pattern 4: /search/10.801234,+106.691234 or /dir//10.801234,106.691234
+  const searchMatch = rawUrl.match(/\/(?:search|dir)\/(?:[^\/]*\/)*(-?\d+\.\d+)[,%2C\s]+(-?\d+\.\d+)/i);
+
+  // Pattern 5: Direct raw coordinates e.g. 10.801234, 106.691234 or 10.801234 106.691234
+  const rawCoordMatch = rawUrl.match(/^@?(-?\d+\.\d{4,})[\s,]+(-?\d+\.\d{4,})$/);
+
+  if (d3d4Match) {
+    lat = parseFloat(d3d4Match[1]);
+    lng = parseFloat(d3d4Match[2]);
+  } else if (qMatch) {
+    lat = parseFloat(qMatch[1]);
+    lng = parseFloat(qMatch[2]);
+  } else if (searchMatch) {
+    lat = parseFloat(searchMatch[1]);
+    lng = parseFloat(searchMatch[2]);
+  } else if (rawCoordMatch) {
+    lat = parseFloat(rawCoordMatch[1]);
+    lng = parseFloat(rawCoordMatch[2]);
+  } else if (atMatch) {
+    lat = parseFloat(atMatch[1]);
+    lng = parseFloat(atMatch[2]);
+  }
+
+  if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+    const formattedLat = Number(lat).toFixed(7);
+    const formattedLng = Number(lng).toFixed(7);
+    form.venue_latitude = formattedLat;
+    form.venue_longitude = formattedLng;
+    form.latitude = formattedLat;
+    form.longitude = formattedLng;
+
+    if (mapInstance.value) {
+      mapInstance.value.setView([lat, lng], 16);
+      if (mapMarker.value) {
+        mapMarker.value.setLatLng([lat, lng]);
+      } else {
+        mapMarker.value = L.marker([lat, lng], { draggable: true }).addTo(mapInstance.value);
+        mapMarker.value.on('dragend', (event) => applyPickedCoordinates(event.target.getLatLng()));
+      }
+    } else {
+      initMapPicker();
+    }
+
+    await reverseCoordinates(formattedLat, formattedLng, { overwriteStreet: true, applyLocation: true, silent });
+    return true;
+  }
+
+  // 2. Call backend resolve-map API to expand shortlink redirects (e.g. maps.app.goo.gl)
+  try {
+    const response = await api('/api/user/partner-application/resolve-map', {
+      method: 'POST',
+      body: JSON.stringify({ url: rawUrl }),
+    });
+
+    const resData = response?.data;
+    if (resData && resData.latitude && resData.longitude) {
+      const bLat = Number(resData.latitude).toFixed(7);
+      const bLng = Number(resData.longitude).toFixed(7);
+      applyPickedCoordinates({ lat: bLat, lng: bLng });
+      if (mapInstance.value) {
+        mapInstance.value.setView([resData.latitude, resData.longitude], 16);
+        if (mapMarker.value) {
+          mapMarker.value.setLatLng([resData.latitude, resData.longitude]);
+        } else {
+          mapMarker.value = L.marker([resData.latitude, resData.longitude], { draggable: true }).addTo(mapInstance.value);
+        }
+      } else {
+        initMapPicker();
+      }
+
+      await compareResolvedAddress(resData, { overwriteStreet: true, applyLocation: true });
+
+      if (!silent) toast.success(`Đã giải mã link Google Maps & tự động chọn Tỉnh/Thành phố, Phường/Xã thành công!`);
+      return true;
+    }
+  } catch (err) {
+    if (!silent && err?.message) {
+      toast.error(err.message);
+      return false;
+    }
+  }
+
+  // 3. Fallback Geocoding Search
+  const queryAddress = [form.venue_name, form.street_address, form.venue_address].filter(Boolean).join(', ');
+  if (queryAddress) {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryAddress)}&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const gLat = parseFloat(data[0].lat);
+        const gLng = parseFloat(data[0].lon);
+        const fLat = Number(gLat).toFixed(7);
+        const fLng = Number(gLng).toFixed(7);
+        applyPickedCoordinates({ lat: fLat, lng: fLng });
+
+        if (mapInstance.value) {
+          mapInstance.value.setView([gLat, gLng], 16);
+          if (mapMarker.value) mapMarker.value.setLatLng([gLat, gLng]);
+        } else {
+          initMapPicker();
+        }
+        if (!silent) toast.success(`Đã xác định vị trí theo địa chỉ: ${data[0].display_name.slice(0, 55)}...`);
+        return true;
+      }
+    } catch (err) {
+      // Ignore geocode network errors
+    }
+  }
+
+  if (!silent) {
+    toast.warning('Không thể trích xuất tọa độ từ đường link này. Vui lòng mở link trên Google Maps và chọn "Chia sẻ" -> sao chép link dạng đầy đủ, hoặc nhấp chọn trực tiếp vị trí trên bản đồ.');
+  }
+  return false;
 }
 
 function initMapPicker() {
@@ -1209,6 +1450,15 @@ function extractCoordinates(url) {
   return null;
 }
 
+function streetFromAddress(address) {
+  const parts = String(address || '').split(',').map((p) => p.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  if (parts.length >= 2 && !/^(đường|phố|số|ngõ|ngách|hẻm|đại lộ|kđt|khu)/i.test(parts[0])) {
+    return `${parts[0]}, ${parts[1]}`;
+  }
+  return parts[0];
+}
+
 async function reverseCoordinates(latitude, longitude, options = {}) {
   if (!validLatitude(latitude) || !validLongitude(longitude)) return;
   mapReverseBusy.value = true;
@@ -1226,45 +1476,77 @@ async function reverseCoordinates(latitude, longitude, options = {}) {
   }
 }
 
-function streetFromAddress(address) {
-  return String(address || '').split(',').map((part) => part.trim()).filter(Boolean)[0] || '';
-}
+
 
 async function compareResolvedAddress(resolved, options = {}) {
-  const rp = resolved.province_code || '', rw = resolved.ward_code || '';
-  const pc = rp && rp !== form.venue_province_code, wc = rw && rw !== form.venue_ward_code;
-  if (resolved.address && (options.overwriteStreet || !form.street_address)) form.street_address = streetFromAddress(resolved.address);
+  const rp = resolved.province_code ? String(resolved.province_code) : '';
+  const rw = resolved.ward_code ? String(resolved.ward_code) : '';
 
-  if (!rp || !rw) {
+  if (resolved.address && (options.overwriteStreet || !form.street_address)) {
+    const street = streetFromAddress(resolved.address);
+    if (street) form.street_address = street;
+  }
+
+  if (!rp) {
     mapStatus.value = '';
-    mapSuggestion.value = { province_code: rp, ward_code: rw, message: 'Không xác định được Tỉnh/Thành phố và Phường/Xã từ tọa độ này. Vui lòng chọn lại vị trí rõ hơn trên bản đồ.' };
+    mapSuggestion.value = null;
     return;
   }
-  
+
+  // Auto-apply if form.venue_province_code is empty OR applyLocation is requested
   if ((options.applyLocation || !form.venue_province_code) && rp) {
     form.venue_province_code = rp;
     await loadWards(rp);
     if (rw) form.venue_ward_code = rw;
     syncVenueAddress();
-    mapStatus.value = 'Đã cập nhật địa chỉ theo tọa độ trên bản đồ.';
+    const wardName = wards.value.find((w) => String(w.code) === String(rw))?.name || resolved.ward || '';
+    const provName = provinces.value.find((p) => String(p.code) === String(rp))?.name || resolved.province || '';
+    mapStatus.value = `Đã tự động chọn vị trí hành chính: ${[wardName, provName].filter(Boolean).join(', ')}`;
+    mapSuggestion.value = null;
     return;
   }
+
+  const pc = rp && rp !== String(form.venue_province_code);
+  const wc = rw && rw !== String(form.venue_ward_code);
+
   if (!pc && !wc) {
     syncVenueAddress();
-    if (!form.venue_province_code) mapStatus.value = 'Đã lấy tọa độ và địa chỉ đường. Vui lòng chọn Tỉnh/Thành phố.';
-    else mapStatus.value = 'Vị trí bản đồ khớp với địa chỉ đã chọn.';
+    mapStatus.value = 'Vị trí Google Maps hoàn toàn khớp với Tỉnh/Thành và Phường/Xã đã chọn.';
+    mapSuggestion.value = null;
     return;
   }
-  const cur = [wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name, provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name].filter(Boolean).join(', ') || 'chưa chọn';
-  const res = [resolved.ward, resolved.province].filter(Boolean).join(', ') || resolved.address || 'vị trí Google Maps';
-  mapSuggestion.value = { province_code: rp, ward_code: rw, message: `Vị trí trên Google Maps thuộc ${res} — khác với địa chỉ bạn đã chọn (${cur}).` };
+
+  const curWardName = wards.value.find((w) => String(w.code) === String(form.venue_ward_code))?.name || '';
+  const curProvName = provinces.value.find((p) => String(p.code) === String(form.venue_province_code))?.name || '';
+  const curText = [curWardName, curProvName].filter(Boolean).join(', ') || 'Chưa chọn';
+
+  const resWardName = resolved.ward || '';
+  const resProvName = resolved.province || '';
+  const resText = [resWardName, resProvName].filter(Boolean).join(', ') || resolved.address || 'vị trí Google Maps';
+
+  mapSuggestion.value = {
+    province_code: rp,
+    ward_code: rw,
+    province_name: resProvName,
+    ward_name: resWardName,
+    message: `Vị trí từ Google Maps nhận diện thuộc ${resText} (hiện tại bạn đang chọn: ${curText}).`,
+  };
 }
 
 async function applyMapSuggestion() {
   if (!mapSuggestion.value) return;
-  if (mapSuggestion.value.province_code) { form.venue_province_code = mapSuggestion.value.province_code; await loadWards(form.venue_province_code); }
-  if (mapSuggestion.value.ward_code) form.venue_ward_code = mapSuggestion.value.ward_code;
-  mapSuggestion.value = null; mapStatus.value = 'Đã cập nhật địa chỉ theo Google Maps.'; syncVenueAddress();
+  if (mapSuggestion.value.province_code) {
+    form.venue_province_code = String(mapSuggestion.value.province_code);
+    await loadWards(form.venue_province_code);
+  }
+  if (mapSuggestion.value.ward_code) {
+    form.venue_ward_code = String(mapSuggestion.value.ward_code);
+  }
+  const appliedLocation = [mapSuggestion.value.ward_name, mapSuggestion.value.province_name].filter(Boolean).join(', ');
+  mapSuggestion.value = null;
+  mapStatus.value = `Đã cập nhật chọn Tỉnh/Thành phố & Phường/Xã: ${appliedLocation}`;
+  syncVenueAddress();
+  toast.success('Đã xác nhận và áp dụng vị trí từ Google Maps thành công!');
 }
 
 // ─── Courts ───────────────────────────────────────────────────────────────────
@@ -1597,8 +1879,10 @@ function money(value) {
 </script>
 
 <style scoped>
+.partner-portal-page,
 .partner-portal-page--landing {
-  background-color: #ffffff !important;
+  background-color: var(--sg-surface, #f8fafc) !important;
+  min-height: 100vh;
 }
 
 .partner-portal-page .portal-main.portal-main--landing {
@@ -1610,20 +1894,20 @@ function money(value) {
 }
 
 .partner-portal-page .portal-main.portal-main--form {
-  max-width: 1100px !important;
-  margin: 32px auto 48px !important;
-  padding: 0 20px !important;
+  max-width: 1280px !important;
+  margin: 24px auto 48px !important;
+  padding: 0 24px !important;
 }
 
 .portal-user-sticky-banner {
   background: #f0fdf4;
-  border-bottom: 1px solid #bbf7d0;
+  border-bottom: none;
   color: #166534;
   padding: 12px 24px;
 }
 
 .portal-banner-inner {
-  max-width: 1100px;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
@@ -1647,8 +1931,8 @@ function money(value) {
 }
 
 .partner-terms-band {
-  background: #ffffff;
-  padding: 80px 24px 100px;
+  background: var(--sg-surface, #f8fafc);
+  padding: 48px 24px 64px;
   color: #0f172a;
 }
 
@@ -1701,7 +1985,8 @@ function money(value) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #f1f5f9;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   color: #475569;
   padding: 6px 14px;
   border-radius: 999px;
@@ -1726,13 +2011,13 @@ function money(value) {
 
 .partner-fee-panel,
 .partner-policy-panel {
-  background: #f8fafc;
-  border: none;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 32px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
 }
 
 .partner-panel-title-row {
@@ -1758,8 +2043,9 @@ function money(value) {
 }
 
 .partner-billing-pill {
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
   font-size: 12px;
   font-weight: 700;
   padding: 4px 12px;
@@ -1799,7 +2085,7 @@ function money(value) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #8da89b;
+  background: #5c7e6e;
 }
 
 .partner-fee-tier-price {
@@ -1820,8 +2106,9 @@ function money(value) {
 }
 
 .discount-tag {
-  background: #edf4f0;
-  color: #5c7e6e;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
   font-size: 11.5px;
   font-weight: 700;
   padding: 3px 10px;
@@ -1831,7 +2118,7 @@ function money(value) {
 .partner-terms-footer-note {
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: none;
 }
 
 .partner-terms-footer-note p {
@@ -1884,7 +2171,7 @@ function money(value) {
   font-size: 13px;
   line-height: 1.6;
   color: #475569;
-  border-top: 1px solid #f8fafc;
+  border-top: none;
 }
 
 .partner-policy-content p {
@@ -1921,7 +2208,7 @@ function money(value) {
 
 .portal-modal-header {
   padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2009,7 +2296,7 @@ function money(value) {
 }
 
 .draft-continue {
-  background: #16a34a !important;
+  background: #5c7e6e !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 6px !important;
@@ -2021,134 +2308,382 @@ function money(value) {
 }
 
 .draft-continue:hover {
-  background: #15803d !important;
+  background: #486858 !important;
 }
 
-/* WIZARD FORM REDESIGN */
+/* WIZARD FORM REDESIGN (SPACE OPTIMIZED 1280PX 2-COLUMN) */
 .portal-form-wrapper {
-  max-width: 960px;
-  margin: 32px auto 60px;
-  padding: 0 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0;
 }
 
 .wizard-top-header {
   margin-bottom: 24px;
 }
 
-.wizard-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 6px 12px;
-  color: #475569;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.wizard-back-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-  border-color: #94a3b8;
-}
-
 .wizard-heading-title {
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 26px;
+  font-weight: 700;
   color: #0f172a;
-  margin: 12px 0 6px;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
 }
 
 .wizard-heading-sub {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 400;
-  color: #475569;
+  color: #64748b;
   margin: 0;
 }
 
-.wizard-steps-nav {
+/* 2-COLUMN SIDEBAR GRID */
+.portal-form-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 28px;
+  grid-template-columns: 300px 1fr;
+  gap: 32px;
+  align-items: start;
 }
 
-.wizard-terms-summary {
+.portal-form-sidebar {
+  position: sticky !important;
+  top: 84px !important;
+  align-self: start !important;
+  z-index: 10 !important;
+}
+
+.portal-form-sidebar-sticky {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 16px;
-  margin: -12px 0 24px;
-  padding: 12px 16px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  color: #14532d;
-  font-size: 13px;
 }
 
-.wizard-terms-summary > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.wizard-terms-summary strong { font-weight: 600; }
-.wizard-terms-summary span { color: #166534; }
-.wizard-terms-summary details { position: relative; }
-.wizard-terms-summary summary { cursor: pointer; color: #166534; font-weight: 600; white-space: nowrap; }
-.wizard-terms-detail { position: absolute; z-index: 3; right: 0; top: 28px; width: min(520px, 80vw); max-height: 360px; overflow: auto; padding: 14px 16px; background: #ffffff; border: 1px solid #bbf7d0; border-radius: 6px; box-shadow: 0 12px 30px rgba(15, 23, 42, .12); color: #334155; }
-.wizard-terms-detail p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.6; white-space: pre-line; }
-.wizard-terms-detail p:last-child { margin-bottom: 0; }
+.portal-sidebar-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
 
-@media (max-width: 760px) {
-  .partner-terms-heading { flex-direction: column; gap: 8px; }
-  .partner-terms-version { white-space: normal; }
-  .partner-terms-grid { grid-template-columns: 1fr; }
-  .wizard-terms-summary { align-items: flex-start; flex-direction: column; }
-  .wizard-terms-summary details { width: 100%; }
-  .wizard-terms-detail { position: static; width: auto; margin-top: 10px; }
+.portal-sidebar-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  margin: 0 0 12px;
+}
+
+.wizard-steps-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 0;
 }
 
 .wizard-step-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 12px 14px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   text-decoration: none;
   color: #475569;
   font-size: 13.5px;
-  font-weight: 500;
-  transition: all 0.15s ease;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  width: 100%;
+  text-align: left;
 }
 
 .wizard-step-link span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
   border-radius: 50%;
   background: #f1f5f9;
   color: #475569;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.18s ease;
 }
 
-.wizard-step-link:hover,
+.wizard-step-link .step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wizard-step-link .step-text strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.25;
+}
+
+.wizard-step-link .step-text small {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.wizard-step-link:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
 .wizard-step-link.is-active {
-  border-color: #16a34a;
-  color: #0f172a;
-  background: #ffffff;
+  border-color: #5c7e6e;
+  background: #f2f6f4;
+  box-shadow: 0 2px 8px rgba(92, 126, 110, 0.12);
 }
 
 .wizard-step-link.is-active span {
-  background: #16a34a;
+  background: #5c7e6e;
   color: #ffffff;
 }
 
+.wizard-step-link.is-active .step-text strong {
+  color: #486858;
+}
+
+.portal-sidebar-terms-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  background: #f2f6f4;
+  border: 1px solid #d2e0d8;
+  border-radius: 12px;
+  color: #486858;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  width: 100%;
+}
+
+.portal-sidebar-terms-btn:hover {
+  background: #e4eee8;
+  border-color: #b8cdbf;
+  color: #385244;
+}
+
+.portal-terms-modal-container {
+  max-width: 920px !important;
+  width: 92vw !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12) !important;
+}
+
+.modal-terms-subtitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0 0 14px;
+}
+
+.modal-fee-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 14px !important;
+}
+
+@media (max-width: 840px) {
+  .modal-fee-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-fee-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .portal-terms-modal-container {
+    width: 95vw !important;
+    max-height: 92vh !important;
+  }
+}
+
+.modal-fee-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 16px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  transition: all 0.15s ease !important;
+}
+
+.modal-fee-card:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04) !important;
+}
+
+.modal-fee-head {
+  display: flex;
+  align-items: center;
+  font-size: 13.5px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.tier-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.modal-fee-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.tier-price-val {
+  font-size: 18px;
+  font-weight: 600;
+  color: #5c7e6e;
+}
+
+.tier-price-unit {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.modal-fee-discount {
+  margin-top: 2px;
+}
+
+.discount-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  background: #f2f6f4;
+  color: #486858;
+  border: 1px solid #d2e0d8;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.modal-policies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-policy-item {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.modal-policy-item[open] {
+  border-color: #cbd5e1 !important;
+}
+
+.modal-policy-summary {
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.policy-title-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.modal-policy-ver {
+  font-size: 11px;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.modal-policy-body {
+  padding: 0 18px 16px;
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.6;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 2px;
+  padding-top: 12px;
+}
+
+.portal-modal-footer {
+  padding: 16px 24px;
+  background: #ffffff !important;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.portal-sidebar-exit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  width: 100%;
+}
+
+.portal-sidebar-exit-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+@media (max-width: 992px) {
+  .portal-form-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .wizard-steps-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .wizard-step-link {
+    min-width: 180px;
+  }
+  .portal-form-sidebar-sticky {
+    position: static;
+  }
+}
+
+.portal-form-section,
 .form-section {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -2158,17 +2693,31 @@ function money(value) {
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
+.portal-section-header,
 .form-section-header {
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 16px !important;
+  padding-bottom: 0 !important;
+  border: none !important;
+  border-bottom: none !important;
 }
 
+.portal-section-title,
 .form-section-title {
-  font-size: 17px;
-  font-weight: 500;
-  color: #0f172a;
-  margin: 0;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-bottom: none !important;
+}
+
+.portal-section-body,
+.form-section-body {
+  border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  padding-top: 0 !important;
 }
 
 .form-grid {
@@ -2177,8 +2726,55 @@ function money(value) {
   gap: 20px;
 }
 
+.form-group {
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+}
+
 .form-group.full-width {
   grid-column: span 2;
+}
+
+/* FIX VALIDATION ERROR DISPLAY */
+.form-group .error-text,
+.portal-form-wrapper .error-text,
+.error-text {
+  position: static !important;
+  inset: auto !important;
+  display: block !important;
+  margin-top: 6px !important;
+  margin-bottom: 0 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #dc2626 !important;
+  line-height: 1.45 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  z-index: 1 !important;
+}
+
+.form-group.has-error input,
+.form-group.has-error select,
+.form-group.has-error textarea,
+.form-group input.has-error,
+.form-group input.is-invalid,
+.form-group select.has-error,
+.form-select.has-error {
+  border-color: #fca5a5 !important;
+  background-color: #fef2f2 !important;
+  color: #0f172a !important;
+}
+
+.form-group.has-error input:focus,
+.form-group.has-error select:focus,
+.form-group.has-error textarea:focus,
+.form-select.has-error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
 }
 
 .form-label {
@@ -2238,8 +2834,8 @@ function money(value) {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+  border-color: #5c7e6e;
+  box-shadow: 0 0 0 3px rgba(92, 126, 110, 0.15);
 }
 
 .confirmation-card {
@@ -2269,7 +2865,7 @@ function money(value) {
   width: 18px !important;
   height: 18px !important;
   min-width: 18px !important;
-  accent-color: #16a34a !important;
+  accent-color: #5c7e6e !important;
   margin-top: 2px !important;
   cursor: pointer !important;
 }
@@ -2348,20 +2944,20 @@ function money(value) {
   gap: 8px !important;
   height: 42px !important;
   padding: 0 24px !important;
-  background: #16a34a !important;
-  border: 1px solid #16a34a !important;
+  background: #5c7e6e !important;
+  border: 1px solid #5c7e6e !important;
   border-radius: 8px !important;
   color: #ffffff !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
-  box-shadow: 0 1px 3px 0 rgba(22, 163, 74, 0.25) !important;
+  box-shadow: 0 1px 3px 0 rgba(92, 126, 110, 0.25) !important;
 }
 
 .wizard-actions .btn-primary:hover {
-  background: #15803d !important;
-  border-color: #15803d !important;
+  background: #486858 !important;
+  border-color: #486858 !important;
 }
 
 .wizard-actions .btn-primary:disabled {
@@ -2370,48 +2966,100 @@ function money(value) {
 }
 
 /* MAP PICKER & BUTTONS */
-.map-picker-shell {
-  width: 100%;
-  margin-top: 8px;
-}
-
+.portal-map-picker,
 #partner-application-map {
-  width: 100%;
-  height: 280px !important;
-  min-height: 280px !important;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  overflow: hidden;
-  z-index: 1;
-  background: #f1f5f9;
+  width: 100% !important;
+  height: 320px !important;
+  min-height: 320px !important;
+  border-radius: 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+  background: #f1f5f9 !important;
+  margin-top: 10px !important;
 }
 
-.map-coordinate-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 12px;
+.map-picker-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 8px !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
 }
 
+.current-location-btn,
 .current-location-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
-  border-radius: 6px !important;
-  padding: 8px 14px !important;
-  color: #0f172a !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  color: #486858 !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
-  margin-top: 12px !important;
-  box-shadow: none !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
+.current-location-btn:hover,
 .current-location-button:hover {
+  background: #f2f6f4 !important;
+  border-color: #5c7e6e !important;
+  color: #385244 !important;
+}
+
+.input-with-action {
+  display: flex !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.input-with-action input {
+  flex: 1 !important;
+}
+
+.btn-parse-map {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  padding: 10px 16px !important;
+  background: #f2f6f4 !important;
+  border: 1px solid #d2e0d8 !important;
+  border-radius: 8px !important;
+  color: #486858 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.btn-parse-map:hover {
+  background: #e4eee8 !important;
+  border-color: #b8cdbf !important;
+  color: #385244 !important;
+}
+
+.map-coordinates-bar {
+  display: flex !important;
+  gap: 20px !important;
+  padding: 10px 14px !important;
   background: #f8fafc !important;
-  border-color: #94a3b8 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  color: #475569 !important;
+  margin-bottom: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.map-coordinates-bar strong {
+  color: #5c7e6e !important;
+  font-weight: 600 !important;
 }
 
 .map-help {
@@ -2493,21 +3141,21 @@ function money(value) {
 }
 
 .amenity-option:hover {
-  border-color: #16a34a !important;
-  background: #f0fdf4 !important;
+  border-color: #5c7e6e !important;
+  background: #f2f6f4 !important;
 }
 
 .amenity-option.selected {
-  border-color: #16a34a !important;
-  background: #f0fdf4 !important;
-  color: #15803d !important;
+  border-color: #5c7e6e !important;
+  background: #f2f6f4 !important;
+  color: #486858 !important;
   font-weight: 500 !important;
 }
 
 .amenity-option input[type="checkbox"] {
   width: 16px !important;
   height: 16px !important;
-  accent-color: #16a34a !important;
+  accent-color: #5c7e6e !important;
   cursor: pointer !important;
   margin: 0 !important;
 }
@@ -2516,5 +3164,142 @@ function money(value) {
   .court-config-row {
     grid-template-columns: 1fr;
   }
+}
+</style>
+
+<style>
+/* UNSCOPED OVERRIDE FOR VALIDATION ERROR TEXT TO PREVENT ADMIN.CSS OVERLAPPING */
+.partner-portal-page .form-group {
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  margin-bottom: 0 !important;
+  width: 100% !important;
+}
+
+.partner-portal-page .error-text,
+.portal-form-wrapper .error-text,
+.wizard-form .error-text {
+  position: static !important;
+  inset: auto !important;
+  display: block !important;
+  margin-top: 6px !important;
+  margin-bottom: 0 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #dc2626 !important;
+  line-height: 1.4 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  width: 100% !important;
+  box-shadow: none !important;
+}
+
+.partner-portal-page .form-group.has-error input,
+.partner-portal-page .form-group.has-error select,
+.partner-portal-page .form-group.has-error textarea,
+.partner-portal-page input.has-error,
+.partner-portal-page input.is-invalid,
+.partner-portal-page select.has-error,
+.partner-portal-page .form-select.has-error {
+  border-color: #fca5a5 !important;
+  background-color: #fef2f2 !important;
+  color: #0f172a !important;
+}
+
+.partner-portal-page .form-group.has-error input:focus,
+.partner-portal-page .form-group.has-error select:focus,
+.partner-portal-page .form-group.has-error textarea:focus,
+.partner-portal-page .form-select.has-error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+.partner-portal-page .map-suggestion-card {
+  grid-column: span 2 !important;
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  border-radius: 10px !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  margin-bottom: 8px !important;
+}
+
+@media (max-width: 640px) {
+  .partner-portal-page .map-suggestion-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}
+
+.partner-portal-page .map-suggestion-content {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.partner-portal-page .map-suggestion-icon-wrap {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.partner-portal-page .map-suggestion-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #14532d !important;
+  display: block !important;
+}
+
+.partner-portal-page .map-suggestion-desc {
+  font-size: 12.5px !important;
+  color: #166534 !important;
+  margin: 0 !important;
+}
+
+.partner-portal-page .btn-apply-map-suggestion {
+  background: #5c7e6e !important;
+  border-color: #5c7e6e !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 3px rgba(92, 126, 110, 0.2) !important;
+}
+
+.partner-portal-page .btn-apply-map-suggestion:hover {
+  background: #486858 !important;
+  border-color: #486858 !important;
+}
+
+.partner-portal-page .map-status-card {
+  grid-column: span 2 !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  color: #475569 !important;
+  margin-bottom: 8px !important;
+}
+
+.partner-portal-page .map-status-icon {
+  color: #5c7e6e !important;
 }
 </style>

@@ -26,6 +26,8 @@ use ZipArchive;
 
 class PartnerDocumentService
 {
+    private const LAYOUT_PROFILE_VERSION = 2;
+
     private const TEMPLATE_FALLBACKS = [
         'partner_application_form' => 'Mau_01_Don_de_nghi_dang_ky_doi_tac_chu_san_SportGo_DA_SUA.docx',
         'partner_contract' => 'Mau_02_Hop_dong_hop_tac_doi_tac_SportGo_DA_SUA.docx',
@@ -54,8 +56,10 @@ class PartnerDocumentService
         'venue_location_appendix' => 'PLVT',
     ];
 
-    public function __construct(private readonly DocumentPdfService $pdfs)
-    {
+    public function __construct(
+        private readonly DocumentPdfService $pdfs,
+        private readonly PartnerDocumentFormatter $formatter
+    ) {
     }
 
     public function generateDocument(
@@ -72,14 +76,25 @@ class PartnerDocumentService
         $documentVersion = $this->nextDocumentVersion($documentType, $referenceType, $referenceId);
         $renderedAt = now();
         $renderData = array_replace($renderData, SystemSetting::documentProfilePayload());
+        $renderData = $this->withAutomaticAppendixIdentity(
+            $documentType,
+            $renderData,
+            $context,
+            $referenceType,
+            $referenceId
+        );
         $renderData = array_merge($renderData, [
             'document_code' => $documentCode,
             'document_version' => $documentVersion,
+            'layout_profile_version' => self::LAYOUT_PROFILE_VERSION,
             'rendered_at' => $renderedAt->format('d/m/Y H:i'),
             'rendered_by' => $actor?->full_name ?? $actor?->username ?? $actor?->email ?? 'Hệ thống',
         ]);
         $filePath = 'generated-documents/' . $renderedAt->format('Y/m') . '/' . $documentCode . '.docx';
         $title = $context['title'] ?? $this->defaultTitle($documentType, $renderData);
+        if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            $title = $this->appendixDocumentTitle($title, (string) $renderData['appendix_number']);
+        }
 
         $sourcePath = $template ? Storage::disk($template->storage_disk)->path($template->file_path) : null;
         if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
@@ -97,6 +112,9 @@ class PartnerDocumentService
         } else {
             $this->renderDocxTemplateWithRetry($sourcePath, $targetPath, $renderData, $documentType);
         }
+        $this->normalizeRequiredDocxParts($targetPath);
+        $this->polishUnsignedSignaturePlaceholders($targetPath, $documentType);
+        $this->formatter->normalize($targetPath, $documentType);
         $this->normalizeRequiredDocxParts($targetPath);
         if (! $this->isUsableDocx($targetPath)) {
             throw new RuntimeException("Không thể sinh file DOCX hợp lệ cho {$documentType}.");
@@ -440,6 +458,8 @@ class PartnerDocumentService
     public function pdfDownloadPath(GeneratedDocument $document): string
     {
         $document->refresh();
+        $this->refreshLegacyUnsignedDocumentLayout($document);
+        $document->refresh();
         $this->ensurePdfCopies($document);
 
         $path = $document->final_pdf_path ?: $document->generated_pdf_path;
@@ -448,6 +468,126 @@ class PartnerDocumentService
         }
 
         return $path;
+    }
+
+    private function refreshLegacyUnsignedDocumentLayout(GeneratedDocument $document): void
+    {
+        if ((int) ($document->render_data['layout_profile_version'] ?? 0) >= self::LAYOUT_PROFILE_VERSION
+            || $document->locked_at
+            || $document->final_file_path
+            || in_array($document->status, ['signed', 'completed', 'cancelled', 'voided'], true)
+            || $document->signatures()->where('status', 'signed')->exists()) {
+            return;
+        }
+
+        $relativePath = $document->generated_file_path;
+        if (! $relativePath || ! Storage::disk('local')->exists($relativePath)) {
+            return;
+        }
+
+        $template = $this->activeTemplate($document->document_type);
+        $sourcePath = $template ? Storage::disk($template->storage_disk)->path($template->file_path) : null;
+        if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
+            $sourcePath = $this->fallbackTemplatePath($document->document_type);
+        }
+        if (! $sourcePath || ! $this->isUsableDocx($sourcePath)) {
+            return;
+        }
+
+        $renderData = array_replace($document->render_data ?: [], SystemSetting::documentProfilePayload());
+        $renderData = $this->hydrateVenueChangeEvidence($document, $renderData);
+        $renderData = $this->withAutomaticAppendixIdentity(
+            $document->document_type,
+            $renderData,
+            [
+                'partner_contract_id' => $document->partner_contract_id,
+                'venue_cluster_id' => $document->venue_cluster_id,
+                'entity_type' => $document->entity_type,
+                'entity_id' => $document->entity_id,
+            ],
+            (string) $document->reference_type,
+            (string) $document->reference_id
+        );
+        $renderData = array_merge($renderData, [
+            'document_code' => $document->document_code,
+            'document_version' => (int) ($document->document_version ?: 1),
+            'layout_profile_version' => self::LAYOUT_PROFILE_VERSION,
+            'rendered_at' => ($document->generated_at ?: now())->format('d/m/Y H:i'),
+            'rendered_by' => $renderData['rendered_by'] ?? 'Hệ thống',
+        ]);
+
+        $targetPath = Storage::disk('local')->path($relativePath);
+        $temporaryPath = $targetPath.'.layout-v'.self::LAYOUT_PROFILE_VERSION.'-'.bin2hex(random_bytes(6)).'.docx';
+
+        try {
+            $this->renderDocxTemplateWithRetry($sourcePath, $temporaryPath, $renderData, $document->document_type);
+            $this->normalizeRequiredDocxParts($temporaryPath);
+            $this->polishUnsignedSignaturePlaceholders($temporaryPath, $document->document_type);
+            $this->formatter->normalize($temporaryPath, $document->document_type);
+            $this->normalizeRequiredDocxParts($temporaryPath);
+
+            if (! $this->isUsableDocx($temporaryPath) || ! copy($temporaryPath, $targetPath)) {
+                throw new RuntimeException('Không thể cập nhật định dạng tài liệu chưa ký.');
+            }
+
+            if ($document->generated_pdf_path && Storage::disk('local')->exists($document->generated_pdf_path)) {
+                Storage::disk('local')->delete($document->generated_pdf_path);
+            }
+
+            $document->forceFill([
+                'template_id' => $template?->id,
+                'template_version' => $template?->version ?? $document->template_version,
+                'render_data' => $renderData,
+                'file_hash' => hash_file('sha256', $targetPath),
+                'pdf_hash' => null,
+                'pdf_generated_at' => null,
+                'pdf_locked_at' => null,
+            ])->save();
+        } catch (Throwable $exception) {
+            Log::warning('Không thể tự động cập nhật định dạng tài liệu đối tác chưa ký.', [
+                'generated_document_id' => $document->id,
+                'document_type' => $document->document_type,
+                'error' => $exception->getMessage(),
+            ]);
+        } finally {
+            @unlink($temporaryPath);
+            @unlink($temporaryPath.'.tmp.docx');
+        }
+    }
+
+    private function hydrateVenueChangeEvidence(GeneratedDocument $document, array $renderData): array
+    {
+        if (in_array($document->document_type, ['venue_scale_request', 'venue_scale_appendix'], true)
+            && $document->reference_type === VenueCourtApprovalRequest::class) {
+            $request = VenueCourtApprovalRequest::query()->find($document->reference_id);
+            if ($request) {
+                $renderData['reason'] = $request->status_reason ?: ($renderData['reason'] ?? null);
+                $renderData['attachment_list'] = $this->storedVenueRequestDocumentNames($request->supplementary_documents);
+                $renderData['evidence_present'] = filled($request->evidence_image);
+            }
+        }
+
+        if (in_array($document->document_type, ['venue_location_change_request', 'venue_location_appendix'], true)
+            && $document->reference_type === VenueLocationChangeRequest::class) {
+            $request = VenueLocationChangeRequest::query()->find($document->reference_id);
+            if ($request) {
+                $renderData['reason'] = $request->note ?: $request->status_reason ?: ($renderData['reason'] ?? null);
+                $renderData['attachment_list'] = $this->storedVenueRequestDocumentNames($request->supplementary_documents);
+            }
+        }
+
+        return $renderData;
+    }
+
+    private function storedVenueRequestDocumentNames(mixed $documents): string
+    {
+        return collect($documents ?: [])
+            ->map(fn ($document) => is_array($document)
+                ? ($document['file_name'] ?? $document['original_name'] ?? $document['name'] ?? null)
+                : null)
+            ->filter()
+            ->values()
+            ->implode('; ');
     }
 
     public function pdfDownloadName(GeneratedDocument $document): string
@@ -625,10 +765,10 @@ class PartnerDocumentService
         $word->setDefaultFontName('Times New Roman');
         $word->setDefaultFontSize(13);
         $section = $word->addSection([
-            'marginTop' => 850,
-            'marginRight' => 900,
-            'marginBottom' => 850,
-            'marginLeft' => 900,
+            'marginTop' => 1134,
+            'marginRight' => 1134,
+            'marginBottom' => 1134,
+            'marginLeft' => 1701,
         ]);
         $center = ['alignment' => 'center', 'spaceAfter' => 0];
         $section->addText('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM', ['bold' => true], $center);
@@ -660,7 +800,7 @@ class PartnerDocumentService
 
         $table = $section->addTable([
             'borderSize' => 6,
-            'borderColor' => 'B7C4BC',
+            'borderColor' => '000000',
             'cellMargin' => 100,
             'width' => 9000,
             'unit' => 'dxa',
@@ -677,7 +817,7 @@ class PartnerDocumentService
         ];
         foreach ($rows as [$label, $value]) {
             $table->addRow();
-            $table->addCell(2700, ['bgColor' => 'F2F7F3'])->addText((string) $label, ['bold' => true]);
+            $table->addCell(2700)->addText((string) $label, ['bold' => true]);
             $table->addCell(6300)->addText((string) $value, [], ['alignment' => 'left']);
         }
 
@@ -1201,7 +1341,7 @@ XML;
                 return '{{' . $macro . '}}';
             }, $xml);
 
-            if ($replaced !== $xml) {
+            if (is_string($replaced) && $replaced !== $xml) {
                 $zip->addFromString($entry, $replaced);
             }
         }
@@ -1244,7 +1384,7 @@ XML;
                 $replaced = str_replace('{{ ' . $key . ' }}', $text, $replaced);
             }
 
-            if ($replaced !== $xml) {
+            if (is_string($replaced) && $replaced !== $xml) {
                 $zip->addFromString($entry, $replaced);
             }
         }
@@ -1298,7 +1438,7 @@ XML;
                 $replaced = preg_replace('/[\. \t_]*(?:<[^>]+>)*,?\s*(?:<[^>]+>)*ngày\s*(?:<[^>]+>)*[\. \t_]+(?:<[^>]+>)*tháng\s*(?:<[^>]+>)*[\. \t_]+(?:<[^>]+>)*năm\s*(?:<[^>]+>)*[\. \t_]+/u', $data['location_date'], $replaced);
             }
 
-            if ($replaced !== $xml) {
+            if (is_string($replaced) && $replaced !== $xml) {
                 $zip->addFromString($entry, $replaced);
             }
         }
@@ -1312,6 +1452,7 @@ XML;
             'partner_application_form' => $this->applicationTemplateBodyValues($data),
             'partner_contract' => $this->partnerContractTemplateValues($data),
             'termination_request',
+            'termination_cancellation_request',
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
             'settlement_minutes' => $this->workflowTemplateBodyValues($data, $documentType),
@@ -1343,7 +1484,8 @@ XML;
             $this->normalizeTwoColumnTableWidths($docxPath);
         }
         $this->fillKnownTemplateInlineText($docxPath, $data, $documentType);
-        $this->removeVenueChangeReasonBlankParagraphs($docxPath, $documentType);
+        $this->replaceVenueChangeReasonSection($docxPath, $data, $documentType);
+        $this->replaceVenueChangeAttachmentSection($docxPath, $data, $documentType);
         $this->ensureDocumentSignaturePlaceholders($docxPath, $documentType);
         $this->polishUnsignedSignaturePlaceholders($docxPath, $documentType);
         $this->replaceResidualTemplateBlanks($docxPath, $documentType);
@@ -1694,7 +1836,7 @@ XML;
             'diachicumsan' => [$currentAddress, $newAddress, 'Cập nhật sau khi phụ lục ký đủ'],
             'toadogpsduongdanbando' => [$currentCoordinates, $newCoordinates, 'Đã đối chiếu theo bản đồ'],
             'khuvucquanhuyentinhthanh' => [$currentRegion, $newRegion, 'Theo đơn vị hành chính đã chọn'],
-            'sodienthoaitaicoso' => [$this->firstFilled($data, ['venue_phone', 'owner_phone']) ?: 'Theo hồ sơ hiện tại', $this->firstFilled($data, ['new_phone', 'venue_phone', 'owner_phone']) ?: 'Không thay đổi', 'Dùng để liên hệ khách đặt sân'],
+            'sodienthoaitaicoso' => [$this->firstFilled($data, ['venue_phone', 'owner_phone']) ?: 'Theo hồ sơ hiện tại', $this->firstFilled($data, ['new_phone', 'venue_phone', 'owner_phone']) ?: 'Không thay đổi', 'Đối chiếu với hồ sơ liên hệ'],
             'nguoiquanlytaicoso' => [$manager, $manager, 'Không thay đổi người phụ trách'],
             'thoidiemdukienapdung' => ['Đang áp dụng', $effectiveDate, 'Sau khi SportGo và chủ sân ký phụ lục'],
         ];
@@ -1868,6 +2010,7 @@ XML;
             'venue_scale_appendix',
             'venue_location_appendix',
             'termination_request',
+            'termination_cancellation_request',
             'mutual_liquidation_minutes',
             'unilateral_termination_notice',
             'settlement_minutes',
@@ -1894,7 +2037,7 @@ XML;
         ]);
 
         if ($targets !== []) {
-            $this->styleSignatureRuns($docxPath, $targets, '000000', true);
+            $this->styleSignatureRuns($docxPath, $targets, '000000', true, 26, 300);
         }
     }
 
@@ -1902,7 +2045,14 @@ XML;
      * Keep signature placeholders in the XML so TemplateProcessor can replace them,
      * but hide unsigned placeholders from the human preview and center the signature block.
      */
-    private function styleSignatureRuns(string $docxPath, array $targets, string $color, bool $centerParagraph): void
+    private function styleSignatureRuns(
+        string $docxPath,
+        array $targets,
+        string $color,
+        bool $centerParagraph,
+        ?int $fontSizeHalfPoints = null,
+        ?int $lineSpacingTwips = null
+    ): void
     {
         if (! is_file($docxPath) || ! class_exists(ZipArchive::class)) {
             return;
@@ -1921,7 +2071,7 @@ XML;
         }
 
         $changed = false;
-        $nextXml = preg_replace_callback('~<w:p\b[^>]*>.*?</w:p>~s', function (array $paragraphMatch) use ($targets, $color, $centerParagraph, &$changed): string {
+        $nextXml = preg_replace_callback('~<w:p\b[^>]*>.*?</w:p>~s', function (array $paragraphMatch) use ($targets, $color, $centerParagraph, $fontSizeHalfPoints, $lineSpacingTwips, &$changed): string {
             $paragraph = $paragraphMatch[0];
             $contains = false;
 
@@ -1944,12 +2094,15 @@ XML;
             if ($centerParagraph) {
                 $paragraph = $this->setParagraphJustification($paragraph, 'center');
             }
+            if ($lineSpacingTwips !== null) {
+                $paragraph = $this->setParagraphLineSpacing($paragraph, $lineSpacingTwips);
+            }
 
-            return preg_replace_callback('~<w:r\b[^>]*>.*?</w:r>~s', function (array $runMatch) use ($targets, $color): string {
+            return preg_replace_callback('~<w:r\b[^>]*>.*?</w:r>~s', function (array $runMatch) use ($targets, $color, $fontSizeHalfPoints): string {
                 $run = $runMatch[0];
                 foreach ($targets as $target) {
                     if ($target !== '' && (str_contains($run, $this->xmlText((string) $target)) || str_contains($run, (string) $target))) {
-                        return $this->setRunTextColor($run, $color);
+                        return $this->setRunTextAppearance($run, $color, $fontSizeHalfPoints);
                     }
                 }
 
@@ -1990,6 +2143,38 @@ XML;
         }
 
         return preg_replace('~(<w:r\b[^>]*>)~', '$1<w:rPr>' . $colorXml . '</w:rPr>', $runXml, 1) ?? $runXml;
+    }
+
+    private function setRunTextAppearance(string $runXml, string $color, ?int $fontSizeHalfPoints): string
+    {
+        $runXml = $this->setRunTextColor($runXml, $color);
+        if ($fontSizeHalfPoints === null) {
+            return $runXml;
+        }
+
+        foreach (['sz', 'szCs'] as $property) {
+            $sizeXml = '<w:' . $property . ' w:val="' . $fontSizeHalfPoints . '"/>';
+            if (preg_match('~<w:' . $property . '\b[^>]*/>~', $runXml)) {
+                $runXml = preg_replace('~<w:' . $property . '\b[^>]*/>~', $sizeXml, $runXml, 1) ?? $runXml;
+            } elseif (preg_match('~<w:rPr\b[^>]*>.*?</w:rPr>~s', $runXml)) {
+                $runXml = preg_replace('~(<w:rPr\b[^>]*>)~', '$1' . $sizeXml, $runXml, 1) ?? $runXml;
+            }
+        }
+
+        return $runXml;
+    }
+
+    private function setParagraphLineSpacing(string $paragraphXml, int $lineSpacingTwips): string
+    {
+        $spacingXml = '<w:spacing w:before="0" w:after="0" w:line="' . $lineSpacingTwips . '" w:lineRule="auto"/>';
+        if (preg_match('~<w:spacing\b[^>]*/>~', $paragraphXml)) {
+            return preg_replace('~<w:spacing\b[^>]*/>~', $spacingXml, $paragraphXml, 1) ?? $paragraphXml;
+        }
+        if (preg_match('~<w:pPr\b[^>]*>.*?</w:pPr>~s', $paragraphXml)) {
+            return preg_replace('~(<w:pPr\b[^>]*>)~', '$1' . $spacingXml, $paragraphXml, 1) ?? $paragraphXml;
+        }
+
+        return preg_replace('~(<w:p\b[^>]*>)~', '$1<w:pPr>' . $spacingXml . '</w:pPr>', $paragraphXml, 1) ?? $paragraphXml;
     }
 
     private function replaceResidualTemplateBlanks(string $docxPath, string $documentType): void
@@ -2124,7 +2309,7 @@ XML;
         $zip->close();
     }
 
-    private function removeVenueChangeReasonBlankParagraphs(string $docxPath, string $documentType): void
+    private function replaceVenueChangeReasonSection(string $docxPath, array $data, string $documentType): void
     {
         if (! in_array($documentType, ['venue_scale_request', 'venue_location_change_request'], true)
             || ! class_exists(ZipArchive::class)
@@ -2159,6 +2344,7 @@ XML;
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
 
         $changed = false;
+        $reason = $this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp';
         foreach ($xpath->query('//w:p') as $paragraph) {
             $key = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($paragraph, $xpath)));
             if (! str_contains($key, 'lydoyeucauthaydoiquymo') && ! str_contains($key, 'lydoyeucauthaydoivitri')) {
@@ -2184,6 +2370,18 @@ XML;
                 $removed++;
                 $changed = true;
             }
+
+            $nextParagraph = $paragraph->nextSibling;
+            $nextText = $nextParagraph instanceof \DOMElement && $nextParagraph->localName === 'p'
+                ? trim($this->docxNodeText($nextParagraph, $xpath))
+                : '';
+            if ($nextText !== $reason) {
+                $reasonParagraph = $this->createDocumentTextParagraph($dom, $reason);
+                $paragraph->parentNode?->insertBefore($reasonParagraph, $paragraph->nextSibling);
+                $changed = true;
+            }
+
+            break;
         }
 
         if ($changed) {
@@ -2191,6 +2389,187 @@ XML;
         }
 
         $zip->close();
+    }
+
+    private function replaceVenueChangeAttachmentSection(string $docxPath, array $data, string $documentType): void
+    {
+        if (! in_array($documentType, [
+            'venue_scale_request',
+            'venue_location_change_request',
+            'venue_scale_appendix',
+            'venue_location_appendix',
+        ], true) || ! class_exists(ZipArchive::class) || ! class_exists(\DOMDocument::class)) {
+            return;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $entry = 'word/document.xml';
+        $xml = $zip->getFromName($entry);
+        if (! is_string($xml) || trim($xml) === '') {
+            $zip->close();
+            return;
+        }
+
+        $dom = new \DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadXML($xml);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        if (! $loaded) {
+            $zip->close();
+            return;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $attachments = $this->venueChangeAttachmentNames($data);
+        $changed = false;
+
+        foreach ($xpath->query('/w:document/w:body/w:p') as $heading) {
+            $headingKey = Str::ascii($this->normalizeDocxLabel($this->docxNodeText($heading, $xpath)));
+            if (! str_contains($headingKey, 'danhmuctailieuminhchungkemtheo')
+                && ! str_contains($headingKey, 'hosotailieuminhchunggukem')
+                && ! str_contains($headingKey, 'tailieuminhchungguikem')) {
+                continue;
+            }
+
+            $nextSection = null;
+            $candidates = [];
+            for ($sibling = $heading->nextSibling; $sibling; $sibling = $sibling->nextSibling) {
+                if (! $sibling instanceof \DOMElement || $sibling->namespaceURI !== 'http://schemas.openxmlformats.org/wordprocessingml/2006/main') {
+                    continue;
+                }
+                if ($sibling->localName !== 'p') {
+                    $nextSection = $sibling;
+                    break;
+                }
+
+                $text = trim($this->docxNodeText($sibling, $xpath));
+                if ($text !== '' && preg_match('/^(?:[IVXLCDM]+\.|\d+\.)\s+/u', $text)) {
+                    $nextSection = $sibling;
+                    break;
+                }
+                $candidates[] = $sibling;
+            }
+
+            foreach ($candidates as $candidate) {
+                $candidate->parentNode?->removeChild($candidate);
+                $changed = true;
+            }
+
+            $lines = $attachments !== []
+                ? array_map(
+                    fn (string $name, int $index): string => sprintf('Tệp %02d: %s', $index + 1, $name),
+                    $attachments,
+                    array_keys($attachments)
+                )
+                : ['Không có tệp đính kèm được ghi nhận trên hệ thống.'];
+            foreach ($lines as $line) {
+                $paragraph = $this->createDocumentTextParagraph($dom, $line);
+                if ($nextSection) {
+                    $nextSection->parentNode?->insertBefore($paragraph, $nextSection);
+                } else {
+                    $heading->parentNode?->appendChild($paragraph);
+                }
+                $changed = true;
+            }
+
+            break;
+        }
+
+        if ($changed) {
+            $zip->addFromString($entry, $dom->saveXML());
+        }
+        $zip->close();
+    }
+
+    /** @return array<int, string> */
+    private function venueChangeAttachmentNames(array $data): array
+    {
+        $names = [];
+        $collect = function (mixed $value) use (&$collect, &$names): void {
+            if (is_array($value)) {
+                foreach (['file_name', 'original_name', 'name'] as $key) {
+                    if (isset($value[$key]) && is_scalar($value[$key])) {
+                        $names[] = trim((string) $value[$key]);
+
+                        return;
+                    }
+                }
+                foreach ($value as $item) {
+                    $collect($item);
+                }
+
+                return;
+            }
+            if (! is_scalar($value)) {
+                return;
+            }
+            foreach (preg_split('/[;\r\n]+/u', (string) $value) ?: [] as $name) {
+                $name = trim($name);
+                if ($name !== '') {
+                    $names[] = $name;
+                }
+            }
+        };
+
+        $collect($data['attachment_list'] ?? null);
+        $collect($data['supplementary_documents'] ?? null);
+        $evidenceName = trim((string) ($data['evidence_file_name'] ?? ''));
+        if ($evidenceName !== '') {
+            $names[] = 'Ảnh minh chứng quy mô sân: ' . $evidenceName;
+        } elseif (! empty($data['evidence_present'])) {
+            $names[] = 'Ảnh minh chứng quy mô sân đã tải lên hệ thống';
+        }
+
+        $unique = [];
+        foreach ($names as $name) {
+            $key = mb_strtolower($name, 'UTF-8');
+            if ($name !== '' && ! isset($unique[$key])) {
+                $unique[$key] = $name;
+            }
+        }
+
+        return array_values($unique);
+    }
+
+    private function createDocumentTextParagraph(\DOMDocument $dom, string $text): \DOMElement
+    {
+        $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $paragraph = $dom->createElementNS($namespace, 'w:p');
+        $properties = $dom->createElementNS($namespace, 'w:pPr');
+        $spacing = $dom->createElementNS($namespace, 'w:spacing');
+        $spacing->setAttributeNS($namespace, 'w:before', '0');
+        $spacing->setAttributeNS($namespace, 'w:after', '60');
+        $spacing->setAttributeNS($namespace, 'w:line', '300');
+        $spacing->setAttributeNS($namespace, 'w:lineRule', 'exact');
+        $properties->appendChild($spacing);
+        $paragraph->appendChild($properties);
+
+        $run = $dom->createElementNS($namespace, 'w:r');
+        $runProperties = $dom->createElementNS($namespace, 'w:rPr');
+        $fonts = $dom->createElementNS($namespace, 'w:rFonts');
+        foreach (['ascii', 'hAnsi', 'eastAsia', 'cs'] as $attribute) {
+            $fonts->setAttributeNS($namespace, 'w:' . $attribute, 'Times New Roman');
+        }
+        $runProperties->appendChild($fonts);
+        foreach (['sz', 'szCs'] as $sizeName) {
+            $size = $dom->createElementNS($namespace, 'w:' . $sizeName);
+            $size->setAttributeNS($namespace, 'w:val', '26');
+            $runProperties->appendChild($size);
+        }
+        $run->appendChild($runProperties);
+        $textNode = $dom->createElementNS($namespace, 'w:t');
+        $textNode->setAttribute('xml:space', 'preserve');
+        $textNode->appendChild($dom->createTextNode($text));
+        $run->appendChild($textNode);
+        $paragraph->appendChild($run);
+
+        return $paragraph;
     }
 
     private function inlineReplacementText(string $text, array $data, string $documentType): ?string
@@ -2353,7 +2732,7 @@ XML;
 
             foreach ($xpath->query('./w:tr', $table) as $row) {
                 $cells = $xpath->query('./w:tc', $row);
-                if ($cells->length < 2) {
+                if ($cells->length !== 2) {
                     continue;
                 }
 
@@ -2487,14 +2866,17 @@ XML;
         $tableIndex = 0;
         foreach ($xpath->query('//w:tbl') as $table) {
             $hasTwoColumnRow = false;
+            $hasWiderRow = false;
             foreach ($xpath->query('./w:tr', $table) as $row) {
-                if ($xpath->query('./w:tc', $row)->length === 2) {
+                $cellCount = $xpath->query('./w:tc', $row)->length;
+                if ($cellCount === 2) {
                     $hasTwoColumnRow = true;
-                    break;
+                } elseif ($cellCount > 2) {
+                    $hasWiderRow = true;
                 }
             }
 
-            if (! $hasTwoColumnRow) {
+            if (! $hasTwoColumnRow || $hasWiderRow) {
                 continue;
             }
 
@@ -2924,7 +3306,7 @@ XML;
         $ascii = Str::ascii($normalized);
 
         if (in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)
-            && preg_match('/^phuluc(?:\s+[ivxlcdm0-9]+)?$/i', $ascii)) {
+            && preg_match('/^phuluc(?:[ivxlcdm0-9]+)?$/i', $ascii)) {
             $appendixNumber = $this->firstFilled($data, ['appendix_number']) ?: 'I';
             return 'Phụ lục ' . $appendixNumber;
         }
@@ -2934,11 +3316,11 @@ XML;
         }
 
         if (str_contains($ascii, 'lydoyeucauthaydoiquymo')) {
-            return '5. Lý do yêu cầu thay đổi quy mô: ' . ($this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp');
+            return '5. Lý do yêu cầu thay đổi quy mô';
         }
 
         if (str_contains($ascii, 'lydoyeucauthaydoivitri')) {
-            return '4. Lý do yêu cầu thay đổi vị trí: ' . ($this->firstFilled($data, ['reason', 'note', 'status_reason']) ?: 'Chưa cung cấp');
+            return '4. Lý do yêu cầu thay đổi vị trí';
         }
 
         $requestCode = $this->firstFilled($data, ['request_code', 'request_id', 'source_document_code', 'document_code']) ?: 'theo hệ thống';
@@ -3419,7 +3801,7 @@ XML;
             $border->setAttributeNS($namespace, 'w:val', 'single');
             $border->setAttributeNS($namespace, 'w:sz', '4');
             $border->setAttributeNS($namespace, 'w:space', '0');
-            $border->setAttributeNS($namespace, 'w:color', 'auto');
+            $border->setAttributeNS($namespace, 'w:color', '000000');
             $borders->appendChild($border);
         }
         $tblPr->appendChild($borders);
@@ -3934,11 +4316,119 @@ XML;
         return ((int) $latest) + 1;
     }
 
+    private function withAutomaticAppendixIdentity(
+        string $documentType,
+        array $renderData,
+        array $context,
+        string $referenceType,
+        string $referenceId
+    ): array {
+        if (! in_array($documentType, ['venue_scale_appendix', 'venue_location_appendix'], true)) {
+            return $renderData;
+        }
+
+        $scope = GeneratedDocument::query()
+            ->whereIn('document_type', ['venue_scale_appendix', 'venue_location_appendix']);
+        if (! empty($context['partner_contract_id'])) {
+            $scope->where('partner_contract_id', $context['partner_contract_id']);
+        } elseif (! empty($context['venue_cluster_id'])) {
+            $scope->where('venue_cluster_id', $context['venue_cluster_id']);
+        } elseif (! empty($context['partner_application_id'])) {
+            $scope->where('partner_application_id', $context['partner_application_id']);
+        } else {
+            $scope->where('entity_type', $context['entity_type'] ?? null)
+                ->where('entity_id', $context['entity_id'] ?? null);
+        }
+
+        $sameReference = (clone $scope)
+            ->where('reference_type', $referenceType)
+            ->where('reference_id', $referenceId)
+            ->latest('document_version')
+            ->latest('generated_at')
+            ->first(['render_data']);
+        $sequence = $this->appendixSequenceFromRenderData($sameReference?->render_data);
+
+        if ($sequence < 1) {
+            $highestSequence = (clone $scope)
+                ->where('status', '!=', 'draft_preview')
+                ->get(['render_data'])
+                ->map(fn (GeneratedDocument $document): int => $this->appendixSequenceFromRenderData($document->render_data))
+                ->max();
+            $sequence = max(0, (int) $highestSequence) + 1;
+        }
+
+        $sequence = max(1, (int) $sequence);
+        $renderData['appendix_sequence'] = $sequence;
+        $renderData['appendix_number'] = $this->toRomanNumeral($sequence);
+
+        return $renderData;
+    }
+
+    private function appendixSequenceFromRenderData(?array $renderData): int
+    {
+        if (! is_array($renderData)) {
+            return 0;
+        }
+        $sequence = (int) ($renderData['appendix_sequence'] ?? 0);
+        if ($sequence > 0) {
+            return $sequence;
+        }
+
+        return $this->romanNumeralValue((string) ($renderData['appendix_number'] ?? ''));
+    }
+
+    private function romanNumeralValue(string $roman): int
+    {
+        $roman = strtoupper(trim($roman));
+        if ($roman === '' || ! preg_match('/^[IVXLCDM]+$/', $roman)) {
+            return 0;
+        }
+
+        $values = ['I' => 1, 'V' => 5, 'X' => 10, 'L' => 50, 'C' => 100, 'D' => 500, 'M' => 1000];
+        $total = 0;
+        $previous = 0;
+        for ($index = strlen($roman) - 1; $index >= 0; $index--) {
+            $value = $values[$roman[$index]];
+            $total += $value < $previous ? -$value : $value;
+            $previous = max($previous, $value);
+        }
+
+        return $total;
+    }
+
+    private function toRomanNumeral(int $number): string
+    {
+        $number = max(1, min(3999, $number));
+        $map = [
+            1000 => 'M', 900 => 'CM', 500 => 'D', 400 => 'CD',
+            100 => 'C', 90 => 'XC', 50 => 'L', 40 => 'XL',
+            10 => 'X', 9 => 'IX', 5 => 'V', 4 => 'IV', 1 => 'I',
+        ];
+        $result = '';
+        foreach ($map as $value => $roman) {
+            while ($number >= $value) {
+                $result .= $roman;
+                $number -= $value;
+            }
+        }
+
+        return $result;
+    }
+
+    private function appendixDocumentTitle(string $title, string $appendixNumber): string
+    {
+        $baseTitle = trim(preg_replace('/^Phụ lục(?:\s+[IVXLCDM]+)?\s*(?:[-:]\s*)?/iu', '', $title) ?? $title);
+
+        return 'Phụ lục ' . $appendixNumber . ($baseTitle !== '' ? ' - ' . $baseTitle : '');
+    }
+
     private function defaultTitle(string $documentType, array $renderData): string
     {
         return match ($documentType) {
             'venue_scale_request' => 'Đơn yêu cầu mở rộng quy mô sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
             'venue_location_change_request' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
+            'venue_scale_appendix' => 'Phụ lục ' . ($renderData['appendix_number'] ?? 'I') . ' - thay đổi quy mô sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
+            'venue_location_appendix' => 'Phụ lục ' . ($renderData['appendix_number'] ?? 'I') . ' - thay đổi vị trí cụm sân ' . ($renderData['venue_name'] ?? $renderData['cluster_name'] ?? ''),
             'partner_application_form' => 'Đơn đăng ký đối tác ' . ($renderData['venue_name'] ?? ''),
             'partner_contract' => 'Hợp đồng hợp tác ' . ($renderData['venue_name'] ?? ''),
             'termination_request' => 'Đơn yêu cầu chấm dứt hợp tác',

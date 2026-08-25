@@ -1096,6 +1096,7 @@ class VenueClusterController extends Controller
             'reviewed_at' => $this->formatDateTime($approvalRequest->reviewed_at),
             'expected_effective_date' => now()->format('d/m/Y'),
             'attachment_list' => $this->documentNames($approvalRequest->supplementary_documents),
+            'evidence_present' => filled($approvalRequest->evidence_image),
         ];
     }
 

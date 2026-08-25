@@ -223,8 +223,7 @@ class VenueCourtApprovalController extends Controller
             $approvalRequest->forceFill(['supplementary_documents' => $documents])->save();
         }
 
-        $this->deleteDraftPreviewDocuments('venue_scale_request', $cluster);
-        $this->generateScaleDocument($cluster, $approvalRequest, $request, $data['preview_document_id'] ?? null);
+        $this->generateScaleDocument($cluster, $approvalRequest, $request);
 
         $approvalRequest->load(['courtType:id,name']);
 
@@ -287,7 +286,7 @@ class VenueCourtApprovalController extends Controller
             'signed_at' => null,
         ])->save();
 
-        $this->generateScaleDocument($cluster, $approvalRequest->refresh(), $request, $data['preview_document_id'] ?? null);
+        $this->generateScaleDocument($cluster, $approvalRequest->refresh(), $request);
 
         return response()->json([
             'message' => 'Đã nộp giấy tờ bổ sung. Yêu cầu được chuyển lại về trạng thái chờ duyệt.',
@@ -497,44 +496,33 @@ class VenueCourtApprovalController extends Controller
             ->implode('; ');
     }
 
-    private function generateScaleDocument(VenueCluster $cluster, VenueCourtApprovalRequest $approvalRequest, Request $request, ?string $previewDocumentId = null): void
+    private function storedDocumentNames(mixed $documents): string
+    {
+        return collect(\Illuminate\Support\Arr::wrap($documents))
+            ->map(fn ($document) => is_array($document)
+                ? ($document['file_name'] ?? $document['original_name'] ?? $document['name'] ?? null)
+                : null)
+            ->filter()
+            ->values()
+            ->implode('; ');
+    }
+
+    private function generateScaleDocument(VenueCluster $cluster, VenueCourtApprovalRequest $approvalRequest, Request $request): void
     {
         $approvalRequest->loadMissing(['courtType', 'requestedBy', 'venueCluster.owner']);
         $renderData = $this->scaleRequestRenderData($cluster, $approvalRequest);
-        $document = $previewDocumentId
-            ? GeneratedDocument::query()
-                ->whereKey($previewDocumentId)
-                ->where('document_type', 'venue_scale_request')
-                ->where('owner_id', $cluster->owner_id)
-                ->where('venue_cluster_id', $cluster->id)
-                ->where('status', 'draft_preview')
-                ->first()
-            : null;
-
-        if ($document) {
-            $document->forceFill([
-                'reference_type' => VenueCourtApprovalRequest::class,
-                'reference_id' => $approvalRequest->id,
-                'partner_application_id' => $this->partnerApplication($cluster)?->id,
-                'entity_type' => VenueCluster::class,
-                'entity_id' => $cluster->id,
-                'status' => 'pending_owner_signature',
-                'render_data' => array_merge($document->render_data ?: [], $renderData),
-                'title' => 'Đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
-            ])->save();
-        } else {
-            $document = $this->documents->generateDocument('venue_scale_request', $approvalRequest, $renderData, $request->user(), [
-                'owner_id' => $cluster->owner_id,
-                'venue_cluster_id' => $cluster->id,
-                'partner_application_id' => $this->partnerApplication($cluster)?->id,
-                'entity_type' => VenueCluster::class,
-                'entity_id' => $cluster->id,
-                'status' => 'pending_owner_signature',
-                'title' => 'Đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
-            ]);
-        }
+        $document = $this->documents->generateDocument('venue_scale_request', $approvalRequest, $renderData, $request->user(), [
+            'owner_id' => $cluster->owner_id,
+            'venue_cluster_id' => $cluster->id,
+            'partner_application_id' => $this->partnerApplication($cluster)?->id,
+            'entity_type' => VenueCluster::class,
+            'entity_id' => $cluster->id,
+            'status' => 'pending_owner_signature',
+            'title' => 'Đơn yêu cầu mở rộng quy mô sân ' . $cluster->name,
+        ]);
 
         $approvalRequest->forceFill(['generated_document_id' => $document->id])->save();
+        $this->deleteDraftPreviewDocuments('venue_scale_request', $cluster);
     }
 
     private function scaleRequestRenderData(VenueCluster $cluster, VenueCourtApprovalRequest $approvalRequest): array
@@ -642,6 +630,8 @@ class VenueCourtApprovalController extends Controller
             'booking_impact' => 'Chủ sân cam kết rà soát booking, cấu hình giá và lịch vận hành trước khi SportGo cập nhật quy mô.',
             'submitted_at' => optional($approvalRequest->created_at)->format('d/m/Y H:i'),
             'expected_effective_date' => $expectedEffectiveDate,
+            'attachment_list' => $this->storedDocumentNames($approvalRequest->supplementary_documents),
+            'evidence_present' => filled($approvalRequest->evidence_image),
         ];
     }
 
@@ -682,9 +672,15 @@ class VenueCourtApprovalController extends Controller
             ->where('owner_id', $cluster->owner_id)
             ->where('venue_cluster_id', $cluster->id)
             ->where('status', 'draft_preview')
+            ->doesntHave('signatures')
             ->get()
             ->each(function (GeneratedDocument $document): void {
-                foreach ([$document->generated_file_path, $document->final_file_path] as $path) {
+                foreach ([
+                    $document->generated_file_path,
+                    $document->final_file_path,
+                    $document->generated_pdf_path,
+                    $document->final_pdf_path,
+                ] as $path) {
                     if ($path && Storage::disk('local')->exists($path)) {
                         Storage::disk('local')->delete($path);
                     }

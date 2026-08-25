@@ -57,10 +57,12 @@ function renderMarkers() {
 
 onMounted(async () => {
   await nextTick();
-  map = L.map(mapElement.value, { scrollWheelZoom: false }).setView([16.0471, 108.2062], 5);
+  map = L.map(mapElement.value, { scrollWheelZoom: false, minZoom: 4, maxBounds: [[-90, -180], [90, 180]] }).setView([16.0471, 108.2062], 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
+    minZoom: 4,
     maxZoom: 19,
+    noWrap: true,
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
   renderMarkers();
