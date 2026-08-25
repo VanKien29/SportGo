@@ -3,26 +3,6 @@
     <PublicNavbar />
 
     <main class="community-shell">
-      <header class="community-hero">
-        <div class="community-hero__copy">
-          <span class="community-eyebrow">SportGo Community</span>
-          <h1>Kết nối người chơi, chia sẻ cuộc vui</h1>
-          <p>Khám phá kinh nghiệm, tìm bạn chơi và theo dõi các kèo giao lưu phù hợp với lịch của bạn.</p>
-        </div>
-        <div class="community-hero__actions">
-          <template v-if="user">
-            <button v-if="canCreateCommunityPost" type="button" class="button button-primary" @click="showCommunityModal = true">
-              <AppIcon name="edit" />
-              Đăng bài
-            </button>
-            <button v-if="isPlayer" type="button" class="button button-secondary" @click="showMeetupModal = true">
-              <AppIcon name="users" />
-              Tạo kèo giao lưu
-            </button>
-          </template>
-          <router-link v-else to="/login" class="button button-primary">Đăng nhập để tham gia</router-link>
-        </div>
-      </header>
 
       <div class="community-layout">
         <section class="community-main" aria-label="Bảng tin cộng đồng">
@@ -48,10 +28,7 @@
 
           <section class="surface filter-panel" aria-label="Bộ lọc bảng tin">
             <div class="filter-panel__heading">
-              <div>
-                <span class="section-kicker">{{ feedTab === 'public' ? 'Khám phá' : 'Cá nhân' }}</span>
-                <h2>{{ feedTab === 'public' ? 'Bảng tin mới nhất' : 'Bài viết của tôi' }}</h2>
-              </div>
+              <h2>{{ feedTab === 'public' ? 'Bảng tin mới nhất' : 'Bài viết của tôi' }}</h2>
               <button v-if="searchQuery || selectedCategory" type="button" class="button button-quiet" @click="clearFilters">Xóa bộ lọc</button>
             </div>
 
@@ -209,7 +186,7 @@
         <aside class="community-rail" aria-label="Khám phá cộng đồng">
           <section class="surface rail-panel">
             <header class="rail-panel__heading">
-              <div><span class="section-kicker">Giao lưu</span><h2>Kèo sắp tới</h2></div>
+              <h2>Kèo sắp tới</h2>
               <button v-if="isPlayer" type="button" class="icon-button" aria-label="Tạo bài giao lưu" @click="showMeetupModal = true"><AppIcon name="plus" /></button>
             </header>
             <div v-if="matchmakingLoading" class="rail-state"><span class="loader loader-small"></span>Đang tải kèo...</div>
@@ -223,7 +200,26 @@
                   </button>
                   <span class="meetup-needed">Cần {{ post.needed_players }} người</span>
                 </header>
-                <div class="meetup-facts"><span><AppIcon name="mapPin" />{{ post.booking?.venue_name || 'Cụm sân' }}</span><span><AppIcon name="clock" />{{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span></div>
+
+                <div v-if="post.booking?.sport_name" class="meetup-sport-tag">
+                  <AppIcon :name="post.booking?.sport_icon || 'activity'" size="13" />
+                  <strong>{{ post.booking.sport_name }}</strong>
+                  <span v-if="post.booking?.court_type_name">· {{ post.booking.court_type_name }}</span>
+                </div>
+
+                <div class="meetup-facts">
+                  <span><AppIcon name="mapPin" />{{ post.booking?.venue_name || 'Cụm sân' }}</span>
+                  <span><AppIcon name="clock" />{{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span>
+                </div>
+
+                <div class="meetup-badges-row">
+                  <span class="meetup-badge meetup-badge--skill">{{ skillLabel(post.skill_level) }}</span>
+                  <span class="meetup-badge meetup-badge--cost">{{ costLabel(post) }}</span>
+                </div>
+
+                <div v-if="post.image_url" class="meetup-cover">
+                  <img :src="assetUrl(post.image_url)" :alt="post.booking?.venue_name || 'Ảnh bài giao lưu'" />
+                </div>
                 <p v-if="post.description">{{ post.description }}</p>
                 <button v-if="!isOwnPost(post)" type="button" class="button button-secondary meetup-action" :disabled="joiningPostId === post.id || Boolean(post.user_status)" @click="joinMatchmaking(post)">{{ joinLabel(post) }}</button>
                 <router-link v-else class="button button-secondary meetup-action" :to="'/matchmaking-posts/' + post.id + '/manage'">Quản lý yêu cầu</router-link>
@@ -850,6 +846,24 @@ function formatMention(text) {
   return text.replace(/^(@[^\s]+\s*(?:[^\s]+\s*)*?)(?=\s|$)/, '<strong style="color: #10b981;">$1</strong>').replace(/\n/g, '<br>');
 }
 
+function skillLabel(level) {
+  return {
+    all: 'Mọi trình độ',
+    beginner: 'Mới chơi',
+    intermediate: 'Trung bình',
+    advanced: 'Nâng cao',
+  }[level] || 'Mọi trình độ';
+}
+
+function costLabel(post) {
+  if (post?.cost_type === 'free') return 'Miễn phí';
+  if (Number(post?.cost_per_player) > 0) {
+    const k = Math.round(Number(post.cost_per_player) / 1000);
+    return `~${k}k / người`;
+  }
+  return 'Chia đều tiền sân';
+}
+
 function goToDetail(slug) {
   router.push({ name: 'community-post-detail', params: { slug } });
 }
@@ -900,14 +914,17 @@ onBeforeUnmount(() => {
   background: var(--community-soft);
   font-family: var(--sportgo-font-body, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
-.community-shell { width: min(1220px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 88px; }
-.community-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; padding: 18px 0 38px; }
-.community-hero__copy { max-width: 720px; }
-.community-eyebrow, .section-kicker { display: block; margin-bottom: 10px; color: var(--community-accent); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
-.community-hero h1 { margin: 0; color: var(--community-ink); font-size: clamp(2rem, 4vw, 3.3rem); font-weight: 700; letter-spacing: -.03em; line-height: 1.08; }
-.community-hero p { max-width: 620px; margin: 16px 0 0; color: var(--community-muted); font-size: 16px; line-height: 1.65; }
-.community-hero__actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
-.community-layout { display: grid; grid-template-columns: minmax(0, 1fr) 324px; align-items: start; gap: 28px; }
+.community-shell {
+  width: min(1400px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 24px 0 64px;
+}
+.community-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: 24px;
+}
 .community-main, .community-rail { min-width: 0; }
 .community-main { display: flex; flex-direction: column; gap: 16px; }
 .community-rail { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 22px; }
@@ -943,9 +960,8 @@ onBeforeUnmount(() => {
 .community-tabs button:hover, .community-tabs a:hover { color: var(--community-ink); background: var(--community-soft); }
 .community-tabs .active { color: var(--community-accent-dark); background: var(--community-accent-soft); font-weight: 700; }
 .filter-panel { padding: 22px; }
-.filter-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.filter-panel h2, .rail-panel h2 { margin: 0; color: var(--community-ink); font-size: 20px; font-weight: 700; letter-spacing: -.015em; }
-.filter-panel .section-kicker, .rail-panel .section-kicker { margin-bottom: 6px; font-size: 11px; }
+.filter-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.filter-panel h2, .rail-panel h2 { margin: 0; color: var(--community-ink); font-size: 18px; font-weight: 700; }
 .search-field { min-height: 48px; display: flex; align-items: center; gap: 10px; margin-top: 20px; padding: 4px 5px 4px 14px; border: 1px solid var(--community-line); border-radius: 8px; color: var(--community-muted); background: #fbfdfb; }
 .search-field:focus-within { border-color: var(--community-accent); box-shadow: 0 0 0 3px rgba(20, 122, 70, .1); }
 .search-field input { min-width: 0; flex: 1; height: 38px; border: 0; outline: 0; color: var(--community-ink); background: transparent; font: inherit; }
@@ -1032,15 +1048,25 @@ onBeforeUnmount(() => {
 .rail-panel { padding: 20px; }
 .rail-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
 .meetup-list { display: flex; flex-direction: column; }
-.meetup-item { padding: 18px 0; }
+.meetup-item { padding: 18px 0; border-bottom: 1px solid var(--community-line); }
+.meetup-item:last-child { border-bottom: none; }
 .meetup-item header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .meetup-author { flex: 1; }
 .meetup-author strong { color: var(--community-ink); font-size: 13px; font-weight: 700; line-height: 1.3; }
-.meetup-needed { flex: 0 0 auto; color: var(--community-accent-dark); font-size: 11px; font-weight: 700; }
-.meetup-facts { display: flex; flex-direction: column; gap: 6px; margin: 13px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.4; }
+.meetup-needed { flex: 0 0 auto; color: var(--community-accent-dark); font-size: 11px; font-weight: 700; padding: 2px 7px; background: var(--community-accent-soft); border-radius: 4px; }
+.meetup-sport-tag { display: inline-flex; align-items: center; gap: 6px; margin: 9px 0 0 45px; padding: 3px 8px; background: var(--community-accent-soft); border-radius: 6px; color: var(--community-accent-dark); font-size: 11.5px; }
+.meetup-sport-tag strong { font-weight: 700; }
+.meetup-sport-tag span { color: var(--community-accent); }
+.meetup-facts { display: flex; flex-direction: column; gap: 5px; margin: 9px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.4; }
 .meetup-facts span { display: flex; align-items: flex-start; gap: 7px; }
-.meetup-facts svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--community-accent); }
-.meetup-item p { margin: 12px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.45; }
+.meetup-facts svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--community-accent); }
+.meetup-badges-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0 45px; }
+.meetup-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.meetup-badge--skill { background: #f1f5f9; color: #334155; }
+.meetup-badge--cost { background: #fef3c7; color: #92400e; }
+.meetup-cover { margin: 10px 0 0 45px; border-radius: 8px; overflow: hidden; max-height: 160px; border: 1px solid var(--community-line); background: #f8fafc; }
+.meetup-cover img { width: 100%; height: 100%; max-height: 160px; object-fit: cover; display: block; }
+.meetup-item p { margin: 10px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.45; }
 .meetup-action { width: calc(100% - 45px); margin: 14px 0 0 45px; }
 .rail-state { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; min-height: 150px; padding: 12px 0; color: var(--community-muted); font-size: 13px; text-align: center; }
 .rail-state > svg { width: 26px; height: 26px; color: var(--community-accent); }
@@ -1067,30 +1093,39 @@ onBeforeUnmount(() => {
 .appeal-char-count { display: block; margin-top: 6px; color: var(--community-muted); font-size: 11px; text-align: right; }
 .appeal-modal footer { justify-content: flex-end; padding-top: 12px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 980px) { .community-layout { grid-template-columns: 1fr; } .community-rail { position: static; } }
+@media (max-width: 1200px) {
+  .community-shell { width: min(100% - 36px, 1140px); padding-top: 20px; }
+  .community-layout { grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+}
+
+@media (max-width: 980px) {
+  .community-shell { width: min(100% - 32px, 860px); padding: 18px 0 48px; }
+  .community-layout { grid-template-columns: 1fr; gap: 18px; }
+  .community-rail { position: static; }
+}
+
 @media (max-width: 640px) {
-  .community-shell { width: min(100% - 28px, 620px); padding-top: 24px; padding-bottom: 56px; }
-  .community-hero { align-items: flex-start; flex-direction: column; gap: 20px; padding-bottom: 26px; }
-  .community-hero h1 { font-size: 2.15rem; }
-  .community-hero__actions { width: 100%; justify-content: flex-start; }
-  .community-hero__actions .button { flex: 1 1 auto; }
-  .composer { padding: 15px; }
-  .composer__actions { gap: 16px; margin-left: 0; }
-  .community-tabs { overflow-x: auto; }
-  .community-tabs button, .community-tabs a { min-width: 155px; }
-  .filter-panel { padding: 17px 15px; }
+  .community-shell { width: 100%; padding: 12px 10px 48px; }
+  .surface { border-radius: 10px; }
+  .composer { padding: 14px 12px; }
+  .composer__prompt { min-height: 42px; padding: 0 12px; font-size: 13px; }
+  .composer__actions { gap: 16px; margin: 12px 0 0 0; padding-top: 4px; justify-content: space-around; }
+  .community-tabs { overflow-x: auto; padding: 4px; }
+  .community-tabs button, .community-tabs a { min-width: 140px; padding: 0 8px; font-size: 13px; }
+  .filter-panel { padding: 16px 12px; }
   .filter-panel__heading { align-items: center; }
-  .filter-panel h2 { font-size: 18px; }
-  .filter-nav { gap: 2px 14px; }
-  .post-card__header { padding: 16px 15px 13px; }
-  .post-card__body { padding-inline: 15px; }
-  .post-notice { margin-inline: 15px; }
-  .post-card__stats { padding-inline: 15px; gap: 10px; }
-  .post-card__actions { margin-inline: 15px; }
-  .comments-panel { margin-inline: 15px; }
-  .comment-list { padding-inline: 10px; }
+  .filter-panel h2 { font-size: 17px; }
+  .filter-nav { gap: 4px 12px; margin-top: 12px; }
+  .post-card__header { padding: 14px 14px 10px; }
+  .post-card__body { padding: 0 14px 14px; }
+  .post-notice { margin: 0 14px 12px; padding: 10px 12px; }
+  .post-card__stats { padding: 10px 14px; gap: 12px; }
+  .post-card__actions { margin: 0 14px; padding: 5px 0 8px; }
+  .comments-panel { margin: 0 14px 14px; padding: 12px 0 0; }
+  .comment-list { padding: 0 10px; }
   .comment-replies { margin-left: 8px; }
-  .meetup-facts, .meetup-item p { margin-left: 44px; }
+  .meetup-facts, .meetup-item p { margin-left: 36px; }
+  .meetup-action { width: 100%; margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>

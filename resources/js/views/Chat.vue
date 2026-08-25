@@ -1260,6 +1260,27 @@
       @confirm="confirmChatAction"
     />
 
+    <!-- Modal Xác nhận giải tán nhóm giao lưu -->
+    <div v-if="showDissolveModal" class="cg-modal-backdrop" @click.self="showDissolveModal = false">
+      <div class="cg-modal-card max-w-md text-center p-6 rounded-2xl" role="dialog" aria-modal="true">
+        <div class="w-14 h-14 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 flex items-center justify-center mx-auto mb-4">
+          <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Giải tán nhóm giao lưu?</h3>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Cuộc trò chuyện nhóm sẽ bị xóa và bài giao lưu sẽ được đóng. Bạn có chắc chắn muốn giải tán nhóm?</p>
+        <div class="flex gap-3 justify-center">
+          <button type="button" class="flex-1 px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800" :disabled="dissolvingGroup" @click="showDissolveModal = false">
+            Hủy bỏ
+          </button>
+          <button type="button" class="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50" :disabled="dissolvingGroup" @click="confirmDissolveMatchmakingGroup">
+            <span>{{ dissolvingGroup ? 'Đang giải tán...' : 'Xác nhận giải tán' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Create Group Chat Modal -->
     <div v-if="showCreateGroupModal" class="cg-modal-backdrop" @click.self="closeCreateGroupModal">
       <div class="cg-modal-card">
@@ -1449,6 +1470,8 @@ export default {
 
       showTelegramMenu: false,
       showCreateGroupModal: false,
+      showDissolveModal: false,
+      dissolvingGroup: false,
       newGroupName: '',
       groupSearchQuery: '',
       groupSearchResults: [],
@@ -2591,17 +2614,25 @@ export default {
       }
     },
 
-    async dissolveMatchmakingGroup() {
+    dissolveMatchmakingGroup() {
       if (!this.activeConversation) return;
       this.showChatMenu = false;
+      this.showDissolveModal = true;
+    },
+
+    async confirmDissolveMatchmakingGroup() {
+      if (!this.activeConversation || this.dissolvingGroup) return;
+      this.dissolvingGroup = true;
       try {
         await chatService.dissolveConversation(this.activeConversation.id);
-        this.toast.success('Đã giải tán nhóm giao lưu.');
+        this.showDissolveModal = false;
         this.conversations = this.conversations.filter((item) => item.id !== this.activeConversation.id);
         this.activeConversation = null;
         this.messages = [];
       } catch (error) {
-        this.toast.error(error.message || 'Chỉ được giải tán nhóm sau khi booking hoàn thành.');
+        console.error('Lỗi giải tán nhóm giao lưu', error);
+      } finally {
+        this.dissolvingGroup = false;
       }
     },
 

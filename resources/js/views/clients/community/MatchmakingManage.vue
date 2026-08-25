@@ -38,6 +38,10 @@
 
         <section class="booking-summary" aria-label="Thông tin buổi giao lưu">
           <article class="sg-client-card">
+            <AppIcon :name="post.sport_icon || 'activity'" size="19" />
+            <span><small>{{ post.sport_name || 'Thể thao' }}</small><strong>{{ post.court_type_name || 'Sân tiêu chuẩn' }}<template v-if="post.court_name"> ({{ post.court_name }})</template></strong></span>
+          </article>
+          <article class="sg-client-card">
             <AppIcon name="mapPin" size="19" />
             <span><small>Cụm sân</small><strong>{{ post.venue_name || 'Chưa xác định' }}</strong></span>
           </article>
@@ -47,8 +51,22 @@
           </article>
           <article class="sg-client-card">
             <AppIcon name="users" size="19" />
-            <span><small>Còn cần</small><strong>{{ post.needed_players }} người</strong></span>
+            <span><small>Còn cần · Trình độ</small><strong>{{ post.needed_players }} người · {{ skillLabel(post.skill_level) }}</strong></span>
           </article>
+          <article class="sg-client-card">
+            <AppIcon name="shield" size="19" />
+            <span><small>Chi phí</small><strong>{{ costLabel(post) }}</strong></span>
+          </article>
+        </section>
+
+        <section v-if="post.image_url || post.description" class="post-preview-card sg-client-card">
+          <div v-if="post.image_url" class="post-preview-cover">
+            <img :src="assetUrl(post.image_url)" alt="Ảnh bài giao lưu" />
+          </div>
+          <div v-if="post.description" class="post-preview-desc">
+            <small>Mô tả bài đăng</small>
+            <p>{{ post.description }}</p>
+          </div>
         </section>
 
         <form v-if="editing" class="post-editor sg-client-card" @submit.prevent="savePost">
@@ -198,6 +216,44 @@
         </section>
       </template>
     </main>
+
+    <!-- MODAL XÁC NHẬN GIẢI TÁN NHÓM -->
+    <div v-if="showDissolveConfirmModal" class="sg-modal-overlay" @click.self="showDissolveConfirmModal = false">
+      <div class="sg-confirm-card" role="dialog" aria-modal="true">
+        <div class="sg-confirm-icon sg-confirm-icon--danger">
+          <AppIcon name="alert" size="28" />
+        </div>
+        <h3>Giải tán nhóm giao lưu?</h3>
+        <p>Cuộc trò chuyện nhóm sẽ bị xóa và bài giao lưu sẽ được đóng. Hành động này không thể hoàn tác.</p>
+        <div class="sg-confirm-actions">
+          <button type="button" class="sg-client-button" :disabled="savingPost" @click="showDissolveConfirmModal = false">
+            Hủy bỏ
+          </button>
+          <button type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="confirmDissolveGroup">
+            {{ savingPost ? 'Đang giải tán...' : 'Xác nhận giải tán' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL XÁC NHẬN ĐÓNG BÀI TUYỂN -->
+    <div v-if="showCloseConfirmModal" class="sg-modal-overlay" @click.self="showCloseConfirmModal = false">
+      <div class="sg-confirm-card" role="dialog" aria-modal="true">
+        <div class="sg-confirm-icon sg-confirm-icon--warning">
+          <AppIcon name="alert" size="28" />
+        </div>
+        <h3>Đóng tuyển giao lưu?</h3>
+        <p>Người chơi mới sẽ không thể gửi thêm yêu cầu tham gia vào buổi giao lưu này nữa.</p>
+        <div class="sg-confirm-actions">
+          <button type="button" class="sg-client-button" :disabled="savingPost" @click="showCloseConfirmModal = false">
+            Hủy bỏ
+          </button>
+          <button type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="confirmClosePost">
+            {{ savingPost ? 'Đang đóng...' : 'Xác nhận đóng bài' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -224,6 +280,8 @@ const activeFilter = ref('all');
 const editing = ref(false);
 const editContent = ref('');
 const savingPost = ref(false);
+const showDissolveConfirmModal = ref(false);
+const showCloseConfirmModal = ref(false);
 
 function parseBookingAt(dateValue, timeValue) {
   const dateMatch = String(dateValue || '').match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -255,7 +313,7 @@ const canApprove = computed(() => post.value?.status === 'open'
   && !isSessionExpired.value);
 
 const canManagePost = computed(() => ['open', 'full'].includes(post.value?.status) && !isSessionExpired.value);
-const canDissolve = computed(() => Boolean(post.value?.group_chat_id && post.value?.booking_status === 'completed' && isSessionExpired.value));
+const canDissolve = computed(() => Boolean(post.value?.group_chat_id || post.value?.status !== 'closed'));
 
 const displayPostStatus = computed(() => isSessionExpired.value ? 'expired' : post.value?.status);
 
@@ -373,29 +431,37 @@ async function savePost() {
   }
 }
 
-async function closePost() {
-  if (savingPost.value || !window.confirm('Đóng bài tuyển giao lưu này? Người chơi mới sẽ không thể gửi yêu cầu.')) return;
+function closePost() {
+  showCloseConfirmModal.value = true;
+}
+
+async function confirmClosePost() {
+  if (savingPost.value) return;
   savingPost.value = true;
   try {
     await api(`/api/matchmaking-posts/${route.params.id}`, { method: 'DELETE' });
-    toast.success('Đã đóng bài giao lưu.');
+    showCloseConfirmModal.value = false;
     await fetchParticipants(true);
   } catch (requestError) {
-    toast.error(requestError.message || 'Không thể đóng bài giao lưu.');
+    console.error('Không thể đóng bài giao lưu', requestError);
   } finally {
     savingPost.value = false;
   }
 }
 
-async function dissolveGroup() {
-  if (savingPost.value || !window.confirm('Giải tán nhóm giao lưu? Lịch sử nhóm sẽ không còn trong hộp thư.')) return;
+function dissolveGroup() {
+  showDissolveConfirmModal.value = true;
+}
+
+async function confirmDissolveGroup() {
+  if (savingPost.value) return;
   savingPost.value = true;
   try {
     await api(`/api/matchmaking-posts/${route.params.id}/group/dissolve`, { method: 'POST' });
-    toast.success('Đã giải tán nhóm giao lưu.');
+    showDissolveConfirmModal.value = false;
     await fetchParticipants(true);
   } catch (requestError) {
-    toast.error(requestError.message || 'Chỉ được giải tán nhóm sau khi booking hoàn thành.');
+    console.error('Không thể giải tán nhóm giao lưu', requestError);
   } finally {
     savingPost.value = false;
   }
@@ -463,6 +529,29 @@ function getAvatarUrl(path) {
   return `/storage/${path}`;
 }
 
+function assetUrl(path) {
+  if (!path || /^https?:\/\//.test(path) || path.startsWith('/')) return path || '';
+  return `/storage/${path}`;
+}
+
+function skillLabel(level) {
+  return {
+    all: 'Mọi trình độ',
+    beginner: 'Mới chơi',
+    intermediate: 'Trung bình',
+    advanced: 'Khá / Nâng cao',
+  }[level] || 'Mọi trình độ';
+}
+
+function costLabel(post) {
+  if (post?.cost_type === 'free') return 'Miễn phí (Chủ bao sân)';
+  if (Number(post?.cost_per_player) > 0) {
+    const k = Math.round(Number(post.cost_per_player) / 1000);
+    return `~${k}k / người`;
+  }
+  return 'Chia đều tiền sân';
+}
+
 function initial(name) {
   return String(name || 'N').trim().charAt(0).toUpperCase();
 }
@@ -478,6 +567,49 @@ onMounted(fetchParticipants);
 </script>
 
 <style scoped>
+.post-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 12px;
+}
+
+.post-preview-cover {
+  width: 100%;
+  max-height: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.post-preview-cover img {
+  width: 100%;
+  height: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-preview-desc small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.post-preview-desc p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #1e293b;
+  white-space: pre-line;
+}
 .matchmaking-manage-page {
   min-height: 100vh;
   background: #f5f7f6;
@@ -615,7 +747,7 @@ onMounted(fetchParticipants);
 
 .booking-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -1025,5 +1157,85 @@ onMounted(fetchParticipants);
   .participant-actions .sg-client-button {
     flex: 1;
   }
+}
+
+/* POPUP CONFIRM MODAL */
+.sg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeInOverlay 0.18s ease-out;
+}
+
+.sg-confirm-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.25);
+  animation: scaleUpCard 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sg-confirm-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-confirm-icon--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.sg-confirm-icon--warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.sg-confirm-card h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.sg-confirm-card p {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.sg-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.sg-confirm-actions button {
+  flex: 1;
+  min-height: 42px;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUpCard {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 </style>

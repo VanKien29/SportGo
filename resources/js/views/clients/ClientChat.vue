@@ -1150,10 +1150,30 @@
         />
       </div>
     </div>
+
+    <!-- MODAL XÁC NHẬN GIẢI TÁN NHÓM -->
+    <div v-if="showDissolveConfirmModal" class="cc-modal-overlay" @click.self="showDissolveConfirmModal = false">
+      <div class="cc-modal-card cc-confirm-card" role="dialog" aria-modal="true">
+        <div class="cc-confirm-icon cc-confirm-icon--danger">
+          <AppIcon name="alert" size="28" />
+        </div>
+        <h3 class="cc-confirm-title">Giải tán nhóm giao lưu?</h3>
+        <p class="cc-confirm-desc">Cuộc trò chuyện nhóm sẽ bị xóa và bài giao lưu sẽ được đóng. Bạn có chắc chắn muốn giải tán nhóm?</p>
+        <div class="cc-confirm-actions">
+          <button type="button" class="cc-btn-ghost" :disabled="dissolvingGroup" @click="showDissolveConfirmModal = false">
+            Hủy bỏ
+          </button>
+          <button type="button" class="cc-btn-primary cc-btn-primary--danger" :disabled="dissolvingGroup" @click="confirmDissolveMatchmakingGroup">
+            <span>{{ dissolvingGroup ? 'Đang giải tán...' : 'Xác nhận giải tán' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import { useToast } from "vue-toastification";
 import echo from "../../echo.js";
 import AppIcon from "../../components/AppIcon.vue";
 import PublicNavbar from "../../components/PublicNavbar.vue";
@@ -1165,6 +1185,7 @@ export default {
   components: { PublicNavbar, AppIcon },
   data() {
     return {
+      toast: useToast(),
       activeTab: "all",
       searchQuery: "",
       conversations: [],
@@ -1184,6 +1205,8 @@ export default {
       showChatActionsMenu: false,
       showVenueSidebar: false,
       showGroupInfoModal: false,
+      showDissolveConfirmModal: false,
+      dissolvingGroup: false,
       showAddMemberInput: false,
       addMemberQuery: "",
       addMemberResults: [],
@@ -1752,35 +1775,48 @@ export default {
     async leaveGroupConversation() {
       this.showChatActionsMenu = false;
       this.showGroupInfoModal = false;
-      if (!confirm("Bạn có chắc chắn muốn rời khỏi nhóm trò chuyện này?")) return;
       try {
         const conversationId = this.activeConversation.id;
         if (this.isMatchmakingGroup) {
           await chatService.leaveConversation(conversationId);
+          this.toast.success("Bạn đã rời nhóm giao lưu.");
           await this.fetchConversations();
           const updated = this.conversations.find((c) => String(c.id) === String(conversationId));
           if (updated) this.selectConversation(updated);
         } else {
           await chatService.deleteConversation(conversationId);
+          this.toast.success("Đã rời khỏi cuộc trò chuyện.");
           this.conversations = this.conversations.filter((c) => c.id !== conversationId);
           this.activeConversation = null;
           if (this.conversations.length > 0) this.selectConversation(this.conversations[0]);
         }
       } catch (err) {
         console.error("Lỗi rời nhóm", err);
+        this.toast.error(err.message || "Không thể rời nhóm.");
       }
     },
-    async dissolveMatchmakingGroup() {
+    dissolveMatchmakingGroup() {
       this.showChatActionsMenu = false;
       if (!this.isMatchmakingGroup || !this.activeConversation) return;
+      this.showDissolveConfirmModal = true;
+    },
+    async confirmDissolveMatchmakingGroup() {
+      if (!this.activeConversation || this.dissolvingGroup) return;
+      this.dissolvingGroup = true;
       try {
         const conversationId = this.activeConversation.id;
         await chatService.dissolveConversation(conversationId);
+        this.showDissolveConfirmModal = false;
         this.conversations = this.conversations.filter((c) => String(c.id) !== String(conversationId));
         this.activeConversation = null;
         this.messages = [];
+        if (this.conversations.length > 0) {
+          this.selectConversation(this.conversations[0]);
+        }
       } catch (err) {
         console.error("Lỗi giải tán nhóm giao lưu", err);
+      } finally {
+        this.dissolvingGroup = false;
       }
     },
     async openSavedMessages() {
@@ -4419,5 +4455,64 @@ export default {
     padding-right: 0;
     padding-bottom: 16px;
   }
+}
+
+/* CONFIRM MODAL DIALOG */
+.cc-confirm-card {
+  max-width: 420px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  border-radius: 16px;
+}
+
+.cc-confirm-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cc-confirm-icon--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.cc-confirm-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cc-confirm-desc {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.cc-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cc-confirm-actions button {
+  flex: 1;
+  min-height: 42px;
+}
+
+.cc-btn-primary--danger {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.cc-btn-primary--danger:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
 }
 </style>

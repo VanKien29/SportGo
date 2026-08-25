@@ -29,6 +29,7 @@ class PlayerPostController extends Controller
         $posts = PlayerPost::with([
                 'author:id,full_name,username,avatar_url',
                 'booking.venueCluster:id,name,address',
+                'booking.venueCourt.courtType.parent',
             ])
             ->withCount([
                 'participants as approved_players_count' => fn ($query) => $query
@@ -73,11 +74,22 @@ class PlayerPostController extends Controller
 
         $authorBadges = $this->authorBadges->lookup($posts->pluck('author_id'));
         $data = $posts->map(function ($post) use ($participations, $authorBadges, $groupChatIds) {
+            $court = $post->booking?->venueCourt;
+            $courtType = $court?->courtType;
+            $sportName = $courtType?->parent?->name ?? $courtType?->name ?? 'Thể thao';
+            $courtTypeName = $courtType?->name ?? 'Sân tiêu chuẩn';
+            $sportIcon = $courtType?->parent?->icon_key ?? $courtType?->icon_key ?? 'activity';
+
             return [
                 'id' => $post->id,
                 'title' => $post->title,
                 'description' => $post->description,
+                'image_url' => $post->image_url,
+                'image_path' => $post->image_path,
                 'needed_players' => $post->needed_players,
+                'skill_level' => $post->skill_level ?? 'all',
+                'cost_type' => $post->cost_type ?? 'free',
+                'cost_per_player' => (float) ($post->cost_per_player ?? 0),
                 'approved_players' => (int) $post->approved_players_count,
                 'total_players' => (int) $post->approved_players_count + (int) $post->needed_players,
                 'status' => $post->status,
@@ -95,6 +107,10 @@ class PlayerPostController extends Controller
                     'time' => substr($post->booking->start_time, 0, 5),
                     'venue_name' => $post->booking->venueCluster->name ?? 'Sân chưa xác định',
                     'venue_address' => $post->booking->venueCluster->address ?? '',
+                    'court_name' => $court?->name ?? '',
+                    'sport_name' => $sportName,
+                    'court_type_name' => $courtTypeName,
+                    'sport_icon' => $sportIcon,
                 ],
             ];
         });
@@ -119,8 +135,11 @@ class PlayerPostController extends Controller
         $today = $businessNow->toDateString();
         $time = $businessNow->toTimeString();
         $bookings = Booking::query()
-            ->select(['id', 'venue_cluster_id', 'booking_date', 'start_time'])
-            ->with(['venueCluster:id,name,address'])
+            ->select(['id', 'venue_cluster_id', 'venue_court_id', 'booking_date', 'start_time', 'end_time', 'total_price'])
+            ->with([
+                'venueCluster:id,name,address',
+                'venueCourt.courtType.parent',
+            ])
             ->where('customer_id', $userId)
             ->where('status', 'confirmed')
             ->where(function ($query) use ($today, $time) {
@@ -136,13 +155,24 @@ class PlayerPostController extends Controller
             ->get();
 
         $eligible = $bookings->map(function ($booking) {
+            $court = $booking->venueCourt;
+            $courtType = $court?->courtType;
+            $sportName = $courtType?->parent?->name ?? $courtType?->name ?? 'Thể thao';
+            $courtTypeName = $courtType?->name ?? 'Sân tiêu chuẩn';
+            $sportIcon = $courtType?->parent?->icon_key ?? $courtType?->icon_key ?? 'activity';
+
             return [
                 'id' => $booking->id,
                 'venue_id' => $booking->venue_cluster_id,
                 'venue_name' => $booking->venueCluster->name ?? 'Unknown',
                 'location' => $booking->venueCluster->address ?? null,
+                'court_name' => $court?->name ?? '',
+                'sport_name' => $sportName,
+                'court_type_name' => $courtTypeName,
+                'sport_icon' => $sportIcon,
+                'total_price' => (float) ($booking->total_price ?? 0),
                 'date' => $booking->booking_date->format('Y-m-d'),
-                'time' => substr($booking->start_time, 0, 5),
+                'time' => substr($booking->start_time, 0, 5) . ' - ' . substr($booking->end_time, 0, 5),
             ];
         });
 
@@ -271,7 +301,19 @@ class PlayerPostController extends Controller
             'booking_id' => ['required', 'integer', 'exists:bookings,id'],
             'content' => ['nullable', 'string', 'min:10', 'max:2000'],
             'required_players' => ['required', 'integer', 'min:1', 'max:50'],
+            'skill_level' => ['nullable', 'string', 'in:all,beginner,intermediate,advanced'],
+            'cost_type' => ['nullable', 'string', 'in:free,split,custom'],
+            'cost_per_player' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:15360'],
+            'images.*' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:15360'],
         ]);
+
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('player_posts', 'public');
+        } elseif ($request->hasFile('images.0')) {
+            $imagePath = $request->file('images.0')->store('player_posts', 'public');
+        }
 
         DB::beginTransaction();
         try {
@@ -279,7 +321,7 @@ class PlayerPostController extends Controller
             // that lock for a long time, which made the matchmaking form look stuck.
             // A unique index on player_posts.booking_id protects the one-post-per-booking
             // rule for concurrent requests.
-            $booking = Booking::with('venueCluster')
+            $booking = Booking::with(['venueCluster', 'venueCourt.courtType.parent'])
                 ->whereKey($data['booking_id'])
                 ->firstOrFail();
 
@@ -307,13 +349,26 @@ class PlayerPostController extends Controller
                 ], 409);
             }
 
+            $costType = $data['cost_type'] ?? 'free';
+            $costPerPlayer = 0;
+            if ($costType === 'split') {
+                $totalPrice = (float) ($booking->total_price ?? 0);
+                $totalPeople = (int) $data['required_players'] + 1;
+                $costPerPlayer = $totalPeople > 0 ? (round(($totalPrice / $totalPeople) / 1000) * 1000) : 0;
+            } elseif ($costType === 'custom') {
+                $costPerPlayer = (float) ($data['cost_per_player'] ?? 0);
+            }
+
             $post = PlayerPost::create([
                 'booking_id' => $booking->id,
                 'author_id' => $userId,
                 'title' => 'Tìm người giao lưu',
                 'description' => isset($data['content']) ? trim(strip_tags($data['content'])) : '',
+                'image_path' => $imagePath,
                 'needed_players' => $data['required_players'],
-                'cost_per_player' => 0,
+                'skill_level' => $data['skill_level'] ?? 'all',
+                'cost_type' => $costType,
+                'cost_per_player' => $costPerPlayer,
                 'status' => 'open', // Trạng thái mở để tuyển người
             ]);
 
@@ -383,6 +438,7 @@ class PlayerPostController extends Controller
     {
         $data = $request->validate([
             'content' => ['required', 'string', 'min:10', 'max:2000'],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:15360'],
         ]);
 
         $post = PlayerPost::query()->findOrFail($id);
@@ -394,6 +450,10 @@ class PlayerPostController extends Controller
         }
         if (! $post->booking || ! $this->isEligibleBooking($post->booking)) {
             return response()->json(['message' => 'Booking gốc không còn hợp lệ để sửa bài.'], 409);
+        }
+
+        if ($request->hasFile('image')) {
+            $post->image_path = $request->file('image')->store('player_posts', 'public');
         }
 
         $post->description = trim(strip_tags($data['content']));
@@ -607,7 +667,7 @@ class PlayerPostController extends Controller
 
         DB::beginTransaction();
         try {
-            $post = PlayerPost::with('booking.venueCluster')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $post = PlayerPost::with(['booking.venueCluster', 'booking.venueCourt.courtType.parent'])->whereKey($id)->lockForUpdate()->firstOrFail();
             $this->synchronizeLifecycle($post);
             $post->refresh();
 
@@ -639,14 +699,30 @@ class PlayerPostController extends Controller
             ];
             });
 
+            $court = $post->booking?->venueCourt;
+            $courtType = $court?->courtType;
+            $sportName = $courtType?->parent?->name ?? $courtType?->name ?? 'Thể thao';
+            $courtTypeName = $courtType?->name ?? 'Sân tiêu chuẩn';
+            $sportIcon = $courtType?->parent?->icon_key ?? $courtType?->icon_key ?? 'activity';
+
             $response = response()->json([
             'post' => [
                 'id' => $post->id,
                 'title' => $post->title,
                 'description' => $post->description,
+                'image_url' => $post->image_url,
+                'image_path' => $post->image_path,
                 'status' => $post->status,
                 'needed_players' => $post->needed_players,
+                'skill_level' => $post->skill_level ?? 'all',
+                'cost_type' => $post->cost_type ?? 'free',
+                'cost_per_player' => (float) ($post->cost_per_player ?? 0),
                 'venue_name' => $post->booking->venueCluster->name ?? 'Sân chưa xác định',
+                'venue_address' => $post->booking->venueCluster->address ?? '',
+                'court_name' => $court?->name ?? '',
+                'sport_name' => $sportName,
+                'court_type_name' => $courtTypeName,
+                'sport_icon' => $sportIcon,
                 'booking_date' => $post->booking->booking_date->format('Y-m-d'),
                 'start_time' => substr($post->booking->start_time, 0, 5),
                 'end_time' => substr($post->booking->end_time, 0, 5),
@@ -874,18 +950,30 @@ class PlayerPostController extends Controller
             || ($date === $businessNow->toDateString() && substr((string) $booking->end_time, 0, 8) <= $businessNow->toTimeString());
     }
 
-    /** Only the post creator may dissolve the group after a completed booking. */
+    /** Only the post creator may dissolve the group. */
     public function dissolveGroup(Request $request, $id): JsonResponse
     {
         $post = PlayerPost::with('booking')->findOrFail($id);
         if ((string) $post->author_id !== (string) $request->user()->id) {
             return response()->json(['message' => 'Chỉ người tạo bài mới được giải tán nhóm.'], 403);
         }
-        $this->synchronizeLifecycle($post);
-        $post->refresh();
-        if (! $post->booking || ! $this->hasBookingEnded($post->booking) || $post->booking->status !== 'completed') {
-            return response()->json(['message' => 'Chỉ được giải tán nhóm sau khi booking đã kết thúc và hoàn thành.'], 409);
+
+        if (in_array($post->status, ['open', 'full'], true)) {
+            $post->forceFill([
+                'status' => 'closed',
+                'status_reason' => 'matchmaking_group_dissolved',
+            ])->save();
         }
+
+        DB::table('player_post_participants')
+            ->where('post_id', $post->id)
+            ->where('status', 'pending')
+            ->update([
+                'status' => 'cancelled',
+                'responded_at' => now(),
+                'left_at' => now(),
+                'updated_at' => now(),
+            ]);
 
         $this->matchmakingChat->dissolve($post);
         return response()->json(['status' => 'success', 'message' => 'Đã giải tán nhóm giao lưu.']);

@@ -35,10 +35,7 @@
         </div>
       </section>
 
-      <!-- INTERNATIONAL STANDARD PILL SEARCH BAR -->
-      <div class="sg-container" style="padding-top: 36px; padding-bottom: 24px;">
-        <PillSearchBar />
-      </div>
+
 
       <!-- SECTION 1: ORBITING SPORTS CATEGORIES SHOWCASE -->
       <section class="alb-section">
@@ -342,7 +339,6 @@
 
 <script>
 import PublicNavbar from "../components/PublicNavbar.vue";
-import PillSearchBar from "../components/PillSearchBar.vue";
 import AppIcon from "../components/AppIcon.vue";
 import { api } from "../services/api.js";
 import { resolveSystemAsset, systemName, systemProfileState } from "../stores/systemProfile.js";
@@ -358,7 +354,6 @@ export default {
   name: "HomeView",
   components: {
     PublicNavbar,
-    PillSearchBar,
     AppIcon,
   },
   data() {

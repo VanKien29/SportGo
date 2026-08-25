@@ -16,7 +16,9 @@ class PlayerPost extends Model
         'description',
         'image_path',
         'needed_players',
+        'skill_level',
         'cost_per_player',
+        'cost_type',
         'status',
         'status_reason',
     ];

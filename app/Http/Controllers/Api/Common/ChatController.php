@@ -1460,27 +1460,28 @@ class ChatController extends Controller
             return response()->json(['message' => 'Chỉ người tạo bài mới được giải tán nhóm.'], 403);
         }
         $post = PlayerPost::with('booking')->find($conversation->reference_id);
-        if (! $post || ! $post->booking || ! $this->bookingEnded($post->booking) || $post->booking->status !== 'completed') {
-            return response()->json(['message' => 'Chỉ được giải tán nhóm sau khi booking đã kết thúc và hoàn thành.'], 409);
+        if ($post) {
+            if (in_array($post->status, ['open', 'full'], true)) {
+                $post->forceFill([
+                    'status' => 'closed',
+                    'status_reason' => 'matchmaking_group_dissolved',
+                ])->save();
+            }
+            DB::table('player_post_participants')
+                ->where('post_id', $post->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'cancelled',
+                    'responded_at' => now(),
+                    'left_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            app(MatchmakingChatService::class)->dissolve($post);
+        } else {
+            $conversation->delete();
         }
 
-        if (in_array($post->status, ['open', 'full'], true)) {
-            $post->forceFill([
-                'status' => 'closed',
-                'status_reason' => 'matchmaking_session_ended',
-            ])->save();
-        }
-        DB::table('player_post_participants')
-            ->where('post_id', $post->id)
-            ->where('status', 'pending')
-            ->update([
-                'status' => 'cancelled',
-                'responded_at' => now(),
-                'left_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-        app(MatchmakingChatService::class)->dissolve($post);
         return response()->json(['status' => 'success', 'message' => 'Đã giải tán nhóm giao lưu.']);
     }
 
