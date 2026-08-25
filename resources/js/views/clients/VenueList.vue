@@ -3,35 +3,7 @@
     <PublicNavbar />
 
     <main class="sg-venue-main">
-      <!-- ───── HERO SECTION ───── -->
-      <section class="sg-venue-hero">
-        <div class="sg-container-wide">
-          <div class="sg-venue-hero-grid">
-            <div class="sg-venue-hero-copy">
-              <h1 class="sg-venue-hero__title">Tìm Sân Thể Thao</h1>
-              <p class="sg-venue-hero__sub">Chọn sân, chọn giờ, đặt lịch — nhanh chóng và tiện lợi.</p>
-              <div class="sg-venue-search-wrap">
-                <PillSearchBar />
-              </div>
-              <div class="sg-venue-hero__links">
-                <router-link to="/bookings" class="sg-venue-hero__link">Lịch đã đặt của tôi</router-link>
-                <span class="sg-venue-hero__link-sep">/</span>
-                <router-link to="/favorites" class="sg-venue-hero__link">Sân yêu thích</router-link>
-                <span class="sg-venue-hero__link-sep">/</span>
-                <router-link to="/venues/map" class="sg-venue-hero__link">Xem bản đồ</router-link>
-              </div>
-            </div>
 
-            <div class="sg-venue-hero-media" aria-label="Không gian sân thể thao SportGo">
-              <img :src="'/images/home/sportgo-home-hero-v2.webp'" alt="Không gian sân thể thao SportGo" />
-              <div class="sg-venue-hero-media__caption">
-                <strong>Sân thể thao quanh bạn</strong>
-                <span>Khám phá lịch trống và đặt chỗ nhanh</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ───── SEARCH & FILTER CONTENT AREA ───── -->
       <section class="sg-venue-body">
@@ -103,6 +75,15 @@
             <div class="sg-content-toolbar">
               <span class="sg-result-count">Hiển thị {{ venues.length }} kết quả</span>
               <div class="sg-toolbar-actions">
+                <router-link to="/venues/map" class="sg-toolbar-map-btn" title="Xem bản đồ trực quan">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                    <line x1="8" y1="2" x2="8" y2="18"/>
+                    <line x1="16" y1="6" x2="16" y2="22"/>
+                  </svg>
+                  <span>Bản đồ</span>
+                </router-link>
+
                 <button
                   type="button"
                   class="sg-nearby-btn"
@@ -187,8 +168,20 @@
           </div>
         </div>
       </section>
+
     </main>
 
+    <!-- FLOATING MAP BUTTON (OPTION 2 WITH TELEPORT) -->
+    <Teleport to="body">
+      <router-link to="/venues/map" class="sg-floating-map-fab" title="Xem bản đồ trực quan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+        <span>Xem bản đồ</span>
+      </router-link>
+    </Teleport>
   </div>
 </template>
 
@@ -735,7 +728,7 @@ export default {
   justify-content: center;
   gap: 7px;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 16px;
   border: 1px solid #cbd5e1;
   border-radius: 9px;
   background: #ffffff;
@@ -743,6 +736,7 @@ export default {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  box-sizing: border-box;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
 }
@@ -856,6 +850,75 @@ export default {
   .sg-sort-combobox {
     flex: 1;
     min-width: 0;
+  }
+}
+
+.sg-toolbar-map-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #15803d;
+  border-radius: 9px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: all 0.18s ease;
+}
+
+.sg-toolbar-map-btn:hover {
+  background: #166534;
+  border-color: #166534;
+  color: #ffffff;
+}
+
+/* FLOATING MAP FAB (OPTION 2) */
+.sg-floating-map-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 99999;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 25px -5px rgba(21, 128, 61, 0.45), 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+}
+
+.sg-floating-map-fab:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 14px 30px -5px rgba(21, 128, 61, 0.55), 0 6px 15px rgba(0, 0, 0, 0.15);
+  color: #ffffff;
+}
+
+.sg-floating-map-fab:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.sg-floating-map-fab svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .sg-floating-map-fab {
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 18px;
+    font-size: 13.5px;
   }
 }
 </style>

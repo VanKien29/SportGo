@@ -1474,12 +1474,16 @@ export default {
         const map = L.map(this.$refs.venueMapContainer, {
           center: [lat, lng],
           zoom: 15,
+          minZoom: 4,
           zoomControl: true,
           scrollWheelZoom: false,
+          maxBounds: [[-90, -180], [90, 180]],
         });
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          minZoom: 4,
           maxZoom: 19,
+          noWrap: true,
           attribution: '© OpenStreetMap contributors',
         }).addTo(map);
 
