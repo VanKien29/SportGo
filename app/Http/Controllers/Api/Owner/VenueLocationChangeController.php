@@ -109,6 +109,8 @@ class VenueLocationChangeController extends Controller
             'attachment_list' => $this->uploadedFileNames($request->file('supplementary_documents', [])),
         ]);
 
+        $this->deleteDraftPreviewDocuments('venue_location_change_request', $cluster);
+
         $document = $this->documents->generateDocument('venue_location_change_request', $cluster, $renderData, $request->user(), [
             'reference_type' => 'venue_location_change_request_preview',
             'reference_id' => 'venue_location_preview_'.$cluster->id.'_'.now()->timestamp,
@@ -209,7 +211,7 @@ class VenueLocationChangeController extends Controller
             $locationRequest->forceFill(['supplementary_documents' => $documents])->save();
         }
 
-        $this->generateLocationDocument($cluster, $locationRequest, $request, $data['preview_document_id'] ?? null);
+        $this->generateLocationDocument($cluster, $locationRequest, $request);
 
         return response()->json([
             'message' => 'Gửi yêu cầu thành công. Vui lòng chờ Admin xét duyệt.',
@@ -270,7 +272,7 @@ class VenueLocationChangeController extends Controller
             'signed_at' => null,
         ])->save();
 
-        $this->generateLocationDocument($cluster, $locationRequest->refresh(), $request, $data['preview_document_id'] ?? null);
+        $this->generateLocationDocument($cluster, $locationRequest->refresh(), $request);
 
         return response()->json([
             'message' => 'Đã nộp giấy tờ bổ sung. Yêu cầu được chuyển lại về trạng thái chờ duyệt.',
@@ -492,49 +494,63 @@ class VenueLocationChangeController extends Controller
             ->implode('; ');
     }
 
+    private function storedDocumentNames(mixed $documents): string
+    {
+        return collect(\Illuminate\Support\Arr::wrap($documents))
+            ->map(fn ($document) => is_array($document)
+                ? ($document['file_name'] ?? $document['original_name'] ?? $document['name'] ?? null)
+                : null)
+            ->filter()
+            ->values()
+            ->implode('; ');
+    }
+
     private function googleMapsPointUrl(float $latitude, float $longitude): string
     {
         return 'https://www.google.com/maps/search/?api=1&query=' . $latitude . ',' . $longitude;
     }
 
-    private function generateLocationDocument(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest, Request $request, ?string $previewDocumentId = null): void
+    private function generateLocationDocument(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest, Request $request): void
     {
         $locationRequest->loadMissing(['requestedBy', 'venueCluster.owner']);
         $renderData = $this->locationRequestRenderData($cluster, $locationRequest);
-        $document = $previewDocumentId
-            ? GeneratedDocument::query()
-                ->whereKey($previewDocumentId)
-                ->where('document_type', 'venue_location_change_request')
-                ->where('owner_id', $cluster->owner_id)
-                ->where('venue_cluster_id', $cluster->id)
-                ->where('status', 'draft_preview')
-                ->first()
-            : null;
-
-        if ($document) {
-            $document->forceFill([
-                'reference_type' => VenueLocationChangeRequest::class,
-                'reference_id' => $locationRequest->id,
-                'partner_application_id' => $this->partnerApplication($cluster)?->id,
-                'entity_type' => VenueCluster::class,
-                'entity_id' => $cluster->id,
-                'status' => 'pending_owner_signature',
-                'render_data' => array_merge($document->render_data ?: [], $renderData),
-                'title' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . $cluster->name,
-            ])->save();
-        } else {
-            $document = $this->documents->generateDocument('venue_location_change_request', $locationRequest, $renderData, $request->user(), [
-                'owner_id' => $cluster->owner_id,
-                'venue_cluster_id' => $cluster->id,
-                'partner_application_id' => $this->partnerApplication($cluster)?->id,
-                'entity_type' => VenueCluster::class,
-                'entity_id' => $cluster->id,
-                'status' => 'pending_owner_signature',
-                'title' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . $cluster->name,
-            ]);
-        }
+        $document = $this->documents->generateDocument('venue_location_change_request', $locationRequest, $renderData, $request->user(), [
+            'owner_id' => $cluster->owner_id,
+            'venue_cluster_id' => $cluster->id,
+            'partner_application_id' => $this->partnerApplication($cluster)?->id,
+            'entity_type' => VenueCluster::class,
+            'entity_id' => $cluster->id,
+            'status' => 'pending_owner_signature',
+            'title' => 'Đơn yêu cầu thay đổi vị trí cụm sân ' . $cluster->name,
+        ]);
 
         $locationRequest->forceFill(['generated_document_id' => $document->id])->save();
+        $this->deleteDraftPreviewDocuments('venue_location_change_request', $cluster);
+    }
+
+    private function deleteDraftPreviewDocuments(string $documentType, VenueCluster $cluster): void
+    {
+        GeneratedDocument::query()
+            ->where('document_type', $documentType)
+            ->where('owner_id', $cluster->owner_id)
+            ->where('venue_cluster_id', $cluster->id)
+            ->where('status', 'draft_preview')
+            ->doesntHave('signatures')
+            ->get()
+            ->each(function (GeneratedDocument $document): void {
+                foreach ([
+                    $document->generated_file_path,
+                    $document->final_file_path,
+                    $document->generated_pdf_path,
+                    $document->final_pdf_path,
+                ] as $path) {
+                    if ($path && Storage::disk('local')->exists($path)) {
+                        Storage::disk('local')->delete($path);
+                    }
+                }
+
+                $document->delete();
+            });
     }
 
     private function locationRequestRenderData(VenueCluster $cluster, VenueLocationChangeRequest $locationRequest): array
@@ -580,6 +596,7 @@ class VenueLocationChangeController extends Controller
             'booking_impact' => 'Chủ sân cam kết rà soát và xử lý các booking bị ảnh hưởng trước khi SportGo cập nhật vị trí.',
             'submitted_at' => optional($locationRequest->created_at)->format('d/m/Y H:i'),
             'expected_effective_date' => optional($locationRequest->created_at)->format('d/m/Y'),
+            'attachment_list' => $this->storedDocumentNames($locationRequest->supplementary_documents),
         ];
     }
 
