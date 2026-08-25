@@ -22,6 +22,14 @@
             {{ $otp }}
         </div>
 
+        @if ($purpose === 'register' && !empty($verificationUrl))
+            <p style="text-align:center;margin:24px 0;">
+                <a href="{{ $verificationUrl }}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:#15803d;color:#ffffff;text-decoration:none;font-weight:600;">
+                    Mở trang xác thực tài khoản
+                </a>
+            </p>
+        @endif
+
         <p>Mã này có hiệu lực trong {{ $minutes }} phút. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
 
         @if ($purpose === 'register' || $purpose === 'change_email')

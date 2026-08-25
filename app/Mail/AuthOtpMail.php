@@ -41,6 +41,9 @@ class AuthOtpMail extends Mailable
                 'otp' => $this->otp,
                 'purpose' => $this->purpose,
                 'minutes' => $this->minutes,
+                'verificationUrl' => $this->purpose === 'register'
+                    ? url('/verify-email?email='.rawurlencode(strtolower(trim((string) $this->user->email))))
+                    : null,
             ],
         );
     }
