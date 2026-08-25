@@ -181,7 +181,13 @@ class AuthController extends Controller
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/'],
+            'phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^(0\d{9}|\+84\d{9})$/',
+                Rule::unique('users', 'phone')->ignore($user->id),
+            ],
             'bio' => ['nullable', 'string', 'max:2000'],
             'preferred_sports' => ['nullable', 'array', 'max:5'],
             'preferred_sports.*' => ['nullable', 'string', 'max:80'],
@@ -192,6 +198,7 @@ class AuthController extends Controller
             'email.email' => 'Địa chỉ email không đúng định dạng.',
             'email.unique' => 'Email đã được sử dụng.',
             'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
             'avatar.image' => 'Avatar phải là một tệp hình ảnh.',
             'avatar.max' => 'Avatar không được vượt quá 2MB.',
         ]);
