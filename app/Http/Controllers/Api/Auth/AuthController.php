@@ -7,6 +7,7 @@ use App\Mail\AuthOtpMail;
 use App\Models\User;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\RoleRedirectService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -243,7 +244,17 @@ class AuthController extends Controller
             $user->avatar_url = Storage::disk('public')->url($request->file('avatar')->store('avatars', 'public'));
         }
 
-        $user->save();
+        try {
+            $user->save();
+        } catch (UniqueConstraintViolationException $exception) {
+            $constraint = strtolower((string) $exception->getMessage());
+            $field = str_contains($constraint, 'phone') ? 'phone' : 'email';
+            $message = $field === 'phone'
+                ? 'Số điện thoại đã được sử dụng bởi tài khoản khác.'
+                : 'Email đã được sử dụng.';
+
+            throw ValidationException::withMessages([$field => $message]);
+        }
 
         return response()->json([
             'message' => 'Đã cập nhật thông tin cá nhân.',
@@ -295,26 +306,26 @@ class AuthController extends Controller
         ]);
 
         $email = strtolower(trim($data['email']));
-        $code = $this->otpService->verify($email, 'change_email', $data['otp'], true, (int) $user->id);
-        if ((int) $code->user_id !== (int) $user->id) {
-            throw ValidationException::withMessages(['otp' => 'Mã OTP không thuộc yêu cầu của tài khoản này.']);
-        }
+        $updatedUser = DB::transaction(function () use ($email, $data, $user): User {
+            if (User::query()
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('id', '<>', $user->id)
+                ->exists()) {
+                throw ValidationException::withMessages(['email' => 'Email đã được sử dụng.']);
+            }
 
-        if (User::query()
-            ->where('email', $email)
-            ->where('id', '<>', $user->id)
-            ->exists()) {
-            throw ValidationException::withMessages(['email' => 'Email đã được sử dụng.']);
-        }
+            $this->otpService->verify($email, 'change_email', $data['otp'], true, (int) $user->id);
+            $user->forceFill([
+                'email' => $email,
+                'email_verified_at' => now(),
+            ])->save();
 
-        $user->forceFill([
-            'email' => $email,
-            'email_verified_at' => now(),
-        ])->save();
+            return $user->fresh();
+        });
 
         return response()->json([
             'message' => 'Email mới đã được xác thực.',
-            'user' => $user->only([
+            'user' => $updatedUser->only([
                 'id', 'username', 'full_name', 'email', 'phone', 'status',
                 'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',
             ]),
