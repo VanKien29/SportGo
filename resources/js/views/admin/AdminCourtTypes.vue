@@ -181,6 +181,7 @@
                             <input
                                 id="name"
                                 v-model="form.name"
+                                @input="syncIconWithName"
                                 type="text"
                                 class="form-control"
                                 :placeholder="form.parent_id === null ? 'Ví dụ: Bóng đá, Cầu lông, Pickleball...' : 'Ví dụ: Sân 5 người, Sân đơn...'"
@@ -345,6 +346,7 @@ import ActionIconButton from "../../components/ActionIconButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import TableActionGroup from "../../components/TableActionGroup.vue";
 import { courtTypeService } from "../../services/courtTypes";
+import { SPORT_ICON_OPTIONS, sportIconKeyFromName } from "../../utils/sportIcons.js";
 
 export default {
     name: "AdminCourtTypes",
@@ -412,17 +414,17 @@ export default {
         },
         iconOptions() {
             return [
-                { key: "activity", label: "Hoạt động thể thao" },
-                { key: "badminton", label: "Cầu lông" },
-                { key: "pickleball", label: "Pickleball" },
-                { key: "football", label: "Bóng đá" },
-                { key: "basketball", label: "Bóng rổ" },
-                { key: "tennis", label: "Tennis / Quần vợt" },
-                { key: "volleyball", label: "Bóng chuyền" },
+                ...SPORT_ICON_OPTIONS,
+                { key: "activity", label: "Khác" },
             ];
         },
     },
     methods: {
+        syncIconWithName() {
+            if (this.form.parent_id !== null || this.form.icon_key !== "activity") return;
+            const iconKey = sportIconKeyFromName(this.form.name);
+            if (iconKey !== "activity") this.form.icon_key = iconKey;
+        },
         getChildren(parentId) {
             return this.courtTypes.filter(type => type.parent_id === parentId);
         },

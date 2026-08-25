@@ -374,6 +374,7 @@ import "leaflet/dist/leaflet.css";
 import { api } from "../../services/api";
 import { courtTypeService } from "../../services/courtTypes.js";
 import AppIcon from "../../components/AppIcon.vue";
+import { sportIconKeyFromName } from "../../utils/sportIcons.js";
 
 // Default coordinates centered on Hanoi
 const DEFAULT_LAT = 21.0285;
@@ -688,18 +689,13 @@ export default {
       this.$router.push({ name: "venues" });
     },
     iconKeyFromName(sportName) {
-      const name = String(sportName || "").toLowerCase();
-      if (name.includes("cầu lông") || name.includes("badminton")) return "badminton";
-      if (name.includes("pickleball")) return "pickleball";
-      if (name.includes("bóng đá") || name.includes("football")) return "football";
-      if (name.includes("bóng rổ") || name.includes("basketball")) return "basketball";
-      if (name.includes("tennis") || name.includes("quần vợt")) return "tennis";
-      if (name.includes("bóng chuyền") || name.includes("volleyball")) return "volleyball";
-      return "activity";
+      return sportIconKeyFromName(sportName);
     },
     sportIconKey(venue) {
       const type = venue?.court_types?.find(Boolean);
-      return type?.icon_key || this.iconKeyFromName(type?.name);
+      const explicitIcon = type?.icon_key;
+      if (explicitIcon && explicitIcon !== "activity") return explicitIcon;
+      return this.iconKeyFromName(type?.name || type?.parent?.name);
     },
     getSportIconSvg(iconKey) {
       const icons = {
@@ -730,6 +726,7 @@ export default {
       if (name.includes("bóng đá")) return "#15803d";
       if (name.includes("bóng rổ")) return "#ea580c";
       if (name.includes("tennis") || name.includes("quần vợt")) return "#d97706";
+      if (name.includes("bóng chuyền") || name.includes("volleyball")) return "#7c3aed";
       return "#b91c1c";
     },
     priceLabel(venue) {
