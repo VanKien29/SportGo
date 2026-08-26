@@ -18,7 +18,7 @@ class UserProfileController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $user = User::select('id', 'full_name', 'username', 'avatar_url', 'created_at')
+        $user = User::select('id', 'full_name', 'username', 'avatar_url', 'cover_image_url', 'created_at')
             ->findOrFail($id);
         $user->setAttribute(
             'author_badges',

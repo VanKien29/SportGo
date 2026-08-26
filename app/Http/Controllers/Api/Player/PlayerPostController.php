@@ -199,14 +199,21 @@ class PlayerPostController extends Controller
             ->join('player_posts as post', 'post.id', '=', 'participant.post_id')
             ->join('bookings as booking', 'booking.id', '=', 'post.booking_id')
             ->join('venue_clusters as venue', 'venue.id', '=', 'booking.venue_cluster_id')
+            ->leftJoin('venue_courts as court', 'court.id', '=', 'booking.venue_court_id')
+            ->leftJoin('court_types as court_type', 'court_type.id', '=', 'court.court_type_id')
+            ->leftJoin('court_types as sport_type', 'sport_type.id', '=', 'court_type.parent_id')
             ->join('users as author', 'author.id', '=', 'post.author_id')
             ->where('participant.user_id', $request->user()->id)
             ->select([
                 'participant.id', 'participant.post_id', 'participant.status', 'participant.message',
                 'participant.created_at', 'participant.responded_at', 'participant.left_at',
-                'post.title', 'post.description', 'post.status as post_status',
-                'post.needed_players', 'booking.booking_date', 'booking.start_time', 'booking.end_time',
-                'venue.name as venue_name', 'venue.address as venue_address',
+                'post.title', 'post.description', 'post.image_path', 'post.status as post_status',
+                'post.needed_players', 'post.skill_level', 'post.cost_type', 'post.cost_per_player', 'post.lock_lead_minutes',
+                'booking.booking_date', 'booking.start_time', 'booking.end_time', 'booking.total_price',
+                'venue.id as venue_id', 'venue.name as venue_name', 'venue.address as venue_address',
+                'court.name as court_name',
+                'sport_type.name as parent_sport_name', 'sport_type.icon_key as parent_sport_icon',
+                'court_type.name as direct_court_type_name', 'court_type.icon_key as direct_sport_icon',
                 'author.id as author_id', 'author.full_name as author_name', 'author.username as author_username',
                 'author.avatar_url as author_avatar',
             ])
@@ -240,15 +247,22 @@ class PlayerPostController extends Controller
             ->join('player_posts as post', 'post.id', '=', 'participant.post_id')
             ->join('bookings as booking', 'booking.id', '=', 'post.booking_id')
             ->join('venue_clusters as venue', 'venue.id', '=', 'booking.venue_cluster_id')
+            ->leftJoin('venue_courts as court', 'court.id', '=', 'booking.venue_court_id')
+            ->leftJoin('court_types as court_type', 'court_type.id', '=', 'court.court_type_id')
+            ->leftJoin('court_types as sport_type', 'sport_type.id', '=', 'court_type.parent_id')
             ->join('users as author', 'author.id', '=', 'post.author_id')
             ->where('participant.id', $id)
             ->where('participant.user_id', $request->user()->id)
             ->select([
                 'participant.id', 'participant.post_id', 'participant.status', 'participant.message',
                 'participant.created_at', 'participant.responded_at', 'participant.left_at',
-                'post.title', 'post.description', 'post.status as post_status',
-                'booking.booking_date', 'booking.start_time', 'booking.end_time',
-                'venue.name as venue_name', 'venue.address as venue_address',
+                'post.title', 'post.description', 'post.image_path', 'post.status as post_status',
+                'post.needed_players', 'post.skill_level', 'post.cost_type', 'post.cost_per_player', 'post.lock_lead_minutes',
+                'booking.booking_date', 'booking.start_time', 'booking.end_time', 'booking.total_price',
+                'venue.id as venue_id', 'venue.name as venue_name', 'venue.address as venue_address',
+                'court.name as court_name',
+                'sport_type.name as parent_sport_name', 'sport_type.icon_key as parent_sport_icon',
+                'court_type.name as direct_court_type_name', 'court_type.icon_key as direct_sport_icon',
                 'author.id as author_id', 'author.full_name as author_name', 'author.username as author_username',
                 'author.avatar_url as author_avatar',
             ])
@@ -259,6 +273,22 @@ class PlayerPostController extends Controller
 
     private function participantPayload(object $item): array
     {
+        $sportName = $item->parent_sport_name ?? $item->direct_court_type_name ?? 'Thể thao';
+        $courtTypeName = $item->direct_court_type_name ?? 'Sân tiêu chuẩn';
+        if ($item->parent_sport_name && preg_match('/\((.*?)\)/u', $courtTypeName, $matches)) {
+            $courtTypeName = trim($matches[1]);
+        } elseif ($item->parent_sport_name && str_starts_with(mb_strtolower($courtTypeName), mb_strtolower($sportName))) {
+            $courtTypeName = trim(mb_substr($courtTypeName, mb_strlen($sportName)));
+            $courtTypeName = ltrim($courtTypeName, " -·:()");
+        }
+        if (empty($courtTypeName)) {
+            $courtTypeName = 'Sân tiêu chuẩn';
+        }
+        $sportIcon = $item->parent_sport_icon ?? $item->direct_sport_icon ?? 'activity';
+
+        $postObj = PlayerPost::with('booking.venueCluster')->find($item->post_id);
+        $groupChatId = $postObj ? $this->matchmakingChat->conversationFor($postObj)?->id : null;
+
         return [
             'id' => $item->id,
             'post_id' => $item->post_id,
@@ -267,18 +297,31 @@ class PlayerPostController extends Controller
             'created_at' => $item->created_at,
             'responded_at' => $item->responded_at,
             'left_at' => $item->left_at,
-            'group_chat_id' => $this->matchmakingChat->conversationFor((int) $item->post_id)?->id,
+            'group_chat_id' => $groupChatId,
             'post' => [
                 'title' => $item->title,
                 'description' => $item->description,
+                'image_url' => $item->image_path ? asset('storage/' . $item->image_path) : null,
                 'status' => $item->post_status,
+                'needed_players' => $item->needed_players,
+                'skill_level' => $item->skill_level ?? 'all',
+                'cost_type' => $item->cost_type ?? 'free',
+                'cost_per_player' => (float) ($item->cost_per_player ?? 0),
+                'lock_lead_minutes' => (int) ($item->lock_lead_minutes ?? 30),
             ],
             'booking' => [
                 'date' => $item->booking_date,
                 'start_time' => substr((string) $item->start_time, 0, 5),
                 'end_time' => substr((string) $item->end_time, 0, 5),
+                'time' => substr((string) $item->start_time, 0, 5) . ' - ' . substr((string) $item->end_time, 0, 5),
+                'venue_id' => $item->venue_id,
                 'venue_name' => $item->venue_name,
                 'venue_address' => $item->venue_address,
+                'court_name' => $item->court_name ?? '',
+                'sport_name' => $sportName,
+                'court_type_name' => $courtTypeName,
+                'sport_icon' => $sportIcon,
+                'total_price' => (float) ($item->total_price ?? 0),
             ],
             'author' => [
                 'id' => $item->author_id,

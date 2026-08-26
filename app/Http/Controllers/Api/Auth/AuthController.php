@@ -206,7 +206,8 @@ class AuthController extends Controller
             'bio' => ['nullable', 'string', 'max:2000'],
             'preferred_sports' => ['nullable', 'array', 'max:5'],
             'preferred_sports.*' => ['nullable', 'string', 'max:80'],
-            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'cover_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:6144'],
         ], [
             'full_name.required' => 'Vui lòng nhập họ và tên.',
             'full_name.min' => 'Họ và tên cần có ít nhất 2 ký tự.',
@@ -214,8 +215,10 @@ class AuthController extends Controller
             'email.unique' => 'Email đã được sử dụng.',
             'phone.regex' => 'Số điện thoại không đúng định dạng.',
             'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
-            'avatar.image' => 'Avatar phải là một tệp hình ảnh.',
-            'avatar.max' => 'Avatar không được vượt quá 2MB.',
+            'avatar.image' => 'Ảnh đại diện phải là một tệp hình ảnh.',
+            'avatar.max' => 'Ảnh đại diện không được vượt quá 4MB.',
+            'cover_image.image' => 'Ảnh bìa phải là một tệp hình ảnh.',
+            'cover_image.max' => 'Ảnh bìa không được vượt quá 6MB.',
         ]);
 
         $user->full_name = trim($data['full_name']);
@@ -244,6 +247,14 @@ class AuthController extends Controller
             $user->avatar_url = Storage::disk('public')->url($request->file('avatar')->store('avatars', 'public'));
         }
 
+        if ($request->hasFile('cover_image')) {
+            if ($user->cover_image_url && str_starts_with($user->cover_image_url, '/storage/')) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $user->cover_image_url));
+            }
+
+            $user->cover_image_url = Storage::disk('public')->url($request->file('cover_image')->store('covers', 'public'));
+        }
+
         try {
             $user->save();
         } catch (UniqueConstraintViolationException $exception) {
@@ -260,8 +271,64 @@ class AuthController extends Controller
             'message' => 'Đã cập nhật thông tin cá nhân.',
             'user' => $user->only([
                 'id', 'username', 'full_name', 'email', 'phone', 'status',
-                'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',
+                'avatar_url', 'cover_image_url', 'email_verified_at', 'bio', 'preferred_sports',
             ]),
+        ]);
+    }
+
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'avatar.required' => 'Vui lòng chọn tệp ảnh đại diện.',
+            'avatar.image' => 'Ảnh đại diện phải là định dạng hình ảnh.',
+            'avatar.max' => 'Ảnh đại diện không được vượt quá 4MB.',
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->avatar_url && str_starts_with($user->avatar_url, '/storage/')) {
+            Storage::disk('public')->delete(str_replace('/storage/', '', $user->avatar_url));
+        }
+
+        $user->avatar_url = Storage::disk('public')->url($request->file('avatar')->store('avatars', 'public'));
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cập nhật ảnh đại diện thành công.',
+            'avatar_url' => $user->avatar_url,
+            'user' => $user->only(['id', 'username', 'full_name', 'email', 'avatar_url', 'cover_image_url']),
+        ]);
+    }
+
+    public function uploadCover(Request $request): JsonResponse
+    {
+        $request->validate([
+            'cover_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:6144'],
+        ], [
+            'cover_image.required' => 'Vui lòng chọn tệp ảnh bìa.',
+            'cover_image.image' => 'Ảnh bìa phải là định dạng hình ảnh.',
+            'cover_image.max' => 'Ảnh bìa không được vượt quá 6MB.',
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->cover_image_url && str_starts_with($user->cover_image_url, '/storage/')) {
+            Storage::disk('public')->delete(str_replace('/storage/', '', $user->cover_image_url));
+        }
+
+        $user->cover_image_url = Storage::disk('public')->url($request->file('cover_image')->store('covers', 'public'));
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cập nhật ảnh bìa thành công.',
+            'cover_image_url' => $user->cover_image_url,
+            'user' => $user->only(['id', 'username', 'full_name', 'email', 'avatar_url', 'cover_image_url']),
         ]);
     }
 

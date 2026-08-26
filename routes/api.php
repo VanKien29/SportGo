@@ -108,8 +108,9 @@ Route::prefix('auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp'])->middleware('throttle:auth-otp-send');
-        Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp'])->middleware('throttle:auth-otp-verify');
         Route::post('/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/profile/avatar', [AuthController::class, 'uploadAvatar']);
+        Route::post('/profile/cover', [AuthController::class, 'uploadCover']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
