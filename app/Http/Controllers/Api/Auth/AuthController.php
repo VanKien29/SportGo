@@ -7,6 +7,7 @@ use App\Mail\AuthOtpMail;
 use App\Models\User;
 use App\Services\Auth\OtpService;
 use App\Services\Auth\RoleRedirectService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -56,6 +57,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.',
             'email' => $user->email,
+            'verification_url' => $this->registrationVerificationUrl($user->email),
         ], 201);
     }
 
@@ -79,6 +81,8 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Đã gửi lại mã xác thực. Vui lòng kiểm tra email của bạn.',
+            'email' => $user->email,
+            'verification_url' => $this->registrationVerificationUrl($user->email),
         ]);
     }
 
@@ -89,17 +93,24 @@ class AuthController extends Controller
             'otp' => ['required', 'digits:6'],
         ]);
 
-        $code = $this->otpService->verify($data['email'], 'register', $data['otp'], true);
-        $user = $code->user;
+        $email = strtolower(trim($data['email']));
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
 
-        if (! $user) {
-            throw ValidationException::withMessages(['email' => 'Tài khoản không tồn tại.']);
+        if (! $user || $user->status !== 'pending_verify' || strcasecmp((string) $user->email, $email) !== 0) {
+            throw ValidationException::withMessages([
+                'email' => 'Tài khoản không còn ở trạng thái chờ xác thực. Vui lòng yêu cầu mã mới nếu cần.',
+            ]);
         }
 
-        $user->forceFill([
-            'status' => 'active',
-            'email_verified_at' => now(),
-        ])->save();
+        DB::transaction(function () use ($email, $data, $user): void {
+            $this->otpService->verify($email, 'register', $data['otp'], true, (int) $user->id);
+            $user->forceFill([
+                'status' => 'active',
+                'email_verified_at' => now(),
+            ])->save();
+        });
 
         return response()->json([
             'message' => 'Xác thực tài khoản thành công. Vui lòng đăng nhập.',
@@ -129,7 +140,11 @@ class AuthController extends Controller
         }
 
         if ($user->status === 'pending_verify') {
-            throw ValidationException::withMessages(['login' => 'Tài khoản chưa xác thực email.']);
+            return response()->json([
+                'message' => 'Tài khoản chưa xác thực email. Vui lòng xác thực để tiếp tục.',
+                'verification_email' => $user->email,
+                'verification_url' => $this->registrationVerificationUrl($user->email),
+            ], 422);
         }
 
         if ($user->status === 'locked') {
@@ -181,7 +196,13 @@ class AuthController extends Controller
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^(0\d{9}|\+84\d{9})$/'],
+            'phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                'regex:/^(0\d{9}|\+84\d{9})$/',
+                Rule::unique('users', 'phone')->ignore($user->id),
+            ],
             'bio' => ['nullable', 'string', 'max:2000'],
             'preferred_sports' => ['nullable', 'array', 'max:5'],
             'preferred_sports.*' => ['nullable', 'string', 'max:80'],
@@ -192,6 +213,7 @@ class AuthController extends Controller
             'email.email' => 'Địa chỉ email không đúng định dạng.',
             'email.unique' => 'Email đã được sử dụng.',
             'phone.regex' => 'Số điện thoại không đúng định dạng.',
+            'phone.unique' => 'Số điện thoại đã được sử dụng bởi tài khoản khác.',
             'avatar.image' => 'Avatar phải là một tệp hình ảnh.',
             'avatar.max' => 'Avatar không được vượt quá 2MB.',
         ]);
@@ -222,7 +244,17 @@ class AuthController extends Controller
             $user->avatar_url = Storage::disk('public')->url($request->file('avatar')->store('avatars', 'public'));
         }
 
-        $user->save();
+        try {
+            $user->save();
+        } catch (UniqueConstraintViolationException $exception) {
+            $constraint = strtolower((string) $exception->getMessage());
+            $field = str_contains($constraint, 'phone') ? 'phone' : 'email';
+            $message = $field === 'phone'
+                ? 'Số điện thoại đã được sử dụng bởi tài khoản khác.'
+                : 'Email đã được sử dụng.';
+
+            throw ValidationException::withMessages([$field => $message]);
+        }
 
         return response()->json([
             'message' => 'Đã cập nhật thông tin cá nhân.',
@@ -274,27 +306,26 @@ class AuthController extends Controller
         ]);
 
         $email = strtolower(trim($data['email']));
-        $code = $this->otpService->verify($email, 'change_email', $data['otp']);
-        if ((int) $code->user_id !== (int) $user->id) {
-            throw ValidationException::withMessages(['otp' => 'Mã OTP không thuộc yêu cầu của tài khoản này.']);
-        }
+        $updatedUser = DB::transaction(function () use ($email, $data, $user): User {
+            if (User::query()
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('id', '<>', $user->id)
+                ->exists()) {
+                throw ValidationException::withMessages(['email' => 'Email đã được sử dụng.']);
+            }
 
-        if (User::query()
-            ->where('email', $email)
-            ->where('id', '<>', $user->id)
-            ->exists()) {
-            throw ValidationException::withMessages(['email' => 'Email đã được sử dụng.']);
-        }
+            $this->otpService->verify($email, 'change_email', $data['otp'], true, (int) $user->id);
+            $user->forceFill([
+                'email' => $email,
+                'email_verified_at' => now(),
+            ])->save();
 
-        $code->forceFill(['is_used' => true])->save();
-        $user->forceFill([
-            'email' => $email,
-            'email_verified_at' => now(),
-        ])->save();
+            return $user->fresh();
+        });
 
         return response()->json([
             'message' => 'Email mới đã được xác thực.',
-            'user' => $user->only([
+            'user' => $updatedUser->only([
                 'id', 'username', 'full_name', 'email', 'phone', 'status',
                 'avatar_url', 'email_verified_at', 'bio', 'preferred_sports',
             ]),
@@ -378,6 +409,11 @@ class AuthController extends Controller
         $otp = $this->otpService->generate();
         $this->otpService->create($user, $user->email, 'register', $otp);
         Mail::to($user->email)->send(new AuthOtpMail($user, $otp, 'register', OtpService::EXPIRE_MINUTES));
+    }
+
+    private function registrationVerificationUrl(string $email): string
+    {
+        return url('/verify-email?email='.rawurlencode(strtolower(trim($email))));
     }
 
     private function lockedUserResponse(User $user): JsonResponse

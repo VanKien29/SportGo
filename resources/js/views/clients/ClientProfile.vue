@@ -396,6 +396,7 @@ export default {
       emailOtpError: "",
       emailOtpCountdown: 0,
       emailOtpTimer: null,
+      profileMutationVersion: 0,
       // PASSWORD CHANGE MODAL STATE
       showPasswordModal: false,
       pwdData: {
@@ -476,8 +477,10 @@ export default {
   },
   methods: {
     async refreshAccountData() {
+      const requestVersion = this.profileMutationVersion;
       try {
-        const payload = await authService.me();
+        const payload = await authService.me("", { dedupe: false });
+        if (requestVersion !== this.profileMutationVersion) return;
         this.user = saveAuth(payload);
         this.formData.fullName = this.user?.fullName || this.formData.fullName;
         this.formData.email = this.user?.email || this.formData.email;
@@ -553,6 +556,7 @@ export default {
       this.emailOtpError = "";
       try {
         const response = await authService.verifyEmailChangeOtp(this.pendingNewEmail, this.emailOtpInput);
+        this.profileMutationVersion++;
         const currentAuth = getAuth() || {};
         const mergedUser = {
           ...(currentAuth.user || {}),
@@ -577,6 +581,7 @@ export default {
     // EXECUTE SAVE PROFILE
     async executeSaveProfile(finalEmail, finalPhone) {
       this.saving = true;
+      this.profileMutationVersion++;
       this.saveMessage = "";
       try {
         const payload = new FormData();
@@ -606,6 +611,7 @@ export default {
       } finally {
         this.saving = false;
       }
+      await this.refreshAccountData();
     },
     // PASSWORD CHANGE MODAL METHODS
     openPasswordModal() {

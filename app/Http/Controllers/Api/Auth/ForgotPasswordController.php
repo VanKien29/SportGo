@@ -60,7 +60,7 @@ class ForgotPasswordController extends Controller
             ]);
         }
 
-        $this->otpService->verify($user->email, 'reset_password', $data['otp']);
+        $this->otpService->verify($user->email, 'reset_password', $data['otp'], false, (int) $user->id);
 
         return response()->json([
             'message' => 'OTP hợp lệ. Vui lòng đặt mật khẩu mới.',
@@ -84,7 +84,7 @@ class ForgotPasswordController extends Controller
             ]);
         }
 
-        $this->otpService->verify($user->email, 'reset_password', $data['otp'], true);
+        $this->otpService->verify($user->email, 'reset_password', $data['otp'], true, (int) $user->id);
 
         $user->forceFill([
             'password' => Hash::make($data['password']),

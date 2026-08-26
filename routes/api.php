@@ -95,20 +95,20 @@ Route::get('/chat/ai-history', [\App\Http\Controllers\Api\AiChatController::clas
 Route::post('/chat/ai-assistant', [\App\Http\Controllers\Api\AiChatController::class, 'ask']);
 
 Route::prefix('auth')->group(function (): void {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegisterOtp']);
-    Route::post('/register/resend-otp', [AuthController::class, 'resendRegisterOtp']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegisterOtp'])->middleware('throttle:auth-otp-verify');
+    Route::post('/register/resend-otp', [AuthController::class, 'resendRegisterOtp'])->middleware('throttle:auth-otp-send');
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendOtp']);
-    Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
-    Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset']);
+    Route::post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:auth-otp-send');
+    Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp'])->middleware('throttle:auth-otp-verify');
+    Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset'])->middleware('throttle:auth-otp-verify');
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp']);
-        Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp']);
+        Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp'])->middleware('throttle:auth-otp-send');
+        Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp'])->middleware('throttle:auth-otp-verify');
         Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
@@ -119,9 +119,9 @@ Route::prefix('auth')->group(function (): void {
 
 Route::prefix('admin/auth')->group(function (): void {
     Route::post('/login', [AdminAuthController::class, 'login']);
-    Route::post('/forgot-password/send-otp', [AdminForgotPasswordController::class, 'sendOtp']);
-    Route::post('/forgot-password/verify-otp', [AdminForgotPasswordController::class, 'verifyOtp']);
-    Route::post('/forgot-password/reset', [AdminForgotPasswordController::class, 'reset']);
+    Route::post('/forgot-password/send-otp', [AdminForgotPasswordController::class, 'sendOtp'])->middleware('throttle:auth-otp-send');
+    Route::post('/forgot-password/verify-otp', [AdminForgotPasswordController::class, 'verifyOtp'])->middleware('throttle:auth-otp-verify');
+    Route::post('/forgot-password/reset', [AdminForgotPasswordController::class, 'reset'])->middleware('throttle:auth-otp-verify');
 
     Route::middleware(['auth:sanctum', EnsureAdminRole::class])->group(function (): void {
         Route::get('/me', [AdminAuthController::class, 'me']);

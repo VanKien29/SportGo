@@ -13,7 +13,16 @@
       <transition name="shake">
         <div v-if="error" class="flex items-center gap-2.5 p-3 rounded-lg border border-red-200 bg-red-50 text-red-600 text-xs font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-          <span>{{ error }}</span>
+          <span>
+            {{ error }}
+            <router-link
+              v-if="pendingVerificationEmail"
+              class="sg-lovebirds-verification-link"
+              :to="{ name: 'verify-email', query: { email: pendingVerificationEmail } }"
+            >
+              Mở trang xác thực email
+            </router-link>
+          </span>
         </div>
       </transition>
 
@@ -116,6 +125,7 @@ export default {
       password: '',
       showPassword: false,
       error: '',
+      pendingVerificationEmail: '',
       fieldErrors: {
         login: '',
         password: '',
@@ -153,6 +163,7 @@ export default {
     },
     async handleLogin() {
       this.error = '';
+      this.pendingVerificationEmail = '';
       this.fieldErrors.login = '';
       this.fieldErrors.password = '';
 
@@ -178,6 +189,9 @@ export default {
           const reasonText = details.status_reason ? ` Lý do: ${details.status_reason}.` : '';
           const untilText = details.locked_until ? ` Khóa đến ${details.locked_until}.` : '';
           this.setFieldError('login', `Tài khoản đang bị khóa bởi ${lockedBy}.${reasonText}${untilText}`);
+        } else if (details.verification_email) {
+          this.pendingVerificationEmail = details.verification_email;
+          this.setFieldError('login', requestError.message || 'Tài khoản chưa xác thực email.');
         } else {
           this.setFieldError('login', requestError.message || 'Sai tài khoản hoặc mật khẩu.');
         }
@@ -191,5 +205,4 @@ export default {
   },
 };
 </script>
-
 
