@@ -274,11 +274,24 @@
             :class="{ 'is-selected': selectedVenue?.id === venue.id }"
             @click="selectVenue(venue)"
           >
+            <div class="sg-sidebar-item-thumb-box">
+              <img
+                v-if="getVenueLogoSrc(venue)"
+                :src="getVenueLogoSrc(venue)"
+                class="sg-sidebar-venue-img"
+                :alt="venue.name"
+                loading="lazy"
+                onerror="this.style.display='none'"
+              />
+              <span v-else class="sg-sidebar-venue-icon-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </span>
+            </div>
             <div class="sg-sidebar-item-info">
               <h4 class="sg-sidebar-item-title">
-                <span class="sg-sidebar-sport-icon" :style="{ color: getSportColor(venue.court_types?.[0]?.name) }">
-                  <AppIcon :name="sportIconKey(venue)" size="16" />
-                </span>
                 <span>{{ venue.name }}</span>
               </h4>
               <p class="sg-sidebar-item-sub">
@@ -303,8 +316,24 @@
           :class="{ 'is-active': selectedSportId === sport.id }"
           @click="filterBySport(sport.id)"
         >
-          <AppIcon :name="sport.iconKey || iconKeyFromName(sport.name)" size="16" />
+          <IsometricSportIcon :name="sport.iconKey || sport.name" :size="20" />
           <span>{{ sport.name }}</span>
+        </button>
+
+        <!-- NÚT MỞ BẢNG CHỌN BỘ MÔN 3D BÊN PHẢI -->
+        <button
+          type="button"
+          class="sg-map-sport-chip is-open-3d-btn"
+          @click="showSportsDrawer = true"
+          title="Mở bảng chọn bộ môn 3D to rõ"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span class="sg-open-3d-text">Bảng bộ môn 3D</span>
         </button>
       </div>
 
@@ -313,6 +342,10 @@
 
       <!-- FLOATING ACTION BUTTONS (Góc dưới bên phải) -->
       <div class="sg-map-floating-controls">
+        <!-- Nút nổi mở nhanh Bảng bộ môn 3D -->
+        <button type="button" class="sg-map-fab-circle is-sports-fab" title="Mở bảng chọn bộ môn 3D" @click="showSportsDrawer = true">
+          <IsometricSportIcon :name="selectedSportId" :size="24" />
+        </button>
         <button type="button" class="sg-map-fab-circle" title="Xem dạng danh sách" @click="goToList">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>
@@ -330,6 +363,53 @@
         </button>
       </div>
     </main>
+
+    <!-- RIGHT ISOMETRIC SPORTS DRAWER (BẢNG CHỌN BỘ MÔN 3D BÊN PHẢI) -->
+    <Teleport to="body">
+      <div v-if="showSportsDrawer" class="sg-drawer-backdrop" @click.self="showSportsDrawer = false">
+        <aside class="sg-sports-right-drawer" aria-label="Bảng chọn bộ môn thể thao">
+          <div class="sg-drawer-header">
+            <div class="sg-drawer-title-group">
+              <h3 class="sg-drawer-title">Bộ môn thể thao</h3>
+              <p class="sg-drawer-subtitle">Chọn môn để lọc cụm sân trên bản đồ</p>
+            </div>
+            <button type="button" class="sg-drawer-close-btn" @click="showSportsDrawer = false" title="Đóng bảng chọn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="sg-drawer-body">
+            <div class="sg-isometric-cards-grid">
+              <button
+                v-for="sport in sportsList"
+                :key="sport.id"
+                type="button"
+                class="sg-isometric-sport-card"
+                :class="{ 'is-selected': selectedSportId === sport.id }"
+                @click="selectSportFromDrawer(sport.id)"
+              >
+                <div class="sg-card-isometric-icon-box">
+                  <IsometricSportIcon :name="sport.iconKey || sport.name" :size="54" />
+                </div>
+                <div class="sg-card-sport-info">
+                  <h4 class="sg-card-sport-name">{{ sport.name }}</h4>
+                  <span class="sg-card-venue-count">{{ getVenueCountForSport(sport.id) }} địa điểm</span>
+                </div>
+                <div v-if="selectedSportId === sport.id" class="sg-card-active-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="sg-drawer-footer">
+            <button type="button" class="sg-drawer-reset-btn" @click="selectSportFromDrawer('all')">
+              Hiển thị tất cả môn ({{ venues.length }} địa điểm)
+            </button>
+          </div>
+        </aside>
+      </div>
+    </Teleport>
 
     <!-- SHARE MODAL POPUP (Mã QR + Đường dẫn chia sẻ) -->
     <Teleport to="body">
@@ -374,6 +454,7 @@ import "leaflet/dist/leaflet.css";
 import { api } from "../../services/api";
 import { courtTypeService } from "../../services/courtTypes.js";
 import AppIcon from "../../components/AppIcon.vue";
+import IsometricSportIcon from "../../components/IsometricSportIcon.vue";
 import { sportIconKeyFromName } from "../../utils/sportIcons.js";
 
 // Default coordinates centered on Hanoi
@@ -382,7 +463,7 @@ const DEFAULT_LNG = 105.8542;
 
 export default {
   name: "ClientMapView",
-  components: { AppIcon },
+  components: { AppIcon, IsometricSportIcon },
   data() {
     return {
       venues: [],
@@ -392,6 +473,7 @@ export default {
       selectedVenue: null,
       activeTab: "info",
       showShareModal: false,
+      showSportsDrawer: false,
       isCopied: false,
       activeImage: "",
       detailTabs: [
@@ -411,6 +493,7 @@ export default {
       isDraggingSports: false,
       sportsDragStartX: 0,
       sportsDragScrollLeft: 0,
+      searchTimer: null,
     };
   },
   computed: {
@@ -447,13 +530,13 @@ export default {
     },
     sportsList() {
       const defaultSports = [
-        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "activity" },
+        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "trophy" },
         { id: "pickleball", name: "Pickleball", color: "#2563eb", iconKey: "pickleball" },
         { id: "badminton", name: "Cầu lông", color: "#16a34a", iconKey: "badminton" },
         { id: "football", name: "Bóng đá", color: "#15803d", iconKey: "football" },
         { id: "basketball", name: "Bóng rổ", color: "#ea580c", iconKey: "basketball" },
         { id: "tennis", name: "Quần vợt", color: "#d97706", iconKey: "tennis" },
-        { id: "volleyball", name: "Bóng chuyền", color: "#0284c7", iconKey: "activity" },
+        { id: "volleyball", name: "Bóng chuyền", color: "#0284c7", iconKey: "volleyball" },
       ];
       if (this.courtTypes.length === 0) return defaultSports;
 
@@ -462,7 +545,7 @@ export default {
       const targetList = mainCategories.length ? mainCategories : this.courtTypes;
 
       const dynamicSports = [
-        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "activity" },
+        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "trophy" },
         ...targetList.map((ct) => ({
           id: String(ct.id),
           name: ct.name,
@@ -573,24 +656,40 @@ export default {
       this.map = L.map(this.$refs.mapContainer, {
         scrollWheelZoom: true,
         zoomControl: false,
-        minZoom: 4,
-        maxBounds: [[-90, -180], [90, 180]],
-        maxBoundsViscosity: 1.0,
+        preferCanvas: true,
+        minZoom: 3,
+        maxZoom: 19,
+        wheelDebounceTime: 60,
+        wheelPxPerZoomLevel: 100,
       }).setView([this.userLat, this.userLng], 12);
 
       L.control.zoom({ position: "topright" }).addTo(this.map);
 
-      // OpenStreetMap Tiles
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        minZoom: 4,
+      // CartoDB Voyager Map Tiles (Nét, siêu mượt, buffer đệm trong RAM để cuộn/kéo không bị trễ)
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
         maxZoom: 19,
-        noWrap: true,
-        bounds: [[-90, -180], [90, 180]],
+        updateWhenIdle: true,
+        updateWhenZooming: false,
+        keepBuffer: 6,
+        crossOrigin: true,
       }).addTo(this.map);
 
       this.markersGroup = L.layerGroup().addTo(this.map);
       this.userLocationLayer = L.layerGroup().addTo(this.map);
+
+      this.$nextTick(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      });
+
+      setTimeout(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      }, 250);
     },
     async loadCourtTypes() {
       try {
@@ -623,32 +722,30 @@ export default {
         const point = [venue.mapLat, venue.mapLng];
         bounds.push(point);
 
-        const sportColor = this.getSportColor(venue.court_types?.[0]?.name);
-        const sportIconSvg = this.getSportIconSvg(this.sportIconKey(venue));
-        const logoSrc = this.getVenueLogoSrc(venue);
         const isSelected = this.selectedVenue?.id === venue.id;
         const safeName = this.escapeHtml(venue.name || "Cụm sân");
 
         const pinHtml = `
-          <div class="sg-map-pinned-venue ${isSelected ? 'is-focused' : ''}" style="--pin-color: ${sportColor}">
-            <!-- Nhãn Tên Sân Nổi Phía Trên Ghim (Font chữ thường, không dùng chữ đậm) -->
+          <div class="sg-map-pinned-venue ${isSelected ? 'is-focused' : ''}">
+            <!-- Nhãn Tên Cụm Sân Nổi Phía Trên Ghim -->
             <div class="sg-pin-label-top">
               ${safeName}
             </div>
 
-            <!-- Ghim Giọt Nước SVG Liền Mạch 100% -->
+            <!-- Ghim Cụm Sân Thể Thao Đa Năng Tinh Giản (Dot Location Pin) -->
             <div class="sg-single-teardrop-wrap">
-              <svg class="sg-teardrop-svg" viewBox="0 0 44 56" fill="none">
-                <path d="M22 2 C11 2 2 11 2 22 C2 33 18 51 21.2 54.4 C21.6 54.8 22.4 54.8 22.8 54.4 C26 51 42 33 42 22 C42 11 33 2 22 2 Z"
-                      fill="var(--pin-color, #15803d)"
-                      stroke="#ffffff"
-                      stroke-width="2.5"
+              <svg class="sg-flat-pin-svg" width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Thân ghim giọt nước xanh lá thể thao -->
+                <path d="M16 2C8.3 2 2 8.3 2 16C2 25.5 14.6 39.3 15.4 40.1C15.7 40.4 16.3 40.4 16.6 40.1C17.4 39.3 30 25.5 30 16C30 8.3 23.7 2 16 2Z" 
+                      fill="#15803d" 
+                      stroke="#ffffff" 
+                      stroke-width="2.2"
                       stroke-linejoin="round"/>
+                <!-- Vòng tròn nền trắng trung tâm -->
+                <circle cx="16" cy="15.5" r="7" fill="#ffffff"/>
+                <!-- Chấm tâm màu xanh thể thao thanh lịch -->
+                <circle cx="16" cy="15.5" r="3.8" fill="#15803d"/>
               </svg>
-              <div class="sg-logo-circle-overlay">
-                ${logoSrc ? `<img src="${this.escapeHtml(logoSrc)}" class="sg-pin-venue-logo-img" alt="${safeName}" onerror="this.style.display='none';" />` : ''}
-                <span class="sg-pin-sport-icon" aria-hidden="true">${sportIconSvg}</span>
-              </div>
             </div>
           </div>
         `;
@@ -656,9 +753,9 @@ export default {
         const customIcon = L.divIcon({
           className: "sg-custom-map-pin",
           html: pinHtml,
-          iconSize: [160, 96],
-          iconAnchor: [80, 96],
-          popupAnchor: [0, -90],
+          iconSize: [160, 68],
+          iconAnchor: [80, 68],
+          popupAnchor: [0, -65],
         });
 
         const marker = L.marker(point, { icon: customIcon });
@@ -684,6 +781,11 @@ export default {
       if (fitBounds && bounds.length > 0) {
         this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
       }
+      this.$nextTick(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      });
     },
     getVenueLogoSrc(venue) {
       if (!venue) return "";
@@ -705,8 +807,35 @@ export default {
       this.selectedSportId = sportId;
       this.renderMapMarkers();
     },
-    onSearchInput() {
+    selectSportFromDrawer(sportId) {
+      this.selectedSportId = sportId;
       this.renderMapMarkers();
+      this.showSportsDrawer = false;
+    },
+    getVenueCountForSport(sportId) {
+      if (sportId === "all") return this.venues.length;
+      const targetSport = this.sportsList.find((s) => String(s.id) === String(sportId));
+      const targetName = targetSport ? targetSport.name.toLowerCase() : String(sportId).toLowerCase();
+
+      return this.venues.filter((v) => {
+        if (!v.court_types || v.court_types.length === 0) return false;
+        return v.court_types.some((ct) => {
+          const ctId = String(ct.id);
+          const ctParentId = ct.parent_id ? String(ct.parent_id) : null;
+          const ctName = (ct.name || "").toLowerCase();
+          return (
+            ctId === String(sportId) ||
+            ctParentId === String(sportId) ||
+            ctName.includes(targetName)
+          );
+        });
+      }).length;
+    },
+    onSearchInput() {
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.renderMapMarkers();
+      }, 200);
     },
     clearSearch() {
       this.searchQuery = "";
@@ -750,17 +879,61 @@ export default {
       if (explicitIcon && explicitIcon !== "activity") return explicitIcon;
       return this.iconKeyFromName(type?.name || type?.parent?.name);
     },
-    getSportIconSvg(iconKey) {
-      const icons = {
-        activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-        badminton: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="3"/><path d="M15 9 5 19M8 22l9-9M3 20l2 2M9 6l4 4"/></svg>',
-        pickleball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="6"/><path d="M9 9c0-3 2-5 5-6M13 3l2-1M8 14h.01M12 12h.01M16 15h.01M12 17h.01"/></svg>',
-        football: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 3 2 4 1 2 4-2 4 1 4-4 3-4-1-4 1-4-3 1-4-2-4 2-4 4-1 3-2z"/><path d="m12 8 2 2-1 3h-2l-1-3 2-2zM12 3v5M7 6l4 4M17 6l-4 4M4 10l6 3M20 10l-6 3M8 20l3-7M16 20l-3-7"/></svg>',
-        basketball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c4.7 2 8.8 6.1 10.8 10.8M18.4 5.6c-4.7 2-8.8 6.1-10.8 10.8M3 12h18M12 3v18"/></svg>',
-        tennis: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5c2.7 1 4.1 3.1 4.1 6.5s-1.4 5.5-4.1 6.5M18.5 5.5c-2.7 1-4.1 3.1-4.1 6.5s1.4 5.5 4.1 6.5"/></svg>',
-        volleyball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M4.5 8.5c3.5-.4 6.4.9 8.6 3.8s2.6 5.9 1.2 8.2M7 4.2c2.1 2 3.1 4.8 2.8 8.2S8 18.4 5.8 20M15.7 3.8c-1.8 2.6-2.2 5.6-1 8.8s3.8 5 7.1 5.4"/></svg>',
+    getSportIconPaths(iconKey) {
+      const paths = {
+        // Cầu lông: Vận động viên nhảy vung vợt đập cầu trên không
+        badminton: `
+          <circle cx="8" cy="4" r="2.2" fill="currentColor"/>
+          <path d="M7.5 7.2c-.8 0-1.5.6-1.5 1.4v3.5l-2.4 2.2 1.4 1.4 2-1.8v4.2l-2.2 4.2 1.8.8 2.5-4.8 2.2 4.8 1.8-.8-2.2-4.5V11l2.4-1.8 1.8 2 1.4-1.2-2.4-3c-.4-.5-1-.8-1.6-.8H9.5z" fill="currentColor"/>
+          <path d="M12.5 9.2l3-3.6 1.2 1-2 3.2z" fill="currentColor"/>
+          <ellipse cx="17" cy="4" rx="2.4" ry="3.4" transform="rotate(35 17 4)" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="20" cy="2" r="1" fill="currentColor"/>
+        `,
+        // Pickleball: Vận động viên hạ trọng tâm vung vợt Paddle phẳng & bóng có lỗ
+        pickleball: `
+          <circle cx="7.5" cy="4.5" r="2.2" fill="currentColor"/>
+          <path d="M7 7.5c-.8 0-1.5.6-1.5 1.5v3.8l-2.2 2 1.4 1.4 2.2-2V16l-2.4 4.2 1.8 1 2.6-4.6 2.4 4.6 1.8-1-2.4-4.8V11.2l2.6 1.5v-1.4z" fill="currentColor"/>
+          <path d="M10.5 11.2l3 1.2v-1l2-.8c.6-.3 1.2.2 1.2.9v3.2c0 .7-.6 1.2-1.2.9l-2-.8v-1l-3 1.2z" fill="currentColor"/>
+          <circle cx="19" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="19" cy="11" r="0.6" fill="currentColor"/>
+        `,
+        // Bóng đá: Cầu thủ nghiêng người vung chân sút bóng
+        football: `
+          <circle cx="6.5" cy="4.5" r="2.2" fill="currentColor"/>
+          <path d="M6 7.5c-.8 0-1.5.6-1.5 1.4l-.5 4.2 1.8.3.5-3 2 1.8-2.5 5 1.8.9 2.8-5.5 1.2-1.4 3 2.5 3 2.5 1.3-1.4-3.5-3-2.5-2.2V9.2c0-.8-.7-1.5-1.5-1.5H6z" fill="currentColor"/>
+          <circle cx="18" cy="18" r="3" fill="currentColor"/>
+        `,
+        // Bóng rổ: Cầu thủ bật cao ném bóng vào rổ
+        basketball: `
+          <circle cx="7.5" cy="5.5" r="2.2" fill="currentColor"/>
+          <path d="M7 8.5c-.8 0-1.5.7-1.5 1.5v3.2l-2 3 1.7 1 1.8-2.7v5.5l-1.8 3.8 1.8.8 2.2-4.5 2 4.5 1.8-.8-2-5.5V11.5l3-3 2-3.8-1.8-.9-1.8 3.2-2.4 1.5V10c0-.8-.7-1.5-1.5-1.5H7z" fill="currentColor"/>
+          <circle cx="17" cy="3" r="2.8" fill="currentColor"/>
+        `,
+        // Quần vợt (Tennis): Vận động viên vung vợt forehand mạnh mẽ
+        tennis: `
+          <circle cx="7.5" cy="5.5" r="2.2" fill="currentColor"/>
+          <path d="M7 8.5c-.8 0-1.5.7-1.5 1.5v3.8l-2.4 2 1.3 1.5 2.5-2V16.5l-2.2 4 1.8.9 2.6-4.5 2.4 4.5 1.8-.9-2.2-4.8V11.5l2.6 1.8 1.8-1.5-2.4-2.5V10c0-.8-.7-1.5-1.5-1.5H7z" fill="currentColor"/>
+          <path d="M12 10.5l3-2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <ellipse cx="17.5" cy="6" rx="2.8" ry="3.8" transform="rotate(30 17.5 6)" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="11.5" cy="3" r="1.4" fill="currentColor"/>
+        `,
+        // Bóng chuyền: Vận động viên bay trên không đập bóng
+        volleyball: `
+          <circle cx="7.5" cy="5.5" r="2.2" fill="currentColor"/>
+          <path d="M7 8.5c-.8 0-1.5.7-1.5 1.5v3l-2.2 2 1.3 1.4 2.4-2.2V15.5l-2 4 1.8.8 2.4-4.5 2.4 4.5 1.8-.8-2.2-4.5V10.5l3.2-2.8 2-3.8-1.8-.9-1.8 3.2-2.6 2V10c0-.8-.7-1.5-1.5-1.5H7z" fill="currentColor"/>
+          <circle cx="17" cy="3.5" r="2.8" fill="currentColor"/>
+        `,
+        // Chạy bộ / Khác: Vận động viên chạy bứt tốc
+        activity: `
+          <circle cx="13.5" cy="3.5" r="2.2" fill="currentColor"/>
+          <path d="M13 6.5c-.7 0-1.3.4-1.6 1l-2.2 4-2.5-1.8-1.2 1.6 3.6 2.6c.4.3.9.4 1.4.2l2-1v3.2l-3.8 4.2 1.5 1.4 4.2-4.6c.4-.4.6-.9.6-1.5V12.5l1.8 1.8 2.5 4.5 1.8-1-2.4-4.5-2.2-2.5 1.5-2.8 2.4 1.5 1-1.8-3.2-2c-.4-.3-.9-.5-1.4-.5H13z" fill="currentColor"/>
+        `,
       };
-      return icons[iconKey] || icons.activity;
+      return paths[iconKey] || paths.activity;
+    },
+    getSportIconSvg(iconKey) {
+      const paths = this.getSportIconPaths(iconKey);
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
     },
     escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -961,28 +1134,30 @@ export default {
   box-shadow: none ;
 }
 
-.sg-sidebar-logo-badge {
+.sg-sidebar-item-thumb-box {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: 8px;
+  background: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
 }
 
-.sg-sidebar-logo-img {
+.sg-sidebar-venue-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.sg-sidebar-court-svg {
-  width: 17px;
-  height: 17px;
+.sg-sidebar-venue-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #15803d;
 }
 
 .sg-sidebar-item-info {
@@ -991,9 +1166,6 @@ export default {
 }
 
 .sg-sidebar-item-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
   font-size: 14px;
   font-weight: 500;
   color: #0f172a;
@@ -1001,16 +1173,6 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.sg-sidebar-sport-icon {
-  width: 24px;
-  height: 24px;
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border-radius: 7px;
-  background: #edf7f0;
 }
 
 .sg-sidebar-item-sub {
@@ -1882,12 +2044,217 @@ export default {
     transform: translateY(calc(100% - 50px));
   }
 }
+
+/* RIGHT ISOMETRIC SPORTS DRAWER */
+.sg-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+  animation: sgFadeIn 0.2s ease-out;
+}
+
+@keyframes sgFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sg-sports-right-drawer {
+  width: 100%;
+  max-width: 380px;
+  height: 100%;
+  background: #ffffff;
+  box-shadow: -10px 0 30px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: sgSlideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sgSlideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.sg-drawer-header {
+  padding: 20px 20px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sg-drawer-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.sg-drawer-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  font-weight: 400;
+}
+
+.sg-drawer-close-btn {
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sg-drawer-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.sg-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.sg-isometric-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.sg-isometric-sport-card {
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.sg-isometric-sport-card:hover {
+  border-color: #15803d;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(21, 128, 61, 0.15);
+}
+
+.sg-isometric-sport-card.is-selected {
+  border-color: #15803d;
+  background: #f0fdf4;
+  box-shadow: 0 4px 14px rgba(21, 128, 61, 0.15);
+}
+
+.sg-card-isometric-icon-box {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.sg-card-sport-info {
+  width: 100%;
+}
+
+.sg-card-sport-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sg-isometric-sport-card.is-selected .sg-card-sport-name {
+  color: #15803d;
+}
+
+.sg-card-venue-count {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.sg-card-active-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #15803d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.3);
+}
+
+.sg-drawer-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.sg-drawer-reset-btn {
+  width: 100%;
+  padding: 11px 16px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sg-drawer-reset-btn:hover {
+  border-color: #15803d;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.is-open-3d-btn {
+  border-color: #15803d !important;
+  background: #f0fdf4 !important;
+}
+
+.sg-open-3d-text {
+  color: #15803d !important;
+  font-weight: 600 !important;
+}
+
+.sg-map-fab-circle.is-sports-fab {
+  background: #ffffff;
+  border-color: #15803d;
+  color: #15803d;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.2);
+}
 </style>
 
 <style>
 .sg-custom-map-pin {
-  background: transparent ;
-  border: none ;
+  background: transparent !important;
+  border: none !important;
+  will-change: transform;
+  contain: layout style;
 }
 
 .sg-map-pinned-venue {
@@ -1897,109 +2264,46 @@ export default {
   justify-content: flex-end;
   cursor: pointer;
   pointer-events: auto;
+  contain: layout style;
 }
 
-/* Floating Theme-Color Text Label Above Pin (Font chữ thường, KHÔNG dùng font đậm) */
+/* Floating Theme-Color Text Label Above Pin (Thiết kế phẳng, viền mỏng, không bóng đổ) */
 .sg-pin-label-top {
-  font-size: 12.5px;
-  font-weight: 400;
-  color: var(--pin-color, #15803d);
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e293b;
   text-align: center;
   line-height: 1.25;
   max-width: 160px;
   margin-bottom: 4px;
   white-space: normal;
   word-break: break-word;
-  background: rgba(255, 255, 255, 0.94);
-  padding: 2px 7px;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  text-shadow:
-    -1px -1px 0 #ffffff,
-     1px -1px 0 #ffffff,
-    -1px  1px 0 #ffffff,
-     1px  1px 0 #ffffff;
-  transition: color 0.18s ease;
+  background: #ffffff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  pointer-events: none;
 }
 
-/* Single Seamless Organic SVG Teardrop Pin (Zero separate triangles/circles) */
+/* Single Seamless Organic SVG Teardrop Pin (Phẳng hoàn toàn 1 lớp nguyên khối) */
 .sg-single-teardrop-wrap {
-  position: relative;
-  width: 44px;
-  height: 56px;
+  width: 32px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.28));
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateZ(0);
+}
+
+.sg-flat-pin-svg {
+  width: 32px;
+  height: 42px;
+  display: block;
 }
 
 .sg-map-pinned-venue.is-focused .sg-single-teardrop-wrap,
 .sg-map-pinned-venue:focus .sg-single-teardrop-wrap {
-  transform: scale(1.22) translateY(-4px);
-}
-
-.sg-teardrop-svg {
-  width: 44px;
-  height: 56px;
-  display: block;
-}
-
-.sg-logo-circle-overlay {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: visible;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-.sg-pin-sport-icon {
-  position: absolute;
-  right: -4px;
-  bottom: -2px;
-  width: 17px;
-  height: 17px;
-  display: inline-grid;
-  place-items: center;
-  color: var(--pin-color, #15803d);
-  background: #ffffff;
-  border: 1px solid var(--pin-color, #15803d);
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
-  z-index: 2;
-}
-
-.sg-pin-sport-icon svg {
-  width: 11px;
-  height: 11px;
-}
-
-.sg-pin-venue-logo-img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.sg-pin-fallback-badge {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-}
-
-.sg-pin-fallback-badge svg {
-  width: 20px;
-  height: 20px;
+  opacity: 0.95;
 }
 
 .sg-map-popup-card {
