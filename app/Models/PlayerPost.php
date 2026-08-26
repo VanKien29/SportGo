@@ -16,11 +16,17 @@ class PlayerPost extends Model
         'description',
         'image_path',
         'needed_players',
+        'lock_lead_minutes',
         'skill_level',
         'cost_per_player',
         'cost_type',
         'status',
         'status_reason',
+        'ai_verdict',
+        'ai_score',
+        'ai_summary',
+        'ai_flags',
+        'ai_reviewed_at',
     ];
 
     protected $appends = ['image_url'];
@@ -29,7 +35,11 @@ class PlayerPost extends Model
     {
         return [
             'needed_players' => 'integer',
+            'lock_lead_minutes' => 'integer',
             'cost_per_player' => 'decimal:2',
+            'ai_flags' => 'array',
+            'ai_score' => 'integer',
+            'ai_reviewed_at' => 'datetime',
         ];
     }
 

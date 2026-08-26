@@ -2,219 +2,395 @@
   <div class="matchmaking-manage-page sg-client-page">
     <PublicNavbar />
 
-    <main class="sg-client-reading-shell manage-content">
-      <router-link :to="{ name: 'ClientCommunityList' }" class="back-link">
-        <AppIcon name="chevronLeft" size="16" />
-        Cộng đồng
-      </router-link>
-
-      <div v-if="loading" class="sg-client-state page-state" aria-live="polite">
-        <span class="spinner" aria-hidden="true"></span>
-        <p>Đang tải yêu cầu tham gia...</p>
+    <main class="manage-content">
+      <div class="manage-breadcrumb">
+        <router-link :to="{ name: 'ClientCommunityList' }" class="back-link">
+          <AppIcon name="chevronLeft" size="16" />
+          <span>Cộng đồng</span>
+        </router-link>
       </div>
 
-      <div v-else-if="error" class="sg-client-state page-state page-state--error" role="alert">
+      <div v-if="loading" class="page-state" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>Đang tải bài giao lưu...</p>
+      </div>
+
+      <div v-else-if="error" class="page-state page-state--error" role="alert">
         <AppIcon name="alert" size="26" />
         <strong>Không thể tải bài giao lưu</strong>
         <p>{{ error }}</p>
         <button type="button" class="sg-client-button" @click="fetchParticipants()">Thử lại</button>
       </div>
 
-      <template v-else-if="post">
-        <header class="page-header">
-          <div>
-            <span class="sg-client-eyebrow">Quản lý bài giao lưu</span>
-            <h1>Yêu cầu tham gia</h1>
-            <p>Duyệt người chơi phù hợp với buổi giao lưu của bạn.</p>
-          </div>
-          <span class="post-status" :class="`post-status--${displayPostStatus}`">{{ postStatusLabel }}</span>
-          <div class="manage-actions">
-            <button v-if="canManagePost" type="button" class="sg-client-button" @click="openEditor"><AppIcon name="pencil" size="16" /> Sửa bài</button>
-            <button v-if="canManagePost" type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="closePost"><AppIcon name="close" size="16" /> Đóng tuyển</button>
-            <router-link v-if="post.group_chat_id" class="sg-client-button" :to="{ name: 'client-messages', query: { conversation_id: post.group_chat_id } }"><AppIcon name="messageCircle" size="16" /> Mở nhóm chat</router-link>
-            <button v-if="canDissolve" type="button" class="sg-client-button sg-client-button--danger" :disabled="savingPost" @click="dissolveGroup"><AppIcon name="trash" size="16" /> Giải tán nhóm</button>
-          </div>
-        </header>
-
-        <section class="booking-summary" aria-label="Thông tin buổi giao lưu">
-          <article class="sg-client-card">
-            <AppIcon :name="post.sport_icon || 'activity'" size="19" />
-            <span><small>{{ post.sport_name || 'Thể thao' }}</small><strong>{{ post.court_type_name || 'Sân tiêu chuẩn' }}<template v-if="post.court_name"> ({{ post.court_name }})</template></strong></span>
-          </article>
-          <article class="sg-client-card">
-            <AppIcon name="mapPin" size="19" />
-            <span><small>Cụm sân</small><strong>{{ post.venue_name || 'Chưa xác định' }}</strong></span>
-          </article>
-          <article class="sg-client-card">
-            <AppIcon name="clock" size="19" />
-            <span><small>Thời gian</small><strong>{{ post.time || 'Chưa xác định' }}</strong></span>
-          </article>
-          <article class="sg-client-card">
-            <AppIcon name="users" size="19" />
-            <span><small>Còn cần · Trình độ</small><strong>{{ post.needed_players }} người · {{ skillLabel(post.skill_level) }}</strong></span>
-          </article>
-          <article class="sg-client-card">
-            <AppIcon name="shield" size="19" />
-            <span><small>Chi phí</small><strong>{{ costLabel(post) }}</strong></span>
-          </article>
-        </section>
-
-        <section v-if="post.image_url || post.description" class="post-preview-card sg-client-card">
-          <div v-if="post.image_url" class="post-preview-cover">
-            <img :src="assetUrl(post.image_url)" alt="Ảnh bài giao lưu" />
-          </div>
-          <div v-if="post.description" class="post-preview-desc">
-            <small>Mô tả bài đăng</small>
-            <p>{{ post.description }}</p>
-          </div>
-        </section>
-
-        <form v-if="editing" class="post-editor sg-client-card" @submit.prevent="savePost">
-          <div>
-            <h2>Chỉnh sửa nội dung</h2>
-            <p>Cập nhật mô tả để người chơi hiểu rõ trình độ và nội dung giao lưu.</p>
-          </div>
-          <textarea v-model.trim="editContent" class="sg-client-input" rows="4" minlength="10" maxlength="2000" required></textarea>
-          <div class="post-editor-actions">
-            <button type="button" class="sg-client-button" @click="editing = false">Hủy</button>
-            <button type="submit" class="sg-client-button sg-client-button--primary" :disabled="savingPost">{{ savingPost ? 'Đang lưu...' : 'Lưu thay đổi' }}</button>
-          </div>
-        </form>
-
-        <aside class="decision-guide" :class="{ 'decision-guide--locked': !canApprove }">
-          <AppIcon :name="canApprove ? 'circleCheck' : 'alert'" size="20" />
-          <div>
-            <strong>{{ decisionGuideTitle }}</strong>
-            <p>{{ decisionGuideMessage }}</p>
-          </div>
-        </aside>
-
-        <section class="participants-panel sg-client-card">
-          <header class="panel-header">
-            <div>
-              <h2>Người xin tham gia</h2>
-              <p>{{ participants.length }} yêu cầu đã gửi đến bài giao lưu này.</p>
+      <div v-else-if="post" class="manage-grid-layout">
+        <!-- CỘT TRÁI: NỘI DUNG CHÍNH (MAIN COLUMN) -->
+        <div class="manage-main-column">
+          <!-- THẺ TỔNG QUAN BÀI GIAO LƯU (HERO CARD) -->
+          <section class="manage-hero-card">
+            <div class="hero-top-row">
+              <div class="hero-sport-tag">
+                <AppIcon :name="post.sport_icon || 'activity'" size="15" />
+                <span>{{ post.sport_name || 'Thể thao' }} ({{ cleanCourtType(post.court_type_name, post.sport_name) }})</span>
+              </div>
+              <span class="hero-status-pill" :class="`status--${displayPostStatus}`">
+                {{ postStatusLabel }}
+              </span>
             </div>
-            <button
-              type="button"
-              class="sg-client-button refresh-button"
-              :disabled="refreshing"
-              @click="fetchParticipants(true)"
-            >
-              <AppIcon name="refresh" size="16" :class="{ rotating: refreshing }" />
-              {{ refreshing ? 'Đang tải' : 'Làm mới' }}
-            </button>
-          </header>
 
-          <nav v-if="participants.length" class="request-filters" aria-label="Lọc yêu cầu tham gia">
-            <button
-              v-for="filter in requestFilters"
-              :key="filter.value"
-              type="button"
-              :class="{ active: activeFilter === filter.value }"
-              :aria-pressed="activeFilter === filter.value"
-              @click="activeFilter = filter.value"
-            >
-              <span>{{ filter.label }}</span>
-              <strong>{{ filter.count }}</strong>
-            </button>
-          </nav>
+            <h1 class="hero-venue-title">
+              {{ post.venue_name }}
+              <span v-if="post.court_name" class="hero-court-detail">({{ post.court_name }})</span>
+            </h1>
 
-          <div v-if="!participants.length" class="empty-state">
-            <AppIcon name="users" size="28" />
-            <strong>Chưa có yêu cầu tham gia</strong>
-            <span>Các yêu cầu mới sẽ xuất hiện tại đây.</span>
-          </div>
-
-          <div v-else-if="!filteredParticipants.length" class="empty-state empty-state--compact">
-            <AppIcon name="filter" size="24" />
-            <strong>Không có yêu cầu ở trạng thái này</strong>
-            <button type="button" class="sg-client-button" @click="activeFilter = 'all'">Xem tất cả</button>
-          </div>
-
-          <div v-else class="participant-list">
-            <article
-              v-for="participant in filteredParticipants"
-              :key="participant.user_id"
-              class="participant-card"
-            >
-              <div class="participant-main">
-                <div class="participant-info">
-                  <div class="avatar" aria-hidden="true">
-                    <img
-                      v-if="participant.avatar"
-                      :src="getAvatarUrl(participant.avatar)"
-                      :alt="participant.name"
-                    />
-                    <span v-else>{{ initial(participant.name) }}</span>
-                  </div>
-                  <div>
-                    <router-link :to="`/user/${participant.user_id}`">{{ participant.name }}</router-link>
-                    <small>Gửi lúc {{ formatTime(participant.created_at) }}</small>
-                  </div>
-                </div>
-
-                <div v-if="participant.status === 'pending'" class="participant-actions">
-                  <button
-                    type="button"
-                    class="sg-client-button sg-client-button--primary"
-                    :disabled="isProcessing(participant.user_id) || !canApprove"
-                    @click="approve(participant.user_id)"
-                  >
-                    <AppIcon name="check" size="16" />
-                    {{ isProcessing(participant.user_id, 'approve') ? 'Đang duyệt...' : 'Đồng ý' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="sg-client-button sg-client-button--danger"
-                    :disabled="isProcessing(participant.user_id)"
-                    @click="openRejectConfirm(participant.user_id)"
-                  >
-                    <AppIcon name="close" size="16" />
-                    Từ chối
-                  </button>
-                </div>
-
-                <span v-else class="participant-status" :class="`participant-status--${participant.status}`">
-                  <AppIcon :name="participantStatusIcon(participant.status)" size="15" />
-                  {{ participantStatusLabel(participant.status) }}
+            <!-- DẢI THÔNG SỐ PHẲNG (KHÔNG HỘP XÁM) -->
+            <div class="hero-metrics-grid">
+              <div class="metric-item">
+                <span class="metric-label">Thời gian</span>
+                <span class="metric-value">
+                  <AppIcon name="clock" size="14" />
+                  <span>{{ post.time }}</span>
                 </span>
               </div>
 
-              <div
-                v-if="isRejectConfirmOpen(participant.user_id)"
-                class="reject-confirm"
-                role="alert"
-                aria-live="polite"
+              <div class="metric-item">
+                <span class="metric-label">Số người & Trình độ</span>
+                <span class="metric-value">
+                  <AppIcon name="users" size="14" />
+                  <span>Còn cần {{ post.needed_players }} người ({{ skillLabel(post.skill_level) }})</span>
+                </span>
+              </div>
+
+              <div class="metric-item">
+                <span class="metric-label">Chi phí tham gia</span>
+                <span class="metric-value">
+                  <AppIcon name="shield" size="14" />
+                  <span>{{ costLabel(post) }}</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- MÔ TẢ & ẢNH BÀI ĐĂNG (NẾU CÓ) -->
+            <div v-if="post.image_url || post.description" class="post-detail-section">
+              <div v-if="post.image_url" class="post-detail-cover">
+                <img :src="assetUrl(post.image_url)" alt="Ảnh bài giao lưu" />
+              </div>
+              <div v-if="post.description" class="post-detail-desc">
+                <span class="desc-heading">Mô tả bài đăng</span>
+                <p>{{ post.description }}</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- FORM SỬA BÀI NẾU ĐANG EDIT -->
+          <form v-if="editing" class="post-editor surface" @submit.prevent="savePost">
+            <div>
+              <h2>Chỉnh sửa nội dung</h2>
+              <p>Cập nhật mô tả để người chơi hiểu rõ trình độ và nội dung giao lưu.</p>
+            </div>
+            <textarea v-model.trim="editContent" class="sg-client-input" rows="4" minlength="10" maxlength="2000" required></textarea>
+            <div class="post-editor-actions">
+              <button type="button" class="sg-client-button" @click="editing = false">Hủy</button>
+              <button type="submit" class="sg-client-button sg-client-button--primary" :disabled="savingPost">
+                {{ savingPost ? 'Đang lưu...' : 'Lưu thay đổi' }}
+              </button>
+            </div>
+          </form>
+
+          <!-- LƯU Ý DUYỆT YÊU CẦU -->
+          <aside class="decision-guide" :class="{ 'decision-guide--locked': !canApprove }">
+            <AppIcon :name="canApprove ? 'circleCheck' : 'alert'" size="20" />
+            <div>
+              <strong>{{ decisionGuideTitle }}</strong>
+              <p>{{ decisionGuideMessage }}</p>
+            </div>
+          </aside>
+
+          <!-- DANH SÁCH NGƯỜI XIN THAM GIA -->
+          <section class="participants-panel surface">
+            <header class="panel-header">
+              <div>
+                <h2>Người xin tham gia</h2>
+                <p>{{ participants.length }} yêu cầu đã gửi đến bài giao lưu này.</p>
+              </div>
+            </header>
+
+            <nav v-if="participants.length" class="request-filters" aria-label="Lọc yêu cầu tham gia">
+              <button
+                v-for="filter in requestFilters"
+                :key="filter.value"
+                type="button"
+                :class="{ active: activeFilter === filter.value }"
+                :aria-pressed="activeFilter === filter.value"
+                @click="activeFilter = filter.value"
               >
-                <div>
-                  <strong>Xác nhận từ chối {{ participant.name }}?</strong>
-                  <span>Yêu cầu sẽ chuyển sang trạng thái “Đã từ chối”.</span>
+                <span>{{ filter.label }}</span>
+                <strong>{{ filter.count }}</strong>
+              </button>
+            </nav>
+
+            <div v-if="!participants.length" class="manage-empty-state">
+              <AppIcon name="users" size="32" />
+              <p class="empty-title">Chưa có yêu cầu tham gia</p>
+              <span class="empty-desc">Các yêu cầu mới sẽ xuất hiện tại đây và tự động cập nhật realtime.</span>
+            </div>
+
+            <div v-else-if="!filteredParticipants.length" class="manage-empty-state">
+              <AppIcon name="filter" size="26" />
+              <p class="empty-title">Không có yêu cầu ở trạng thái này</p>
+              <button type="button" class="sg-client-button" @click="activeFilter = 'all'">Xem tất cả</button>
+            </div>
+
+            <div v-else class="participant-list">
+              <article
+                v-for="participant in filteredParticipants"
+                :key="participant.user_id"
+                class="participant-card"
+              >
+                <div class="participant-main">
+                  <div class="participant-info">
+                    <div class="avatar" aria-hidden="true">
+                      <img
+                        v-if="participant.avatar"
+                        :src="getAvatarUrl(participant.avatar)"
+                        :alt="participant.name"
+                      />
+                      <span v-else>{{ initial(participant.name) }}</span>
+                    </div>
+                    <div>
+                      <router-link :to="`/user/${participant.user_id}`">{{ participant.name }}</router-link>
+                      <small>Gửi lúc {{ formatTime(participant.created_at) }}</small>
+                    </div>
+                  </div>
+
+                  <div v-if="participant.status === 'pending'" class="participant-actions">
+                    <button
+                      type="button"
+                      class="sg-client-button sg-client-button--primary"
+                      :disabled="isProcessing(participant.user_id) || !canApprove"
+                      @click="approve(participant.user_id)"
+                    >
+                      <AppIcon name="check" size="16" />
+                      {{ isProcessing(participant.user_id, 'approve') ? 'Đang duyệt...' : 'Đồng ý' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="sg-client-button sg-client-button--danger"
+                      :disabled="isProcessing(participant.user_id)"
+                      @click="openRejectConfirm(participant.user_id)"
+                    >
+                      <AppIcon name="close" size="16" />
+                      Từ chối
+                    </button>
+                  </div>
+
+                  <span v-else class="participant-status" :class="`participant-status--${participant.status}`">
+                    <AppIcon :name="participantStatusIcon(participant.status)" size="15" />
+                    {{ participantStatusLabel(participant.status) }}
+                  </span>
                 </div>
-                <div class="reject-confirm-actions">
-                  <button
-                    type="button"
-                    class="sg-client-button"
-                    :disabled="isProcessing(participant.user_id)"
-                    @click="closeRejectConfirm"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    class="sg-client-button sg-client-button--danger"
-                    :disabled="isProcessing(participant.user_id)"
-                    @click="reject(participant.user_id)"
-                  >
-                    <AppIcon name="close" size="16" />
-                    {{ isProcessing(participant.user_id, 'reject') ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
-                  </button>
+
+                <div
+                  v-if="isRejectConfirmOpen(participant.user_id)"
+                  class="reject-confirm"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <div>
+                    <strong>Xác nhận từ chối {{ participant.name }}?</strong>
+                    <span>Yêu cầu sẽ chuyển sang trạng thái “Đã từ chối”.</span>
+                  </div>
+                  <div class="reject-confirm-actions">
+                    <button
+                      type="button"
+                      class="sg-client-button"
+                      :disabled="isProcessing(participant.user_id)"
+                      @click="closeRejectConfirm"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      class="sg-client-button sg-client-button--danger"
+                      :disabled="isProcessing(participant.user_id)"
+                      @click="reject(participant.user_id)"
+                    >
+                      {{ isProcessing(participant.user_id, 'reject') ? 'Đang từ chối...' : 'Xác nhận từ chối' }}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <!-- CỘT PHẢI: SIDEBAR TIỆN ÍCH & ĐỘI HÌNH (SIDEBAR) -->
+        <aside class="manage-sidebar">
+          <!-- 1. THẺ PHÍM TẮT THAO TÁC (ACTION HUB) -->
+          <section class="sidebar-card surface">
+            <h3 class="sidebar-title">
+              <AppIcon name="settings" size="16" />
+              <span>Thao tác quản lý</span>
+            </h3>
+
+            <div class="sidebar-actions-stack">
+              <router-link
+                v-if="post.group_chat_id"
+                class="sidebar-btn sidebar-btn--primary"
+                :to="{ name: 'client-messages', query: { conversation_id: post.group_chat_id } }"
+              >
+                <AppIcon name="messageCircle" size="17" />
+                <span>Mở nhóm chat kèo</span>
+              </router-link>
+
+              <button
+                v-if="canManagePost"
+                type="button"
+                class="sidebar-btn sidebar-btn--secondary"
+                @click="openEditor"
+              >
+                <AppIcon name="pencil" size="15" />
+                <span>Sửa nội dung bài</span>
+              </button>
+
+              <button
+                v-if="canManagePost"
+                type="button"
+                class="sidebar-btn sidebar-btn--muted"
+                :disabled="savingPost"
+                @click="closePost"
+              >
+                <AppIcon name="close" size="15" />
+                <span>Đóng nhận thêm người</span>
+              </button>
+
+              <button
+                v-if="canDissolve"
+                type="button"
+                class="sidebar-btn sidebar-btn--danger"
+                :disabled="savingPost"
+                @click="dissolveGroup"
+              >
+                <AppIcon name="trash" size="15" />
+                <span>Giải tán nhóm giao lưu</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- 2. THẺ ĐỘI HÌNH & TIẾN ĐỘ GHÉP (ROSTER) -->
+          <section class="sidebar-card surface">
+            <div class="sidebar-header-row">
+              <h3 class="sidebar-title">
+                <AppIcon name="users" size="16" />
+                <span>Đội hình hiện tại</span>
+              </h3>
+              <span class="roster-count-badge">
+                {{ approvedParticipants.length + 1 }}/{{ totalTeamSize }}
+              </span>
+            </div>
+
+            <div class="roster-progress-box">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" :style="{ width: `${rosterProgressPercent}%` }"></div>
+              </div>
+              <div class="progress-text-row">
+                <span>{{ post.needed_players > 0 ? `Còn thiếu ${post.needed_players} người` : 'Đã đủ thành viên' }}</span>
+                <strong>{{ rosterProgressPercent }}%</strong>
+              </div>
+            </div>
+
+            <div class="roster-members-list">
+              <!-- CHỦ PHÒNG -->
+              <div class="roster-member-item">
+                <div class="member-avatar member-avatar--host">
+                  <img
+                    v-if="post.author?.avatar"
+                    :src="getAvatarUrl(post.author.avatar)"
+                    :alt="post.author.name"
+                  />
+                  <span v-else>{{ initial(post.author?.name || 'Bạn') }}</span>
+                </div>
+                <div class="member-info">
+                  <span class="member-name">{{ post.author?.name || 'Bạn' }}</span>
+                  <span class="member-tag member-tag--host">Chủ bài</span>
                 </div>
               </div>
-            </article>
-          </div>
-        </section>
-      </template>
+
+              <!-- CÁC THÀNH VIÊN ĐÃ ĐƯỢC DUYỆT -->
+              <div
+                v-for="member in approvedParticipants"
+                :key="member.user_id"
+                class="roster-member-item"
+              >
+                <div class="member-avatar">
+                  <img
+                    v-if="member.avatar"
+                    :src="getAvatarUrl(member.avatar)"
+                    :alt="member.name"
+                  />
+                  <span v-else>{{ initial(member.name) }}</span>
+                </div>
+                <div class="member-info">
+                  <router-link :to="`/user/${member.user_id}`" class="member-name">{{ member.name }}</router-link>
+                  <span class="member-tag member-tag--member">Đã tham gia</span>
+                </div>
+              </div>
+
+              <!-- CÁC SLOT TRỐNG CÒN LẠI (NẾU CÒN THIẾU) -->
+              <div
+                v-for="slot in Math.min(post.needed_players, 5)"
+                :key="`empty-slot-${slot}`"
+                class="roster-member-item roster-member-item--empty"
+              >
+                <div class="empty-slot-icon">
+                  <AppIcon name="userPlus" size="14" />
+                </div>
+                <span class="empty-slot-text">Vị trí còn trống</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 3. THÔNG TIN SÂN & ĐỊA ĐIỂM (VENUE SNAPSHOT) -->
+          <section class="sidebar-card surface">
+            <h3 class="sidebar-title">
+              <AppIcon name="mapPin" size="16" />
+              <span>Thông tin địa điểm</span>
+            </h3>
+
+            <div class="venue-snapshot-info">
+              <strong>{{ post.venue_name }}</strong>
+              <p v-if="post.venue_address">{{ post.venue_address }}</p>
+              <div v-if="post.booking_id" class="booking-code-row">
+                <span>Mã đặt sân:</span>
+                <code>#{{ post.booking_id }}</code>
+              </div>
+            </div>
+
+            <a
+              v-if="post.venue_address"
+              :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(post.venue_name + ' ' + post.venue_address)}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="venue-map-link"
+            >
+              <AppIcon name="navigation" size="14" />
+              <span>Xem chỉ đường Google Maps</span>
+            </a>
+          </section>
+
+          <!-- 4. LƯU Ý TỔ CHỨC GIAO LƯU -->
+          <section class="sidebar-card sidebar-card--tips surface">
+            <h3 class="sidebar-title">
+              <AppIcon name="info" size="16" />
+              <span>Lưu ý cho chủ kèo</span>
+            </h3>
+            <ul class="tips-list">
+              <li>Chủ động nhắn tin trong nhóm chat trước 30 - 60 phút để nhắc giờ.</li>
+              <li>Thống nhất tiền sân và cách thức thanh toán trước khi vào trận.</li>
+              <li>Tôn trọng tinh thần thể thao và đến đúng giờ đã hẹn.</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
     </main>
 
     <!-- MODAL XÁC NHẬN GIẢI TÁN NHÓM -->
@@ -258,12 +434,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import AppIcon from '@/components/AppIcon.vue';
 import PublicNavbar from '@/components/PublicNavbar.vue';
 import { api } from '@/services/api.js';
+import echo from '../../../echo.js';
 
 const route = useRoute();
 const toast = useToast();
@@ -294,7 +471,7 @@ function parseBookingAt(dateValue, timeValue) {
 }
 
 const fallbackBookingAt = computed(() => {
-  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(?:(\d{1,2}):(\d{2})\s*·\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
+  const match = String(post.value?.time || '').match(/(\d{1,2}):(\d{2})\s*-\s*(?:(\d{1,2}):(\d{2})\s*,\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
   if (!match) return null;
   const [, hour, minute, , , day, month, year] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
@@ -325,6 +502,19 @@ const postStatusLabel = computed(() => {
     closed: 'Đã đóng',
     cancelled: 'Đã hủy',
   }[post.value?.status] || post.value?.status || 'Không xác định';
+});
+
+const approvedParticipants = computed(() => participants.value.filter(p => p.status === 'approved'));
+
+const totalTeamSize = computed(() => {
+  const needed = Number(post.value?.needed_players ?? 0);
+  return approvedParticipants.value.length + 1 + needed;
+});
+
+const rosterProgressPercent = computed(() => {
+  const current = approvedParticipants.value.length + 1;
+  const total = totalTeamSize.value;
+  return total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 100;
 });
 
 const requestCounts = computed(() => participants.value.reduce((counts, participant) => {
@@ -552,40 +742,248 @@ function costLabel(post) {
   return 'Chia đều tiền sân';
 }
 
+function cleanCourtType(typeName, sportName) {
+  if (!typeName) return 'Sân tiêu chuẩn';
+  const match = String(typeName).match(/\((.*?)\)/);
+  if (match && match[1]) return match[1].trim();
+  if (sportName && String(typeName).toLowerCase().startsWith(String(sportName).toLowerCase())) {
+    const cleaned = String(typeName).slice(sportName.length).trim().replace(/^[-·:() ]+/, '').replace(/\)$/, '');
+    if (cleaned) return cleaned;
+  }
+  return typeName;
+}
+
 function initial(name) {
   return String(name || 'N').trim().charAt(0).toUpperCase();
+}
+
+let echoChannel = null;
+
+function setupRealtime() {
+  teardownRealtime();
+  const postId = route.params.id;
+  if (!postId) return;
+  try {
+    echoChannel = echo.channel(`matchmaking.${postId}`);
+    echoChannel.listen('.MatchmakingUpdated', () => {
+      fetchParticipants(true);
+    });
+  } catch (e) {
+    console.warn('Không thể kết nối realtime:', e);
+  }
+}
+
+function teardownRealtime() {
+  if (echoChannel && route.params.id) {
+    try {
+      echo.leave(`matchmaking.${route.params.id}`);
+    } catch {}
+    echoChannel = null;
+  }
 }
 
 function resetAndFetch() {
   activeFilter.value = 'all';
   confirmRejectId.value = null;
   fetchParticipants();
+  setupRealtime();
 }
 
 watch(() => route.params.id, resetAndFetch);
-onMounted(fetchParticipants);
+
+onMounted(() => {
+  fetchParticipants();
+  setupRealtime();
+});
+
+onBeforeUnmount(() => {
+  teardownRealtime();
+});
 </script>
 
 <style scoped>
-.post-preview-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #ffffff;
-  border-radius: 12px;
+.matchmaking-manage-page {
+  --community-ink: #1e293b;
+  --community-muted: #64748b;
+  --community-soft: #f8fafc;
+  --community-surface: #ffffff;
+  --community-line: #e2e8f0;
+  --community-accent: #5c7e6e;
+  --community-accent-dark: #446153;
+  --community-accent-soft: #edf4f0;
+  --community-danger: #dc2626;
+  --community-danger-soft: #fef2f2;
+  min-height: 100vh;
+  color: var(--community-ink);
+  background: var(--community-soft);
+  font-family: var(--sportgo-font-body, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
 
-.post-preview-cover {
+.manage-content {
+  width: min(1200px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 24px 0 64px;
+}
+
+.manage-breadcrumb {
+  margin-bottom: 18px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--community-accent-dark);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.back-link:hover {
+  color: var(--community-accent);
+}
+
+/* BỐ CỤC 2 CỘT (GRID LAYOUT) */
+.manage-grid-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.manage-main-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.manage-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 80px;
+}
+
+/* THẺ TỔNG QUAN HERO CARD */
+.manage-hero-card {
+  background: var(--community-surface);
+  border: 1.5px solid var(--community-line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.hero-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hero-sport-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--community-accent-dark);
+}
+
+.hero-status-pill {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.status--open {
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
+}
+
+.status--full {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status--closed,
+.status--expired {
+  background: #f1f5f9;
+  color: var(--community-muted);
+}
+
+.hero-venue-title {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.hero-court-detail {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--community-muted);
+  margin-left: 6px;
+}
+
+/* DẢI THÔNG SỐ PHẲNG */
+.hero-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--community-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.metric-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--community-ink);
+}
+
+.metric-value svg {
+  color: var(--community-accent);
+}
+
+/* KHỐI MÔ TẢ & ẢNH */
+.post-detail-section {
+  padding-top: 16px;
+}
+
+.post-detail-cover {
   width: 100%;
   max-height: 260px;
   border-radius: 8px;
   overflow: hidden;
-  background: #f8fafc;
+  margin-bottom: 12px;
+  background: #f1f5f9;
 }
 
-.post-preview-cover img {
+.post-detail-cover img {
   width: 100%;
   height: 100%;
   max-height: 260px;
@@ -593,242 +991,128 @@ onMounted(fetchParticipants);
   display: block;
 }
 
-.post-preview-desc small {
+.desc-heading {
   display: block;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--community-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #64748b;
-  margin-bottom: 4px;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
 }
 
-.post-preview-desc p {
+.post-detail-desc p {
   margin: 0;
   font-size: 13.5px;
-  line-height: 1.55;
-  color: #1e293b;
+  line-height: 1.6;
+  color: var(--community-ink);
   white-space: pre-line;
 }
-.matchmaking-manage-page {
-  min-height: 100vh;
-  background: #f5f7f6;
-  color: #10251a;
-}
 
-.manage-content {
-  width: min(100% - 40px, 1120px);
-  margin: 0 auto;
-  padding: 30px 0 72px;
-}
-
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 18px;
-  color: #166534;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.page-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 14px 20px;
-  margin-bottom: 20px;
-}
-
-.sg-client-eyebrow {
-  display: block;
-  margin-bottom: 7px;
-  color: #15803d;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.page-header h1 {
-  margin: 0;
-  color: #10251a;
-  font-size: clamp(25px, 3vw, 34px);
-  font-weight: 700;
-  letter-spacing: -.02em;
-  line-height: 1.15;
-}
-
-.page-header p {
-  margin: 8px 0 0;
-  color: #64756b;
-  font-size: 14px;
-}
-
-.post-status {
-  align-self: center;
-  padding: 7px 11px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.post-status--open {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.post-status--full {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.post-status--closed,
-.post-status--expired {
-  background: #e2e8f0;
-  color: #475569;
-}
-
-.manage-actions {
-  grid-column: 1 / -1;
+/* KHỐI CHỈNH SỬA NỘI DUNG */
+.post-editor {
+  background: var(--community-surface);
+  border: 1.5px solid var(--community-line);
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.post-editor h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--community-ink);
+}
+
+.post-editor p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--community-muted);
+}
+
+.sg-client-input {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--community-line);
+  border-radius: 8px;
+  background: var(--community-surface);
+  color: var(--community-ink);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.sg-client-input:focus {
+  border-color: var(--community-accent);
+  outline: 2px solid rgba(92, 126, 110, 0.18);
+}
+
+.post-editor-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 
-.sg-client-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 13px;
-  border: 1px solid #d3e0d7;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #31453a;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color .16s ease, background .16s ease, color .16s ease;
-}
-
-.sg-client-button:hover:not(:disabled) {
-  border-color: #84b991;
-  background: #f0fdf4;
-}
-
-.sg-client-button--primary {
-  border-color: #15803d;
-  background: #15803d;
-  color: #ffffff;
-}
-
-.sg-client-button--primary:hover:not(:disabled) {
-  border-color: #166534;
-  background: #166534;
-}
-
-.sg-client-button--danger {
-  border-color: #fecaca;
-  color: #b91c1c;
-}
-
-.sg-client-button--danger:hover:not(:disabled) {
-  border-color: #fca5a5;
-  background: #fff7f7;
-}
-
-.sg-client-button:disabled {
-  cursor: not-allowed;
-  opacity: .58;
-}
-
-.booking-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.sg-client-card {
-  border: 1px solid #dbe5de;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 7px 24px rgba(15, 23, 42, .04);
-}
-
-.booking-summary .sg-client-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  min-width: 0;
-  padding: 16px;
-  color: #15803d;
-}
-
-.booking-summary span {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-}
-
-.booking-summary small {
-  color: #718178;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-}
-
-.booking-summary strong {
-  overflow: hidden;
-  color: #1d3326;
-  font-size: 14px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* HỘP HƯỚNG DẪN / MẸO */
 .decision-guide {
   display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin-bottom: 16px;
-  padding: 14px 16px;
-  border: 1px solid #bbf7d0;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border: 1.5px solid #d5e2dc;
   border-radius: 10px;
-  background: #f0fdf4;
-  color: #166534;
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
 }
 
-.decision-guide--locked {
-  border-color: #e2e8f0;
-  background: #f8fafc;
-  color: #64748b;
-}
-
-.decision-guide strong,
-.decision-guide p {
-  display: block;
-  margin: 0;
+.decision-guide svg {
+  color: var(--community-accent);
+  flex-shrink: 0;
 }
 
 .decision-guide strong {
-  font-size: 13px;
-  font-weight: 700;
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #2e463a;
 }
 
 .decision-guide p {
-  margin-top: 3px;
-  color: #5f7367;
-  font-size: 12.5px;
-  line-height: 1.5;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #4e6559;
 }
 
+.decision-guide--locked {
+  border-color: var(--community-line);
+  background: #f8fafc;
+  color: var(--community-muted);
+}
+
+.decision-guide--locked svg {
+  color: var(--community-muted);
+}
+
+.decision-guide--locked strong {
+  color: var(--community-ink);
+}
+
+.decision-guide--locked p {
+  color: var(--community-muted);
+}
+
+/* BẢNG QUẢN LÝ NGƯỜI XIN THAM GIA */
 .participants-panel {
+  background: var(--community-surface);
+  border: 1.5px solid var(--community-line);
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
 }
 
 .panel-header {
@@ -836,85 +1120,80 @@ onMounted(fetchParticipants);
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 20px 20px 14px;
-  border-bottom: 1px solid #edf2ee;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--community-line);
 }
 
 .panel-header h2 {
   margin: 0;
-  color: #1d3326;
-  font-size: 18px;
-  font-weight: 700;
+  color: var(--community-ink);
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .panel-header p {
-  margin: 5px 0 0;
-  color: #718178;
-  font-size: 13px;
-}
-
-.refresh-button {
-  min-width: 94px;
-}
-
-.rotating {
-  animation: manage-spin .8s linear infinite;
-}
-
-@keyframes manage-spin {
-  to { transform: rotate(360deg); }
+  margin: 3px 0 0;
+  color: var(--community-muted);
+  font-size: 12.5px;
 }
 
 .request-filters {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 12px 20px;
-  border-bottom: 1px solid #edf2ee;
-  background: #fbfdfb;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--community-line);
+  background: var(--community-soft);
 }
 
 .request-filters button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: #607268;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--community-line);
+  border-radius: 20px;
+  background: var(--community-surface);
+  color: var(--community-muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .request-filters button strong {
   display: inline-grid;
-  min-width: 20px;
-  min-height: 20px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   place-items: center;
-  border-radius: 999px;
-  background: #e8f0ea;
-  color: #476050;
-  font-size: 11px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: var(--community-muted);
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
 .request-filters button.active {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: var(--community-accent);
+  background: var(--community-accent);
+  color: #ffffff;
+}
+
+.request-filters button.active strong {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 .participant-list {
-  display: grid;
-  gap: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .participant-card {
-  padding: 17px 20px;
-  border-bottom: 1px solid #edf2ee;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--community-line);
 }
 
 .participant-card:last-child {
@@ -932,21 +1211,21 @@ onMounted(fetchParticipants);
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 11px;
+  gap: 12px;
 }
 
 .participant-info .avatar {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #dcfce7;
-  color: #166534;
-  font-size: 14px;
-  font-weight: 700;
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .participant-info .avatar img {
@@ -956,53 +1235,54 @@ onMounted(fetchParticipants);
 }
 
 .participant-info > div:last-child {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  gap: 3px;
 }
 
 .participant-info a {
+  color: var(--community-ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
   overflow: hidden;
-  color: #1d3326;
-  font-size: 14px;
-  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .participant-info small {
-  color: #7b8b82;
-  font-size: 12px;
+  color: var(--community-muted);
+  font-size: 11.5px;
 }
 
 .participant-actions,
 .reject-confirm-actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 7px;
+  align-items: center;
+  gap: 8px;
 }
 
 .participant-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .participant-status--approved {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
 }
 
 .participant-status--rejected,
 .participant-status--cancelled {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--community-danger-soft);
+  color: var(--community-danger);
 }
 
 .participant-status--pending {
@@ -1015,123 +1295,482 @@ onMounted(fetchParticipants);
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 13px;
-  padding: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
   border: 1px solid #fecaca;
-  border-radius: 9px;
-  background: #fff7f7;
-}
-
-.reject-confirm strong,
-.reject-confirm span {
-  display: block;
+  border-radius: 8px;
+  background: #fffafa;
 }
 
 .reject-confirm strong {
+  display: block;
   color: #991b1b;
-  font-size: 13px;
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .reject-confirm span {
-  margin-top: 3px;
+  display: block;
+  margin-top: 2px;
   color: #7f1d1d;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
-.post-editor {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 18px;
-}
-
-.post-editor h2 {
-  margin: 0;
-  color: #1d3326;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.post-editor p {
-  margin: 5px 0 0;
-  color: #718178;
-  font-size: 13px;
-}
-
-.sg-client-input {
-  width: 100%;
-  min-height: 110px;
-  padding: 11px 12px;
-  border: 1px solid #cbdace;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #1d3326;
-  font-size: 13px;
-  line-height: 1.55;
-  resize: vertical;
-}
-
-.sg-client-input:focus {
-  border-color: #15803d;
-  outline: 3px solid rgba(21, 128, 61, .13);
-}
-
-.post-editor-actions {
+.manage-empty-state {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.empty-state,
-.page-state {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  padding: 52px 20px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 56px 20px;
   text-align: center;
-  color: #718178;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: var(--community-muted);
 }
 
-.empty-state strong,
+.manage-empty-state svg {
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.empty-title {
+  margin: 0;
+  color: var(--community-ink);
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.empty-desc {
+  margin: 0;
+  color: var(--community-muted);
+  font-size: 12.5px;
+}
+
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 56px 20px;
+  text-align: center;
+  color: var(--community-muted);
+}
+
 .page-state strong {
-  color: #30483a;
-  font-size: 15px;
+  color: var(--community-ink);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.empty-state span,
 .page-state p {
   margin: 0;
-  color: #7b8b82;
-  font-size: 13px;
+  color: var(--community-muted);
+  font-size: 12.5px;
 }
 
 .page-state--error {
   border: 1px solid #fecaca;
   border-radius: 12px;
   background: #fffafa;
-  color: #b91c1c;
+  color: var(--community-danger);
 }
 
 .page-state--error p {
   color: #7f1d1d;
 }
 
+/* ====================================================
+   SIDEBAR TIỆN ÍCH & ĐỘI HÌNH (RIGHT COLUMN)
+   ==================================================== */
+.sidebar-card {
+  background: var(--community-surface);
+  border: 1.5px solid var(--community-line);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--community-ink);
+}
+
+.sidebar-title svg {
+  color: var(--community-accent);
+}
+
+.sidebar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sidebar-header-row .sidebar-title {
+  margin-bottom: 0;
+}
+
+.roster-count-badge {
+  padding: 2px 8px;
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* TIẾN ĐỘ ĐỘI HÌNH */
+.roster-progress-box {
+  margin-bottom: 16px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--community-accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-text-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--community-muted);
+}
+
+.progress-text-row strong {
+  color: var(--community-accent-dark);
+}
+
+/* DANH SÁCH THÀNH VIÊN ĐỘI HÌNH */
+.roster-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roster-member-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #fafcfb;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #e2e8f0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: #475569;
+  flex: 0 0 auto;
+}
+
+.member-avatar--host {
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--community-ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.member-tag--host {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.member-tag--member {
+  background: var(--community-accent-soft);
+  color: var(--community-accent-dark);
+}
+
+.roster-member-item--empty {
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  padding: 6px 8px;
+}
+
+.empty-slot-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.empty-slot-text {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* STACK PHÍM TẮT THAO TÁC (ACTION BUTTONS) */
+.sidebar-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-btn--primary {
+  background: var(--community-accent);
+  color: #ffffff;
+  border-color: var(--community-accent);
+}
+
+.sidebar-btn--primary:hover {
+  background: var(--community-accent-dark);
+  border-color: var(--community-accent-dark);
+}
+
+.sidebar-btn--secondary {
+  background: var(--community-surface);
+  color: var(--community-ink);
+  border-color: var(--community-line);
+}
+
+.sidebar-btn--secondary:hover {
+  background: var(--community-soft);
+  border-color: #cbd5e1;
+}
+
+.sidebar-btn--muted {
+  background: var(--community-surface);
+  color: var(--community-muted);
+  border-color: var(--community-line);
+}
+
+.sidebar-btn--muted:hover {
+  background: var(--community-soft);
+  color: var(--community-ink);
+}
+
+.sidebar-btn--danger {
+  background: var(--community-surface);
+  color: var(--community-danger);
+  border-color: #fecaca;
+}
+
+.sidebar-btn--danger:hover {
+  background: var(--community-danger-soft);
+}
+
+.sidebar-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* THÔNG TIN SÂN & CHỈ ĐƯỜNG */
+.venue-snapshot-info {
+  margin-bottom: 12px;
+}
+
+.venue-snapshot-info strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--community-ink);
+  margin-bottom: 4px;
+}
+
+.venue-snapshot-info p {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--community-muted);
+}
+
+.booking-code-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--community-muted);
+}
+
+.booking-code-row code {
+  font-family: monospace;
+  font-weight: 600;
+  color: var(--community-accent-dark);
+  background: var(--community-accent-soft);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.venue-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--community-accent);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.venue-map-link:hover {
+  color: var(--community-accent-dark);
+  text-decoration: underline;
+}
+
+/* MẸO CHO CHỦ KÈO */
+.sidebar-card--tips {
+  background: #fbfdfc;
+  border-color: #e2ede7;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tips-list li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+/* BUTTONS CHUNG */
+.sg-client-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1.5px solid var(--community-line);
+  border-radius: 7px;
+  background: var(--community-surface);
+  color: var(--community-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.sg-client-button--primary {
+  background: var(--community-accent);
+  border-color: var(--community-accent);
+  color: #ffffff;
+}
+
+.sg-client-button--primary:hover {
+  background: var(--community-accent-dark);
+  border-color: var(--community-accent-dark);
+}
+
+.sg-client-button--danger {
+  background: var(--community-surface);
+  border-color: #fecaca;
+  color: var(--community-danger);
+}
+
+.sg-client-button--danger:hover {
+  background: var(--community-danger-soft);
+}
+
+.sg-client-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* RESPONSIVE LAYOUT */
+@media (max-width: 960px) {
+  .manage-grid-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .manage-sidebar {
+    position: static;
+  }
+}
+
 @media (max-width: 760px) {
   .manage-content {
     width: min(100% - 24px, 620px);
-    padding-top: 20px;
+    padding-top: 16px;
   }
 
-  .page-header {
+  .hero-metrics-grid {
     grid-template-columns: 1fr;
-  }
-
-  .post-status {
-    justify-self: start;
-  }
-
-  .booking-summary {
-    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .panel-header,
@@ -1139,14 +1778,7 @@ onMounted(fetchParticipants);
   .reject-confirm {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .panel-header {
-    display: flex;
-  }
-
-  .refresh-button {
-    align-self: flex-start;
+    gap: 12px;
   }
 
   .participant-actions,
@@ -1175,20 +1807,20 @@ onMounted(fetchParticipants);
 
 .sg-confirm-card {
   width: 100%;
-  max-width: 440px;
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 28px 24px 22px;
+  max-width: 420px;
+  background: var(--community-surface);
+  border-radius: 14px;
+  padding: 24px 22px 20px;
   text-align: center;
   box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.25);
   animation: scaleUpCard 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sg-confirm-icon {
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  margin: 0 auto 16px;
+  margin: 0 auto 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1196,7 +1828,7 @@ onMounted(fetchParticipants);
 
 .sg-confirm-icon--danger {
   background: #fee2e2;
-  color: #dc2626;
+  color: var(--community-danger);
 }
 
 .sg-confirm-icon--warning {
@@ -1205,28 +1837,28 @@ onMounted(fetchParticipants);
 }
 
 .sg-confirm-card h3 {
-  margin: 0 0 8px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #0f172a;
 }
 
 .sg-confirm-card p {
-  margin: 0 0 24px;
-  font-size: 14px;
-  line-height: 1.55;
-  color: #64748b;
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--community-muted);
 }
 
 .sg-confirm-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
 }
 
 .sg-confirm-actions button {
   flex: 1;
-  min-height: 42px;
+  min-height: 38px;
 }
 
 @keyframes fadeInOverlay {

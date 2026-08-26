@@ -44,63 +44,75 @@
         </div>
 
         <form v-else class="meetup-form" @submit.prevent="submit">
+          <!-- DANH SÁCH THẺ ĐƠN ĐẶT SÂN (INFOGRAPHIC & ISOMETRIC STYLE) -->
           <div class="field-block">
-            <span class="field-label">Cụm sân</span>
-            <ClientCustomSelect
-              v-model="form.venue_id"
-              :options="venueOptions"
-              placeholder="Chọn cụm sân"
-            />
-          </div>
-
-          <div class="field-grid">
-            <div class="field-block">
-              <span class="field-label">Lịch đã đặt</span>
-              <ClientCustomSelect
-                v-model="form.booking_id"
-                :options="bookingOptions"
-                :disabled="!form.venue_id"
-                icon="clock"
-                placeholder="Chọn ngày và khung giờ"
-              />
-            </div>
-
-            <div class="field-block">
-              <label for="mpm-required-players" class="field-label">
-                <span>Số người cần thêm</span>
-              </label>
-              <input
-                id="mpm-required-players"
-                v-model.number="form.required_players"
-                class="field-control"
-                type="number"
-                min="1"
-                max="50"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- BANNER THÔNG TIN MÔN THỂ THAO & LOẠI SÂN TỰ ĐỘNG -->
-          <div v-if="selectedBooking" class="sport-badge-card">
-            <div class="sport-badge-main">
-              <span class="sport-icon-box">
-                <AppIcon :name="selectedBooking.sport_icon || 'activity'" size="18" />
-              </span>
-              <div class="sport-info-text">
-                <div class="sport-title-row">
-                  <strong class="sport-name">{{ selectedBooking.sport_name }}</strong>
-                  <span class="court-type-pill">{{ selectedBooking.court_type_name }}</span>
+            <span class="field-label">Chọn đơn đặt sân của bạn</span>
+            <div class="booking-cards-list">
+              <button
+                v-for="b in userBookings"
+                :key="b.id"
+                type="button"
+                class="booking-select-card"
+                :class="{ 'is-selected': String(form.booking_id) === String(b.id) }"
+                @click="selectBooking(b)"
+              >
+                <!-- ISOMETRIC SPORT COURT ART -->
+                <div class="bsc-iso-art" :class="`sport-${b.sport_icon || 'activity'}`">
+                  <div class="iso-plane">
+                    <div class="iso-court-lines"></div>
+                  </div>
+                  <div class="iso-icon-float">
+                    <AppIcon :name="b.sport_icon || 'activity'" size="18" />
+                  </div>
                 </div>
-                <small v-if="selectedBooking.court_name" class="court-detail-name">
-                  {{ selectedBooking.court_name }}
-                </small>
-              </div>
+
+                <!-- NỘI DUNG THẺ ĐƠN ĐẶT SÂN -->
+                <div class="bsc-content">
+                  <div class="bsc-header-row">
+                    <span class="bsc-venue-name">{{ b.venue_name }}</span>
+                    <span v-if="b.court_name" class="bsc-court-name">({{ b.court_name }})</span>
+                  </div>
+
+                  <div class="bsc-sub-row">
+                    <span class="bsc-sport-meta">{{ b.sport_name }} ({{ cleanCourtType(b.court_type_name, b.sport_name) }})</span>
+                    <span class="bsc-code">{{ b.booking_code || `#BK${b.id}` }}</span>
+                  </div>
+
+                  <div class="bsc-footer-row">
+                    <span class="bsc-infometric">
+                      <AppIcon name="clock" size="13" />
+                      <span>{{ formatDate(b.date) }}, {{ b.time }}</span>
+                    </span>
+                    <span v-if="b.total_price" class="bsc-price">
+                      {{ formatMoney(b.total_price) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- CUỐNG VÉ & RADIO INDICATOR -->
+                <div class="bsc-stub">
+                  <div class="bsc-stub-line"></div>
+                  <div class="bsc-radio">
+                    <span class="bsc-radio-dot"></span>
+                  </div>
+                </div>
+              </button>
             </div>
-            <div v-if="selectedBooking.total_price" class="booking-price-chip">
-              <span>Tổng tiền sân:</span>
-              <strong>{{ formatMoney(selectedBooking.total_price) }}</strong>
-            </div>
+          </div>
+
+          <div class="field-block">
+            <label for="mpm-required-players" class="field-label">
+              <span>Số người cần thêm</span>
+            </label>
+            <input
+              id="mpm-required-players"
+              v-model.number="form.required_players"
+              class="field-control"
+              type="number"
+              min="1"
+              max="50"
+              required
+            />
           </div>
 
           <!-- BỘ CHỌN TRÌNH ĐỘ MONG MUỐN -->
@@ -115,7 +127,6 @@
                 :class="{ 'is-active': form.skill_level === s.value }"
                 @click="form.skill_level = s.value"
               >
-                <span class="skill-dot"></span>
                 <span>{{ s.label }}</span>
               </button>
             </div>
@@ -132,7 +143,7 @@
                 @click="form.cost_type = 'split'"
               >
                 <div class="cost-text">
-                  <strong>Chia đều tiền sân</strong>
+                  <span class="cost-title">Chia đều tiền sân</span>
                   <small v-if="estimatedSplitCost">{{ formatMoney(estimatedSplitCost) }}/người</small>
                   <small v-else>Cưa đều chi phí</small>
                 </div>
@@ -145,7 +156,7 @@
                 @click="form.cost_type = 'free'"
               >
                 <div class="cost-text">
-                  <strong>Miễn phí</strong>
+                  <span class="cost-title">Miễn phí</span>
                   <small>Chủ bao sân</small>
                 </div>
               </button>
@@ -157,7 +168,7 @@
                 @click="form.cost_type = 'custom'"
               >
                 <div class="cost-text">
-                  <strong>Tùy chỉnh</strong>
+                  <span class="cost-title">Tùy chỉnh</span>
                   <small>Nhập giá riêng</small>
                 </div>
               </button>
@@ -175,6 +186,31 @@
                 class="field-control"
               />
             </div>
+          </div>
+
+          <!-- BỘ CHỌN HẠN CHÓT NHẬN ĐĂNG KÝ (LOCK DEADLINE) -->
+          <div class="field-block">
+            <span class="field-label">
+              <span>Hạn chót nhận yêu cầu tham gia</span>
+              <small>Tự động đóng bài trước giờ chơi</small>
+            </span>
+            <div class="deadline-pills">
+              <button
+                v-for="d in availableDeadlineOptions"
+                :key="d.value"
+                type="button"
+                class="deadline-pill"
+                :class="{ 'is-active': form.lock_lead_minutes === d.value }"
+                @click="form.lock_lead_minutes = d.value"
+              >
+                <AppIcon name="clock" size="13" />
+                <span>{{ d.label }}</span>
+              </button>
+            </div>
+            <p class="field-hint">
+              <AppIcon name="shield" size="13" />
+              <span>Sau hạn chót, bài đăng sẽ tự động ngừng nhận thêm người và tự hủy các yêu cầu chưa duyệt.</span>
+            </p>
           </div>
 
           <div class="field-block">
@@ -200,19 +236,15 @@
             </small>
           </div>
 
-          <!-- LƯỚI PREVIEW ẢNH ĐÃ CHỌN -->
+          <!-- PREVIEW ẢNH ĐÃ CHỌN (TỐI ĐA 1 ẢNH) -->
           <div v-if="selectedImages.length" class="image-preview-grid">
-            <div
-              v-for="(img, idx) in selectedImages"
-              :key="idx"
-              class="image-preview-item"
-            >
-              <img :src="img.url" :alt="`Ảnh ${idx + 1}`" />
+            <div class="image-preview-item">
+              <img :src="selectedImages[0].url" alt="Ảnh bài giao lưu" />
               <button
                 type="button"
                 class="remove-image-btn"
                 aria-label="Xóa ảnh này"
-                @click="removeImage(idx)"
+                @click="removeImage(0)"
               >
                 <AppIcon name="x" size="14" />
               </button>
@@ -221,18 +253,16 @@
 
           <div class="attachment-row">
             <div>
-              <strong>Ảnh minh họa</strong>
-              <small>Tùy chọn, tối đa 5 ảnh JPG, PNG, WebP</small>
+              <span class="attachment-label">Ảnh minh họa</span>
+              <small>Tùy chọn, tối đa 1 ảnh JPG, PNG, WebP</small>
             </div>
-            <label class="image-picker" :class="{ disabled: selectedImages.length >= 5 }">
+            <label class="image-picker">
               <AppIcon name="image" size="16" />
-              <span>{{ selectedImages.length ? 'Thêm ảnh' : 'Chọn ảnh' }}</span>
+              <span>{{ selectedImages.length ? 'Đổi ảnh' : 'Chọn ảnh' }}</span>
               <input
                 ref="fileInput"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
-                multiple
-                :disabled="selectedImages.length >= 5"
                 @change="handleFileChange"
               />
             </label>
@@ -274,6 +304,7 @@ const form = reactive({
   venue_id: '',
   booking_id: '',
   required_players: 1,
+  lock_lead_minutes: 30,
   skill_level: 'all',
   cost_type: 'split',
   cost_per_player: null,
@@ -294,6 +325,28 @@ const skillOptions = [
   { value: 'intermediate', label: 'Trung bình' },
   { value: 'advanced', label: 'Khá / Nâng cao' },
 ];
+
+const deadlinePresetOptions = [
+  { value: 30, label: 'Trước 30 phút (Khuyên dùng)' },
+  { value: 15, label: 'Trước 15 phút' },
+  { value: 45, label: 'Trước 45 phút' },
+  { value: 60, label: 'Trước 1 tiếng' },
+  { value: 120, label: 'Trước 2 tiếng' },
+  { value: 0, label: 'Đến sát giờ bắt đầu (0 phút)' },
+];
+
+const availableDeadlineOptions = computed(() => {
+  if (!selectedBooking.value) return deadlinePresetOptions.slice(0, 3);
+  const b = selectedBooking.value;
+  if (!b.date || !b.time) return deadlinePresetOptions;
+  const startTimeStr = b.time.split(' - ')[0] || b.time.split('-')[0] || '';
+  const bookingStart = new Date(`${b.date}T${startTimeStr.trim()}:00`);
+  const now = new Date();
+  const minutesLeft = Math.floor((bookingStart.getTime() - now.getTime()) / 60000);
+  if (isNaN(minutesLeft) || minutesLeft <= 0) return deadlinePresetOptions;
+  const filtered = deadlinePresetOptions.filter((opt) => opt.value < minutesLeft);
+  return filtered.length > 0 ? filtered : [{ value: 0, label: 'Đến sát giờ bắt đầu (0 phút)' }];
+});
 
 let eligibleRequestController = null;
 let eligibleRequestId = 0;
@@ -374,35 +427,33 @@ async function handleFileChange(event) {
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
 
-  const remainingSlots = 5 - selectedImages.value.length;
-  if (remainingSlots <= 0) {
-    fileError.value = 'Đã đạt giới hạn tối đa 5 ảnh.';
+  const file = files[0];
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    fileError.value = 'Chỉ chấp nhận file ảnh JPG, PNG hoặc WebP.';
+    if (fileInput.value) fileInput.value.value = '';
+    return;
+  }
+  if (file.size > 15 * 1024 * 1024) {
+    fileError.value = 'Ảnh không được vượt quá 15 MB.';
     if (fileInput.value) fileInput.value.value = '';
     return;
   }
 
-  if (files.length > remainingSlots) {
-    toast.info(`Đã tự động lấy ${remainingSlots} ảnh hợp lệ (tối đa 5 ảnh).`);
-  }
-
-  const allowedFiles = files.slice(0, remainingSlots);
-  for (const file of allowedFiles) {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      fileError.value = 'Chỉ chấp nhận file ảnh JPG, PNG hoặc WebP.';
-      continue;
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      fileError.value = 'Mỗi ảnh không được vượt quá 15 MB.';
-      continue;
-    }
+  clearAllImages();
+  try {
     const optimizedFile = await compressImage(file);
-    selectedImages.value.push({
+    selectedImages.value = [{
       file: optimizedFile,
       url: URL.createObjectURL(optimizedFile),
-    });
+    }];
+  } catch {
+    selectedImages.value = [{
+      file,
+      url: URL.createObjectURL(file),
+    }];
+  } finally {
+    if (fileInput.value) fileInput.value.value = '';
   }
-
-  if (fileInput.value) fileInput.value.value = '';
 }
 
 const venueOptions = computed(() => {
@@ -444,7 +495,7 @@ const isValid = computed(() => {
   const players = Number(form.required_players);
   const descriptionValid = !form.content || form.content.length >= 10;
   const customCostValid = form.cost_type !== 'custom' || (form.cost_per_player !== null && form.cost_per_player >= 0);
-  return Boolean(form.venue_id && form.booking_id)
+  return Boolean(form.booking_id)
     && players >= 1
     && players <= 50
     && descriptionValid
@@ -462,10 +513,28 @@ function formatMoney(value) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 }
 
+function cleanCourtType(typeName, sportName) {
+  if (!typeName) return 'Sân tiêu chuẩn';
+  const match = String(typeName).match(/\((.*?)\)/);
+  if (match && match[1]) return match[1].trim();
+  if (sportName && String(typeName).toLowerCase().startsWith(String(sportName).toLowerCase())) {
+    const cleaned = String(typeName).slice(sportName.length).trim().replace(/^[-·:() ]+/, '').replace(/\)$/, '');
+    if (cleaned) return cleaned;
+  }
+  return typeName;
+}
+
+function selectBooking(booking) {
+  if (!booking) return;
+  form.booking_id = String(booking.id);
+  form.venue_id = String(booking.venue_id);
+}
+
 function reset() {
   form.venue_id = '';
   form.booking_id = '';
   form.required_players = 1;
+  form.lock_lead_minutes = 30;
   form.skill_level = 'all';
   form.cost_type = 'split';
   form.cost_per_player = null;
@@ -518,6 +587,10 @@ async function fetchEligibleBookings({ force = false } = {}) {
         ? payload.data
         : [];
     eligibleLoadedAt = Date.now();
+
+    if (userBookings.value.length > 0 && !form.booking_id) {
+      selectBooking(userBookings.value[0]);
+    }
   } catch (error) {
     if ((controller.signal.aborted && !timedOut) || requestId !== eligibleRequestId) return;
     userBookings.value = [];
@@ -557,6 +630,7 @@ async function submit() {
     const payload = new FormData();
     payload.append('booking_id', form.booking_id);
     payload.append('required_players', form.required_players);
+    payload.append('lock_lead_minutes', form.lock_lead_minutes ?? 30);
     payload.append('skill_level', form.skill_level || 'all');
     payload.append('cost_type', form.cost_type || 'split');
     if (form.cost_type === 'custom' && form.cost_per_player !== null) {
@@ -565,9 +639,6 @@ async function submit() {
     if (form.content) payload.append('content', form.content);
     if (selectedImages.value.length > 0 && selectedImages.value[0].file) {
       payload.append('image', selectedImages.value[0].file);
-      selectedImages.value.forEach((item, index) => {
-        if (item.file) payload.append(`images[${index}]`, item.file);
-      });
     }
 
     const response = await api('/api/matchmaking-posts', {
@@ -586,12 +657,14 @@ async function submit() {
   } catch (error) {
     if (controller.signal.aborted && !timedOut) return;
     errorMsg.value = timedOut
-      ? 'Tạo bài giao lưu quá lâu. Vui lòng thử lại.'
-      : error.message || 'Không thể đăng bài giao lưu.';
+      ? 'Yêu cầu tạo bài quá lâu. Vui lòng thử lại.'
+      : error?.response?.data?.message || error?.message || 'Không thể tạo bài giao lưu.';
     toast.error(errorMsg.value);
   } finally {
-    clearTimeout(timer);
-    if (submitTimer === timer) submitTimer = null;
+    if (submitTimer === timer) {
+      clearTimeout(submitTimer);
+      submitTimer = null;
+    }
     if (submitController === controller) submitController = null;
     isSubmitting.value = false;
   }
@@ -604,7 +677,7 @@ watch(() => form.venue_id, () => {
 });
 
 watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) fetchEligibleBookings();
+  if (isOpen) fetchEligibleBookings({ force: true });
   else if (!isSubmitting.value) reset();
 });
 
@@ -761,7 +834,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   font-size: 13.5px;
   color: #0f172a;
-  font-weight: 500;
+  font-weight: 400;
   font-family: inherit;
   outline: none;
   background: #ffffff;
@@ -782,90 +855,205 @@ textarea.field-control {
   box-shadow: 0 0 0 3px rgba(92, 126, 110, 0.12);
 }
 
-/* BANNER MÔN THỂ THAO & LOẠI SÂN */
-.sport-badge-card {
+/* DANH SÁCH THẺ ĐƠN ĐẶT SÂN (INFOGRAPHIC & ISOMETRIC STYLE) */
+.booking-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 270px;
+  overflow-y: auto;
+  padding: 4px 3px;
+  margin: -4px -3px;
+}
+
+.booking-select-card {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  background: #edf4f0;
-  border: 1px solid rgba(92, 126, 110, 0.25);
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
   box-sizing: border-box;
 }
 
-.sport-badge-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+.booking-select-card.is-selected {
+  border-color: #5c7e6e;
+  background: #f8faf9;
+  box-shadow: 0 0 0 1px #5c7e6e;
 }
 
-.sport-icon-box {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: #5c7e6e;
-  color: #ffffff;
+/* KHỐI ISOMETRIC SPORT COURT ART */
+.bsc-iso-art {
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: linear-gradient(135deg, #4b705e 0%, #2f4d3e 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 2px 5px rgba(47, 77, 62, 0.15);
 }
 
-.sport-info-text {
+.iso-plane {
+  position: absolute;
+  width: 32px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 2px;
+  transform: rotateX(55deg) rotateZ(-30deg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.iso-court-lines {
+  position: absolute;
+  inset: 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.4);
+  top: 50%;
+}
+
+.iso-icon-float {
+  position: relative;
+  z-index: 2;
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* NỘI DUNG THẺ ĐƠN ĐẶT SÂN */
+.bsc-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  flex: 1;
   min-width: 0;
 }
 
-.sport-title-row {
+.bsc-header-row {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  align-items: baseline;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
-.sport-name {
+.bsc-venue-name {
   font-size: 13.5px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.court-type-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 7px;
-  background: #ffffff;
-  border: 1px solid rgba(92, 126, 110, 0.3);
-  border-radius: 4px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #446153;
-}
-
-.court-detail-name {
-  font-size: 11.5px;
-  color: #5c7e6e;
   font-weight: 500;
+  color: #0f172a;
+  line-height: 1.3;
 }
 
-.booking-price-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  flex-shrink: 0;
-  font-size: 11.5px;
+.bsc-court-name {
+  font-size: 12.5px;
+  font-weight: 400;
   color: #64748b;
 }
 
-.booking-price-chip strong {
-  color: #1e293b;
-  font-size: 13px;
-  font-weight: 700;
+.bsc-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bsc-sport-meta {
+  font-size: 12px;
+  font-weight: 400;
+  color: #475569;
+  line-height: 1.3;
+}
+
+.bsc-code {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5c7e6e;
+  letter-spacing: 0.3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.bsc-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 1px;
+}
+
+.bsc-infometric {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.bsc-infometric svg {
+  color: #5c7e6e;
+}
+
+.bsc-price {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+/* CUỐNG VÉ & RADIO */
+.bsc-stub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 6px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.bsc-stub-line {
+  height: 80%;
+  border-left: 1.5px dashed #e2e8f0;
+}
+
+.booking-select-card.is-selected .bsc-stub-line {
+  border-left-color: rgba(92, 126, 110, 0.35);
+}
+
+.bsc-radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  transition: all 0.15s ease;
+}
+
+.booking-select-card.is-selected .bsc-radio {
+  border-color: #5c7e6e;
+  background: #edf4f0;
+}
+
+.bsc-radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.booking-select-card.is-selected .bsc-radio-dot {
+  background: #5c7e6e;
 }
 
 /* BỘ CHỌN TRÌNH ĐỘ */
@@ -878,43 +1066,24 @@ textarea.field-control {
 .skill-pill {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 12px;
+  justify-content: center;
+  padding: 9px 12px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   color: #334155;
   cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: left;
-}
-
-.skill-pill:hover {
-  border-color: #5c7e6e;
-  background: #f8fafc;
+  text-align: center;
 }
 
 .skill-pill.is-active {
   border-color: #5c7e6e;
   background: #edf4f0;
   color: #446153;
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: 0 0 0 1px #5c7e6e;
-}
-
-.skill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #94a3b8;
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-}
-
-.skill-pill.is-active .skill-dot {
-  background: #5c7e6e;
 }
 
 /* BỘ CHỌN HÌNH THỨC CHI PHÍ */
@@ -933,13 +1102,7 @@ textarea.field-control {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
   text-align: left;
-}
-
-.cost-type-btn:hover {
-  border-color: #5c7e6e;
-  background: #f8fafc;
 }
 
 .cost-type-btn.is-active {
@@ -959,9 +1122,9 @@ textarea.field-control {
   min-width: 0;
 }
 
-.cost-text strong {
+.cost-title {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: #1e293b;
   line-height: 1.2;
 }
@@ -971,7 +1134,13 @@ textarea.field-control {
   color: #5c7e6e;
   line-height: 1.2;
   margin-top: 2px;
+  font-weight: 400;
+}
+
+.attachment-label {
+  font-size: 13.5px;
   font-weight: 500;
+  color: #1e293b;
 }
 
 .custom-cost-input-wrap {
@@ -985,6 +1154,60 @@ textarea.field-control {
   font-size: 12px;
   font-weight: 500;
   color: #475569;
+}
+
+/* BỘ CHỌN HẠN CHÓT NHẬN ĐĂNG KÝ (LOCK DEADLINE) */
+.deadline-pills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.deadline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+}
+
+.deadline-pill svg {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.deadline-pill.is-active {
+  border-color: #5c7e6e;
+  background: #edf4f0;
+  color: #446153;
+  font-weight: 500;
+  box-shadow: 0 0 0 1px #5c7e6e;
+}
+
+.deadline-pill.is-active svg {
+  color: #5c7e6e;
+}
+
+.field-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.field-hint svg {
+  color: #5c7e6e;
+  flex-shrink: 0;
 }
 
 .modal-state {

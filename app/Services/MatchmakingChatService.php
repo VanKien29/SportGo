@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
@@ -28,10 +29,20 @@ class MatchmakingChatService
 
     public function ensureGroup(PlayerPost $post): Conversation
     {
+        if (! $post->relationLoaded('booking') || ! $post->booking?->relationLoaded('venueCourt')) {
+            $post->loadMissing(['booking.venueCluster', 'booking.venueCourt.courtType.parent']);
+        }
+
         $booking = $post->booking;
+        $courtType = $booking?->venueCourt?->courtType;
+        $sportName = $courtType?->parent?->name ?? $courtType?->name ?? 'Giao lưu';
         $venueName = $booking?->venueCluster?->name ?: 'sân thể thao';
-        $date = $booking?->booking_date?->format('d/m/Y') ?: '';
-        $time = $booking ? substr((string) $booking->start_time, 0, 5) . ' - ' . substr((string) $booking->end_time, 0, 5) : '';
+
+        $startTime = $booking ? substr((string) $booking->start_time, 0, 5) : '';
+        $date = $booking?->booking_date?->format('d/m') ?: '';
+        $timeDateStr = trim(($startTime ? $startTime . ', ' : '') . $date);
+
+        $title = 'Kèo ' . $sportName . ' - ' . $venueName . ($timeDateStr ? ' (' . $timeDateStr . ')' : '');
 
         $conversation = Conversation::query()->firstOrCreate(
             [
@@ -40,11 +51,16 @@ class MatchmakingChatService
                 'reference_id' => (string) $post->id,
             ],
             [
-                'title' => 'Giao lưu · ' . $venueName . ($date ? ' · ' . $date : ''),
+                'title' => $title,
                 'created_by' => $post->author_id,
                 'last_message_at' => now(),
             ],
         );
+
+        // Cập nhật lại title nếu title trước đó chưa theo format mới
+        if ($conversation->title !== $title) {
+            $conversation->forceFill(['title' => $title])->save();
+        }
 
         $creator = ConversationParticipant::query()->firstOrNew([
             'conversation_id' => $conversation->id,
@@ -112,7 +128,7 @@ class MatchmakingChatService
     private function systemMessage(Conversation $conversation, string $content): void
     {
         $now = now();
-        Message::query()->create([
+        $message = Message::query()->create([
             'conversation_id' => $conversation->id,
             'sender_id' => null,
             'content' => $content,
@@ -120,5 +136,21 @@ class MatchmakingChatService
             'created_at' => $now,
         ]);
         $conversation->forceFill(['last_message_at' => $now])->save();
+
+        try {
+            broadcast(new MessageSent((string) $conversation->id, [
+                'id' => $message->id,
+                'conversation_id' => (string) $conversation->id,
+                'sender_id' => null,
+                'sender_name' => 'Hệ thống',
+                'sender_avatar' => null,
+                'content' => $content,
+                'message_type' => 'text',
+                'is_system' => true,
+                'created_at' => $now->toISOString(),
+            ]));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

@@ -204,12 +204,12 @@
                 <div v-if="post.booking?.sport_name" class="meetup-sport-tag">
                   <AppIcon :name="post.booking?.sport_icon || 'activity'" size="13" />
                   <strong>{{ post.booking.sport_name }}</strong>
-                  <span v-if="post.booking?.court_type_name">· {{ post.booking.court_type_name }}</span>
+                  <span v-if="post.booking?.court_type_name">({{ cleanCourtType(post.booking.court_type_name, post.booking.sport_name) }})</span>
                 </div>
 
                 <div class="meetup-facts">
                   <span><AppIcon name="mapPin" />{{ post.booking?.venue_name || 'Cụm sân' }}</span>
-                  <span><AppIcon name="clock" />{{ formatDate(post.booking?.date) }} · {{ post.booking?.time }}</span>
+                  <span><AppIcon name="clock" />{{ formatDate(post.booking?.date) }}, {{ post.booking?.time }}</span>
                 </div>
 
                 <div class="meetup-badges-row">
@@ -864,6 +864,17 @@ function costLabel(post) {
   return 'Chia đều tiền sân';
 }
 
+function cleanCourtType(typeName, sportName) {
+  if (!typeName) return 'Sân tiêu chuẩn';
+  const match = String(typeName).match(/\((.*?)\)/);
+  if (match && match[1]) return match[1].trim();
+  if (sportName && String(typeName).toLowerCase().startsWith(String(sportName).toLowerCase())) {
+    const cleaned = String(typeName).slice(sportName.length).trim().replace(/^[-·:() ]+/, '').replace(/\)$/, '');
+    if (cleaned) return cleaned;
+  }
+  return typeName;
+}
+
 function goToDetail(slug) {
   router.push({ name: 'community-post-detail', params: { slug } });
 }
@@ -921,9 +932,9 @@ onBeforeUnmount(() => {
 }
 .community-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 420px;
   align-items: start;
-  gap: 24px;
+  gap: 28px;
 }
 .community-main, .community-rail { min-width: 0; }
 .community-main { display: flex; flex-direction: column; gap: 16px; }
@@ -1045,29 +1056,29 @@ onBeforeUnmount(() => {
 .login-to-comment { display: block; margin: 0 14px 16px; padding: 10px 0; text-align: left; }
 .load-more-button { align-self: center; min-width: 190px; }
 .end-of-feed { margin: 0; color: var(--community-muted); font-size: 12px; text-align: center; }
-.rail-panel { padding: 20px; }
-.rail-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
+.rail-panel { padding: 22px; }
+.rail-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .meetup-list { display: flex; flex-direction: column; }
 .meetup-item { padding: 18px 0; border-bottom: 1px solid var(--community-line); }
 .meetup-item:last-child { border-bottom: none; }
-.meetup-item header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.meetup-author { flex: 1; }
-.meetup-author strong { color: var(--community-ink); font-size: 13px; font-weight: 700; line-height: 1.3; }
-.meetup-needed { flex: 0 0 auto; color: var(--community-accent-dark); font-size: 11px; font-weight: 700; padding: 2px 7px; background: var(--community-accent-soft); border-radius: 4px; }
-.meetup-sport-tag { display: inline-flex; align-items: center; gap: 6px; margin: 9px 0 0 45px; padding: 3px 8px; background: var(--community-accent-soft); border-radius: 6px; color: var(--community-accent-dark); font-size: 11.5px; }
-.meetup-sport-tag strong { font-weight: 700; }
+.meetup-item header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.meetup-author { flex: 1; min-width: 0; }
+.meetup-author strong { color: var(--community-ink); font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.meetup-needed { flex: 0 0 auto; color: var(--community-accent-dark); font-size: 11.5px; font-weight: 600; padding: 3px 9px; background: var(--community-accent-soft); border-radius: 4px; }
+.meetup-sport-tag { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 6px 0; padding: 4px 10px; background: var(--community-accent-soft); border-radius: 6px; color: var(--community-accent-dark); font-size: 12px; }
+.meetup-sport-tag strong { font-weight: 600; }
 .meetup-sport-tag span { color: var(--community-accent); }
-.meetup-facts { display: flex; flex-direction: column; gap: 5px; margin: 9px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.4; }
-.meetup-facts span { display: flex; align-items: flex-start; gap: 7px; }
+.meetup-facts { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0 0; color: var(--community-muted); font-size: 12.5px; line-height: 1.4; }
+.meetup-facts span { display: flex; align-items: center; gap: 7px; }
 .meetup-facts svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--community-accent); }
-.meetup-badges-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0 45px; }
-.meetup-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.meetup-badges-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0 0; }
+.meetup-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 4px; font-size: 11.5px; font-weight: 500; }
 .meetup-badge--skill { background: #f1f5f9; color: #334155; }
 .meetup-badge--cost { background: #fef3c7; color: #92400e; }
-.meetup-cover { margin: 10px 0 0 45px; border-radius: 8px; overflow: hidden; max-height: 160px; border: 1px solid var(--community-line); background: #f8fafc; }
-.meetup-cover img { width: 100%; height: 100%; max-height: 160px; object-fit: cover; display: block; }
-.meetup-item p { margin: 10px 0 0 45px; color: var(--community-muted); font-size: 12px; line-height: 1.45; }
-.meetup-action { width: calc(100% - 45px); margin: 14px 0 0 45px; }
+.meetup-cover { margin: 12px 0 0 0; border-radius: 8px; overflow: hidden; max-height: 180px; border: 1px solid var(--community-line); background: #f8fafc; }
+.meetup-cover img { width: 100%; height: 100%; max-height: 180px; object-fit: cover; display: block; }
+.meetup-item p { margin: 10px 0 0 0; color: var(--community-ink); font-size: 13px; line-height: 1.5; }
+.meetup-action { width: 100%; margin: 14px 0 0 0; min-height: 38px; }
 .rail-state { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; min-height: 150px; padding: 12px 0; color: var(--community-muted); font-size: 13px; text-align: center; }
 .rail-state > svg { width: 26px; height: 26px; color: var(--community-accent); }
 .rail-state p { flex-basis: 100%; margin: 0; line-height: 1.5; }
@@ -1093,14 +1104,14 @@ onBeforeUnmount(() => {
 .appeal-char-count { display: block; margin-top: 6px; color: var(--community-muted); font-size: 11px; text-align: right; }
 .appeal-modal footer { justify-content: flex-end; padding-top: 12px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 1200px) {
-  .community-shell { width: min(100% - 36px, 1140px); padding-top: 20px; }
-  .community-layout { grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+@media (max-width: 1280px) {
+  .community-shell { width: min(100% - 36px, 1200px); padding-top: 20px; }
+  .community-layout { grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1024px) {
   .community-shell { width: min(100% - 32px, 860px); padding: 18px 0 48px; }
-  .community-layout { grid-template-columns: 1fr; gap: 18px; }
+  .community-layout { grid-template-columns: 1fr; gap: 20px; }
   .community-rail { position: static; }
 }
 
@@ -1124,7 +1135,7 @@ onBeforeUnmount(() => {
   .comments-panel { margin: 0 14px 14px; padding: 12px 0 0; }
   .comment-list { padding: 0 10px; }
   .comment-replies { margin-left: 8px; }
-  .meetup-facts, .meetup-item p { margin-left: 36px; }
+  .meetup-facts, .meetup-item p { margin-left: 0; }
   .meetup-action { width: 100%; margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
