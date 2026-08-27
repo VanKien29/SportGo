@@ -9,6 +9,12 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Demo data is intentionally orchestrated by one deterministic seeder.
+        // The legacy chain below is retained for reference but must not run
+        // together with it because several legacy seeders create stale rows.
+        $this->call(DemoDatabaseSeeder::class);
+        return;
+
         $this->callIfTablesExist(RolesTableSeeder::class, ['roles']);
         $this->callIfTablesExist(PermissionsTableSeeder::class, ['permissions']);
         $this->callIfTablesExist(RolePermissionsTableSeeder::class, ['roles', 'permissions', 'role_permissions']);
