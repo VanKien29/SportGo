@@ -74,10 +74,10 @@
               </button>
               <button
                 type="button"
-                :class="['cc-tab', activeTab === 'ai' ? 'active' : '']"
-                @click="activeTab = 'ai'"
+                :class="['cc-tab', activeTab === 'matchmaking' ? 'active' : '']"
+                @click="activeTab = 'matchmaking'"
               >
-                Trợ lý AI
+                Kèo giao lưu
               </button>
               <button
                 type="button"
@@ -91,7 +91,42 @@
                 :class="['cc-tab', activeTab === 'direct' ? 'active' : '']"
                 @click="activeTab = 'direct'"
               >
-                Cá nhân &amp; Nhóm
+                Cá nhân
+              </button>
+              <button
+                type="button"
+                :class="['cc-tab', activeTab === 'ai' ? 'active' : '']"
+                @click="activeTab = 'ai'"
+              >
+                Trợ lý AI
+              </button>
+            </div>
+
+            <!-- MATCHMAKING SUB-FILTERS (BR-19) -->
+            <div v-if="activeTab === 'matchmaking'" class="cc-mm-subfilters">
+              <button
+                type="button"
+                :class="['cc-mm-pill', matchmakingFilter === 'active' ? 'active' : '']"
+                @click="matchmakingFilter = 'active'"
+              >
+                <span>Đang hoạt động</span>
+                <span class="cc-mm-pill-badge">{{ matchmakingCounts.active }}</span>
+              </button>
+              <button
+                type="button"
+                :class="['cc-mm-pill', matchmakingFilter === 'ended' ? 'active' : '']"
+                @click="matchmakingFilter = 'ended'"
+              >
+                <span>Đã kết thúc</span>
+                <span class="cc-mm-pill-badge">{{ matchmakingCounts.ended }}</span>
+              </button>
+              <button
+                type="button"
+                :class="['cc-mm-pill', matchmakingFilter === 'hidden' ? 'active' : '']"
+                @click="matchmakingFilter = 'hidden'"
+              >
+                <span>Đã ẩn</span>
+                <span v-if="matchmakingCounts.hidden > 0" class="cc-mm-pill-badge cc-mm-pill-badge--warn">{{ matchmakingCounts.hidden }}</span>
               </button>
             </div>
           </div>
@@ -167,7 +202,15 @@
               <!-- CONTENT PREVIEW -->
               <div class="cc-conv-info">
                 <div class="cc-conv-top">
-                  <span class="cc-conv-title">{{ conv.title }}</span>
+                  <span class="cc-conv-title">
+                    {{ conv.title }}
+                    <span
+                      v-if="conv.type === 'player_post'"
+                      :class="['cc-mm-badge', `is-${conv.is_hidden ? 'hidden' : conv.matchmaking_status || 'active'}`]"
+                    >
+                      {{ conv.is_hidden ? 'Đã ẩn' : conv.matchmaking_status === 'ended' ? 'Đã kết thúc' : 'Đang diễn ra' }}
+                    </span>
+                  </span>
                   <span class="cc-conv-time">{{ formatTime(conv.last_message?.created_at || conv.last_message_at) }}</span>
                 </div>
                 <div class="cc-conv-sub">
@@ -358,6 +401,16 @@
                     </button>
 
                     <button
+                      v-if="isMatchmakingGroup"
+                      type="button"
+                      class="cc-dropdown-item"
+                      @click="hideMatchmakingConversation"
+                    >
+                      <AppIcon name="alert" size="14" />
+                      <span>Xóa ẩn cuộc trò chuyện</span>
+                    </button>
+
+                    <button
                       v-if="!activeConversation.is_ai"
                       type="button"
                       class="cc-dropdown-item cc-dropdown-item--danger"
@@ -369,6 +422,21 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- HIDDEN CHAT BANNER (BR-18 & BR-19) -->
+            <div v-if="activeConversation?.is_hidden" class="cc-hidden-banner">
+              <div class="cc-hb-text">
+                <AppIcon name="alert" size="14" />
+                <span>Cuộc trò chuyện này đang ở danh sách <strong>Đã ẩn</strong>.</span>
+              </div>
+              <button
+                type="button"
+                class="cc-hb-unhide-btn"
+                @click="unhideActiveConversation"
+              >
+                Khôi phục cuộc trò chuyện
+              </button>
             </div>
 
             <!-- PINNED MESSAGE BANNER -->
@@ -1150,10 +1218,30 @@
         />
       </div>
     </div>
+
+    <!-- MODAL XÁC NHẬN GIẢI TÁN NHÓM -->
+    <div v-if="showDissolveConfirmModal" class="cc-modal-overlay" @click.self="showDissolveConfirmModal = false">
+      <div class="cc-modal-card cc-confirm-card" role="dialog" aria-modal="true">
+        <div class="cc-confirm-icon cc-confirm-icon--danger">
+          <AppIcon name="alert" size="28" />
+        </div>
+        <h3 class="cc-confirm-title">Giải tán nhóm giao lưu?</h3>
+        <p class="cc-confirm-desc">Bài giao lưu sẽ được đóng và thành viên sẽ được thông báo rời nhóm. Lịch sử trò chuyện vẫn được lưu lại.</p>
+        <div class="cc-confirm-actions">
+          <button type="button" class="cc-btn-ghost" :disabled="dissolvingGroup" @click="showDissolveConfirmModal = false">
+            Hủy bỏ
+          </button>
+          <button type="button" class="cc-btn-primary cc-btn-primary--danger" :disabled="dissolvingGroup" @click="confirmDissolveMatchmakingGroup">
+            <span>{{ dissolvingGroup ? 'Đang giải tán...' : 'Xác nhận giải tán' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import { useToast } from "vue-toastification";
 import echo from "../../echo.js";
 import AppIcon from "../../components/AppIcon.vue";
 import PublicNavbar from "../../components/PublicNavbar.vue";
@@ -1165,7 +1253,9 @@ export default {
   components: { PublicNavbar, AppIcon },
   data() {
     return {
+      toast: useToast(),
       activeTab: "all",
+      matchmakingFilter: "active",
       searchQuery: "",
       conversations: [],
       activeConversation: null,
@@ -1184,6 +1274,8 @@ export default {
       showChatActionsMenu: false,
       showVenueSidebar: false,
       showGroupInfoModal: false,
+      showDissolveConfirmModal: false,
+      dissolvingGroup: false,
       showAddMemberInput: false,
       addMemberQuery: "",
       addMemberResults: [],
@@ -1253,14 +1345,37 @@ export default {
     };
   },
   computed: {
+    matchmakingCounts() {
+      const mmConvs = this.conversations.filter((c) => c.type === "player_post");
+      return {
+        all: mmConvs.filter((c) => !c.is_hidden).length,
+        active: mmConvs.filter((c) => c.matchmaking_status === "active" && !c.is_hidden).length,
+        ended: mmConvs.filter((c) => c.matchmaking_status === "ended" && !c.is_hidden).length,
+        hidden: mmConvs.filter((c) => c.is_hidden || c.matchmaking_status === "hidden").length,
+      };
+    },
     filteredConversations() {
       let list = this.conversations;
       if (this.activeTab === "ai") {
         list = list.filter((c) => c.is_ai);
       } else if (this.activeTab === "venue") {
-        list = list.filter((c) => c.type === "venue_contact" || c.reference_type === "venue_cluster");
+        list = list.filter((c) => (c.type === "venue_contact" || c.reference_type === "venue_cluster") && !c.is_hidden);
+      } else if (this.activeTab === "matchmaking") {
+        list = list.filter((c) => c.type === "player_post");
+        if (this.matchmakingFilter === "active") {
+          list = list.filter((c) => c.matchmaking_status === "active" && !c.is_hidden);
+        } else if (this.matchmakingFilter === "ended") {
+          list = list.filter((c) => c.matchmaking_status === "ended" && !c.is_hidden);
+        } else if (this.matchmakingFilter === "hidden") {
+          list = list.filter((c) => c.is_hidden || c.matchmaking_status === "hidden");
+        } else {
+          list = list.filter((c) => !c.is_hidden);
+        }
       } else if (this.activeTab === "direct") {
-        list = list.filter((c) => !c.is_ai && c.type !== "venue_contact" && c.reference_type !== "venue_cluster");
+        list = list.filter((c) => !c.is_ai && c.type !== "venue_contact" && c.reference_type !== "venue_cluster" && c.type !== "player_post" && !c.is_hidden);
+      } else {
+        // "all": exclude hidden conversations by default so they don't clutter the inbox
+        list = list.filter((c) => !c.is_hidden);
       }
 
       const q = this.searchQuery.trim().toLowerCase();
@@ -1438,7 +1553,18 @@ export default {
       if (targetConvId) {
         const target = this.conversations.find((c) => String(c.id) === String(targetConvId));
         if (target) {
-          if (!target.is_ai) this.activeTab = target.type === "venue_contact" ? "venue" : "direct";
+          if (!target.is_ai) {
+            if (target.type === "venue_contact") {
+              this.activeTab = "venue";
+            } else if (target.type === "player_post") {
+              this.activeTab = "matchmaking";
+              if (target.is_hidden) this.matchmakingFilter = "hidden";
+              else if (target.matchmaking_status === "ended") this.matchmakingFilter = "ended";
+              else this.matchmakingFilter = "active";
+            } else {
+              this.activeTab = "direct";
+            }
+          }
           this.selectConversation(target);
           return;
         }
@@ -1752,35 +1878,80 @@ export default {
     async leaveGroupConversation() {
       this.showChatActionsMenu = false;
       this.showGroupInfoModal = false;
-      if (!confirm("Bạn có chắc chắn muốn rời khỏi nhóm trò chuyện này?")) return;
       try {
         const conversationId = this.activeConversation.id;
         if (this.isMatchmakingGroup) {
           await chatService.leaveConversation(conversationId);
+          this.toast.success("Bạn đã rời nhóm giao lưu.");
           await this.fetchConversations();
           const updated = this.conversations.find((c) => String(c.id) === String(conversationId));
           if (updated) this.selectConversation(updated);
         } else {
           await chatService.deleteConversation(conversationId);
+          this.toast.success("Đã rời khỏi cuộc trò chuyện.");
           this.conversations = this.conversations.filter((c) => c.id !== conversationId);
           this.activeConversation = null;
           if (this.conversations.length > 0) this.selectConversation(this.conversations[0]);
         }
       } catch (err) {
         console.error("Lỗi rời nhóm", err);
+        this.toast.error(err.message || "Không thể rời nhóm.");
       }
     },
-    async dissolveMatchmakingGroup() {
+    dissolveMatchmakingGroup() {
       this.showChatActionsMenu = false;
       if (!this.isMatchmakingGroup || !this.activeConversation) return;
+      this.showDissolveConfirmModal = true;
+    },
+    async confirmDissolveMatchmakingGroup() {
+      if (!this.activeConversation || this.dissolvingGroup) return;
+      this.dissolvingGroup = true;
       try {
         const conversationId = this.activeConversation.id;
         await chatService.dissolveConversation(conversationId);
+        this.showDissolveConfirmModal = false;
         this.conversations = this.conversations.filter((c) => String(c.id) !== String(conversationId));
         this.activeConversation = null;
         this.messages = [];
+        if (this.conversations.length > 0) {
+          this.selectConversation(this.conversations[0]);
+        }
       } catch (err) {
         console.error("Lỗi giải tán nhóm giao lưu", err);
+      } finally {
+        this.dissolvingGroup = false;
+      }
+    },
+    async hideMatchmakingConversation() {
+      this.showChatActionsMenu = false;
+      if (!this.activeConversation) return;
+      if (!confirm("Ẩn cuộc trò chuyện này? Bạn vẫn có thể tìm thấy lại trong mục 'Đã ẩn' của Kèo giao lưu mà không bị mất lịch sử.")) return;
+      try {
+        await chatService.deleteConversation(this.activeConversation.id, { delete_for_everyone: false });
+        this.toast.success("Đã ẩn cuộc trò chuyện.");
+        this.activeConversation.is_hidden = true;
+        this.activeConversation.matchmaking_status = "hidden";
+        await this.fetchConversations();
+      } catch (err) {
+        console.error("Lỗi ẩn cuộc trò chuyện", err);
+        this.toast.error(err.message || "Không thể ẩn cuộc trò chuyện.");
+      }
+    },
+    async unhideActiveConversation() {
+      if (!this.activeConversation) return;
+      try {
+        await chatService.unhideConversation(this.activeConversation.id);
+        this.toast.success("Đã khôi phục cuộc trò chuyện.");
+        await this.fetchConversations();
+        const updated = this.conversations.find((c) => String(c.id) === String(this.activeConversation.id));
+        if (updated) {
+          this.selectConversation(updated);
+        } else {
+          this.activeConversation.is_hidden = false;
+        }
+      } catch (err) {
+        console.error("Lỗi khôi phục cuộc trò chuyện", err);
+        this.toast.error(err.message || "Không thể khôi phục cuộc trò chuyện.");
       }
     },
     async openSavedMessages() {
@@ -2496,6 +2667,125 @@ export default {
   background: #15803d;
   color: #ffffff;
   border-color: #15803d;
+}
+
+/* MATCHMAKING SUB-FILTERS (BR-19) */
+.cc-mm-subfilters {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.cc-mm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.cc-mm-pill:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.cc-mm-pill.active {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.cc-mm-pill-badge {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.cc-mm-pill.active .cc-mm-pill-badge {
+  background: #15803d;
+  color: #ffffff;
+}
+
+.cc-mm-pill-badge--warn {
+  background: #fef08a !important;
+  color: #854d0e !important;
+}
+
+/* MATCHMAKING BADGE IN CONV ITEM */
+.cc-mm-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.cc-mm-badge.is-active {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.cc-mm-badge.is-ended {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.cc-mm-badge.is-hidden {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* HIDDEN CHAT BANNER */
+.cc-hidden-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+}
+
+.cc-hb-text {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cc-hb-unhide-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #d97706;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.cc-hb-unhide-btn:hover {
+  background: #b45309;
 }
 
 /* USER SEARCH PANEL */
@@ -4419,5 +4709,64 @@ export default {
     padding-right: 0;
     padding-bottom: 16px;
   }
+}
+
+/* CONFIRM MODAL DIALOG */
+.cc-confirm-card {
+  max-width: 420px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  border-radius: 16px;
+}
+
+.cc-confirm-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cc-confirm-icon--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.cc-confirm-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cc-confirm-desc {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.cc-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cc-confirm-actions button {
+  flex: 1;
+  min-height: 42px;
+}
+
+.cc-btn-primary--danger {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.cc-btn-primary--danger:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
 }
 </style>

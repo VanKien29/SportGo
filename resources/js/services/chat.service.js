@@ -82,6 +82,11 @@ export const chatService = {
       body: JSON.stringify(options)
     });
   },
+  unhideConversation(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}/unhide`, {
+      method: 'POST'
+    });
+  },
   clearConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}/clear`, {
       method: 'POST',

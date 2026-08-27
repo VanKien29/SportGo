@@ -4,7 +4,7 @@
       type="button"
       class="ccs-trigger"
       :disabled="disabled"
-      @click="toggle"
+      @click.stop="toggle"
     >
       <div class="ccs-left">
         <svg v-if="icon === 'clock'" class="ccs-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -31,7 +31,7 @@
             :key="opt.value"
             class="ccs-opt"
             :class="{ 'is-selected': isSelected(opt.value), 'has-sublabel': opt.sublabel }"
-            @click="onSelect(opt.value)"
+            @click.stop="onSelect(opt.value)"
           >
             <div class="ccs-opt-body">
               <span class="ccs-opt-label">{{ opt.label }}</span>
@@ -143,11 +143,11 @@ export default {
 
 .ccs-trigger {
   width: 100%;
-  height: 38px;
-  padding: 0 10px;
+  height: 40px;
+  padding: 0 12px;
   background: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -157,16 +157,17 @@ export default {
   font-size: 13.5px;
   color: #0f172a;
   font-weight: 500;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   text-align: left;
 }
 
 .ccs-trigger:hover:not(:disabled) {
-  border-color: #15803d;
+  border-color: #5c7e6e;
 }
 
 .ccs-wrap.is-open .ccs-trigger {
-  border-color: #15803d;
+  border-color: #5c7e6e;
+  box-shadow: 0 0 0 3px rgba(92, 126, 110, 0.12);
 }
 
 .ccs-trigger:disabled {
@@ -186,7 +187,7 @@ export default {
 
 .ccs-icon {
   flex-shrink: 0;
-  color: #15803d;
+  color: #5c7e6e;
 }
 
 .ccs-val {
@@ -214,8 +215,8 @@ export default {
   right: 0;
   z-index: 1000;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1), 0 4px 10px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
@@ -231,7 +232,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.1s ease, color 0.1s ease;
   gap: 10px;
@@ -253,30 +254,30 @@ export default {
 
 .ccs-opt-sub {
   font-size: 11.5px;
-  color: #475569;
+  color: #64748b;
   line-height: 1.2;
 }
 
 .ccs-opt:hover:not(.is-selected) {
-  background: #f8fafc;
+  background: #edf4f0;
 }
 
 .ccs-opt:hover:not(.is-selected) .ccs-opt-label {
-  color: #15803d;
+  color: #446153;
 }
 
 .ccs-opt.is-selected {
-  background: #15803d;
+  background: #5c7e6e;
   color: #ffffff;
 }
 
 .ccs-opt.is-selected .ccs-opt-label {
   color: #ffffff;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .ccs-opt.is-selected .ccs-opt-sub {
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .ccs-check {

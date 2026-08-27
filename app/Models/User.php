@@ -21,6 +21,7 @@ class User extends Authenticatable
         'phone_verified_at',
         'password',
         'avatar_url',
+        'cover_image_url',
         'bio',
         'preferred_sports',
         'status',

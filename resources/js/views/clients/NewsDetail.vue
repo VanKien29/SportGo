@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <div class="news-detail-page">
         <PublicNavbar />
 
@@ -896,7 +896,8 @@ export default {
                 this.$refs.commentInput.style.height = "auto";
             } catch (error) {
                 console.error("Failed to post comment:", error);
-                alert(
+                const toast = useToast();
+                toast.error(
                     error.response?.data?.message ||
                         error.message ||
                         "Không thể gửi bình luận.",
