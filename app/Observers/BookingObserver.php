@@ -98,7 +98,7 @@ class BookingObserver
                         ->where('post_id', $playerPost->id)
                         ->whereIn('status', ['pending', 'approved'])
                         ->update([
-                            'status' => 'cancelled',
+                            'status' => 'expired',
                             'responded_at' => now(),
                             'updated_at' => now(),
                         ]);

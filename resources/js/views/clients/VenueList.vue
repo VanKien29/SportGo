@@ -171,23 +171,11 @@
 
     </main>
 
-    <!-- FLOATING MAP BUTTON (OPTION 2 WITH TELEPORT) -->
-    <Teleport to="body">
-      <router-link to="/venues/map" class="sg-floating-map-fab" title="Xem bản đồ trực quan">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-          <line x1="8" y1="2" x2="8" y2="18"/>
-          <line x1="16" y1="6" x2="16" y2="22"/>
-        </svg>
-        <span>Xem bản đồ</span>
-      </router-link>
-    </Teleport>
   </div>
 </template>
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
-import PillSearchBar from "../../components/PillSearchBar.vue";
 import ClientCombobox from "../../components/ClientCombobox.vue";
 import ClientDatePicker from "../../components/ClientDatePicker.vue";
 import ClientTimeSlots from "../../components/ClientTimeSlots.vue";
@@ -208,7 +196,6 @@ export default {
   name: "VenueList",
   components: {
     PublicNavbar,
-    PillSearchBar,
     ClientCombobox,
     ClientDatePicker,
     ClientTimeSlots,
@@ -860,65 +847,22 @@ export default {
   gap: 7px;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid #15803d;
+  border: 1px solid #cbd5e1;
   border-radius: 9px;
-  background: #15803d;
-  color: #ffffff;
+  background: #ffffff;
+  color: #334155;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
   text-decoration: none;
   box-sizing: border-box;
-  transition: all 0.18s ease;
+  box-shadow: none;
 }
 
 .sg-toolbar-map-btn:hover {
-  background: #166534;
-  border-color: #166534;
-  color: #ffffff;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
 }
 
-/* FLOATING MAP FAB (OPTION 2) */
-.sg-floating-map-fab {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  z-index: 99999;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 22px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
-  color: #ffffff;
-  font-size: 14.5px;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: 0 10px 25px -5px rgba(21, 128, 61, 0.45), 0 4px 10px rgba(0, 0, 0, 0.1);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
-}
-
-.sg-floating-map-fab:hover {
-  transform: translateY(-3px) scale(1.04);
-  box-shadow: 0 14px 30px -5px rgba(21, 128, 61, 0.55), 0 6px 15px rgba(0, 0, 0, 0.15);
-  color: #ffffff;
-}
-
-.sg-floating-map-fab:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.sg-floating-map-fab svg {
-  flex-shrink: 0;
-}
-
-@media (max-width: 640px) {
-  .sg-floating-map-fab {
-    bottom: 20px;
-    right: 20px;
-    padding: 10px 18px;
-    font-size: 13.5px;
-  }
-}
 </style>
