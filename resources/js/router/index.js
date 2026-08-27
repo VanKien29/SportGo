@@ -22,6 +22,7 @@ import Contact from "../views/Contact.vue";
 import Policies from "../views/Policies.vue";
 import Login from "../views/Login.vue";
 import Register from "../views/Register.vue";
+import VerifyEmail from "../views/VerifyEmail.vue";
 import ForgotPassword from "../views/ForgotPassword.vue";
 import AdminLogin from "../views/admin/AdminLogin.vue";
 import AdminForgotPassword from "../views/admin/AdminForgotPassword.vue";
@@ -37,13 +38,15 @@ const routes = [
     { path: "/policies", name: "policies", component: Policies, meta: { title: "Chính Sách & Điều Khoản - SportGo" } },
     { path: "/messages", name: "client-messages", component: () => import("../views/clients/ClientChat.vue"), meta: { requiresAuth: true, title: "Hộp Thư Tin Nhắn - SportGo" } },
     { path: "/venues", name: "venues", component: () => import("../views/clients/VenueList.vue") },
-    { path: "/map", name: "client-map", component: () => import("../views/clients/ClientMapView.vue") },
+    { path: "/venues/map", name: "client-venues-map", component: () => import("../views/clients/ClientMapView.vue"), meta: { title: "Bản Đồ Cụm Sân Thể Thao - SportGo" } },
+    { path: "/map", name: "client-map", component: () => import("../views/clients/ClientMapView.vue"), meta: { title: "Bản Đồ Cụm Sân Thể Thao - SportGo" } },
     { path: "/featured", name: "client-featured", component: () => import("../views/clients/FeaturedVenues.vue") },
     { path: "/offers", name: "client-offers", component: () => import("../views/clients/Offers.vue") },
     { path: "/venues/:id", name: "venue-detail", component: () => import("../views/clients/VenueDetail.vue") },
     { path: "/community/:slug", name: "community-post-detail", component: () => import("../views/clients/community/CommunityDetail.vue") },
     { path: "/login", name: "login", component: Login },
     { path: "/register", name: "register", component: Register },
+    { path: "/verify-email", name: "verify-email", component: VerifyEmail },
     {
         path: "/forgot-password",
         name: "forgot-password",
@@ -729,7 +732,7 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    if (["login", "register"].includes(to.name) && auth) {
+    if (["login", "register", "verify-email"].includes(to.name) && auth) {
         auth = await restoreAuth();
         if (!auth) return next();
         if (auth.role_group === "admin")
@@ -761,6 +764,7 @@ router.afterEach((to) => {
         "partner-application": "Đăng Ký Đối Tác Chủ Sân Thể Thao | SportGo",
         login: "Đăng Nhập Tài Khoản | SportGo",
         register: "Đăng Ký Tài Khoản Mới | SportGo",
+        "verify-email": "Xác Thực Email | SportGo",
     };
 
     const title = to.meta?.title ? `${to.meta.title} | SportGo` : (routeTitles[to.name] || "SportGo - Đặt Sân Thể Thao Trực Tuyến");

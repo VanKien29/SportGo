@@ -42,9 +42,6 @@
             </div>
 
             <div class="sg-hero-bottom-meta">
-              <span class="sg-hero-sport-tag">
-                {{ selectedVenue.court_types?.[0]?.name || 'Cầu lông' }}
-              </span>
               <div class="sg-hero-rating">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span>{{ selectedVenue.rating_avg ? `${selectedVenue.rating_avg} (${selectedVenue.rating_count || 0})` : 'Mới' }}</span>
@@ -86,10 +83,14 @@
                 <span>{{ selectedVenue.phone_contact }}</span>
               </div>
 
-              <!-- HÀNG GIÁ THUÊ ĐỒNG BỘ VỚI ĐỊA ĐIỂM & THỜI GIAN -->
+              <!-- HÀNG GIÁ THUÊ ĐỒNG BỘ VỚI ĐỊA ĐIỂM & THỜI GIAN THEO NGỮ CẢNH -->
               <div class="sg-meta-item">
                 <svg class="sg-meta-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                <span>Giá từ: <span class="sg-meta-price-val">{{ priceLabel(selectedVenue) }}</span></span>
+                <span>
+                  <template v-if="selectedSportId && selectedSportId !== 'all'">Giá môn {{ currentSportName }}: </template>
+                  <template v-else>Giá từ: </template>
+                  <span class="sg-meta-price-val">{{ priceLabel(selectedVenue) }}</span>
+                </span>
               </div>
             </div>
 
@@ -153,21 +154,47 @@
               </div>
             </div>
 
-            <!-- TAB 2: DỊCH VỤ & BẢNG GIÁ -->
+            <!-- TAB 2: DỊCH VỤ & BẢNG GIÁ THEO BỘ MÔN -->
             <div v-else-if="activeTab === 'services'" class="sg-tab-pane">
-              <div class="sg-pane-block">
-                <h4 class="sg-pane-subtitle">Dịch vụ đi kèm tại sân</h4>
+              <!-- KHỐI CÁC BỘ MÔN THỂ THAO & BẢNG GIÁ -->
+              <div class="sg-pane-block" v-if="venueSportsList.length">
+                <h4 class="sg-pane-subtitle">Bộ môn thi đấu & Bảng giá</h4>
+                <div class="sg-sports-pricing-list">
+                  <div
+                    v-for="sport in venueSportsList"
+                    :key="sport.id"
+                    class="sg-sport-pricing-card"
+                  >
+                    <div class="sg-sport-card-left">
+                      <div class="sg-sport-card-icon">
+                        <IsometricSportIcon :name="sport.iconKey || sport.name" :size="26" />
+                      </div>
+                      <div class="sg-sport-card-meta">
+                        <h5 class="sg-sport-card-name">{{ sport.name }}</h5>
+                        <span class="sg-sport-card-sub" v-if="sport.courtCount">{{ sport.courtCount }} sân tiêu chuẩn</span>
+                      </div>
+                    </div>
+                    <div class="sg-sport-price-tag">
+                      <span class="sg-sport-price-val">{{ sport.priceText }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- DỊCH VỤ ĐI KÈM TẠI SÂN -->
+              <div class="sg-pane-block" :style="{ marginTop: venueSportsList.length ? '16px' : '0' }">
+                <h4 class="sg-pane-subtitle">Dịch vụ tiện ích tại sân</h4>
                 <div class="sg-services-simple-list">
                   <div class="sg-service-row">
-                    <span>Cho thuê vợt & dụng cụ</span>
+                    <span>Cho thuê vợt & dụng cụ thi đấu</span>
                     <span class="sg-service-price">từ 20.000 đ</span>
                   </div>
                   <div class="sg-service-row">
-                    <span>Nước giải khát & Điện giải</span>
+                    <span>Nước giải khát & Điện giải thể thao</span>
                     <span class="sg-service-price">từ 10.000 đ</span>
                   </div>
                   <div class="sg-service-row">
-                    <span>Dịch vụ quấn cán & Bảo trì</span>
+                    <span>Dịch vụ quấn cán & Căng cước</span>
                     <span class="sg-service-price">từ 15.000 đ</span>
                   </div>
                 </div>
@@ -276,9 +303,6 @@
           >
             <div class="sg-sidebar-item-info">
               <h4 class="sg-sidebar-item-title">
-                <span class="sg-sidebar-sport-icon" :style="{ color: getSportColor(venue.court_types?.[0]?.name) }">
-                  <AppIcon :name="sportIconKey(venue)" size="16" />
-                </span>
                 <span>{{ venue.name }}</span>
               </h4>
               <p class="sg-sidebar-item-sub">
@@ -293,18 +317,17 @@
 
     <!-- MAIN MAP AREA -->
     <main class="sg-map-main">
-      <!-- TOP FLOATING SPORTS CHIPS BAR -->
-      <div class="sg-map-sports-bar">
+      <!-- FLOATING QUICK SPORTS SELECTOR (Góc trên bên phải, tinh gọn và không che bản đồ) -->
+      <div class="sg-map-top-quick-filter">
         <button
-          v-for="sport in sportsList"
-          :key="sport.id"
           type="button"
-          class="sg-map-sport-chip"
-          :class="{ 'is-active': selectedSportId === sport.id }"
-          @click="filterBySport(sport.id)"
+          class="sg-sports-pill-trigger"
+          @click="showSportsDrawer = true"
+          title="Chọn bộ môn thể thao 3D"
         >
-          <AppIcon :name="sport.iconKey || 'activity'" size="15" />
-          <span>{{ sport.name }}</span>
+          <IsometricSportIcon :name="selectedSportId" :size="22" />
+          <span class="sg-sports-pill-text">{{ currentSportName }}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
         </button>
       </div>
 
@@ -313,6 +336,10 @@
 
       <!-- FLOATING ACTION BUTTONS (Góc dưới bên phải) -->
       <div class="sg-map-floating-controls">
+        <!-- Nút nổi mở nhanh Bảng bộ môn 3D -->
+        <button type="button" class="sg-map-fab-circle is-sports-fab" title="Mở bảng chọn bộ môn 3D" @click="showSportsDrawer = true">
+          <IsometricSportIcon :name="selectedSportId" :size="24" />
+        </button>
         <button type="button" class="sg-map-fab-circle" title="Xem dạng danh sách" @click="goToList">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>
@@ -330,6 +357,53 @@
         </button>
       </div>
     </main>
+
+    <!-- RIGHT ISOMETRIC SPORTS DRAWER (BẢNG CHỌN BỘ MÔN 3D BÊN PHẢI) -->
+    <Teleport to="body">
+      <div v-if="showSportsDrawer" class="sg-drawer-backdrop" @click.self="showSportsDrawer = false">
+        <aside class="sg-sports-right-drawer" aria-label="Bảng chọn bộ môn thể thao">
+          <div class="sg-drawer-header">
+            <div class="sg-drawer-title-group">
+              <h3 class="sg-drawer-title">Bộ môn thể thao</h3>
+              <p class="sg-drawer-subtitle">Chọn môn để lọc cụm sân trên bản đồ</p>
+            </div>
+            <button type="button" class="sg-drawer-close-btn" @click="showSportsDrawer = false" title="Đóng bảng chọn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="sg-drawer-body">
+            <div class="sg-isometric-cards-grid">
+              <button
+                v-for="sport in sportsList"
+                :key="sport.id"
+                type="button"
+                class="sg-isometric-sport-card"
+                :class="{ 'is-selected': selectedSportId === sport.id }"
+                @click="selectSportFromDrawer(sport.id)"
+              >
+                <div class="sg-card-isometric-icon-box">
+                  <IsometricSportIcon :name="sport.iconKey || sport.name" :size="58" />
+                </div>
+                <div class="sg-card-sport-info">
+                  <h4 class="sg-card-sport-name">{{ sport.name }}</h4>
+                  <span class="sg-card-venue-count">{{ getVenueCountForSport(sport.id) }} địa điểm</span>
+                </div>
+                <div v-if="selectedSportId === sport.id" class="sg-card-active-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="sg-drawer-footer">
+            <button type="button" class="sg-drawer-reset-btn" @click="selectSportFromDrawer('all')">
+              Hiển thị tất cả môn ({{ venues.length }} địa điểm)
+            </button>
+          </div>
+        </aside>
+      </div>
+    </Teleport>
 
     <!-- SHARE MODAL POPUP (Mã QR + Đường dẫn chia sẻ) -->
     <Teleport to="body">
@@ -374,6 +448,8 @@ import "leaflet/dist/leaflet.css";
 import { api } from "../../services/api";
 import { courtTypeService } from "../../services/courtTypes.js";
 import AppIcon from "../../components/AppIcon.vue";
+import IsometricSportIcon from "../../components/IsometricSportIcon.vue";
+import { sportIconKeyFromName } from "../../utils/sportIcons.js";
 
 // Default coordinates centered on Hanoi
 const DEFAULT_LAT = 21.0285;
@@ -381,7 +457,7 @@ const DEFAULT_LNG = 105.8542;
 
 export default {
   name: "ClientMapView",
-  components: { AppIcon },
+  components: { AppIcon, IsometricSportIcon },
   data() {
     return {
       venues: [],
@@ -391,6 +467,7 @@ export default {
       selectedVenue: null,
       activeTab: "info",
       showShareModal: false,
+      showSportsDrawer: false,
       isCopied: false,
       activeImage: "",
       detailTabs: [
@@ -407,6 +484,10 @@ export default {
       userLocationLayer: null,
       map: null,
       markersGroup: null,
+      isDraggingSports: false,
+      sportsDragStartX: 0,
+      sportsDragScrollLeft: 0,
+      searchTimer: null,
     };
   },
   computed: {
@@ -441,21 +522,81 @@ export default {
       if (!this.bookingUrl) return "";
       return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(this.bookingUrl)}`;
     },
+    currentSportName() {
+      if (!this.selectedSportId || this.selectedSportId === "all") return "Tất cả môn";
+      const s = this.sportsList.find((x) => String(x.id) === String(this.selectedSportId));
+      return s ? s.name : "Tất cả môn";
+    },
+    venueSportsList() {
+      if (!this.selectedVenue) return [];
+      const courtTypes = this.selectedVenue.court_types || [];
+      const basePrices = this.selectedVenue.base_prices || [];
+      const courts = this.selectedVenue.venue_courts || [];
+
+      const result = [];
+      const addedSports = new Set();
+
+      courtTypes.forEach((ct) => {
+        const parentSport = this.sportsList.find((s) => String(s.id) === String(ct.parent_id));
+        const sportName = parentSport ? parentSport.name : ct.name;
+        const sportKey = ct.icon_key || (parentSport ? parentSport.iconKey : this.iconKeyFromName(sportName));
+
+        if (!addedSports.has(sportName)) {
+          addedSports.add(sportName);
+
+          const courtCount = courts.filter((c) => {
+            const cType = c.court_type || c.courtType;
+            return (
+              String(c.court_type_id) === String(ct.id) ||
+              (cType && String(cType.parent_id) === String(ct.id)) ||
+              (cType && cType.name && cType.name.toLowerCase().includes(sportName.toLowerCase()))
+            );
+          }).length;
+
+          const matchingPrice = basePrices.find((bp) => {
+            const bpType = bp.court_type || bp.courtType;
+            return (
+              String(bp.court_type_id) === String(ct.id) ||
+              (bpType && String(bpType.parent_id) === String(ct.id)) ||
+              (bpType && bpType.name && bpType.name.toLowerCase().includes(sportName.toLowerCase()))
+            );
+          });
+
+          const priceText = matchingPrice
+            ? `${Number(matchingPrice.price).toLocaleString("vi-VN")} đ/h`
+            : (this.selectedVenue.min_price ? `từ ${Number(this.selectedVenue.min_price).toLocaleString("vi-VN")} đ/h` : "Liên hệ");
+
+          result.push({
+            id: ct.id,
+            name: sportName,
+            iconKey: sportKey,
+            courtCount: courtCount,
+            priceText: priceText,
+          });
+        }
+      });
+
+      return result;
+    },
     sportsList() {
       const defaultSports = [
-        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "activity" },
+        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "trophy" },
         { id: "pickleball", name: "Pickleball", color: "#2563eb", iconKey: "pickleball" },
         { id: "badminton", name: "Cầu lông", color: "#16a34a", iconKey: "badminton" },
         { id: "football", name: "Bóng đá", color: "#15803d", iconKey: "football" },
         { id: "basketball", name: "Bóng rổ", color: "#ea580c", iconKey: "basketball" },
         { id: "tennis", name: "Quần vợt", color: "#d97706", iconKey: "tennis" },
-        { id: "multi", name: "Đa năng", color: "#b91c1c", iconKey: "activity" },
+        { id: "volleyball", name: "Bóng chuyền", color: "#0284c7", iconKey: "volleyball" },
       ];
       if (this.courtTypes.length === 0) return defaultSports;
 
+      // Filter only main sports categories (parent_id is null/empty)
+      const mainCategories = this.courtTypes.filter((ct) => !ct.parent_id);
+      const targetList = mainCategories.length ? mainCategories : this.courtTypes;
+
       const dynamicSports = [
-        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "activity" },
-        ...this.courtTypes.map((ct) => ({
+        { id: "all", name: "Tất cả", color: "#15803d", iconKey: "trophy" },
+        ...targetList.map((ct) => ({
           id: String(ct.id),
           name: ct.name,
           color: this.getSportColor(ct.name),
@@ -480,13 +621,21 @@ export default {
 
       // Filter by sport type
       if (this.selectedSportId && this.selectedSportId !== "all") {
+        const targetSport = this.sportsList.find((s) => String(s.id) === String(this.selectedSportId));
+        const targetName = targetSport ? targetSport.name.toLowerCase() : String(this.selectedSportId).toLowerCase();
+
         result = result.filter((v) => {
           if (!v.court_types || v.court_types.length === 0) return true;
-          return v.court_types.some(
-            (ct) =>
-              String(ct.id) === String(this.selectedSportId) ||
-              ct.name?.toLowerCase().includes(this.selectedSportId.toLowerCase())
-          );
+          return v.court_types.some((ct) => {
+            const ctId = String(ct.id);
+            const ctParentId = ct.parent_id ? String(ct.parent_id) : null;
+            const ctName = (ct.name || "").toLowerCase();
+            return (
+              ctId === String(this.selectedSportId) ||
+              ctParentId === String(this.selectedSportId) ||
+              ctName.includes(targetName)
+            );
+          });
         });
       }
 
@@ -520,23 +669,76 @@ export default {
     }
   },
   methods: {
+    startSportsDrag(e) {
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      this.isDraggingSports = true;
+      this.sportsDragStartX = e.pageX - container.offsetLeft;
+      this.sportsDragScrollLeft = container.scrollLeft;
+    },
+    stopSportsDrag() {
+      this.isDraggingSports = false;
+    },
+    onSportsDrag(e) {
+      if (!this.isDraggingSports) return;
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - this.sportsDragStartX) * 1.6;
+      container.scrollLeft = this.sportsDragScrollLeft - walk;
+    },
+    onSportsWheel(e) {
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      if (e.deltaY !== 0) {
+        container.scrollLeft += e.deltaY * 0.8;
+      }
+    },
+    scrollSportsBar(direction) {
+      const container = this.$refs.sportsBar;
+      if (!container) return;
+      const scrollAmount = direction === "left" ? -220 : 220;
+      container.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    },
     initLeafletMap() {
       if (!this.$refs.mapContainer) return;
       this.map = L.map(this.$refs.mapContainer, {
         scrollWheelZoom: true,
         zoomControl: false,
+        preferCanvas: true,
+        minZoom: 3,
+        maxZoom: 19,
+        wheelDebounceTime: 60,
+        wheelPxPerZoomLevel: 100,
       }).setView([this.userLat, this.userLng], 12);
 
       L.control.zoom({ position: "topright" }).addTo(this.map);
 
-      // OpenStreetMap Tiles
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
+      // Google Maps Standard Tiles (Tải siêu tốc tại Việt Nam, chi tiết từng số nhà ngõ ngách, 100% tiếng Việt, không watermark, không lỗi DNS)
+      L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        attribution: '&copy; Google Maps',
+        subdomains: ["mt0", "mt1", "mt2", "mt3"],
+        maxZoom: 20,
+        updateWhenIdle: true,
+        updateWhenZooming: false,
+        keepBuffer: 6,
       }).addTo(this.map);
 
       this.markersGroup = L.layerGroup().addTo(this.map);
       this.userLocationLayer = L.layerGroup().addTo(this.map);
+
+      this.$nextTick(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      });
+
+      setTimeout(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      }, 250);
     },
     async loadCourtTypes() {
       try {
@@ -569,32 +771,30 @@ export default {
         const point = [venue.mapLat, venue.mapLng];
         bounds.push(point);
 
-        const sportColor = this.getSportColor(venue.court_types?.[0]?.name);
-        const sportIconSvg = this.getSportIconSvg(this.sportIconKey(venue));
-        const logoSrc = this.getVenueLogoSrc(venue);
         const isSelected = this.selectedVenue?.id === venue.id;
         const safeName = this.escapeHtml(venue.name || "Cụm sân");
 
         const pinHtml = `
-          <div class="sg-map-pinned-venue ${isSelected ? 'is-focused' : ''}" style="--pin-color: ${sportColor}">
-            <!-- Nhãn Tên Sân Nổi Phía Trên Ghim (Font chữ thường, không dùng chữ đậm) -->
+          <div class="sg-map-pinned-venue ${isSelected ? 'is-focused' : ''}">
+            <!-- Nhãn Tên Cụm Sân Nổi Phía Trên Ghim -->
             <div class="sg-pin-label-top">
               ${safeName}
             </div>
 
-            <!-- Ghim Giọt Nước SVG Liền Mạch 100% -->
+            <!-- Ghim Cụm Sân Thể Thao Đa Năng Tinh Giản (Dot Location Pin) -->
             <div class="sg-single-teardrop-wrap">
-              <svg class="sg-teardrop-svg" viewBox="0 0 44 56" fill="none">
-                <path d="M22 2 C11 2 2 11 2 22 C2 33 18 51 21.2 54.4 C21.6 54.8 22.4 54.8 22.8 54.4 C26 51 42 33 42 22 C42 11 33 2 22 2 Z"
-                      fill="var(--pin-color, #15803d)"
-                      stroke="#ffffff"
-                      stroke-width="2.5"
+              <svg class="sg-flat-pin-svg" width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Thân ghim giọt nước xanh lá thể thao -->
+                <path d="M16 2C8.3 2 2 8.3 2 16C2 25.5 14.6 39.3 15.4 40.1C15.7 40.4 16.3 40.4 16.6 40.1C17.4 39.3 30 25.5 30 16C30 8.3 23.7 2 16 2Z" 
+                      fill="#15803d" 
+                      stroke="#ffffff" 
+                      stroke-width="2.2"
                       stroke-linejoin="round"/>
+                <!-- Vòng tròn nền trắng trung tâm -->
+                <circle cx="16" cy="15.5" r="7" fill="#ffffff"/>
+                <!-- Chấm tâm màu xanh thể thao thanh lịch -->
+                <circle cx="16" cy="15.5" r="3.8" fill="#15803d"/>
               </svg>
-              <div class="sg-logo-circle-overlay">
-                ${logoSrc ? `<img src="${this.escapeHtml(logoSrc)}" class="sg-pin-venue-logo-img" alt="${safeName}" onerror="this.style.display='none';" />` : ''}
-                <span class="sg-pin-sport-icon" aria-hidden="true">${sportIconSvg}</span>
-              </div>
             </div>
           </div>
         `;
@@ -602,9 +802,9 @@ export default {
         const customIcon = L.divIcon({
           className: "sg-custom-map-pin",
           html: pinHtml,
-          iconSize: [160, 96],
-          iconAnchor: [80, 96],
-          popupAnchor: [0, -90],
+          iconSize: [160, 68],
+          iconAnchor: [80, 68],
+          popupAnchor: [0, -65],
         });
 
         const marker = L.marker(point, { icon: customIcon });
@@ -630,6 +830,11 @@ export default {
       if (fitBounds && bounds.length > 0) {
         this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
       }
+      this.$nextTick(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      });
     },
     getVenueLogoSrc(venue) {
       if (!venue) return "";
@@ -640,19 +845,55 @@ export default {
 
       return "";
     },
-    selectVenue(venue) {
+    async selectVenue(venue) {
       this.selectedVenue = venue;
       this.activeImage = "";
       if (this.map && venue.mapLat && venue.mapLng) {
         this.map.setView([venue.mapLat, venue.mapLng], 15, { animate: true });
+      }
+
+      try {
+        const res = await api.get(`/public/venues/${venue.id}`);
+        if (res.data?.data && this.selectedVenue?.id === venue.id) {
+          this.selectedVenue = { ...this.selectedVenue, ...res.data.data };
+        }
+      } catch (err) {
+        // Giữ dữ liệu tóm tắt ban đầu
       }
     },
     filterBySport(sportId) {
       this.selectedSportId = sportId;
       this.renderMapMarkers();
     },
-    onSearchInput() {
+    selectSportFromDrawer(sportId) {
+      this.selectedSportId = sportId;
       this.renderMapMarkers();
+      this.showSportsDrawer = false;
+    },
+    getVenueCountForSport(sportId) {
+      if (sportId === "all") return this.venues.length;
+      const targetSport = this.sportsList.find((s) => String(s.id) === String(sportId));
+      const targetName = targetSport ? targetSport.name.toLowerCase() : String(sportId).toLowerCase();
+
+      return this.venues.filter((v) => {
+        if (!v.court_types || v.court_types.length === 0) return false;
+        return v.court_types.some((ct) => {
+          const ctId = String(ct.id);
+          const ctParentId = ct.parent_id ? String(ct.parent_id) : null;
+          const ctName = (ct.name || "").toLowerCase();
+          return (
+            ctId === String(sportId) ||
+            ctParentId === String(sportId) ||
+            ctName.includes(targetName)
+          );
+        });
+      }).length;
+    },
+    onSearchInput() {
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.renderMapMarkers();
+      }, 200);
     },
     clearSearch() {
       this.searchQuery = "";
@@ -688,30 +929,69 @@ export default {
       this.$router.push({ name: "venues" });
     },
     iconKeyFromName(sportName) {
-      const name = String(sportName || "").toLowerCase();
-      if (name.includes("cầu lông") || name.includes("badminton")) return "badminton";
-      if (name.includes("pickleball")) return "pickleball";
-      if (name.includes("bóng đá") || name.includes("football")) return "football";
-      if (name.includes("bóng rổ") || name.includes("basketball")) return "basketball";
-      if (name.includes("tennis") || name.includes("quần vợt")) return "tennis";
-      if (name.includes("bóng chuyền") || name.includes("volleyball")) return "volleyball";
-      return "activity";
+      return sportIconKeyFromName(sportName);
     },
     sportIconKey(venue) {
       const type = venue?.court_types?.find(Boolean);
-      return type?.icon_key || this.iconKeyFromName(type?.name);
+      const explicitIcon = type?.icon_key;
+      if (explicitIcon && explicitIcon !== "activity") return explicitIcon;
+      return this.iconKeyFromName(type?.name || type?.parent?.name);
+    },
+    getSportIconPaths(iconKey) {
+      const paths = {
+        // Cầu lông: Vận động viên nhảy vung vợt đập cầu trên không
+        badminton: `
+          <circle cx="8" cy="4" r="2.2" fill="currentColor"/>
+          <path d="M7.5 7.2c-.8 0-1.5.6-1.5 1.4v3.5l-2.4 2.2 1.4 1.4 2-1.8v4.2l-2.2 4.2 1.8.8 2.5-4.8 2.2 4.8 1.8-.8-2.2-4.5V11l2.4-1.8 1.8 2 1.4-1.2-2.4-3c-.4-.5-1-.8-1.6-.8H9.5z" fill="currentColor"/>
+          <path d="M12.5 9.2l3-3.6 1.2 1-2 3.2z" fill="currentColor"/>
+          <ellipse cx="17" cy="4" rx="2.4" ry="3.4" transform="rotate(35 17 4)" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="20" cy="2" r="1" fill="currentColor"/>
+        `,
+        // Pickleball: Vận động viên hạ trọng tâm vung vợt Paddle phẳng & bóng có lỗ
+        pickleball: `
+          <circle cx="7.5" cy="4.5" r="2.2" fill="currentColor"/>
+          <path d="M7 7.5c-.8 0-1.5.6-1.5 1.5v3.8l-2.2 2 1.4 1.4 2.2-2V16l-2.4 4.2 1.8 1 2.6-4.6 2.4 4.6 1.8-1-2.4-4.8V11.2l2.6 1.5v-1.4z" fill="currentColor"/>
+          <path d="M10.5 11.2l3 1.2v-1l2-.8c.6-.3 1.2.2 1.2.9v3.2c0 .7-.6 1.2-1.2.9l-2-.8v-1l-3 1.2z" fill="currentColor"/>
+          <circle cx="19" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="19" cy="11" r="0.6" fill="currentColor"/>
+        `,
+        // Bóng đá: Cầu thủ nghiêng người vung chân sút bóng
+        football: `
+          <circle cx="6.5" cy="4.5" r="2.2" fill="currentColor"/>
+          <path d="M6 7.5c-.8 0-1.5.6-1.5 1.4l-.5 4.2 1.8.3.5-3 2 1.8-2.5 5 1.8.9 2.8-5.5 1.2-1.4 3 2.5 3 2.5 1.3-1.4-3.5-3-2.5-2.2V9.2c0-.8-.7-1.5-1.5-1.5H6z" fill="currentColor"/>
+          <circle cx="18" cy="18" r="3" fill="currentColor"/>
+        `,
+        // Bóng rổ: Cầu thủ bật cao ném bóng vào rổ
+        basketball: `
+          <circle cx="7.5" cy="5.5" r="2.2" fill="currentColor"/>
+          <path d="M7 8.5c-.8 0-1.5.7-1.5 1.5v3.2l-2 3 1.7 1 1.8-2.7v5.5l-1.8 3.8 1.8.8 2.2-4.5 2 4.5 1.8-.8-2-5.5V11.5l3-3 2-3.8-1.8-.9-1.8 3.2-2.4 1.5V10c0-.8-.7-1.5-1.5-1.5H7z" fill="currentColor"/>
+          <circle cx="17" cy="3" r="2.8" fill="currentColor"/>
+        `,
+        // Quần vợt (Tennis): Vận động viên vung vợt forehand mạnh mẽ
+        tennis: `
+          <circle cx="7.5" cy="5.5" r="2.2" fill="currentColor"/>
+          <path d="M7 8.5c-.8 0-1.5.7-1.5 1.5v3.8l-2.4 2 1.3 1.5 2.5-2V16.5l-2.2 4 1.8.9 2.6-4.5 2.4 4.5 1.8-.9-2.2-4.8V11.5l2.6 1.8 1.8-1.5-2.4-2.5V10c0-.8-.7-1.5-1.5-1.5H7z" fill="currentColor"/>
+          <path d="M12 10.5l3-2.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <ellipse cx="17.5" cy="6" rx="2.8" ry="3.8" transform="rotate(30 17.5 6)" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="11.5" cy="3" r="1.4" fill="currentColor"/>
+        `,
+        // Bóng chuyền: Vận động viên bay trên không đập bóng
+        volleyball: `
+          <circle cx="7.5" cy="5.5" r="2.2" fill="currentColor"/>
+          <path d="M7 8.5c-.8 0-1.5.7-1.5 1.5v3l-2.2 2 1.3 1.4 2.4-2.2V15.5l-2 4 1.8.8 2.4-4.5 2.4 4.5 1.8-.8-2.2-4.5V10.5l3.2-2.8 2-3.8-1.8-.9-1.8 3.2-2.6 2V10c0-.8-.7-1.5-1.5-1.5H7z" fill="currentColor"/>
+          <circle cx="17" cy="3.5" r="2.8" fill="currentColor"/>
+        `,
+        // Chạy bộ / Khác: Vận động viên chạy bứt tốc
+        activity: `
+          <circle cx="13.5" cy="3.5" r="2.2" fill="currentColor"/>
+          <path d="M13 6.5c-.7 0-1.3.4-1.6 1l-2.2 4-2.5-1.8-1.2 1.6 3.6 2.6c.4.3.9.4 1.4.2l2-1v3.2l-3.8 4.2 1.5 1.4 4.2-4.6c.4-.4.6-.9.6-1.5V12.5l1.8 1.8 2.5 4.5 1.8-1-2.4-4.5-2.2-2.5 1.5-2.8 2.4 1.5 1-1.8-3.2-2c-.4-.3-.9-.5-1.4-.5H13z" fill="currentColor"/>
+        `,
+      };
+      return paths[iconKey] || paths.activity;
     },
     getSportIconSvg(iconKey) {
-      const icons = {
-        activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-        badminton: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="3"/><path d="M15 9 5 19M8 22l9-9M3 20l2 2M9 6l4 4"/></svg>',
-        pickleball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="6"/><path d="M9 9c0-3 2-5 5-6M13 3l2-1M8 14h.01M12 12h.01M16 15h.01M12 17h.01"/></svg>',
-        football: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 3 2 4 1 2 4-2 4 1 4-4 3-4-1-4 1-4-3 1-4-2-4 2-4 4-1 3-2z"/><path d="m12 8 2 2-1 3h-2l-1-3 2-2zM12 3v5M7 6l4 4M17 6l-4 4M4 10l6 3M20 10l-6 3M8 20l3-7M16 20l-3-7"/></svg>',
-        basketball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c4.7 2 8.8 6.1 10.8 10.8M18.4 5.6c-4.7 2-8.8 6.1-10.8 10.8M3 12h18M12 3v18"/></svg>',
-        tennis: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5c2.7 1 4.1 3.1 4.1 6.5s-1.4 5.5-4.1 6.5M18.5 5.5c-2.7 1-4.1 3.1-4.1 6.5s1.4 5.5 4.1 6.5"/></svg>',
-        volleyball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M4.5 8.5c3.5-.4 6.4.9 8.6 3.8s2.6 5.9 1.2 8.2M7 4.2c2.1 2 3.1 4.8 2.8 8.2S8 18.4 5.8 20M15.7 3.8c-1.8 2.6-2.2 5.6-1 8.8s3.8 5 7.1 5.4"/></svg>',
-      };
-      return icons[iconKey] || icons.activity;
+      const paths = this.getSportIconPaths(iconKey);
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
     },
     escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -730,10 +1010,53 @@ export default {
       if (name.includes("bóng đá")) return "#15803d";
       if (name.includes("bóng rổ")) return "#ea580c";
       if (name.includes("tennis") || name.includes("quần vợt")) return "#d97706";
+      if (name.includes("bóng chuyền") || name.includes("volleyball")) return "#7c3aed";
       return "#b91c1c";
     },
     priceLabel(venue) {
-      if (!venue || !venue.min_price) return "Liên hệ";
+      if (!venue) return "Liên hệ";
+
+      // Nếu đang lọc một môn cụ thể (khác 'all')
+      if (this.selectedSportId && this.selectedSportId !== "all") {
+        const targetSport = this.sportsList.find((s) => String(s.id) === String(this.selectedSportId));
+        const targetName = targetSport ? targetSport.name.toLowerCase() : String(this.selectedSportId).toLowerCase();
+
+        // 1. Kiểm tra từ danh mục venueSportsList đã tính toán chi tiết
+        if (this.selectedVenue?.id === venue.id && this.venueSportsList?.length) {
+          const matched = this.venueSportsList.find((sp) => {
+            const spName = sp.name.toLowerCase();
+            return (
+              String(sp.id) === String(this.selectedSportId) ||
+              spName.includes(targetName) ||
+              targetName.includes(spName)
+            );
+          });
+          if (matched && matched.priceText && matched.priceText !== "Liên hệ") {
+            return matched.priceText;
+          }
+        }
+
+        // 2. Kiểm tra từ base_prices nếu có trong venue
+        if (venue.base_prices && venue.base_prices.length) {
+          const matchedBp = venue.base_prices.find((bp) => {
+            const bpType = bp.court_type || bp.courtType;
+            const bpName = (bpType?.name || "").toLowerCase();
+            return (
+              String(bp.court_type_id) === String(this.selectedSportId) ||
+              (bpType?.parent_id && String(bpType.parent_id) === String(this.selectedSportId)) ||
+              bpName.includes(targetName) ||
+              targetName.includes(bpName)
+            );
+          });
+          if (matchedBp && matchedBp.price) {
+            const formatted = new Intl.NumberFormat("vi-VN").format(matchedBp.price);
+            return `${formatted} đ/h`;
+          }
+        }
+      }
+
+      // Mặc định hoặc chế độ 'all': trả về giá sàn thấp nhất của cụm sân
+      if (!venue.min_price) return "Liên hệ";
       const formatted = new Intl.NumberFormat("vi-VN").format(venue.min_price);
       return `${formatted} đ/h`;
     },
@@ -893,57 +1216,32 @@ export default {
 }
 
 .sg-map-sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 8px;
+  display: block;
+  padding: 12px 14px;
   border-bottom: 1px solid #f1f5f9;
   background: #ffffff;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 
+.sg-map-sidebar-item:hover {
+  background: #f8fafc;
+}
+
 .sg-map-sidebar-item.is-selected,
 .sg-map-sidebar-item:focus,
 .sg-map-sidebar-item:focus-visible {
-  background: #f8fafc;
+  background: #f1f5f9;
   outline: none ;
   box-shadow: none ;
 }
 
-.sg-sidebar-logo-badge {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.sg-sidebar-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.sg-sidebar-court-svg {
-  width: 17px;
-  height: 17px;
-}
-
 .sg-sidebar-item-info {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
 .sg-sidebar-item-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
   font-size: 14px;
   font-weight: 500;
   color: #0f172a;
@@ -951,16 +1249,6 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.sg-sidebar-sport-icon {
-  width: 24px;
-  height: 24px;
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border-radius: 7px;
-  background: #edf7f0;
 }
 
 .sg-sidebar-item-sub {
@@ -1004,74 +1292,38 @@ export default {
   height: 100%;
 }
 
-/* TOP SPORTS CHIPS BAR */
-.sg-map-sports-bar {
+/* FLOATING TOP-RIGHT QUICK SPORT FILTER PILL */
+.sg-map-top-quick-filter {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 14px;
+  right: 14px;
   z-index: 500;
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
 }
 
-.sg-map-sports-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.sg-map-sport-chip {
+.sg-sports-pill-trigger {
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 9999px;
-  padding: 5px 16px 5px 6px;
+  padding: 6px 14px 6px 9px;
   font-size: 13.5px;
-  font-weight: 500;
-  color: #334155;
+  font-weight: 600;
+  color: #0f172a;
   cursor: pointer;
-  white-space: nowrap;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  transition: border-color 0.15s ease;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  transition: all 0.15s ease;
 }
 
-.sg-map-sport-chip:focus,
-.sg-map-sport-chip:focus-visible {
-  outline: none ;
+.sg-sports-pill-trigger:hover {
   border-color: #15803d;
-}
-
-.sg-map-sport-chip.is-active {
-  border-color: #15803d;
-  background: #ffffff;
   color: #15803d;
-  font-weight: 500;
-  box-shadow: 0 2px 10px rgba(21, 128, 61, 0.15);
+  box-shadow: 0 6px 18px rgba(21, 128, 61, 0.15);
 }
 
-.sg-map-sport-chip > svg {
-  flex: 0 0 auto;
-}
-
-.sg-chip-pin-badge {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-}
-
-.sg-chip-svg {
-  width: 15px;
-  height: 15px;
+.sg-sports-pill-text {
+  white-space: nowrap;
 }
 
 /* FLOATING CONTROLS (Circle FABs bottom right) */
@@ -1518,9 +1770,80 @@ export default {
   font-weight: 400;
 }
 
-.sg-rule-item svg {
+.sg-rules-item svg {
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+/* DANH MỤC BỘ MÔN VÀ BẢNG GIÁ TRONG TAB DỊCH VỤ */
+.sg-sports-pricing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sg-sport-pricing-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.sg-sport-pricing-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.sg-sport-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sg-sport-card-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.sg-sport-card-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.sg-sport-card-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 1px;
+}
+
+.sg-sport-card-sub {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.sg-sport-price-tag {
+  text-align: right;
+}
+
+.sg-sport-price-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  white-space: nowrap;
 }
 
 .sg-services-simple-list {
@@ -1833,12 +2156,217 @@ export default {
     transform: translateY(calc(100% - 50px));
   }
 }
+
+/* RIGHT ISOMETRIC SPORTS DRAWER */
+.sg-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+  animation: sgFadeIn 0.2s ease-out;
+}
+
+@keyframes sgFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sg-sports-right-drawer {
+  width: 100%;
+  max-width: 380px;
+  height: 100%;
+  background: #ffffff;
+  box-shadow: -10px 0 30px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: sgSlideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sgSlideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.sg-drawer-header {
+  padding: 20px 20px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sg-drawer-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.sg-drawer-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  font-weight: 400;
+}
+
+.sg-drawer-close-btn {
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sg-drawer-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.sg-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.sg-isometric-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.sg-isometric-sport-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
+}
+
+.sg-isometric-sport-card:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  transform: none;
+  box-shadow: none;
+}
+
+.sg-isometric-sport-card.is-selected {
+  border: 1.5px solid #16a34a;
+  background: #f0fdf4;
+  box-shadow: none;
+}
+
+.sg-card-isometric-icon-box {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.sg-card-sport-info {
+  width: 100%;
+}
+
+.sg-card-sport-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sg-isometric-sport-card.is-selected .sg-card-sport-name {
+  color: #15803d;
+}
+
+.sg-card-venue-count {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.sg-card-active-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sg-drawer-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.sg-drawer-reset-btn {
+  width: 100%;
+  padding: 11px 16px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sg-drawer-reset-btn:hover {
+  border-color: #15803d;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.is-open-3d-btn {
+  border-color: #15803d !important;
+  background: #f0fdf4 !important;
+}
+
+.sg-open-3d-text {
+  color: #15803d !important;
+  font-weight: 600 !important;
+}
+
+.sg-map-fab-circle.is-sports-fab {
+  background: #ffffff;
+  border-color: #15803d;
+  color: #15803d;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.2);
+}
 </style>
 
 <style>
 .sg-custom-map-pin {
-  background: transparent ;
-  border: none ;
+  background: transparent !important;
+  border: none !important;
+  will-change: transform;
+  contain: layout style;
 }
 
 .sg-map-pinned-venue {
@@ -1848,109 +2376,46 @@ export default {
   justify-content: flex-end;
   cursor: pointer;
   pointer-events: auto;
+  contain: layout style;
 }
 
-/* Floating Theme-Color Text Label Above Pin (Font chữ thường, KHÔNG dùng font đậm) */
+/* Floating Theme-Color Text Label Above Pin (Thiết kế phẳng, viền mỏng, không bóng đổ) */
 .sg-pin-label-top {
-  font-size: 12.5px;
-  font-weight: 400;
-  color: var(--pin-color, #15803d);
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e293b;
   text-align: center;
   line-height: 1.25;
   max-width: 160px;
   margin-bottom: 4px;
   white-space: normal;
   word-break: break-word;
-  background: rgba(255, 255, 255, 0.94);
-  padding: 2px 7px;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  text-shadow:
-    -1px -1px 0 #ffffff,
-     1px -1px 0 #ffffff,
-    -1px  1px 0 #ffffff,
-     1px  1px 0 #ffffff;
-  transition: color 0.18s ease;
+  background: #ffffff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  pointer-events: none;
 }
 
-/* Single Seamless Organic SVG Teardrop Pin (Zero separate triangles/circles) */
+/* Single Seamless Organic SVG Teardrop Pin (Phẳng hoàn toàn 1 lớp nguyên khối) */
 .sg-single-teardrop-wrap {
-  position: relative;
-  width: 44px;
-  height: 56px;
+  width: 32px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.28));
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform: translateZ(0);
+}
+
+.sg-flat-pin-svg {
+  width: 32px;
+  height: 42px;
+  display: block;
 }
 
 .sg-map-pinned-venue.is-focused .sg-single-teardrop-wrap,
 .sg-map-pinned-venue:focus .sg-single-teardrop-wrap {
-  transform: scale(1.22) translateY(-4px);
-}
-
-.sg-teardrop-svg {
-  width: 44px;
-  height: 56px;
-  display: block;
-}
-
-.sg-logo-circle-overlay {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: visible;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-.sg-pin-sport-icon {
-  position: absolute;
-  right: -4px;
-  bottom: -2px;
-  width: 17px;
-  height: 17px;
-  display: inline-grid;
-  place-items: center;
-  color: var(--pin-color, #15803d);
-  background: #ffffff;
-  border: 1px solid var(--pin-color, #15803d);
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
-  z-index: 2;
-}
-
-.sg-pin-sport-icon svg {
-  width: 11px;
-  height: 11px;
-}
-
-.sg-pin-venue-logo-img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.sg-pin-fallback-badge {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-}
-
-.sg-pin-fallback-badge svg {
-  width: 20px;
-  height: 20px;
+  opacity: 0.95;
 }
 
 .sg-map-popup-card {

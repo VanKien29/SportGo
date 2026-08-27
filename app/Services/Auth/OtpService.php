@@ -18,6 +18,8 @@ class OtpService
 
     public function create(User $user, string $identifier, string $type, string $otp, int $minutes = self::EXPIRE_MINUTES): VerificationCode
     {
+        $identifier = $this->normalizeIdentifier($identifier);
+
         VerificationCode::query()
             ->where('identifier', $identifier)
             ->where('type', $type)
@@ -38,8 +40,15 @@ class OtpService
         ]);
     }
 
-    public function verify(string $identifier, string $type, string $otp, bool $markUsed = false): VerificationCode
+    public function verify(
+        string $identifier,
+        string $type,
+        string $otp,
+        bool $markUsed = false,
+        ?int $expectedUserId = null,
+    ): VerificationCode
     {
+        $identifier = $this->normalizeIdentifier($identifier);
         $code = VerificationCode::query()
             ->where('identifier', $identifier)
             ->where('type', $type)
@@ -63,15 +72,42 @@ class OtpService
             throw ValidationException::withMessages(['otp' => 'Mã OTP đã vượt quá số lần thử.']);
         }
 
+        if ($expectedUserId !== null && (int) $code->user_id !== $expectedUserId) {
+            throw ValidationException::withMessages(['otp' => 'Mã OTP không thuộc yêu cầu của tài khoản này.']);
+        }
+
         if (! Hash::check($otp, $code->code)) {
-            $code->increment('attempt_count');
+            VerificationCode::query()
+                ->whereKey($code->id)
+                ->where('is_used', false)
+                ->whereColumn('attempt_count', '<', 'max_attempts')
+                ->increment('attempt_count');
+
             throw ValidationException::withMessages(['otp' => 'Mã OTP không đúng.']);
         }
 
         if ($markUsed) {
-            $code->forceFill(['is_used' => true])->save();
+            $consumed = VerificationCode::query()
+                ->whereKey($code->id)
+                ->where('is_used', false)
+                ->update(['is_used' => true]);
+
+            if ($consumed !== 1) {
+                throw ValidationException::withMessages(['otp' => 'Mã OTP đã được sử dụng.']);
+            }
+
+            $code->is_used = true;
         }
 
         return $code;
+    }
+
+    private function normalizeIdentifier(string $identifier): string
+    {
+        $identifier = trim($identifier);
+
+        return filter_var($identifier, FILTER_VALIDATE_EMAIL)
+            ? strtolower($identifier)
+            : $identifier;
     }
 }

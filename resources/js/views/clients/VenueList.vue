@@ -3,35 +3,7 @@
     <PublicNavbar />
 
     <main class="sg-venue-main">
-      <!-- ───── HERO SECTION ───── -->
-      <section class="sg-venue-hero">
-        <div class="sg-container-wide">
-          <div class="sg-venue-hero-grid">
-            <div class="sg-venue-hero-copy">
-              <h1 class="sg-venue-hero__title">Tìm Sân Thể Thao</h1>
-              <p class="sg-venue-hero__sub">Chọn sân, chọn giờ, đặt lịch — nhanh chóng và tiện lợi.</p>
-              <div class="sg-venue-search-wrap">
-                <PillSearchBar />
-              </div>
-              <div class="sg-venue-hero__links">
-                <router-link to="/bookings" class="sg-venue-hero__link">Lịch đã đặt của tôi</router-link>
-                <span class="sg-venue-hero__link-sep">/</span>
-                <router-link to="/favorites" class="sg-venue-hero__link">Sân yêu thích</router-link>
-                <span class="sg-venue-hero__link-sep">/</span>
-                <router-link to="/venues/map" class="sg-venue-hero__link">Xem bản đồ</router-link>
-              </div>
-            </div>
 
-            <div class="sg-venue-hero-media" aria-label="Không gian sân thể thao SportGo">
-              <img :src="'/images/home/sportgo-home-hero-v2.webp'" alt="Không gian sân thể thao SportGo" />
-              <div class="sg-venue-hero-media__caption">
-                <strong>Sân thể thao quanh bạn</strong>
-                <span>Khám phá lịch trống và đặt chỗ nhanh</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ───── SEARCH & FILTER CONTENT AREA ───── -->
       <section class="sg-venue-body">
@@ -103,6 +75,15 @@
             <div class="sg-content-toolbar">
               <span class="sg-result-count">Hiển thị {{ venues.length }} kết quả</span>
               <div class="sg-toolbar-actions">
+                <router-link to="/venues/map" class="sg-toolbar-map-btn" title="Xem bản đồ trực quan">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                    <line x1="8" y1="2" x2="8" y2="18"/>
+                    <line x1="16" y1="6" x2="16" y2="22"/>
+                  </svg>
+                  <span>Bản đồ</span>
+                </router-link>
+
                 <button
                   type="button"
                   class="sg-nearby-btn"
@@ -187,6 +168,7 @@
           </div>
         </div>
       </section>
+
     </main>
 
   </div>
@@ -194,7 +176,6 @@
 
 <script>
 import PublicNavbar from "../../components/PublicNavbar.vue";
-import PillSearchBar from "../../components/PillSearchBar.vue";
 import ClientCombobox from "../../components/ClientCombobox.vue";
 import ClientDatePicker from "../../components/ClientDatePicker.vue";
 import ClientTimeSlots from "../../components/ClientTimeSlots.vue";
@@ -215,7 +196,6 @@ export default {
   name: "VenueList",
   components: {
     PublicNavbar,
-    PillSearchBar,
     ClientCombobox,
     ClientDatePicker,
     ClientTimeSlots,
@@ -735,7 +715,7 @@ export default {
   justify-content: center;
   gap: 7px;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 16px;
   border: 1px solid #cbd5e1;
   border-radius: 9px;
   background: #ffffff;
@@ -743,6 +723,7 @@ export default {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  box-sizing: border-box;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
 }
@@ -858,4 +839,30 @@ export default {
     min-width: 0;
   }
 }
+
+.sg-toolbar-map-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.sg-toolbar-map-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
 </style>

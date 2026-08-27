@@ -30,15 +30,25 @@ class SepayPaymentController extends Controller
             ], 403);
         }
 
-        if ($booking->status !== 'pending_payment') {
+        if ($booking->status !== 'pending_payment' && ! ($booking->status === 'pending_approval' && $booking->payment_option === 'deposit')) {
             return response()->json([
-                'message' => 'Đơn đặt sân này không ở trạng thái chờ thanh toán.',
+                'message' => 'Đơn đặt sân này không còn ở trạng thái có thể thanh toán cọc.',
             ], 422);
         }
 
         if ((float) $booking->required_payment_amount <= 0) {
             return response()->json([
                 'message' => 'Đây là đơn đặt sân thanh toán trực tiếp tại sân.',
+            ], 422);
+        }
+
+        $paidAmount = (float) $booking->payments()
+            ->where('status', 'paid')
+            ->sum('amount');
+        if ($booking->payment_option === 'deposit'
+            && $paidAmount + 0.01 >= (float) $booking->required_payment_amount) {
+            return response()->json([
+                'message' => 'Khoản cọc đã được ghi nhận. Vui lòng chờ chủ sân duyệt booking.',
             ], 422);
         }
 

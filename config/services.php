@@ -45,6 +45,10 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+    ],
+
     'sepay' => [
         'webhook_api_key' => env('SEPAY_WEBHOOK_API_KEY'),
         'api_token' => env('SEPAY_API_TOKEN'),

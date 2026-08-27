@@ -32,6 +32,7 @@ class Booking extends Model
         'vip_voucher_id',
         'vip_voucher_code_snapshot',
         'payment_option',
+        'effective_payment_option',
         'required_payment_amount',
         'source',
         'booking_type',
@@ -43,6 +44,12 @@ class Booking extends Model
         'recurrence_days_of_week',
         'recurrence_days_of_month',
         'status',
+        'approval_deadline_at',
+        'owner_approved_at',
+        'owner_approved_by',
+        'payment_deadline_at',
+        'payment_fallback_at',
+        'payment_fallback_reason',
         'walk_in_name',
         'walk_in_phone',
         'status_reason',
@@ -72,6 +79,10 @@ class Booking extends Model
             'venue_discount_amount' => 'decimal:2',
             'final_amount' => 'decimal:2',
             'required_payment_amount' => 'decimal:2',
+            'approval_deadline_at' => 'datetime',
+            'owner_approved_at' => 'datetime',
+            'payment_deadline_at' => 'datetime',
+            'payment_fallback_at' => 'datetime',
             'membership_tier_discount_amount' => 'decimal:2',
             'cashback_amount' => 'decimal:2',
             'recurring_start_date' => 'date',
@@ -88,6 +99,11 @@ class Booking extends Model
     public function cancelledBy()
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function ownerApprovedBy()
+    {
+        return $this->belongsTo(User::class, 'owner_approved_by');
     }
 
     public function createdBy()

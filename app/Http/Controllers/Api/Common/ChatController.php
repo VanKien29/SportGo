@@ -36,7 +36,12 @@ class ChatController extends Controller
         ])
         ->get();
 
-        $formatted = $conversations->map(function ($conversation) use ($userId) {
+        $matchmakingPostIds = $conversations->where('type', 'player_post')->pluck('reference_id')->filter()->unique();
+        $playerPosts = ! $matchmakingPostIds->isEmpty()
+            ? PlayerPost::with('booking')->whereIn('id', $matchmakingPostIds)->get()->keyBy('id')
+            : collect();
+
+        $formatted = $conversations->map(function ($conversation) use ($userId, $playerPosts) {
             $isMatchmakingGroup = $conversation->type === 'player_post';
             // Find the other participant in direct/venue chats
             $otherParticipant = $conversation->participants->first(function ($p) use ($userId) {
@@ -89,9 +94,31 @@ class ChatController extends Controller
                 $title = $conversation->title ?: ($otherUser ? $otherUser->full_name : 'Người dùng');
                 $avatarUrl = $conversation->avatar_url ?: ($otherUser ? $otherUser->avatar_url : null);
             }
+            $matchmakingStatus = null;
+            $bookingInfo = null;
             if ($isMatchmakingGroup) {
                 // A matchmaking group exposes display names and avatars only.
                 $otherUser = null;
+                $post = $playerPosts->get($conversation->reference_id);
+                $booking = $post?->booking;
+                $isEnded = $booking ? $this->bookingEnded($booking) : false;
+                $isHidden = $myParticipant && $myParticipant->cleared_history_at !== null;
+
+                if ($isHidden) {
+                    $matchmakingStatus = 'hidden';
+                } elseif ($isEnded || in_array($post?->status, ['closed', 'cancelled'], true) || in_array($booking?->status, ['cancelled', 'completed'], true)) {
+                    $matchmakingStatus = 'ended';
+                } else {
+                    $matchmakingStatus = 'active';
+                }
+
+                if ($booking) {
+                    $bookingInfo = [
+                        'date' => $booking->booking_date?->format('Y-m-d'),
+                        'time' => substr((string) $booking->start_time, 0, 5) . ' - ' . substr((string) $booking->end_time, 0, 5),
+                        'status' => $booking->status,
+                    ];
+                }
             }
 
             // Calculate unread messages & last message considering cleared_history_at
@@ -135,6 +162,22 @@ class ChatController extends Controller
                     'email' => $otherUser->email,
                     'phone' => $otherUser->phone,
                 ] : null,
+                'participants' => $conversation->participants->map(function ($p) {
+                    return [
+                        'id' => $p->id,
+                        'user_id' => $p->user_id,
+                        'joined_at' => $p->joined_at ? $p->joined_at->toIso8601String() : null,
+                        'left_at' => $p->left_at ? $p->left_at->toIso8601String() : null,
+                        'user' => $p->user ? [
+                            'id' => $p->user->id,
+                            'full_name' => $p->user->full_name,
+                            'username' => $p->user->username,
+                            'avatar_url' => $p->user->avatar_url,
+                            'email' => $p->user->email,
+                            'phone' => $p->user->phone,
+                        ] : null,
+                    ];
+                })->values(),
                 'last_message' => $lastMessage ? [
                     'content' => $lastMessage->content,
                     'created_at' => $lastMessage->created_at,
@@ -146,6 +189,9 @@ class ChatController extends Controller
                 'is_active' => $myParticipant?->left_at === null,
                 'joined_at' => $myParticipant?->joined_at?->toIso8601String(),
                 'left_at' => $myParticipant?->left_at?->toIso8601String(),
+                'matchmaking_status' => $matchmakingStatus,
+                'is_hidden' => (bool) ($myParticipant && $myParticipant->cleared_history_at !== null),
+                'booking_info' => $bookingInfo,
             ];
         });
 
@@ -166,12 +212,20 @@ class ChatController extends Controller
             ->first();
 
         if (!$participant) {
-            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+            if ((int) $conversation->created_by === (int) $userId) {
+                $participant = ConversationParticipant::create([
+                    'conversation_id' => $conversationId,
+                    'user_id' => $userId,
+                    'joined_at' => now(),
+                ]);
+            } else {
+                return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+            }
         }
 
         $query = Message::where('conversation_id', $conversationId);
         if ($participant->cleared_history_at) {
-            $query->where('created_at', '>', $participant->cleared_history_at);
+            $query->where('created_at', '>=', $participant->cleared_history_at);
         }
 
         $messages = $query->with('sender:id,full_name,username,avatar_url,email,phone')
@@ -191,7 +245,7 @@ class ChatController extends Controller
 
         return response()->json([
             'messages' => $messagePayloads,
-            'participants' => $participants->map(function ($p) {
+            'participants' => $participants->map(function ($p) use ($conversation) {
                 return [
                     'user_id' => $p->user_id,
                     'last_read_at' => $p->last_read_at ? $p->last_read_at->toIso8601String() : null,
@@ -224,7 +278,15 @@ class ChatController extends Controller
             ->exists();
 
         if (!$isParticipant) {
-            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+            $conv = Conversation::find($conversationId);
+            if ($conv && (int)$conv->created_by === (int)$userId) {
+                ConversationParticipant::updateOrCreate(
+                    ['conversation_id' => $conversationId, 'user_id' => $userId],
+                    ['left_at' => null, 'joined_at' => now()]
+                );
+            } else {
+                return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+            }
         }
 
         $rules = [
@@ -272,15 +334,7 @@ class ChatController extends Controller
 
                 $image->save(storage_path('app/public/' . $imagePath), 80);
             } catch (\Throwable $exception) {
-                if ($imagePath) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($imagePath);
-                }
-
-                report($exception);
-
-                return response()->json([
-                    'message' => 'Không thể xử lý ảnh này. Vui lòng chọn ảnh JPG, PNG, GIF hoặc WebP khác.',
-                ], 422);
+                return response()->json(['message' => 'Tệp hình ảnh không hợp lệ hoặc bị lỗi mã hóa.'], 422);
             }
         }
 
@@ -308,6 +362,7 @@ class ChatController extends Controller
                 ->where('user_id', $userId)
                 ->update([
                     'last_read_at' => $now,
+                    'cleared_history_at' => null,
                 ]);
 
             return $msg;
@@ -1435,27 +1490,26 @@ class ChatController extends Controller
             return response()->json(['message' => 'Chỉ người tạo bài mới được giải tán nhóm.'], 403);
         }
         $post = PlayerPost::with('booking')->find($conversation->reference_id);
-        if (! $post || ! $post->booking || ! $this->bookingEnded($post->booking) || $post->booking->status !== 'completed') {
-            return response()->json(['message' => 'Chỉ được giải tán nhóm sau khi booking đã kết thúc và hoàn thành.'], 409);
+        if ($post) {
+            if (in_array($post->status, ['open', 'full'], true)) {
+                $post->forceFill([
+                    'status' => 'closed',
+                    'status_reason' => 'matchmaking_group_dissolved',
+                ])->save();
+            }
+            DB::table('player_post_participants')
+                ->where('post_id', $post->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'expired',
+                    'responded_at' => now(),
+                    'left_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            app(MatchmakingChatService::class)->dissolve($post);
         }
 
-        if (in_array($post->status, ['open', 'full'], true)) {
-            $post->forceFill([
-                'status' => 'closed',
-                'status_reason' => 'matchmaking_session_ended',
-            ])->save();
-        }
-        DB::table('player_post_participants')
-            ->where('post_id', $post->id)
-            ->where('status', 'pending')
-            ->update([
-                'status' => 'cancelled',
-                'responded_at' => now(),
-                'left_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-        app(MatchmakingChatService::class)->dissolve($post);
         return response()->json(['status' => 'success', 'message' => 'Đã giải tán nhóm giao lưu.']);
     }
 
@@ -1466,9 +1520,18 @@ class ChatController extends Controller
 
         $conversation = Conversation::query()->findOrFail($id);
         if ($conversation->type === 'player_post') {
-            return $deleteForEveryone
-                ? $this->dissolveConversation($request, $id)
-                : $this->leaveConversation($request, $id);
+            if ($deleteForEveryone) {
+                return $this->dissolveConversation($request, $id);
+            }
+            // BR-18: "Xóa" nhóm giao lưu cho cá nhân = xóa ẩn (cleared_history_at), không rời nhóm
+            $participant = ConversationParticipant::where('conversation_id', $id)
+                ->where('user_id', $userId)
+                ->first();
+            if (! $participant) {
+                return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+            }
+            $participant->forceFill(['cleared_history_at' => now()])->save();
+            return response()->json(['success' => true, 'message' => 'Đã ẩn cuộc trò chuyện.']);
         }
 
         $participant = ConversationParticipant::where('conversation_id', $id)
@@ -1565,6 +1628,24 @@ class ChatController extends Controller
     }
 
     /**
+     * Unhide a conversation (reset cleared_history_at)
+     */
+    public function unhideConversation(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+        $participant = ConversationParticipant::where('conversation_id', $id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$participant) {
+            return response()->json(['message' => 'Bạn không thuộc cuộc trò chuyện này.'], 403);
+        }
+
+        $participant->forceFill(['cleared_history_at' => null])->save();
+        return response()->json(['success' => true, 'message' => 'Đã khôi phục cuộc trò chuyện.']);
+    }
+
+    /**
      * Recall a message (sender only, for everyone)
      */
     public function recallMessage(Request $request, $messageId)
@@ -1629,5 +1710,94 @@ class ChatController extends Controller
             'message' => 'Đã xóa tin nhắn ở phía bạn.',
             'message_id' => $message->id,
         ]);
+    }
+
+    /**
+     * Add member(s) to group conversation
+     */
+    public function addMembers(Request $request, $id)
+    {
+        $userId = (int) $request->user()->id;
+        $conversation = Conversation::findOrFail($id);
+
+        if (!in_array($conversation->type, ['group', 'player_post'], true)) {
+            return response()->json(['message' => 'Chỉ có thể thêm thành viên vào nhóm chat.'], 422);
+        }
+
+        $isParticipant = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', $userId)
+            ->whereNull('left_at')
+            ->exists();
+
+        if (!$isParticipant && (int) $conversation->created_by !== $userId) {
+            return response()->json(['message' => 'Bạn không có quyền thực hiện thao tác này.'], 403);
+        }
+
+        $validated = $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'integer|exists:users,id',
+        ]);
+
+        $now = now();
+        $addedUsers = [];
+
+        foreach ($validated['user_ids'] as $mId) {
+            $existing = ConversationParticipant::where('conversation_id', $conversation->id)
+                ->where('user_id', $mId)
+                ->first();
+
+            if ($existing) {
+                if ($existing->left_at) {
+                    $existing->update(['left_at' => null, 'joined_at' => $now, 'cleared_history_at' => null]);
+                    $addedUsers[] = $mId;
+                }
+            } else {
+                ConversationParticipant::create([
+                    'conversation_id' => $conversation->id,
+                    'user_id' => $mId,
+                    'joined_at' => $now,
+                ]);
+                $addedUsers[] = $mId;
+            }
+        }
+
+        return response()->json([
+            'message' => 'Thêm thành viên thành công',
+            'added_user_ids' => $addedUsers,
+        ]);
+    }
+
+    /**
+     * Remove a member from group conversation (Leader action)
+     */
+    public function removeMember(Request $request, $id)
+    {
+        $currentUserId = (int) $request->user()->id;
+        $conversation = Conversation::findOrFail($id);
+
+        if (!in_array($conversation->type, ['group', 'player_post'], true)) {
+            return response()->json(['message' => 'Thao tác chỉ áp dụng cho nhóm chat.'], 422);
+        }
+
+        if ((int) $conversation->created_by !== $currentUserId) {
+            return response()->json(['message' => 'Chỉ Trưởng nhóm mới có quyền mời thành viên rời khỏi nhóm.'], 403);
+        }
+
+        $targetUserId = (int) $request->input('user_id');
+        if ($targetUserId === $currentUserId) {
+            return response()->json(['message' => 'Trưởng nhóm không thể tự kích chính mình.'], 422);
+        }
+
+        $participant = ConversationParticipant::where('conversation_id', $conversation->id)
+            ->where('user_id', $targetUserId)
+            ->first();
+
+        if (!$participant || $participant->left_at) {
+            return response()->json(['message' => 'Thành viên này không còn trong nhóm.'], 404);
+        }
+
+        $participant->update(['left_at' => now()]);
+
+        return response()->json(['message' => 'Đã xóa thành viên khỏi nhóm.']);
     }
 }

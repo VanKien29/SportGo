@@ -53,6 +53,14 @@ return new class extends Migration
                     ->orWhere('name', 'like', '%volleyball%');
             })
             ->update(['icon_key' => 'volleyball']);
+
+        // Loại sân con có thể dùng tên tùy chỉnh, nên kế thừa icon của môn cha
+        // nếu chưa được nhận diện trực tiếp từ tên.
+        DB::table('court_types as child')
+            ->join('court_types as parent', 'parent.id', '=', 'child.parent_id')
+            ->where('child.icon_key', 'activity')
+            ->where('parent.icon_key', '<>', 'activity')
+            ->update(['child.icon_key' => DB::raw('parent.icon_key')]);
     }
 
     public function down(): void

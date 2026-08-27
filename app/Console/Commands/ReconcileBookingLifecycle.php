@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Services\BookingService;
+use App\Services\Bookings\BookingApprovalService;
 use App\Services\Bookings\BookingLifecycleService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -19,18 +20,18 @@ class ReconcileBookingLifecycle extends Command
 
     protected $description = 'Đối soát vòng đời booking, gửi nhắc lịch và tự hoàn thành booking đủ điều kiện.';
 
-    public function handle(BookingLifecycleService $lifecycle, BookingService $bookingService): int
+    public function handle(BookingLifecycleService $lifecycle, BookingService $bookingService, BookingApprovalService $bookingApprovals): int
     {
         $dryRun = (bool) $this->option('dry-run');
-        $now = now();
+        $now = Carbon::now(config('app.business_timezone', 'Asia/Ho_Chi_Minh'));
         $summary = ['expired' => 0, 'no_show' => 0, 'completed' => 0, 'reminders' => 0, 'overdue' => 0];
 
         Booking::query()
             ->whereIn('status', ['pending_payment', 'pending_approval', 'confirmed', 'checked_in'])
             ->with(['venueCluster.bookingConfig', 'slotLocks', 'payments'])
-            ->chunkById(100, function ($bookings) use ($now, $dryRun, $lifecycle, $bookingService, &$summary): void {
+            ->chunkById(100, function ($bookings) use ($now, $dryRun, $lifecycle, $bookingService, $bookingApprovals, &$summary): void {
                 foreach ($bookings as $booking) {
-                    $this->reconcileBooking($booking, $now, $dryRun, $lifecycle, $bookingService, $summary);
+                    $this->reconcileBooking($booking, $now, $dryRun, $lifecycle, $bookingService, $bookingApprovals, $summary);
                 }
             });
 
@@ -43,17 +44,28 @@ class ReconcileBookingLifecycle extends Command
         return self::SUCCESS;
     }
 
-    private function reconcileBooking(Booking $booking, Carbon $now, bool $dryRun, BookingLifecycleService $lifecycle, BookingService $bookingService, array &$summary): void
+    private function reconcileBooking(Booking $booking, Carbon $now, bool $dryRun, BookingLifecycleService $lifecycle, BookingService $bookingService, BookingApprovalService $bookingApprovals, array &$summary): void
     {
         if (! $booking->booking_date || ! $booking->start_time || ! $booking->end_time) return;
 
         $date = $booking->booking_date->format('Y-m-d');
-        $start = Carbon::parse($date . ' ' . $booking->start_time);
-        $end = Carbon::parse($date . ' ' . $booking->end_time);
+        $timezone = config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+        $start = Carbon::parse($date . ' ' . $booking->start_time, $timezone);
+        $end = Carbon::parse($date . ' ' . $booking->end_time, $timezone);
         $config = $booking->venueCluster?->bookingConfig;
 
-        if (in_array($booking->status, ['pending_payment', 'pending_approval'], true)) {
-            $deadline = $this->approvalOrPaymentDeadline($booking, $config, $start);
+        if ($booking->status === 'pending_approval') {
+            if ($now->greaterThanOrEqualTo($bookingApprovals->approvalDeadline($booking))) {
+                $summary['expired']++;
+                if (! $dryRun) $bookingApprovals->expireIfDue($booking);
+                return;
+            }
+        }
+
+        if ($booking->status === 'pending_payment') {
+            $deadline = $booking->payment_deadline_at
+                ? $booking->payment_deadline_at->copy()->setTimezone($timezone)
+                : $this->approvalOrPaymentDeadline($booking, $config, $start);
             if ($now->greaterThan($deadline)) {
                 $summary['expired']++;
                 if (! $dryRun) $this->expireBooking($booking, $lifecycle);
@@ -96,9 +108,7 @@ class ReconcileBookingLifecycle extends Command
         $lockDeadline = $booking->slotLocks->where('lock_type', 'auto')->sortBy('expires_at')->first()?->expires_at;
         if ($booking->status === 'pending_payment' && $lockDeadline) return Carbon::parse($lockDeadline);
 
-        $minutes = $booking->status === 'pending_payment'
-            ? (int) ($config?->slot_hold_minutes ?? 20)
-            : 15;
+        $minutes = (int) ($config?->slot_hold_minutes ?? 20);
         $createdDeadline = Carbon::parse($booking->created_at)->addMinutes($minutes);
 
         return $createdDeadline->lessThan($start) ? $createdDeadline : $start;

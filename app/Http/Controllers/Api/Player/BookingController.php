@@ -9,6 +9,7 @@ use App\Models\SlotLock;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\BookingService;
+use App\Services\Bookings\BookingApprovalService;
 use App\Services\Memberships\VenueMembershipService;
 use App\Services\Policies\RefundCancellationPolicyService;
 use Carbon\Carbon;
@@ -28,6 +29,7 @@ class BookingController extends Controller
         BookingService $bookingService,
         RefundCancellationPolicyService $refundCancellationPolicyService,
         private readonly VenueMembershipService $venueMemberships,
+        private readonly BookingApprovalService $bookingApprovals,
     ) {
         $this->bookingService = $bookingService;
         $this->refundCancellationPolicyService = $refundCancellationPolicyService;
@@ -596,9 +598,26 @@ class BookingController extends Controller
             'bookingServices',
         ]);
 
+        // Keep the detail page consistent even when the minute-by-minute
+        // reconciler has not run yet: an expired approval is terminal and
+        // must not remain actionable in the client UI.
+        if ($booking->status === 'pending_approval'
+            && $this->bookingApprovals->approvalSecondsLeft($booking) <= 0) {
+            $this->bookingApprovals->expireIfDue($booking);
+            $booking->refresh()->load([
+                'venueCourt.courtType',
+                'venueCluster',
+                'items.venueCourt',
+                'payments',
+                'bookingServices',
+            ]);
+        }
+
         // Tính thời gian giữ chỗ còn lại (giây)
         $timeLeftSeconds = 0;
-        if ($booking->status === 'pending_payment') {
+        if ($booking->status === 'pending_approval') {
+            $timeLeftSeconds = $this->bookingApprovals->approvalSecondsLeft($booking);
+        } elseif ($booking->status === 'pending_payment') {
             $lock = SlotLock::where('booking_id', $booking->id)
                 ->where('expires_at', '>', Carbon::now())
                 ->first();
@@ -613,6 +632,9 @@ class BookingController extends Controller
         $bookingArray['services'] = $booking->bookingServices->values()->toArray();
         unset($bookingArray['booking_services']);
         $bookingArray['time_left_seconds'] = $timeLeftSeconds;
+        $bookingArray['approval_deadline_at'] = $booking->approval_deadline_at?->toIso8601String();
+        $bookingArray['payment_deadline_at'] = $booking->payment_deadline_at?->toIso8601String();
+        $bookingArray['effective_payment_option'] = $booking->effective_payment_option ?: $booking->payment_option;
         $bookingArray['paid_amount'] = (float) $booking->payments->where('status', 'paid')->sum('amount');
         $bookingArray['refunded_amount'] = (float) $booking->refunds->whereIn('status', [
             'completed', 'paid', 'refunded', 'admin_completed',
@@ -753,7 +775,9 @@ class BookingController extends Controller
             ...$validated,
             'customer_id' => $request->user()->id,
             'source' => 'online',
-            'initial_status' => $validated['payment_option'] === 'no_prepay' ? 'pending_approval' : 'pending_payment',
+            'initial_status' => in_array($validated['payment_option'], ['no_prepay', 'deposit'], true)
+                ? 'pending_approval'
+                : 'pending_payment',
             'create_counter_payment' => false,
             'is_paid' => false,
         ];
@@ -855,6 +879,11 @@ class BookingController extends Controller
             'required_payment_amount' => (float) $booking->required_payment_amount,
             'paid_amount' => $paidAmount,
             'payment_option' => $booking->payment_option,
+            'effective_payment_option' => $booking->effective_payment_option ?: $booking->payment_option,
+            'approval_deadline_at' => $booking->approval_deadline_at,
+            'owner_approved_at' => $booking->owner_approved_at,
+            'payment_fallback_at' => $booking->payment_fallback_at,
+            'payment_fallback_reason' => $booking->payment_fallback_reason,
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),
@@ -958,6 +987,11 @@ class BookingController extends Controller
             'total_price' => (float) $booking->total_price,
             'required_payment_amount' => (float) $booking->required_payment_amount,
             'payment_option' => $booking->payment_option,
+            'effective_payment_option' => $booking->effective_payment_option ?: $booking->payment_option,
+            'approval_deadline_at' => $booking->approval_deadline_at,
+            'owner_approved_at' => $booking->owner_approved_at,
+            'payment_fallback_at' => $booking->payment_fallback_at,
+            'payment_fallback_reason' => $booking->payment_fallback_reason,
             'payment_status' => $isRefunded
                 ? 'refunded'
                 : ($latestPayment?->status ?? ((float) $booking->required_payment_amount > 0 ? 'pending' : 'not_required')),

@@ -124,7 +124,7 @@ class VenueClusterController extends Controller
         // Bookings của cụm sân (20 gần nhất)
         $bookings = Booking::query()
             ->where('venue_cluster_id', $id)
-            ->with(['customer:id,full_name,username,phone', 'venueCourt:id,name'])
+            ->with(['customer:id,full_name,username,phone', 'venueCourt:id,name', 'payments', 'ownerApprovedBy:id,full_name,username'])
             ->latest()
             ->limit(20)
             ->get()
@@ -141,7 +141,21 @@ class VenueClusterController extends Controller
                 'start_time'   => $b->start_time,
                 'end_time'     => $b->end_time,
                 'total_price'  => $b->total_price,
+                'payment_option' => $b->payment_option,
+                'effective_payment_option' => $b->effective_payment_option ?: $b->payment_option,
+                'required_payment_amount' => $b->required_payment_amount,
+                'paid_amount' => (float) $b->payments->where('status', 'paid')->sum('amount'),
                 'status'       => $b->status,
+                'approval_deadline_at' => $b->approval_deadline_at,
+                'payment_deadline_at' => $b->payment_deadline_at,
+                'owner_approved_at' => $b->owner_approved_at,
+                'owner_approved_by' => $b->ownerApprovedBy ? [
+                    'id' => $b->ownerApprovedBy->id,
+                    'full_name' => $b->ownerApprovedBy->full_name,
+                    'username' => $b->ownerApprovedBy->username,
+                ] : null,
+                'payment_fallback_at' => $b->payment_fallback_at,
+                'payment_fallback_reason' => $b->payment_fallback_reason,
                 'created_at'   => $b->created_at,
             ]);
 
@@ -1096,6 +1110,7 @@ class VenueClusterController extends Controller
             'reviewed_at' => $this->formatDateTime($approvalRequest->reviewed_at),
             'expected_effective_date' => now()->format('d/m/Y'),
             'attachment_list' => $this->documentNames($approvalRequest->supplementary_documents),
+            'evidence_present' => filled($approvalRequest->evidence_image),
         ];
     }
 

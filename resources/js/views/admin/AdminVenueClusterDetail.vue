@@ -310,7 +310,9 @@
               <th>Sân</th>
               <th>Ngày</th>
               <th>Giờ</th>
+              <th>Thanh toán</th>
               <th class="text-right">Tổng tiền</th>
+              <th>Hạn duyệt</th>
               <th class="text-center">Trạng thái</th>
             </tr>
           </thead>
@@ -324,9 +326,20 @@
               <td>{{ b.venue_court?.name || '—' }}</td>
               <td>{{ formatDate(b.booking_date, false) }}</td>
               <td class="mono">{{ b.start_time }} – {{ b.end_time }}</td>
+              <td>
+                <div>{{ paymentOptionLabel(b.effective_payment_option || b.payment_option) }}</div>
+                <div class="muted">Đã thu {{ formatCurrency(b.paid_amount) }}</div>
+                <div v-if="b.payment_fallback_at" class="muted">Đã chuyển trả sau</div>
+              </td>
               <td class="text-right fw-bold">{{ formatCurrency(b.total_price) }}</td>
+              <td>
+                <span v-if="b.status === 'pending_approval'">{{ formatDate(b.approval_deadline_at) }}</span>
+                <span v-else-if="b.status === 'pending_payment'">{{ formatDate(b.payment_deadline_at) }}</span>
+                <span v-else-if="b.owner_approved_at" class="muted">Duyệt {{ formatDate(b.owner_approved_at) }}</span>
+                <span v-else class="muted">—</span>
+              </td>
               <td class="text-center">
-                <span class="booking-status" :class="`bs-${b.status}`">{{ b.status }}</span>
+                <span class="booking-status" :class="`bs-${b.status}`">{{ bookingStatusLabel(b.status) }}</span>
               </td>
             </tr>
           </tbody>
@@ -1764,6 +1777,27 @@ export default {
         termination_processing: 'Đang chấm dứt',
         partner_terminated: 'Đã chấm dứt',
       }[status] || status;
+    },
+    bookingStatusLabel(status) {
+      return {
+        pending_approval: 'Chờ duyệt sân',
+        pending_payment: 'Chờ thanh toán',
+        confirmed: 'Đã xác nhận',
+        checked_in: 'Đang chơi',
+        completed: 'Hoàn thành',
+        no_show: 'Không check-in',
+        cancelled: 'Đã hủy',
+        expired: 'Hết hạn duyệt/thanh toán',
+        rejected: 'Bị từ chối',
+      }[status] || status;
+    },
+    paymentOptionLabel(option) {
+      return {
+        full_payment: 'Thanh toán đủ',
+        deposit: 'Đặt cọc',
+        wallet: 'Ví SportGo',
+        no_prepay: 'Trả sau',
+      }[option] || option || '—';
     },
     approvalStatusLabel(status) {
       if (status === 'approved_pending_appendix') return 'Đã duyệt, chờ SportGo ký phụ lục';

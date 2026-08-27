@@ -20,7 +20,26 @@
           <!-- USER IDENTITY (SEAMLESS) -->
           <div class="cp-identity-strip">
             <div class="cp-avatar-wrap">
-              <span class="cp-avatar">{{ userInitial }}</span>
+              <div class="cp-avatar">
+                <img v-if="avatarSrc" :src="avatarSrc" :alt="formData.fullName" />
+                <span v-else>{{ userInitial }}</span>
+              </div>
+              <button
+                type="button"
+                class="cp-avatar-camera-btn"
+                title="Đổi ảnh đại diện"
+                :disabled="uploadingAvatar"
+                @click="triggerAvatarPick"
+              >
+                <AppIcon name="camera" :size="12" />
+              </button>
+              <input
+                ref="avatarFileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/jpg"
+                style="display: none !important;"
+                @change="handleAvatarUpload"
+              />
             </div>
 
             <div class="cp-identity-body">
@@ -380,6 +399,7 @@ export default {
       walletLockedBalance: 0,
       membershipLabel: user?.membership_tier?.tier?.label || user?.membership_tier?.tier?.tier_label || "Thường",
       saving: false,
+      uploadingAvatar: false,
       saveMessage: "",
       saveStatusClass: "",
       formData: {
@@ -396,6 +416,7 @@ export default {
       emailOtpError: "",
       emailOtpCountdown: 0,
       emailOtpTimer: null,
+      profileMutationVersion: 0,
       // PASSWORD CHANGE MODAL STATE
       showPasswordModal: false,
       pwdData: {
@@ -409,6 +430,12 @@ export default {
     };
   },
   computed: {
+    avatarSrc() {
+      const path = this.user?.avatar_url || this.user?.avatar;
+      if (!path) return "";
+      if (/^https?:\/\//.test(path) || path.startsWith("/")) return path;
+      return `/storage/${path}`;
+    },
     userInitial() {
       return this.formData.fullName?.trim()?.charAt(0)?.toUpperCase() || "S";
     },
@@ -476,8 +503,10 @@ export default {
   },
   methods: {
     async refreshAccountData() {
+      const requestVersion = this.profileMutationVersion;
       try {
-        const payload = await authService.me();
+        const payload = await authService.me("", { dedupe: false });
+        if (requestVersion !== this.profileMutationVersion) return;
         this.user = saveAuth(payload);
         this.formData.fullName = this.user?.fullName || this.formData.fullName;
         this.formData.email = this.user?.email || this.formData.email;
@@ -553,6 +582,7 @@ export default {
       this.emailOtpError = "";
       try {
         const response = await authService.verifyEmailChangeOtp(this.pendingNewEmail, this.emailOtpInput);
+        this.profileMutationVersion++;
         const currentAuth = getAuth() || {};
         const mergedUser = {
           ...(currentAuth.user || {}),
@@ -577,6 +607,7 @@ export default {
     // EXECUTE SAVE PROFILE
     async executeSaveProfile(finalEmail, finalPhone) {
       this.saving = true;
+      this.profileMutationVersion++;
       this.saveMessage = "";
       try {
         const payload = new FormData();
@@ -606,6 +637,7 @@ export default {
       } finally {
         this.saving = false;
       }
+      await this.refreshAccountData();
     },
     // PASSWORD CHANGE MODAL METHODS
     openPasswordModal() {
@@ -647,6 +679,50 @@ export default {
     },
     formatDate(value) {
       return value ? new Date(value).toLocaleDateString("vi-VN") : "-";
+    },
+    triggerAvatarPick() {
+      this.$refs.avatarFileInput?.click();
+    },
+    async handleAvatarUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 4 * 1024 * 1024) {
+        alert("Ảnh đại diện không được vượt quá 4MB.");
+        event.target.value = "";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      this.uploadingAvatar = true;
+      try {
+        const res = await api("/api/profile/avatar", {
+          method: "POST",
+          body: formData,
+        });
+
+        const currentAuth = getAuth() || {};
+        const updatedUser = {
+          ...currentAuth,
+          avatar_url: res.avatar_url,
+          user: {
+            ...(currentAuth.user || {}),
+            avatar_url: res.avatar_url,
+          },
+        };
+        saveAuth(updatedUser);
+        this.user = updatedUser;
+        this.saveStatusClass = "is-success";
+        this.saveMessage = "Đã cập nhật ảnh đại diện thành công!";
+      } catch (err) {
+        this.saveStatusClass = "is-error";
+        this.saveMessage = err.message || "Không thể tải lên ảnh đại diện.";
+      } finally {
+        this.uploadingAvatar = false;
+        event.target.value = "";
+      }
     },
   },
 };
@@ -749,8 +825,6 @@ export default {
 
 .w2-btn--primary:hover:not(:disabled) {
   background: #405059;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
 }
 
 .w2-btn--outline {
@@ -793,21 +867,49 @@ export default {
 }
 
 .cp-avatar-wrap {
+  position: relative;
   flex-shrink: 0;
 }
 
 .cp-avatar {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: #54656f;
   color: #ffffff;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 0 4px #edf4f0;
+  overflow: hidden;
+}
+
+.cp-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cp-avatar-camera-btn {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #54656f;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+}
+
+.cp-avatar-camera-btn:hover {
+  background: #405059;
 }
 
 .cp-identity-body {

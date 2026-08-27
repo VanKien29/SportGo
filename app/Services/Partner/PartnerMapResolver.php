@@ -99,13 +99,14 @@ class PartnerMapResolver
     {
         $decoded = urldecode($url);
         $patterns = [
-            '/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
             '/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
+            '/!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
+            '/data=.*!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
             '/[?&](?:q|ll|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
             '/[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
             '/place\/[^\/]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
             '/dir\/[^\/]*\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
-            '/data=.*!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
+            '/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/',
         ];
 
         foreach ($patterns as $pattern) {
@@ -130,6 +131,7 @@ class PartnerMapResolver
     {
         try {
             $payload = Http::timeout(10)
+                ->withoutVerifying()
                 ->withHeaders(['User-Agent' => 'SportGo/1.0 (+https://sportgo.local)'])
                 ->get('https://nominatim.openstreetmap.org/reverse', [
                     'format' => 'jsonv2',

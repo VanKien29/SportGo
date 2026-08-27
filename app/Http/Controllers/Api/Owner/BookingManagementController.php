@@ -11,6 +11,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueClusterService;
 use App\Models\VenueCourt;
 use App\Services\Bookings\OwnerBookingCancellationService;
+use App\Services\Bookings\BookingApprovalService;
 use App\Services\BookingService;
 use App\Services\Customers\WalkInCustomerService;
 use App\Services\Payments\SepayPaymentService;
@@ -32,6 +33,7 @@ class BookingManagementController extends Controller
         private readonly BookingService $bookingService,
         private readonly SepayPaymentService $sepayPaymentService,
         private readonly OwnerBookingCancellationService $ownerBookingCancellationService,
+        private readonly BookingApprovalService $bookingApprovals,
         private readonly VenueStaffAccessService $venueStaffAccess,
         private readonly WalkInCustomerService $walkInCustomers,
     ) {}
@@ -429,8 +431,8 @@ class BookingManagementController extends Controller
         ]);
 
         // Một số booking trả sau được tạo trước khi trạng thái chờ duyệt được chuẩn hóa
-        // và còn nằm ở pending_payment. Booking cọc chỉ được duyệt sau khi đã
-        // nhận đủ khoản cọc bắt buộc.
+        // và còn nằm ở pending_payment. Booking cọc mới luôn chờ chủ sân duyệt
+        // ngay cả khi khách chưa chuyển cọc.
         $isPayLater = $booking->payment_option === 'no_prepay';
         $isDeposit = $booking->payment_option === 'deposit';
         $paidAmount = (float) $booking->payments
@@ -440,9 +442,7 @@ class BookingManagementController extends Controller
             && ((float) $booking->required_payment_amount <= 0
                 || $paidAmount + 0.01 >= (float) $booking->required_payment_amount);
         $allowedActions = match ($booking->status) {
-            'pending_approval' => ($isDeposit && ! $depositPaid)
-                ? ['cancel']
-                : ['confirm', 'reject', 'cancel'],
+            'pending_approval' => ['confirm', 'reject', 'cancel'],
             'pending_payment' => ($isPayLater || $depositPaid)
                 ? ['confirm', 'reject', 'cancel']
                 : ['cancel'],
@@ -453,9 +453,13 @@ class BookingManagementController extends Controller
 
         if (! in_array($validated['action'], $allowedActions, true)) {
             throw ValidationException::withMessages([
-                'action' => $validated['action'] === 'confirm' && $isDeposit && ! $depositPaid
-                    ? 'Booking đặt cọc chưa thanh toán đủ tiền cọc nên chưa thể duyệt.'
-                    : 'Thao tác không hợp lệ với trạng thái hiện tại của booking.',
+                    'action' => 'Thao tác không hợp lệ với trạng thái hiện tại của booking.',
+            ]);
+        }
+
+        if ($booking->status === 'pending_approval' && $this->bookingApprovals->expireIfDue($booking)) {
+            throw ValidationException::withMessages([
+                'action' => 'Booking đã hết hạn do chủ sân không duyệt trong 30 phút. Vui lòng tạo booking mới.',
             ]);
         }
 
@@ -505,6 +509,24 @@ class BookingManagementController extends Controller
             ]);
         }
 
+        if ($validated['action'] === 'confirm' && $booking->status === 'pending_approval') {
+            $result = $this->bookingApprovals->approve($booking, $request->user());
+
+            if ($result['expired'] ?? false) {
+                throw ValidationException::withMessages([
+                    'action' => 'Booking đã hết hạn do chủ sân không duyệt trong 30 phút. Vui lòng tạo booking mới.',
+                ]);
+            }
+
+            return response()->json([
+                'message' => ($result['fallback_to_pay_later'] ?? false)
+                    ? 'Đã duyệt booking và chuyển hình thức thanh toán sang trả sau.'
+                    : 'Đã duyệt booking và xác nhận lịch chơi.',
+                'data' => $result['booking'],
+                'refunds' => [],
+            ]);
+        }
+
         $status = match ($validated['action']) {
             'confirm' => 'confirmed',
             'reject' => 'rejected',
@@ -532,6 +554,7 @@ class BookingManagementController extends Controller
 
         $booking->update([
             'status' => $status,
+            'payment_deadline_at' => $status === 'confirmed' ? null : $booking->payment_deadline_at,
             'status_reason' => $validated['status_reason'] ?? null,
             'cancelled_by' => in_array($status, ['cancelled', 'rejected'], true) ? $request->user()->id : $booking->cancelled_by,
             'cancellation_initiator' => in_array($status, ['cancelled', 'rejected'], true) ? 'owner' : $booking->cancellation_initiator,

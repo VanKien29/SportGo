@@ -845,8 +845,11 @@ export default {
     },
     canApproveBooking(booking) {
       if (booking?.status === 'pending_approval') {
-        return booking.payment_option !== 'deposit'
-          || this.paidAmount(booking) + 0.01 >= Number(booking.required_payment_amount || 0);
+        const deadline = booking.approval_deadline_at
+          || (booking.slot_locks || [])
+            .filter((lock) => lock.lock_type === 'auto')
+            .sort((a, b) => new Date(a.expires_at) - new Date(b.expires_at))[0]?.expires_at;
+        return !deadline || new Date(deadline).getTime() > Date.now();
       }
       if (booking?.status !== 'pending_payment') return false;
       if (booking.payment_option === 'no_prepay') return true;
@@ -1070,6 +1073,12 @@ export default {
       return holdText ? `${amountText} · ${holdText}` : amountText;
     },
     paymentHoldLabel(booking) {
+      if (booking.status === 'pending_approval' && booking.approval_deadline_at) {
+        const seconds = Math.max(Math.ceil((new Date(booking.approval_deadline_at).getTime() - this.holdClock) / 1000), 0);
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `duyệt còn ${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+      }
       if (booking.status !== 'pending_payment') return '';
 
       const activeLock = (booking.slot_locks || [])

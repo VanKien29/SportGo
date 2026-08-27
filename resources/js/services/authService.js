@@ -50,9 +50,9 @@ export const authService = {
     });
   },
 
-  me(include = '') {
+  me(include = '', options = {}) {
     const query = include ? `?include=${encodeURIComponent(include)}` : '';
-    return api(`/api/auth/me${query}`);
+    return api(`/api/auth/me${query}`, options);
   },
 
   updateProfile(formData) {

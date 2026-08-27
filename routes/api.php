@@ -95,21 +95,22 @@ Route::get('/chat/ai-history', [\App\Http\Controllers\Api\AiChatController::clas
 Route::post('/chat/ai-assistant', [\App\Http\Controllers\Api\AiChatController::class, 'ask']);
 
 Route::prefix('auth')->group(function (): void {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegisterOtp']);
-    Route::post('/register/resend-otp', [AuthController::class, 'resendRegisterOtp']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
+    Route::post('/register/verify-otp', [AuthController::class, 'verifyRegisterOtp'])->middleware('throttle:auth-otp-verify');
+    Route::post('/register/resend-otp', [AuthController::class, 'resendRegisterOtp'])->middleware('throttle:auth-otp-send');
     Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendOtp']);
-    Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
-    Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset']);
+    Route::post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:auth-otp-send');
+    Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp'])->middleware('throttle:auth-otp-verify');
+    Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'reset'])->middleware('throttle:auth-otp-verify');
     Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
     Route::post('/google/exchange', [GoogleAuthController::class, 'exchange']);
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp']);
-        Route::post('/profile/email/verify-otp', [AuthController::class, 'verifyEmailChangeOtp']);
+        Route::post('/profile/email/request-otp', [AuthController::class, 'requestEmailChangeOtp'])->middleware('throttle:auth-otp-send');
         Route::post('/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/profile/avatar', [AuthController::class, 'uploadAvatar']);
+        Route::post('/profile/cover', [AuthController::class, 'uploadCover']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::get('/files/download', [\App\Http\Controllers\Api\Common\FileDownloadController::class, 'download']);
@@ -119,9 +120,9 @@ Route::prefix('auth')->group(function (): void {
 
 Route::prefix('admin/auth')->group(function (): void {
     Route::post('/login', [AdminAuthController::class, 'login']);
-    Route::post('/forgot-password/send-otp', [AdminForgotPasswordController::class, 'sendOtp']);
-    Route::post('/forgot-password/verify-otp', [AdminForgotPasswordController::class, 'verifyOtp']);
-    Route::post('/forgot-password/reset', [AdminForgotPasswordController::class, 'reset']);
+    Route::post('/forgot-password/send-otp', [AdminForgotPasswordController::class, 'sendOtp'])->middleware('throttle:auth-otp-send');
+    Route::post('/forgot-password/verify-otp', [AdminForgotPasswordController::class, 'verifyOtp'])->middleware('throttle:auth-otp-verify');
+    Route::post('/forgot-password/reset', [AdminForgotPasswordController::class, 'reset'])->middleware('throttle:auth-otp-verify');
 
     Route::middleware(['auth:sanctum', EnsureAdminRole::class])->group(function (): void {
         Route::get('/me', [AdminAuthController::class, 'me']);
@@ -662,10 +663,13 @@ Route::middleware('auth:sanctum')
             Route::patch('/support-requests/{id}', [ChatController::class, 'updateBookingSupportRequest']);
             Route::post('/conversations/{id}/bookings', [ChatController::class, 'sendBooking']);
             Route::post('/conversations/{id}/read', [ChatController::class, 'markAsRead']);
+            Route::post('/conversations/{id}/add-members', [ChatController::class, 'addMembers']);
+            Route::post('/conversations/{id}/remove-member', [ChatController::class, 'removeMember']);
             Route::post('/conversations/{id}/leave', [ChatController::class, 'leaveConversation']);
             Route::post('/conversations/{id}/dissolve', [ChatController::class, 'dissolveConversation']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
             Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);
+            Route::post('/conversations/{id}/unhide', [ChatController::class, 'unhideConversation']);
             Route::get('/users/search', [ChatController::class, 'searchUsers']);
         });
     });

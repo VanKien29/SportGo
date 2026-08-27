@@ -15,6 +15,7 @@ use App\Models\VenueBasePrice;
 use App\Models\VenueCluster;
 use App\Models\VenueCourt;
 use App\Services\Customers\WalkInCustomerService;
+use App\Services\Bookings\BookingApprovalService;
 use App\Services\Memberships\SystemVipService;
 use App\Services\Memberships\VenueMembershipService;
 use App\Services\Wallets\OwnerWalletService;
@@ -29,8 +30,6 @@ use Illuminate\Validation\ValidationException;
 
 class BookingService
 {
-    private const OWNER_APPROVAL_HOLD_MINUTES = 15;
-
     private const BLOCKING_BOOKING_STATUSES = ['pending_approval', 'pending_payment', 'confirmed', 'checked_in', 'completed'];
 
     private const BLOCKED_CLUSTER_STATUSES = ['pending', 'locked', 'termination_locked', 'termination_processing', 'partner_terminated'];
@@ -42,6 +41,7 @@ class BookingService
         private readonly UserWalletPaymentService $userWalletPayments,
         private readonly VenueMembershipService $venueMemberships,
         private readonly SystemVipService $systemVip,
+        private readonly BookingApprovalService $bookingApprovals,
     ) {}
 
     /**
@@ -224,8 +224,8 @@ class BookingService
 
             // 7. Xác định trạng thái ban đầu
             $status = 'pending_payment';
-            if ($paymentOption === 'no_prepay') {
-                $status = 'pending_approval'; // Mặc định chờ chủ sân duyệt ở Sprint 2
+            if (in_array($paymentOption, ['no_prepay', 'deposit'], true)) {
+                $status = 'pending_approval';
             }
 
             // 8. Tạo bản ghi Booking
@@ -255,10 +255,14 @@ class BookingService
                 'vip_voucher_id' => $vipVoucher['id'] ?? null,
                 'vip_voucher_code_snapshot' => $vipVoucher['code'] ?? null,
                 'payment_option' => $paymentOption,
+                'effective_payment_option' => $paymentOption,
                 'required_payment_amount' => $requiredPaymentAmount,
                 'source' => 'online',
                 'booking_type' => 'single',
                 'status' => $status,
+                'approval_deadline_at' => $status === 'pending_approval'
+                    ? $this->bookingApprovals->approvalDeadlineForValues($bookingDate, $startTime, now())
+                    : null,
                 'created_by' => $customerId,
             ]);
 
@@ -313,7 +317,9 @@ class BookingService
                     'time_ranges' => $timeRanges,
                     'range_courts' => $rangeCourts,
                     'source' => 'online',
-                    'initial_status' => $data['payment_option'] === 'no_prepay' ? 'pending_approval' : 'pending_payment',
+                    'initial_status' => in_array($data['payment_option'], ['no_prepay', 'deposit'], true)
+                        ? 'pending_approval'
+                        : 'pending_payment',
                     'create_counter_payment' => false,
                 ]),
                 $actor,
@@ -854,18 +860,20 @@ class BookingService
             return collect();
         }
 
-        if ($booking->status === 'pending_approval' && $booking->payment_option !== 'no_prepay') {
-            return collect();
-        }
-
         $existingLocks = SlotLock::query()->where('booking_id', $booking->id)->get();
         if ($existingLocks->isNotEmpty()) {
+            if ($booking->status === 'pending_payment') {
+                $booking->forceFill(['payment_deadline_at' => $existingLocks->min('expires_at')])->save();
+            }
+
             return $existingLocks;
         }
 
         $booking->loadMissing('items');
         $slotHoldMinutes = $this->temporaryHoldMinutes($booking);
-        $expiresAt = Carbon::now()->addMinutes($slotHoldMinutes);
+        $expiresAt = $booking->status === 'pending_approval'
+            ? $this->bookingApprovals->approvalDeadline($booking)
+            : Carbon::now()->addMinutes($slotHoldMinutes);
         $reason = $this->temporaryHoldReason($booking, $slotHoldMinutes);
         $items = $booking->items->isNotEmpty()
             ? $booking->items
@@ -876,7 +884,7 @@ class BookingService
                 'end_time' => $booking->end_time,
             ]]);
 
-        return $items->map(fn ($item) => SlotLock::query()->create([
+        $locks = $items->map(fn ($item) => SlotLock::query()->create([
             'venue_cluster_id' => $booking->venue_cluster_id,
             'venue_court_id' => $item->venue_court_id,
             'lock_scope' => 'court',
@@ -890,12 +898,18 @@ class BookingService
             'reason' => $reason,
             'expires_at' => $expiresAt,
         ]));
+
+        if ($booking->status === 'pending_payment') {
+            $booking->forceFill(['payment_deadline_at' => $locks->min('expires_at')])->save();
+        }
+
+        return $locks;
     }
 
     private function temporaryHoldMinutes(Booking $booking): int
     {
-        if ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
-            return self::OWNER_APPROVAL_HOLD_MINUTES;
+        if ($booking->status === 'pending_approval') {
+            return BookingApprovalService::APPROVAL_WINDOW_MINUTES;
         }
 
         return (int) ($this->bookingConfigForCluster($booking->venue_cluster_id)?->slot_hold_minutes ?? 20);
@@ -903,7 +917,7 @@ class BookingService
 
     private function temporaryHoldReason(Booking $booking, int $minutes): string
     {
-        if ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
+        if ($booking->status === 'pending_approval') {
             return "Giữ chỗ chờ chủ sân duyệt trong {$minutes} phút.";
         }
 
@@ -1243,6 +1257,7 @@ class BookingService
             'vip_voucher_id' => $vipVoucher['id'] ?? null,
             'vip_voucher_code_snapshot' => $vipVoucher['code'] ?? null,
             'payment_option' => $data['payment_option'],
+            'effective_payment_option' => $data['payment_option'],
             'required_payment_amount' => $requiredPaymentAmount,
             'source' => $source,
             'booking_type' => $bookingType,
@@ -1254,6 +1269,9 @@ class BookingService
             'recurrence_days_of_week' => $data['recurrence_days_of_week'] ?? null,
             'recurrence_days_of_month' => $data['recurrence_days_of_month'] ?? null,
             'status' => $status,
+            'approval_deadline_at' => $status === 'pending_approval'
+                ? $this->bookingApprovals->approvalDeadlineForValues($bookingDate, $startTime, now())
+                : null,
             'walk_in_name' => $data['walk_in_name'] ?? null,
             'walk_in_phone' => $data['walk_in_phone'] ?? null,
             'created_by' => $actor->id,
@@ -2020,7 +2038,10 @@ class BookingService
             (float) $booking->required_payment_amount,
         );
 
-        $booking->forceFill(['status' => 'confirmed'])->save();
+        $booking->forceFill([
+            'status' => 'confirmed',
+            'payment_deadline_at' => null,
+        ])->save();
         SlotLock::query()->where('booking_id', $booking->id)->delete();
         $this->ownerWallets->creditBookingPayment($payment, [
             'source' => 'user_wallet',

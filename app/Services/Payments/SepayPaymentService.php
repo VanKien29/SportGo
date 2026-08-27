@@ -9,6 +9,8 @@ use App\Models\SlotLock;
 use App\Models\SystemBankAccount;
 use App\Models\User;
 use App\Services\BookingService;
+use App\Services\Bookings\BookingApprovalService;
+use App\Services\Bookings\BookingLifecycleService;
 use App\Services\Memberships\SystemVipService;
 use App\Services\Wallets\OwnerWalletService;
 use App\Services\Wallets\SystemWalletService;
@@ -23,10 +25,21 @@ class SepayPaymentService
         private readonly SystemWalletService $systemWalletService,
         private readonly BookingService $bookingService,
         private readonly SystemVipService $systemVipService,
+        private readonly BookingApprovalService $bookingApprovals,
+        private readonly BookingLifecycleService $bookingLifecycle,
     ) {}
 
     public function createPayment(Booking $booking): array
     {
+        if ($booking->payment_option === 'deposit') {
+            $paidAmount = (float) $booking->payments()
+                ->where('status', 'paid')
+                ->sum('amount');
+            if ($paidAmount + 0.01 >= (float) $booking->required_payment_amount) {
+                throw new RuntimeException('Khoản cọc đã được ghi nhận. Vui lòng chờ chủ sân duyệt booking.');
+            }
+        }
+
         $account = $this->resolveSystemBankAccount();
 
         $payment = Payment::query()
@@ -217,7 +230,18 @@ class SepayPaymentService
                 ];
             }
 
-            if ($payment->status !== 'pending') {
+            // A deposit callback may arrive after the 30-minute approval window.
+            // Expiry invalidates the pending payment, but a valid late transfer
+            // must still be accepted and immediately refunded to the customer.
+            $lateDepositPayment = $payment->status === 'failed'
+                && $payment->booking
+                && $payment->booking->payment_option === 'deposit'
+                && (
+                    in_array($payment->booking->status, ['expired', 'cancelled', 'rejected'], true)
+                    || ($payment->booking->status === 'confirmed' && $payment->booking->effective_payment_option === 'no_prepay')
+                );
+
+            if ($payment->status !== 'pending' && ! $lateDepositPayment) {
                 $this->logIpn($payment, $payload, $statusBefore, 'sepay_ipn_ignored', $gatewayTxnId, 'payment_not_pending', 'Payment không còn ở trạng thái chờ thanh toán.');
 
                 return [
@@ -252,23 +276,66 @@ class SepayPaymentService
                         ? (float) $booking->payments()->where('status', 'paid')->sum('amount')
                         : 0.0;
 
+                    $lateDeposit = $booking
+                        && $booking->payment_option === 'deposit'
+                        && (
+                            in_array($booking->status, ['expired', 'cancelled', 'rejected'], true)
+                            || ($booking->status === 'confirmed' && $booking->effective_payment_option === 'no_prepay')
+                        );
+
+                    if ($lateDeposit) {
+                        $payment->save();
+                        $this->bookingApprovals->refundLateDepositPayment(
+                            $booking,
+                            $payment,
+                            'Khoản cọc được nhận sau khi booking đã hết hiệu lực hoặc đã chuyển sang trả sau.',
+                        );
+                        $this->logIpn($payment->fresh(), $payload, $statusBefore, 'sepay_late_deposit_refunded', $gatewayTxnId, 'late_deposit_refunded', 'Khoản cọc đến sau hạn đã được hoàn vào ví khách hàng.');
+
+                        return [
+                            'success' => true,
+                            'error_code' => 'late_deposit_refunded',
+                            'message' => 'Khoản cọc đến sau hạn đã được hoàn vào ví khách hàng.',
+                            'payment' => $payment->fresh(),
+                        ];
+                    }
+
                     if (in_array($booking?->status, ['pending_approval', 'pending_payment'], true)) {
-                        // Trả sau và đặt cọc đều cần chủ sân duyệt. Với booking
-                        // cọc, chỉ chuyển sang chờ duyệt sau khi đã nhận đủ tiền cọc.
+                        // Booking cọc đã chờ duyệt từ lúc tạo. Thanh toán cọc
+                        // chỉ ghi nhận tiền; chủ sân vẫn phải duyệt trong SLA.
                         $nextStatus = $booking?->payment_option === 'deposit'
                             ? 'pending_approval'
                             : 'confirmed';
+                        $bookingStatusBefore = $booking?->status;
                         $payment->booking()->update([
                             'status' => $nextStatus,
+                            'effective_payment_option' => $booking?->payment_option ?: 'no_prepay',
+                            'payment_deadline_at' => null,
                         ]);
                         if ($nextStatus === 'confirmed') {
-                            $this->bookingService->syncVenueMembershipForSuccessfulBooking($booking);
+                            $confirmedBooking = $booking->fresh(['customer', 'venueCluster']);
+                            $this->bookingLifecycle->recordHistory(
+                                $confirmedBooking,
+                                $bookingStatusBefore,
+                                'confirmed',
+                                'payment_received',
+                                'Đã nhận đủ thanh toán trực tuyến và xác nhận booking.',
+                            );
+                            $this->bookingLifecycle->notifyStatusChanged(
+                                $confirmedBooking,
+                                'confirmed',
+                                'payment_received',
+                                'Đã nhận đủ thanh toán trực tuyến và xác nhận booking.',
+                            );
+                            $this->bookingService->syncVenueMembershipForSuccessfulBooking($confirmedBooking);
                         }
                     }
 
-                    SlotLock::query()
-                        ->where('booking_id', $payment->booking_id)
-                        ->delete();
+                    if ($booking?->payment_option !== 'deposit' || $booking?->status !== 'pending_approval') {
+                        SlotLock::query()
+                            ->where('booking_id', $payment->booking_id)
+                            ->delete();
+                    }
 
                     $this->ownerWalletService->creditBookingPayment($payment, $normalized);
                     $this->recordSystemWalletPayment($payment->fresh(['booking', 'systemBankAccount']), $normalized);

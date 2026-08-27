@@ -344,8 +344,13 @@
             <template v-else>Xác nhận đặt sân ngay</template>
           </button>
 
-          <p v-if="selectedSlotKeys.length && paymentOption !== 'no_prepay'" class="cbw-hold-note">
-            * Sân sẽ được giữ tạm thời {{ config.slot_hold_minutes || 20 }} phút để bạn thực hiện thanh toán.
+          <p v-if="selectedSlotKeys.length" class="cbw-hold-note">
+            <template v-if="['no_prepay', 'deposit'].includes(paymentOption)">
+              * Sân được giữ tối đa 30 phút để chủ sân duyệt. Nếu hết thời gian chưa được duyệt, booking tự hủy và sân được mở lại.
+            </template>
+            <template v-else-if="paymentOption !== 'no_prepay'">
+              * Sân sẽ được giữ tạm thời {{ config.slot_hold_minutes || 20 }} phút để bạn hoàn tất thanh toán.
+            </template>
           </p>
         </div>
       </div>
@@ -1043,8 +1048,8 @@ export default {
     },
     paymentOptions() {
       return [
-        this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Trả trực tiếp khi đến sân chơi" },
-        this.config.allow_deposit !== false && { value: "deposit", label: `Đặt cọc trước ${this.config.deposit_percent || 30}%`, hint: "Giữ sân qua thanh toán Online" },
+        this.config.allow_no_prepay !== false && { value: "no_prepay", label: "Thanh toán tại sân", hint: "Chủ sân duyệt trong 30 phút, trả trực tiếp khi đến sân" },
+        this.config.allow_deposit !== false && { value: "deposit", label: `Đặt cọc trước ${this.config.deposit_percent || 30}%`, hint: "Quét QR sau khi tạo đơn; nếu chủ sân duyệt trước khi cọc, đơn chuyển sang trả sau" },
         this.config.allow_full_payment !== false && { value: "full_payment", label: "Thanh toán 100% online", hint: "Chuyển khoản qua cổng SePay/QR" },
         this.config.allow_full_payment !== false && this.walletBalance !== null && {
           value: "wallet",

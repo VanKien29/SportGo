@@ -74,10 +74,10 @@
               </button>
               <button
                 type="button"
-                :class="['cc-tab', activeTab === 'ai' ? 'active' : '']"
-                @click="activeTab = 'ai'"
+                :class="['cc-tab', activeTab === 'matchmaking' ? 'active' : '']"
+                @click="activeTab = 'matchmaking'"
               >
-                Trợ lý AI
+                Kèo giao lưu
               </button>
               <button
                 type="button"
@@ -91,7 +91,42 @@
                 :class="['cc-tab', activeTab === 'direct' ? 'active' : '']"
                 @click="activeTab = 'direct'"
               >
-                Cá nhân &amp; Nhóm
+                Cá nhân
+              </button>
+              <button
+                type="button"
+                :class="['cc-tab', activeTab === 'ai' ? 'active' : '']"
+                @click="activeTab = 'ai'"
+              >
+                Trợ lý AI
+              </button>
+            </div>
+
+            <!-- MATCHMAKING SUB-FILTERS (BR-19) -->
+            <div v-if="activeTab === 'matchmaking'" class="cc-mm-subfilters">
+              <button
+                type="button"
+                :class="['cc-mm-pill', matchmakingFilter === 'active' ? 'active' : '']"
+                @click="matchmakingFilter = 'active'"
+              >
+                <span>Đang hoạt động</span>
+                <span class="cc-mm-pill-badge">{{ matchmakingCounts.active }}</span>
+              </button>
+              <button
+                type="button"
+                :class="['cc-mm-pill', matchmakingFilter === 'ended' ? 'active' : '']"
+                @click="matchmakingFilter = 'ended'"
+              >
+                <span>Đã kết thúc</span>
+                <span class="cc-mm-pill-badge">{{ matchmakingCounts.ended }}</span>
+              </button>
+              <button
+                type="button"
+                :class="['cc-mm-pill', matchmakingFilter === 'hidden' ? 'active' : '']"
+                @click="matchmakingFilter = 'hidden'"
+              >
+                <span>Đã ẩn</span>
+                <span v-if="matchmakingCounts.hidden > 0" class="cc-mm-pill-badge cc-mm-pill-badge--warn">{{ matchmakingCounts.hidden }}</span>
               </button>
             </div>
           </div>
@@ -151,12 +186,9 @@
                 <div v-else-if="conv.type === 'saved_messages' || (conv.type === 'direct' && !conv.other_user)" class="cc-avatar cc-avatar--saved">
                   <AppIcon name="bookmark" size="16" />
                 </div>
-                <img
-                  v-else-if="conv.avatar_url"
-                  :src="conv.avatar_url"
-                  class="cc-avatar-img"
-                  alt="Avatar"
-                />
+                <div v-else-if="conv.avatar_url" class="cc-avatar">
+                  <img :src="conv.avatar_url" class="cc-avatar-img" alt="Avatar" />
+                </div>
                 <div
                   v-else
                   class="cc-avatar"
@@ -170,7 +202,15 @@
               <!-- CONTENT PREVIEW -->
               <div class="cc-conv-info">
                 <div class="cc-conv-top">
-                  <span class="cc-conv-title">{{ conv.title }}</span>
+                  <span class="cc-conv-title">
+                    {{ conv.title }}
+                    <span
+                      v-if="conv.type === 'player_post'"
+                      :class="['cc-mm-badge', `is-${conv.is_hidden ? 'hidden' : conv.matchmaking_status || 'active'}`]"
+                    >
+                      {{ conv.is_hidden ? 'Đã ẩn' : conv.matchmaking_status === 'ended' ? 'Đã kết thúc' : 'Đang diễn ra' }}
+                    </span>
+                  </span>
                   <span class="cc-conv-time">{{ formatTime(conv.last_message?.created_at || conv.last_message_at) }}</span>
                 </div>
                 <div class="cc-conv-sub">
@@ -227,12 +267,9 @@
                   <div v-else-if="activeConversation.type === 'saved_messages' || (activeConversation.type === 'direct' && !activeConversation.other_user)" class="cc-avatar cc-avatar--saved cc-avatar--sm">
                     <AppIcon name="bookmark" size="14" />
                   </div>
-                  <img
-                    v-else-if="activeConversation.avatar_url"
-                    :src="activeConversation.avatar_url"
-                    class="cc-avatar-img cc-avatar--sm"
-                    alt="Avatar"
-                  />
+                  <div v-else-if="activeConversation.avatar_url" class="cc-avatar cc-avatar--sm">
+                    <img :src="activeConversation.avatar_url" class="cc-avatar-img" alt="Avatar" />
+                  </div>
                   <div
                     v-else
                     class="cc-avatar cc-avatar--sm"
@@ -364,6 +401,16 @@
                     </button>
 
                     <button
+                      v-if="isMatchmakingGroup"
+                      type="button"
+                      class="cc-dropdown-item"
+                      @click="hideMatchmakingConversation"
+                    >
+                      <AppIcon name="alert" size="14" />
+                      <span>Xóa ẩn cuộc trò chuyện</span>
+                    </button>
+
+                    <button
                       v-if="!activeConversation.is_ai"
                       type="button"
                       class="cc-dropdown-item cc-dropdown-item--danger"
@@ -375,6 +422,21 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- HIDDEN CHAT BANNER (BR-18 & BR-19) -->
+            <div v-if="activeConversation?.is_hidden" class="cc-hidden-banner">
+              <div class="cc-hb-text">
+                <AppIcon name="alert" size="14" />
+                <span>Cuộc trò chuyện này đang ở danh sách <strong>Đã ẩn</strong>.</span>
+              </div>
+              <button
+                type="button"
+                class="cc-hb-unhide-btn"
+                @click="unhideActiveConversation"
+              >
+                Khôi phục cuộc trò chuyện
+              </button>
             </div>
 
             <!-- PINNED MESSAGE BANNER -->
@@ -797,7 +859,7 @@
               <input
                 v-model="groupMemberSearch"
                 type="text"
-                placeholder="Nhập tên hoặc số điện thoại..."
+                placeholder="Nhập tên, số điện thoại hoặc email..."
                 class="cc-search-input"
                 @input="handleGroupMemberSearch"
               />
@@ -858,39 +920,143 @@
       </div>
     </div>
 
-    <!-- GROUP INFO & PARTICIPANTS MODAL -->
+    <!-- GROUP INFO & PARTICIPANTS MODAL (SPACIOUS 2-COLUMN DESIGN) -->
     <div v-if="showGroupInfoModal" class="cc-modal-overlay" @click.self="showGroupInfoModal = false">
-      <div class="cc-modal-card">
+      <div class="cc-modal-card cc-modal-card--wide">
         <div class="cc-modal-head">
           <h3 class="cc-modal-title">Thông tin nhóm trò chuyện</h3>
-          <button type="button" class="cc-icon-btn" @click="showGroupInfoModal = false">✕</button>
+          <button type="button" class="cc-icon-btn" @click="showGroupInfoModal = false" aria-label="Đóng">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
-        <div class="cc-modal-body">
-          <div class="cc-vis-hero">
-            <div class="cc-vis-avatar" :style="{ backgroundColor: getAvatarColor(activeConversation?.title) }">
-              {{ getInitial(activeConversation?.title) }}
+        <div class="cc-modal-body cc-modal-body--grid">
+          <!-- LEFT COLUMN: GROUP HERO & PRIMARY ACTIONS -->
+          <div class="cc-group-side-info">
+            <div class="cc-vis-hero cc-vis-hero--stacked">
+              <div class="cc-vis-avatar cc-vis-avatar--lg" :style="{ backgroundColor: getAvatarColor(activeConversation?.title) }">
+                <img v-if="activeConversation?.avatar_url" :src="activeConversation.avatar_url" :alt="activeConversation.title" class="cc-avatar-img" />
+                <span v-else>{{ getInitial(activeConversation?.title) }}</span>
+              </div>
+              <h4 class="cc-vis-name">{{ activeConversation?.title }}</h4>
+              <span class="cc-vis-sub">Nhóm trò chuyện SportGo</span>
             </div>
-            <span class="cc-vis-name">{{ activeConversation?.title }}</span>
-            <span class="cc-vis-sub">Nhóm trò chuyện SportGo</span>
+
+            <div class="cc-group-side-actions">
+              <button
+                v-if="isGroupLeader && activeConversation?.type === 'group'"
+                type="button"
+                class="cc-btn-outline-danger"
+                @click="dissolveMatchmakingGroup"
+              >
+                Giải tán nhóm
+              </button>
+              <button
+                v-else-if="String(activeConversation?.created_by) !== String(currentUser?.id) && activeConversation?.is_active !== false"
+                type="button"
+                class="cc-btn-outline-danger"
+                @click="leaveGroupConversation"
+              >
+                Rời khỏi nhóm
+              </button>
+            </div>
           </div>
 
-          <div class="cc-form-group">
-            <label class="cc-form-label">Thành viên trong nhóm ({{ activeConversation?.participants?.length || 0 }}):</label>
-            <div class="cc-group-search-results">
-              <div
-                v-for="p in activeConversation?.participants || []"
-                :key="p.user_id"
-                class="cc-gsr-item"
+          <!-- RIGHT COLUMN: PARTICIPANTS & MANAGEMENTS -->
+          <div class="cc-group-main-content">
+            <div class="cc-participants-header">
+              <span class="cc-participants-title">Thành viên trong nhóm ({{ activeConversation?.participants?.length || 0 }})</span>
+              <button
+                v-if="isGroupLeader && activeConversation?.type === 'group'"
+                type="button"
+                class="cc-btn-add-member-trigger"
+                @click="showAddMemberInput = !showAddMemberInput"
               >
-                <div class="cc-avatar cc-avatar--sm" :style="{ backgroundColor: getAvatarColor(p.user?.full_name || p.user?.username) }">
-                  {{ getInitial(p.user?.full_name || p.user?.username) }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span>{{ showAddMemberInput ? 'Đóng tìm kiếm' : 'Thêm thành viên' }}</span>
+              </button>
+            </div>
+
+            <!-- ADD MEMBER SEARCH SECTION (FOR LEADER) -->
+            <div v-if="showAddMemberInput && isGroupLeader" class="cc-add-member-box">
+              <input
+                v-model="addMemberQuery"
+                type="text"
+                class="cc-form-input cc-input-sm"
+                placeholder="Nhập tên, số điện thoại hoặc email..."
+                @input="handleSearchAddMembers"
+              />
+              <div v-if="addMemberResults.length > 0" class="cc-add-member-results">
+                <div
+                  v-for="u in addMemberResults"
+                  :key="u.id"
+                  class="cc-add-user-row"
+                  @click="submitAddMember(u)"
+                >
+                  <div class="cc-avatar cc-avatar--xs" :style="{ backgroundColor: getAvatarColor(u.full_name || u.username) }">
+                    <img v-if="u.avatar_url" :src="u.avatar_url" :alt="u.full_name || u.username" class="cc-avatar-img" />
+                    <span v-else>{{ getInitial(u.full_name || u.username) }}</span>
+                  </div>
+                  <span class="cc-aur-name">{{ u.full_name || u.username }}</span>
+                  <span class="cc-aur-action">Thêm vào nhóm</span>
                 </div>
-                <div class="cc-gsr-info">
-                  <span class="cc-gsr-name">{{ p.user?.full_name || p.user?.username || 'Thành viên' }}</span>
-                  <span class="cc-gsr-sub">{{ p.left_at ? `Đã rời lúc ${formatDateTime(p.left_at)}` : `Tham gia lúc ${formatDateTime(p.joined_at)}` }}</span>
+              </div>
+            </div>
+
+            <!-- PARTICIPANTS FRAMELESS LIST -->
+            <div class="cc-group-flat-list">
+              <template v-if="activeConversation?.participants && activeConversation.participants.length > 0">
+                <div
+                  v-for="p in activeConversation.participants"
+                  :key="p.user_id || p.id"
+                  class="cc-flat-item"
+                >
+                  <div class="cc-avatar cc-avatar--sm" :style="{ backgroundColor: getAvatarColor(p.user?.full_name || p.user?.username || 'U') }">
+                    <img v-if="p.user?.avatar_url" :src="p.user.avatar_url" :alt="p.user?.full_name || p.user?.username" class="cc-avatar-img" />
+                    <span v-else>{{ getInitial(p.user?.full_name || p.user?.username || 'U') }}</span>
+                  </div>
+                  <div class="cc-flat-info">
+                    <span class="cc-flat-name">{{ p.user?.full_name || p.user?.username || 'Thành viên' }}</span>
+                    <span class="cc-flat-sub">{{ p.left_at ? 'Đã rời nhóm' : 'Đang hoạt động' }}</span>
+                  </div>
+
+                  <div class="cc-flat-actions">
+                    <span v-if="String(p.user_id) === String(activeConversation?.created_by)" class="cc-badge-leader">Trưởng nhóm</span>
+
+                    <button
+                      v-else-if="String(p.user_id) !== String(currentUser?.id)"
+                      type="button"
+                      class="cc-btn-member-action"
+                      title="Nhắn tin riêng"
+                      @click="startDirectChatFromGroup(p.user)"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      </svg>
+                      <span>Nhắn tin</span>
+                    </button>
+
+                    <button
+                      v-if="isGroupLeader && String(p.user_id) !== String(currentUser?.id) && !p.left_at"
+                      type="button"
+                      class="cc-btn-member-kick"
+                      title="Xóa khỏi nhóm"
+                      @click="handleKickMember(p)"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                      <span>Xóa</span>
+                    </button>
+                  </div>
                 </div>
-                <span v-if="String(p.user_id) === String(activeConversation?.created_by)" class="cc-gsr-added">Trưởng nhóm</span>
+              </template>
+              <div v-else class="cc-empty-participants">
+                <span>Chưa có dữ liệu danh sách thành viên</span>
               </div>
             </div>
           </div>
@@ -899,14 +1065,6 @@
         <div class="cc-modal-footer">
           <button type="button" class="cc-btn-ghost" @click="showGroupInfoModal = false">
             Đóng
-          </button>
-          <button
-            v-if="String(activeConversation?.created_by) !== String(currentUser?.id) && activeConversation?.is_active !== false"
-            type="button"
-            class="cc-btn-ghost cc-dropdown-item--danger"
-            @click="leaveGroupConversation"
-          >
-            Rời khỏi nhóm
           </button>
         </div>
       </div>
@@ -1060,10 +1218,30 @@
         />
       </div>
     </div>
+
+    <!-- MODAL XÁC NHẬN GIẢI TÁN NHÓM -->
+    <div v-if="showDissolveConfirmModal" class="cc-modal-overlay" @click.self="showDissolveConfirmModal = false">
+      <div class="cc-modal-card cc-confirm-card" role="dialog" aria-modal="true">
+        <div class="cc-confirm-icon cc-confirm-icon--danger">
+          <AppIcon name="alert" size="28" />
+        </div>
+        <h3 class="cc-confirm-title">Giải tán nhóm giao lưu?</h3>
+        <p class="cc-confirm-desc">Bài giao lưu sẽ được đóng và thành viên sẽ được thông báo rời nhóm. Lịch sử trò chuyện vẫn được lưu lại.</p>
+        <div class="cc-confirm-actions">
+          <button type="button" class="cc-btn-ghost" :disabled="dissolvingGroup" @click="showDissolveConfirmModal = false">
+            Hủy bỏ
+          </button>
+          <button type="button" class="cc-btn-primary cc-btn-primary--danger" :disabled="dissolvingGroup" @click="confirmDissolveMatchmakingGroup">
+            <span>{{ dissolvingGroup ? 'Đang giải tán...' : 'Xác nhận giải tán' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import { useToast } from "vue-toastification";
 import echo from "../../echo.js";
 import AppIcon from "../../components/AppIcon.vue";
 import PublicNavbar from "../../components/PublicNavbar.vue";
@@ -1075,7 +1253,9 @@ export default {
   components: { PublicNavbar, AppIcon },
   data() {
     return {
+      toast: useToast(),
       activeTab: "all",
+      matchmakingFilter: "active",
       searchQuery: "",
       conversations: [],
       activeConversation: null,
@@ -1094,6 +1274,11 @@ export default {
       showChatActionsMenu: false,
       showVenueSidebar: false,
       showGroupInfoModal: false,
+      showDissolveConfirmModal: false,
+      dissolvingGroup: false,
+      showAddMemberInput: false,
+      addMemberQuery: "",
+      addMemberResults: [],
       isTyping: false,
       typingTimeout: null,
       onlineUsers: new Set(),
@@ -1160,14 +1345,37 @@ export default {
     };
   },
   computed: {
+    matchmakingCounts() {
+      const mmConvs = this.conversations.filter((c) => c.type === "player_post");
+      return {
+        all: mmConvs.filter((c) => !c.is_hidden).length,
+        active: mmConvs.filter((c) => c.matchmaking_status === "active" && !c.is_hidden).length,
+        ended: mmConvs.filter((c) => c.matchmaking_status === "ended" && !c.is_hidden).length,
+        hidden: mmConvs.filter((c) => c.is_hidden || c.matchmaking_status === "hidden").length,
+      };
+    },
     filteredConversations() {
       let list = this.conversations;
       if (this.activeTab === "ai") {
         list = list.filter((c) => c.is_ai);
       } else if (this.activeTab === "venue") {
-        list = list.filter((c) => c.type === "venue_contact" || c.reference_type === "venue_cluster");
+        list = list.filter((c) => (c.type === "venue_contact" || c.reference_type === "venue_cluster") && !c.is_hidden);
+      } else if (this.activeTab === "matchmaking") {
+        list = list.filter((c) => c.type === "player_post");
+        if (this.matchmakingFilter === "active") {
+          list = list.filter((c) => c.matchmaking_status === "active" && !c.is_hidden);
+        } else if (this.matchmakingFilter === "ended") {
+          list = list.filter((c) => c.matchmaking_status === "ended" && !c.is_hidden);
+        } else if (this.matchmakingFilter === "hidden") {
+          list = list.filter((c) => c.is_hidden || c.matchmaking_status === "hidden");
+        } else {
+          list = list.filter((c) => !c.is_hidden);
+        }
       } else if (this.activeTab === "direct") {
-        list = list.filter((c) => !c.is_ai && c.type !== "venue_contact" && c.reference_type !== "venue_cluster");
+        list = list.filter((c) => !c.is_ai && c.type !== "venue_contact" && c.reference_type !== "venue_cluster" && c.type !== "player_post" && !c.is_hidden);
+      } else {
+        // "all": exclude hidden conversations by default so they don't clutter the inbox
+        list = list.filter((c) => !c.is_hidden);
       }
 
       const q = this.searchQuery.trim().toLowerCase();
@@ -1182,6 +1390,10 @@ export default {
     },
     isMatchmakingGroup() {
       return this.activeConversation?.type === 'player_post';
+    },
+    isGroupLeader() {
+      if (!this.activeConversation || !this.currentUser) return false;
+      return String(this.activeConversation.created_by) === String(this.currentUser.id);
     },
     canSendChat() {
       return !this.isMatchmakingGroup || this.activeConversation?.is_active !== false;
@@ -1245,8 +1457,11 @@ export default {
   methods: {
     loadCurrentUser() {
       try {
-        const raw = localStorage.getItem("user") || localStorage.getItem("auth_user");
-        if (raw) this.currentUser = JSON.parse(raw);
+        const raw = localStorage.getItem("auth_user") || localStorage.getItem("user");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          this.currentUser = parsed?.user || parsed;
+        }
       } catch (e) {
         this.currentUser = null;
       }
@@ -1338,7 +1553,18 @@ export default {
       if (targetConvId) {
         const target = this.conversations.find((c) => String(c.id) === String(targetConvId));
         if (target) {
-          if (!target.is_ai) this.activeTab = target.type === "venue_contact" ? "venue" : "direct";
+          if (!target.is_ai) {
+            if (target.type === "venue_contact") {
+              this.activeTab = "venue";
+            } else if (target.type === "player_post") {
+              this.activeTab = "matchmaking";
+              if (target.is_hidden) this.matchmakingFilter = "hidden";
+              else if (target.matchmaking_status === "ended") this.matchmakingFilter = "ended";
+              else this.matchmakingFilter = "active";
+            } else {
+              this.activeTab = "direct";
+            }
+          }
           this.selectConversation(target);
           return;
         }
@@ -1570,40 +1796,162 @@ export default {
     },
     openGroupInfoModal() {
       this.showChatActionsMenu = false;
+      this.showAddMemberInput = false;
+      this.addMemberQuery = "";
+      this.addMemberResults = [];
       this.showGroupInfoModal = true;
+    },
+    handleSearchAddMembers() {
+      const q = this.addMemberQuery.trim();
+      if (q.length < 2) {
+        this.addMemberResults = [];
+        return;
+      }
+      chatService.searchUsers(q)
+        .then((res) => {
+          const currentParticipantUserIds = (this.activeConversation?.participants || []).map((p) => String(p.user_id));
+          this.addMemberResults = (res || []).filter(
+            (u) => String(u.id) !== String(this.currentUser?.id) && !currentParticipantUserIds.includes(String(u.id))
+          );
+        })
+        .catch(() => {
+          this.addMemberResults = [];
+        });
+    },
+    async submitAddMember(user) {
+      if (!this.activeConversation || !user) return;
+      try {
+        await chatService.addMembers(this.activeConversation.id, [user.id]);
+        this.addMemberQuery = "";
+        this.addMemberResults = [];
+        this.showAddMemberInput = false;
+
+        if (!this.activeConversation.participants) {
+          this.activeConversation.participants = [];
+        }
+        const existing = this.activeConversation.participants.find((p) => String(p.user_id) === String(user.id));
+        if (existing) {
+          existing.left_at = null;
+        } else {
+          this.activeConversation.participants.push({
+            id: Date.now(),
+            user_id: user.id,
+            joined_at: new Date().toISOString(),
+            left_at: null,
+            user: {
+              id: user.id,
+              full_name: user.full_name,
+              username: user.username,
+              avatar_url: user.avatar_url,
+              email: user.email,
+              phone: user.phone,
+            },
+          });
+        }
+        await this.fetchConversations();
+      } catch (err) {
+        console.error("Lỗi thêm thành viên vào nhóm", err);
+      }
+    },
+    async handleKickMember(participant) {
+      if (!this.activeConversation || !participant) return;
+      const memberName = participant.user?.full_name || participant.user?.username || "thành viên này";
+      if (!confirm(`Bạn có chắc chắn muốn xóa "${memberName}" khỏi nhóm?`)) return;
+
+      try {
+        await chatService.removeMember(this.activeConversation.id, participant.user_id);
+        if (this.activeConversation.participants) {
+          this.activeConversation.participants = this.activeConversation.participants.filter(
+            (p) => String(p.user_id) !== String(participant.user_id)
+          );
+        }
+        await this.fetchConversations();
+      } catch (err) {
+        console.error("Lỗi xóa thành viên", err);
+      }
+    },
+    async startDirectChatFromGroup(user) {
+      if (!user || String(user.id) === String(this.currentUser?.id)) return;
+      this.showGroupInfoModal = false;
+      await this.startDirectChatWithUser(user);
     },
     async leaveGroupConversation() {
       this.showChatActionsMenu = false;
       this.showGroupInfoModal = false;
-      if (!confirm("Bạn có chắc chắn muốn rời khỏi nhóm trò chuyện này?")) return;
       try {
         const conversationId = this.activeConversation.id;
         if (this.isMatchmakingGroup) {
           await chatService.leaveConversation(conversationId);
+          this.toast.success("Bạn đã rời nhóm giao lưu.");
           await this.fetchConversations();
           const updated = this.conversations.find((c) => String(c.id) === String(conversationId));
           if (updated) this.selectConversation(updated);
         } else {
           await chatService.deleteConversation(conversationId);
+          this.toast.success("Đã rời khỏi cuộc trò chuyện.");
           this.conversations = this.conversations.filter((c) => c.id !== conversationId);
           this.activeConversation = null;
           if (this.conversations.length > 0) this.selectConversation(this.conversations[0]);
         }
       } catch (err) {
         console.error("Lỗi rời nhóm", err);
+        this.toast.error(err.message || "Không thể rời nhóm.");
       }
     },
-    async dissolveMatchmakingGroup() {
+    dissolveMatchmakingGroup() {
       this.showChatActionsMenu = false;
       if (!this.isMatchmakingGroup || !this.activeConversation) return;
+      this.showDissolveConfirmModal = true;
+    },
+    async confirmDissolveMatchmakingGroup() {
+      if (!this.activeConversation || this.dissolvingGroup) return;
+      this.dissolvingGroup = true;
       try {
         const conversationId = this.activeConversation.id;
         await chatService.dissolveConversation(conversationId);
+        this.showDissolveConfirmModal = false;
         this.conversations = this.conversations.filter((c) => String(c.id) !== String(conversationId));
         this.activeConversation = null;
         this.messages = [];
+        if (this.conversations.length > 0) {
+          this.selectConversation(this.conversations[0]);
+        }
       } catch (err) {
         console.error("Lỗi giải tán nhóm giao lưu", err);
+      } finally {
+        this.dissolvingGroup = false;
+      }
+    },
+    async hideMatchmakingConversation() {
+      this.showChatActionsMenu = false;
+      if (!this.activeConversation) return;
+      if (!confirm("Ẩn cuộc trò chuyện này? Bạn vẫn có thể tìm thấy lại trong mục 'Đã ẩn' của Kèo giao lưu mà không bị mất lịch sử.")) return;
+      try {
+        await chatService.deleteConversation(this.activeConversation.id, { delete_for_everyone: false });
+        this.toast.success("Đã ẩn cuộc trò chuyện.");
+        this.activeConversation.is_hidden = true;
+        this.activeConversation.matchmaking_status = "hidden";
+        await this.fetchConversations();
+      } catch (err) {
+        console.error("Lỗi ẩn cuộc trò chuyện", err);
+        this.toast.error(err.message || "Không thể ẩn cuộc trò chuyện.");
+      }
+    },
+    async unhideActiveConversation() {
+      if (!this.activeConversation) return;
+      try {
+        await chatService.unhideConversation(this.activeConversation.id);
+        this.toast.success("Đã khôi phục cuộc trò chuyện.");
+        await this.fetchConversations();
+        const updated = this.conversations.find((c) => String(c.id) === String(this.activeConversation.id));
+        if (updated) {
+          this.selectConversation(updated);
+        } else {
+          this.activeConversation.is_hidden = false;
+        }
+      } catch (err) {
+        console.error("Lỗi khôi phục cuộc trò chuyện", err);
+        this.toast.error(err.message || "Không thể khôi phục cuộc trò chuyện.");
       }
     },
     async openSavedMessages() {
@@ -1631,9 +1979,13 @@ export default {
     fetchMessages() {
       if (!this.activeConversation) return;
 
-      if (this.activeConversation.is_ai) {
+      const currentConvId = this.activeConversation.id;
+      const isAiConv = !!this.activeConversation.is_ai || currentConvId === "ai_assistant";
+
+      if (isAiConv) {
         chatService.getAiHistory()
           .then((res) => {
+            if (String(this.activeConversation?.id) !== String(currentConvId)) return;
             if (res.messages && Array.isArray(res.messages) && res.messages.length > 0) {
               this.messages = res.messages.map((m) => ({
                 ...m,
@@ -1646,17 +1998,20 @@ export default {
             this.loadSavedLocalAiMessages();
           })
           .catch(() => {
-            this.loadSavedLocalAiMessages();
+            if (String(this.activeConversation?.id) === String(currentConvId)) {
+              this.loadSavedLocalAiMessages();
+            }
           });
         return;
       }
 
       try {
-        chatService.getMessages(this.activeConversation.id).then((res) => {
-          this.messages = res.messages || [];
-          if (Array.isArray(res.participants)) {
+        chatService.getMessages(currentConvId).then((res) => {
+          if (String(this.activeConversation?.id) !== String(currentConvId)) return;
+          this.messages = res?.messages || (Array.isArray(res) ? res : []);
+          if (Array.isArray(res?.participants)) {
             this.activeConversation.participants = res.participants;
-            const self = res.participants.find((participant) => String(participant.user_id) === String(this.currentUser?.id));
+            const self = res.participants.find((participant) => String(participant.user_id) === String(this.currentUser?.id || this.currentUser?.user?.id));
             if (self) {
               this.activeConversation.is_active = self.is_active;
               this.activeConversation.joined_at = self.joined_at;
@@ -1664,13 +2019,16 @@ export default {
             }
           }
           this.scrollToBottom();
-          chatService.markAsRead(this.activeConversation.id);
+          chatService.markAsRead(currentConvId).catch(() => {});
+        }).catch((err) => {
+          console.error("Lỗi getMessages API", err);
         });
       } catch (err) {
         console.error("Không thể tải danh sách tin nhắn", err);
       }
     },
     loadSavedLocalAiMessages() {
+      if (!this.activeConversation?.is_ai && String(this.activeConversation?.id) !== "ai_assistant") return;
       try {
         const saved = localStorage.getItem("sportgo_ai_messages");
         if (saved) {
@@ -1781,8 +2139,21 @@ export default {
           this.selectedFile,
           replyId
         );
-        if (!this.messages.some((m) => m.id === res.id)) {
-          this.messages.push(res);
+        const newMsg = res?.data || res;
+        if (newMsg && (newMsg.id || newMsg.content)) {
+          const myUser = this.currentUser?.user || this.currentUser || {};
+          const msgObj = {
+            ...newMsg,
+            sender_id: newMsg.sender_id || myUser.id || "me",
+            sender: newMsg.sender || {
+              id: myUser.id,
+              full_name: myUser.full_name || myUser.username || "Tôi",
+              avatar_url: myUser.avatar_url || null,
+            },
+          };
+          if (!this.messages.some((m) => String(m.id) === String(msgObj.id))) {
+            this.messages.push(msgObj);
+          }
         }
 
         // Update local conversation last message preview
@@ -2298,6 +2669,125 @@ export default {
   border-color: #15803d;
 }
 
+/* MATCHMAKING SUB-FILTERS (BR-19) */
+.cc-mm-subfilters {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.cc-mm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.cc-mm-pill:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.cc-mm-pill.active {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.cc-mm-pill-badge {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.cc-mm-pill.active .cc-mm-pill-badge {
+  background: #15803d;
+  color: #ffffff;
+}
+
+.cc-mm-pill-badge--warn {
+  background: #fef08a !important;
+  color: #854d0e !important;
+}
+
+/* MATCHMAKING BADGE IN CONV ITEM */
+.cc-mm-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.cc-mm-badge.is-active {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.cc-mm-badge.is-ended {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.cc-mm-badge.is-hidden {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* HIDDEN CHAT BANNER */
+.cc-hidden-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+}
+
+.cc-hb-text {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cc-hb-unhide-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #d97706;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.cc-hb-unhide-btn:hover {
+  background: #b45309;
+}
+
 /* USER SEARCH PANEL */
 .cc-user-search-panel {
   border-bottom: 1px solid #e2e8f0;
@@ -2391,11 +2881,15 @@ export default {
 .cc-avatar-wrap {
   position: relative;
   flex-shrink: 0;
+  width: 38px;
+  height: 38px;
 }
 
 .cc-avatar {
   width: 38px;
   height: 38px;
+  max-width: 38px;
+  max-height: 38px;
   border-radius: 50%;
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
@@ -2406,6 +2900,7 @@ export default {
   justify-content: center;
   font-size: 14px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cc-avatar--ai {
@@ -2419,7 +2914,18 @@ export default {
 .cc-avatar--sm {
   width: 32px;
   height: 32px;
+  max-width: 32px;
+  max-height: 32px;
   font-size: 12px;
+  flex-shrink: 0;
+}
+
+.cc-avatar--xs {
+  width: 24px;
+  height: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  font-size: 10px;
   flex-shrink: 0;
 }
 
@@ -3899,4 +4405,368 @@ export default {
   }
 }
 .cc-group-left-note { width: 100%; margin-bottom: 8px; padding: 7px 10px; border: 1px solid #fde68a; border-radius: 7px; background: #fffbeb; color: #92400e; font-size: 12px; }
+
+/* WIDE 2-COLUMN GROUP MODAL */
+.cc-modal-card--wide {
+  width: 92%;
+  max-width: 720px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+}
+
+.cc-modal-body--grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 28px;
+  padding: 24px;
+}
+
+.cc-group-side-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-right: 1px solid #f1f5f9;
+  padding-right: 24px;
+}
+
+.cc-vis-hero--stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.cc-vis-avatar--lg {
+  width: 72px;
+  height: 72px;
+  max-width: 72px;
+  max-height: 72px;
+  font-size: 28px;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cc-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+}
+
+.cc-vis-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.cc-vis-sub {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.cc-group-side-actions {
+  margin-top: auto;
+  width: 100%;
+  padding-top: 16px;
+}
+
+.cc-btn-outline-danger {
+  width: 100%;
+  padding: 9px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cc-btn-outline-danger:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+/* RIGHT COLUMN: FLAT FRAMELESS LIST */
+.cc-group-main-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cc-participants-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.cc-participants-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4;
+  display: inline-block;
+}
+
+.cc-btn-add-member-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.cc-btn-add-member-trigger:hover {
+  background: #166534;
+}
+
+.cc-add-member-box {
+  margin-bottom: 12px;
+}
+
+.cc-input-sm {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cc-add-member-results {
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  margin-top: 4px;
+  background: #ffffff;
+}
+
+.cc-add-user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cc-add-user-row:hover {
+  background-color: #f8fafc;
+}
+
+.cc-aur-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.cc-aur-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.cc-group-flat-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.cc-flat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cc-flat-item:last-child {
+  border-bottom: none;
+}
+
+.cc-flat-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cc-flat-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.cc-flat-sub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cc-flat-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cc-badge-leader {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.cc-btn-member-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cc-btn-member-action:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.cc-btn-member-kick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background: #ffffff;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cc-btn-member-kick:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.cc-empty-participants {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .cc-modal-body--grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .cc-group-side-info {
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding-right: 0;
+    padding-bottom: 16px;
+  }
+}
+
+/* CONFIRM MODAL DIALOG */
+.cc-confirm-card {
+  max-width: 420px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  border-radius: 16px;
+}
+
+.cc-confirm-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cc-confirm-icon--danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.cc-confirm-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cc-confirm-desc {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.cc-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cc-confirm-actions button {
+  flex: 1;
+  min-height: 42px;
+}
+
+.cc-btn-primary--danger {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.cc-btn-primary--danger:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+}
 </style>

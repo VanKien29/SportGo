@@ -82,6 +82,11 @@ export const chatService = {
       body: JSON.stringify(options)
     });
   },
+  unhideConversation(conversationId) {
+    return api(`/api/chat/conversations/${conversationId}/unhide`, {
+      method: 'POST'
+    });
+  },
   clearConversation(conversationId, options = {}) {
     return api(`/api/chat/conversations/${conversationId}/clear`, {
       method: 'POST',
@@ -176,5 +181,17 @@ export const chatService = {
       console.error('Lỗi askAiAssistant:', e);
       return { success: false, reply: null };
     }
+  },
+  addMembers(conversationId, userIds) {
+    return api(`/api/chat/conversations/${conversationId}/add-members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: userIds })
+    });
+  },
+  removeMember(conversationId, userId) {
+    return api(`/api/chat/conversations/${conversationId}/remove-member`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId })
+    });
   }
 };

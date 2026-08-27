@@ -133,13 +133,6 @@
           <p v-if="fieldErrors.password" class="sg-auth-field-error">{{ fieldErrors.password }}</p>
         </div>
 
-        <ul class="sg-password-rules" aria-label="Yêu cầu mật khẩu">
-          <li :class="{ passed: passwordChecks.length }">8–50 ký tự</li>
-          <li :class="{ passed: passwordChecks.uppercase }">Có chữ hoa</li>
-          <li :class="{ passed: passwordChecks.number }">Có chữ số</li>
-          <li :class="{ passed: passwordChecks.special }">Có ký tự đặc biệt</li>
-        </ul>
-
         <div class="sg-auth-field">
           <PasswordInput
             v-model="form.password_confirmation"
@@ -187,7 +180,7 @@
 
     <form
       v-else
-      class="sg-account-form"
+      class="sg-account-form sg-auth-otp-step"
       autocomplete="one-time-code"
       novalidate
       @submit.prevent="handleVerifyOtp"
@@ -235,13 +228,13 @@
         <p v-if="fieldErrors.otp" class="sg-auth-field-error">{{ fieldErrors.otp }}</p>
       </div>
 
-      <button class="sg-auth-submit" type="submit" :disabled="isLoading || isResending">
+      <button class="sg-auth-submit sg-auth-otp-submit" type="submit" :disabled="isLoading || isResending">
         <span v-if="isLoading" class="sg-auth-spinner" aria-hidden="true"></span>
         <span>{{ isLoading ? 'Đang xác nhận...' : 'Xác nhận tài khoản' }}</span>
       </button>
-      <div class="sg-auth-inline-actions">
-        <button type="button" :disabled="isLoading || isResending" @click="handleResendOtp">
-          {{ isResending ? 'Đang gửi lại...' : 'Gửi lại mã' }}
+      <div class="sg-auth-inline-actions sg-auth-otp-actions">
+        <button type="button" :disabled="isLoading || isResending || resendCountdown > 0" @click="handleResendOtp">
+          {{ isResending ? 'Đang gửi lại...' : resendCountdown > 0 ? `Gửi lại sau ${resendCountdown}s` : 'Gửi lại mã' }}
         </button>
         <button type="button" :disabled="isLoading || isResending" @click="editRegistration">
           Đổi email
@@ -292,6 +285,8 @@ export default {
       successMsg: '',
       isLoading: false,
       isResending: false,
+      resendCountdown: 0,
+      resendTimer: null,
       isCompactScreen: false,
       registerSubStep: 1,
     };
@@ -318,6 +313,7 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.checkScreenSize);
+    if (this.resendTimer) clearInterval(this.resendTimer);
   },
   methods: {
     checkScreenSize() {
@@ -410,6 +406,7 @@ export default {
         const response = await register(this.form);
         this.step = 'otp';
         this.successMsg = response.message || 'Mã xác thực đã được gửi về email.';
+        this.startResendCountdown();
         this.$nextTick(() => this.$refs.otpInput?.focus());
       } catch (requestError) {
         this.applyBackendErrors(requestError);
@@ -438,10 +435,13 @@ export default {
     },
     async handleResendOtp() {
       this.clearMessages();
+      if (this.resendCountdown > 0) return;
       this.isResending = true;
       try {
         const response = await resendRegisterOtp(this.form.email);
         this.successMsg = response.message || 'Đã gửi lại mã OTP.';
+        this.otp = '';
+        this.startResendCountdown();
       } catch (requestError) {
         this.error = requestError.message || 'Không thể gửi lại mã OTP.';
       } finally {
@@ -451,10 +451,26 @@ export default {
     editRegistration() {
       this.step = 'register';
       this.otp = '';
+      this.resendCountdown = 0;
+      if (this.resendTimer) {
+        clearInterval(this.resendTimer);
+        this.resendTimer = null;
+      }
       this.registerSubStep = 1;
       this.fieldErrors = emptyFieldErrors();
       this.clearMessages();
       this.$nextTick(() => this.$refs.emailInput?.focus());
+    },
+    startResendCountdown() {
+      this.resendCountdown = 60;
+      if (this.resendTimer) clearInterval(this.resendTimer);
+      this.resendTimer = setInterval(() => {
+        this.resendCountdown -= 1;
+        if (this.resendCountdown <= 0) {
+          clearInterval(this.resendTimer);
+          this.resendTimer = null;
+        }
+      }, 1000);
     },
     handleGoogleLogin() {
       loginWithGoogle();

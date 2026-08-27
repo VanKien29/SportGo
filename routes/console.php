@@ -8,7 +8,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 use Illuminate\Support\Facades\Schedule;
-Schedule::command('app:release-expired-slot-locks')->everyMinute();
 Schedule::command('bookings:reconcile-statuses')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('matchmaking:reconcile-lifecycle')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('app:apply-policy-access-restrictions')->everyMinute();
