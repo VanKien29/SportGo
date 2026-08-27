@@ -46,7 +46,7 @@ class ReconcileMatchmakingPosts extends Command
                                 ->where('post_id', $lockedPost->id)
                                 ->where('status', 'pending')
                                 ->update([
-                                    'status' => 'cancelled',
+                                    'status' => 'expired',
                                     'responded_at' => $now,
                                     'left_at' => $now,
                                     'updated_at' => $now,

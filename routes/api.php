@@ -669,6 +669,7 @@ Route::middleware('auth:sanctum')
             Route::post('/conversations/{id}/dissolve', [ChatController::class, 'dissolveConversation']);
             Route::delete('/conversations/{id}', [ChatController::class, 'deleteConversation']);
             Route::post('/conversations/{id}/clear', [ChatController::class, 'clearMessages']);
+            Route::post('/conversations/{id}/unhide', [ChatController::class, 'unhideConversation']);
             Route::get('/users/search', [ChatController::class, 'searchUsers']);
         });
     });

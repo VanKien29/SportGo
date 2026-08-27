@@ -158,6 +158,7 @@ class PlayerPostController extends Controller
         $eligible = $bookings->map(function ($booking) {
             $court = $booking->venueCourt;
             $courtInfo = $this->resolveCourtTypeInfo($court);
+            $suggestedPlayers = $court?->courtType?->player_count ?? 0;
 
             return [
                 'id' => $booking->id,
@@ -169,6 +170,7 @@ class PlayerPostController extends Controller
                 'sport_name' => $courtInfo['sport_name'],
                 'court_type_name' => $courtInfo['court_type_name'],
                 'sport_icon' => $courtInfo['sport_icon'],
+                'suggested_players' => $suggestedPlayers,
                 'total_price' => (float) ($booking->total_price ?? 0),
                 'date' => $booking->booking_date->format('Y-m-d'),
                 'time' => substr($booking->start_time, 0, 5) . ' - ' . substr($booking->end_time, 0, 5),
@@ -328,7 +330,7 @@ class PlayerPostController extends Controller
                 'name' => $item->author_name ?: $item->author_username ?: 'Người dùng',
                 'avatar' => $item->author_avatar,
             ],
-            'can_leave' => in_array($item->status, ['pending', 'approved'], true),
+            'can_leave' => in_array($item->status, ['pending', 'approved', 'left'], true),
         ];
     }
 
@@ -587,7 +589,7 @@ class PlayerPostController extends Controller
             DB::table('player_post_participants')
                 ->where('post_id', $post->id)
                 ->where('user_id', $userId)
-                ->update(['status' => 'cancelled', 'responded_at' => now(), 'left_at' => now(), 'updated_at' => now()]);
+                ->update(['status' => 'left', 'responded_at' => now(), 'left_at' => now(), 'updated_at' => now()]);
 
             if ($wasApproved && $post->booking && ! $this->hasBookingStarted($post->booking)) {
                 $post->needed_players += 1;
@@ -630,10 +632,10 @@ class PlayerPostController extends Controller
         $this->synchronizeLifecycle($post);
         $post->refresh();
 
-        if ($post->status !== 'open' || $post->needed_players <= 0) {
+        if (! in_array($post->status, ['open', 'full'], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bài giao lưu này không còn nhận thêm người.',
+                'message' => 'Bài giao lưu này đã đóng hoặc bị hủy.',
             ], 409);
         }
 
@@ -656,7 +658,7 @@ class PlayerPostController extends Controller
             ->where('user_id', $userId)
             ->first();
 
-        if ($existing && $existing->status !== 'cancelled') {
+        if ($existing && ! in_array($existing->status, ['cancelled', 'left', 'expired', 'rejected'], true)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Bạn đã gửi yêu cầu tham gia bài này rồi.',
@@ -672,15 +674,15 @@ class PlayerPostController extends Controller
             $this->synchronizeLifecycle($post);
             $post->refresh();
 
-            if ($post->status !== 'open' || $post->needed_players <= 0 || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
+            if (! in_array($post->status, ['open', 'full'], true) || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
                 DB::rollBack();
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Bài giao lưu này không còn nhận thêm người.',
+                    'message' => 'Bài giao lưu này đã đóng hoặc không còn hiệu lực.',
                 ], 409);
             }
 
-            $inserted = $existing
+            $inserted = ($existing && in_array($existing->status, ['cancelled', 'left', 'expired', 'rejected'], true))
                 ? DB::table('player_post_participants')->where('post_id', $post->id)->where('user_id', $userId)->update([
                     'status' => 'pending',
                     'responded_at' => null,
@@ -851,9 +853,9 @@ class PlayerPostController extends Controller
                 return response()->json(['message' => 'Yêu cầu không hợp lệ hoặc đã được duyệt.'], 409);
             }
 
-            if ($post->status !== 'open' || $post->needed_players <= 0 || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
+            if (! in_array($post->status, ['open', 'full'], true) || ! $post->booking || ! $this->isEligibleBooking($post->booking)) {
                 DB::rollBack();
-                return response()->json(['message' => 'Bài giao lưu đã đủ người hoặc không còn hiệu lực.'], 409);
+                return response()->json(['message' => 'Bài giao lưu đã đóng hoặc không còn hiệu lực.'], 409);
             }
 
             DB::table('player_post_participants')
@@ -1009,7 +1011,7 @@ class PlayerPostController extends Controller
                 ->where('post_id', $post->id)
                 ->where('status', 'pending')
                 ->update([
-                    'status' => 'cancelled',
+                    'status' => 'expired',
                     'responded_at' => now(),
                     'left_at' => now(),
                     'updated_at' => now(),

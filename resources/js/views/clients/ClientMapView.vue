@@ -42,9 +42,6 @@
             </div>
 
             <div class="sg-hero-bottom-meta">
-              <span class="sg-hero-sport-tag">
-                {{ selectedVenue.court_types?.[0]?.name || 'Cầu lông' }}
-              </span>
               <div class="sg-hero-rating">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span>{{ selectedVenue.rating_avg ? `${selectedVenue.rating_avg} (${selectedVenue.rating_count || 0})` : 'Mới' }}</span>
@@ -86,10 +83,14 @@
                 <span>{{ selectedVenue.phone_contact }}</span>
               </div>
 
-              <!-- HÀNG GIÁ THUÊ ĐỒNG BỘ VỚI ĐỊA ĐIỂM & THỜI GIAN -->
+              <!-- HÀNG GIÁ THUÊ ĐỒNG BỘ VỚI ĐỊA ĐIỂM & THỜI GIAN THEO NGỮ CẢNH -->
               <div class="sg-meta-item">
                 <svg class="sg-meta-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                <span>Giá từ: <span class="sg-meta-price-val">{{ priceLabel(selectedVenue) }}</span></span>
+                <span>
+                  <template v-if="selectedSportId && selectedSportId !== 'all'">Giá môn {{ currentSportName }}: </template>
+                  <template v-else>Giá từ: </template>
+                  <span class="sg-meta-price-val">{{ priceLabel(selectedVenue) }}</span>
+                </span>
               </div>
             </div>
 
@@ -153,21 +154,47 @@
               </div>
             </div>
 
-            <!-- TAB 2: DỊCH VỤ & BẢNG GIÁ -->
+            <!-- TAB 2: DỊCH VỤ & BẢNG GIÁ THEO BỘ MÔN -->
             <div v-else-if="activeTab === 'services'" class="sg-tab-pane">
-              <div class="sg-pane-block">
-                <h4 class="sg-pane-subtitle">Dịch vụ đi kèm tại sân</h4>
+              <!-- KHỐI CÁC BỘ MÔN THỂ THAO & BẢNG GIÁ -->
+              <div class="sg-pane-block" v-if="venueSportsList.length">
+                <h4 class="sg-pane-subtitle">Bộ môn thi đấu & Bảng giá</h4>
+                <div class="sg-sports-pricing-list">
+                  <div
+                    v-for="sport in venueSportsList"
+                    :key="sport.id"
+                    class="sg-sport-pricing-card"
+                  >
+                    <div class="sg-sport-card-left">
+                      <div class="sg-sport-card-icon">
+                        <IsometricSportIcon :name="sport.iconKey || sport.name" :size="26" />
+                      </div>
+                      <div class="sg-sport-card-meta">
+                        <h5 class="sg-sport-card-name">{{ sport.name }}</h5>
+                        <span class="sg-sport-card-sub" v-if="sport.courtCount">{{ sport.courtCount }} sân tiêu chuẩn</span>
+                      </div>
+                    </div>
+                    <div class="sg-sport-price-tag">
+                      <span class="sg-sport-price-val">{{ sport.priceText }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- DỊCH VỤ ĐI KÈM TẠI SÂN -->
+              <div class="sg-pane-block" :style="{ marginTop: venueSportsList.length ? '16px' : '0' }">
+                <h4 class="sg-pane-subtitle">Dịch vụ tiện ích tại sân</h4>
                 <div class="sg-services-simple-list">
                   <div class="sg-service-row">
-                    <span>Cho thuê vợt & dụng cụ</span>
+                    <span>Cho thuê vợt & dụng cụ thi đấu</span>
                     <span class="sg-service-price">từ 20.000 đ</span>
                   </div>
                   <div class="sg-service-row">
-                    <span>Nước giải khát & Điện giải</span>
+                    <span>Nước giải khát & Điện giải thể thao</span>
                     <span class="sg-service-price">từ 10.000 đ</span>
                   </div>
                   <div class="sg-service-row">
-                    <span>Dịch vụ quấn cán & Bảo trì</span>
+                    <span>Dịch vụ quấn cán & Căng cước</span>
                     <span class="sg-service-price">từ 15.000 đ</span>
                   </div>
                 </div>
@@ -274,22 +301,6 @@
             :class="{ 'is-selected': selectedVenue?.id === venue.id }"
             @click="selectVenue(venue)"
           >
-            <div class="sg-sidebar-item-thumb-box">
-              <img
-                v-if="getVenueLogoSrc(venue)"
-                :src="getVenueLogoSrc(venue)"
-                class="sg-sidebar-venue-img"
-                :alt="venue.name"
-                loading="lazy"
-                onerror="this.style.display='none'"
-              />
-              <span v-else class="sg-sidebar-venue-icon-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-              </span>
-            </div>
             <div class="sg-sidebar-item-info">
               <h4 class="sg-sidebar-item-title">
                 <span>{{ venue.name }}</span>
@@ -306,34 +317,17 @@
 
     <!-- MAIN MAP AREA -->
     <main class="sg-map-main">
-      <!-- TOP FLOATING SPORTS CHIPS BAR (MULTI-LINE WRAPPING) -->
-      <div class="sg-map-sports-bar">
-        <button
-          v-for="sport in sportsList"
-          :key="sport.id"
-          type="button"
-          class="sg-map-sport-chip"
-          :class="{ 'is-active': selectedSportId === sport.id }"
-          @click="filterBySport(sport.id)"
-        >
-          <IsometricSportIcon :name="sport.iconKey || sport.name" :size="20" />
-          <span>{{ sport.name }}</span>
-        </button>
-
-        <!-- NÚT MỞ BẢNG CHỌN BỘ MÔN 3D BÊN PHẢI -->
+      <!-- FLOATING QUICK SPORTS SELECTOR (Góc trên bên phải, tinh gọn và không che bản đồ) -->
+      <div class="sg-map-top-quick-filter">
         <button
           type="button"
-          class="sg-map-sport-chip is-open-3d-btn"
+          class="sg-sports-pill-trigger"
           @click="showSportsDrawer = true"
-          title="Mở bảng chọn bộ môn 3D to rõ"
+          title="Chọn bộ môn thể thao 3D"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2">
-            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-          </svg>
-          <span class="sg-open-3d-text">Bảng bộ môn 3D</span>
+          <IsometricSportIcon :name="selectedSportId" :size="22" />
+          <span class="sg-sports-pill-text">{{ currentSportName }}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
         </button>
       </div>
 
@@ -389,7 +383,7 @@
                 @click="selectSportFromDrawer(sport.id)"
               >
                 <div class="sg-card-isometric-icon-box">
-                  <IsometricSportIcon :name="sport.iconKey || sport.name" :size="54" />
+                  <IsometricSportIcon :name="sport.iconKey || sport.name" :size="58" />
                 </div>
                 <div class="sg-card-sport-info">
                   <h4 class="sg-card-sport-name">{{ sport.name }}</h4>
@@ -528,6 +522,62 @@ export default {
       if (!this.bookingUrl) return "";
       return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(this.bookingUrl)}`;
     },
+    currentSportName() {
+      if (!this.selectedSportId || this.selectedSportId === "all") return "Tất cả môn";
+      const s = this.sportsList.find((x) => String(x.id) === String(this.selectedSportId));
+      return s ? s.name : "Tất cả môn";
+    },
+    venueSportsList() {
+      if (!this.selectedVenue) return [];
+      const courtTypes = this.selectedVenue.court_types || [];
+      const basePrices = this.selectedVenue.base_prices || [];
+      const courts = this.selectedVenue.venue_courts || [];
+
+      const result = [];
+      const addedSports = new Set();
+
+      courtTypes.forEach((ct) => {
+        const parentSport = this.sportsList.find((s) => String(s.id) === String(ct.parent_id));
+        const sportName = parentSport ? parentSport.name : ct.name;
+        const sportKey = ct.icon_key || (parentSport ? parentSport.iconKey : this.iconKeyFromName(sportName));
+
+        if (!addedSports.has(sportName)) {
+          addedSports.add(sportName);
+
+          const courtCount = courts.filter((c) => {
+            const cType = c.court_type || c.courtType;
+            return (
+              String(c.court_type_id) === String(ct.id) ||
+              (cType && String(cType.parent_id) === String(ct.id)) ||
+              (cType && cType.name && cType.name.toLowerCase().includes(sportName.toLowerCase()))
+            );
+          }).length;
+
+          const matchingPrice = basePrices.find((bp) => {
+            const bpType = bp.court_type || bp.courtType;
+            return (
+              String(bp.court_type_id) === String(ct.id) ||
+              (bpType && String(bpType.parent_id) === String(ct.id)) ||
+              (bpType && bpType.name && bpType.name.toLowerCase().includes(sportName.toLowerCase()))
+            );
+          });
+
+          const priceText = matchingPrice
+            ? `${Number(matchingPrice.price).toLocaleString("vi-VN")} đ/h`
+            : (this.selectedVenue.min_price ? `từ ${Number(this.selectedVenue.min_price).toLocaleString("vi-VN")} đ/h` : "Liên hệ");
+
+          result.push({
+            id: ct.id,
+            name: sportName,
+            iconKey: sportKey,
+            courtCount: courtCount,
+            priceText: priceText,
+          });
+        }
+      });
+
+      return result;
+    },
     sportsList() {
       const defaultSports = [
         { id: "all", name: "Tất cả", color: "#15803d", iconKey: "trophy" },
@@ -665,15 +715,14 @@ export default {
 
       L.control.zoom({ position: "topright" }).addTo(this.map);
 
-      // CartoDB Voyager Map Tiles (Nét, siêu mượt, buffer đệm trong RAM để cuộn/kéo không bị trễ)
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 19,
+      // Google Maps Standard Tiles (Tải siêu tốc tại Việt Nam, chi tiết từng số nhà ngõ ngách, 100% tiếng Việt, không watermark, không lỗi DNS)
+      L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+        attribution: '&copy; Google Maps',
+        subdomains: ["mt0", "mt1", "mt2", "mt3"],
+        maxZoom: 20,
         updateWhenIdle: true,
         updateWhenZooming: false,
         keepBuffer: 6,
-        crossOrigin: true,
       }).addTo(this.map);
 
       this.markersGroup = L.layerGroup().addTo(this.map);
@@ -796,11 +845,20 @@ export default {
 
       return "";
     },
-    selectVenue(venue) {
+    async selectVenue(venue) {
       this.selectedVenue = venue;
       this.activeImage = "";
       if (this.map && venue.mapLat && venue.mapLng) {
         this.map.setView([venue.mapLat, venue.mapLng], 15, { animate: true });
+      }
+
+      try {
+        const res = await api.get(`/public/venues/${venue.id}`);
+        if (res.data?.data && this.selectedVenue?.id === venue.id) {
+          this.selectedVenue = { ...this.selectedVenue, ...res.data.data };
+        }
+      } catch (err) {
+        // Giữ dữ liệu tóm tắt ban đầu
       }
     },
     filterBySport(sportId) {
@@ -956,7 +1014,49 @@ export default {
       return "#b91c1c";
     },
     priceLabel(venue) {
-      if (!venue || !venue.min_price) return "Liên hệ";
+      if (!venue) return "Liên hệ";
+
+      // Nếu đang lọc một môn cụ thể (khác 'all')
+      if (this.selectedSportId && this.selectedSportId !== "all") {
+        const targetSport = this.sportsList.find((s) => String(s.id) === String(this.selectedSportId));
+        const targetName = targetSport ? targetSport.name.toLowerCase() : String(this.selectedSportId).toLowerCase();
+
+        // 1. Kiểm tra từ danh mục venueSportsList đã tính toán chi tiết
+        if (this.selectedVenue?.id === venue.id && this.venueSportsList?.length) {
+          const matched = this.venueSportsList.find((sp) => {
+            const spName = sp.name.toLowerCase();
+            return (
+              String(sp.id) === String(this.selectedSportId) ||
+              spName.includes(targetName) ||
+              targetName.includes(spName)
+            );
+          });
+          if (matched && matched.priceText && matched.priceText !== "Liên hệ") {
+            return matched.priceText;
+          }
+        }
+
+        // 2. Kiểm tra từ base_prices nếu có trong venue
+        if (venue.base_prices && venue.base_prices.length) {
+          const matchedBp = venue.base_prices.find((bp) => {
+            const bpType = bp.court_type || bp.courtType;
+            const bpName = (bpType?.name || "").toLowerCase();
+            return (
+              String(bp.court_type_id) === String(this.selectedSportId) ||
+              (bpType?.parent_id && String(bpType.parent_id) === String(this.selectedSportId)) ||
+              bpName.includes(targetName) ||
+              targetName.includes(bpName)
+            );
+          });
+          if (matchedBp && matchedBp.price) {
+            const formatted = new Intl.NumberFormat("vi-VN").format(matchedBp.price);
+            return `${formatted} đ/h`;
+          }
+        }
+      }
+
+      // Mặc định hoặc chế độ 'all': trả về giá sàn thấp nhất của cụm sân
+      if (!venue.min_price) return "Liên hệ";
       const formatted = new Intl.NumberFormat("vi-VN").format(venue.min_price);
       return `${formatted} đ/h`;
     },
@@ -1116,52 +1216,28 @@ export default {
 }
 
 .sg-map-sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 8px;
+  display: block;
+  padding: 12px 14px;
   border-bottom: 1px solid #f1f5f9;
   background: #ffffff;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 
+.sg-map-sidebar-item:hover {
+  background: #f8fafc;
+}
+
 .sg-map-sidebar-item.is-selected,
 .sg-map-sidebar-item:focus,
 .sg-map-sidebar-item:focus-visible {
-  background: #f8fafc;
+  background: #f1f5f9;
   outline: none ;
   box-shadow: none ;
 }
 
-.sg-sidebar-item-thumb-box {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: #f1f5f9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-}
-
-.sg-sidebar-venue-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.sg-sidebar-venue-icon-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #15803d;
-}
-
 .sg-sidebar-item-info {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
@@ -1216,73 +1292,38 @@ export default {
   height: 100%;
 }
 
-/* TOP SPORTS CHIPS BAR (MULTI-LINE WRAPPING) */
-.sg-map-sports-bar {
+/* FLOATING TOP-RIGHT QUICK SPORT FILTER PILL */
+.sg-map-top-quick-filter {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 14px;
+  right: 14px;
   z-index: 500;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  pointer-events: none;
-  max-height: 40vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
 }
 
-.sg-map-sport-chip {
-  pointer-events: auto;
+.sg-sports-pill-trigger {
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 9999px;
-  padding: 5px 16px 5px 6px;
+  padding: 6px 14px 6px 9px;
   font-size: 13.5px;
-  font-weight: 500;
-  color: #334155;
+  font-weight: 600;
+  color: #0f172a;
   cursor: pointer;
-  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
   transition: all 0.15s ease;
 }
 
-.sg-map-sport-chip:focus,
-.sg-map-sport-chip:focus-visible {
-  outline: none ;
+.sg-sports-pill-trigger:hover {
   border-color: #15803d;
-}
-
-.sg-map-sport-chip.is-active {
-  border-color: #15803d;
-  background: #ffffff;
   color: #15803d;
-  font-weight: 500;
-  box-shadow: 0 2px 10px rgba(21, 128, 61, 0.15);
+  box-shadow: 0 6px 18px rgba(21, 128, 61, 0.15);
 }
 
-.sg-map-sport-chip > svg {
-  flex: 0 0 auto;
-}
-
-.sg-chip-pin-badge {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-}
-
-.sg-chip-svg {
-  width: 15px;
-  height: 15px;
+.sg-sports-pill-text {
+  white-space: nowrap;
 }
 
 /* FLOATING CONTROLS (Circle FABs bottom right) */
@@ -1729,9 +1770,80 @@ export default {
   font-weight: 400;
 }
 
-.sg-rule-item svg {
+.sg-rules-item svg {
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+/* DANH MỤC BỘ MÔN VÀ BẢNG GIÁ TRONG TAB DỊCH VỤ */
+.sg-sports-pricing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sg-sport-pricing-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.sg-sport-pricing-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.sg-sport-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sg-sport-card-icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.sg-sport-card-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.sg-sport-card-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 1px;
+}
+
+.sg-sport-card-sub {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.sg-sport-price-tag {
+  text-align: right;
+}
+
+.sg-sport-price-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  white-space: nowrap;
 }
 
 .sg-services-simple-list {
@@ -2134,7 +2246,7 @@ export default {
 .sg-isometric-sport-card {
   position: relative;
   background: #ffffff;
-  border: 1.5px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 16px 12px 14px;
   display: flex;
@@ -2142,29 +2254,30 @@ export default {
   align-items: center;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
 }
 
 .sg-isometric-sport-card:hover {
-  border-color: #15803d;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px -4px rgba(21, 128, 61, 0.15);
+  border-color: #94a3b8;
+  background: #f8fafc;
+  transform: none;
+  box-shadow: none;
 }
 
 .sg-isometric-sport-card.is-selected {
-  border-color: #15803d;
+  border: 1.5px solid #16a34a;
   background: #f0fdf4;
-  box-shadow: 0 4px 14px rgba(21, 128, 61, 0.15);
+  box-shadow: none;
 }
 
 .sg-card-isometric-icon-box {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .sg-card-sport-info {
@@ -2198,12 +2311,11 @@ export default {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #15803d;
+  background: #16a34a;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.3);
 }
 
 .sg-drawer-footer {

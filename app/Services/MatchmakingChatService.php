@@ -120,9 +120,16 @@ class MatchmakingChatService
     public function dissolve(PlayerPost $post): void
     {
         $conversation = $this->conversationFor($post);
-        if ($conversation) {
-            $conversation->delete();
-        }
+        if (! $conversation) return;
+
+        // Mark all participants as left (BR-17: never delete the group chat)
+        $now = now();
+        ConversationParticipant::query()
+            ->where('conversation_id', $conversation->id)
+            ->whereNull('left_at')
+            ->update(['left_at' => $now]);
+
+        $this->systemMessage($conversation, 'Nhóm giao lưu đã được giải tán bởi chủ bài lúc ' . $now->format('d/m/Y H:i') . '. Bạn vẫn có thể xem lại lịch sử trò chuyện.');
     }
 
     private function systemMessage(Conversation $conversation, string $content): void

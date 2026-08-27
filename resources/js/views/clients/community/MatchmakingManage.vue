@@ -400,7 +400,7 @@
           <AppIcon name="alert" size="28" />
         </div>
         <h3>Giải tán nhóm giao lưu?</h3>
-        <p>Cuộc trò chuyện nhóm sẽ bị xóa và bài giao lưu sẽ được đóng. Hành động này không thể hoàn tác.</p>
+        <p>Bài giao lưu sẽ được đóng và thành viên sẽ được thông báo rời nhóm. Lịch sử cuộc trò chuyện vẫn được lưu lại.</p>
         <div class="sg-confirm-actions">
           <button type="button" class="sg-client-button" :disabled="savingPost" @click="showDissolveConfirmModal = false">
             Hủy bỏ
@@ -485,8 +485,7 @@ const isSessionExpired = computed(() => Boolean(
   bookingEndAt.value && bookingEndAt.value.getTime() <= Date.now(),
 ));
 
-const canApprove = computed(() => post.value?.status === 'open'
-  && Number(post.value?.needed_players || 0) > 0
+const canApprove = computed(() => ['open', 'full'].includes(post.value?.status)
   && !isSessionExpired.value);
 
 const canManagePost = computed(() => ['open', 'full'].includes(post.value?.status) && !isSessionExpired.value);
@@ -521,20 +520,21 @@ const requestCounts = computed(() => participants.value.reduce((counts, particip
   const status = participant.status || 'pending';
   counts[status] = (counts[status] || 0) + 1;
   return counts;
-}, { pending: 0, approved: 0, rejected: 0, cancelled: 0 }));
+}, { pending: 0, approved: 0, rejected: 0, cancelled: 0, expired: 0, left: 0 }));
 
 const requestFilters = computed(() => [
   { value: 'all', label: 'Tất cả', count: participants.value.length },
-  { value: 'pending', label: 'Chờ duyệt', count: requestCounts.value.pending },
-  { value: 'approved', label: 'Đã đồng ý', count: requestCounts.value.approved },
-  { value: 'rejected', label: 'Đã từ chối', count: requestCounts.value.rejected },
-  { value: 'cancelled', label: 'Đã hủy', count: requestCounts.value.cancelled },
+  { value: 'pending', label: 'Chờ duyệt', count: requestCounts.value.pending || 0 },
+  { value: 'approved', label: 'Đã đồng ý', count: requestCounts.value.approved || 0 },
+  { value: 'rejected', label: 'Đã từ chối', count: requestCounts.value.rejected || 0 },
+  { value: 'left', label: 'Đã rời', count: requestCounts.value.left || 0 },
+  { value: 'expired', label: 'Hết hạn', count: requestCounts.value.expired || 0 },
 ]);
 
 const orderedParticipants = computed(() => {
-  const order = { pending: 0, approved: 1, rejected: 2, cancelled: 3 };
+  const order = { pending: 0, approved: 1, rejected: 2, left: 3, cancelled: 4, expired: 5 };
   return [...participants.value].sort((a, b) => {
-    const statusOrder = (order[a.status] ?? 4) - (order[b.status] ?? 4);
+    const statusOrder = (order[a.status] ?? 6) - (order[b.status] ?? 6);
     if (statusOrder !== 0) return statusOrder;
     return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
@@ -547,17 +547,17 @@ const filteredParticipants = computed(() => activeFilter.value === 'all'
 const decisionGuideTitle = computed(() => {
   if (isSessionExpired.value) return 'Buổi giao lưu đã qua thời gian diễn ra';
   return canApprove.value
-    ? 'Ưu tiên xử lý các yêu cầu đang chờ'
+    ? 'Duyệt người tham gia'
     : 'Bài giao lưu hiện không nhận thêm người';
 });
 
 const decisionGuideMessage = computed(() => {
   if (isSessionExpired.value) {
-    return 'Các yêu cầu chờ duyệt đã được tự động hủy khi buổi giao lưu kết thúc. Bạn vẫn có thể xem lại toàn bộ lịch sử xử lý.';
+    return 'Các yêu cầu chờ duyệt đã hết hạn khi buổi giao lưu diễn ra. Bạn vẫn có thể xem lại toàn bộ lịch sử xử lý.';
   }
   return canApprove.value
-    ? 'Khi đồng ý, số người còn cần sẽ giảm. Hãy kiểm tra hồ sơ trước khi xác nhận.'
-    : 'Nút đồng ý được khóa để tránh vượt quá số người cần. Bạn vẫn có thể xem lại lịch sử xử lý.';
+    ? 'Khi đồng ý, người tham gia sẽ được tự động thêm vào nhóm chat. Bạn có thể duyệt thêm nếu cần.'
+    : 'Bài giao lưu đã đóng. Bạn vẫn có thể xem lại lịch sử xử lý.';
 });
 
 async function fetchParticipants(silent = false) {
@@ -687,8 +687,10 @@ function participantStatusLabel(status) {
   return {
     approved: 'Đã chấp nhận',
     rejected: 'Đã từ chối',
-    cancelled: 'Đã rút yêu cầu',
+    cancelled: 'Đã hủy',
     pending: 'Đang chờ duyệt',
+    expired: 'Hết hạn',
+    left: 'Đã rời',
   }[status] || status || 'Không xác định';
 }
 
@@ -698,6 +700,8 @@ function participantStatusIcon(status) {
     rejected: 'circleX',
     cancelled: 'clock',
     pending: 'clock',
+    expired: 'alert',
+    left: 'close',
   }[status] || 'alert';
 }
 

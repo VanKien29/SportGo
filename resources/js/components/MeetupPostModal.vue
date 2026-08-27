@@ -103,6 +103,7 @@
           <div class="field-block">
             <label for="mpm-required-players" class="field-label">
               <span>Số người cần thêm</span>
+              <small v-if="suggestedPlayers > 0">Đề xuất cho sân: {{ suggestedPlayers }} người</small>
             </label>
             <input
               id="mpm-required-players"
@@ -113,6 +114,10 @@
               max="50"
               required
             />
+            <p v-if="exceedsRecommended" class="field-warning" role="alert">
+              <AppIcon name="alert" size="13" />
+              <span>Số lượng người tham gia đang vượt quá số lượng đề xuất của sân đã đặt. Bạn vẫn có thể tiếp tục tạo bài.</span>
+            </p>
           </div>
 
           <!-- BỘ CHỌN TRÌNH ĐỘ MONG MUỐN -->
@@ -500,6 +505,16 @@ const isValid = computed(() => {
     && players <= 50
     && descriptionValid
     && customCostValid;
+});
+
+const suggestedPlayers = computed(() => {
+  if (!selectedBooking.value) return 0;
+  return Number(selectedBooking.value.suggested_players) || 0;
+});
+
+const exceedsRecommended = computed(() => {
+  if (suggestedPlayers.value <= 0) return false;
+  return Number(form.required_players) > suggestedPlayers.value;
 });
 
 function formatDate(value) {
@@ -1433,5 +1448,23 @@ textarea.field-control {
   font-size: 13px;
   font-weight: 400;
   margin: 0;
+}
+
+.field-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef3cd;
+  border: 1px solid #f0d77e;
+  color: #856404;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.field-warning > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 </style>
