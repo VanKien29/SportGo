@@ -160,11 +160,15 @@
 
           <!-- RIGHT COLUMN: PAYMENT & ACTIONS -->
           <div class="bd-col-side">
-            <!-- COUNTDOWN TIMER (IF PENDING PAYMENT) -->
-            <div v-if="booking.status === 'pending_payment'" class="bd-timer-section">
-              <span class="bd-timer-label">Giữ chỗ tạm thời trong:</span>
+            <!-- COUNTDOWN TIMER FOR APPROVAL / PAYMENT HOLD -->
+            <div v-if="['pending_approval', 'pending_payment'].includes(booking.status)" class="bd-timer-section">
+              <span class="bd-timer-label">{{ booking.status === 'pending_approval' ? 'Chủ sân còn thời gian duyệt:' : 'Giữ chỗ tạm thời trong:' }}</span>
               <strong class="bd-timer-val">{{ formattedTimer }}</strong>
-              <p>Hoàn tất thanh toán trước khi hết giờ để giữ lịch chơi.</p>
+              <p>{{ booking.status === 'pending_approval'
+                ? (booking.payment_option === 'deposit'
+                  ? 'Bạn có thể thanh toán khoản cọc trong thời gian chờ duyệt. Nếu quá hạn chưa được duyệt, booking tự hủy và khoản cọc (nếu có) được hoàn vào ví.'
+                  : 'Nếu quá 30 phút chưa được duyệt, booking sẽ tự hủy và sân được mở lại.')
+                : 'Hoàn tất thanh toán trước khi hết giờ để giữ lịch chơi.' }}</p>
             </div>
 
             <div class="bd-sec-head">
@@ -182,7 +186,7 @@
                 <span class="bd-val">{{ paymentOptionLabel }}</span>
               </div>
 
-              <div v-if="booking.status === 'pending_payment'" class="bd-price-row bd-price-row--req">
+              <div v-if="canPayOnline" class="bd-price-row bd-price-row--req">
                 <span class="bd-label">Số tiền cần thanh toán</span>
                 <strong class="bd-price-val bd-price-val--green">{{ formatCurrency(booking.required_payment_amount) }}</strong>
               </div>
@@ -463,7 +467,9 @@ export default {
         completed: "Buổi chơi đã hoàn tất. Cảm ơn bạn đã sử dụng SportGo.",
         no_show: "Booking đã quá giờ cho phép nhưng chưa ghi nhận check-in.",
         rejected: "Booking không được sân chấp nhận. Vui lòng chọn khung giờ khác.",
-        expired: "Đơn đã quá hạn thanh toán. Sân đã được giải phóng để người khác có thể đặt.",
+        expired: this.booking.status_reason?.includes("không duyệt")
+          ? "Chủ sân chưa duyệt trong thời gian quy định. Sân đã được mở lại; vui lòng tạo booking mới nếu còn nhu cầu."
+          : "Đơn đã quá hạn thanh toán. Sân đã được giải phóng để người khác có thể đặt.",
         cancelled: "Đơn đặt sân này đã bị hủy bỏ.",
       };
       return map[this.booking.status] || "";
@@ -491,7 +497,11 @@ export default {
         wallet: "Thanh toán bằng ví SportGo",
         no_prepay: "Thanh toán tại sân",
       };
-      return map[this.booking.payment_option] || this.booking.payment_option;
+      const effective = this.booking.effective_payment_option || this.booking.payment_option;
+      if (this.booking.payment_option === "deposit" && effective === "no_prepay") {
+        return "Thanh toán tại sân (đã chuyển từ đặt cọc)";
+      }
+      return map[effective] || effective;
     },
     venueCluster() {
       return this.booking?.venue_court?.venue_cluster || this.booking?.venue_cluster || null;
@@ -524,9 +534,15 @@ export default {
       return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
     },
     canPayOnline() {
-      return this.booking?.status === "pending_payment"
+      const depositApproval = this.booking?.status === "pending_approval"
+        && this.booking?.payment_option === "deposit"
+        && (this.booking?.effective_payment_option || this.booking?.payment_option) === "deposit";
+      const depositStillDue = Number(this.booking?.paid_amount || 0) + 0.01
+        < Number(this.booking?.required_payment_amount || 0);
+      return (this.booking?.status === "pending_payment" || depositApproval)
         && Number(this.booking?.required_payment_amount || 0) > 0
         && this.booking?.payment_option !== "wallet"
+        && (this.booking?.payment_option !== "deposit" || depositStillDue)
         && this.timeLeft > 0;
     },
     paymentAccount() {
@@ -625,20 +641,27 @@ export default {
       this.bookingLoadController = controller;
       this.loading = true;
       this.loadError = "";
+      this.paymentInfo = null;
+      this.paymentError = "";
       try {
         const res = await bookingService.getBooking(id, { signal: controller.signal });
         if (controller.signal.aborted) return;
         this.booking = res;
         this.timeLeft = Math.max(0, Math.floor(Number(res.time_left_seconds) || 0));
 
-        if (this.booking.status === "pending_payment" && this.timeLeft > 0) {
+        if (["pending_approval", "pending_payment"].includes(this.booking.status) && this.timeLeft > 0) {
           this.startTimer();
         } else {
           this.clearTimer();
         }
 
-        // Không tạo mã QR trong lúc tải trang. API này có thể chậm do phải
-        // tạo payment record/QR; người dùng chỉ cần gọi khi bấm "Hiện mã QR".
+        // Deposit bookings should expose the configured QR immediately after
+        // the booking is created; the button remains available as a retry.
+        if (this.booking.payment_option === "deposit" && this.canPayOnline) {
+          void this.loadPaymentInfo();
+        }
+
+        // Với booking thanh toán đủ, chỉ tạo QR khi người dùng yêu cầu.
         if (!this.canPayOnline) {
           this.paymentInfo = null;
           this.paymentError = "";

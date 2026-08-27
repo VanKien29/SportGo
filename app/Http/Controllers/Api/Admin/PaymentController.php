@@ -44,9 +44,10 @@ class PaymentController extends Controller
 
         $query = Payment::query()
             ->with([
-                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,payment_option,status,walk_in_name,walk_in_phone',
+                'booking:id,booking_code,customer_id,venue_cluster_id,total_price,payment_option,effective_payment_option,required_payment_amount,status,approval_deadline_at,payment_deadline_at,owner_approved_at,owner_approved_by,payment_fallback_at,payment_fallback_reason,walk_in_name,walk_in_phone',
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
+                'booking.ownerApprovedBy:id,full_name,username',
                 'subscription:id,user_id,package_id,billing_cycle,status,started_at,expires_at,paid_amount',
                 'subscription.user:id,username,full_name,email,phone',
                 'subscription.membershipPackage:id,name,type,badge_name',
@@ -91,6 +92,7 @@ class PaymentController extends Controller
                 'booking.customer:id,username,full_name,email,phone',
                 'booking.venueCluster:id,name,owner_id',
                 'booking.venueCluster.owner:id,username,full_name,email,phone',
+                'booking.ownerApprovedBy:id,full_name,username',
                 'subscription.user:id,username,full_name,email,phone',
                 'subscription.membershipPackage:id,name,type,badge_name',
                 'systemBankAccount',
@@ -212,6 +214,18 @@ class PaymentController extends Controller
                 'status' => $payment->booking->status,
                 'total_price' => $payment->booking->total_price,
                 'payment_option' => $payment->booking->payment_option,
+                'effective_payment_option' => $payment->booking->effective_payment_option ?: $payment->booking->payment_option,
+                'required_payment_amount' => $payment->booking->required_payment_amount,
+                'approval_deadline_at' => $payment->booking->approval_deadline_at,
+                'payment_deadline_at' => $payment->booking->payment_deadline_at,
+                'owner_approved_at' => $payment->booking->owner_approved_at,
+                'owner_approved_by' => $payment->booking->ownerApprovedBy ? [
+                    'id' => $payment->booking->ownerApprovedBy->id,
+                    'full_name' => $payment->booking->ownerApprovedBy->full_name,
+                    'username' => $payment->booking->ownerApprovedBy->username,
+                ] : null,
+                'payment_fallback_at' => $payment->booking->payment_fallback_at,
+                'payment_fallback_reason' => $payment->booking->payment_fallback_reason,
             ] : null,
             'subscription' => $payment->subscription ? [
                 'id' => $payment->subscription->id,

@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\PaymentLog;
 use App\Models\SlotLock;
 use App\Services\BookingService;
+use App\Services\Bookings\BookingApprovalService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,7 @@ class ReleaseExpiredSlotLocks extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(BookingApprovalService $bookingApprovals)
     {
         $now = Carbon::now();
         $this->info('Đang bắt đầu quét các slot lock hết hạn tại thời điểm: '.$now->toDateTimeString());
@@ -51,7 +52,7 @@ class ReleaseExpiredSlotLocks extends Command
         $handledBookingIds = [];
 
         foreach ($expiredLocks as $lock) {
-            DB::transaction(function () use ($lock, &$processedCount, &$handledBookingIds) {
+            DB::transaction(function () use ($lock, &$processedCount, &$handledBookingIds, $bookingApprovals) {
                 // Nếu lock có liên kết với một Booking
                 if ($lock->booking_id) {
                     $booking = Booking::find($lock->booking_id);
@@ -61,8 +62,8 @@ class ReleaseExpiredSlotLocks extends Command
 
                         if ($booking->status === 'pending_payment') {
                             $this->expirePendingPaymentBooking($booking);
-                        } elseif ($booking->status === 'pending_approval' && $booking->payment_option === 'no_prepay') {
-                            $this->expirePendingApprovalBooking($booking);
+                        } elseif ($booking->status === 'pending_approval') {
+                            $bookingApprovals->expireIfDue($booking);
                         }
                     }
                 }
@@ -111,18 +112,4 @@ class ReleaseExpiredSlotLocks extends Command
             });
     }
 
-    private function expirePendingApprovalBooking(Booking $booking): void
-    {
-        $reason = 'Chủ sân không duyệt booking thu sau trong 15 phút. Slot đã được giải phóng.';
-
-        $booking->update([
-            'status' => 'expired',
-            'status_reason' => $reason,
-        ]);
-
-        app(BookingService::class)->releaseVoucherUsageForBooking($booking, 'cancelled');
-
-        // Owner approval timeout is a venue-side SLA event. It must not create
-        // a violation against the customer who was waiting for approval.
-    }
 }

@@ -244,6 +244,40 @@
                         </div>
                     </div>
 
+                    <section v-if="detail.payment.booking" class="booking-flow-panel">
+                        <div class="booking-flow-head">
+                            <h4>Luồng booking</h4>
+                            <span class="status-pill" :class="detail.payment.booking.status">
+                                {{ bookingStatusLabel(detail.payment.booking.status) }}
+                            </span>
+                        </div>
+                        <div class="booking-flow-grid">
+                            <div>
+                                <span>Hình thức ban đầu</span>
+                                <strong>{{ paymentOptionLabel(detail.payment.booking.payment_option) }}</strong>
+                            </div>
+                            <div>
+                                <span>Hình thức áp dụng</span>
+                                <strong>{{ paymentOptionLabel(detail.payment.booking.effective_payment_option) }}</strong>
+                            </div>
+                            <div v-if="detail.payment.booking.approval_deadline_at">
+                                <span>Hạn chủ sân duyệt</span>
+                                <strong>{{ formatDate(detail.payment.booking.approval_deadline_at) }}</strong>
+                            </div>
+                            <div v-else-if="detail.payment.booking.payment_deadline_at">
+                                <span>Hạn giữ chỗ/thanh toán</span>
+                                <strong>{{ formatDate(detail.payment.booking.payment_deadline_at) }}</strong>
+                            </div>
+                            <div v-if="detail.payment.booking.owner_approved_at">
+                                <span>Đã duyệt lúc</span>
+                                <strong>{{ formatDate(detail.payment.booking.owner_approved_at) }}</strong>
+                            </div>
+                        </div>
+                        <p v-if="detail.payment.booking.payment_fallback_reason" class="booking-flow-note">
+                            {{ detail.payment.booking.payment_fallback_reason }}
+                        </p>
+                    </section>
+
                     <!-- Payment amounts -->
                     <div class="detail-facts mt-12">
                         <div>
@@ -644,6 +678,31 @@ export default {
                 }[value] || value
             );
         },
+        bookingStatusLabel(value) {
+            return (
+                {
+                    pending_approval: "Chờ chủ sân duyệt",
+                    pending_payment: "Chờ thanh toán",
+                    confirmed: "Đã xác nhận",
+                    checked_in: "Đang chơi",
+                    completed: "Hoàn thành",
+                    no_show: "Không check-in",
+                    expired: "Hết hạn",
+                    rejected: "Bị từ chối",
+                    cancelled: "Đã hủy",
+                }[value] || value || "—"
+            );
+        },
+        paymentOptionLabel(value) {
+            return (
+                {
+                    full_payment: "Thanh toán đủ",
+                    deposit: "Đặt cọc",
+                    wallet: "Ví SportGo",
+                    no_prepay: "Trả sau",
+                }[value] || value || "—"
+            );
+        },
         kindLabel(value) {
             return (
                 { full: "Toàn bộ", deposit: "Đặt cọc", partial: "Một phần" }[
@@ -858,6 +917,24 @@ th {
     background: var(--admin-warning-soft);
     color: var(--admin-warning);
 }
+.status-pill.pending_approval,
+.status-pill.pending_payment {
+    background: var(--admin-warning-soft);
+    color: var(--admin-warning);
+}
+.status-pill.confirmed,
+.status-pill.checked_in,
+.status-pill.completed {
+    background: var(--admin-success-soft);
+    color: var(--admin-success-text);
+}
+.status-pill.expired,
+.status-pill.rejected,
+.status-pill.cancelled,
+.status-pill.no_show {
+    background: var(--admin-danger-soft);
+    color: var(--admin-danger-text);
+}
 .status-pill.paid,
 .status-pill.credit {
     background: var(--admin-success-soft);
@@ -977,6 +1054,48 @@ th {
 }
 .mt-12 {
     margin-top: 12px;
+}
+.booking-flow-panel {
+    margin-top: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+}
+.booking-flow-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.booking-flow-head h4 {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 14px;
+}
+.booking-flow-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.booking-flow-grid span {
+    display: block;
+    color: var(--admin-faint);
+    font-size: 11px;
+    text-transform: uppercase;
+}
+.booking-flow-grid strong {
+    display: block;
+    margin-top: 3px;
+    color: var(--admin-text);
+    font-size: 13px;
+}
+.booking-flow-note {
+    margin: 12px 0 0;
+    color: var(--admin-muted);
+    font-size: 12px;
+    line-height: 1.5;
 }
 
 /* Wallet credit — formula display */
