@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlatformFeePlanVersion;
 use App\Models\PlatformFeeTier;
 use App\Models\SystemPolicy;
 use App\Models\VenuePlatformFeeLedger;
@@ -21,10 +22,18 @@ class PlatformFeeTierController extends Controller
         $data = $request->validate([
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'keyword' => ['nullable', 'string', 'max:100'],
+            'plan_version_id' => ['nullable', 'integer', 'exists:platform_fee_plan_versions,id'],
         ]);
 
+        $planId = (int) ($data['plan_version_id'] ?? PlatformFeePlanVersion::query()
+            ->where('status', 'active')
+            ->orderByDesc('effective_from')
+            ->value('id'));
+
         $tiers = PlatformFeeTier::query()
+            ->with('planVersion:id,code,name,status,effective_from,effective_to')
             ->withCount(['ledgers as usage_count'])
+            ->when($planId > 0, fn ($query) => $query->where('plan_version_id', $planId))
             ->when(($data['status'] ?? '') === 'active', fn ($query) => $query->where('is_active', true))
             ->when(($data['status'] ?? '') === 'inactive', fn ($query) => $query->where('is_active', false))
             ->when($data['keyword'] ?? null, fn ($query, string $keyword) => $query->where('name', 'like', '%'.trim($keyword).'%'))
@@ -39,19 +48,21 @@ class PlatformFeeTierController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate($this->tierRules(), $this->tierValidationMessages());
+        $plan = $this->draftPlan((int) $data['plan_version_id']);
 
-        $tier = DB::transaction(function () use ($data): PlatformFeeTier {
-            $this->validateUniqueName(null, (string) $data['name']);
-            $this->validateUniqueMinimum(null, (int) $data['min_courts']);
-            $this->validateProposedActiveCoverage(null, (bool) $data['is_active'], (int) $data['min_courts']);
+        $tier = DB::transaction(function () use ($data, $plan): PlatformFeeTier {
+            $this->validateUniqueName($plan->id, null, (string) $data['name']);
+            $this->validateUniqueMinimum($plan->id, null, (int) $data['min_courts']);
+            $this->validateProposedActiveCoverage($plan->id, null, (bool) $data['is_active'], (int) $data['min_courts']);
             $this->validateProposedActivePrice(
+                $plan->id,
                 null,
                 (bool) $data['is_active'],
                 (int) $data['min_courts'],
                 (float) $data['price_per_court_month'],
             );
             $tier = PlatformFeeTier::query()->create($this->tierData($data));
-            $this->rebalanceActiveRanges();
+            $this->rebalanceActiveRanges($plan->id);
 
             return $tier->fresh();
         });
@@ -65,20 +76,23 @@ class PlatformFeeTierController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $tier = PlatformFeeTier::query()->findOrFail($id);
+        $this->draftPlan((int) $tier->plan_version_id);
         $data = $request->validate($this->tierRules($tier->id), $this->tierValidationMessages());
 
         $tier = DB::transaction(function () use ($tier, $data): PlatformFeeTier {
-            $this->validateUniqueName($tier->id, (string) $data['name']);
-            $this->validateUniqueMinimum($tier->id, (int) $data['min_courts']);
-            $this->validateProposedActiveCoverage($tier->id, (bool) $data['is_active'], (int) $data['min_courts']);
+            $planId = (int) $tier->plan_version_id;
+            $this->validateUniqueName($planId, $tier->id, (string) $data['name']);
+            $this->validateUniqueMinimum($planId, $tier->id, (int) $data['min_courts']);
+            $this->validateProposedActiveCoverage($planId, $tier->id, (bool) $data['is_active'], (int) $data['min_courts']);
             $this->validateProposedActivePrice(
+                $planId,
                 $tier->id,
                 (bool) $data['is_active'],
                 (int) $data['min_courts'],
                 (float) $data['price_per_court_month'],
             );
-            $tier->forceFill($this->tierData($data))->save();
-            $this->rebalanceActiveRanges();
+            $tier->forceFill($this->tierData($data, false))->save();
+            $this->rebalanceActiveRanges($planId);
 
             return $tier->fresh();
         });
@@ -97,9 +111,10 @@ class PlatformFeeTierController extends Controller
 
         $tier = DB::transaction(function () use ($id): PlatformFeeTier {
             $tier = PlatformFeeTier::query()->lockForUpdate()->findOrFail($id);
-            $this->validateProposedActiveCoverage($tier->id, false, (int) $tier->min_courts);
+            $this->draftPlan((int) $tier->plan_version_id);
+            $this->validateProposedActiveCoverage((int) $tier->plan_version_id, $tier->id, false, (int) $tier->min_courts);
             $tier->forceFill(['is_active' => false])->save();
-            $this->rebalanceActiveRanges();
+            $this->rebalanceActiveRanges((int) $tier->plan_version_id);
 
             return $tier->fresh();
         });
@@ -114,16 +129,18 @@ class PlatformFeeTierController extends Controller
     {
         $tier = DB::transaction(function () use ($id): PlatformFeeTier {
             $tier = PlatformFeeTier::query()->lockForUpdate()->findOrFail($id);
-            $this->validateUniqueMinimum($tier->id, (int) $tier->min_courts);
-            $this->validateProposedActiveCoverage($tier->id, true, (int) $tier->min_courts);
+            $this->draftPlan((int) $tier->plan_version_id);
+            $this->validateUniqueMinimum((int) $tier->plan_version_id, $tier->id, (int) $tier->min_courts);
+            $this->validateProposedActiveCoverage((int) $tier->plan_version_id, $tier->id, true, (int) $tier->min_courts);
             $this->validateProposedActivePrice(
+                (int) $tier->plan_version_id,
                 $tier->id,
                 true,
                 (int) $tier->min_courts,
                 (float) $tier->price_per_court_month,
             );
             $tier->forceFill(['is_active' => true])->save();
-            $this->rebalanceActiveRanges();
+            $this->rebalanceActiveRanges((int) $tier->plan_version_id);
 
             return $tier->fresh();
         });
@@ -138,21 +155,22 @@ class PlatformFeeTierController extends Controller
     {
         $tier = DB::transaction(function () use ($id): ?PlatformFeeTier {
             $tier = PlatformFeeTier::query()->lockForUpdate()->findOrFail($id);
+            $this->draftPlan((int) $tier->plan_version_id);
             $usageCount = VenuePlatformFeeLedger::query()->where('tier_id', $tier->id)->count();
 
             if ($tier->is_active) {
-                $this->validateProposedActiveCoverage($tier->id, false, (int) $tier->min_courts);
+                $this->validateProposedActiveCoverage((int) $tier->plan_version_id, $tier->id, false, (int) $tier->min_courts);
             }
 
             if ($usageCount > 0) {
                 $tier->forceFill(['is_active' => false])->save();
-                $this->rebalanceActiveRanges();
+                $this->rebalanceActiveRanges((int) $tier->plan_version_id);
 
                 return $tier->fresh();
             }
 
             $tier->delete();
-            $this->rebalanceActiveRanges();
+            $this->rebalanceActiveRanges((int) $tier->plan_version_id);
 
             return null;
         });
@@ -212,6 +230,7 @@ class PlatformFeeTierController extends Controller
     private function tierRules(?int $ignoreId = null): array
     {
         return [
+            'plan_version_id' => [$ignoreId ? 'nullable' : 'required', 'integer', 'exists:platform_fee_plan_versions,id'],
             'name' => [
                 'required',
                 'string',
@@ -248,9 +267,10 @@ class PlatformFeeTierController extends Controller
         ];
     }
 
-    private function validateUniqueName(?int $ignoreId, string $name): void
+    private function validateUniqueName(int $planId, ?int $ignoreId, string $name): void
     {
         $hasDuplicate = PlatformFeeTier::query()
+            ->where('plan_version_id', $planId)
             ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
             ->when($ignoreId !== null, fn ($query) => $query->whereKeyNot($ignoreId))
             ->lockForUpdate()
@@ -263,9 +283,10 @@ class PlatformFeeTierController extends Controller
         }
     }
 
-    private function validateUniqueMinimum(?int $ignoreId, int $minCourts): void
+    private function validateUniqueMinimum(int $planId, ?int $ignoreId, int $minCourts): void
     {
         $hasDuplicate = PlatformFeeTier::query()
+            ->where('plan_version_id', $planId)
             ->where('min_courts', $minCourts)
             ->when($ignoreId !== null, fn ($query) => $query->whereKeyNot($ignoreId))
             ->lockForUpdate()
@@ -278,9 +299,10 @@ class PlatformFeeTierController extends Controller
         }
     }
 
-    private function validateProposedActiveCoverage(?int $changingId, bool $isActive, int $minCourts): void
+    private function validateProposedActiveCoverage(int $planId, ?int $changingId, bool $isActive, int $minCourts): void
     {
         $activeMinimums = PlatformFeeTier::query()
+            ->where('plan_version_id', $planId)
             ->where('is_active', true)
             ->when($changingId !== null, fn ($query) => $query->whereKeyNot($changingId))
             ->lockForUpdate()
@@ -300,6 +322,7 @@ class PlatformFeeTierController extends Controller
     }
 
     private function validateProposedActivePrice(
+        int $planId,
         ?int $changingId,
         bool $isActive,
         int $minCourts,
@@ -310,6 +333,7 @@ class PlatformFeeTierController extends Controller
         }
 
         $activeTiers = PlatformFeeTier::query()
+            ->where('plan_version_id', $planId)
             ->where('is_active', true)
             ->when($changingId !== null, fn ($query) => $query->whereKeyNot($changingId))
             ->lockForUpdate()
@@ -341,9 +365,9 @@ class PlatformFeeTierController extends Controller
         }
     }
 
-    private function tierData(array $data): array
+    private function tierData(array $data, bool $includePlan = true): array
     {
-        return [
+        $attributes = [
             'name' => trim($data['name']),
             'min_courts' => (int) $data['min_courts'],
             'max_courts' => null,
@@ -352,11 +376,18 @@ class PlatformFeeTierController extends Controller
             'is_active' => (bool) $data['is_active'],
             'effective_from' => now(),
         ];
+
+        if ($includePlan) {
+            $attributes['plan_version_id'] = (int) $data['plan_version_id'];
+        }
+
+        return $attributes;
     }
 
-    private function rebalanceActiveRanges(): void
+    private function rebalanceActiveRanges(int $planId): void
     {
         $tiers = PlatformFeeTier::query()
+            ->where('plan_version_id', $planId)
             ->where('is_active', true)
             ->orderBy('min_courts')
             ->lockForUpdate()
@@ -393,6 +424,13 @@ class PlatformFeeTierController extends Controller
 
         return [
             'id' => $tier->id,
+            'plan_version_id' => (int) $tier->plan_version_id,
+            'plan_version' => $tier->relationLoaded('planVersion') && $tier->planVersion ? [
+                'id' => $tier->planVersion->id,
+                'code' => $tier->planVersion->code,
+                'name' => $tier->planVersion->name,
+                'status' => $tier->planVersion->status,
+            ] : null,
             'name' => $tier->name,
             'min_courts' => (int) $tier->min_courts,
             'max_courts' => $tier->max_courts !== null ? (int) $tier->max_courts : null,
@@ -438,5 +476,15 @@ class PlatformFeeTierController extends Controller
             'default_due_days' => (int) ($data['default_due_days'] ?? $defaults['default_due_days']),
             'lock_reason' => (string) ($data['lock_reason'] ?? $defaults['lock_reason']),
         ];
+    }
+
+    private function draftPlan(int $id): PlatformFeePlanVersion
+    {
+        $plan = PlatformFeePlanVersion::query()->findOrFail($id);
+        if ($plan->status !== 'draft') {
+            abort(409, 'Chỉ được chỉnh sửa bậc phí thuộc phiên bản nháp. Hãy nhân bản phiên bản để tạo bản nháp mới.');
+        }
+
+        return $plan;
     }
 }

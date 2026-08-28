@@ -7,6 +7,7 @@ use App\Models\VenueAccessRestriction;
 use App\Models\VenuePlatformFeeLedger;
 use App\Models\PartnerTerminationRequest;
 use App\Models\PolicyRule;
+use App\Services\Payments\PlatformFeeWalletService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -67,9 +68,30 @@ class ApplyPolicyAccessRestrictions extends Command
         $clusters = VenueCluster::all();
 
         foreach ($clusters as $cluster) {
+            $overdueLedgers = VenuePlatformFeeLedger::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->whereIn('status', ['pending', 'overdue'])
+                ->whereRaw('amount_paid < amount_due')
+                ->whereDate('due_date', '<', Carbon::today()->toDateString())
+                ->get();
+            foreach ($overdueLedgers as $overdueLedger) {
+                if ($overdueLedger->status === 'pending') {
+                    $overdueLedger->forceFill(['status' => 'overdue'])->save();
+                }
+                try {
+                    app(PlatformFeeWalletService::class)->ensureLedgerHold(
+                        $overdueLedger,
+                        'Tạm giữ số dư cho kỳ phí nền tảng đã quá hạn.',
+                    );
+                } catch (\RuntimeException) {
+                    // Cụm sân chưa phát sinh số dư vẫn bị ghi nhận nợ và xử lý theo chính sách.
+                }
+            }
+
             // Find if there is any ledger of this cluster that is overdue by >= $lockAfterDays days
             $hasOverdueLedger = VenuePlatformFeeLedger::where('venue_cluster_id', $cluster->id)
-                ->where('status', '!=', 'paid')
+                ->whereIn('status', ['pending', 'overdue'])
+                ->whereRaw('amount_paid < amount_due')
                 ->where('due_date', '<=', Carbon::now()->subDays($lockAfterDays)->toDateString())
                 ->exists();
 
@@ -91,7 +113,8 @@ class ApplyPolicyAccessRestrictions extends Command
 
                 // Update ledger lock timestamp
                 VenuePlatformFeeLedger::where('venue_cluster_id', $cluster->id)
-                    ->where('status', '!=', 'paid')
+                    ->whereIn('status', ['pending', 'overdue'])
+                    ->whereRaw('amount_paid < amount_due')
                     ->where('due_date', '<=', Carbon::now()->subDays($lockAfterDays)->toDateString())
                     ->whereNull('locked_venue_at')
                     ->update(['locked_venue_at' => Carbon::now()]);

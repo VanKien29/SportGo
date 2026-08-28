@@ -16,6 +16,10 @@ Schedule::command('platform-fees:generate')
     ->dailyAt('00:15')
     ->withoutOverlapping()
     ->onOneServer();
+Schedule::command('platform-fees:activate-plans')
+    ->dailyAt('00:05')
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command('sportgo:process-partner-terminations')->everyMinute();
 Schedule::command('app:revoke-expired-owner-roles')->daily();
 Schedule::command('app:evaluate-court-membership-maintenance')->daily();

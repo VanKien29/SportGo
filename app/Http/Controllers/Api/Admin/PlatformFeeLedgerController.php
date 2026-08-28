@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Mail\PlatformFeeReminderMail;
 use App\Models\InternalReceipt;
 use App\Models\PlatformFeeEmailLog;
+use App\Models\PlatformFeeServicePeriod;
 use App\Models\PlatformFeeTier;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
 use App\Services\Payments\PlatformFeePaymentService;
+use App\Services\Payments\PlatformFeePricingService;
+use App\Services\Payments\PlatformFeeWalletService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,6 +48,7 @@ class PlatformFeeLedgerController extends Controller
                 'creation_source',
                 'automation_key',
                 'tier_id',
+                'plan_version_id',
                 'tier_name_snapshot',
                 'tier_min_courts_snapshot',
                 'tier_max_courts_snapshot',
@@ -57,6 +61,12 @@ class PlatformFeeLedgerController extends Controller
                 'price_per_court_month',
                 'discount_percent',
                 'pricing_snapshotted_at',
+                'base_amount',
+                'prepay_discount_amount',
+                'promotion_discount_amount',
+                'waiver_amount',
+                'settlement_type',
+                'settlement_reason',
                 'amount_due',
                 'amount_paid',
                 'payment_code',
@@ -68,6 +78,8 @@ class PlatformFeeLedgerController extends Controller
                 'venueCluster:id,name,status,owner_id',
                 'venueCluster.owner:id,username,full_name,email,phone',
                 'tier:id,name,min_courts,max_courts,price_per_court_month,annual_discount_percent',
+                'planVersion:id,code,name,status,effective_from,effective_to',
+                'servicePeriods',
                 'emailLogs:id,ledger_id,type,status,sent_at,error_reason',
             ])
             ->when($data['venue_cluster_id'] ?? null, fn ($query, string $id) => $query->where('venue_cluster_id', $id))
@@ -137,7 +149,7 @@ class PlatformFeeLedgerController extends Controller
     public function show(string $id): JsonResponse
     {
         $ledger = VenuePlatformFeeLedger::query()
-            ->with(['venueCluster.owner', 'tier', 'internalReceipt', 'emailLogs'])
+            ->with(['venueCluster.owner', 'tier', 'planVersion', 'servicePeriods', 'internalReceipt', 'emailLogs'])
             ->findOrFail($id);
 
         return response()->json($this->ledgerPayload($ledger));
@@ -274,6 +286,8 @@ class PlatformFeeLedgerController extends Controller
             'venue_cluster_id' => $preview['venue']['id'],
             'creation_source' => 'admin',
             'tier_id' => $preview['tier']['id'],
+            'plan_version_id' => $preview['plan_version']['id'],
+            'promotion_id' => $preview['promotion_id'],
             'tier_name_snapshot' => $preview['tier']['name'],
             'tier_min_courts_snapshot' => $preview['tier']['min_courts'],
             'tier_max_courts_snapshot' => $preview['tier']['max_courts'],
@@ -283,13 +297,38 @@ class PlatformFeeLedgerController extends Controller
             'period_start' => $preview['period_start'],
             'period_end' => $preview['period_end'],
             'due_date' => $preview['due_date'],
+            'original_due_date' => $preview['due_date'],
             'price_per_court_month' => $preview['tier']['price_per_court_month'],
             'discount_percent' => $preview['fee']['discount_percent'],
             'pricing_snapshotted_at' => now(),
+            'base_amount' => $preview['fee']['base_amount'],
+            'prepay_discount_amount' => 0,
+            'promotion_discount_amount' => $preview['fee']['promotion_discount_amount'],
+            'waiver_amount' => 0,
+            'settlement_type' => 'manual',
+            'settlement_reason' => 'Kỳ phí ngoại lệ do quản trị viên tạo thủ công.',
             'amount_due' => $preview['fee']['amount_due'],
             'amount_paid' => 0,
             'payment_proof_status' => 'none',
             'status' => 'pending',
+        ]);
+
+        PlatformFeeServicePeriod::query()->create([
+            'venue_cluster_id' => $ledger->venue_cluster_id,
+            'ledger_id' => $ledger->id,
+            'plan_version_id' => $ledger->plan_version_id,
+            'tier_id' => $ledger->tier_id,
+            'purpose' => 'manual',
+            'status' => 'issued',
+            'period_start' => $ledger->period_start->toDateString(),
+            'period_end' => $ledger->period_end->toDateString(),
+            'court_count' => $ledger->court_count,
+            'price_per_court_month' => $ledger->price_per_court_month,
+            'base_amount' => $ledger->base_amount,
+            'promotion_discount_amount' => $ledger->promotion_discount_amount,
+            'net_amount' => $ledger->amount_due,
+            'idempotency_key' => 'admin:'.$ledger->id.':1',
+            'calculation_snapshot' => ['source' => 'admin_manual'],
         ]);
 
         return response()->json([
@@ -333,6 +372,8 @@ class PlatformFeeLedgerController extends Controller
             ])->save();
 
             if ($isPaid) {
+                $ledger->servicePeriods()->update(['status' => 'paid']);
+                app(PlatformFeeWalletService::class)->releaseLedgerHold($ledger, $request->user()?->id);
                 $receipt = $this->issueReceipt($ledger->fresh(['venueCluster.owner']), $request->user()?->id);
                 $ledger->forceFill(['internal_receipt_id' => $receipt->id])->save();
                 $this->clearPlatformFeeRestriction($ledger, $request->user()?->id);
@@ -355,7 +396,7 @@ class PlatformFeeLedgerController extends Controller
 
         $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
 
-        if (in_array($ledger->status, ['paid', 'cancelled'], true)) {
+        if (in_array($ledger->status, ['paid', 'settled_zero', 'cancelled', 'voided', 'written_off', 'awaiting_acceptance'], true)) {
             return response()->json(['message' => 'Kỳ phí đã kết thúc không thể đánh dấu quá hạn.'], 422);
         }
 
@@ -471,7 +512,7 @@ class PlatformFeeLedgerController extends Controller
     {
         return [
             'venue_cluster_id' => ['required', 'string', 'exists:venue_clusters,id'],
-            'period_months' => ['required', 'integer', 'in:1,3,6,9,12'],
+            'period_months' => ['required', 'integer', 'in:1'],
             'period_start' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],
         ];
@@ -482,28 +523,22 @@ class PlatformFeeLedgerController extends Controller
         $cluster = VenueCluster::query()
             ->withCount('venueCourts')
             ->findOrFail($data['venue_cluster_id']);
-        $courtCount = max(1, (int) $cluster->venue_courts_count);
-        $tier = $this->tierForCourtCount($courtCount);
-
-        if (! $tier) {
+        $periodMonths = 1;
+        $periodStart = CarbonImmutable::parse($data['period_start'])->startOfDay();
+        $periodEnd = $periodStart->endOfMonth()->startOfDay();
+        $quote = app(PlatformFeePricingService::class)->quote($cluster, $periodStart, $periodEnd);
+        if (! ($quote['valid'] ?? false)) {
             return [
                 'isValid' => false,
-                'error' => 'Chưa có bậc phí phù hợp với số sân của cụm này.',
+                'error' => $quote['error'] ?? 'Chưa có bảng giá phù hợp với cụm sân này.',
                 'warnings' => [],
             ];
         }
 
-        $periodMonths = (int) $data['period_months'];
-        $periodStart = CarbonImmutable::parse($data['period_start'])->startOfDay();
-        $periodEnd = $periodStart->addMonthsNoOverflow($periodMonths)->subDay();
         $dueDate = $data['due_date'] ?? $periodEnd->toDateString();
-        $baseAmount = round($courtCount * (float) $tier->price_per_court_month * $periodMonths, 2);
-        $discountPercent = $periodMonths === 12 ? (float) $tier->annual_discount_percent : 0.0;
-        $discountAmount = round($baseAmount * $discountPercent / 100, 2);
-        $amountDue = round($baseAmount - $discountAmount, 2);
-        $overlap = VenuePlatformFeeLedger::query()
+        $overlap = PlatformFeeServicePeriod::query()
             ->where('venue_cluster_id', $cluster->id)
-            ->where('status', '!=', 'cancelled')
+            ->where('status', '!=', 'voided')
             ->whereDate('period_start', '<=', $periodEnd->toDateString())
             ->whereDate('period_end', '>=', $periodStart->toDateString())
             ->exists();
@@ -513,8 +548,7 @@ class PlatformFeeLedgerController extends Controller
                 'isValid' => false,
                 'error' => 'Đã có kỳ phí trùng thời gian cho cụm sân này.',
                 'venue' => $this->venuePayload($cluster),
-                'tier' => $this->tierPayload($tier),
-                'fee' => compact('baseAmount', 'discountPercent', 'discountAmount', 'amountDue'),
+                'tier' => $this->tierPayload($quote['tier']),
                 'warnings' => [],
             ];
         }
@@ -522,17 +556,24 @@ class PlatformFeeLedgerController extends Controller
         return [
             'isValid' => true,
             'venue' => $this->venuePayload($cluster),
-            'tier' => $this->tierPayload($tier),
-            'court_count' => $courtCount,
+            'plan_version' => [
+                'id' => $quote['plan']->id,
+                'code' => $quote['plan']->code,
+                'name' => $quote['plan']->name,
+            ],
+            'promotion_id' => $quote['promotion']?->id,
+            'tier' => $this->tierPayload($quote['tier']),
+            'court_count' => $quote['court_count'],
             'period_months' => $periodMonths,
             'period_start' => $periodStart->toDateString(),
             'period_end' => $periodEnd->toDateString(),
             'due_date' => $dueDate,
             'fee' => [
-                'base_amount' => $baseAmount,
-                'discount_percent' => $discountPercent,
-                'discount_amount' => $discountAmount,
-                'amount_due' => $amountDue,
+                'base_amount' => $quote['base_amount'],
+                'discount_percent' => 0,
+                'discount_amount' => $quote['promotion_discount_amount'],
+                'promotion_discount_amount' => $quote['promotion_discount_amount'],
+                'amount_due' => $quote['net_amount'],
                 'warnings' => [],
             ],
             'warnings' => [],
@@ -582,6 +623,16 @@ class PlatformFeeLedgerController extends Controller
 
     private function clearPlatformFeeRestriction(VenuePlatformFeeLedger $ledger, ?string $adminId): void
     {
+        $hasOtherDebt = VenuePlatformFeeLedger::query()
+            ->where('venue_cluster_id', $ledger->venue_cluster_id)
+            ->whereKeyNot($ledger->id)
+            ->whereIn('status', ['pending', 'overdue'])
+            ->whereRaw('amount_paid < amount_due')
+            ->exists();
+        if ($hasOtherDebt) {
+            return;
+        }
+
         VenueAccessRestriction::query()
             ->where('venue_cluster_id', $ledger->venue_cluster_id)
             ->where('restriction_type', 'platform_fee_overdue')
@@ -604,7 +655,10 @@ class PlatformFeeLedgerController extends Controller
 
     private function ledgerPayload(VenuePlatformFeeLedger $ledger, bool $includeDetails = true): array
     {
-        $baseAmount = round((float) $ledger->price_per_court_month * (int) $ledger->court_count * (int) $ledger->period_months, 2);
+        $ledger->loadMissing(['planVersion', 'servicePeriods']);
+        $baseAmount = (float) $ledger->base_amount > 0
+            ? (float) $ledger->base_amount
+            : round((float) $ledger->price_per_court_month * (int) $ledger->court_count * max((int) $ledger->period_months, 1), 2);
         $amountDue = (float) $ledger->amount_due;
         $amountPaid = (float) $ledger->amount_paid;
         $remainingAmount = round(max($amountDue - $amountPaid, 0), 2);
@@ -623,13 +677,18 @@ class PlatformFeeLedgerController extends Controller
             'venue_cluster_id' => $ledger->venue_cluster_id,
             'creation_source' => $ledger->creation_source,
             'automation_key' => $ledger->automation_key,
-            'can_cancel' => ! in_array($ledger->status, ['paid', 'cancelled'], true)
+            'can_cancel' => ! in_array($ledger->status, ['paid', 'settled_zero', 'cancelled', 'voided', 'written_off'], true)
                 && $amountPaid <= 0,
             'tier_id' => $ledger->tier_id,
             'tier_name' => $tierName,
             'tier_min_courts_snapshot' => $ledger->tier_min_courts_snapshot,
             'tier_max_courts_snapshot' => $ledger->tier_max_courts_snapshot,
             'pricing_snapshotted_at' => $ledger->pricing_snapshotted_at?->toISOString(),
+            'plan_version' => $ledger->planVersion ? [
+                'id' => $ledger->planVersion->id,
+                'code' => $ledger->planVersion->code,
+                'name' => $ledger->planVersion->name,
+            ] : null,
             'court_count' => (int) $ledger->court_count,
             'period_months' => (int) $ledger->period_months,
             'billing_cycle' => $ledger->billing_cycle,
@@ -650,6 +709,20 @@ class PlatformFeeLedgerController extends Controller
             'discount_percent' => (float) $ledger->discount_percent,
             'base_amount' => $baseAmount,
             'discount_amount' => round(max($baseAmount - $amountDue, 0), 2),
+            'prepay_discount_amount' => (float) $ledger->prepay_discount_amount,
+            'promotion_discount_amount' => (float) $ledger->promotion_discount_amount,
+            'waiver_amount' => (float) $ledger->waiver_amount,
+            'settlement_type' => $ledger->settlement_type,
+            'settlement_reason' => $ledger->settlement_reason,
+            'service_periods' => $ledger->servicePeriods->map(fn (PlatformFeeServicePeriod $period): array => [
+                'id' => $period->id,
+                'purpose' => $period->purpose,
+                'status' => $period->status,
+                'period_start' => $period->period_start?->toDateString(),
+                'period_end' => $period->period_end?->toDateString(),
+                'base_amount' => (float) $period->base_amount,
+                'net_amount' => (float) $period->net_amount,
+            ])->values(),
             'amount_due' => $amountDue,
             'amount_paid' => $amountPaid,
             'remaining_amount' => $remainingAmount,
@@ -732,7 +805,7 @@ class PlatformFeeLedgerController extends Controller
     {
         $months = (int) ($ledger->period_months ?: 1);
 
-        return "Kỳ {$months} tháng";
+        return $ledger->settlement_type === 'trial' ? 'Kỳ miễn phí dùng thử' : "Kỳ {$months} tháng";
     }
 
     private function truthy(mixed $value): bool
