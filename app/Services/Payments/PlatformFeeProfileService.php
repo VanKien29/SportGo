@@ -40,7 +40,19 @@ class PlatformFeeProfileService
             ]);
         }
 
-        $trialStart = $activationCandidate;
+        $trialStart = $activationCandidate->startOfDay();
+        if ($trialDays === 0) {
+            return VenuePlatformFeeProfile::query()->create([
+                'venue_cluster_id' => $cluster->id,
+                'trial_plan_version_id' => $plan?->id,
+                'trial_status' => 'not_applicable',
+                'trial_days' => 0,
+                'fee_started_at' => $trialStart,
+                'billing_anchor_day' => 1,
+                'auto_pay_from_balance' => false,
+                'metadata' => ['source' => 'automatic_cluster_activation'],
+            ]);
+        }
         $trialEnd = $trialStart->addDays($trialDays)->subSecond();
 
         return VenuePlatformFeeProfile::query()->create([

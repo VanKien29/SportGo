@@ -16,9 +16,12 @@ class PlatformFeePolicyEvaluator
     {
         $policy = SystemPolicy::with('rules')
             ->where('status', 'active')
+            ->where('is_active', true)
             ->where(function($q) {
                 $q->where('policy_type', 'platform_fee')->orWhere('type', 'platform_fee');
             })
+            ->orderByDesc('version')
+            ->orderByDesc('id')
             ->first();
 
         if (!$policy) {
@@ -30,8 +33,9 @@ class PlatformFeePolicyEvaluator
         
         $ruleId = $policy->rules->firstWhere('rule_type', 'platform_fee_escalation')?->id;
 
-        $unpaidLedgers = VenuePlatformFeeLedger::where('status', 'unpaid')
-            ->orWhere('status', 'overdue')
+        $unpaidLedgers = VenuePlatformFeeLedger::query()
+            ->whereIn('status', ['pending', 'overdue'])
+            ->whereRaw('amount_paid < amount_due')
             ->get();
 
         foreach ($unpaidLedgers as $ledger) {
@@ -117,7 +121,7 @@ class PlatformFeePolicyEvaluator
                     $resultData['reason'] = 'Cụm sân đã bị khóa từ trước hoặc không tồn tại.';
                 }
             } else {
-                if ($ledger->status === 'unpaid' && str_contains($actionKey, 'overdue')) {
+                if ($ledger->status === 'pending' && str_contains($actionKey, 'overdue')) {
                     $ledger->update(['status' => 'overdue']);
                 }
             }

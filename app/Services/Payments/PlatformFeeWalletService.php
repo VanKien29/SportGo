@@ -3,9 +3,11 @@
 namespace App\Services\Payments;
 
 use App\Models\AuditLog;
+use App\Models\Booking;
 use App\Models\OwnerWallet;
 use App\Models\OwnerWalletLedger;
 use App\Models\PlatformFeeWalletHold;
+use App\Models\Refund;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenuePlatformFeeLedger;
 use Illuminate\Support\Facades\DB;
@@ -15,15 +17,75 @@ class PlatformFeeWalletService
 {
     public function withdrawableAmount(OwnerWallet $wallet, ?int $excludingLedgerId = null): float
     {
-        $held = PlatformFeeWalletHold::query()
+        return $this->balanceBreakdown($wallet, $excludingLedgerId)['safe_balance'];
+    }
+
+    /** @return array<string,float> */
+    public function balanceBreakdown(OwnerWallet $wallet, ?int $excludingLedgerId = null): array
+    {
+        $platformFeeHeld = (float) PlatformFeeWalletHold::query()
             ->where('owner_wallet_id', $wallet->id)
             ->where('status', 'active')
             ->when($excludingLedgerId, fn ($query) => $query->where(function ($holdQuery) use ($excludingLedgerId): void {
                 $holdQuery->whereNull('ledger_id')->orWhere('ledger_id', '!=', $excludingLedgerId);
             }))
+            ->sum('remaining_amount');
+
+        $futureBookingIds = Booking::query()
+            ->where('venue_cluster_id', $wallet->venue_cluster_id)
+            ->whereIn('status', ['pending_approval', 'pending_payment', 'confirmed', 'checked_in'])
+            ->where(function ($query): void {
+                $today = today(config('platform_fee.timezone'))->toDateString();
+                $time = now(config('platform_fee.timezone'))->format('H:i:s');
+                $query->whereDate('booking_date', '>', $today)
+                    ->orWhere(function ($sameDay) use ($today, $time): void {
+                        $sameDay->whereDate('booking_date', $today)->where('start_time', '>=', $time);
+                    });
+            })
+            ->pluck('id');
+
+        $futureBookingLiability = 0.0;
+        if ($futureBookingIds->isNotEmpty()) {
+            $credits = (float) OwnerWalletLedger::query()
+                ->where('owner_wallet_id', $wallet->id)
+                ->whereIn('booking_id', $futureBookingIds)
+                ->where('status', 'completed')
+                ->where('direction', 'credit')
+                ->sum('amount');
+            $debits = (float) OwnerWalletLedger::query()
+                ->where('owner_wallet_id', $wallet->id)
+                ->whereIn('booking_id', $futureBookingIds)
+                ->where('status', 'completed')
+                ->where('direction', 'debit')
+                ->sum('amount');
+            $futureBookingLiability = max($credits - $debits, 0);
+        }
+
+        $pendingRefundLiability = (float) Refund::query()
+            ->whereHas('booking', fn ($query) => $query->where('venue_cluster_id', $wallet->venue_cluster_id))
+            ->whereIn('status', [
+                'pending_confirmation',
+                'processing',
+                'pending_owner_confirmation',
+                'owner_confirmed',
+                'admin_processing',
+            ])
+            ->when($futureBookingIds->isNotEmpty(), fn ($query) => $query->whereNotIn('booking_id', $futureBookingIds))
             ->sum('amount');
 
-        return round(max((float) $wallet->available_balance - (float) $held, 0), 2);
+        $recordedBalance = (float) $wallet->available_balance;
+        $safeBalance = max(
+            $recordedBalance - $futureBookingLiability - $pendingRefundLiability - $platformFeeHeld,
+            0,
+        );
+
+        return [
+            'recorded_balance' => round($recordedBalance, 2),
+            'future_booking_liability' => round($futureBookingLiability, 2),
+            'pending_refund_liability' => round($pendingRefundLiability, 2),
+            'platform_fee_held' => round($platformFeeHeld, 2),
+            'safe_balance' => round($safeBalance, 2),
+        ];
     }
 
     public function activeHoldAmount(OwnerWallet $wallet): float
@@ -31,7 +93,7 @@ class PlatformFeeWalletService
         return round((float) PlatformFeeWalletHold::query()
             ->where('owner_wallet_id', $wallet->id)
             ->where('status', 'active')
-            ->sum('amount'), 2);
+            ->sum('remaining_amount'), 2);
     }
 
     public function ensureLedgerHold(VenuePlatformFeeLedger $ledger, string $reason): PlatformFeeWalletHold
@@ -50,7 +112,12 @@ class PlatformFeeWalletService
                 throw new RuntimeException('Cụm sân chưa có số dư chủ sân để tạm giữ.');
             }
 
-            $amount = round(max((float) $ledger->amount_due - (float) $ledger->amount_paid, 0), 2);
+            $outstanding = round(max((float) $ledger->amount_due - (float) $ledger->amount_paid, 0), 2);
+            $amount = min($outstanding, $this->withdrawableAmount($wallet, $ledger->id));
+            if ($amount <= 0) {
+                throw new RuntimeException('Số dư an toàn hiện không còn tiền để tạm giữ cho kỳ phí.');
+            }
+
             return PlatformFeeWalletHold::query()->updateOrCreate(
                 ['ledger_id' => $ledger->id],
                 [
@@ -59,12 +126,21 @@ class PlatformFeeWalletService
                     'venue_cluster_id' => $ledger->venue_cluster_id,
                     'arrangement_id' => $ledger->payment_arrangement_id,
                     'amount' => $amount,
+                    'original_amount' => $outstanding,
+                    'remaining_amount' => $amount,
+                    'consumed_amount' => 0,
                     'status' => 'active',
                     'reason' => $reason,
                     'starts_at' => now(),
                     'released_at' => null,
                     'released_by' => null,
-                    'metadata' => ['ledger_status' => $ledger->status],
+                    'consumed_at' => null,
+                    'consumed_by' => null,
+                    'movement_reference' => null,
+                    'metadata' => [
+                        'ledger_status' => $ledger->status,
+                        'unsecured_amount' => round(max($outstanding - $amount, 0), 2),
+                    ],
                 ],
             );
         });
@@ -77,6 +153,7 @@ class PlatformFeeWalletService
             ->where('status', 'active')
             ->update([
                 'status' => 'released',
+                'remaining_amount' => 0,
                 'released_at' => now(),
                 'released_by' => $actorId,
             ]);
@@ -163,7 +240,17 @@ class PlatformFeeWalletService
 
             $ledger->servicePeriods()->update(['status' => 'paid']);
 
-            $this->releaseLedgerHold($ledger, $ownerId);
+            PlatformFeeWalletHold::query()
+                ->where('ledger_id', $ledger->id)
+                ->where('status', 'active')
+                ->update([
+                    'status' => 'consumed',
+                    'consumed_amount' => DB::raw('remaining_amount'),
+                    'remaining_amount' => 0,
+                    'consumed_at' => now(),
+                    'consumed_by' => $automatic ? null : $ownerId,
+                    'movement_reference' => 'PF-'.$ledger->id,
+                ]);
             $this->clearRestrictionWhenSettled($ledger);
             app(PlatformFeeArrangementService::class)->syncSettlement($ledger);
             AuditLog::query()->create([

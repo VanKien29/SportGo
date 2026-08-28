@@ -39,6 +39,9 @@ class PlatformFeeLedgerController extends Controller
             'range' => ['nullable', 'string'],
             'email_status' => ['nullable', 'string'],
             'keyword' => ['nullable', 'string', 'max:120'],
+            'paginate' => ['nullable', 'boolean'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
         ]);
 
         $query = VenuePlatformFeeLedger::query()
@@ -137,6 +140,28 @@ class PlatformFeeLedgerController extends Controller
                 });
             });
 
+        $metrics = $this->ledgerMetrics($query);
+
+        if ($request->boolean('paginate')) {
+            $paginator = $query
+                ->orderByDesc('paid_at')
+                ->orderByDesc('period_start')
+                ->paginate((int) $request->integer('per_page', 20));
+
+            return response()->json([
+                'data' => $paginator->getCollection()
+                    ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger, false))
+                    ->values(),
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                ],
+                'metrics' => $metrics,
+            ]);
+        }
+
         $ledgers = $query
             ->orderByDesc('paid_at')
             ->orderByDesc('period_start')
@@ -144,6 +169,43 @@ class PlatformFeeLedgerController extends Controller
             ->map(fn (VenuePlatformFeeLedger $ledger): array => $this->ledgerPayload($ledger, false));
 
         return response()->json($ledgers);
+    }
+
+    private function ledgerMetrics($filteredQuery): array
+    {
+        $today = today()->toDateString();
+        $inTime = (clone $filteredQuery)
+            ->where('status', 'pending')
+            ->whereDate('due_date', '>=', $today)
+            ->whereColumn('amount_paid', '<', 'amount_due');
+        $overdue = (clone $filteredQuery)
+            ->whereColumn('amount_paid', '<', 'amount_due')
+            ->where(function ($query) use ($today): void {
+                $query
+                    ->where('status', 'overdue')
+                    ->orWhere(function ($pendingQuery) use ($today): void {
+                        $pendingQuery
+                            ->where('status', 'pending')
+                            ->whereDate('due_date', '<', $today);
+                    });
+            });
+
+        return [
+            'pending' => (clone $inTime)->count(),
+            'overdue' => (clone $overdue)->count(),
+            'pending_amount' => $this->remainingTotal($inTime),
+            'overdue_amount' => $this->remainingTotal($overdue),
+        ];
+    }
+
+    private function remainingTotal($query): float
+    {
+        $result = (clone $query)
+            ->select([])
+            ->selectRaw('COALESCE(SUM(GREATEST(amount_due - amount_paid, 0)), 0) AS remaining_total')
+            ->value('remaining_total');
+
+        return round((float) $result, 2);
     }
 
     public function show(string $id): JsonResponse

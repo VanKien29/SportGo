@@ -12,6 +12,7 @@ class PlatformFeePromotionAssignment extends Model
     protected $fillable = [
         'promotion_id',
         'venue_cluster_id',
+        'initial_cycles',
         'remaining_cycles',
         'status',
         'assigned_by',
@@ -22,6 +23,7 @@ class PlatformFeePromotionAssignment extends Model
     protected function casts(): array
     {
         return [
+            'initial_cycles' => 'integer',
             'remaining_cycles' => 'integer',
             'assigned_at' => 'datetime',
             'consumed_at' => 'datetime',

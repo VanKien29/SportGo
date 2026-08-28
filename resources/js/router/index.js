@@ -370,10 +370,29 @@ const routes = [
                     import("../views/admin/AdminPlatformFeeTiers.vue"),
             },
             {
+                path: "platform-fee-tiers/:id",
+                name: "admin-platform-fee-plan-detail",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeePlanDetail.vue"),
+                meta: { hideFloatingBack: true },
+            },
+            {
                 path: "platform-fee-ledgers",
                 name: "admin-platform-fee-ledgers",
                 component: () =>
                     import("../views/admin/AdminPlatformFeeLedgers.vue"),
+            },
+            {
+                path: "platform-fee-arrangements",
+                name: "admin-platform-fee-arrangements",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeeArrangements.vue"),
+            },
+            {
+                path: "platform-fee-promotions",
+                name: "admin-platform-fee-promotions",
+                component: () =>
+                    import("../views/admin/AdminPlatformFeePromotions.vue"),
             },
             {
                 path: "platform-fee-ledgers/:id",
@@ -392,8 +411,7 @@ const routes = [
             {
                 path: "settings/platform-fee",
                 name: "admin-platform-fee-settings",
-                component: () =>
-                    import("../views/admin/AdminPlatformFeeSettings.vue"),
+                redirect: { name: "admin-platform-fee-policies" },
             },
             {
                 path: "system-profile",

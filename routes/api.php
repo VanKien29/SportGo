@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Admin\SystemSettingController as AdminSystemSetting
 use App\Http\Controllers\Api\Admin\PlatformFeeLedgerController as AdminPlatformFeeLedgerController;
 use App\Http\Controllers\Api\Admin\PlatformFeeArrangementController as AdminPlatformFeeArrangementController;
 use App\Http\Controllers\Api\Admin\PlatformFeePlanVersionController as AdminPlatformFeePlanVersionController;
+use App\Http\Controllers\Api\Admin\PlatformFeePromotionController as AdminPlatformFeePromotionController;
 use App\Http\Controllers\Api\Admin\PlatformFeeTierController as AdminPlatformFeeTierController;
 use App\Http\Controllers\Api\Admin\PartnerApplicationController as AdminPartnerApplicationController;
 use App\Http\Controllers\Api\Admin\PartnerContractController as AdminPartnerContractController;
@@ -193,9 +194,18 @@ Route::middleware(['auth:sanctum', EnsureAdminRole::class, EnsureAdminPermission
         Route::put('/platform-fee-plans/{id}', [AdminPlatformFeePlanVersionController::class, 'update']);
         Route::post('/platform-fee-plans/{id}/schedule', [AdminPlatformFeePlanVersionController::class, 'schedule']);
         Route::post('/platform-fee-plans/{id}/cancel-schedule', [AdminPlatformFeePlanVersionController::class, 'cancelSchedule']);
+        Route::delete('/platform-fee-plans/{id}', [AdminPlatformFeePlanVersionController::class, 'destroy']);
         Route::get('/platform-fee-arrangements', [AdminPlatformFeeArrangementController::class, 'index']);
+        Route::get('/platform-fee-arrangements/preview', [AdminPlatformFeeArrangementController::class, 'preview']);
+        Route::get('/platform-fee-arrangements/{id}', [AdminPlatformFeeArrangementController::class, 'show']);
         Route::post('/platform-fee-arrangements', [AdminPlatformFeeArrangementController::class, 'store']);
         Route::post('/platform-fee-arrangements/{id}/cancel', [AdminPlatformFeeArrangementController::class, 'cancel']);
+        Route::get('/platform-fee-promotions', [AdminPlatformFeePromotionController::class, 'index']);
+        Route::post('/platform-fee-promotions', [AdminPlatformFeePromotionController::class, 'store']);
+        Route::put('/platform-fee-promotions/{id}', [AdminPlatformFeePromotionController::class, 'update']);
+        Route::post('/platform-fee-promotions/{id}/publish', [AdminPlatformFeePromotionController::class, 'publish']);
+        Route::post('/platform-fee-promotions/{id}/deactivate', [AdminPlatformFeePromotionController::class, 'deactivate']);
+        Route::delete('/platform-fee-promotions/{id}', [AdminPlatformFeePromotionController::class, 'destroy']);
         Route::get('/platform-fee-tiers', [AdminPlatformFeeTierController::class, 'index']);
         Route::post('/platform-fee-tiers', [AdminPlatformFeeTierController::class, 'store']);
         Route::put('/platform-fee-tiers/{id}', [AdminPlatformFeeTierController::class, 'update']);
@@ -485,6 +495,7 @@ Route::middleware(['auth:sanctum', EnsureOwnerRole::class, EnsureVenueStaffMenuP
         Route::post('/platform-fees/arrangements/{id}/accept', [OwnerPlatformFeeController::class, 'acceptArrangement']);
         Route::post('/platform-fees/arrangements/{id}/reject', [OwnerPlatformFeeController::class, 'rejectArrangement']);
         Route::post('/platform-fees/prepay', [OwnerPlatformFeeController::class, 'createAdvancePayment']);
+        Route::get('/platform-fees/{id}/balance-preview', [OwnerPlatformFeeController::class, 'previewBalancePayment']);
         Route::get('/platform-fees/{id}', [OwnerPlatformFeeController::class, 'show']);
         Route::post('/platform-fees/{id}/payment', [OwnerPlatformFeeController::class, 'createPayment']);
         Route::post('/platform-fees/{id}/pay-from-balance', [OwnerPlatformFeeController::class, 'payFromBalance']);

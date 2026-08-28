@@ -92,12 +92,14 @@
                 <strong>{{ arrangement.code }}</strong>
                 <span class="status-pill" :class="arrangement.status">{{ arrangementStatusLabel(arrangement.status) }}</span>
               </div>
-              <p>{{ arrangement.service_months }} tháng dịch vụ · {{ date(arrangement.service_start) }} - {{ date(arrangement.service_end) }}</p>
+              <p><strong>Hoãn {{ arrangement.service_months }} kỳ tháng · áp dụng một lần</strong></p>
+              <small>Dịch vụ {{ date(arrangement.service_start) }} - {{ date(arrangement.service_end) }} · sau đó trở lại thanh toán tháng</small>
               <small>Hạn thanh toán {{ date(arrangement.payment_due_date) }} · Tổng {{ money(arrangement.total_amount) }}</small>
+              <small v-if="arrangement.expires_at && arrangement.status === 'pending_owner_acceptance'">Phản hồi trước {{ dateTime(arrangement.expires_at) }}</small>
               <small v-if="arrangement.reason">Lý do: {{ arrangement.reason }}</small>
             </div>
             <div v-if="arrangement.status === 'pending_owner_acceptance'" class="arrangement-actions">
-              <p>Khi xác nhận, hệ thống tạm giữ {{ money(arrangement.total_amount) }} và phần này không thể rút.</p>
+              <p>Khi xác nhận, hệ thống tạm giữ {{ money(arrangement.total_amount) }} từ số dư an toàn. Đây không phải trả trước nên không có giảm kỳ hạn.</p>
               <button class="action-btn cancel-btn" type="button" :disabled="submitting" @click="rejectArrangement(arrangement)">Từ chối</button>
               <button class="action-btn pay-btn" type="button" :disabled="submitting" @click="acceptArrangement(arrangement)">Xác nhận & tạm giữ</button>
             </div>
@@ -358,6 +360,17 @@
       </section>
     </div>
 
+    <div v-if="rejectDialog.arrangement" class="modal-backdrop" @click.self="closeRejectDialog">
+      <form class="cancel-confirm-modal" @submit.prevent="submitArrangementRejection">
+        <header><div><p class="eyebrow">TỪ CHỐI ĐỀ NGHỊ</p><h3>{{ rejectDialog.arrangement.code }}</h3></div><button class="close-btn" type="button" aria-label="Đóng" @click="closeRejectDialog">×</button></header>
+        <p class="cancel-warning">Đề nghị này sẽ không tạo kỳ trả chậm và không tạm giữ số dư. Nếu cần thỏa thuận lại, Admin phải gửi đề nghị mới.</p>
+        <label>Lý do từ chối *<textarea v-model.trim="rejectDialog.reason" rows="4" minlength="10" maxlength="1000" required></textarea></label>
+        <footer><button class="cancel-btn" type="button" :disabled="submitting" @click="closeRejectDialog">Quay lại</button><button class="danger-btn" type="submit" :disabled="submitting || rejectDialog.reason.length < 10">Xác nhận từ chối</button></footer>
+      </form>
+    </div>
+
+    <ConfirmModal v-model="confirmDialog.open" :title="confirmDialog.title" :message="confirmDialog.message" :consequence="confirmDialog.consequence" :confirm-text="confirmDialog.confirmText" :type="confirmDialog.type" @confirm="runConfirmedAction" />
+
     <div v-if="cancelDialog.fee" class="modal-backdrop" @click.self="closeCancelDialog">
       <form class="cancel-confirm-modal" @submit.prevent="submitCancellation">
         <header>
@@ -384,10 +397,12 @@
 </template>
 
 <script>
+import ConfirmModal from '../../components/ConfirmModal.vue';
 import { ownerPlatformFeeService } from '../../services/ownerPlatformFees.js';
 
 export default {
   name: 'OwnerPlatformFees',
+  components: { ConfirmModal },
   data() {
     return {
       fees: [],
@@ -410,6 +425,8 @@ export default {
       plannerMonths: {},
       paymentModal: null,
       cancelDialog: { fee: null, reason: '' },
+      rejectDialog: { arrangement: null, reason: '' },
+      confirmDialog: { open: false, action: '', target: null, title: '', message: '', consequence: '', confirmText: 'Xác nhận', type: 'warning' },
       paymentPollInterval: null,
       clusterId: localStorage.getItem('selected_cluster') || '',
     };
@@ -496,7 +513,29 @@ export default {
     },
     async payByBalance(fee) {
       if (!this.canPayFromBalance(fee)) return;
-      if (!window.confirm(`Dùng ${this.money(fee.amount_remaining)} từ số dư chủ sân để thanh toán kỳ này?`)) return;
+      this.submitting = true;
+      this.error = '';
+      try {
+        const response = await ownerPlatformFeeService.balancePreview(fee.id);
+        const preview = response.data;
+        if (!preview.can_pay_full) {
+          this.error = `Số dư an toàn còn thiếu ${this.money(preview.shortfall)} nên chưa thể thanh toán toàn bộ kỳ này.`;
+          return;
+        }
+        this.confirmDialog = {
+          open: true, action: 'pay-balance', target: fee,
+          title: 'Thanh toán bằng số dư Chủ sân?',
+          message: `Hệ thống sẽ trừ ${this.money(preview.amount_to_debit)} cho kỳ ${this.date(fee.period_start)} - ${this.date(fee.period_end)}.`,
+          consequence: `Số dư ghi nhận ${this.money(preview.recorded_balance)}; đã bảo vệ cho đặt sân/hoàn tiền ${this.money(Number(preview.future_booking_liability || 0) + Number(preview.pending_refund_liability || 0))}. Giao dịch chỉ thực hiện đủ toàn bộ, không trừ một phần.`,
+          confirmText: 'Thanh toán', type: 'warning',
+        };
+      } catch (error) {
+        this.error = error.message || 'Không kiểm tra được số dư có thể sử dụng.';
+      } finally {
+        this.submitting = false;
+      }
+    },
+    async executeBalancePayment(fee) {
       this.submitting = true;
       this.error = '';
       this.success = '';
@@ -526,18 +565,39 @@ export default {
       }
     },
     async acceptArrangement(arrangement) {
-      if (!window.confirm(`Xác nhận thỏa thuận ${arrangement.code} và tạm giữ ${this.money(arrangement.total_amount)} từ số dư?`)) return;
+      this.confirmDialog = {
+        open: true, action: 'accept-arrangement', target: arrangement,
+        title: 'Xác nhận thỏa thuận trả chậm?',
+        message: `${arrangement.code} cho phép hoãn ${arrangement.service_months} kỳ tháng đúng một lần, tổng ${this.money(arrangement.total_amount)}.`,
+        consequence: `Toàn bộ ${this.money(arrangement.total_amount)} sẽ bị tạm giữ và không thể rút. Sau ${this.date(arrangement.service_end)}, kỳ thanh toán tiếp theo trở lại theo tháng.`,
+        confirmText: 'Xác nhận & tạm giữ', type: 'warning',
+      };
+    },
+    async executeArrangementAcceptance(arrangement) {
       await this.handleArrangementAction(
         () => ownerPlatformFeeService.acceptArrangement(arrangement.id),
         'Đã xác nhận thỏa thuận trả chậm.',
       );
     },
     async rejectArrangement(arrangement) {
-      if (!window.confirm(`Từ chối thỏa thuận ${arrangement.code}? Các kỳ đang giữ chỗ sẽ bị hủy.`)) return;
+      this.rejectDialog = { arrangement, reason: '' };
+    },
+    closeRejectDialog() { if (!this.submitting) this.rejectDialog = { arrangement: null, reason: '' }; },
+    async submitArrangementRejection() {
+      const arrangement = this.rejectDialog.arrangement;
+      const reason = this.rejectDialog.reason;
+      if (!arrangement || reason.length < 10) return;
       await this.handleArrangementAction(
-        () => ownerPlatformFeeService.rejectArrangement(arrangement.id),
+        () => ownerPlatformFeeService.rejectArrangement(arrangement.id, reason),
         'Đã từ chối thỏa thuận trả chậm.',
       );
+      this.rejectDialog = { arrangement: null, reason: '' };
+    },
+    runConfirmedAction() {
+      const dialog = this.confirmDialog;
+      this.confirmDialog = { open: false, action: '', target: null, title: '', message: '', consequence: '', confirmText: 'Xác nhận', type: 'warning' };
+      if (dialog.action === 'pay-balance') this.executeBalancePayment(dialog.target);
+      if (dialog.action === 'accept-arrangement') this.executeArrangementAcceptance(dialog.target);
     },
     async handleArrangementAction(action, fallbackMessage) {
       this.submitting = true;
@@ -680,8 +740,7 @@ export default {
     },
     canPayFromBalance(fee) {
       return this.canPay(fee)
-        && Boolean(this.ownerBalance)
-        && Number(this.ownerBalance.withdrawable || 0) + 0.01 >= Number(fee.amount_remaining || 0);
+        && Boolean(this.ownerBalance);
     },
     canCancel(fee) {
       return fee?.can_cancel === true;
@@ -726,7 +785,8 @@ export default {
     },
     date(value) {
       if (!value) return 'Chưa cập nhật';
-      return new Intl.DateTimeFormat('vi-VN').format(new Date(`${value}T00:00:00`));
+      const parsed = this.parseDateValue(value, true);
+      return parsed ? new Intl.DateTimeFormat('vi-VN').format(parsed) : 'Chưa cập nhật';
     },
     cycleLabel(fee) {
       return `Kỳ ${fee.period_months || 1} tháng`;
@@ -756,6 +816,8 @@ export default {
         awaiting_acceptance: 'Chờ xác nhận thỏa thuận',
         voided: 'Đã vô hiệu',
         cancelled: 'Đã hủy',
+        rejected: 'Đã từ chối',
+        expired: 'Hết hạn phản hồi',
       }[status] || status;
     },
     arrangementStatusLabel(status) {
@@ -769,14 +831,28 @@ export default {
     },
     dateTime(value) {
       if (!value) return 'Không áp dụng';
-      return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+      const parsed = this.parseDateValue(value);
+      return parsed
+        ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(parsed)
+        : 'Không áp dụng';
     },
     paidAt(value) {
       if (!value) return 'Đã hoàn tất';
+      const parsed = this.parseDateValue(value);
+      if (!parsed) return 'Đã hoàn tất';
       return new Intl.DateTimeFormat('vi-VN', {
         dateStyle: 'short',
         timeStyle: 'short',
-      }).format(new Date(value));
+      }).format(parsed);
+    },
+    parseDateValue(value, dateOnly = false) {
+      if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+      const normalized = String(value).trim().replace(' ', 'T');
+      const candidate = dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(normalized)
+        ? `${normalized}T00:00:00`
+        : normalized;
+      const parsed = new Date(candidate);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
     },
   },
 };

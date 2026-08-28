@@ -1452,6 +1452,11 @@ export default {
                         "number",
                     ],
                     [
+                        "lock_overdue_days",
+                        "Khóa cụm sân sau quá hạn (ngày)",
+                        "number",
+                    ],
+                    [
                         "termination_review_overdue_days",
                         "Chuyển Admin xử lý chấm dứt sau (ngày)",
                         "number",
@@ -2062,8 +2067,6 @@ export default {
                 });
 
                 if (this.configurationType === "platform_fee") {
-                    configurationData.lock_overdue_days =
-                        configurationData.restrict_overdue_days || 0;
                     configurationData.notify_owner = true;
                     configurationData.notify_admin = true;
                     configurationData.message_template =

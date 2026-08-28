@@ -60,6 +60,7 @@ class PlatformFeePaymentService
                     : CarbonImmutable::instance($profile->fee_started_at ?: today()->startOfMonth())->startOfDay());
             $periodEnd = $periodStart->addMonthsNoOverflow($months)->subDay();
             $quotes = [];
+            $promotionUsage = [];
             $cursor = $periodStart;
             while ($cursor->lte($periodEnd)) {
                 $allocationEnd = $cursor->endOfMonth()->startOfDay()->min($periodEnd);
@@ -69,12 +70,18 @@ class PlatformFeePaymentService
                     $allocationEnd,
                     true,
                     $months,
+                    reservedPromotionUsage: $promotionUsage,
                 );
                 if (! ($quote['valid'] ?? false)) {
                     throw new RuntimeException((string) ($quote['error'] ?? 'Không tính được phí thanh toán trước.'));
                 }
                 $quotes[] = $quote;
-                app(PlatformFeePricingService::class)->consumePromotion($quote);
+                $promotionId = $quote['promotion']?->id;
+                if ($promotionId && (float) $quote['promotion_discount_amount'] > 0) {
+                    $promotionUsage[$promotionId] ??= ['cycles' => 0, 'amount' => 0.0];
+                    $promotionUsage[$promotionId]['cycles']++;
+                    $promotionUsage[$promotionId]['amount'] += (float) $quote['promotion_discount_amount'];
+                }
                 $cursor = $allocationEnd->addDay();
             }
 
@@ -123,6 +130,8 @@ class PlatformFeePaymentService
                     'ledger_id' => $ledger->id,
                     'plan_version_id' => $quote['plan']->id,
                     'tier_id' => $quote['tier']->id,
+                    'promotion_id' => $quote['promotion']?->id,
+                    'promotion_assignment_id' => $quote['promotion_assignment']?->id,
                     'purpose' => 'prepay',
                     'status' => 'issued',
                     'period_start' => $quote['period_start']->toDateString(),
@@ -144,6 +153,7 @@ class PlatformFeePaymentService
                         'days_in_month' => $quote['days_in_month'],
                     ],
                 ]);
+                app(PlatformFeePricingService::class)->consumePromotion($quote);
             }
 
             return $ledger;
@@ -183,6 +193,7 @@ class PlatformFeePaymentService
             $ledger->servicePeriods()->update(['status' => 'voided']);
 
             app(PlatformFeeWalletService::class)->releaseLedgerHold($ledger, $actorId ? (int) $actorId : null);
+            app(PlatformFeePricingService::class)->releasePromotionForLedger($ledger);
 
             AuditLog::query()->create([
                 'actor_id' => $actorId,

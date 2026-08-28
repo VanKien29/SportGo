@@ -16,11 +16,17 @@ class PlatformFeeWalletHold extends Model
         'ledger_id',
         'arrangement_id',
         'amount',
+        'original_amount',
+        'remaining_amount',
+        'consumed_amount',
         'status',
         'reason',
         'starts_at',
         'released_at',
         'released_by',
+        'consumed_at',
+        'consumed_by',
+        'movement_reference',
         'metadata',
     ];
 
@@ -28,8 +34,12 @@ class PlatformFeeWalletHold extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'original_amount' => 'decimal:2',
+            'remaining_amount' => 'decimal:2',
+            'consumed_amount' => 'decimal:2',
             'starts_at' => 'datetime',
             'released_at' => 'datetime',
+            'consumed_at' => 'datetime',
             'metadata' => 'array',
         ];
     }

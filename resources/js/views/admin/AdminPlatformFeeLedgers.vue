@@ -23,8 +23,6 @@
                     </div>
                 </div>
 
-                <PlatformFeeArrangementPanel :venues="venues" @changed="loadLedgers" />
-
                 <!-- Floating Add Button -->
                 <div
                     class="floating-add-container"
@@ -49,30 +47,13 @@
                     panel-class="filter-grid"
                     :show-refresh="false"
                 >
-                    <select
-                        v-model="filters.venue_cluster_id"
-                        @change="loadLedgers"
-                    >
-                        <option value="">Tất cả cụm sân</option>
-                        <option
-                            v-for="venue in venues"
-                            :key="venue.id"
-                            :value="venue.id"
-                        >
-                            {{ venue.name }}
-                        </option>
-                    </select>
-                    <select v-model="filters.owner_id" @change="loadLedgers">
-                        <option value="">Tất cả owner</option>
-                        <option
-                            v-for="owner in owners"
-                            :key="owner.id"
-                            :value="owner.id"
-                        >
-                            {{ owner.full_name }}
-                        </option>
-                    </select>
-                    <select v-model="filters.status" @change="loadLedgers">
+                    <VenueClusterCombobox
+                        class="filter-wide"
+                        :model-value="filters.venue_cluster_id"
+                        placeholder="Tìm theo cụm sân hoặc Chủ sân"
+                        @update:model-value="changeVenueFilter"
+                    />
+                    <select v-model="filters.status" @change="applyFilters">
                         <option value="">Tất cả trạng thái</option>
                         <option value="pending">Chờ thanh toán</option>
                         <option value="paid">Đã thanh toán</option>
@@ -84,7 +65,7 @@
                     </select>
                     <select
                         v-model="filters.period_months"
-                        @change="loadLedgers"
+                        @change="applyFilters"
                     >
                         <option value="">Tất cả kỳ đóng</option>
                         <option
@@ -100,7 +81,7 @@
                         <input
                             v-model="filters.period_start"
                             type="date"
-                            @change="loadLedgers"
+                            @change="applyFilters"
                         />
                     </label>
                     <label class="date-filter">
@@ -108,7 +89,7 @@
                         <input
                             v-model="filters.period_end"
                             type="date"
-                            @change="loadLedgers"
+                            @change="applyFilters"
                         />
                     </label>
                     <label class="date-filter">
@@ -116,12 +97,12 @@
                         <input
                             v-model="filters.due_date"
                             type="date"
-                            @change="loadLedgers"
+                            @change="applyFilters"
                         />
                     </label>
                     <select
                         v-model="filters.email_status"
-                        @change="loadLedgers"
+                        @change="applyFilters"
                     >
                         <option value="">Tất cả email</option>
                         <option value="due_soon">Đã gửi nhắc trước hạn</option>
@@ -136,11 +117,11 @@
                         <input
                             v-model="filters.overdue_only"
                             type="checkbox"
-                            @change="loadLedgers"
+                            @change="applyFilters"
                         />
                         <span>Chỉ xem quá hạn</span>
                     </label>
-                    <label class="search-box">
+                    <label class="search-box filter-wide">
                         <AppIcon name="search" size="18" />
                         <input
                             v-model.trim="filters.keyword"
@@ -156,22 +137,22 @@
                         to="/admin/platform-fee-ledgers?status=pending"
                     >
                         <strong>{{ metrics.pending }}</strong
-                        ><span>Chờ thanh toán</span>
+                        ><span>Kỳ trong hạn</span>
                     </router-link>
                     <router-link
                         class="kpi-card danger"
                         to="/admin/platform-fee-ledgers?status=overdue"
                     >
                         <strong>{{ metrics.overdue }}</strong
-                        ><span>Quá hạn</span>
+                        ><span>Kỳ quá hạn</span>
                     </router-link>
                     <article class="kpi-card">
                         <strong>{{ money(metrics.pending_amount) }}</strong
-                        ><span>Chờ thanh toán</span>
+                        ><span>Công nợ trong hạn</span>
                     </article>
                     <article class="kpi-card danger">
                         <strong>{{ money(metrics.overdue_amount) }}</strong
-                        ><span>Quá hạn</span>
+                        ><span>Công nợ quá hạn</span>
                     </article>
                 </section>
 
@@ -187,19 +168,22 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Mã kỳ phí</th>
-                                    <th>Cụm sân / Chủ sân</th>
-                                    <th>Bậc phí / Số sân</th>
-                                    <th>Kỳ áp dụng</th>
-                                    <th>Hạn thanh toán</th>
-                                    <th>Công nợ</th>
-                                    <th>Trạng thái / Email</th>
+                                    <th>Kỳ phí</th>
+                                    <th>Cụm sân</th>
+                                    <th>Thời gian dịch vụ</th>
+                                    <th>Giá trị kỳ</th>
+                                    <th>Thanh toán</th>
+                                    <th>Trạng thái & nhắc phí</th>
                                     <th class="actions-header">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="ledger in ledgers" :key="ledger.id">
-                                    <td class="mono">{{ ledger.code }}</td>
+                                    <td class="stacked-cell ledger-code-cell">
+                                        <strong class="mono">{{ ledger.code }}</strong>
+                                        <small>{{ ledger.tier_name }}</small>
+                                        <small v-if="ledger.plan_version?.code">{{ ledger.plan_version.code }}</small>
+                                    </td>
                                     <td class="stacked-cell">
                                         <strong>{{
                                             ledger.venue?.name || "-"
@@ -207,9 +191,6 @@
                                         <small>{{
                                             ledger.owner?.full_name || "-"
                                         }}</small>
-                                    </td>
-                                    <td class="stacked-cell">
-                                        <strong>{{ ledger.tier_name }}</strong>
                                         <small
                                             >{{ ledger.court_count }} sân ·
                                             {{
@@ -218,25 +199,10 @@
                                                 )
                                             }}/tháng</small
                                         >
-                                        <small
-                                            v-if="
-                                                Number(
-                                                    ledger.discount_percent,
-                                                ) > 0
-                                            "
-                                        >
-                                            Giảm
-                                            {{
-                                                percent(ledger.discount_percent)
-                                            }}
-                                        </small>
                                     </td>
                                     <td class="period-cell">
                                         <strong class="period-badge"
-                                            >{{
-                                                ledger.period_months
-                                            }}
-                                            tháng</strong
+                                            >{{ ledger.period_label }}</strong
                                         >
                                         <span class="date-line">
                                             <small>Từ</small>
@@ -257,49 +223,16 @@
                                             {{ periodStatusLabel(ledger) }}
                                         </small>
                                     </td>
-                                    <td
-                                        :class="{
-                                            overdue:
-                                                ledger.status === 'overdue',
-                                        }"
-                                    >
-                                        <strong>{{
-                                            date(ledger.due_date)
-                                        }}</strong>
-                                        <small
-                                            v-if="ledger.paid_at"
-                                            class="paid-date"
-                                        >
-                                            Thanh toán
-                                            {{ date(ledger.paid_at) }}
-                                        </small>
+                                    <td class="amount-cell">
+                                        <span><small>Giá gốc</small><strong>{{ money(ledger.base_amount) }}</strong></span>
+                                        <span v-if="discountTotal(ledger) > 0" class="discount"><small>Tổng giảm</small><strong>-{{ money(discountTotal(ledger)) }}</strong></span>
+                                        <span class="final-amount"><small>Tổng tiền kỳ</small><strong>{{ money(ledger.amount_due) }}</strong></span>
                                     </td>
-                                    <td class="debt-cell">
-                                        <span
-                                            ><small>Phải đóng</small
-                                            ><strong>{{
-                                                money(ledger.amount_due)
-                                            }}</strong></span
-                                        >
-                                        <span
-                                            ><small>Đã đóng</small
-                                            ><strong>{{
-                                                money(ledger.amount_paid)
-                                            }}</strong></span
-                                        >
-                                        <span
-                                            v-if="
-                                                Number(
-                                                    ledger.remaining_amount,
-                                                ) > 0
-                                            "
-                                            class="remaining"
-                                        >
-                                            <small>Còn thiếu</small
-                                            ><strong>{{
-                                                money(ledger.remaining_amount)
-                                            }}</strong>
-                                        </span>
+                                    <td class="payment-cell">
+                                        <span><small>Đã thanh toán</small><strong>{{ money(ledger.amount_paid) }}</strong></span>
+                                        <span class="remaining" :class="{ settled: Number(ledger.remaining_amount) === 0 }"><small>Còn phải trả</small><strong>{{ money(ledger.remaining_amount) }}</strong></span>
+                                        <small class="due-line" :class="{ overdue: ledger.status === 'overdue' }">Hạn {{ date(ledger.due_date) }}</small>
+                                        <small v-if="ledger.paid_at" class="paid-date">Đã trả {{ date(ledger.paid_at) }}</small>
                                     </td>
                                     <td class="status-cell">
                                         <span class="status-line">
@@ -344,6 +277,14 @@
                             </tbody>
                         </table>
                     </div>
+                    <footer v-if="pagination.total > 0" class="pagination-bar">
+                        <span>Hiển thị {{ pageFrom }}–{{ pageTo }} trong {{ pagination.total }} kỳ phí</span>
+                        <div>
+                            <button type="button" :disabled="pagination.current_page <= 1 || loading" @click="goToPage(pagination.current_page - 1)">Trước</button>
+                            <strong>Trang {{ pagination.current_page }}/{{ pagination.last_page }}</strong>
+                            <button type="button" :disabled="pagination.current_page >= pagination.last_page || loading" @click="goToPage(pagination.current_page + 1)">Sau</button>
+                        </div>
+                    </footer>
                 </section>
 
                 <Teleport to="body">
@@ -440,23 +381,14 @@
                             </button>
                         </header>
                         <div class="form-grid">
-                            <label>
+                            <label class="venue-field">
                                 Cụm sân *
-                                <select
-                                    v-model="form.venue_cluster_id"
-                                    required
-                                    @change="refreshPreview"
-                                >
-                                    <option value="">Chọn cụm sân</option>
-                                    <option
-                                        v-for="venue in venues"
-                                        :key="venue.id"
-                                        :value="venue.id"
-                                    >
-                                        {{ venue.name }} -
-                                        {{ venue.court_count }} sân
-                                    </option>
-                                </select>
+                                <VenueClusterCombobox
+                                    :model-value="form.venue_cluster_id"
+                                    placeholder="Nhập tên cụm sân hoặc Chủ sân"
+                                    require-courts
+                                    @update:model-value="changeCreateVenue"
+                                />
                             </label>
                             <label>
                                 Kỳ đóng *
@@ -627,21 +559,19 @@
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
-import PlatformFeeArrangementPanel from "../../components/admin/PlatformFeeArrangementPanel.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 import AdminFilterPanel from "../../components/AdminFilterPanel.vue";
+import VenueClusterCombobox from "../../components/admin/VenueClusterCombobox.vue";
 import {
     calculateLedgerPreview,
     cancelLedger,
     confirmLedgerPayment,
     createLedger,
-    getLedgers,
-    getPlatformFeeDashboardMetrics,
+    getLedgerPage,
     lockVenueForOverdueLedger,
     markLedgerOverdue,
     unlockVenueAfterPayment,
 } from "../../services/platformFeeLedger.service.js";
-import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
 import { processPlatformFeeReminders } from "../../services/platformFeeReminder.service.js";
 
 function initialFilters(routeQuery = {}) {
@@ -666,11 +596,10 @@ function today() {
 
 export default {
     name: "AdminPlatformFeeLedgers",
-    components: { AppIcon, PlatformFeeArrangementPanel, PlatformFeeSubnav, AdminFilterPanel },
+    components: { AppIcon, PlatformFeeSubnav, AdminFilterPanel, VenueClusterCombobox },
     data() {
         return {
             ledgers: [],
-            venues: [],
             filters: initialFilters(this.$route.query),
             metrics: {
                 pending: 0,
@@ -683,6 +612,12 @@ export default {
                 email_failed: 0,
             },
             periods: [1, 3, 6, 9, 12],
+            pagination: {
+                current_page: 1,
+                last_page: 1,
+                per_page: 20,
+                total: 0,
+            },
             loading: false,
             showCreate: false,
             form: {
@@ -705,12 +640,12 @@ export default {
         };
     },
     computed: {
-        owners() {
-            const map = new Map();
-            this.venues.forEach((venue) => {
-                if (venue.owner?.id) map.set(venue.owner.id, venue.owner);
-            });
-            return Array.from(map.values());
+        pageFrom() {
+            if (!this.pagination.total) return 0;
+            return (this.pagination.current_page - 1) * this.pagination.per_page + 1;
+        },
+        pageTo() {
+            return Math.min(this.pagination.current_page * this.pagination.per_page, this.pagination.total);
         },
         dialogTitle() {
             return (
@@ -728,12 +663,12 @@ export default {
         "$route.query": {
             handler(query) {
                 this.filters = initialFilters(query);
+                this.pagination.current_page = 1;
                 this.loadLedgers();
             },
         },
     },
     mounted() {
-        this.loadVenueOptions();
         this.loadLedgers();
         window.addEventListener("scroll", this.handleScroll);
         window.addEventListener("click", this.closeLedgerActions);
@@ -746,47 +681,43 @@ export default {
         window.removeEventListener("resize", this.closeLedgerActions);
     },
     methods: {
-        async loadVenueOptions() {
-            try {
-                const response = await adminVenueClusterService.list({
-                    options: true,
-                });
-                const clusters = Array.isArray(response)
-                    ? response
-                    : response.data || [];
-                this.syncVenueOptions(
-                    clusters.map((cluster) => ({
-                        venue: {
-                            id: cluster.id,
-                            name: cluster.name,
-                            status: cluster.status,
-                            owner_id: cluster.owner_id,
-                            court_count: cluster.court_count,
-                            owner: cluster.owner || null,
-                        },
-                        owner: cluster.owner || null,
-                    })),
-                );
-            } catch (error) {
-                this.showMessage(
-                    "Không tải được danh sách cụm sân từ DB.",
-                    "error",
-                );
-            }
-        },
         queueLoadLedgers() {
             clearTimeout(this.filterTimer);
-            this.filterTimer = setTimeout(() => this.loadLedgers(), 320);
+            this.filterTimer = setTimeout(() => this.applyFilters(), 320);
+        },
+        applyFilters() {
+            this.pagination.current_page = 1;
+            this.loadLedgers();
+        },
+        changeVenueFilter(value) {
+            this.filters.venue_cluster_id = value;
+            this.applyFilters();
+        },
+        changeCreateVenue(value) {
+            this.form.venue_cluster_id = value;
+            this.previewResult = null;
+            this.previewError = "";
+            if (value) this.refreshPreview();
+        },
+        goToPage(page) {
+            const next = Math.max(1, Math.min(Number(page), this.pagination.last_page));
+            if (next === this.pagination.current_page) return;
+            this.pagination.current_page = next;
+            this.loadLedgers();
         },
         async loadLedgers() {
             const requestToken = ++this.loadToken;
             this.loading = true;
             try {
-                const ledgers = await getLedgers(this.filters);
+                const response = await getLedgerPage({
+                    ...this.filters,
+                    page: this.pagination.current_page,
+                    per_page: this.pagination.per_page,
+                });
                 if (requestToken !== this.loadToken) return;
-                this.ledgers = ledgers;
-                this.syncVenueOptions(ledgers);
-                this.metrics = await getPlatformFeeDashboardMetrics(ledgers);
+                this.ledgers = response.data;
+                this.pagination = { ...this.pagination, ...response.meta };
+                this.metrics = { ...this.metrics, ...response.metrics };
             } catch (error) {
                 if (requestToken === this.loadToken) {
                     this.showMessage(
@@ -797,23 +728,6 @@ export default {
             } finally {
                 if (requestToken === this.loadToken) this.loading = false;
             }
-        },
-        syncVenueOptions(ledgers) {
-            const map = new Map(this.venues.map((venue) => [venue.id, venue]));
-            ledgers.forEach((ledger) => {
-                if (ledger.venue?.id) {
-                    map.set(ledger.venue.id, {
-                        ...ledger.venue,
-                        court_count:
-                            ledger.venue.court_count ||
-                            ledger.court_count ||
-                            ledger.venue.venue_courts_count ||
-                            0,
-                        owner: ledger.owner || ledger.venue.owner || null,
-                    });
-                }
-            });
-            this.venues = Array.from(map.values());
         },
         openCreate() {
             this.form = {
@@ -1047,6 +961,9 @@ export default {
         percent(value) {
             return `${Number(value || 0).toLocaleString("vi-VN")}%`;
         },
+        discountTotal(ledger) {
+            return Math.max(Number(ledger.base_amount || 0) - Number(ledger.amount_due || 0), 0);
+        },
         date(value) {
             if (!value) return "-";
 
@@ -1105,11 +1022,17 @@ p {
 .panel {
     padding: 16px;
 }
-.filter-grid {
+:deep(.filter-controls.filter-grid) {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: 10px;
     align-items: center;
+}
+:deep(.filter-controls.filter-grid) > * {
+    min-width: 0;
+}
+.filter-wide {
+    grid-column: span 2;
 }
 .date-filter {
     display: grid;
@@ -1202,7 +1125,7 @@ textarea {
 }
 table {
     width: 100%;
-    min-width: 1080px;
+    min-width: 1120px;
     table-layout: fixed;
     border-collapse: collapse;
 }
@@ -1223,27 +1146,24 @@ th {
     text-align: center;
 }
 th:nth-child(1) {
-    width: 145px;
+    width: 165px;
 }
 th:nth-child(2) {
-    width: 170px;
+    width: 195px;
 }
 th:nth-child(3) {
-    width: 190px;
+    width: 205px;
 }
 th:nth-child(4) {
-    width: 190px;
+    width: 180px;
 }
 th:nth-child(5) {
-    width: 135px;
+    width: 185px;
 }
 th:nth-child(6) {
-    width: 190px;
+    width: 175px;
 }
 th:nth-child(7) {
-    width: 145px;
-}
-th:nth-child(8) {
     width: 62px;
 }
 .stacked-cell strong,
@@ -1284,23 +1204,44 @@ th:nth-child(8) {
 .date-line strong {
     color: #0f172a;
 }
-.debt-cell {
+.amount-cell,
+.payment-cell {
     display: grid;
     gap: 5px;
 }
-.debt-cell span {
+.amount-cell span,
+.payment-cell span {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
 }
-.debt-cell small {
+.amount-cell small,
+.payment-cell small {
     color: #64748b;
     font-size: 11px;
 }
-.debt-cell .remaining,
-.debt-cell .remaining small {
+.amount-cell .discount,
+.amount-cell .discount small {
+    color: #047857;
+}
+.amount-cell .final-amount {
+    margin-top: 2px;
+    padding-top: 5px;
+    border-top: 1px dashed #cbd5e1;
+}
+.payment-cell .remaining,
+.payment-cell .remaining small {
     color: #b91c1c;
+}
+.payment-cell .remaining.settled,
+.payment-cell .remaining.settled small {
+    color: #047857;
+}
+.payment-cell .due-line,
+.payment-cell .paid-date {
+    display: block;
+    margin-top: 2px;
 }
 .status-line {
     display: flex;
@@ -1333,6 +1274,35 @@ th:nth-child(8) {
 }
 .period-note.overdue {
     color: #b91c1c;
+}
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 12px 2px;
+    color: #64748b;
+    font-size: 13px;
+}
+.pagination-bar div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.pagination-bar button {
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    padding: 7px 11px;
+    background: #fff;
+    color: #334155;
+    cursor: pointer;
+}
+.pagination-bar button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+.pagination-bar strong {
+    color: #334155;
 }
 .status-dot {
     display: inline-grid;
@@ -1520,6 +1490,10 @@ th:nth-child(8) {
     width: min(520px, calc(100vw - 32px));
 }
 .modal-head {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    background: #fff;
     justify-content: space-between;
     padding: 18px 22px;
     border-bottom: 1px solid #e2e8f0;
@@ -1569,19 +1543,26 @@ label {
     background: #f8fafc;
 }
 @media (max-width: 1000px) {
-    .filter-grid,
+    :deep(.filter-controls.filter-grid),
     .kpi-grid,
     .preview-grid,
     .form-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr !important;
     }
 }
 @media (max-width: 640px) {
-    .filter-grid,
+    :deep(.filter-controls.filter-grid),
     .kpi-grid,
     .preview-grid,
     .form-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
+    }
+    .pagination-bar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .filter-wide {
+        grid-column: auto;
     }
 }
 

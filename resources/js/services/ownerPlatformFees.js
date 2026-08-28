@@ -25,6 +25,10 @@ export const ownerPlatformFeeService = {
     });
   },
 
+  balancePreview(id) {
+    return api(`/api/owner/platform-fees/${encodeURIComponent(id)}/balance-preview`);
+  },
+
   updateSettings(clusterId, autoPayFromBalance) {
     return api('/api/owner/platform-fees/settings', {
       method: 'PATCH',
@@ -45,9 +49,10 @@ export const ownerPlatformFeeService = {
     });
   },
 
-  rejectArrangement(id) {
+  rejectArrangement(id, reason) {
     return api(`/api/owner/platform-fees/arrangements/${encodeURIComponent(id)}/reject`, {
       method: 'POST',
+      body: JSON.stringify({ reason }),
     });
   },
 

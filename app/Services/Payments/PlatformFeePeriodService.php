@@ -3,11 +3,11 @@
 namespace App\Services\Payments;
 
 use App\Models\PlatformFeeServicePeriod;
+use App\Models\PartnerTerminationRequest;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 class PlatformFeePeriodService
 {
@@ -30,7 +30,7 @@ class PlatformFeePeriodService
             if (! $lockedCluster) {
                 return $this->skipped('cluster_not_found');
             }
-            if ($lockedCluster->status !== 'active') {
+            if (! $this->isBillableCluster($lockedCluster, $today)) {
                 return $this->skipped('cluster_not_active');
             }
             if (! $lockedCluster->owner || $lockedCluster->owner->status !== 'active') {
@@ -49,22 +49,48 @@ class PlatformFeePeriodService
                 ->lockForUpdate()
                 ->first();
 
-            if (! $latestPeriod && $profile->trial_started_at && $profile->trial_ends_at) {
+            if (! $latestPeriod && (int) $profile->trial_days > 0 && $profile->trial_started_at && $profile->trial_ends_at) {
                 return $this->createTrialPeriod($lockedCluster, $profile, $today);
             }
 
             $periodStart = $latestPeriod
                 ? CarbonImmutable::instance($latestPeriod->period_end)->addDay()->startOfDay()
                 : CarbonImmutable::instance($profile->fee_started_at ?: $today->startOfMonth())->startOfDay();
-            $leadDays = (int) config('platform_fee.automatic_lead_days', 7);
+            $pricing = app(PlatformFeePricingService::class);
+            $plan = $pricing->planFor($periodStart);
+            if (! $plan) {
+                return $this->skipped('pricing_plan_not_available');
+            }
+            $leadDays = (int) $plan->invoice_lead_days;
 
             if ($periodStart->gt($today->addDays($leadDays)->endOfDay())) {
                 return $this->skipped('future_period_exists');
             }
 
-            // Kỳ đầu sau dùng thử có thể là kỳ lẻ; các kỳ sau luôn theo tháng dương lịch.
-            $periodEnd = $periodStart->endOfMonth()->startOfDay();
-            $quote = app(PlatformFeePricingService::class)->quote($lockedCluster, $periodStart, $periodEnd);
+            $anchorDay = max(1, min((int) $plan->billing_anchor_day, 28));
+            $referenceStart = $periodStart->startOfMonth()->day($anchorDay)->startOfDay();
+            if ($periodStart->lt($referenceStart)) {
+                $referenceStart = $referenceStart->subMonthNoOverflow();
+            }
+            $referenceEnd = $referenceStart->addMonthNoOverflow()->subDay()->startOfDay();
+            $cutoff = $this->terminationCutoff($lockedCluster);
+            if ($cutoff && $periodStart->gt($cutoff)) {
+                return $this->skipped('termination_cutoff_reached');
+            }
+            $periodEnd = $cutoff && $cutoff->lt($referenceEnd) ? $cutoff : $referenceEnd;
+            $purpose = match (true) {
+                $periodEnd->lt($referenceEnd) => 'termination',
+                ! $periodStart->isSameDay($referenceStart) => 'bridge',
+                default => 'standard',
+            };
+            $quote = $pricing->quote(
+                $lockedCluster,
+                $periodStart,
+                $periodEnd,
+                referencePeriodStart: $referenceStart,
+                referencePeriodEnd: $referenceEnd,
+                purpose: $purpose,
+            );
             if (! ($quote['valid'] ?? false)) {
                 return $this->skipped((string) ($quote['error'] ?? 'pricing_not_available'));
             }
@@ -73,7 +99,7 @@ class PlatformFeePeriodService
                 return $this->skipped('period_overlap_exists');
             }
 
-            $idempotencyKey = $this->nextIdempotencyKey($lockedCluster->id, 'standard', $periodStart, $periodEnd);
+            $idempotencyKey = $this->nextIdempotencyKey($lockedCluster->id, $purpose, $periodStart, $periodEnd);
             $dueDate = $this->dueDate($periodStart, (int) $quote['plan']->due_day);
             $ledger = VenuePlatformFeeLedger::query()->create([
                 'venue_cluster_id' => $lockedCluster->id,
@@ -107,19 +133,10 @@ class PlatformFeePeriodService
                 'status' => $quote['net_amount'] > 0 ? 'pending' : 'settled_zero',
             ]);
 
-            $this->createServicePeriod($lockedCluster->id, $ledger, $idempotencyKey, 'standard', $quote);
+            $this->createServicePeriod($lockedCluster->id, $ledger, $idempotencyKey, $purpose, $quote);
             app(PlatformFeePricingService::class)->consumePromotion($quote);
-
-            if ($profile->auto_pay_from_balance && (float) $ledger->amount_due > 0) {
-                try {
-                    $ledger = app(PlatformFeeWalletService::class)->payFromBalance(
-                        $ledger,
-                        (int) $lockedCluster->owner_id,
-                        true,
-                    );
-                } catch (RuntimeException) {
-                    // Không làm hỏng việc phát hành kỳ khi số dư chưa đủ; owner vẫn có thể chuyển khoản.
-                }
+            if ((int) $profile->billing_anchor_day !== $anchorDay) {
+                $profile->forceFill(['billing_anchor_day' => $anchorDay])->save();
             }
 
             return $this->created($ledger);
@@ -201,10 +218,17 @@ class PlatformFeePeriodService
             'ledger_id' => $ledger->id,
             'plan_version_id' => $quote['plan']->id,
             'tier_id' => $quote['tier']->id,
+            'promotion_id' => $quote['promotion']?->id,
+            'promotion_assignment_id' => $quote['promotion_assignment']?->id,
             'purpose' => $purpose,
             'status' => $quote['net_amount'] > 0 ? 'issued' : 'settled_zero',
             'period_start' => $quote['period_start']->toDateString(),
             'period_end' => $quote['period_end']->toDateString(),
+            'reference_period_start' => $quote['reference_period_start']->toDateString(),
+            'reference_period_end' => $quote['reference_period_end']->toDateString(),
+            'service_days' => $quote['service_days'],
+            'reference_days' => $quote['reference_days'],
+            'rounding_rule' => $quote['rounding_rule'],
             'court_count' => $quote['court_count'],
             'price_per_court_month' => $quote['tier']->price_per_court_month,
             'base_amount' => $quote['base_amount'],
@@ -219,6 +243,10 @@ class PlatformFeePeriodService
                 'tier_name' => $quote['tier']->name,
                 'service_days' => $quote['service_days'],
                 'days_in_month' => $quote['days_in_month'],
+                'reference_period_start' => $quote['reference_period_start']->toDateString(),
+                'reference_period_end' => $quote['reference_period_end']->toDateString(),
+                'reference_days' => $quote['reference_days'],
+                'rounding_rule' => $quote['rounding_rule'],
                 'promotion_code' => $quote['promotion']?->code,
             ],
         ]);
@@ -233,6 +261,53 @@ class PlatformFeePeriodService
             ->whereDate('period_end', '>=', $start->toDateString())
             ->lockForUpdate()
             ->exists();
+    }
+
+    private function isBillableCluster(VenueCluster $cluster, CarbonImmutable $today): bool
+    {
+        if ($cluster->status === 'active') {
+            return true;
+        }
+        if ($cluster->status !== 'locked') {
+            return false;
+        }
+
+        return PartnerTerminationRequest::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->whereIn('status', [
+                'submitted',
+                'reviewing',
+                'settlement_processing',
+                'pending_signature',
+                'transition_period',
+                'approved',
+            ])
+            ->where(function ($query) use ($today): void {
+                $query->whereNull('platform_fee_cutoff_at')
+                    ->orWhereDate('platform_fee_cutoff_at', '>=', $today->toDateString());
+            })
+            ->exists();
+    }
+
+    private function terminationCutoff(VenueCluster $cluster): ?CarbonImmutable
+    {
+        $cutoff = PartnerTerminationRequest::query()
+            ->where('venue_cluster_id', $cluster->id)
+            ->whereIn('status', [
+                'submitted',
+                'reviewing',
+                'settlement_processing',
+                'pending_signature',
+                'transition_period',
+                'approved',
+            ])
+            ->whereNotNull('platform_fee_cutoff_at')
+            ->latest('id')
+            ->value('platform_fee_cutoff_at');
+
+        return $cutoff
+            ? CarbonImmutable::parse($cutoff, config('platform_fee.timezone'))->startOfDay()
+            : null;
     }
 
     private function nextIdempotencyKey(int $clusterId, string $purpose, CarbonImmutable $start, CarbonImmutable $end): string

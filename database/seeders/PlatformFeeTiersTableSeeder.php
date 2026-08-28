@@ -33,14 +33,22 @@ class PlatformFeeTiersTableSeeder extends Seeder
                 ],
             );
 
-            PlatformFeePlanVersion::query()
+            $retiredPlans = PlatformFeePlanVersion::query()
                 ->whereKeyNot($planVersion->id)
                 ->where('status', 'active')
-                ->update([
+                ->get();
+
+            foreach ($retiredPlans as $retiredPlan) {
+                $effectiveTo = $planVersion->effective_from->copy()->subDay();
+                $retiredPlan->forceFill([
                     'status' => 'retired',
-                    'effective_to' => '2025-12-31',
+                    'effective_from' => $retiredPlan->effective_from?->lte($effectiveTo)
+                        ? $retiredPlan->effective_from
+                        : null,
+                    'effective_to' => $effectiveTo->toDateString(),
                     'retired_at' => now(),
-                ]);
+                ])->save();
+            }
         }
 
         $tiers = [

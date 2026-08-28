@@ -1,158 +1,89 @@
 <template>
-  <section class="arrangement-panel">
-    <div class="panel-head">
-      <div>
-        <p class="eyebrow">Ngoại lệ có kiểm soát</p>
-        <h2>Thỏa thuận trả chậm 1–3 tháng</h2>
-        <p>Chủ sân phải xác nhận và đủ số dư bảo đảm. Đây không phải trả trước nên không giảm theo kỳ hạn.</p>
+  <section class="arrangement-page">
+    <header class="arrangement-page-head">
+      <div><p class="eyebrow">Ngoại lệ có kiểm soát</p><h1>Thỏa thuận trả chậm</h1><p>Cho phép Chủ sân hoãn thanh toán 1–3 kỳ tháng đúng một lần. Sau thỏa thuận, hệ thống tự quay lại chu kỳ thanh toán tháng.</p></div>
+      <button class="btn primary" type="button" @click="openCreate"><AppIcon name="plus" size="18" /> Tạo đề nghị</button>
+    </header>
+
+    <div class="rule-strip"><AppIcon name="shieldCheck" size="19" /><div><strong>Không phải trả trước và không đổi chu kỳ định kỳ</strong><span>Không hưởng % giảm trả trước. Chỉ có hiệu lực sau khi Chủ sân xác nhận và số dư an toàn đủ bảo đảm toàn bộ nghĩa vụ.</span></div></div>
+
+    <section class="list-card">
+      <div class="filters">
+        <label class="search"><AppIcon name="search" size="17" /><input v-model.trim="filters.q" placeholder="Tìm mã, cụm sân hoặc Chủ sân" @keyup.enter="load(1)" /></label>
+        <select v-model="filters.status" @change="load(1)"><option value="">Tất cả trạng thái</option><option value="pending_owner_acceptance">Chờ Chủ sân</option><option value="active">Đang trả chậm</option><option value="overdue">Quá hạn</option><option value="fulfilled">Hoàn tất</option><option value="cancelled">Đã hủy</option><option value="rejected">Bị từ chối</option><option value="expired">Hết hạn phản hồi</option></select>
+        <VenueClusterCombobox v-model="filters.venue_cluster_id" placeholder="Tìm và lọc theo cụm sân" />
+        <button class="btn secondary" type="button" @click="load(1)">Lọc</button>
       </div>
-      <button class="btn primary" type="button" :disabled="busy" @click="openForm = !openForm">
-        {{ openForm ? 'Đóng biểu mẫu' : 'Tạo thỏa thuận' }}
-      </button>
-    </div>
+      <div v-if="loading" class="state">Đang tải thỏa thuận...</div>
+      <div v-else-if="items.length === 0" class="state"><strong>Chưa có thỏa thuận phù hợp</strong><span>Đề nghị mới sẽ xuất hiện ở đây sau khi gửi Chủ sân xác nhận.</span></div>
+      <div v-else class="table-wrap"><table><thead><tr><th>Mã thỏa thuận</th><th>Cụm sân / Chủ sân</th><th>Phạm vi một lần</th><th>Hạn thanh toán</th><th>Nghĩa vụ / bảo đảm</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody><tr v-for="item in items" :key="item.id"><td><strong>{{ item.code }}</strong><small>Tạo {{ dateTime(item.created_at) }}</small></td><td><strong>{{ item.venue_cluster?.name || '-' }}</strong><small>{{ item.owner?.full_name || item.owner?.email || '-' }}</small></td><td><strong>Hoãn {{ item.service_months }} kỳ tháng</strong><small>{{ date(item.service_start) }} - {{ date(item.service_end) }}</small><small>Sau đó trở lại kỳ 1 tháng</small></td><td>{{ date(item.payment_due_date) }}</td><td><strong>{{ money(item.total_amount) }}</strong><small>Tạm giữ {{ money(item.secured_amount) }}</small></td><td><span class="status" :class="item.status">{{ statusLabel(item.status) }}</span></td><td><div class="actions"><button class="icon-btn" type="button" title="Xem điều khoản" @click="openDetail(item)"><AppIcon name="eye" size="17" /></button><button v-if="['pending_owner_acceptance', 'active'].includes(item.status)" class="icon-btn danger" type="button" title="Hủy thỏa thuận" @click="openCancel(item)"><AppIcon name="x" size="17" /></button></div></td></tr></tbody></table></div>
+      <footer v-if="meta.last_page > 1" class="pagination"><span>Trang {{ meta.current_page }}/{{ meta.last_page }} · {{ meta.total }} thỏa thuận</span><div><button class="btn secondary" :disabled="meta.current_page <= 1" @click="load(meta.current_page - 1)">Trước</button><button class="btn secondary" :disabled="meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)">Sau</button></div></footer>
+    </section>
 
-    <form v-if="openForm" class="arrangement-form" @submit.prevent="submit">
-      <label class="wide">Cụm sân
-        <select v-model="form.venue_cluster_id" required>
-          <option value="" disabled>Chọn cụm sân</option>
-          <option v-for="venue in venues" :key="venue.id" :value="venue.id" :disabled="Number(venue.court_count || 0) < 1">
-            {{ venue.name }}{{ venue.owner?.full_name ? ` · ${venue.owner.full_name}` : '' }}{{ Number(venue.court_count || 0) < 1 ? ' · chưa có sân con' : '' }}
-          </option>
-        </select>
-      </label>
-      <label>Số tháng dịch vụ
-        <select v-model.number="form.service_months" required>
-          <option :value="1">1 tháng</option>
-          <option :value="2">2 tháng</option>
-          <option :value="3">3 tháng</option>
-        </select>
-      </label>
-      <label>Tháng bắt đầu<input v-model="form.service_start" type="date" required /></label>
-      <label>Hạn thanh toán<input v-model="form.payment_due_date" type="date" :min="minimumDueDate" required /></label>
-      <label class="wide">Lý do thỏa thuận<textarea v-model.trim="form.reason" minlength="10" maxlength="1000" rows="3" required></textarea></label>
-      <label class="wide">Ghi chú nội bộ<textarea v-model.trim="form.admin_note" maxlength="1000" rows="2"></textarea></label>
-      <div class="warning wide">
-        Hệ thống chỉ giữ chỗ các kỳ. Sau khi chủ sân xác nhận, toàn bộ số tiền bảo đảm mới bị tạm giữ và không thể rút.
+    <Teleport to="body">
+      <div v-if="createOpen" class="modal-backdrop" @click.self="closeCreate">
+        <form class="modal create-modal" @submit.prevent="submit">
+          <header><div><h2>Tạo đề nghị trả chậm</h2><p>Bước {{ createStep }}/2 · Đề nghị tự hết hạn sau 48 giờ nếu Chủ sân không phản hồi.</p></div><button class="close-btn" type="button" @click="closeCreate"><AppIcon name="x" size="18" /></button></header>
+          <div v-if="createStep === 1" class="modal-body">
+            <label>Cụm sân <span>*</span><VenueClusterCombobox :model-value="form.venue_cluster_id" require-courts :invalid="Boolean(errorFor('venue_cluster_id'))" placeholder="Nhập tên cụm sân hoặc Chủ sân" @update:model-value="changeVenue" /><em v-if="errorFor('venue_cluster_id')">{{ errorFor('venue_cluster_id') }}</em></label>
+            <label>Số kỳ được hoãn <span>*</span><div class="cycle-input"><input :value="form.service_months" type="number" min="1" max="3" step="1" required @input="changeCycles" /><span>kỳ tháng</span></div><small>Nhập từ 1 đến 3. Đây là ngoại lệ một lần; sau đó hệ thống quay lại kỳ 1 tháng.</small></label>
+            <div v-if="previewLoading" class="preview-state">Đang tính các kỳ và số dư bảo đảm...</div>
+            <div v-else-if="preview" class="preview-card"><div><span>Phạm vi</span><strong>{{ date(preview.service_start) }} - {{ date(preview.service_end) }}</strong></div><div><span>Tổng nghĩa vụ</span><strong>{{ money(preview.total_amount) }}</strong></div><div><span>Số dư an toàn</span><strong>{{ money(preview.balance.safe_balance) }}</strong></div><div><span>Thiếu bảo đảm</span><strong :class="{ dangerText: preview.shortfall > 0 }">{{ money(preview.shortfall) }}</strong></div></div>
+            <p v-if="previewError" class="form-alert error">{{ previewError }}</p>
+          </div>
+          <div v-else class="modal-body">
+            <div class="one-time-note"><strong>Hoãn {{ form.service_months }} kỳ, không phải đóng 3 tháng một lần</strong><span>Các kỳ bên dưới vẫn được chốt riêng; sau {{ date(preview.service_end) }} hệ thống quay lại chu kỳ tháng.</span></div>
+            <div class="period-list"><article v-for="(quote, index) in preview.quotes" :key="quote.period_start"><span>Kỳ {{ index + 1 }}</span><strong>{{ date(quote.period_start) }} - {{ date(quote.period_end) }}</strong><small>{{ quote.plan_code }} · {{ quote.court_count }} sân · {{ money(quote.net_amount) }}</small></article></div>
+            <label>Hạn thanh toán chung <span>*</span><input v-model="form.payment_due_date" type="date" :min="minimumDueDate" :max="maximumDueDate" required /><small>Sau ngày kết thúc kỳ cuối và tối đa 30 ngày.</small><em v-if="errorFor('payment_due_date')">{{ errorFor('payment_due_date') }}</em></label>
+            <label>Lý do thỏa thuận <span>*</span><textarea v-model.trim="form.reason" rows="3" minlength="10" maxlength="1000" required></textarea><em v-if="errorFor('reason')">{{ errorFor('reason') }}</em></label>
+            <label>Ghi chú nội bộ<textarea v-model.trim="form.admin_note" rows="2" maxlength="1000"></textarea></label>
+            <p v-if="!preview.can_accept" class="form-alert error">Số dư an toàn đang thiếu {{ money(preview.shortfall) }}. Có thể gửi đề nghị để Chủ sân biết, nhưng Chủ sân chỉ xác nhận được sau khi đủ bảo đảm.</p>
+          </div>
+          <footer><button class="btn secondary" type="button" @click="createStep === 1 ? closeCreate() : createStep = 1">{{ createStep === 1 ? 'Hủy' : 'Quay lại' }}</button><button v-if="createStep === 1" class="btn primary" type="button" :disabled="!preview || previewLoading" @click="goTerms">Tiếp tục xem điều khoản</button><button v-else class="btn primary" type="submit" :disabled="busy">{{ busy ? 'Đang gửi...' : 'Gửi Chủ sân xác nhận' }}</button></footer>
+        </form>
       </div>
-      <div class="form-actions wide"><button class="btn primary" type="submit" :disabled="busy">Gửi chủ sân xác nhận</button></div>
-    </form>
 
-    <div v-if="loading" class="state">Đang tải thỏa thuận...</div>
-    <div v-else-if="arrangements.length" class="arrangement-list">
-      <article v-for="item in arrangements" :key="item.id" class="arrangement-row">
-        <div>
-          <div class="title-line"><strong>{{ item.code }}</strong><span class="badge" :class="item.status">{{ statusLabel(item.status) }}</span></div>
-          <p>{{ item.venue_cluster?.name || 'Cụm sân' }} · {{ item.owner?.full_name || 'Chủ sân' }}</p>
-          <small>{{ item.service_months }} tháng, {{ date(item.service_start) }} - {{ date(item.service_end) }} · hạn {{ date(item.payment_due_date) }}</small>
-        </div>
-        <div class="amount"><span>Tổng nghĩa vụ</span><strong>{{ money(item.total_amount) }}</strong><small>Tạm giữ {{ money(item.secured_amount) }}</small></div>
-        <button
-          v-if="['pending_owner_acceptance', 'active'].includes(item.status)"
-          class="btn danger"
-          type="button"
-          :disabled="busy"
-          @click="cancel(item)"
-        >Hủy thỏa thuận</button>
-      </article>
-    </div>
+      <div v-if="detailItem" class="modal-backdrop" @click.self="detailItem = null"><section class="modal"><header><div><h2>{{ detailItem.code }}</h2><p>Điều khoản và dấu vết xác nhận</p></div><button class="close-btn" type="button" @click="detailItem = null"><AppIcon name="x" size="18" /></button></header><div class="modal-body detail-grid"><div><span>Trạng thái</span><strong>{{ statusLabel(detailItem.status) }}</strong></div><div><span>Phạm vi</span><strong>{{ detailItem.service_months }} kỳ tháng, áp dụng một lần</strong></div><div><span>Dịch vụ</span><strong>{{ date(detailItem.service_start) }} - {{ date(detailItem.service_end) }}</strong></div><div><span>Hạn thanh toán</span><strong>{{ date(detailItem.payment_due_date) }}</strong></div><div><span>Tổng nghĩa vụ</span><strong>{{ money(detailItem.total_amount) }}</strong></div><div><span>Đã tạm giữ</span><strong>{{ money(detailItem.secured_amount) }}</strong></div><div class="full"><span>Lý do</span><strong>{{ detailItem.reason }}</strong></div><div v-if="detailItem.owner_accepted_at" class="full"><span>Chủ sân xác nhận</span><strong>{{ dateTime(detailItem.owner_accepted_at) }} · IP {{ detailItem.owner_accepted_ip || '-' }}</strong></div><div v-if="detailItem.cancellation_reason" class="full"><span>Lý do hủy/từ chối</span><strong>{{ detailItem.cancellation_reason }}</strong></div></div><footer><button class="btn secondary" type="button" @click="detailItem = null">Đóng</button></footer></section></div>
 
-    <p v-if="message" class="message" :class="messageType">{{ message }}</p>
+      <div v-if="cancelItem" class="modal-backdrop" @click.self="closeCancel"><form class="modal cancel-modal" @submit.prevent="cancelArrangement"><header><div><h2>Hủy thỏa thuận {{ cancelItem.code }}?</h2><p>Hệ thống xử lý khác nhau với kỳ đã bắt đầu và kỳ tương lai.</p></div><button class="close-btn" type="button" @click="closeCancel"><AppIcon name="x" size="18" /></button></header><div class="modal-body"><div class="cancel-warning">Kỳ đã bắt đầu vẫn phải thanh toán theo hạn chuẩn và tiếp tục tạm giữ. Chỉ kỳ chưa bắt đầu mới bị hủy và hoàn lượt ưu đãi liên quan.</div><label>Lý do hủy <span>*</span><textarea v-model.trim="cancelReason" rows="4" minlength="10" maxlength="1000" required></textarea></label></div><footer><button class="btn secondary" type="button" @click="closeCancel">Quay lại</button><button class="btn danger" type="submit" :disabled="busy">Xác nhận hủy</button></footer></form></div>
+    </Teleport>
+    <p v-if="message" class="toast" :class="messageType" role="status">{{ message }}</p>
   </section>
 </template>
 
 <script>
+import AppIcon from '../AppIcon.vue';
+import VenueClusterCombobox from './VenueClusterCombobox.vue';
 import { platformFeeArrangementService } from '../../services/platformFeeArrangement.service.js';
-
-function dateOnly(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function nextMonthStart() {
-  const date = new Date();
-  return dateOnly(new Date(date.getFullYear(), date.getMonth() + 1, 1));
-}
+const meta = () => ({ current_page: 1, last_page: 1, total: 0 });
+const addDays = (value, days) => { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + days); return date.toISOString().slice(0, 10); };
 
 export default {
-  name: 'PlatformFeeArrangementPanel',
-  props: { venues: { type: Array, default: () => [] } },
-  emits: ['changed'],
-  data() {
-    return {
-      arrangements: [], loading: true, busy: false, openForm: false,
-      message: '', messageType: 'success',
-      form: { venue_cluster_id: '', service_months: 3, service_start: nextMonthStart(), payment_due_date: '', reason: '', admin_note: '' },
-    };
-  },
-  computed: {
-    minimumDueDate() {
-      if (!this.form.service_start) return '';
-      const start = new Date(`${this.form.service_start}T00:00:00`);
-      return dateOnly(new Date(start.getFullYear(), start.getMonth() + Number(this.form.service_months), 1));
-    },
-  },
-  watch: {
-    'form.service_start': 'syncDueDate',
-    'form.service_months': 'syncDueDate',
-  },
-  mounted() { this.syncDueDate(); this.load(); },
+  name: 'PlatformFeeArrangementPanel', components: { AppIcon, VenueClusterCombobox }, emits: ['changed'],
+  data() { return { items: [], meta: meta(), loading: true, busy: false, filters: { q: '', status: '', venue_cluster_id: '' }, createOpen: false, createStep: 1, form: { venue_cluster_id: '', service_months: 1, payment_due_date: '', reason: '', admin_note: '' }, preview: null, previewLoading: false, previewError: '', previewRequestToken: 0, errors: {}, detailItem: null, cancelItem: null, cancelReason: '', message: '', messageType: 'success' }; },
+  computed: { minimumDueDate() { return this.preview ? addDays(this.preview.service_end, 1) : ''; }, maximumDueDate() { return this.preview ? addDays(this.preview.service_end, 30) : ''; } },
+  mounted() { this.load(); },
   methods: {
-    async load() {
-      this.loading = true;
-      try { this.arrangements = await platformFeeArrangementService.list(); }
-      catch (error) { this.show(error.message || 'Không tải được thỏa thuận trả chậm.', 'error'); }
-      finally { this.loading = false; }
-    },
-    syncDueDate() {
-      if (!this.form.payment_due_date || this.form.payment_due_date < this.minimumDueDate) this.form.payment_due_date = this.minimumDueDate;
-    },
-    async submit() {
-      this.busy = true;
-      try {
-        const response = await platformFeeArrangementService.create(this.form);
-        this.show(response.message);
-        this.openForm = false;
-        this.form = { venue_cluster_id: '', service_months: 3, service_start: nextMonthStart(), payment_due_date: '', reason: '', admin_note: '' };
-        this.syncDueDate();
-        await this.load();
-        this.$emit('changed');
-      } catch (error) { this.show(error.message || 'Không tạo được thỏa thuận.', 'error'); }
-      finally { this.busy = false; }
-    },
-    async cancel(item) {
-      if (!window.confirm(`Hủy thỏa thuận ${item.code}? Các khoản giữ chỗ/tạm giữ sẽ được giải phóng.`)) return;
-      this.busy = true;
-      try {
-        const response = await platformFeeArrangementService.cancel(item.id);
-        this.show(response.message);
-        await this.load();
-        this.$emit('changed');
-      } catch (error) { this.show(error.message || 'Không hủy được thỏa thuận.', 'error'); }
-      finally { this.busy = false; }
-    },
-    date(value) { return value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN') : '-'; },
-    money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); },
-    statusLabel(status) { return ({ pending_owner_acceptance: 'Chờ chủ sân', active: 'Đang áp dụng', overdue: 'Quá hạn', fulfilled: 'Hoàn tất', cancelled: 'Đã hủy' })[status] || status; },
-    show(message, type = 'success') { this.message = message; this.messageType = type; window.setTimeout(() => { this.message = ''; }, 5000); },
+    async load(page = 1) { this.loading = true; try { const result = await platformFeeArrangementService.list({ ...this.filters, page }); this.items = result.items; this.meta = result.meta; } catch (error) { this.show(error.message || 'Không tải được thỏa thuận.', 'error'); } finally { this.loading = false; } },
+    openCreate() { this.createOpen = true; this.createStep = 1; this.preview = null; this.previewError = ''; this.errors = {}; this.form = { venue_cluster_id: '', service_months: 1, payment_due_date: '', reason: '', admin_note: '' }; }, closeCreate() { if (!this.busy) { this.previewRequestToken += 1; this.createOpen = false; } },
+    changeVenue(value) { this.form.venue_cluster_id = value; this.refreshPreview(); },
+    changeCycles(event) { const value = Number(event.target.value); this.form.service_months = value; if (!Number.isInteger(value) || value < 1 || value > 3) { this.previewRequestToken += 1; this.preview = null; this.previewLoading = false; this.previewError = 'Số kỳ được hoãn phải là số nguyên từ 1 đến 3.'; return; } this.refreshPreview(); },
+    async refreshPreview() { const requestToken = ++this.previewRequestToken; this.preview = null; this.previewError = ''; if (!this.form.venue_cluster_id) { this.previewLoading = false; return; } this.previewLoading = true; try { const response = await platformFeeArrangementService.preview(this.form.venue_cluster_id, this.form.service_months); if (requestToken !== this.previewRequestToken) return; this.preview = response.data; this.form.payment_due_date = this.maximumDueDate; } catch (error) { if (requestToken === this.previewRequestToken) this.previewError = error.message || 'Không tính được đề nghị trả chậm.'; } finally { if (requestToken === this.previewRequestToken) this.previewLoading = false; } },
+    goTerms() { if (this.preview) { this.form.payment_due_date ||= this.maximumDueDate; this.createStep = 2; } },
+    async submit() { this.busy = true; this.errors = {}; try { const response = await platformFeeArrangementService.create(this.form); this.createOpen = false; this.show(response.message); await this.load(1); this.$emit('changed'); } catch (error) { this.errors = error.validation?.errors || error.data?.errors || {}; this.show(error.message || 'Không tạo được đề nghị.', 'error'); } finally { this.busy = false; } },
+    async openDetail(item) { try { const response = await platformFeeArrangementService.detail(item.id); this.detailItem = response.data; } catch (error) { this.show(error.message || 'Không tải được chi tiết.', 'error'); } },
+    openCancel(item) { this.cancelItem = item; this.cancelReason = ''; }, closeCancel() { if (!this.busy) this.cancelItem = null; },
+    async cancelArrangement() { if (!this.cancelItem) return; this.busy = true; try { const response = await platformFeeArrangementService.cancel(this.cancelItem.id, this.cancelReason); this.cancelItem = null; this.show(response.message); await this.load(this.meta.current_page); this.$emit('changed'); } catch (error) { this.show(error.message || 'Không hủy được thỏa thuận.', 'error'); } finally { this.busy = false; } },
+    errorFor(field) { return this.errors[field]?.[0] || ''; }, date(value) { return value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN') : '-'; }, dateTime(value) { return value ? new Date(value).toLocaleString('vi-VN') : '-'; }, money(value) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value || 0); }, statusLabel(status) { return ({ pending_owner_acceptance: 'Chờ Chủ sân', active: 'Đang trả chậm', overdue: 'Quá hạn', fulfilled: 'Hoàn tất', cancelled: 'Đã hủy', rejected: 'Bị từ chối', expired: 'Hết hạn phản hồi' })[status] || status; }, show(message, type = 'success') { this.message = message; this.messageType = type; window.setTimeout(() => { this.message = ''; }, 4500); },
   },
 };
 </script>
 
 <style scoped>
-.arrangement-panel { display: grid; gap: 14px; padding: 18px; border: 1px solid #dbe5df; border-radius: 10px; background: #fff; }
-.panel-head, .title-line, .arrangement-row, .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.eyebrow { margin: 0 0 4px; color: #15803d; font-size: 12px; text-transform: uppercase; } h2, p { margin: 0; } .panel-head p { margin-top: 4px; color: #64748b; font-size: 13px; }
-.arrangement-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px; border-radius: 9px; background: #f8fafc; }
-.arrangement-form label { display: grid; gap: 6px; color: #334155; font-size: 13px; } .wide { grid-column: 1 / -1; }
-select, input, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 11px; background: #fff; font: inherit; box-sizing: border-box; }
-.warning { padding: 10px 12px; border-left: 3px solid #d97706; background: #fffbeb; color: #92400e; font-size: 12px; }
-.form-actions { justify-content: flex-end; }.arrangement-list { display: grid; gap: 8px; }
-.arrangement-row { padding: 12px 14px; border-radius: 9px; background: #f8fafc; }.arrangement-row > div:first-child { display: grid; gap: 4px; }.arrangement-row p, .arrangement-row small { color: #64748b; font-size: 12px; }
-.title-line { justify-content: flex-start; }.amount { display: grid; gap: 3px; margin-left: auto; text-align: right; }.amount span, .amount small { color: #64748b; font-size: 11px; }
-.badge { border-radius: 999px; padding: 3px 8px; background: #e2e8f0; color: #475569; font-size: 11px; }.badge.active, .badge.fulfilled { background: #dcfce7; color: #166534; }.badge.pending_owner_acceptance { background: #fef3c7; color: #92400e; }.badge.overdue { background: #fee2e2; color: #b91c1c; }
-.btn { min-height: 36px; border: 1px solid transparent; border-radius: 8px; padding: 8px 12px; font-weight: 600; cursor: pointer; }.btn.primary { background: #169447; color: #fff; }.btn.danger { border-color: #fecaca; background: #fff; color: #b91c1c; }.btn:disabled { opacity: .55; cursor: not-allowed; }
-.message { color: #166534; }.message.error { color: #b91c1c; }.state { color: #64748b; text-align: center; }
-@media (max-width: 800px) { .panel-head, .arrangement-row { align-items: stretch; flex-direction: column; }.arrangement-form { grid-template-columns: 1fr; }.amount { margin-left: 0; text-align: left; }.arrangement-row .btn { width: 100%; } }
+.arrangement-page { display: grid; gap: 16px; color: #17251d; }.arrangement-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }.arrangement-page-head h1, .arrangement-page-head p { margin: 0; }.arrangement-page-head h1 { margin-top: 3px; font-size: 24px; }.arrangement-page-head p:last-child { max-width: 760px; margin-top: 7px; color: #64748b; font-size: 13px; }.eyebrow { color: #15803d; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }.rule-strip { display: flex; gap: 11px; padding: 13px 15px; border: 1px solid #bae6c7; border-radius: 9px; background: #f0fdf4; color: #166534; }.rule-strip div { display: grid; gap: 3px; }.rule-strip span { font-size: 12px; }
+.list-card { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; overflow: hidden; }.filters { display: grid; grid-template-columns: minmax(240px, 1fr) 190px 220px auto; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }.search { position: relative; }.search svg { position: absolute; top: 11px; left: 11px; color: #64748b; }.search input { padding-left: 37px; } input, select, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 11px; background: #fff; font: inherit; } input, select { min-height: 40px; }.table-wrap { overflow-x: auto; } table { width: 100%; min-width: 1120px; border-collapse: collapse; } th, td { padding: 13px 14px; border-bottom: 1px solid #eef2f7; text-align: left; vertical-align: middle; } th { background: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; } td strong, td small { display: block; } td small { margin-top: 4px; color: #64748b; font-size: 11px; }.actions { display: flex; gap: 7px; }.icon-btn { display: grid; width: 33px; height: 33px; place-items: center; border: 1px solid #dbe3ea; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; }.icon-btn.danger { border-color: #fecaca; color: #b91c1c; }.status { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 600; white-space: nowrap; }.status.active, .status.fulfilled { color: #166534; background: #dcfce7; }.status.pending_owner_acceptance { color: #92400e; background: #fef3c7; }.status.overdue { color: #b91c1c; background: #fee2e2; }.status.cancelled, .status.rejected, .status.expired { color: #475569; background: #e2e8f0; }.state { display: grid; min-height: 210px; place-items: center; align-content: center; gap: 6px; color: #64748b; }.pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: #64748b; font-size: 12px; }.pagination div { display: flex; gap: 8px; }
+.btn { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; border-radius: 8px; padding: 9px 13px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }.btn.primary { background: #16834b; color: #fff; }.btn.secondary { border-color: #cbd5e1; background: #fff; color: #334155; }.btn.danger { background: #dc2626; color: #fff; }.btn:disabled { opacity: .5; cursor: not-allowed; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, .55); }.modal { width: min(720px, calc(100vw - 28px)); max-height: calc(100vh - 36px); overflow: auto; border-radius: 11px; background: #fff; }.create-modal { width: min(820px, calc(100vw - 28px)); }.cancel-modal { width: min(570px, calc(100vw - 28px)); }.modal header, .modal footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 20px; }.modal header { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid #e2e8f0; background: #fff; }.modal header h2, .modal header p { margin: 0; }.modal header h2 { font-size: 18px; }.modal header p { margin-top: 5px; color: #64748b; font-size: 12px; }.modal footer { position: sticky; bottom: 0; justify-content: flex-end; border-top: 1px solid #e2e8f0; background: #f8fafc; }.close-btn { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 8px; background: #f1f5f9; cursor: pointer; }.modal-body { display: grid; gap: 15px; padding: 20px; }.modal-body label { display: grid; gap: 6px; color: #334155; font-size: 12px; font-weight: 600; }.modal-body label > span, legend > span { color: #dc2626; }.modal-body small { color: #64748b; font-weight: 400; }.modal-body em { color: #dc2626; font-style: normal; font-weight: 400; } fieldset { margin: 0; padding: 0; border: 0; } legend { margin-bottom: 8px; color: #334155; font-size: 12px; font-weight: 600; }.cycle-input { display: flex; align-items: center; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; overflow: hidden; }.cycle-input input { border: 0; border-radius: 0; box-shadow: none; }.cycle-input span { flex: 0 0 auto; padding: 0 12px; color: #64748b !important; font-size: 12px; font-weight: 500; }.preview-state { padding: 15px; border-radius: 9px; background: #f8fafc; color: #64748b; text-align: center; }.preview-card { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 13px; border-radius: 9px; background: #f8fafc; }.preview-card div, .detail-grid div { display: grid; gap: 5px; }.preview-card span, .detail-grid span { color: #64748b; font-size: 11px; }.preview-card strong, .detail-grid strong { font-size: 13px; }.dangerText { color: #b91c1c; }.form-alert, .cancel-warning { margin: 0; padding: 11px 13px; border-radius: 8px; font-size: 12px; line-height: 1.5; }.form-alert.error, .cancel-warning { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; }.one-time-note { display: grid; gap: 4px; padding: 12px 14px; border-radius: 9px; background: #eff6ff; color: #1e40af; }.one-time-note span { font-size: 12px; }.period-list { display: grid; gap: 8px; }.period-list article { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 8px; }.period-list span, .period-list small { color: #64748b; font-size: 11px; }.detail-grid { grid-template-columns: 1fr 1fr; }.detail-grid .full { grid-column: 1 / -1; }
+.toast { position: fixed; right: 22px; bottom: 22px; z-index: 9500; max-width: 430px; margin: 0; border-radius: 9px; padding: 12px 15px; box-shadow: 0 8px 24px rgba(15, 23, 42, .15); background: #ecfdf5; color: #166534; }.toast.error { background: #fef2f2; color: #991b1b; }
+@media (max-width: 900px) { .arrangement-page-head { align-items: stretch; flex-direction: column; }.filters { grid-template-columns: 1fr 1fr; }.search { grid-column: 1 / -1; }.preview-card { grid-template-columns: 1fr 1fr; } } @media (max-width: 560px) { .filters, .preview-card, .detail-grid { grid-template-columns: 1fr; }.search, .detail-grid .full { grid-column: auto; }.period-list article { grid-template-columns: 1fr; }.arrangement-page-head .btn { width: 100%; }.pagination { align-items: stretch; flex-direction: column; gap: 9px; } }
 </style>

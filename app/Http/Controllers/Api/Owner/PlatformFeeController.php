@@ -39,6 +39,7 @@ class PlatformFeeController extends Controller
             ->where('owner_id', $request->user()->id)
             ->where('venue_cluster_id', $cluster->id)
             ->first();
+        $balanceBreakdown = $wallet ? $this->platformFeeWallets->balanceBreakdown($wallet) : null;
         $defaultPaymentAccount = $this->defaultPaymentAccount();
         $ledgers = VenuePlatformFeeLedger::query()
             ->with(['tier', 'systemBankAccount'])
@@ -77,8 +78,39 @@ class PlatformFeeController extends Controller
                 'balance' => (float) $wallet->available_balance,
                 'platform_fee_held' => $this->platformFeeWallets->activeHoldAmount($wallet),
                 'withdrawable' => $this->platformFeeWallets->withdrawableAmount($wallet),
+                'breakdown' => $balanceBreakdown,
             ] : null,
         ]);
+    }
+
+    public function previewBalancePayment(Request $request, string $id): JsonResponse
+    {
+        $ledger = VenuePlatformFeeLedger::query()->findOrFail($id);
+        $this->ownedCluster($request, $ledger->venue_cluster_id);
+        $remaining = round(max((float) $ledger->amount_due - (float) $ledger->amount_paid, 0), 2);
+        $wallet = OwnerWallet::query()
+            ->where('owner_id', $request->user()->id)
+            ->where('venue_cluster_id', $ledger->venue_cluster_id)
+            ->first();
+        $breakdown = $wallet
+            ? $this->platformFeeWallets->balanceBreakdown($wallet, $ledger->id)
+            : [
+                'recorded_balance' => 0.0,
+                'future_booking_liability' => 0.0,
+                'pending_refund_liability' => 0.0,
+                'platform_fee_held' => 0.0,
+                'safe_balance' => 0.0,
+            ];
+        $payable = in_array($this->effectiveStatus($ledger), ['pending', 'overdue'], true) && $remaining > 0;
+
+        return response()->json(['data' => array_merge($breakdown, [
+            'ledger_id' => $ledger->id,
+            'amount_remaining' => $remaining,
+            'amount_to_debit' => $remaining,
+            'shortfall' => round(max($remaining - (float) $breakdown['safe_balance'], 0), 2),
+            'can_pay_full' => $payable && (float) $breakdown['safe_balance'] + 0.01 >= $remaining,
+            'payment_mode' => 'full_only',
+        ])]);
     }
 
     public function show(Request $request, string $id): JsonResponse
@@ -230,6 +262,8 @@ class PlatformFeeController extends Controller
         $arrangement = $this->platformFeeArrangements->accept(
             PlatformFeePaymentArrangement::query()->findOrFail($id),
             (int) $request->user()->id,
+            $request->ip(),
+            mb_substr((string) $request->userAgent(), 0, 1000),
         );
 
         return response()->json([
@@ -240,6 +274,9 @@ class PlatformFeeController extends Controller
 
     public function rejectArrangement(Request $request, int $id): JsonResponse
     {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
         $arrangement = PlatformFeePaymentArrangement::query()->findOrFail($id);
         if ((int) $arrangement->owner_id !== (int) $request->user()->id) {
             abort(403, 'Bạn không có quyền từ chối thỏa thuận này.');
@@ -247,7 +284,12 @@ class PlatformFeeController extends Controller
         if ($arrangement->status !== 'pending_owner_acceptance') {
             abort(409, 'Chỉ được từ chối khi thỏa thuận còn chờ xác nhận.');
         }
-        $arrangement = $this->platformFeeArrangements->cancel($arrangement, (int) $request->user()->id);
+        $arrangement = $this->platformFeeArrangements->cancel(
+            $arrangement,
+            (int) $request->user()->id,
+            $data['reason'],
+            true,
+        );
 
         return response()->json(['message' => 'Đã từ chối thỏa thuận trả chậm.', 'data' => $arrangement]);
     }

@@ -11,7 +11,15 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::command('app:release-expired-slot-locks')->everyMinute();
 Schedule::command('bookings:reconcile-statuses')->everyMinute()->withoutOverlapping()->onOneServer();
 Schedule::command('matchmaking:reconcile-lifecycle')->everyMinute()->withoutOverlapping()->onOneServer();
-Schedule::command('app:apply-policy-access-restrictions')->everyMinute();
+Schedule::command('app:apply-policy-access-restrictions')->everyMinute()->withoutOverlapping()->onOneServer();
+Schedule::command('platform-fees:process-due')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('platform-fees:expire-arrangements')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::command('platform-fees:generate')
     ->dailyAt('00:15')
     ->withoutOverlapping()
