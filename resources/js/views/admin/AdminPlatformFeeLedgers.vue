@@ -77,6 +77,9 @@
                         <option value="pending">Chờ thanh toán</option>
                         <option value="paid">Đã thanh toán</option>
                         <option value="overdue">Quá hạn</option>
+                        <option value="awaiting_acceptance">Chờ chủ sân xác nhận</option>
+                        <option value="settled_zero">Kỳ 0 đ</option>
+                        <option value="voided">Đã vô hiệu</option>
                         <option value="cancelled">Đã hủy</option>
                     </select>
                     <select
@@ -1027,6 +1030,10 @@ export default {
                     pending: "Chờ thanh toán",
                     paid: "Đã thanh toán",
                     overdue: "Quá hạn",
+                    awaiting_acceptance: "Chờ chủ sân xác nhận",
+                    settled_zero: "Không phải thanh toán",
+                    voided: "Đã vô hiệu",
+                    written_off: "Đã xử lý công nợ",
                     cancelled: "Đã hủy",
                 }[status] || status
             );
@@ -1345,6 +1352,19 @@ th:nth-child(8) {
 }
 .status-dot.cancelled {
     background: #94a3b8;
+    box-shadow: 0 0 0 3px #e2e8f0;
+}
+.status-dot.awaiting_acceptance {
+    background: #3b82f6;
+    box-shadow: 0 0 0 3px #dbeafe;
+}
+.status-dot.settled_zero {
+    background: #10b981;
+    box-shadow: 0 0 0 3px #d1fae5;
+}
+.status-dot.voided,
+.status-dot.written_off {
+    background: #64748b;
     box-shadow: 0 0 0 3px #e2e8f0;
 }
 .icon-btn,

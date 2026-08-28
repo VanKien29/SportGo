@@ -82,6 +82,12 @@
 import { platformFeePlanService } from '../../services/platformFeePlan.service.js';
 
 const defaultRules = () => [1, 3, 6, 9, 12].map((months) => ({ months, discount_percent: 0, is_active: true }));
+const localDate = (value) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default {
   name: 'PlatformFeePlanManager',
@@ -97,7 +103,7 @@ export default {
     minimumEffectiveDate() {
       const date = new Date();
       date.setDate(date.getDate() + Number(this.current?.notice_days || 1));
-      return date.toISOString().slice(0, 10);
+      return localDate(date);
     },
   },
   mounted() { this.load(); },

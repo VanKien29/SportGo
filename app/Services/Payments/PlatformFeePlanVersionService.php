@@ -55,6 +55,9 @@ class PlatformFeePlanVersionService
     public function updateDraft(PlatformFeePlanVersion $plan, array $data): PlatformFeePlanVersion
     {
         $this->assertDraft($plan);
+        if (array_key_exists('prepay_discounts', $data)) {
+            $this->validateDiscountRules($data['prepay_discounts']);
+        }
 
         return DB::transaction(function () use ($plan, $data): PlatformFeePlanVersion {
             $plan->forceFill([
@@ -85,6 +88,7 @@ class PlatformFeePlanVersionService
         $this->assertDraft($plan);
         $plan->loadMissing(['tiers', 'prepayDiscountRules']);
         $this->validateCoverage($plan);
+        $this->validateDiscountRules($plan->prepayDiscountRules->toArray(), true);
 
         $earliest = CarbonImmutable::today(config('platform_fee.timezone'))->addDays((int) $plan->notice_days);
         if ($effectiveFrom->startOfDay()->lt($earliest)) {
@@ -220,6 +224,39 @@ class PlatformFeePlanVersionService
                     'tiers' => ['Các bậc phí phải phủ liên tục, không được để hở hoặc chồng số lượng sân.'],
                 ]);
             }
+        }
+    }
+
+    private function validateDiscountRules(array $rules, bool $requireAllPeriods = false): void
+    {
+        $active = collect($rules)
+            ->filter(fn (array $rule): bool => (bool) ($rule['is_active'] ?? true))
+            ->sortBy(fn (array $rule): int => (int) $rule['months'])
+            ->values();
+        $months = $active->pluck('months')->map(fn ($month): int => (int) $month);
+
+        if ($months->duplicates()->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'prepay_discounts' => ['Mỗi kỳ hạn trả trước chỉ được cấu hình một mức giảm.'],
+            ]);
+        }
+
+        $allowedPeriods = collect(config('platform_fee.allowed_prepay_months'))->map(fn ($month): int => (int) $month)->sort()->values();
+        if ($requireAllPeriods && $months->sort()->values()->all() !== $allowedPeriods->all()) {
+            throw ValidationException::withMessages([
+                'prepay_discounts' => ['Phải cấu hình đủ mức giảm cho các kỳ 1, 3, 6, 9 và 12 tháng trước khi công bố.'],
+            ]);
+        }
+
+        $previous = 0.0;
+        foreach ($active as $rule) {
+            $discount = (float) $rule['discount_percent'];
+            if ($discount + 0.001 < $previous) {
+                throw ValidationException::withMessages([
+                    'prepay_discounts' => ['Mức giảm không được thấp hơn khi kỳ hạn trả trước dài hơn.'],
+                ]);
+            }
+            $previous = $discount;
         }
     }
 

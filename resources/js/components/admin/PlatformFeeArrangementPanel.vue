@@ -15,8 +15,8 @@
       <label class="wide">Cụm sân
         <select v-model="form.venue_cluster_id" required>
           <option value="" disabled>Chọn cụm sân</option>
-          <option v-for="venue in venues" :key="venue.id" :value="venue.id">
-            {{ venue.name }}{{ venue.owner?.full_name ? ` · ${venue.owner.full_name}` : '' }}
+          <option v-for="venue in venues" :key="venue.id" :value="venue.id" :disabled="Number(venue.court_count || 0) < 1">
+            {{ venue.name }}{{ venue.owner?.full_name ? ` · ${venue.owner.full_name}` : '' }}{{ Number(venue.court_count || 0) < 1 ? ' · chưa có sân con' : '' }}
           </option>
         </select>
       </label>
