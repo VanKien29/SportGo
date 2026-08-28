@@ -4,9 +4,21 @@
       <section class="pf-page">
 
         <PlatformFeeSubnav />
+        <PlatformFeePlanManager
+            @selected="handlePlanSelected"
+            @changed="handlePlanChanged"
+        />
+
+        <div v-if="selectedPlan && !canEditPlan" class="plan-lock-note">
+            <div>
+                <strong>{{ selectedPlan.code }} đang ở trạng thái {{ planStatusLabel }}.</strong>
+                <p>Chỉ được xem bậc phí. Hãy tạo bản nháp mới để thay đổi giá hoặc khoảng số sân.</p>
+            </div>
+        </div>
 
         <!-- Floating Add Button -->
         <div
+            v-if="canEditPlan"
             class="floating-add-container"
             :class="{ 'has-scroll': showScrollTop }"
         >
@@ -92,6 +104,7 @@
                                         <AppIcon name="eye" size="18" />
                                     </button>
                                     <button
+                                        v-if="canEditPlan"
                                         class="icon-btn"
                                         type="button"
                                         title="Sửa bậc phí"
@@ -101,6 +114,7 @@
                                         <AppIcon name="pencil" size="18" />
                                     </button>
                                     <button
+                                        v-if="canEditPlan"
                                         class="icon-btn"
                                         :class="{ danger: tier.is_active }"
                                         type="button"
@@ -126,6 +140,7 @@
                                         />
                                     </button>
                                     <button
+                                        v-if="canEditPlan"
                                         class="icon-btn danger"
                                         type="button"
                                         :title="usageCount(tier.id) > 0 ? 'Ngừng dùng bậc phí' : 'Xóa bậc phí'"
@@ -551,6 +566,7 @@
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
+import PlatformFeePlanManager from "../../components/admin/PlatformFeePlanManager.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 import SaaSFilterBar from "../../components/ui/SaaSFilterBar.vue";
 import { adminVenueClusterService } from "../../services/adminVenueClusterService.js";
@@ -608,10 +624,11 @@ const rangeTierName = (minCourts, maxCourts) =>
 
 export default {
     name: "AdminPlatformFeeTiers",
-    components: { AppIcon, PlatformFeeSubnav, SaaSFilterBar },
+    components: { AppIcon, PlatformFeePlanManager, PlatformFeeSubnav, SaaSFilterBar },
     data() {
         return {
             loading: true,
+            selectedPlan: null,
             tiers: [],
             discountProfiles: [],
             venues: [],
@@ -655,6 +672,12 @@ export default {
         };
     },
     computed: {
+        canEditPlan() {
+            return this.selectedPlan?.status === "draft";
+        },
+        planStatusLabel() {
+            return ({ active: "đang áp dụng", scheduled: "chờ áp dụng", retired: "ngừng áp dụng" })[this.selectedPlan?.status] || this.selectedPlan?.status;
+        },
         filteredTiers() {
             return this.tiers.filter((tier) => {
                 const matchKeyword =
@@ -712,7 +735,6 @@ export default {
     mounted() {
         this.loadDiscountProfiles();
         this.loadVenues();
-        this.loadTiers();
         window.addEventListener("scroll", this.handleScroll);
     },
     beforeUnmount() {
@@ -722,7 +744,9 @@ export default {
         async loadTiers() {
             this.loading = true;
             try {
-                this.tiers = await getTiers();
+                this.tiers = this.selectedPlan
+                    ? await getTiers({ plan_version_id: this.selectedPlan.id })
+                    : [];
                 this.runPreview();
             } finally {
                 this.loading = false;
@@ -750,16 +774,22 @@ export default {
             return lastTier ? lastTier.min_courts + 2 : 1;
         },
         openCreate() {
+            if (!this.canEditPlan) {
+                this.showMessage("Hãy tạo hoặc chọn phiên bản nháp trước khi thêm bậc phí.", "error");
+                return;
+            }
             this.editingId = null;
             const profile = this.discountProfiles[0] || null;
             this.autoSyncTierName = true;
             this.form = defaultForm(profile, this.suggestedMinimum());
+            this.form.plan_version_id = this.selectedPlan.id;
             this.syncAutomaticTierName();
             this.formErrors = {};
             this.initialFormSnapshot = JSON.stringify(this.form);
             this.showModal = true;
         },
         openEdit(tier) {
+            if (!this.canEditPlan) return;
             this.editingId = tier.id;
             this.autoSyncTierName = usesRangeAsTierName(tier.name);
             const matchedProfile =
@@ -848,6 +878,7 @@ export default {
         },
         async saveTier() {
             this.form.annual_discount_percent = this.form.discount_12_months;
+            this.form.plan_version_id = this.selectedPlan?.id;
             try {
                 if (this.editingId)
                     await updateTier(this.editingId, this.form, this.tiers);
@@ -1044,6 +1075,14 @@ export default {
             ]);
             this.showMessage("Đã tải lại dữ liệu phí nền tảng từ DB.");
         },
+        async handlePlanSelected(plan) {
+            this.selectedPlan = plan;
+            await this.loadTiers();
+        },
+        async handlePlanChanged() {
+            await this.loadDiscountProfiles();
+            await this.loadTiers();
+        },
         fieldError(field) {
             return this.formErrors[field]?.[0] || "";
         },
@@ -1086,6 +1125,22 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 18px;
+}
+.plan-lock-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: #f0fdf4;
+    color: #166534;
+}
+.plan-lock-note p {
+    margin-top: 3px;
+    color: #3f6f50;
+    font-size: 13px;
 }
 .head-actions,
 .panel-title,

@@ -44,6 +44,66 @@
           </div>
         </div>
 
+        <div class="billing-context-grid">
+          <article class="billing-context-card trial-card">
+            <div>
+              <p class="eyebrow">MỐC TÍNH PHÍ</p>
+              <h3>{{ trialTitle }}</h3>
+            </div>
+            <dl>
+              <div><dt>Bắt đầu dùng thử</dt><dd>{{ dateTime(summary.trial_started_at) }}</dd></div>
+              <div><dt>Kết thúc miễn phí</dt><dd>{{ dateTime(summary.trial_ends_at) }}</dd></div>
+              <div><dt>Bắt đầu tính phí</dt><dd>{{ dateTime(summary.fee_started_at) }}</dd></div>
+            </dl>
+            <small>Kỳ miễn phí vẫn được ghi nhận 0 đ để lịch sử không bị đứt quãng.</small>
+          </article>
+
+          <article class="billing-context-card balance-card">
+            <div>
+              <p class="eyebrow">SỐ DƯ CHỦ SÂN</p>
+              <h3>{{ money(ownerBalance?.balance) }}</h3>
+            </div>
+            <dl>
+              <div><dt>Đang tạm giữ cho phí</dt><dd>{{ money(ownerBalance?.platform_fee_held) }}</dd></div>
+              <div><dt>Có thể rút / sử dụng</dt><dd>{{ money(ownerBalance?.withdrawable) }}</dd></div>
+            </dl>
+            <label class="auto-pay-toggle">
+              <input
+                v-model="autoPayFromBalance"
+                type="checkbox"
+                :disabled="submitting || !ownerBalance"
+                @change="updateAutoPaySetting"
+              />
+              <span>Tự động thanh toán kỳ mới bằng số dư nếu đủ tiền</span>
+            </label>
+          </article>
+        </div>
+
+        <section v-if="clusterArrangements.length" class="arrangement-section">
+          <div class="table-head">
+            <div>
+              <h3>Thỏa thuận trả chậm</h3>
+              <p>Đây là gia hạn ngày thanh toán, không phải trả trước và không được hưởng giảm theo kỳ hạn.</p>
+            </div>
+          </div>
+          <article v-for="arrangement in clusterArrangements" :key="arrangement.id" class="arrangement-card">
+            <div>
+              <div class="arrangement-title">
+                <strong>{{ arrangement.code }}</strong>
+                <span class="status-pill" :class="arrangement.status">{{ arrangementStatusLabel(arrangement.status) }}</span>
+              </div>
+              <p>{{ arrangement.service_months }} tháng dịch vụ · {{ date(arrangement.service_start) }} - {{ date(arrangement.service_end) }}</p>
+              <small>Hạn thanh toán {{ date(arrangement.payment_due_date) }} · Tổng {{ money(arrangement.total_amount) }}</small>
+              <small v-if="arrangement.reason">Lý do: {{ arrangement.reason }}</small>
+            </div>
+            <div v-if="arrangement.status === 'pending_owner_acceptance'" class="arrangement-actions">
+              <p>Khi xác nhận, hệ thống tạm giữ {{ money(arrangement.total_amount) }} và phần này không thể rút.</p>
+              <button class="action-btn cancel-btn" type="button" :disabled="submitting" @click="rejectArrangement(arrangement)">Từ chối</button>
+              <button class="action-btn pay-btn" type="button" :disabled="submitting" @click="acceptArrangement(arrangement)">Xác nhận & tạm giữ</button>
+            </div>
+          </article>
+        </section>
+
         <div class="summary-grid">
           <article v-if="activePeriod" class="summary-card active-period-card">
             <span>Kỳ đang hiệu lực</span>
@@ -124,11 +184,18 @@
                   <td>{{ fee.court_count }}</td>
                   <td>
                     <strong>{{ money(fee.amount_due) }}</strong>
+                    <small v-if="Number(fee.prepay_discount_amount)" class="cell-sub discount-text">Giảm trả trước: -{{ money(fee.prepay_discount_amount) }}</small>
+                    <small v-if="Number(fee.promotion_discount_amount)" class="cell-sub discount-text">Khuyến mại: -{{ money(fee.promotion_discount_amount) }}</small>
+                    <small v-if="Number(fee.waiver_amount)" class="cell-sub discount-text">Miễn phí: -{{ money(fee.waiver_amount) }}</small>
                     <small v-if="fee.amount_paid" class="cell-sub">Đã ghi nhận {{ money(fee.amount_paid) }}</small>
+                    <small v-if="fee.plan_version?.code" class="cell-sub">Bảng giá: {{ fee.plan_version.code }}</small>
                   </td>
                   <td><span class="status-pill" :class="fee.effective_status">{{ statusLabel(fee.effective_status) }}</span></td>
                   <td>
                     <span v-if="fee.effective_status === 'paid'" class="auto-status paid">Tự động xác nhận</span>
+                    <span v-else-if="fee.effective_status === 'settled_zero'" class="auto-status paid">Kỳ miễn phí 0 đ</span>
+                    <span v-else-if="fee.effective_status === 'awaiting_acceptance'" class="auto-status">Chờ xác nhận trả chậm</span>
+                    <span v-else-if="fee.effective_status === 'voided'" class="auto-status cancelled">Đã vô hiệu</span>
                     <span v-else-if="fee.effective_status === 'cancelled'" class="auto-status cancelled">Không còn hiệu lực</span>
                     <span v-else class="auto-status">QR ngân hàng</span>
                     <small v-if="fee.payment?.code" class="cell-sub">Mã: {{ fee.payment.code }}</small>
@@ -136,8 +203,11 @@
                   </td>
                   <td class="action-col">
                     <div class="table-actions">
+                      <button v-if="canPayFromBalance(fee)" class="action-btn balance-pay-btn" type="button" :disabled="submitting" @click="payByBalance(fee)">
+                        Dùng số dư
+                      </button>
                       <button v-if="canPay(fee)" class="action-btn pay-btn" type="button" :disabled="submitting" @click="openPaymentModal(fee)">
-                        Thanh toán
+                        Quét QR
                       </button>
                       <button v-if="canCancel(fee)" class="action-btn cancel-btn" type="button" :disabled="submitting" @click="openCancelDialog(fee)">
                         Hủy
@@ -323,6 +393,9 @@ export default {
       fees: [],
       summary: { total: 0, pending: 0, overdue: 0, outstanding_amount: 0 },
       paymentAccount: null,
+      ownerBalance: null,
+      arrangements: [],
+      autoPayFromBalance: false,
       venueName: '',
       loading: true,
       submitting: false,
@@ -365,6 +438,16 @@ export default {
     clustersWithDebt() {
       return this.clusterPlans.filter((cluster) => cluster.outstanding_count > 0);
     },
+    clusterArrangements() {
+      return this.arrangements.filter((item) => String(item.venue_cluster_id) === String(this.clusterId));
+    },
+    trialTitle() {
+      return ({
+        active: 'Đang trong thời gian miễn phí',
+        completed: 'Đã kết thúc thời gian miễn phí',
+        legacy_not_applicable: 'Không áp dụng dùng thử cho dữ liệu cũ',
+      })[this.summary.trial_status] || 'Chưa xác định thời gian dùng thử';
+    },
   },
   async mounted() {
     window.addEventListener('owner-cluster-changed', this.handleClusterChanged);
@@ -391,10 +474,16 @@ export default {
       }
 
       try {
-        const response = await ownerPlatformFeeService.list(this.clusterId);
+        const [response, arrangementResponse] = await Promise.all([
+          ownerPlatformFeeService.list(this.clusterId),
+          ownerPlatformFeeService.arrangements(),
+        ]);
         this.fees = response.data || [];
         this.summary = response.summary || this.summary;
         this.paymentAccount = response.payment_account || null;
+        this.ownerBalance = response.owner_balance || null;
+        this.autoPayFromBalance = Boolean(response.summary?.auto_pay_from_balance);
+        this.arrangements = arrangementResponse.data || [];
         this.venueName = response.venue_cluster?.name || '';
       } catch (error) {
         this.error = error.message || 'Không thể tải dữ liệu phí nền tảng.';
@@ -404,6 +493,65 @@ export default {
     },
     async openPaymentModal(fee) {
       await this.openPaymentModalForVenue(fee, this.venueName);
+    },
+    async payByBalance(fee) {
+      if (!this.canPayFromBalance(fee)) return;
+      if (!window.confirm(`Dùng ${this.money(fee.amount_remaining)} từ số dư chủ sân để thanh toán kỳ này?`)) return;
+      this.submitting = true;
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await ownerPlatformFeeService.payFromBalance(fee.id);
+        await this.loadFees();
+        this.success = response.message || 'Đã thanh toán kỳ phí bằng số dư chủ sân.';
+      } catch (error) {
+        this.error = error.message || 'Không thể thanh toán bằng số dư chủ sân.';
+      } finally {
+        this.submitting = false;
+      }
+    },
+    async updateAutoPaySetting() {
+      const intendedValue = this.autoPayFromBalance;
+      this.submitting = true;
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await ownerPlatformFeeService.updateSettings(this.clusterId, intendedValue);
+        this.success = response.message;
+      } catch (error) {
+        this.autoPayFromBalance = !intendedValue;
+        this.error = error.message || 'Không thể cập nhật cấu hình thanh toán tự động.';
+      } finally {
+        this.submitting = false;
+      }
+    },
+    async acceptArrangement(arrangement) {
+      if (!window.confirm(`Xác nhận thỏa thuận ${arrangement.code} và tạm giữ ${this.money(arrangement.total_amount)} từ số dư?`)) return;
+      await this.handleArrangementAction(
+        () => ownerPlatformFeeService.acceptArrangement(arrangement.id),
+        'Đã xác nhận thỏa thuận trả chậm.',
+      );
+    },
+    async rejectArrangement(arrangement) {
+      if (!window.confirm(`Từ chối thỏa thuận ${arrangement.code}? Các kỳ đang giữ chỗ sẽ bị hủy.`)) return;
+      await this.handleArrangementAction(
+        () => ownerPlatformFeeService.rejectArrangement(arrangement.id),
+        'Đã từ chối thỏa thuận trả chậm.',
+      );
+    },
+    async handleArrangementAction(action, fallbackMessage) {
+      this.submitting = true;
+      this.error = '';
+      this.success = '';
+      try {
+        const response = await action();
+        await this.loadFees();
+        this.success = response.message || fallbackMessage;
+      } catch (error) {
+        this.error = error.message || 'Không thể xử lý thỏa thuận trả chậm.';
+      } finally {
+        this.submitting = false;
+      }
     },
     async payOverdue() {
       if (!this.oldestOverdueFee) return;
@@ -530,6 +678,11 @@ export default {
     canPay(fee) {
       return ['pending', 'overdue'].includes(fee.effective_status) && Number(fee.amount_remaining) > 0;
     },
+    canPayFromBalance(fee) {
+      return this.canPay(fee)
+        && Boolean(this.ownerBalance)
+        && Number(this.ownerBalance.withdrawable || 0) + 0.01 >= Number(fee.amount_remaining || 0);
+    },
     canCancel(fee) {
       return fee?.can_cancel === true;
     },
@@ -599,8 +752,24 @@ export default {
         pending: 'Chờ thanh toán',
         overdue: 'Quá hạn',
         paid: 'Đã thanh toán',
+        settled_zero: 'Không phải thanh toán',
+        awaiting_acceptance: 'Chờ xác nhận thỏa thuận',
+        voided: 'Đã vô hiệu',
         cancelled: 'Đã hủy',
       }[status] || status;
+    },
+    arrangementStatusLabel(status) {
+      return {
+        pending_owner_acceptance: 'Chờ bạn xác nhận',
+        active: 'Đang áp dụng',
+        overdue: 'Quá hạn',
+        fulfilled: 'Đã hoàn tất',
+        cancelled: 'Đã hủy',
+      }[status] || status;
+    },
+    dateTime(value) {
+      if (!value) return 'Không áp dụng';
+      return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
     },
     paidAt(value) {
       if (!value) return 'Đã hoàn tất';
@@ -890,6 +1059,119 @@ export default {
   gap: 14px;
 }
 
+.billing-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.billing-context-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
+  background: var(--admin-hover, #f8fafc);
+}
+
+.billing-context-card h3 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--admin-text, #101c15);
+}
+
+.billing-context-card dl,
+.billing-context-card dl div {
+  margin: 0;
+}
+
+.billing-context-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.billing-context-card dt,
+.billing-context-card small {
+  color: var(--admin-muted, #64748b);
+  font-size: 12px;
+}
+
+.billing-context-card dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.trial-card {
+  border-color: var(--admin-primary-ring, rgba(34, 166, 83, 0.25));
+  background: var(--admin-primary-soft, #f0fdf4);
+}
+
+.auto-pay-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--admin-text, #101c15);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.auto-pay-toggle input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--admin-primary, #22a653);
+}
+
+.arrangement-section {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--admin-border-soft, #e2e8f0);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.arrangement-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px;
+  border-radius: 9px;
+  background: var(--admin-hover, #f8fafc);
+}
+
+.arrangement-card > div:first-child,
+.arrangement-actions {
+  display: grid;
+  gap: 5px;
+}
+
+.arrangement-card p,
+.arrangement-card small {
+  margin: 0;
+  color: var(--admin-muted, #64748b);
+  font-size: 12px;
+}
+
+.arrangement-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arrangement-actions {
+  grid-template-columns: auto auto;
+  justify-items: end;
+}
+
+.arrangement-actions p {
+  grid-column: 1 / -1;
+  max-width: 360px;
+  text-align: right;
+}
+
 .summary-card {
   display: grid;
   gap: 7px;
@@ -1063,6 +1345,28 @@ export default {
   color: var(--admin-muted, #64748b);
 }
 
+.status-pill.settled_zero,
+.status-pill.active,
+.status-pill.fulfilled {
+  background: var(--admin-success-soft, rgba(16, 185, 129, 0.08));
+  color: var(--admin-primary, #22a653);
+}
+
+.status-pill.awaiting_acceptance,
+.status-pill.pending_owner_acceptance {
+  background: var(--admin-warning-soft, rgba(245, 158, 11, 0.08));
+  color: var(--admin-warning, #d97706);
+}
+
+.status-pill.voided {
+  background: var(--admin-surface-muted, #f1f5f9);
+  color: var(--admin-muted, #64748b);
+}
+
+.discount-text {
+  color: var(--admin-primary, #15803d);
+}
+
 .action-col {
   width: 1%;
   min-width: 100px;
@@ -1083,6 +1387,12 @@ export default {
 .pay-btn {
   background: var(--admin-primary, #22a653);
   color: #ffffff;
+}
+
+.balance-pay-btn {
+  border: 1px solid var(--admin-primary, #22a653);
+  background: #fff;
+  color: var(--admin-primary, #15803d);
 }
 
 .cancel-btn {
@@ -1538,6 +1848,9 @@ export default {
   .summary-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .billing-context-grid {
+    grid-template-columns: 1fr;
+  }
   .bank-card {
     display: grid;
   }
@@ -1580,6 +1893,19 @@ export default {
   }
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+  .billing-context-card dl {
+    grid-template-columns: 1fr;
+  }
+  .arrangement-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .arrangement-actions {
+    justify-items: stretch;
+  }
+  .arrangement-actions p {
+    text-align: left;
   }
   .bank-card dl {
     grid-template-columns: 1fr;

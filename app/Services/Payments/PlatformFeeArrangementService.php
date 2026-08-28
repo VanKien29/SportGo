@@ -3,6 +3,8 @@
 namespace App\Services\Payments;
 
 use App\Models\PlatformFeePaymentArrangement;
+use App\Models\PlatformFeePromotion;
+use App\Models\PlatformFeePromotionAssignment;
 use App\Models\PlatformFeeServicePeriod;
 use App\Models\VenueCluster;
 use App\Models\VenuePlatformFeeLedger;
@@ -163,6 +165,7 @@ class PlatformFeeArrangementService
             }
 
             foreach ($arrangement->ledgers as $ledger) {
+                $this->consumeReservedPromotion($ledger);
                 $ledger->forceFill([
                     'status' => (float) $ledger->amount_due > 0 ? 'pending' : 'settled_zero',
                 ])->save();
@@ -180,6 +183,7 @@ class PlatformFeeArrangementService
                 'secured_amount' => $arrangement->total_amount,
                 'owner_accepted_by' => $ownerId,
                 'owner_accepted_at' => now(),
+                'metadata' => array_merge($arrangement->metadata ?? [], ['promotions_consumed' => true]),
             ])->save();
 
             return $arrangement->fresh(['venueCluster', 'owner', 'ledgers.planVersion', 'holds']);
@@ -197,7 +201,12 @@ class PlatformFeeArrangementService
                 abort(409, 'Thỏa thuận đã phát sinh thanh toán; phải đối soát thay vì hủy.');
             }
 
+            $promotionsWereConsumed = (bool) data_get($arrangement->metadata, 'promotions_consumed', false);
+
             foreach ($arrangement->ledgers as $ledger) {
+                if ($promotionsWereConsumed) {
+                    $this->releaseConsumedPromotion($ledger);
+                }
                 app(PlatformFeeWalletService::class)->releaseLedgerHold($ledger, $actorId);
                 $ledger->servicePeriods()->update(['status' => 'voided']);
                 $ledger->forceFill([
@@ -211,6 +220,97 @@ class PlatformFeeArrangementService
 
             return $arrangement->fresh(['venueCluster', 'owner', 'ledgers', 'holds']);
         }, 3);
+    }
+
+    public function syncSettlement(VenuePlatformFeeLedger $ledger): void
+    {
+        if (! $ledger->payment_arrangement_id) {
+            return;
+        }
+
+        $arrangement = PlatformFeePaymentArrangement::query()
+            ->whereKey($ledger->payment_arrangement_id)
+            ->lockForUpdate()
+            ->first();
+        if (! $arrangement || ! in_array($arrangement->status, ['active', 'overdue'], true)) {
+            return;
+        }
+
+        $hasOutstanding = $arrangement->ledgers()
+            ->whereNotIn('venue_platform_fee_ledgers.status', ['paid', 'settled_zero', 'cancelled', 'voided', 'written_off'])
+            ->exists();
+        if (! $hasOutstanding) {
+            $arrangement->forceFill([
+                'status' => 'fulfilled',
+                'secured_amount' => 0,
+                'fulfilled_at' => now(),
+            ])->save();
+        }
+    }
+
+    private function consumeReservedPromotion(VenuePlatformFeeLedger $ledger): void
+    {
+        $amount = (float) $ledger->promotion_discount_amount;
+        if (! $ledger->promotion_id || $amount <= 0) {
+            return;
+        }
+
+        $promotion = PlatformFeePromotion::query()->whereKey($ledger->promotion_id)->lockForUpdate()->firstOrFail();
+        if ($promotion->budget_amount !== null
+            && (float) $promotion->budget_amount - (float) $promotion->spent_amount + 0.01 < $amount) {
+            throw ValidationException::withMessages([
+                'promotion' => ['Ngân sách khuyến mại đã thay đổi; admin cần hủy và tạo lại thỏa thuận để chốt số tiền mới.'],
+            ]);
+        }
+
+        $assignment = PlatformFeePromotionAssignment::query()
+            ->where('promotion_id', $promotion->id)
+            ->where('venue_cluster_id', $ledger->venue_cluster_id)
+            ->where('status', 'active')
+            ->where('remaining_cycles', '>', 0)
+            ->lockForUpdate()
+            ->first();
+        if (! $promotion->applies_to_all_clusters && ! $assignment) {
+            throw ValidationException::withMessages([
+                'promotion' => ['Lượt khuyến mại của cụm sân đã hết; admin cần hủy và tạo lại thỏa thuận.'],
+            ]);
+        }
+
+        $promotion->increment('spent_amount', $amount);
+        if ($assignment) {
+            $remaining = max((int) $assignment->remaining_cycles - 1, 0);
+            $assignment->forceFill([
+                'remaining_cycles' => $remaining,
+                'status' => $remaining === 0 ? 'consumed' : 'active',
+                'consumed_at' => $remaining === 0 ? now() : null,
+            ])->save();
+        }
+    }
+
+    private function releaseConsumedPromotion(VenuePlatformFeeLedger $ledger): void
+    {
+        $amount = (float) $ledger->promotion_discount_amount;
+        if (! $ledger->promotion_id || $amount <= 0) {
+            return;
+        }
+
+        $promotion = PlatformFeePromotion::query()->whereKey($ledger->promotion_id)->lockForUpdate()->first();
+        if ($promotion) {
+            $promotion->forceFill(['spent_amount' => max((float) $promotion->spent_amount - $amount, 0)])->save();
+        }
+
+        $assignment = PlatformFeePromotionAssignment::query()
+            ->where('promotion_id', $ledger->promotion_id)
+            ->where('venue_cluster_id', $ledger->venue_cluster_id)
+            ->lockForUpdate()
+            ->first();
+        if ($assignment) {
+            $assignment->forceFill([
+                'remaining_cycles' => (int) $assignment->remaining_cycles + 1,
+                'status' => 'active',
+                'consumed_at' => null,
+            ])->save();
+        }
     }
 
     private function assertNoOverlap(int $clusterId, CarbonImmutable $start, CarbonImmutable $end): void

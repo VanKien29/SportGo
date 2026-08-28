@@ -322,7 +322,10 @@ class PlatformFeePaymentService
                 'gateway_response' => $payload,
             ])->save();
 
+            $ledger->servicePeriods()->update(['status' => 'paid']);
+
             app(PlatformFeeWalletService::class)->releaseLedgerHold($ledger);
+            app(PlatformFeeArrangementService::class)->syncSettlement($ledger);
 
             $this->unlockVenueIfFeeWasOnlyLock($ledger);
             $this->auditIpn($ledger, $payload, $gatewayTxnId, null, $oldValues);

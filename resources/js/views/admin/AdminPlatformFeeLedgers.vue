@@ -23,6 +23,8 @@
                     </div>
                 </div>
 
+                <PlatformFeeArrangementPanel :venues="venues" @changed="loadLedgers" />
+
                 <!-- Floating Add Button -->
                 <div
                     class="floating-add-container"
@@ -622,6 +624,7 @@
 
 <script>
 import AppIcon from "../../components/AppIcon.vue";
+import PlatformFeeArrangementPanel from "../../components/admin/PlatformFeeArrangementPanel.vue";
 import PlatformFeeSubnav from "../../components/PlatformFeeSubnav.vue";
 import AdminFilterPanel from "../../components/AdminFilterPanel.vue";
 import {
@@ -660,7 +663,7 @@ function today() {
 
 export default {
     name: "AdminPlatformFeeLedgers",
-    components: { AppIcon, PlatformFeeSubnav, AdminFilterPanel },
+    components: { AppIcon, PlatformFeeArrangementPanel, PlatformFeeSubnav, AdminFilterPanel },
     data() {
         return {
             ledgers: [],

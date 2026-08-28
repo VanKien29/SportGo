@@ -377,6 +377,7 @@ class PlatformFeeLedgerController extends Controller
                 $receipt = $this->issueReceipt($ledger->fresh(['venueCluster.owner']), $request->user()?->id);
                 $ledger->forceFill(['internal_receipt_id' => $receipt->id])->save();
                 $this->clearPlatformFeeRestriction($ledger, $request->user()?->id);
+                app(\App\Services\Payments\PlatformFeeArrangementService::class)->syncSettlement($ledger);
             }
 
             return $ledger->fresh(['venueCluster.owner', 'tier', 'internalReceipt']);

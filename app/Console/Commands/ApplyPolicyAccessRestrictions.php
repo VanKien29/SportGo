@@ -6,6 +6,7 @@ use App\Models\VenueCluster;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenuePlatformFeeLedger;
 use App\Models\PartnerTerminationRequest;
+use App\Models\PlatformFeePaymentArrangement;
 use App\Models\PolicyRule;
 use App\Services\Payments\PlatformFeeWalletService;
 use Illuminate\Console\Command;
@@ -86,6 +87,13 @@ class ApplyPolicyAccessRestrictions extends Command
                 } catch (\RuntimeException) {
                     // Cụm sân chưa phát sinh số dư vẫn bị ghi nhận nợ và xử lý theo chính sách.
                 }
+            }
+            $overdueArrangementIds = $overdueLedgers->pluck('payment_arrangement_id')->filter()->unique();
+            if ($overdueArrangementIds->isNotEmpty()) {
+                PlatformFeePaymentArrangement::query()
+                    ->whereIn('id', $overdueArrangementIds)
+                    ->where('status', 'active')
+                    ->update(['status' => 'overdue']);
             }
 
             // Find if there is any ledger of this cluster that is overdue by >= $lockAfterDays days

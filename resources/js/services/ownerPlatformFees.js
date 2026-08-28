@@ -19,6 +19,38 @@ export const ownerPlatformFeeService = {
     });
   },
 
+  payFromBalance(id) {
+    return api(`/api/owner/platform-fees/${encodeURIComponent(id)}/pay-from-balance`, {
+      method: 'POST',
+    });
+  },
+
+  updateSettings(clusterId, autoPayFromBalance) {
+    return api('/api/owner/platform-fees/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        venue_cluster_id: clusterId,
+        auto_pay_from_balance: autoPayFromBalance,
+      }),
+    });
+  },
+
+  arrangements() {
+    return api('/api/owner/platform-fees/arrangements');
+  },
+
+  acceptArrangement(id) {
+    return api(`/api/owner/platform-fees/arrangements/${encodeURIComponent(id)}/accept`, {
+      method: 'POST',
+    });
+  },
+
+  rejectArrangement(id) {
+    return api(`/api/owner/platform-fees/arrangements/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+    });
+  },
+
   cancel(id, reason) {
     return api(`/api/owner/platform-fees/${id}/cancel`, {
       method: 'PATCH',

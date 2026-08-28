@@ -36,7 +36,7 @@ export default {
             items: [
                 {
                     name: "admin-platform-fee-tiers",
-                    label: "Cấu hình bậc phí",
+                    label: "Phiên bản & bậc phí",
                     icon: "layers3",
                 },
                 {

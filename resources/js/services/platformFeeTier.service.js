@@ -17,6 +17,7 @@ function toNumber(value, fallback = 0) {
 
 function normalizeTier(payload) {
   return {
+    plan_version_id: payload.plan_version_id ? Number(payload.plan_version_id) : null,
     name: String(payload.name || '').trim(),
     min_courts: Number.parseInt(payload.min_courts, 10),
     price_per_court_month: toNumber(payload.price_per_court_month),

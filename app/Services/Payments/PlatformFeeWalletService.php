@@ -161,8 +161,11 @@ class PlatformFeeWalletService
                 ],
             ])->save();
 
+            $ledger->servicePeriods()->update(['status' => 'paid']);
+
             $this->releaseLedgerHold($ledger, $ownerId);
             $this->clearRestrictionWhenSettled($ledger);
+            app(PlatformFeeArrangementService::class)->syncSettlement($ledger);
             AuditLog::query()->create([
                 'actor_id' => $automatic ? null : $ownerId,
                 'actor_type' => $automatic ? 'system' : 'owner',
