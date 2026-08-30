@@ -27,11 +27,13 @@
     @accepted="handlePoliciesAccepted"
   />
   <FloatingActions />
+  <FloatingChatWidget />
 </template>
 
 <script>
 import ClientFooter from "./components/ClientFooter.vue";
 import FloatingActions from "./components/FloatingActions.vue";
+import FloatingChatWidget from "./components/FloatingChatWidget.vue";
 import PolicyAcceptanceModal from "./components/PolicyAcceptanceModal.vue";
 import SetPasswordModal from "./components/SetPasswordModal.vue";
 import { policyService } from "./services/policies.js";
@@ -42,6 +44,7 @@ export default {
   components: {
     ClientFooter,
     FloatingActions,
+    FloatingChatWidget,
     PolicyAcceptanceModal,
     SetPasswordModal,
   },

@@ -323,31 +323,37 @@ body {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: none !important;
 }
 
 .hero-btn.primary {
-  background: #54656f;
+  background: #5c7e6e;
   color: #ffffff;
   border: none;
-  box-shadow: 0 4px 14px rgba(84, 101, 111, 0.25);
+  box-shadow: none !important;
 }
 
 .hero-btn.primary:hover {
-  background: #405059;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(84, 101, 111, 0.35);
+  background: #5c7e6e;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .hero-btn.secondary {
   background: #ffffff;
   color: #475569;
   border: 1.5px solid #cbd5e1;
+  box-shadow: none !important;
 }
 
 .hero-btn.secondary:hover {
-  border-color: #54656f;
-  color: #0f172a;
+  border-color: #cbd5e1;
+  color: #475569;
+  background: #ffffff;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .hero-illustration-img {
