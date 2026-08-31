@@ -10,39 +10,37 @@
             <AppIcon :name="item.icon" size="15" />
             <span>{{ item.label }}</span>
         </router-link>
-        <button class="subnav-action" type="button" @click="showSettings = true">
-            <AppIcon name="bellRing" size="15" />
-            <span>Cài đặt nhắc phí</span>
-        </button>
     </nav>
-    <PlatformFeeSettingsDialog :open="showSettings" @close="showSettings = false" @saved="handleSaved" />
 </template>
 
 <script>
 import AppIcon from "./AppIcon.vue";
-import PlatformFeeSettingsDialog from "./admin/PlatformFeeSettingsDialog.vue";
 
 export default {
     name: "PlatformFeeSubnav",
-    components: { AppIcon, PlatformFeeSettingsDialog },
-    methods: {
-        handleSaved() {
-            this.showSettings = false;
-        },
-    },
+    components: { AppIcon },
     data() {
         return {
-            showSettings: false,
             items: [
                 {
                     name: "admin-platform-fee-tiers",
-                    label: "Cấu hình bậc phí",
+                    label: "Phiên bản & bậc phí",
                     icon: "layers3",
                 },
                 {
                     name: "admin-platform-fee-ledgers",
-                    label: "Phí duy trì",
+                    label: "Kỳ phí",
                     icon: "receiptText",
+                },
+                {
+                    name: "admin-platform-fee-arrangements",
+                    label: "Thỏa thuận trả chậm",
+                    icon: "clock",
+                },
+                {
+                    name: "admin-platform-fee-promotions",
+                    label: "Ưu đãi phí",
+                    icon: "tag",
                 },
                 {
                     name: "admin-platform-fee-policies",
@@ -87,20 +85,6 @@ export default {
 .subnav-active.never-hover-class-placeholder {
     background: var(--admin-primary-soft, #e2f6e8);
     color: var(--admin-primary-dark, #15733a);
-}
-
-.subnav-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 36px;
-    border: 0;
-    border-radius: 0;
-    padding: 8px 12px;
-    background: transparent;
-    color: var(--admin-primary-dark, #15733a);
-    font: inherit;
-    cursor: pointer;
 }
 
 @media (max-width: 720px) {

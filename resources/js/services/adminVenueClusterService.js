@@ -11,6 +11,9 @@ export const adminVenueClusterService = {
     if (params.search) query.set('search', params.search);
     if (params.owner_id) query.set('owner_id', params.owner_id);
     if (params.options) query.set('options', '1');
+    if (params.paginate) query.set('paginate', '1');
+    if (params.page) query.set('page', String(params.page));
+    if (params.per_page) query.set('per_page', String(params.per_page));
     const qs = query.toString();
     return api(`/api/admin/venue-clusters${qs ? `?${qs}` : ''}`);
   },

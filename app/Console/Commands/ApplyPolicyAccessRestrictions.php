@@ -6,7 +6,10 @@ use App\Models\VenueCluster;
 use App\Models\VenueAccessRestriction;
 use App\Models\VenuePlatformFeeLedger;
 use App\Models\PartnerTerminationRequest;
-use App\Models\PolicyRule;
+use App\Models\PlatformFeePaymentArrangement;
+use App\Models\SystemPolicy;
+use App\Services\Policies\PolicyConfigurationService;
+use App\Services\Payments\PlatformFeeWalletService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -30,12 +33,12 @@ class ApplyPolicyAccessRestrictions extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(PolicyConfigurationService $policyConfigurations)
     {
         $this->info('Starting scanning of venue access policies...');
 
         // 1. Process platform fee overdue locks
-        $this->processPlatformFeeOverdueLocks();
+        $this->processPlatformFeeOverdueLocks($this->platformFeeConfiguration($policyConfigurations));
 
         // 2. Process partner contract termination transition and locks
         $this->processContractTerminations();
@@ -48,33 +51,55 @@ class ApplyPolicyAccessRestrictions extends Command
         return self::SUCCESS;
     }
 
-    private function processPlatformFeeOverdueLocks()
+    private function processPlatformFeeOverdueLocks(array $configuration)
     {
         $this->info('Processing platform fee overdue locks...');
 
-        // Find the active rule for platform fee overdue lock
-        $rule = PolicyRule::where('rule_code', 'platform_fee_overdue_lock')
-            ->where('is_active', true)
-            ->first();
-
-        // Default to 7 days if rule doesn't exist
-        $lockAfterDays = 7;
-        if ($rule) {
-            $lockAfterDays = $rule->result_json['lock_after_days'] ?? 7;
-        }
+        $restrictAfterDays = (int) ($configuration['restrict_overdue_days'] ?? 7);
+        $lockAfterDays = (int) ($configuration['lock_overdue_days'] ?? 14);
 
         // Select all clusters
         $clusters = VenueCluster::all();
 
         foreach ($clusters as $cluster) {
-            // Find if there is any ledger of this cluster that is overdue by >= $lockAfterDays days
-            $hasOverdueLedger = VenuePlatformFeeLedger::where('venue_cluster_id', $cluster->id)
-                ->where('status', '!=', 'paid')
-                ->where('due_date', '<=', Carbon::now()->subDays($lockAfterDays)->toDateString())
-                ->exists();
+            $overdueLedgers = VenuePlatformFeeLedger::query()
+                ->where('venue_cluster_id', $cluster->id)
+                ->whereIn('status', ['pending', 'overdue'])
+                ->whereRaw('amount_paid < amount_due')
+                ->whereDate('due_date', '<', Carbon::today()->toDateString())
+                ->get();
+            foreach ($overdueLedgers as $overdueLedger) {
+                if ($overdueLedger->status === 'pending') {
+                    $overdueLedger->forceFill(['status' => 'overdue'])->save();
+                }
+                try {
+                    app(PlatformFeeWalletService::class)->ensureLedgerHold(
+                        $overdueLedger,
+                        'Tạm giữ số dư cho kỳ phí nền tảng đã quá hạn.',
+                    );
+                } catch (\RuntimeException) {
+                    // Cụm sân chưa phát sinh số dư vẫn bị ghi nhận nợ và xử lý theo chính sách.
+                }
+            }
+            $overdueArrangementIds = $overdueLedgers->pluck('payment_arrangement_id')->filter()->unique();
+            if ($overdueArrangementIds->isNotEmpty()) {
+                PlatformFeePaymentArrangement::query()
+                    ->whereIn('id', $overdueArrangementIds)
+                    ->where('status', 'active')
+                    ->update(['status' => 'overdue']);
+            }
 
-            if ($hasOverdueLedger) {
-                // Find or create an active restriction
+            $oldestDueDate = $overdueLedgers->min('due_date');
+            $overdueDays = $oldestDueDate
+                ? Carbon::parse($oldestDueDate)->startOfDay()->diffInDays(Carbon::today())
+                : 0;
+
+            if ($oldestDueDate && $overdueDays >= $restrictAfterDays) {
+                $accessMode = $overdueDays >= $lockAfterDays ? 'blocked' : 'limited';
+                $reason = $accessMode === 'blocked'
+                    ? "Cụm sân quá hạn phí nền tảng {$overdueDays} ngày và đã đến mốc khóa theo chính sách."
+                    : "Cụm sân quá hạn phí nền tảng {$overdueDays} ngày và đang bị hạn chế quyền theo chính sách.";
+
                 VenueAccessRestriction::updateOrCreate(
                     [
                         'venue_cluster_id' => $cluster->id,
@@ -82,21 +107,20 @@ class ApplyPolicyAccessRestrictions extends Command
                         'status' => 'active',
                     ],
                     [
-                        'access_mode' => 'limited',
-                        'reason' => 'Cụm sân quá hạn phí duy trì hệ thống.',
+                        'access_mode' => $accessMode,
+                        'reason' => $reason,
                         'starts_at' => Carbon::now(),
                         'ends_at' => null,
                     ]
                 );
 
-                // Update ledger lock timestamp
-                VenuePlatformFeeLedger::where('venue_cluster_id', $cluster->id)
-                    ->where('status', '!=', 'paid')
-                    ->where('due_date', '<=', Carbon::now()->subDays($lockAfterDays)->toDateString())
-                    ->whereNull('locked_venue_at')
-                    ->update(['locked_venue_at' => Carbon::now()]);
+                if ($accessMode === 'blocked') {
+                    VenuePlatformFeeLedger::whereIn('id', $overdueLedgers->pluck('id'))
+                        ->whereNull('locked_venue_at')
+                        ->update(['locked_venue_at' => Carbon::now()]);
+                }
 
-                $this->info("Cluster {$cluster->name} ({$cluster->id}) is locked due to overdue platform fee.");
+                $this->info("Cluster {$cluster->name} ({$cluster->id}) applied {$accessMode} platform fee restriction.");
             } else {
                 // If there is any active platform_fee_overdue restriction, expire it
                 $activeOverdueRestriction = VenueAccessRestriction::where('venue_cluster_id', $cluster->id)
@@ -114,6 +138,31 @@ class ApplyPolicyAccessRestrictions extends Command
                 }
             }
         }
+    }
+
+    private function platformFeeConfiguration(PolicyConfigurationService $configurations): array
+    {
+        $policy = SystemPolicy::query()
+            ->with('rules')
+            ->where('status', 'active')
+            ->where('is_active', true)
+            ->where(function ($query): void {
+                $query->where('policy_type', 'platform_fee')
+                    ->orWhere('type', 'platform_fee');
+            })
+            ->where(function ($query): void {
+                $query->whereNull('effective_from')->orWhere('effective_from', '<=', now());
+            })
+            ->where(function ($query): void {
+                $query->whereNull('effective_to')->orWhere('effective_to', '>=', now());
+            })
+            ->orderByDesc('version')
+            ->orderByDesc('id')
+            ->first();
+
+        return $policy
+            ? $configurations->extractConfigurationData($policy)
+            : ['restrict_overdue_days' => 7, 'lock_overdue_days' => 14];
     }
 
     private function processContractTerminations()

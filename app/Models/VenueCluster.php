@@ -79,6 +79,26 @@ class VenueCluster extends Model
         return $this->hasOne(VenuePlatformFeeLedger::class, 'venue_cluster_id')->latestOfMany('period_start');
     }
 
+    public function platformFeeLedgers()
+    {
+        return $this->hasMany(VenuePlatformFeeLedger::class, 'venue_cluster_id');
+    }
+
+    public function platformFeeProfile()
+    {
+        return $this->hasOne(VenuePlatformFeeProfile::class, 'venue_cluster_id');
+    }
+
+    public function platformFeeServicePeriods()
+    {
+        return $this->hasMany(PlatformFeeServicePeriod::class, 'venue_cluster_id');
+    }
+
+    public function platformFeePaymentArrangements()
+    {
+        return $this->hasMany(PlatformFeePaymentArrangement::class, 'venue_cluster_id');
+    }
+
     public function accessRestrictions()
     {
         return $this->hasMany(VenueAccessRestriction::class, 'venue_cluster_id');

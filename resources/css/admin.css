@@ -17430,3 +17430,42 @@ span.required,
     border-top: none !important;
     padding: 4px 0 !important;
 }
+
+/* Ledger filters stay usable inside the narrow Admin content column. */
+.sg-shell-admin
+    .content-area
+    .ledgers-main-content
+    .admin-filter-panel
+    .filter-controls.filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 1000px) {
+    .sg-shell-admin
+        .content-area
+        .ledgers-main-content
+        .admin-filter-panel
+        .filter-controls.filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 620px) {
+    .sg-shell-admin
+        .content-area
+        .ledgers-main-content
+        .admin-filter-panel
+        .filter-controls.filter-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .sg-shell-admin
+        .content-area
+        .ledgers-main-content
+        .admin-filter-panel
+        .filter-controls.filter-grid
+        > * {
+        grid-column: auto !important;
+        width: 100% !important;
+    }
+}

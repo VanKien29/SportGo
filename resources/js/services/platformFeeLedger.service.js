@@ -19,6 +19,15 @@ export async function getLedgers(filters = {}) {
   return Array.isArray(ledgers) ? ledgers : ledgers.data || [];
 }
 
+export async function getLedgerPage(filters = {}) {
+  const response = await api(`/api/admin/platform-fee-ledgers${query({ ...filters, paginate: 1 })}`);
+  return {
+    data: Array.isArray(response?.data) ? response.data : [],
+    meta: response?.meta || { current_page: 1, last_page: 1, per_page: 20, total: 0 },
+    metrics: response?.metrics || { pending: 0, overdue: 0, pending_amount: 0, overdue_amount: 0 },
+  };
+}
+
 export async function getLedgerById(id) {
   return api(`/api/admin/platform-fee-ledgers/${encodeURIComponent(id)}`);
 }
@@ -123,6 +132,7 @@ export async function unlockVenueAfterPayment(id) {
 
 export const platformFeeLedgerService = {
   getLedgers,
+  getLedgerPage,
   getLedgerById,
   createLedger,
   calculateLedgerPreview,

@@ -10,6 +10,7 @@ class PlatformFeeTier extends Model
     use HasFactory;
 
     protected $fillable = [
+        'plan_version_id',
         'name',
         'min_courts',
         'max_courts',
@@ -34,5 +35,10 @@ class PlatformFeeTier extends Model
     public function ledgers()
     {
         return $this->hasMany(VenuePlatformFeeLedger::class, 'tier_id');
+    }
+
+    public function planVersion()
+    {
+        return $this->belongsTo(PlatformFeePlanVersion::class, 'plan_version_id');
     }
 }

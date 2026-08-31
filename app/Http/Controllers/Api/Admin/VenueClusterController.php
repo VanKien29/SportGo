@@ -38,25 +38,31 @@ class VenueClusterController extends Controller
     public function index(Request $request): JsonResponse
     {
         if ($request->boolean('options')) {
-            $query = VenueCluster::query()
+            $optionsQuery = VenueCluster::query()
                 ->select(['id', 'name', 'status', 'owner_id', 'created_at'])
                 ->with('owner:id,full_name,username,email')
+                ->withCount(['venueCourts as court_count'])
                 ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
                 ->when($request->filled('search'), function ($query) use ($request): void {
                     $search = '%'.$request->input('search').'%';
                     $query->where(function ($searchQuery) use ($search): void {
                         $searchQuery
                             ->where('name', 'like', $search)
-                            ->orWhere('address', 'like', $search);
+                            ->orWhere('address', 'like', $search)
+                            ->orWhereHas('owner', fn ($ownerQuery) => $ownerQuery
+                                ->where('full_name', 'like', $search)
+                                ->orWhere('username', 'like', $search)
+                                ->orWhere('email', 'like', $search));
                     });
                 })
                 ->when($request->filled('owner_id'), fn ($query) => $query->where('owner_id', $request->input('owner_id')))
-                ->latest()
-                ->get()
-                ->map(fn (VenueCluster $cluster): array => [
+                ->latest();
+
+            $toOption = fn (VenueCluster $cluster): array => [
                     'id' => $cluster->id,
                     'name' => $cluster->name,
                     'status' => $cluster->status,
+                    'court_count' => (int) $cluster->court_count,
                     'owner_id' => $cluster->owner_id,
                     'owner' => $cluster->owner ? [
                         'id' => $cluster->owner->id,
@@ -64,7 +70,24 @@ class VenueClusterController extends Controller
                         'username' => $cluster->owner->username,
                         'email' => $cluster->owner->email,
                     ] : null,
+                ];
+
+            if ($request->boolean('paginate')) {
+                $perPage = max(10, min($request->integer('per_page', 20), 50));
+                $paginator = $optionsQuery->paginate($perPage);
+
+                return response()->json([
+                    'data' => $paginator->getCollection()->map($toOption)->values(),
+                    'meta' => [
+                        'current_page' => $paginator->currentPage(),
+                        'last_page' => $paginator->lastPage(),
+                        'per_page' => $paginator->perPage(),
+                        'total' => $paginator->total(),
+                    ],
                 ]);
+            }
+
+            $query = $optionsQuery->get()->map($toOption);
 
             return response()->json(['data' => $query]);
         }
