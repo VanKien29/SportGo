@@ -328,6 +328,7 @@
 import AppIcon from '../../components/AppIcon.vue';
 import ShiftHandoverModal from '../../components/staff/ShiftHandoverModal.vue';
 import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js';
+import { BUSINESS_TIMEZONE, addCalendarDays, businessDateString, businessDateTime } from '../../utils/businessTime.js';
 import { useToast } from 'vue-toastification';
 
 export default {
@@ -341,7 +342,7 @@ export default {
       error: '',
       successMsg: '',
       scheduleViewMode: 'week',
-      selectedDate: this.isoDate(new Date()),
+      selectedDate: businessDateString(),
       actionLoading: null,
       showHandoverModal: false,
       handoverScheduleId: null,
@@ -471,15 +472,18 @@ export default {
       this.showHandoverModal = true;
     },
     getMonday(date) {
-      const value = new Date(date);
+      const [year, month, day] = businessDateString(date).split('-').map(Number);
+      const value = new Date(year, month - 1, day, 12);
       const offset = value.getDay() === 0 ? -6 : 1 - value.getDay();
       value.setDate(value.getDate() + offset);
       value.setHours(0, 0, 0, 0);
       return value;
     },
     isoDate(date) {
-      const offset = date.getTimezoneOffset();
-      return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     },
     shiftWeek(amount) {
       const next = new Date(this.weekStart);
@@ -494,9 +498,7 @@ export default {
       this.loadSchedules();
     },
     shiftDay(amount) {
-      const next = new Date(`${this.selectedDate}T00:00:00`);
-      next.setDate(next.getDate() + amount);
-      this.selectedDate = this.isoDate(next);
+      this.selectedDate = addCalendarDays(this.selectedDate, amount);
     },
     goToToday() {
       this.selectedDate = this.today;
@@ -541,7 +543,7 @@ export default {
       if (!dateTimeStr) return '';
       try {
         const d = new Date(dateTimeStr);
-        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: BUSINESS_TIMEZONE });
       } catch (e) {
         return dateTimeStr;
       }
@@ -561,10 +563,7 @@ export default {
       if (!schedule) return false;
       if (schedule.date !== this.today) return false;
 
-      const [startHour, startMin] = (schedule.start_time || '00:00').split(':').map(Number);
-      const shiftStart = new Date();
-      shiftStart.setHours(startHour, startMin, 0, 0);
-
+      const shiftStart = businessDateTime(schedule.date, schedule.start_time || '00:00');
       const earlyLimit = new Date(shiftStart.getTime() - 30 * 60000);
       return this.nowTime >= earlyLimit;
     },
@@ -1434,5 +1433,4 @@ export default {
   }
 }
 </style>
-
 

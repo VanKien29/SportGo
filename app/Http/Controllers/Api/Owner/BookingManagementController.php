@@ -272,9 +272,9 @@ class BookingManagementController extends Controller
 
         $validated = $request->validate([
             'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
-            'booking_date' => ['nullable', 'required_without:booking_dates', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'booking_date' => ['nullable', 'required_without:booking_dates', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday()],
             'booking_dates' => ['nullable', 'array', 'min:1', 'max:31'],
-            'booking_dates.*' => ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
+            'booking_dates.*' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday(), 'distinct'],
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
@@ -464,14 +464,14 @@ class BookingManagementController extends Controller
         }
 
         $sessionStart = $booking->booking_date && $booking->start_time
-            ? Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->start_time)
+            ? $this->businessDateTime($booking->booking_date->format('Y-m-d'), (string) $booking->start_time)
             : null;
         $sessionEnd = $booking->booking_date && $booking->end_time
-            ? Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->end_time)
+            ? $this->businessDateTime($booking->booking_date->format('Y-m-d'), (string) $booking->end_time)
             : null;
 
         if ($validated['action'] === 'check_in' && $sessionStart && $sessionEnd) {
-            $now = now();
+            $now = Carbon::now($this->businessTimezone());
             if ($now->lessThan($sessionStart->copy()->subMinutes(30)) || $now->greaterThan($sessionEnd->copy()->addMinutes(30))) {
                 throw ValidationException::withMessages([
                     'action' => 'Chỉ có thể check-in từ 30 phút trước giờ bắt đầu đến 30 phút sau giờ kết thúc.',
@@ -479,7 +479,7 @@ class BookingManagementController extends Controller
             }
         }
 
-        if ($validated['action'] === 'complete' && $sessionEnd && now()->lessThan($sessionEnd->copy()->addMinutes(15))) {
+        if ($validated['action'] === 'complete' && $sessionEnd && Carbon::now($this->businessTimezone())->lessThan($sessionEnd->copy()->addMinutes(15))) {
             throw ValidationException::withMessages([
                 'action' => 'Chưa thể hoàn thành booking trước khi buổi chơi kết thúc.',
             ]);
@@ -755,7 +755,7 @@ class BookingManagementController extends Controller
         $rules = [
             'venue_court_id' => ['required', 'integer', 'exists:venue_courts,id'],
             'venue_cluster_id' => ['required', 'integer', 'exists:venue_clusters,id'],
-            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'recurring_start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday()],
             'recurring_end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:recurring_start_date'],
             'recurrence_type' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'recurrence_interval' => ['required', 'integer', 'min:1', 'max:12'],
@@ -764,7 +764,7 @@ class BookingManagementController extends Controller
             'recurrence_days_of_month' => ['nullable', 'array'],
             'recurrence_days_of_month.*' => ['integer', 'between:1,31', 'distinct'],
             'recurring_dates' => ['nullable', 'array', 'min:1', 'max:130'],
-            'recurring_dates.*' => ['date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
+            'recurring_dates.*' => ['date_format:Y-m-d', 'after_or_equal:'.$this->businessToday(), 'distinct'],
             'start_time' => ['required_without:time_ranges', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'end_time' => ['required_without:time_ranges', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'time_ranges' => ['nullable', 'array', 'min:1', 'max:32'],
@@ -778,7 +778,7 @@ class BookingManagementController extends Controller
             'weekday_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
             'weekday_time_ranges.*.time_ranges.*.end_time' => ['required', 'regex:/^(([01]\d|2[0-3]):[0-5]\d|24:00):00$/'],
             'date_time_ranges' => ['nullable', 'array', 'max:130'],
-            'date_time_ranges.*.date' => ['required_with:date_time_ranges', 'date_format:Y-m-d', 'after_or_equal:today', 'distinct'],
+            'date_time_ranges.*.date' => ['required_with:date_time_ranges', 'date_format:Y-m-d', 'after_or_equal:'.$this->businessToday(), 'distinct'],
             'date_time_ranges.*.time_ranges' => ['required_with:date_time_ranges', 'array', 'min:1', 'max:32'],
             'date_time_ranges.*.time_ranges.*.venue_court_id' => ['nullable', 'integer', 'exists:venue_courts,id'],
             'date_time_ranges.*.time_ranges.*.start_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d:00$/'],
@@ -980,6 +980,27 @@ class BookingManagementController extends Controller
         [$hours, $minutes] = explode(':', $time);
 
         return (int) $hours * 60 + (int) $minutes;
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessToday(): string
+    {
+        return Carbon::now($this->businessTimezone())->toDateString();
+    }
+
+    private function businessDateTime(string $date, string $time): Carbon
+    {
+        $normalizedTime = substr($time, 0, 8);
+
+        if ($normalizedTime === '24:00:00') {
+            return Carbon::createFromFormat('Y-m-d H:i:s', $date.' 00:00:00', $this->businessTimezone())->addDay();
+        }
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $date.' '.$normalizedTime, $this->businessTimezone());
     }
 
     private function recurringGroupPayload(Collection $bookings): array

@@ -605,8 +605,16 @@ class RefundCancellationPolicyService
 
     public function evaluateBookingCancellation(Booking $booking, ?User $actor = null, ?Carbon $cancelAt = null): array
     {
-        $cancelAt ??= now();
-        $startAt = Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . substr((string) $booking->start_time, 0, 5));
+        $businessTimezone = (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+        $cancelAt = ($cancelAt ?: now($businessTimezone))->copy()->setTimezone($businessTimezone);
+        $bookingDate = $booking->booking_date instanceof Carbon
+            ? $booking->booking_date->format('Y-m-d')
+            : Carbon::parse((string) $booking->booking_date, $businessTimezone)->format('Y-m-d');
+        $startAt = Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $bookingDate . ' ' . substr((string) $booking->start_time, 0, 5),
+            $businessTimezone,
+        );
         $hoursBefore = $cancelAt->diffInMinutes($startAt, false) / 60;
 
         if ($this->requiresFullRefundByCancellationReason($booking)) {

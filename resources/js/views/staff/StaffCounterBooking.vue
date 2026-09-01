@@ -2030,16 +2030,14 @@ import MiniCalendar from "../../components/MiniCalendar.vue";
 import { ownerBookingService } from "../../services/ownerBookings.js";
 import { ownerBookingConfigService } from "../../services/ownerBookingConfigs.js";
 import { venueClusterService } from "../../services/venueClusters.js";
+import { businessDateString, businessMinutes, businessWeekDayIndex } from "../../utils/businessTime.js";
 
 function toIsoDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return businessDateString(date);
 }
 
 function toWeekDayIndex(date) {
-    return (date.getDay() + 6) % 7;
+    return (businessWeekDayIndex(date) + 6) % 7;
 }
 
 const BOOKING_DAY_START = 0;
@@ -4081,8 +4079,7 @@ export default {
             if (date < this.today) return true;
             if (date > this.today) return false;
 
-            const now = new Date();
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            const nowMinutes = businessMinutes();
 
             return this.timeToMinutes(slot.start_time) <= nowMinutes;
         },
@@ -5515,4 +5512,3 @@ export default {
     box-sizing: border-box;
 }
 </style>
-

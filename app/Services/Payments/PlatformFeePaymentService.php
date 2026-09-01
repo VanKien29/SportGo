@@ -23,6 +23,8 @@ class PlatformFeePaymentService
         }
 
         $ledger = DB::transaction(function () use ($cluster, $months): VenuePlatformFeeLedger {
+            $platformFeeToday = CarbonImmutable::today((string) config('platform_fee.timezone', 'Asia/Ho_Chi_Minh'));
+
             $hasOutstandingFee = VenuePlatformFeeLedger::query()
                 ->where('venue_cluster_id', $cluster->id)
                 ->whereIn('status', ['pending', 'overdue'])
@@ -57,7 +59,7 @@ class PlatformFeePaymentService
                 ? CarbonImmutable::instance($latestPeriod->period_end)->addDay()->startOfDay()
                 : ($latestLegacyLedger
                     ? CarbonImmutable::instance($latestLegacyLedger->period_end)->addDay()->startOfDay()
-                    : CarbonImmutable::instance($profile->fee_started_at ?: today()->startOfMonth())->startOfDay());
+                    : CarbonImmutable::instance($profile->fee_started_at ?: $platformFeeToday->startOfMonth())->startOfDay());
             $periodEnd = $periodStart->addMonthsNoOverflow($months)->subDay();
             $quotes = [];
             $promotionUsage = [];
@@ -107,8 +109,8 @@ class PlatformFeePaymentService
                 'period_months' => $months,
                 'period_start' => $periodStart->toDateString(),
                 'period_end' => $periodEnd->toDateString(),
-                'due_date' => today()->addDays((int) $firstQuote['plan']->invoice_lead_days),
-                'original_due_date' => today()->addDays((int) $firstQuote['plan']->invoice_lead_days),
+                'due_date' => $platformFeeToday->addDays((int) $firstQuote['plan']->invoice_lead_days),
+                'original_due_date' => $platformFeeToday->addDays((int) $firstQuote['plan']->invoice_lead_days),
                 'price_per_court_month' => $firstQuote['tier']->price_per_court_month,
                 'discount_percent' => $discountPercent,
                 'pricing_snapshotted_at' => now(),

@@ -151,8 +151,8 @@ class StaffShiftController extends Controller
         if (! $this->staffShiftTablesReady()) {
             return response()->json(['data' => []]);
         }
-        $startDate = $request->query('start_date', Carbon::today()->toDateString());
-        $endDate = $request->query('end_date', Carbon::today()->toDateString());
+        $startDate = $request->query('start_date', $this->businessToday());
+        $endDate = $request->query('end_date', $this->businessToday());
         $userId = $request->query('user_id');
 
         $schedules = VenueStaffShiftSchedule::query()
@@ -301,8 +301,9 @@ class StaffShiftController extends Controller
         if (! $this->staffShiftTablesReady()) {
             return response()->json(['data' => []]);
         }
-        $startDate = $request->query('start_date', Carbon::today()->startOfMonth()->toDateString());
-        $endDate = $request->query('end_date', Carbon::today()->endOfMonth()->toDateString());
+        $today = Carbon::now($this->businessTimezone());
+        $startDate = $request->query('start_date', $today->copy()->startOfMonth()->toDateString());
+        $endDate = $request->query('end_date', $today->copy()->endOfMonth()->toDateString());
 
         $schedules = VenueStaffShiftSchedule::query()
             ->with('user:id,full_name,username')
@@ -321,8 +322,12 @@ class StaffShiftController extends Controller
             $lateCount = 0;
             foreach ($userSchedules as $sch) {
                 if ($sch->check_in_at) {
-                    $schTime = Carbon::parse($sch->date)->setTimeFromTimeString($sch->start_time);
-                    if ($sch->check_in_at->gt($schTime->addMinutes(10))) { // trễ hơn 10 phút
+                    $schDate = $sch->date instanceof Carbon
+                        ? $sch->date->format('Y-m-d')
+                        : Carbon::parse((string) $sch->date, $this->businessTimezone())->format('Y-m-d');
+                    $schTime = $this->businessDateTime($schDate, (string) $sch->start_time);
+                    $checkInAt = Carbon::parse($sch->check_in_at)->setTimezone($this->businessTimezone());
+                    if ($checkInAt->gt($schTime->copy()->addMinutes(10))) { // trễ hơn 10 phút
                         $lateCount++;
                     }
                 }
@@ -356,8 +361,9 @@ class StaffShiftController extends Controller
         }
 
         $userId = $request->user()->id;
-        $startDate = $request->query('start_date', Carbon::today()->startOfWeek()->toDateString());
-        $endDate = $request->query('end_date', Carbon::today()->endOfWeek()->toDateString());
+        $today = Carbon::now($this->businessTimezone());
+        $startDate = $request->query('start_date', $today->copy()->startOfWeek()->toDateString());
+        $endDate = $request->query('end_date', $today->copy()->endOfWeek()->toDateString());
 
         $schedules = VenueStaffShiftSchedule::query()
             ->with(['venueCluster:id,name', 'shift'])
@@ -539,6 +545,25 @@ class StaffShiftController extends Controller
     // ==========================================
     // HELPERS
     // ==========================================
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessToday(): string
+    {
+        return Carbon::now($this->businessTimezone())->toDateString();
+    }
+
+    private function businessDateTime(string $date, string $time): Carbon
+    {
+        return Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $date.' '.substr($time, 0, 8),
+            $this->businessTimezone(),
+        );
+    }
 
     private function staffShiftTablesReady(): bool
     {

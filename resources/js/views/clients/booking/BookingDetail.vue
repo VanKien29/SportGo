@@ -477,6 +477,7 @@ import { bookingService } from "../../../services/bookingService.js";
 import { chatService } from "../../../services/chat.service.js";
 import { venueService } from "../../../services/venues.js";
 import echo from "../../../echo.js";
+import { businessDateTime } from "../../../utils/businessTime.js";
 
 export default {
   name: "BookingDetail",
@@ -597,9 +598,10 @@ export default {
     },
     canRequestCancellation() {
       if (!["pending_approval", "confirmed"].includes(this.booking?.status)) return false;
+      if (typeof this.booking?.can_cancel === "boolean") return this.booking.can_cancel;
       const date = String(this.booking?.booking_date || "").split("T")[0];
       const time = String(this.booking?.start_time || "").slice(0, 5);
-      const startsAt = new Date(`${date}T${time}:00`);
+      const startsAt = businessDateTime(date, time);
       return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
     },
     canCancelPendingPayment() {

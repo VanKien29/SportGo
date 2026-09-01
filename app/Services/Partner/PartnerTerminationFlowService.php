@@ -492,9 +492,9 @@ class PartnerTerminationFlowService
             $termination,
             [
                 'document_place' => 'Hà Nội',
-                'document_day' => now()->format('d'),
-                'document_month' => now()->format('m'),
-                'document_year' => now()->format('Y'),
+                'document_day' => $this->businessNow()->format('d'),
+                'document_month' => $this->businessNow()->format('m'),
+                'document_year' => $this->businessNow()->format('Y'),
                 'owner_name' => $this->ownerSignerName($termination),
                 'owner_email' => $owner->email,
                 'owner_phone' => $owner->phone,
@@ -503,7 +503,7 @@ class PartnerTerminationFlowService
                 'termination_code' => $termination->termination_code,
                 'original_document_code' => $originalDocument->document_code,
                 'cancellation_reason' => $reason,
-                'cancellation_requested_at' => now()->format('d/m/Y H:i'),
+                'cancellation_requested_at' => $this->businessNow()->format('d/m/Y H:i'),
             ],
             $owner,
             [
@@ -634,7 +634,10 @@ class PartnerTerminationFlowService
 
             $cluster = $contract->venueCluster ?: VenueCluster::query()->findOrFail($contract->venue_cluster_id);
             $summary = $this->financialSummary($cluster);
-            $effectiveDate = Carbon::parse($data['requested_effective_date'] ?? now()->addDays(30))->toDateString();
+            $effectiveDate = Carbon::parse(
+                $data['requested_effective_date'] ?? $this->businessNow()->addDays(30)->toDateString(),
+                $this->businessTimezone(),
+            )->toDateString();
             $termination = new PartnerTerminationRequest();
             $this->fillTermination($termination, [
                 'termination_code' => $this->uniqueTerminationCode('SPORTGO'),
@@ -1442,7 +1445,7 @@ class PartnerTerminationFlowService
     private function platformFeeCutoffAt(PartnerTerminationRequest $termination, array $futureBookings): Carbon
     {
         if ($termination->future_booking_policy === self::POLICY_CANCEL_ALL) {
-            return now();
+            return $this->businessNow();
         }
 
         $lastBooking = collect($futureBookings)
@@ -1451,12 +1454,21 @@ class PartnerTerminationFlowService
             ->first();
 
         if ($lastBooking) {
-            return Carbon::parse($lastBooking['booking_date'].' '.($lastBooking['end_time'] ?: '23:59:59'));
+            return $this->businessDateTime(
+                (string) $lastBooking['booking_date'],
+                (string) ($lastBooking['end_time'] ?: '23:59:59'),
+            );
         }
 
-        return $termination->requested_effective_date
-            ? Carbon::parse($termination->requested_effective_date)->endOfDay()
-            : now();
+        if ($termination->requested_effective_date) {
+            $effectiveDate = $termination->requested_effective_date instanceof Carbon
+                ? $termination->requested_effective_date->format('Y-m-d')
+                : Carbon::parse((string) $termination->requested_effective_date, $this->businessTimezone())->toDateString();
+
+            return Carbon::parse($effectiveDate, $this->businessTimezone())->endOfDay();
+        }
+
+        return $this->businessNow();
     }
 
     private function platformFeePrepaidRefund(string|int $clusterId, Carbon $cutoff): float
@@ -1839,8 +1851,9 @@ class PartnerTerminationFlowService
 
     private function futureBookingsQuery(string|int $clusterId): Builder
     {
-        $today = now()->toDateString();
-        $time = now()->format('H:i:s');
+        $now = $this->businessNow();
+        $today = $now->toDateString();
+        $time = $now->format('H:i:s');
 
         return Booking::query()
             ->where('venue_cluster_id', $clusterId)
@@ -2337,7 +2350,7 @@ class PartnerTerminationFlowService
     private function uniqueTerminationCode(string $prefix): string
     {
         do {
-            $code = 'TERM-' . $prefix . '-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+            $code = 'TERM-' . $prefix . '-' . $this->businessNow()->format('Ymd') . '-' . Str::upper(Str::random(5));
         } while (PartnerTerminationRequest::query()->where('termination_code', $code)->exists());
 
         return $code;
@@ -2346,7 +2359,7 @@ class PartnerTerminationFlowService
     private function uniqueWithdrawalCode(): string
     {
         do {
-            $code = 'WR-' . now()->format('ymd') . '-' . Str::upper(Str::random(8));
+            $code = 'WR-' . $this->businessNow()->format('ymd') . '-' . Str::upper(Str::random(8));
         } while (OwnerWithdrawalRequest::query()->where('request_code', $code)->exists());
 
         return $code;
@@ -2391,6 +2404,27 @@ class PartnerTerminationFlowService
         }
 
         return Carbon::parse($value)->format('d/m/Y H:i:s');
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessNow(): Carbon
+    {
+        return Carbon::now($this->businessTimezone());
+    }
+
+    private function businessDateTime(string $date, string $time): Carbon
+    {
+        $normalizedTime = substr($time, 0, 8);
+
+        if ($normalizedTime === '24:00:00') {
+            return Carbon::createFromFormat('Y-m-d H:i:s', $date.' 00:00:00', $this->businessTimezone())->addDay();
+        }
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $date.' '.$normalizedTime, $this->businessTimezone());
     }
 
     private function money(mixed $amount): string

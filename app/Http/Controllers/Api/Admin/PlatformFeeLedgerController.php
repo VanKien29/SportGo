@@ -99,13 +99,13 @@ class PlatformFeeLedgerController extends Controller
                         ->orWhere(function ($pendingQuery): void {
                             $pendingQuery
                                 ->where('status', 'pending')
-                                ->whereDate('due_date', '<', now()->toDateString());
+                                ->whereDate('due_date', '<', $this->platformFeeToday()->toDateString());
                         });
                 }))
             ->when(($data['range'] ?? '') === 'this_month', fn ($query) => $query
                 ->whereNotNull('paid_at')
-                ->whereYear('paid_at', now()->year)
-                ->whereMonth('paid_at', now()->month))
+                ->whereYear('paid_at', $this->platformFeeNow()->year)
+                ->whereMonth('paid_at', $this->platformFeeNow()->month))
             ->when($data['email_status'] ?? null, function ($query, string $emailStatus): void {
                 if ($emailStatus === 'not_sent') {
                     $query->whereDoesntHave('emailLogs');
@@ -173,7 +173,7 @@ class PlatformFeeLedgerController extends Controller
 
     private function ledgerMetrics($filteredQuery): array
     {
-        $today = today()->toDateString();
+        $today = $this->platformFeeToday()->toDateString();
         $inTime = (clone $filteredQuery)
             ->where('status', 'pending')
             ->whereDate('due_date', '>=', $today)
@@ -729,7 +729,9 @@ class PlatformFeeLedgerController extends Controller
         $venue = $ledger->venueCluster;
         $owner = $venue?->owner;
         $periodState = $this->periodState($ledger);
-        $periodDaysRemaining = $ledger->period_end ? (int) today()->diffInDays($ledger->period_end, false) : null;
+        $periodDaysRemaining = $ledger->period_end
+            ? (int) $this->platformFeeToday()->diffInDays($this->platformFeeDate($ledger->period_end), false)
+            : null;
         $tierName = $ledger->tier_name_snapshot
             ?: $ledger->tier?->name
             ?: ($ledger->tier_id ? 'Bậc phí #'.$ledger->tier_id : 'Theo cấu hình');
@@ -853,11 +855,13 @@ class PlatformFeeLedgerController extends Controller
             return 'unknown';
         }
 
-        if (today()->lt($ledger->period_start)) {
+        $today = $this->platformFeeToday();
+
+        if ($today->lt($this->platformFeeDate($ledger->period_start))) {
             return 'upcoming';
         }
 
-        if (today()->gt($ledger->period_end)) {
+        if ($today->gt($this->platformFeeDate($ledger->period_end))) {
             return 'expired';
         }
 
@@ -929,5 +933,33 @@ class PlatformFeeLedgerController extends Controller
         ][$type] ?? 'cần được thanh toán');
 
         return "Kỳ phí duy trì của {$venueName} {$line}.\nHạn thanh toán: {$dueDate}.\nSố tiền còn lại: {$remaining} VND.\nVui lòng đăng nhập SportGo Owner để xử lý.";
+    }
+
+    private function platformFeeTimezone(): string
+    {
+        return (string) config('platform_fee.timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function platformFeeNow(): CarbonImmutable
+    {
+        return CarbonImmutable::now($this->platformFeeTimezone());
+    }
+
+    private function platformFeeToday(): CarbonImmutable
+    {
+        return $this->platformFeeNow()->startOfDay();
+    }
+
+    private function platformFeeDate(mixed $value): CarbonImmutable
+    {
+        $date = $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : CarbonImmutable::parse((string) $value, $this->platformFeeTimezone())->format('Y-m-d');
+
+        return CarbonImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            $date.' 00:00:00',
+            $this->platformFeeTimezone(),
+        );
     }
 }

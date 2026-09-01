@@ -1030,12 +1030,10 @@ import MiniCalendar from '../../components/MiniCalendar.vue';
 import StaffQuickRetailModal from '../../components/staff/StaffQuickRetailModal.vue';
 import StaffQrScannerModal from '../../components/staff/StaffQrScannerModal.vue';
 import { playSuccessChime } from '../../utils/audioChime.js';
+import { addCalendarDays, businessDateString, businessMinutes, businessTimeString } from '../../utils/businessTime.js';
 
 function localIsoDate(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return businessDateString(date);
 }
 
 export default {
@@ -1358,10 +1356,7 @@ export default {
       this.showPeriodDropdown = false;
     },
     updateClock() {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      this.currentClockTime = `${hh}:${mm}`;
+      this.currentClockTime = businessTimeString();
     },
     async quickCheckIn(booking) {
       if (!booking) return;
@@ -1421,24 +1416,18 @@ export default {
       return iso === localIsoDate();
     },
     isTomorrow(iso) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return iso === localIsoDate(tomorrow);
+      return iso === addCalendarDays(localIsoDate(), 1);
     },
     setToday() {
       this.filters.booking_date = localIsoDate();
       this.loadBookings();
     },
     setTomorrow() {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      this.filters.booking_date = localIsoDate(tomorrow);
+      this.filters.booking_date = addCalendarDays(localIsoDate(), 1);
       this.loadBookings();
     },
     shiftDate(days) {
-      const current = new Date(`${this.filters.booking_date}T00:00:00`);
-      current.setDate(current.getDate() + days);
-      this.filters.booking_date = localIsoDate(current);
+      this.filters.booking_date = addCalendarDays(this.filters.booking_date, days);
       this.loadBookings();
     },
     onDateSelect(val) {
@@ -1607,8 +1596,7 @@ export default {
       const customer = this.customerName(booking);
       const paymentState = this.paymentState(booking);
 
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = businessMinutes();
       const isTodayBooking = this.isToday(this.filters.booking_date);
 
       let statusPill = null;
@@ -1688,8 +1676,7 @@ export default {
       const today = localIsoDate();
       if (this.filters.booking_date < today) return true;
       if (this.filters.booking_date > today) return false;
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const nowMinutes = businessMinutes();
       return slot.start <= nowMinutes;
     },
 

@@ -118,7 +118,7 @@ class VenueMembershipService
                 $membership = new UserCourtMembership([
                     'user_id' => $userId,
                     'venue_cluster_id' => $venueClusterId,
-                    'period_start' => now()->toDateString(),
+                    'period_start' => $this->businessToday()->toDateString(),
                 ]);
             }
 
@@ -139,7 +139,7 @@ class VenueMembershipService
                     ? $currentTierSettings
                     : $eligibleTier);
 
-            $periodStart = $membership->period_start ? Carbon::parse($membership->period_start)->startOfDay() : now()->startOfDay();
+            $periodStart = $membership->period_start ? $this->businessDate($membership->period_start) : $this->businessToday();
             $periodStats = $this->periodStatsForUserVenue($userId, $venueClusterId, $periodStart);
             $upgraded = $this->tierOrder($targetTier['tier']) > $this->tierOrder($oldTier ?: 'standard');
             $storedStats = $upgraded && $resetProgressOnUpgrade
@@ -457,9 +457,9 @@ class VenueMembershipService
             return false;
         }
 
-        $periodStart = $membership->period_start ? Carbon::parse($membership->period_start)->startOfDay() : now()->startOfDay();
+        $periodStart = $membership->period_start ? $this->businessDate($membership->period_start) : $this->businessToday();
         $periodEnd = $periodStart->copy()->addMonths((int) $tier['maintain_period_months']);
-        if (now()->lt($periodEnd)) {
+        if ($this->businessNow()->lt($periodEnd)) {
             return false;
         }
 
@@ -500,7 +500,7 @@ class VenueMembershipService
                 'tier' => $nextTier['tier'],
                 'period_bookings' => 0,
                 'period_spent' => 0,
-                'period_start' => now()->toDateString(),
+                'period_start' => $this->businessToday()->toDateString(),
                 'last_downgraded_at' => now(),
                 'downgrade_notified_at' => now(),
             ])->save();
@@ -555,5 +555,29 @@ class VenueMembershipService
     private function nullableFloat(mixed $value): ?float
     {
         return $value === null || $value === '' ? null : round((float) $value, 2);
+    }
+
+    private function businessTimezone(): string
+    {
+        return (string) config('app.business_timezone', 'Asia/Ho_Chi_Minh');
+    }
+
+    private function businessNow(): Carbon
+    {
+        return Carbon::now($this->businessTimezone());
+    }
+
+    private function businessToday(): Carbon
+    {
+        return $this->businessNow()->startOfDay();
+    }
+
+    private function businessDate(mixed $value): Carbon
+    {
+        $date = $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : Carbon::parse((string) $value, $this->businessTimezone())->format('Y-m-d');
+
+        return Carbon::createFromFormat('Y-m-d H:i:s', $date.' 00:00:00', $this->businessTimezone());
     }
 }

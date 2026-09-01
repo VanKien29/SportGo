@@ -738,6 +738,7 @@ import { venueService } from "../../services/venues.js";
 import { chatService } from "../../services/chat.service.js";
 import { affiliateProductService } from "../../services/affiliateProducts.js";
 import { getAuth, restoreAuth } from "../../stores/auth.js";
+import { businessDateString, businessDateTime } from "../../utils/businessTime.js";
 import { useToast } from "vue-toastification";
 
 export default {
@@ -1227,7 +1228,7 @@ export default {
       if (this.bookDate !== this.todayStr()) return false;
       const endTime = String(slot?.end_time || slot?.start_time || "");
       if (!endTime) return false;
-      const end = new Date(`${this.bookDate}T${endTime}`);
+      const end = businessDateTime(this.bookDate, endTime);
       return !Number.isNaN(end.getTime()) && end.getTime() <= Date.now();
     },
 
@@ -1322,11 +1323,7 @@ export default {
     },
 
     todayStr() {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      return businessDateString();
     },
 
     formatPrice(val) {

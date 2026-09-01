@@ -635,6 +635,7 @@ import ClientCustomSelect from "../../../components/ClientCustomSelect.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { getAuth } from "../../../stores/auth.js";
 import echo from "../../../echo.js";
+import { addCalendarDays, businessDateString, businessMinutes } from "../../../utils/businessTime.js";
 import { useToast } from "vue-toastification";
 
 export default {
@@ -654,7 +655,7 @@ export default {
       clusterId: "",
       clusterLocked: false,
       courtTypeId: "",
-      bookingDate: new Date().toLocaleDateString("en-CA"),
+      bookingDate: businessDateString(),
       initialLoading: true,
       scheduleLoading: false,
       scheduleRequestId: 0,
@@ -797,17 +798,13 @@ export default {
       return true;
     },
     today() {
-      return new Date().toLocaleDateString("en-CA");
+      return businessDateString();
     },
     tomorrow() {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      return d.toLocaleDateString("en-CA");
+      return addCalendarDays(this.today, 1);
     },
     dayAfterTomorrow() {
-      const d = new Date();
-      d.setDate(d.getDate() + 2);
-      return d.toLocaleDateString("en-CA");
+      return addCalendarDays(this.today, 2);
     },
     isLoggedIn() {
       return Boolean(getAuth());
@@ -1273,8 +1270,7 @@ export default {
         return;
       }
       if (ps.some(p => p.key === this.activePeriod)) return;
-      const now = new Date();
-      const nowM = now.getHours() * 60 + now.getMinutes();
+      const nowM = businessMinutes();
       const cur =
         this.bookingDate === this.today
           ? ps.find(p => p.slotInfos.some(({ slot }) => this.minutes(slot.start_time) <= nowM && this.minutes(slot.end_time) > nowM))
@@ -1286,9 +1282,7 @@ export default {
       if (p) this.activePeriod = p.key;
     },
     shiftDate(days) {
-      const d = new Date(`${this.bookingDate}T00:00:00`);
-      d.setDate(d.getDate() + days);
-      const next = d.toLocaleDateString("en-CA");
+      const next = addCalendarDays(this.bookingDate, days);
       if (next < this.today) return;
       if (next !== this.bookingDate) {
         this.bookingDate = next;
@@ -1301,13 +1295,11 @@ export default {
     },
     slotPast(slot) {
       if (this.bookingDate !== this.today) return false;
-      const now = new Date();
-      return this.minutes(slot.start_time) <= now.getHours() * 60 + now.getMinutes();
+      return this.minutes(slot.start_time) <= businessMinutes();
     },
     slotTooSoon(slot) {
       if (this.bookingDate !== this.today || !this.minAdvance) return false;
-      const now = new Date();
-      return this.minutes(slot.start_time) < now.getHours() * 60 + now.getMinutes() + this.minAdvance;
+      return this.minutes(slot.start_time) < businessMinutes() + this.minAdvance;
     },
     slotDisabled(courtId, slot) {
       return this.slotPast(slot) || this.slotTooSoon(slot) || this.slotStatus(courtId, slot)?.is_available === false;

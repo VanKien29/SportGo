@@ -425,6 +425,32 @@ export default {
       const config = this.cancelRefundConfig(policy);
       return config.effective_summary || config.venue_summary || 'Sân đang dùng mặc định hệ thống.';
     },
+    venueTierLine(policy, systemTier) {
+      const config = this.cancelRefundConfig(policy);
+      const venueTiers = Array.isArray(config.venue_tiers) ? config.venue_tiers : [];
+
+      if (!config.venue_rule_id || !venueTiers.length) {
+        return 'Sân đang dùng khung hệ thống.';
+      }
+
+      const overlappingTiers = venueTiers.filter((venueTier) => this.timeRangesOverlap(systemTier, venueTier));
+      if (!overlappingTiers.length) {
+        return 'Chưa xác định được mốc áp dụng của chính sách sân.';
+      }
+
+      const detail = overlappingTiers
+        .map((venueTier) => {
+          const action = venueTier.allow_cancel
+            ? `hoàn ${Number(venueTier.refund_percent || 0)}%`
+            : 'không cho hủy';
+          return `${this.rangeText(venueTier)}: ${action}`;
+        })
+        .join(' · ');
+
+      return config.venue_rule_status === 'draft'
+        ? `Bản nháp của sân: ${detail}`
+        : `Chính sách sân: ${detail}`;
+    },
     effectiveTiers(policy) {
       const config = this.cancelRefundConfig(policy);
       if (Array.isArray(config.effective_tiers) && config.effective_tiers.length) {

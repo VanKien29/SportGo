@@ -298,6 +298,7 @@ import ClientCustomSelect from '@/components/ClientCustomSelect.vue';
 import SgButton from '@/components/common/SgButton.vue';
 import { api } from '@/services/api';
 import { getAuth } from '@/stores/auth.js';
+import { businessDateTime } from '@/utils/businessTime.js';
 
 const router = useRouter();
 const toast = useToast();
@@ -345,7 +346,7 @@ const availableDeadlineOptions = computed(() => {
   const b = selectedBooking.value;
   if (!b.date || !b.time) return deadlinePresetOptions;
   const startTimeStr = b.time.split(' - ')[0] || b.time.split('-')[0] || '';
-  const bookingStart = new Date(`${b.date}T${startTimeStr.trim()}:00`);
+  const bookingStart = businessDateTime(b.date, startTimeStr.trim());
   const now = new Date();
   const minutesLeft = Math.floor((bookingStart.getTime() - now.getTime()) / 60000);
   if (isNaN(minutesLeft) || minutesLeft <= 0) return deadlinePresetOptions;

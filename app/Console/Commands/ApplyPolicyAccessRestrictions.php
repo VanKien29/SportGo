@@ -57,6 +57,8 @@ class ApplyPolicyAccessRestrictions extends Command
 
         $restrictAfterDays = (int) ($configuration['restrict_overdue_days'] ?? 7);
         $lockAfterDays = (int) ($configuration['lock_overdue_days'] ?? 14);
+        $platformFeeTimezone = (string) config('platform_fee.timezone', 'Asia/Ho_Chi_Minh');
+        $platformFeeToday = Carbon::today($platformFeeTimezone);
 
         // Select all clusters
         $clusters = VenueCluster::all();
@@ -66,7 +68,7 @@ class ApplyPolicyAccessRestrictions extends Command
                 ->where('venue_cluster_id', $cluster->id)
                 ->whereIn('status', ['pending', 'overdue'])
                 ->whereRaw('amount_paid < amount_due')
-                ->whereDate('due_date', '<', Carbon::today()->toDateString())
+                ->whereDate('due_date', '<', $platformFeeToday->toDateString())
                 ->get();
             foreach ($overdueLedgers as $overdueLedger) {
                 if ($overdueLedger->status === 'pending') {
@@ -91,7 +93,7 @@ class ApplyPolicyAccessRestrictions extends Command
 
             $oldestDueDate = $overdueLedgers->min('due_date');
             $overdueDays = $oldestDueDate
-                ? Carbon::parse($oldestDueDate)->startOfDay()->diffInDays(Carbon::today())
+                ? Carbon::parse($oldestDueDate, $platformFeeTimezone)->startOfDay()->diffInDays($platformFeeToday)
                 : 0;
 
             if ($oldestDueDate && $overdueDays >= $restrictAfterDays) {

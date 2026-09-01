@@ -22,7 +22,8 @@
 </template>
 <script>
 import MiniCalendar from './MiniCalendar.vue';
-function isoToday() { const d = new Date(); const offset = d.getTimezoneOffset(); return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10); }
+import { businessDateString } from '../utils/businessTime.js';
+function isoToday() { return businessDateString(); }
 function formatDisplay(iso) {
   if (!iso) return 'Chọn ngày';
   const d = new Date(iso + 'T00:00:00');

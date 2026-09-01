@@ -352,6 +352,7 @@ import { ownerStaffShiftService } from '../../services/ownerStaffShiftService.js
 import { getAuth, logout } from '../../stores/auth.js';
 import { staffNavigationSections } from '../../config/staffNavigation.js';
 import { canAccessStaffRoute, firstAccessibleStaffRoute } from '../../config/permissionAccess.js';
+import { BUSINESS_TIMEZONE, businessDateString, businessMinutes, businessTimeString } from '../../utils/businessTime.js';
 
 const SELECTED_CLUSTER_KEY = 'selected_cluster';
 const CACHED_CLUSTERS_KEY = 'cached_clusters';
@@ -399,19 +400,14 @@ export default {
       return this.clusters.find((c) => String(c.id) === String(this.selectedClusterId)) || null;
     },
     currentTimeString() {
-      const h = String(this.currentTime.getHours()).padStart(2, '0');
-      const m = String(this.currentTime.getMinutes()).padStart(2, '0');
-      const s = String(this.currentTime.getSeconds()).padStart(2, '0');
-      return `${h}:${m}:${s}`;
+      return businessTimeString(this.currentTime, true);
     },
     currentDateShortString() {
-      const d = String(this.currentTime.getDate()).padStart(2, '0');
-      const m = String(this.currentTime.getMonth() + 1).padStart(2, '0');
-      return `${d}/${m}/${this.currentTime.getFullYear()}`;
+      const [year, month, day] = businessDateString(this.currentTime).split('-');
+      return `${day}/${month}/${year}`;
     },
     currentDateString() {
-      const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-      const dayName = days[this.currentTime.getDay()];
+      const dayName = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', timeZone: BUSINESS_TIMEZONE }).format(this.currentTime);
       return `${dayName}, ${this.currentDateShortString}`;
     },
   },
@@ -490,10 +486,7 @@ export default {
     },
     async loadTodayShift() {
       try {
-        const y = this.currentTime.getFullYear();
-        const m = String(this.currentTime.getMonth() + 1).padStart(2, '0');
-        const d = String(this.currentTime.getDate()).padStart(2, '0');
-        const todayStr = `${y}-${m}-${d}`;
+        const todayStr = businessDateString(this.currentTime);
 
         const res = await ownerStaffShiftService.mySchedules({
           start_date: todayStr,
@@ -505,7 +498,7 @@ export default {
           return;
         }
 
-        const nowMinutes = this.currentTime.getHours() * 60 + this.currentTime.getMinutes();
+        const nowMinutes = businessMinutes(this.currentTime);
 
         // 1. Prioritize any currently checked-in shift that hasn't checked out yet (Active ongoing shift)
         const activeCheckedIn = schedules.find((s) => s.check_in_at && !s.check_out_at);
