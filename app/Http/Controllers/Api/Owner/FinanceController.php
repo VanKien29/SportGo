@@ -157,7 +157,7 @@ class FinanceController extends Controller
     {
         $data = $request->validate([
             'wallet_id' => ['nullable', 'integer'],
-            'status' => ['nullable', Rule::in(['pending', 'reviewing', 'approved', 'rejected', 'completed', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected', 'completed', 'cancelled'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
@@ -311,7 +311,7 @@ class FinanceController extends Controller
 
             $this->expireStalePayoutQr($withdrawal);
 
-            if (! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)) {
+            if (! in_array($withdrawal->status, ['pending', 'approved'], true)) {
                 throw ValidationException::withMessages([
                     'status' => 'Chỉ có thể hủy yêu cầu rút tiền đang chờ chuyển khoản.',
                 ]);
@@ -377,7 +377,7 @@ class FinanceController extends Controller
             ! $withdrawal->payout_transfer_code
             || ! $withdrawal->payout_qr_created_at
             || $withdrawal->payout_qr_created_at->gt(now()->subHours(24))
-            || ! in_array($withdrawal->status, ['pending', 'reviewing', 'approved'], true)
+            || ! in_array($withdrawal->status, ['pending', 'approved'], true)
         ) {
             return;
         }

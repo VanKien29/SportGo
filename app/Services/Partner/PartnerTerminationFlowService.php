@@ -86,11 +86,7 @@ class PartnerTerminationFlowService
     ];
 
     private const PENDING_REFUND_STATUSES = [
-        'pending_confirmation',
-        'processing',
         'pending_owner_confirmation',
-        'owner_confirmed',
-        'admin_processing',
     ];
 
     private const PENDING_WITHDRAWAL_STATUSES = [

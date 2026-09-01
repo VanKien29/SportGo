@@ -1316,29 +1316,38 @@ class DemoDatabaseSeeder extends Seeder
             }
             $refundStatus = match ($index % 5) {
                 0 => 'pending_owner_confirmation',
-                1 => 'owner_confirmed',
-                2 => 'admin_processing',
-                3 => 'completed',
-                default => 'rejected',
+                1, 3 => 'completed',
+                2 => 'completed_cash',
+                default => 'owner_rejected',
             };
             $refundAmount = round($payment['amount'] * 0.8, 2);
             $createdAt = $booking['date']->subDays(1)->setTime(11, 0);
+            $ownerId = $this->venueOwnerId($booking['venue_cluster_id']);
+            $isPending = $refundStatus === 'pending_owner_confirmation';
+            $isCompleted = in_array($refundStatus, ['completed', 'completed_cash'], true);
+            $isCash = $refundStatus === 'completed_cash';
             $refundId = DB::table('refunds')->insertGetId([
                 'payment_id' => $payment['id'],
                 'booking_id' => $booking['id'],
                 'customer_id' => $booking['customer_id'],
                 'amount' => $refundAmount,
-                'refund_destination' => 'user_wallet',
-                'user_wallet_id' => DB::table('user_wallets')->where('user_id', $booking['customer_id'])->value('id'),
+                'refund_destination' => $isCash ? 'cash' : 'user_wallet',
+                'user_wallet_id' => $isCash ? null : DB::table('user_wallets')->where('user_id', $booking['customer_id'])->value('id'),
                 'reason' => 'Hoàn tiền demo theo chính sách.',
                 'status' => $refundStatus,
-                'owner_confirmed_by' => in_array($refundStatus, ['owner_confirmed', 'admin_processing', 'completed'], true) ? $this->venueOwnerId($booking['venue_cluster_id']) : null,
-                'owner_confirmed_at' => in_array($refundStatus, ['owner_confirmed', 'admin_processing', 'completed'], true) ? $createdAt->addHours(2) : null,
-                'processed_by' => in_array($refundStatus, ['admin_processing', 'completed'], true) ? $this->users['finance']['id'] : null,
-                'processed_at' => in_array($refundStatus, ['admin_processing', 'completed'], true) ? $createdAt->addHours(4) : null,
-                'admin_confirmed_by' => $refundStatus === 'completed' ? $this->users['finance']['id'] : null,
-                'admin_confirmed_at' => $refundStatus === 'completed' ? $createdAt->addHours(5) : null,
-                'completed_at' => $refundStatus === 'completed' ? $createdAt->addHours(5) : null,
+                'status_reason' => $refundStatus === 'owner_rejected' ? 'Không đủ điều kiện hoàn theo chính sách đã công bố.' : null,
+                'owner_confirmed_by' => $isPending ? null : $ownerId,
+                'owner_confirmed_at' => $isPending ? null : $createdAt->copy()->addHours(2),
+                'owner_confirm_note' => $isPending ? null : ($refundStatus === 'owner_rejected' ? 'Chủ sân từ chối theo chính sách.' : 'Chủ sân đã chọn hình thức hoàn tiền.'),
+                'processed_by' => null,
+                'processed_at' => null,
+                'admin_confirmed_by' => null,
+                'admin_confirmed_at' => null,
+                'completed_at' => $isCompleted ? $createdAt->copy()->addHours(5) : null,
+                'cash_refunded_by' => $isCash ? $ownerId : null,
+                'cash_refunded_at' => $isCash ? $createdAt->copy()->addHours(5) : null,
+                'cash_refund_note' => $isCash ? 'Chủ sân đã hoàn tiền mặt trực tiếp tại sân.' : null,
+                'gateway_refund_txn_id' => null,
                 'created_at' => $createdAt,
                 'updated_at' => $this->asOf,
             ]);
@@ -1346,17 +1355,24 @@ class DemoDatabaseSeeder extends Seeder
                 'refund_id' => $refundId,
                 'old_status' => null,
                 'new_status' => $refundStatus,
-                'changed_by' => $this->users['finance']['id'],
-                'actor_type' => 'finance',
-                'reason' => 'Demo refund workflow.',
+                'changed_by' => $isPending ? $booking['customer_id'] : $ownerId,
+                'actor_type' => $isPending ? 'user' : 'owner',
+                'reason' => $isPending ? 'Khách gửi yêu cầu hoàn tiền.' : ($isCash ? 'Chủ sân đã hoàn tiền mặt tại sân.' : ($refundStatus === 'owner_rejected' ? 'Chủ sân từ chối hoàn tiền.' : 'Chủ sân đã xác nhận hoàn vào ví SportGo.')),
                 'metadata' => json_encode(['demo' => true], JSON_UNESCAPED_UNICODE),
                 'created_at' => $createdAt,
             ]);
             if ($refundStatus === 'completed') {
                 $ledgerId = $this->walletLedger($booking['customer_id'], 'refund', 'credit', $refundAmount, 'refund', (string) $refundId, $createdAt->addHours(5));
-                DB::table('refunds')->where('id', $refundId)->update(['user_wallet_ledger_id' => $ledgerId]);
+                DB::table('refunds')->where('id', $refundId)->update([
+                    'user_wallet_ledger_id' => $ledgerId,
+                    'gateway_refund_txn_id' => 'USER-WALLET-'.$refundId,
+                ]);
                 DB::table('payments')->where('id', $payment['id'])->update(['status' => 'refunded']);
                 $this->paymentLog($payment['id'], 'refund_completed', 'refunded', $createdAt->addHours(5));
+            } elseif ($refundStatus === 'completed_cash') {
+                DB::table('refunds')->where('id', $refundId)->update(['gateway_refund_txn_id' => 'CASH-'.$refundId]);
+                DB::table('payments')->where('id', $payment['id'])->update(['status' => 'refunded']);
+                $this->paymentLog($payment['id'], 'cash_refund_completed', 'refunded', $createdAt->addHours(5));
             }
         }
 
@@ -1447,7 +1463,7 @@ class DemoDatabaseSeeder extends Seeder
             $status = match ($index) {
                 0, 1, 6, 9 => 'completed',
                 2, 5, 8 => 'pending',
-                3 => 'reviewing',
+                3 => 'pending',
                 4 => 'approved',
                 default => 'rejected',
             };
@@ -1975,6 +1991,24 @@ class DemoDatabaseSeeder extends Seeder
         $badReviews = DB::table('reviews')->join('bookings', 'bookings.id', '=', 'reviews.booking_id')->where('bookings.status', '!=', 'completed')->count();
         if ($badReviews > 0) {
             throw new \RuntimeException('Demo integrity check failed: review attached to non-completed booking.');
+        }
+
+        $allowedRefundStatuses = ['pending_owner_confirmation', 'completed', 'completed_cash', 'owner_rejected'];
+        $badRefunds = DB::table('refunds')->whereNotIn('status', $allowedRefundStatuses)->count();
+        if ($badRefunds > 0) {
+            throw new \RuntimeException('Demo integrity check failed: refunds contain a legacy status.');
+        }
+
+        if (Schema::hasTable('refund_status_histories')) {
+            $badRefundHistories = DB::table('refund_status_histories')
+                ->where(function ($query) use ($allowedRefundStatuses): void {
+                    $query->whereNotNull('old_status')->whereNotIn('old_status', $allowedRefundStatuses);
+                })
+                ->orWhereNotIn('new_status', $allowedRefundStatuses)
+                ->count();
+            if ($badRefundHistories > 0) {
+                throw new \RuntimeException('Demo integrity check failed: refund histories contain a legacy status.');
+            }
         }
 
         $this->command?->line('Demo integrity checks passed.');

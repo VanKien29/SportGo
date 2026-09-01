@@ -42,6 +42,7 @@ class OwnerRefundService
             $oldStatus = $refund->status;
             $oldAmount = (float) $refund->amount;
 
+            $targetStatus = null;
             if (in_array($decision, ['approve', 'approve_cash'], true)) {
                 $policy = $this->refundPolicies->evaluate($refund, true, 'owner', $owner->id);
                 $approvedAmount = $this->policyRefundAmount($refund, $policy);
@@ -53,7 +54,11 @@ class OwnerRefundService
                 }
 
                 $refund->amount = round($approvedAmount, 2);
-                $refund->status = 'owner_confirmed';
+                $targetStatus = $decision === 'approve_cash' ? 'completed_cash' : 'completed';
+                // Keep the row in the owner-confirmation state until the
+                // accounting finalizer applies the selected destination.
+                // The previous intermediate state is intentionally not persisted.
+                $refund->status = $oldStatus;
                 $refund->status_reason = null;
             } else {
                 $refund->status = 'owner_rejected';
@@ -65,7 +70,7 @@ class OwnerRefundService
             $refund->owner_confirm_note = $note;
             $refund->save();
 
-            if (Schema::hasTable('refund_status_histories')) {
+            if ($targetStatus === null && Schema::hasTable('refund_status_histories')) {
                 RefundStatusHistory::query()->create([
                     'refund_id' => $refund->id,
                     'old_status' => $oldStatus,
@@ -83,11 +88,10 @@ class OwnerRefundService
                 ]);
             }
 
-            if (in_array($decision, ['approve', 'approve_cash'], true)) {
-                $targetStatus = $decision === 'approve_cash' ? 'completed_cash' : 'completed';
-
+            if ($targetStatus !== null) {
                 $refund = $this->adminRefunds->updateStatus($refund, $targetStatus, [
                     'actor_id' => $owner->id,
+                    'actor_type' => 'owner',
                     'reason' => $note !== ''
                         ? $note
                         : ($targetStatus === 'completed_cash'
@@ -96,6 +100,25 @@ class OwnerRefundService
                     'source' => $targetStatus === 'completed_cash' ? 'owner_cash_refund' : 'owner_auto_wallet',
                     'gateway_refund_txn_id' => null,
                 ]);
+
+                if (Schema::hasTable('refund_status_histories')) {
+                    RefundStatusHistory::query()->create([
+                        'refund_id' => $refund->id,
+                        'old_status' => $oldStatus,
+                        'new_status' => $refund->status,
+                        'changed_by' => $owner->id,
+                        'actor_type' => 'owner',
+                        'reason' => $note,
+                        'metadata' => [
+                            'decision' => $decision,
+                            'client_amount_ignored' => $amount,
+                            'amount_before' => $oldAmount,
+                            'amount_after' => (float) $refund->amount,
+                            'destination' => $targetStatus === 'completed_cash' ? 'cash' : 'user_wallet',
+                        ],
+                        'created_at' => now(),
+                    ]);
+                }
             }
 
             $this->notifyDecision($refund, $decision);

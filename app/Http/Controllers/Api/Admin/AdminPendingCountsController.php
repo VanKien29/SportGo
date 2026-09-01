@@ -46,9 +46,9 @@ class AdminPendingCountsController extends Controller
         // Tổng venue cluster pending
         $venueClusters = $scaleApprovals + $locationChanges + $infoChanges;
 
-        // Hoàn tiền cần xác nhận
+        // Hoàn tiền đang chờ chủ sân xác nhận (admin chỉ theo dõi)
         $refunds = Refund::query()
-            ->whereIn('status', ['pending_confirmation', 'pending_owner_confirmation'])
+            ->where('status', 'pending_owner_confirmation')
             ->count();
 
         // Rút tiền cần xử lý

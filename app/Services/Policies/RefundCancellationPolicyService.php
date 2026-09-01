@@ -110,7 +110,7 @@ class RefundCancellationPolicyService
                 'allow_cancel' => true,
                 'refund_percent' => 100,
                 'require_owner_confirm' => true,
-                'require_admin_confirm' => true,
+                'require_admin_confirm' => false,
                 'customer_message' => 'Bạn có thể hủy booking và được hoàn 100% số tiền đã thanh toán.',
             ],
             [
@@ -121,7 +121,7 @@ class RefundCancellationPolicyService
                 'allow_cancel' => true,
                 'refund_percent' => 80,
                 'require_owner_confirm' => true,
-                'require_admin_confirm' => true,
+                'require_admin_confirm' => false,
                 'customer_message' => 'Bạn có thể hủy booking và được hoàn 80% số tiền đã thanh toán.',
             ],
             [
@@ -132,7 +132,7 @@ class RefundCancellationPolicyService
                 'allow_cancel' => true,
                 'refund_percent' => 50,
                 'require_owner_confirm' => true,
-                'require_admin_confirm' => true,
+                'require_admin_confirm' => false,
                 'customer_message' => 'Bạn có thể hủy booking và được hoàn 50% số tiền đã thanh toán.',
             ],
             [
@@ -143,7 +143,7 @@ class RefundCancellationPolicyService
                 'allow_cancel' => true,
                 'refund_percent' => 0,
                 'require_owner_confirm' => true,
-                'require_admin_confirm' => true,
+                'require_admin_confirm' => false,
                 'customer_message' => 'Bạn có thể hủy booking nhưng không được hoàn tiền.',
             ],
         ];
@@ -363,12 +363,9 @@ class RefundCancellationPolicyService
                     'to_hours' => $to,
                     'allow_cancel' => $allowCancel,
                     'refund_percent' => $refundPercent,
-                    'require_owner_confirm' => array_key_exists('require_owner_confirm', $input)
-                        ? (bool) $input['require_owner_confirm']
-                        : (bool) ($fallback['require_owner_confirm'] ?? true),
-                    'require_admin_confirm' => array_key_exists('require_admin_confirm', $input)
-                        ? (bool) $input['require_admin_confirm']
-                        : (bool) ($fallback['require_admin_confirm'] ?? true),
+                    'require_owner_confirm' => true,
+                    // Admin monitors the outcome; it is not a confirmation step.
+                    'require_admin_confirm' => false,
                     'customer_message' => trim((string) ($input['customer_message'] ?? $fallback['customer_message'] ?? '')),
                 ];
 
@@ -442,12 +439,6 @@ class RefundCancellationPolicyService
                 $errors["tiers.{$index}.require_owner_confirm"] = "Mốc {$venueTier['label']}: sân không được bỏ bước chủ sân xác nhận hoàn tiền.";
             }
 
-            $requiresAdminConfirm = $overlappingSystemTiers->contains(
-                fn (array $systemTier): bool => (bool) ($systemTier['require_admin_confirm'] ?? false)
-            );
-            if ($requiresAdminConfirm && ! ($venueTier['require_admin_confirm'] ?? false)) {
-                $errors["tiers.{$index}.require_admin_confirm"] = "Mốc {$venueTier['label']}: sân không được bỏ bước admin xác nhận hoàn tất.";
-            }
         }
 
         if ($errors) {
@@ -487,6 +478,8 @@ class RefundCancellationPolicyService
             ...$extra,
             'cancel_refund_tiers' => $normalized,
             'tiers' => $normalized,
+            'requires_owner_confirm' => true,
+            'requires_admin_confirm' => false,
             'summary_vi' => $this->cancelRefundSummary($normalized),
         ];
     }
@@ -672,7 +665,7 @@ class RefundCancellationPolicyService
             'paid_amount' => $paidAmount,
             'refund_amount' => $refundAmount,
             'requires_owner_confirm' => (bool) ($matchedCombinedTier['require_owner_confirm'] ?? $refundRule?->result_json['requires_owner_confirm'] ?? true),
-            'requires_admin_confirm' => (bool) ($matchedCombinedTier['require_admin_confirm'] ?? $refundRule?->result_json['requires_admin_confirm'] ?? true),
+            'requires_admin_confirm' => false,
             'customer_message' => $matchedCombinedTier['customer_message'] ?? null,
             'summary' => $this->evaluationSummary($matchedCombinedTier, $matchedRefundTier, $allowCancel, $refundPercent),
         ];
@@ -813,9 +806,6 @@ class RefundCancellationPolicyService
 
             $blockingStatuses = [
                 'pending_owner_confirmation',
-                'owner_confirmed',
-                'admin_processing',
-                'processing',
                 'completed',
                 'completed_cash',
             ];
@@ -864,9 +854,7 @@ class RefundCancellationPolicyService
                 ]);
             }
 
-            $status = ($result['requires_owner_confirm'] ?? true)
-                ? 'pending_owner_confirmation'
-                : (($result['requires_admin_confirm'] ?? true) ? 'admin_processing' : 'processing');
+            $status = 'pending_owner_confirmation';
             $remaining = $amount;
             $created = [];
             $refundPercent = (float) ($result['refund_percent'] ?? 0);
@@ -1011,9 +999,7 @@ class RefundCancellationPolicyService
                 'end_time' => $remainingEnd,
             ])->save();
 
-            $status = ($policy['requires_owner_confirm'] ?? true)
-                ? 'pending_owner_confirmation'
-                : (($policy['requires_admin_confirm'] ?? true) ? 'admin_processing' : 'processing');
+            $status = 'pending_owner_confirmation';
             $remainingRefund = $refundAmount;
             $created = [];
             $refundPercent = (float) ($policy['refund_percent'] ?? 0);
@@ -1026,7 +1012,7 @@ class RefundCancellationPolicyService
                 $paymentMaximum = round((float) $payment->amount * ($refundPercent / 100) * $refundRatio, 2);
                 $existingAmount = (float) Refund::query()
                     ->where('payment_id', $payment->id)
-                    ->whereNotIn('status', ['failed', 'rejected', 'cancelled'])
+                    ->whereNotIn('status', ['owner_rejected'])
                     ->sum('amount');
                 $amount = min(max($paymentMaximum - $existingAmount, 0), $remainingRefund);
 
@@ -1081,7 +1067,7 @@ class RefundCancellationPolicyService
             'tiers' => $normalized,
             'refund_percent' => $firstTier['refund_percent'] ?? null,
             'requires_owner_confirm' => $extra['requires_owner_confirm'] ?? true,
-            'requires_admin_confirm' => $extra['requires_admin_confirm'] ?? true,
+            'requires_admin_confirm' => false,
             'summary_vi' => $this->summary($normalized),
         ];
     }
@@ -1127,9 +1113,7 @@ class RefundCancellationPolicyService
         }
 
         $created = [];
-        $status = ($result['requires_owner_confirm'] ?? true)
-            ? 'pending_owner_confirmation'
-            : (($result['requires_admin_confirm'] ?? true) ? 'admin_processing' : 'processing');
+        $status = 'pending_owner_confirmation';
 
         $payments = Payment::query()
             ->where('booking_id', $booking->id)
@@ -1407,8 +1391,8 @@ class RefundCancellationPolicyService
                 'allow_cancel' => (bool) $tier['allow_cancel'],
                 'min_allowed_refund_percent' => (float) $tier['refund_percent'],
                 'require_owner_confirm' => (bool) $tier['require_owner_confirm'],
-                'require_admin_confirm' => (bool) $tier['require_admin_confirm'],
-                'summary' => "Trong khoảng {$tier['label']}: chính sách sân không được hoàn thấp hơn {$tier['refund_percent']}% và phải giữ quy tắc cho hủy, xác nhận bắt buộc của hệ thống.",
+                'require_admin_confirm' => false,
+                'summary' => "Trong khoảng {$tier['label']}: chính sách sân không được hoàn thấp hơn {$tier['refund_percent']}%; chủ sân xác nhận, admin chỉ theo dõi.",
             ])
             ->values()
             ->all();

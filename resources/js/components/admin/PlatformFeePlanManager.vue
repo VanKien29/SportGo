@@ -155,4 +155,12 @@ export default {
 .modal-backdrop { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 18px; background: rgba(15, 23, 42, .55); }.modal { width: min(610px, calc(100vw - 28px)); border-radius: 11px; background: #fff; overflow: hidden; }.modal header, .modal footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 20px; }.modal header { border-bottom: 1px solid #e2e8f0; }.modal header h2, .modal header p { margin: 0; }.modal header h2 { font-size: 18px; }.modal header p { margin-top: 5px; color: #64748b; font-size: 12px; }.modal footer { justify-content: flex-end; border-top: 1px solid #e2e8f0; background: #f8fafc; }.close-btn { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 8px; background: #f1f5f9; cursor: pointer; }.modal-body { display: grid; gap: 14px; padding: 20px; }.modal-body.two-columns { grid-template-columns: 1fr 1fr; }.check { display: flex !important; grid-column: 1 / -1; flex-direction: row; align-items: center; }.check input { width: auto; }.check span { color: #334155 !important; }
 .toast { position: fixed; right: 22px; bottom: 22px; z-index: 9500; max-width: 430px; margin: 0; border-radius: 9px; padding: 12px 15px; box-shadow: 0 8px 24px rgba(15, 23, 42, .15); background: #ecfdf5; color: #166534; }.toast.error { background: #fef2f2; color: #991b1b; }
 @media (max-width: 850px) { .detail-head, .tiers-card > header, .sticky-actions { align-items: stretch; flex-direction: column; }.form-section { grid-template-columns: 1fr; }.facts { grid-template-columns: 1fr 1fr; }.discount-box { grid-template-columns: 1fr 1fr; }.schedule-group { display: grid; grid-template-columns: 1fr auto; } } @media (max-width: 560px) { .field-grid, .facts, .modal-body.two-columns, .discount-box { grid-template-columns: 1fr; }.full, .check { grid-column: auto; }.schedule-group { grid-template-columns: 1fr; }.schedule-group .btn, .sticky-actions > .btn { width: 100%; } }
+
+/* Give the detail tabs and forms breathing room inside the bordered shell. */
+.tabs { gap: 8px; padding: 14px 22px; }
+.tabs button { min-height: 40px; padding: 8px 14px; border: 1px solid #dbe3ea; border-radius: 8px; background: #fff; }
+.tabs button.active { border-color: #9ac7aa; background: #eaf5ee; }
+.field-grid, .schedule-group, .discount-box, .modal-body { min-width: 0; }
+input, textarea { min-width: 0; }
+.btn { min-height: 40px; }
 </style>

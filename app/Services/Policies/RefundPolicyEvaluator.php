@@ -309,7 +309,7 @@ class RefundPolicyEvaluator
                     'refund_percent' => $refundPercent,
                     'allow_cancel' => (bool) ($tier['allow_cancel'] ?? true),
                     'requires_owner_confirm' => (bool) ($tier['require_owner_confirm'] ?? $result['requires_owner_confirm'] ?? true),
-                    'requires_admin_review' => (bool) ($tier['require_admin_confirm'] ?? $result['requires_admin_review'] ?? true),
+                    'requires_admin_review' => false,
                     'matched_tier' => $tier,
                     'summary_vi' => $tier['business_sentence'] ?? $result['summary_vi'] ?? null,
                 ],
@@ -342,7 +342,7 @@ class RefundPolicyEvaluator
                     'refund_percent' => (float) ($tier['refund_percent'] ?? 0),
                     'allow_cancel' => (bool) ($tier['allow_cancel'] ?? true),
                     'requires_owner_confirm' => (bool) ($result['requires_owner_confirm'] ?? true),
-                    'requires_admin_review' => (bool) ($result['requires_admin_review'] ?? true),
+                    'requires_admin_review' => false,
                     'matched_tier' => $tier,
                     'summary_vi' => $tier['business_sentence'] ?? $result['summary_vi'] ?? null,
                 ],
@@ -413,7 +413,7 @@ class RefundPolicyEvaluator
             'action_code' => 'booking_config.refund',
             'result' => [
                 'refund_percent' => $refundPercent,
-                'requires_admin_review' => $refundPercent === 0,
+                'requires_admin_review' => false,
             ],
             'policy' => null,
             'rule' => [

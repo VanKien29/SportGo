@@ -126,7 +126,6 @@ class VenuePolicyController extends Controller
             'tiers.*.refund_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'tiers.*.allow_cancel' => ['nullable', 'boolean'],
             'tiers.*.require_owner_confirm' => ['nullable', 'boolean'],
-            'tiers.*.require_admin_confirm' => ['nullable', 'boolean'],
             'tiers.*.customer_message' => ['nullable', 'string', 'max:500'],
             'refund_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'hours_before_start' => ['nullable', 'integer', 'min:1'],
@@ -191,7 +190,7 @@ class VenuePolicyController extends Controller
                 'tiers' => $venueTiers,
                 'refund_percent' => $venueTiers[0]['refund_percent'] ?? null,
                 'requires_owner_confirm' => true,
-                'requires_admin_confirm' => true,
+                'requires_admin_confirm' => false,
                 'summary_vi' => $this->refundPolicies->summary($venueTiers),
             ];
 

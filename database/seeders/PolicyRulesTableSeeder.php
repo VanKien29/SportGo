@@ -83,7 +83,7 @@ class PolicyRulesTableSeeder extends Seeder
                         'refund_basis' => 'paid_amount',
                         'refund_destination' => 'user_wallet',
                         'requires_owner_confirm' => false,
-                        'requires_admin_confirm' => true,
+                        'requires_admin_confirm' => false,
                         'summary_vi' => 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, khách được hoàn 100% vào ví SportGo.',
                     ],
                     'constraint_json' => ['refund_percent' => ['exact' => 100], 'refund_destination' => 'user_wallet'],

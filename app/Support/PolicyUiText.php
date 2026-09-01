@@ -34,8 +34,6 @@ class PolicyUiText
             'pending_review' => 'Chờ duyệt',
             'rejected' => 'Bị từ chối',
             'pending_owner_confirmation' => 'Chờ chủ sân xác nhận',
-            'owner_confirmed' => 'Chủ sân đã xác nhận',
-            'admin_processing' => 'Admin đang xử lý',
             'completed' => 'Hoàn tất',
             'owner_rejected' => 'Chủ sân từ chối',
             'pending_owner_signature' => 'Chờ chủ sân ký',
@@ -55,7 +53,6 @@ class PolicyUiText
             self::action('refund', 'Hoàn tiền', 'refund.owner_fault_100', 'Hoàn 100% do lỗi phía sân', 'Áp dụng khi chủ sân hủy, khóa sân hoặc bảo trì làm ảnh hưởng booking đã thanh toán.', ['booking_cancellation', 'refund']),
             self::action('refund', 'Hoàn tiền', 'refund.request', 'Khách gửi yêu cầu hoàn tiền', 'Áp dụng khi khách gửi yêu cầu hoàn tiền.', ['booking_cancellation', 'refund']),
             self::action('refund', 'Hoàn tiền', 'refund.owner_confirm', 'Chủ sân xác nhận yêu cầu hoàn tiền', 'Áp dụng khi chủ sân đồng ý hoặc từ chối yêu cầu hoàn.', ['booking_cancellation', 'refund']),
-            self::action('refund', 'Hoàn tiền', 'refund.admin_complete', 'Admin xác nhận hoàn tất hoàn tiền', 'Áp dụng khi admin xác nhận giao dịch hoàn tiền đã hoàn tất.', ['booking_cancellation', 'refund']),
             self::action('venue', 'Phí nền tảng', 'venue.platform_fee_due', 'Sắp đến hạn hoặc quá hạn phí nền tảng', 'Áp dụng khi hệ thống kiểm tra kỳ phí nền tảng của cụm sân.', ['platform_fee']),
             self::action('venue', 'Phí nền tảng', 'venue.lock_due_fee', 'Khóa/giới hạn cụm sân do quá hạn phí nền tảng', 'Áp dụng khi cụm sân quá hạn phí duy trì.', ['platform_fee']),
             self::action('owner', 'Phí nền tảng', 'owner.access_limited_due_fee', 'Giới hạn quyền chủ sân do quá hạn phí', 'Áp dụng khi owner chỉ được thao tác trong phạm vi cho phép.', ['platform_fee']),
@@ -109,7 +106,7 @@ class PolicyUiText
                 'Tính mức hoàn tiền theo số giờ khách hủy trước giờ chơi.',
                 'refund.request',
                 ['uses_tier_table' => true],
-                ['tiers' => self::defaultRefundTiers(), 'refund_percent' => 100, 'requires_owner_confirm' => true, 'requires_admin_confirm' => true],
+                ['tiers' => self::defaultRefundTiers(), 'refund_percent' => 100, 'requires_owner_confirm' => true, 'requires_admin_confirm' => false],
                 'refund_percent',
                 'refund_percent_minimum',
                 true,
@@ -122,26 +119,12 @@ class PolicyUiText
                 'Khi chủ sân hủy, khóa sân hoặc bảo trì làm ảnh hưởng booking đã thanh toán, hệ thống hoàn 100% vào ví SportGo của khách.',
                 'refund.owner_fault_100',
                 ['owner_fault_refund' => true],
-                ['refund_percent' => 100, 'refund_basis' => 'paid_amount', 'refund_destination' => 'user_wallet', 'requires_owner_confirm' => false, 'requires_admin_confirm' => true],
+                ['refund_percent' => 100, 'refund_basis' => 'paid_amount', 'refund_destination' => 'user_wallet', 'requires_owner_confirm' => false, 'requires_admin_confirm' => false],
                 'refund_percent',
                 'owner_fault_refund',
                 false,
                 'critical',
-                ['refund.owner_fault_100', 'refund.admin_complete']
-            ),
-            'owner_confirm_required_before_admin_transfer' => self::template(
-                'refund',
-                'owner_confirm_required_before_admin_transfer',
-                'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
-                'Admin không được hoàn tất yêu cầu hoàn tiền nếu chủ sân chưa xác nhận.',
-                'refund.owner_confirm',
-                ['refund_requested' => true],
-                ['owner_confirm_required' => true, 'admin_can_complete_without_owner' => false],
-                'owner_confirm_required',
-                'refund_owner_confirm',
-                false,
-                'critical',
-                ['refund.owner_confirm', 'refund.admin_complete']
+                ['refund.owner_fault_100']
             ),
             'platform_fee_overdue_warning' => self::template(
                 'platform_fee',
@@ -375,7 +358,6 @@ class PolicyUiText
                     )
             ),
             'owner_fault_full_refund' => 'Nếu booking bị ảnh hưởng do chủ sân hủy, khóa sân hoặc bảo trì, hệ thống hoàn 100% phần đã thanh toán vào ví SportGo của khách.',
-            'owner_confirm_required_before_admin_transfer' => 'Nếu yêu cầu hoàn tiền chưa được chủ sân xác nhận, admin không được chuyển tiền và không được chuyển yêu cầu sang hoàn tất.',
             'platform_fee_overdue_warning' => 'Khi phí nền tảng sắp đến hạn hoặc đã quá hạn, hệ thống gửi nhắc nhở cho chủ sân.',
             'platform_fee_overdue_lock' => sprintf(
                 'Nếu cụm sân quá hạn phí nền tảng %s ngày, hệ thống chuyển cụm sân sang trạng thái bị giới hạn quyền.',
@@ -439,7 +421,6 @@ class PolicyUiText
                 ? self::refundTierSummary($result['tiers'])
                 : 'Đề xuất hoàn ' . self::scalar($result['refund_percent'] ?? '?') . '% số tiền đã thanh toán.',
             'owner_fault_full_refund' => 'Hoàn 100% vào ví SportGo của khách, không áp dụng mốc hủy do khách.',
-            'owner_confirm_required_before_admin_transfer' => 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tất.',
             'platform_fee_overdue_warning' => 'Gửi thông báo nhắc phí cho chủ sân.',
             'platform_fee_overdue_lock' => 'Giới hạn quyền owner: chỉ được đóng phí, xem ví/rút tiền nếu được phép, xem hồ sơ/hợp đồng.',
             'venue_policy_override_limit' => 'Chính sách sân hợp lệ được duyệt; nếu vi phạm thì bị từ chối.',
@@ -520,7 +501,7 @@ class PolicyUiText
         ?array $actionCodes = null
     ): array {
         $policyTypes = [$policyType];
-        if (in_array($ruleType, ['refund_percent_by_cancel_time', 'owner_confirm_required_before_admin_transfer', 'owner_fault_full_refund'], true)) {
+        if (in_array($ruleType, ['refund_percent_by_cancel_time', 'owner_fault_full_refund'], true)) {
             $policyTypes = array_values(array_unique([...$policyTypes, 'booking_cancellation', 'refund']));
         }
 

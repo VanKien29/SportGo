@@ -922,4 +922,14 @@ th {
     flex-direction: column;
     gap: 16px;
 }
+.profile-section-card.ledger-detail-main-content {
+    padding: 16px;
+}
+.ledger-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.btn {
+    min-height: 40px;
+}
 </style>

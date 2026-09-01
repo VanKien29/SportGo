@@ -41,8 +41,8 @@ class UserWithdrawalPaymentService
                 return $withdrawal->fresh(['user', 'wallet', 'payoutAccount', 'approvedBy', 'paidBy', 'receipt']);
             }
 
-            if (! in_array($withdrawal->status, ['pending', 'approved'], true)) {
-                throw new RuntimeException('Chỉ được chi trả yêu cầu rút tiền đang chờ xác nhận.');
+            if ($withdrawal->status !== 'approved') {
+                throw new RuntimeException('Chỉ được chi trả yêu cầu rút tiền đã được admin duyệt.');
             }
 
             if ($method === 'bank_transfer') {

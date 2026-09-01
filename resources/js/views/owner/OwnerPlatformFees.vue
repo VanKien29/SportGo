@@ -1084,6 +1084,9 @@ export default {
   border-radius: 0;
   box-shadow: none;
 }
+.profile-section-card.fee-main-content {
+  padding: 16px;
+}
 
 .fee-page {
   display: flex;

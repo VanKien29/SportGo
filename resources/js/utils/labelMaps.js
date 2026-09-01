@@ -64,8 +64,6 @@ export const STATUS_LABELS = {
   pending_review: 'Chờ duyệt',
   rejected: 'Bị từ chối',
   pending_owner_confirmation: 'Chờ chủ sân xác nhận',
-  owner_confirmed: 'Chủ sân đã xác nhận',
-  admin_processing: 'Admin đang xử lý',
   completed: 'Hoàn tất',
   owner_rejected: 'Chủ sân từ chối',
   pending_owner_signature: 'Chờ chủ sân ký',
@@ -85,8 +83,6 @@ export const STATUS_BADGE_CLASS = {
   pending_review: 'status-pending',
   rejected: 'status-rejected',
   pending_owner_confirmation: 'status-pending',
-  owner_confirmed: 'status-active',
-  admin_processing: 'status-pending',
   completed: 'status-active',
   owner_rejected: 'status-rejected',
   pending_owner_signature: 'status-pending',
@@ -105,7 +101,6 @@ export const ACTION_LABELS = {
   'partner_termination.approve': 'Admin duyệt yêu cầu chấm dứt hợp tác',
   'refund.request': 'Khách gửi yêu cầu hoàn tiền',
   'refund.owner_confirm': 'Chủ sân xác nhận yêu cầu hoàn tiền',
-  'refund.admin_complete': 'Admin xác nhận hoàn tất hoàn tiền',
   'booking.cancel_by_customer': 'Khách hủy booking',
   'booking.cancel_by_owner': 'Chủ sân hủy booking',
   'booking.expire_unpaid': 'Hệ thống hủy booking do quá hạn thanh toán',
@@ -123,7 +118,6 @@ export const RULE_TYPE_LABELS = {
   terms_acceptance_required: 'Bắt buộc chấp nhận điều khoản trước khi sử dụng',
   cancel_before_hours: 'Quy định mốc thời gian được hủy booking',
   refund_percent_by_cancel_time: 'Tính phần trăm hoàn tiền theo thời gian hủy',
-  owner_confirm_required_before_admin_transfer: 'Bắt buộc chủ sân xác nhận trước khi admin hoàn tiền',
   platform_fee_overdue_warning: 'Nhắc chủ sân khi sắp/quá hạn phí nền tảng',
   platform_fee_overdue_lock: 'Giới hạn hoặc khóa cụm sân khi quá hạn phí nền tảng',
   venue_policy_override_limit: 'Giới hạn chính sách riêng của sân theo khung hệ thống',
@@ -290,10 +284,6 @@ export function getRuleSummary(rule) {
 
   if (rule.rule_type === 'refund_percent_by_cancel_time') {
     return `Nếu khách hủy booking trước giờ chơi ít nhất ${hours} giờ, hệ thống đề xuất hoàn tối thiểu ${result.refund_percent ?? '?'}% số tiền đã thanh toán.`;
-  }
-
-  if (rule.rule_type === 'owner_confirm_required_before_admin_transfer') {
-    return 'Nếu yêu cầu hoàn tiền chưa được chủ sân xác nhận, admin không được chuyển tiền và không được chuyển yêu cầu sang hoàn tất.';
   }
 
   if (rule.rule_type === 'platform_fee_overdue_lock') {

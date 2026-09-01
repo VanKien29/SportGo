@@ -175,4 +175,15 @@ export default {
 @media (max-width: 820px) { .version-page-head { align-items: stretch; flex-direction: column; }.version-page-head .btn { width: 100%; }.summary-grid { grid-template-columns: 1fr 1fr; }.filters { display: grid; grid-template-columns: 1fr 1fr; }.search-field { grid-column: 1 / -1; } }
 @media (max-width: 520px) { .fee-page { padding: 4px; }.summary-grid, .filters { grid-template-columns: 1fr; }.search-field { grid-column: auto; }.pagination { align-items: stretch; flex-direction: column; gap: 10px; }.pagination div .btn { flex: 1; } }
 @container (max-width: 480px) { tr { grid-template-columns: 1fr; } td, td.actions-cell { grid-column: 1; grid-template-columns: 104px minmax(0, 1fr); } td.identity-cell { grid-column: 1; } }
+
+/* Keep filter controls away from the card edge and reserve a real icon gutter. */
+.list-card > .filters { box-sizing: border-box; gap: 12px; padding: 16px; }
+.filters > * { min-width: 0; }
+.search-field { position: relative; min-width: 0; }
+.search-field > .app-icon { position: absolute; inset-inline-start: 13px; top: 50%; z-index: 1; color: #64748b; pointer-events: none; transform: translateY(-50%); }
+.search-field > input { min-width: 0; padding: 9px 12px 9px 44px; }
+.filters > .btn, .filters > select { min-height: 40px; }
+.search-field { display: block !important; padding: 0 !important; }
+.search-field > .app-icon { position: absolute !important; inset-inline-start: 13px !important; top: 50% !important; transform: translateY(-50%) !important; }
+.search-field > input { box-sizing: border-box; min-height: 40px !important; padding: 9px 12px 9px 44px !important; }
 </style>

@@ -1575,4 +1575,45 @@ label {
     flex-direction: column;
     gap: 16px;
 }
+.profile-section-card.ledgers-main-content {
+    padding: 16px;
+}
+:deep(.filter-controls.filter-grid) {
+    gap: 12px;
+}
+:deep(.search-box) {
+    position: relative;
+    min-width: 0;
+}
+:deep(.search-box > .app-icon) {
+    position: absolute;
+    inset-inline-start: 13px;
+    top: 50%;
+    z-index: 1;
+    color: #64748b;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+:deep(.search-box > input) {
+    min-width: 0;
+    padding: 10px 12px 10px 44px;
+}
+:deep(.search-box) {
+    display: block !important;
+    position: relative !important;
+    padding: 0 !important;
+}
+:deep(.search-box > .app-icon) {
+    position: absolute !important;
+    inset-inline-start: 13px !important;
+    top: 50% !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    transform: translateY(-50%) !important;
+}
+:deep(.search-box > input) {
+    box-sizing: border-box;
+    min-height: 40px !important;
+    padding: 10px 12px 10px 44px !important;
+}
 </style>

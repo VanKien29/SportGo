@@ -200,7 +200,6 @@
                 </td>
                 <td class="confirm-cell">
                   <label class="check"><input v-model="tier.require_owner_confirm" type="checkbox" :disabled="tier.system_require_owner_confirm" /> Chủ sân</label>
-                  <label class="check"><input v-model="tier.require_admin_confirm" type="checkbox" :disabled="tier.system_require_admin_confirm" /> Admin</label>
                 </td>
                 <td>
                   <textarea v-model.trim="tier.customer_message" rows="2" maxlength="500" />
@@ -460,7 +459,6 @@ export default {
           0,
         ),
         requireOwnerConfirm: overlappingTiers.some((systemTier) => Boolean(systemTier.require_owner_confirm)),
-        requireAdminConfirm: overlappingTiers.some((systemTier) => Boolean(systemTier.require_admin_confirm)),
       };
     },
     systemRequirementSummary(tier) {
@@ -473,7 +471,6 @@ export default {
       }
       const confirmations = [];
       if (requirements.requireOwnerConfirm) confirmations.push('chủ sân xác nhận');
-      if (requirements.requireAdminConfirm) confirmations.push('admin hoàn tất');
       const confirmationText = confirmations.length ? ` · Bắt buộc ${confirmations.join(', ')}` : '';
       return `${requirements.allowCancel ? 'Cho hủy' : 'Không cho hủy'} · Hoàn tối thiểu ${requirements.minimumRefundPercent}%${confirmationText}`;
     },
@@ -514,7 +511,6 @@ export default {
         allow_cancel: tier.allow_cancel !== false,
         refund_percent: Number(tier.refund_percent || 0),
         require_owner_confirm: tier.require_owner_confirm !== false,
-        require_admin_confirm: tier.require_admin_confirm !== false,
         customer_message: tier.customer_message || '',
       };
     },
@@ -570,7 +566,6 @@ export default {
         tier.refund_percent = requirements.minimumRefundPercent;
       }
       if (requirements.requireOwnerConfirm) tier.require_owner_confirm = true;
-      if (requirements.requireAdminConfirm) tier.require_admin_confirm = true;
     },
     validateCancelRefund() {
       const tiers = this.sortedCancelRefundDraft;
@@ -621,9 +616,6 @@ export default {
         if (requirements.requireOwnerConfirm && !current.tier.require_owner_confirm) {
           return `${label}: không được bỏ bước chủ sân xác nhận hoàn tiền.`;
         }
-        if (requirements.requireAdminConfirm && !current.tier.require_admin_confirm) {
-          return `${label}: không được bỏ bước admin xác nhận hoàn tất.`;
-        }
       }
       return '';
     },
@@ -645,7 +637,6 @@ export default {
             allow_cancel: Boolean(tier.allow_cancel),
             refund_percent: Number(tier.refund_percent || 0),
             require_owner_confirm: Boolean(tier.require_owner_confirm),
-            require_admin_confirm: Boolean(tier.require_admin_confirm),
             customer_message: tier.customer_message || '',
           })),
           status: this.cancelRefundForm.status,

@@ -603,7 +603,7 @@
                                     <ActionIconButton
                                         v-if="withdrawal.allowed_statuses.length"
                                         icon="settings"
-                                        label="Từ chối / Xử lý yêu cầu"
+                                        label="Xử lý yêu cầu"
                                         @click="openAction(withdrawal)"
                                     />
                                 </TableActionGroup>
@@ -642,7 +642,7 @@
             <form class="action-modal" @submit.prevent="submitAction">
                 <header>
                     <h3>
-                        Từ chối
+                        Xử lý
                         {{ tab === "refunds" ? "hoàn tiền" : "rút tiền" }}
                     </h3>
                     <button
@@ -654,7 +654,7 @@
                     </button>
                 </header>
                 <label
-                    >Trạng thái tiếp theo<select
+                    >Trạng thái mới<select
                         v-model="actionForm.status"
                         required
                     >
@@ -701,7 +701,7 @@
                         type="submit"
                         :disabled="saving"
                     >
-                        {{ saving ? "Đang lưu..." : "Xác nhận từ chối" }}
+                        {{ saving ? "Đang lưu..." : "Xác nhận" }}
                     </button>
                 </footer>
             </form>
@@ -770,9 +770,7 @@
                         <strong>{{
                             refundDetail.status === "owner_rejected"
                                 ? "Lý do từ chối"
-                                : refundDetail.status === "cancelled"
-                                  ? "Lý do hủy"
-                                  : "Ghi chú xử lý"
+                                : "Ghi chú xử lý"
                         }}</strong>
                         <p>
                             {{
@@ -1070,20 +1068,22 @@ export default {
                     "owner_rejected",
                     "completed",
                     "completed_cash",
-                    "failed",
-                    "rejected",
-                    "cancelled",
                 ];
             }
 
             return this.withdrawalScope === "user"
                 ? ["pending", "approved", "rejected", "paid", "cancelled"]
-                : ["pending", "rejected", "completed", "cancelled"];
+                : [
+                      "pending",
+                      "approved",
+                      "rejected",
+                      "completed",
+                      "cancelled",
+                  ];
         },
         pendingSummary() {
             return this.tab === "refunds"
-                ? Number(this.summary.pending_confirmation || 0) +
-                      Number(this.summary.processing || 0)
+                ? Number(this.summary.pending_owner_confirmation || 0)
                 : Number(this.summary.pending || 0) +
                       Number(this.summary.approved || 0);
         },
@@ -1525,7 +1525,7 @@ export default {
             }
 
             return (
-                ["pending", "reviewing", "approved"].includes(item.status) &&
+                ["approved"].includes(item.status) &&
                 item.bank_account?.status === "active" &&
                 Boolean(item.bank_account?.account_number)
             );
@@ -1553,19 +1553,7 @@ export default {
             return Boolean(refund.refund_destination?.account_number);
         },
         isRefundWaitingTransfer(refund) {
-            if (
-                ["user_wallet", "cash"].includes(
-                    refund.refund_destination?.type,
-                )
-            ) {
-                return false;
-            }
-            return [
-                "pending_confirmation",
-                "owner_confirmed",
-                "admin_processing",
-                "processing",
-            ].includes(refund.status);
+            return false;
         },
         blankFilters() {
             return {
@@ -1583,7 +1571,7 @@ export default {
                 total: 0,
                 completed: 0,
                 requested_amount: 0,
-                pending_confirmation: 0,
+                pending_owner_confirmation: 0,
                 processing: 0,
                 pending: 0,
                 approved: 0,
@@ -1691,59 +1679,44 @@ export default {
             return `${year}-${month}-${day}`;
         },
         actionLabel(value) {
-            return { rejected: "Từ chối" }[value] || value;
+            return (
+                {
+                    approved: "Duyệt yêu cầu",
+                    rejected: "Từ chối yêu cầu",
+                    completed: "Xác nhận đã chuyển tiền",
+                }[value] || value
+            );
         },
         statusLabel(value, scope = this.tab) {
             if (scope === "refunds") {
                 return (
                     {
-                        pending_confirmation: "Trạng thái cũ",
                         pending_owner_confirmation: "Chờ chủ sân",
-                        owner_confirmed: "Đã xác nhận",
                         owner_rejected: "Chủ sân từ chối",
-                        admin_processing: "Trạng thái cũ",
-                        processing: "Đang xử lý",
                         completed: "Đã hoàn ví",
                         completed_cash: "Đã hoàn tiền mặt",
-                        failed: "Hoàn thất bại",
-                        rejected: "Từ chối",
-                        cancelled: "Đã hủy",
                     }[value] || value
                 );
             }
 
             return (
                 {
-                    pending_confirmation: "Chờ xác nhận",
-                    pending_owner_confirmation: "Chờ chủ sân",
-                    owner_confirmed: "Chờ xác nhận",
                     owner_rejected: "Chủ sân từ chối",
-                    admin_processing: "Chờ xác nhận",
-                    processing: "Chờ xác nhận",
-                    completed: "Hoàn tất",
+                    completed: "Đã chuyển tiền",
                     paid: "Đã chi trả",
-                    completed_cash: "Hoàn tiền mặt",
-                    failed: "Thất bại",
-                    rejected: "Từ chối",
-                    pending: "Chờ xác nhận",
-                    reviewing: "Chờ xác nhận",
-                    approved: "Chờ xác nhận",
+                    pending:
+                        this.withdrawalScope === "user"
+                            ? "Chờ duyệt"
+                            : "Chờ admin kiểm tra",
+                    approved: "Đã duyệt - chờ chi trả",
                     cancelled: "Đã hủy",
                 }[value] || value
             );
         },
         refundStatusClass(refund) {
-            if (this.isRefundPolicyBlocked(refund)) {
-                return "policy_blocked";
-            }
-
             return refund.status;
         },
         refundStatusLabel(refund) {
-            if (this.isRefundPolicyBlocked(refund)) {
-                return "Không hoàn";
-            }
-
             return this.statusLabel(refund.status, "refunds");
         },
         refundStatusNote(refund) {
@@ -1770,18 +1743,12 @@ export default {
                 return refund.wallet_refund_blocked_reason;
             }
 
-            if (
-                [
-                    "pending_confirmation",
-                    "owner_confirmed",
-                    "admin_processing",
-                ].includes(refund.status)
-            ) {
-                return "Dữ liệu thuộc luồng cũ, admin chỉ theo dõi lịch sử.";
+            if (refund.status === "pending_owner_confirmation") {
+                return "Đang chờ chủ sân xác nhận; admin chỉ theo dõi.";
             }
 
-            if (refund.status === "processing") {
-                return "Đang xử lý theo dữ liệu cũ.";
+            if (refund.status === "owner_rejected") {
+                return refund.status_reason || "Chủ sân đã từ chối hoàn tiền.";
             }
 
             return (
@@ -1807,7 +1774,7 @@ export default {
         ownerDecisionClass(refund) {
             return {
                 approved: "completed",
-                rejected: "rejected",
+                rejected: "owner_rejected",
                 pending: "pending",
             }[refund.owner_confirmation?.decision || "pending"];
         },
@@ -2090,15 +2057,8 @@ th {
     text-transform: uppercase;
 }
 .status-pill.pending,
-.status-pill.pending_confirmation,
 .status-pill.pending_owner_confirmation,
-.status-pill.reviewing {
-    background: var(--admin-warning-soft);
-    color: var(--admin-warning);
-}
 .status-pill.processing,
-.status-pill.admin_processing,
-.status-pill.owner_confirmed,
 .status-pill.approved {
     background: var(--admin-blue-soft);
     color: var(--admin-blue);

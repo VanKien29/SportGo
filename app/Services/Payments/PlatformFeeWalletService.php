@@ -63,13 +63,7 @@ class PlatformFeeWalletService
 
         $pendingRefundLiability = (float) Refund::query()
             ->whereHas('booking', fn ($query) => $query->where('venue_cluster_id', $wallet->venue_cluster_id))
-            ->whereIn('status', [
-                'pending_confirmation',
-                'processing',
-                'pending_owner_confirmation',
-                'owner_confirmed',
-                'admin_processing',
-            ])
+            ->where('status', 'pending_owner_confirmation')
             ->when($futureBookingIds->isNotEmpty(), fn ($query) => $query->whereNotIn('booking_id', $futureBookingIds))
             ->sum('amount');
 

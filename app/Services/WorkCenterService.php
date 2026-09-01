@@ -274,7 +274,7 @@ class WorkCenterService
         if (Schema::hasTable('refunds')) {
             $items = $items->concat(Refund::query()
                 ->with(['booking:id,booking_code,venue_cluster_id', 'booking.venueCluster:id,name'])
-                ->whereIn('status', ['pending_confirmation', 'processing'])
+                ->where('status', 'pending_owner_confirmation')
                 ->latest()
                 ->limit(8)
                 ->get()
@@ -282,8 +282,8 @@ class WorkCenterService
                     id: 'admin-refund-' . $refund->id,
                     category: 'finance',
                     priority: 'high',
-                    title: 'Xử lý hoàn tiền ' . ($refund->booking?->booking_code ?: '#' . $refund->id),
-                    description: ($refund->booking?->venueCluster?->name ?: 'Booking') . ' · kiểm tra mức hoàn theo chính sách trước khi chuyển tiền.',
+                    title: 'Theo dõi hoàn tiền ' . ($refund->booking?->booking_code ?: '#' . $refund->id),
+                    description: ($refund->booking?->venueCluster?->name ?: 'Booking') . ' · chờ chủ sân xác nhận, admin chỉ theo dõi.',
                     actionLabel: 'Mở yêu cầu hoàn tiền',
                     target: '/admin/finance-operations?tab=refunds&focus=' . $refund->id,
                     createdAt: $refund->created_at,

@@ -44,7 +44,7 @@ class WalletController extends Controller
         $legacyPendingAmount = (float) OwnerWithdrawalRequest::query()
             ->where('owner_id', $request->user()->id)
             ->where('owner_wallet_id', $wallet->id)
-            ->whereIn('status', ['pending', 'reviewing', 'approved'])
+            ->whereIn('status', ['pending', 'approved'])
             ->whereNotExists(function ($query): void {
                 $query
                     ->selectRaw('1')

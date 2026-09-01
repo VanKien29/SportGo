@@ -791,7 +791,8 @@ export default {
         withdrawalStatus(status) {
             return (
                 {
-                    pending: "Chờ chuyển khoản",
+                    pending: "Chờ admin kiểm tra",
+                    approved: "Đã duyệt - chờ chuyển khoản",
                     completed: "Đã chuyển",
                     rejected: "Từ chối",
                     cancelled: "Đã hủy",
@@ -1061,7 +1062,6 @@ export default {
 }
 
 .status-pill.pending,
-.status-pill.reviewing,
 .status-pill.hold {
     background: #fff4d6;
     color: #8a4b08;

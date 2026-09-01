@@ -17469,3 +17469,228 @@ span.required,
         width: 100% !important;
     }
 }
+
+/* Last-mile exceptions for platform-fee filters. Keep these after generic admin rules. */
+.sg-shell-admin .content-area .fee-page .list-card > .filters,
+.sg-shell-admin .content-area .arrangement-page .list-card > .filters,
+.sg-shell-admin .content-area .promotion-page .list-card > .filters {
+    display: grid !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--admin-border) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .fee-page .list-card > .filters {
+    grid-template-columns: minmax(280px, 1fr) 190px auto auto !important;
+}
+
+.sg-shell-admin .content-area .arrangement-page .list-card > .filters {
+    grid-template-columns: minmax(240px, 1fr) 190px minmax(220px, 1fr) auto !important;
+}
+
+.sg-shell-admin .content-area .promotion-page .list-card > .filters {
+    grid-template-columns: minmax(240px, 1fr) 200px auto !important;
+}
+
+.sg-shell-admin .content-area .fee-page .search-field,
+.sg-shell-admin .content-area .arrangement-page .search,
+.sg-shell-admin .content-area .promotion-page .search {
+    position: relative !important;
+    min-width: 0 !important;
+}
+
+.sg-shell-admin .content-area .fee-page .search-field {
+    display: block !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border: 1px solid var(--admin-border) !important;
+    border-radius: var(--admin-radius) !important;
+    background: var(--admin-surface) !important;
+}
+
+.sg-shell-admin .content-area .fee-page .search-field > .app-icon,
+.sg-shell-admin .content-area .arrangement-page .search > .app-icon,
+.sg-shell-admin .content-area .promotion-page .search > .app-icon {
+    position: absolute !important;
+    inset-inline-start: 13px !important;
+    top: 50% !important;
+    z-index: 1 !important;
+    flex: none !important;
+    color: var(--admin-muted) !important;
+    pointer-events: none !important;
+    transform: translateY(-50%) !important;
+}
+
+.sg-shell-admin .content-area .fee-page .search-field > input {
+    min-height: 40px !important;
+    padding: 9px 12px 9px 44px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .arrangement-page .search > input,
+.sg-shell-admin .content-area .promotion-page .search > input {
+    min-width: 0 !important;
+    padding: 9px 12px 9px 44px !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content > .admin-filter-panel {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .filter-controls.filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .search-box {
+    display: block !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .search-box > .app-icon {
+    position: absolute !important;
+    inset-inline-start: 13px !important;
+    top: 50% !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    transform: translateY(-50%) !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .search-box > input {
+    min-height: 40px !important;
+    padding: 10px 12px 10px 44px !important;
+}
+
+.sg-shell-admin .content-area .policies-main-content {
+    padding: 16px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.sg-shell-admin .content-area .policies-main-content .policy-filter-panel {
+    grid-template-columns: minmax(280px, 2fr) repeat(2, minmax(190px, 1fr)) auto !important;
+    gap: 12px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+    .sg-shell-admin .content-area .fee-page .list-card > .filters,
+    .sg-shell-admin .content-area .arrangement-page .list-card > .filters,
+    .sg-shell-admin .content-area .promotion-page .list-card > .filters,
+    .sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .filter-controls.filter-grid,
+    .sg-shell-admin .content-area .policies-main-content .policy-filter-panel {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .sg-shell-admin .content-area .fee-page .search-field,
+    .sg-shell-admin .content-area .arrangement-page .search,
+    .sg-shell-admin .content-area .promotion-page .search,
+    .sg-shell-admin .content-area .policies-main-content .policy-search-box {
+        grid-column: 1 / -1 !important;
+    }
+}
+
+@media (max-width: 620px) {
+    .sg-shell-admin .content-area .fee-page .list-card > .filters,
+    .sg-shell-admin .content-area .arrangement-page .list-card > .filters,
+    .sg-shell-admin .content-area .promotion-page .list-card > .filters,
+    .sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .filter-controls.filter-grid,
+    .sg-shell-admin .content-area .policies-main-content .policy-filter-panel {
+        grid-template-columns: 1fr !important;
+        padding: 14px !important;
+    }
+
+    .sg-shell-admin .content-area .fee-page .search-field,
+    .sg-shell-admin .content-area .arrangement-page .search,
+    .sg-shell-admin .content-area .promotion-page .search,
+    .sg-shell-admin .content-area .policies-main-content .policy-search-box {
+        grid-column: auto !important;
+    }
+}
+
+/* Highest-specificity fixes for the two search inputs still affected by legacy rules. */
+.sg-shell-admin .content-area .fee-page .list-card > .filters > .search-field {
+    display: block !important;
+    position: relative !important;
+    padding: 0 !important;
+}
+
+.sg-shell-admin .content-area .fee-page .list-card > .filters > .search-field > .app-icon {
+    position: absolute !important;
+    inset-inline-start: 13px !important;
+    top: 50% !important;
+    z-index: 2 !important;
+    pointer-events: none !important;
+    transform: translateY(-50%) !important;
+}
+
+.sg-shell-admin .content-area .fee-page .list-card > .filters > .search-field > input {
+    box-sizing: border-box !important;
+    min-height: 40px !important;
+    padding: 9px 12px 9px 44px !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .filter-controls.filter-grid > .search-box {
+    display: block !important;
+    position: relative !important;
+    padding: 0 !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .filter-controls.filter-grid > .search-box > .app-icon {
+    position: absolute !important;
+    inset-inline-start: 13px !important;
+    top: 50% !important;
+    z-index: 2 !important;
+    pointer-events: none !important;
+    transform: translateY(-50%) !important;
+}
+
+.sg-shell-admin .content-area .ledgers-main-content .admin-filter-panel .filter-controls.filter-grid > .search-box > input {
+    box-sizing: border-box !important;
+    min-height: 40px !important;
+    padding: 10px 12px 10px 44px !important;
+}
+
+/* The ledger filter is nested under .ledger-page, so remove the correct outer panel. */
+.sg-shell-admin .content-area .ledgers-main-content .ledger-page > .admin-filter-panel {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Venue combobox: the shell owns the border; its text input must stay borderless. */
+.sg-shell-admin .content-area .venue-combobox .input-shell > input {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    min-height: 40px !important;
+    height: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+}

@@ -140,13 +140,13 @@ class OwnerRefundWithdrawalRequestTest extends TestCase
                 'note' => 'Đồng ý hoàn 50% theo chính sách.',
             ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'owner_confirmed')
+            ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.amount', '50000.00');
 
         $this->assertDatabaseHas('refund_status_histories', [
             'refund_id' => $refund->id,
             'old_status' => 'pending_owner_confirmation',
-            'new_status' => 'owner_confirmed',
+            'new_status' => 'completed',
             'changed_by' => $this->owner->id,
             'actor_type' => 'owner',
         ]);
@@ -159,11 +159,6 @@ class OwnerRefundWithdrawalRequestTest extends TestCase
         $this->assertDatabaseHas('notifications', [
             'user_id' => $this->customer->id,
             'type' => 'refund_owner_approved',
-            'reference_id' => $refund->id,
-        ]);
-        $this->assertDatabaseHas('notifications', [
-            'user_id' => $this->admin->id,
-            'type' => 'refund_ready_for_admin',
             'reference_id' => $refund->id,
         ]);
     }
