@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Broadcast;
 use App\Models\ConversationParticipant;
+use App\Models\Booking;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,17 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
  */
 Broadcast::channel('user.{userId}', function ($user, $userId) {
     return (string) $user->id === (string) $userId;
+});
+
+/**
+ * Private channel for payment updates of a booking.
+ * Only the booking owner may subscribe to its payment events.
+ */
+Broadcast::channel('booking.{bookingId}', function ($user, $bookingId) {
+    return Booking::query()
+        ->whereKey($bookingId)
+        ->where('customer_id', $user->id)
+        ->exists();
 });
 
 /**

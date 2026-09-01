@@ -285,9 +285,28 @@
                 <p class="bd-payment-note">
                   Chuyển đúng số tiền và nội dung để hệ thống tự động xác nhận thanh toán.
                 </p>
+                <p v-if="paymentWebhookListening" class="bd-payment-sync" role="status">
+                  <span class="bd-sync-dot" aria-hidden="true"></span>
+                  Đang chờ SePay xác nhận thanh toán qua webhook.
+                </p>
                 <p v-if="copySuccess" class="bd-copy-success">{{ copySuccess }}</p>
               </div>
             </section>
+
+            <!-- CANCEL PENDING PAYMENT -->
+            <div v-if="canCancelPendingPayment" class="bd-payment-cancel-action">
+              <button
+                type="button"
+                class="bd-btn bd-btn--danger-outline bd-btn--full"
+                :disabled="cancellingPayment"
+                @click="openCancelPaymentModal"
+              >
+                {{ cancellingPayment ? "Đang xử lý hủy..." : "Hủy đơn chờ thanh toán" }}
+              </button>
+              <p class="bd-payment-cancel-hint">
+                Hủy đơn sẽ làm mã QR hết hiệu lực và giải phóng khung giờ đang giữ.
+              </p>
+            </div>
 
             <!-- PAYMENT HISTORY (IF ANY) -->
             <div v-if="booking.payments?.length" class="bd-pay-history">
@@ -366,6 +385,49 @@
       </div>
     </Teleport>
 
+    <!-- CANCEL PENDING PAYMENT MODAL -->
+    <Teleport to="body">
+      <div
+        v-if="showCancelPaymentModal"
+        class="bd-modal-backdrop"
+        role="presentation"
+        @click.self="closeCancelPaymentModal"
+      >
+        <div
+          class="bd-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bd-cancel-payment-title"
+        >
+          <div class="bd-modal-head">
+            <h3 id="bd-cancel-payment-title">Hủy đơn chờ thanh toán</h3>
+            <button type="button" class="bd-modal-close" aria-label="Đóng" @click="closeCancelPaymentModal">✕</button>
+          </div>
+
+          <div class="bd-modal-body">
+            <p class="bd-modal-desc">
+              Bạn có chắc muốn hủy đơn <strong>#{{ booking?.booking_code }}</strong> không?
+            </p>
+            <p class="bd-cancel-payment-copy">
+              Mã QR hiện tại sẽ không còn hiệu lực, khoản thanh toán đang chờ sẽ bị hủy và khung giờ được mở lại.
+            </p>
+            <div v-if="cancelPaymentError" class="bd-alert bd-alert--error">
+              {{ cancelPaymentError }}
+            </div>
+          </div>
+
+          <div class="bd-modal-foot">
+            <button type="button" class="bd-btn bd-btn--outline" :disabled="cancellingPayment" @click="closeCancelPaymentModal">
+              Giữ đơn
+            </button>
+            <button type="button" class="bd-btn bd-btn--danger" :disabled="cancellingPayment" @click="cancelPendingPayment">
+              {{ cancellingPayment ? "Đang xử lý..." : "Xác nhận hủy đơn" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- ADD EXTRA SERVICES MODAL -->
     <Teleport to="body">
       <div v-if="showServicesModal" class="bd-modal-overlay" @click.self="showServicesModal = false">
@@ -414,6 +476,7 @@ import PublicNavbar from "../../../components/PublicNavbar.vue";
 import { bookingService } from "../../../services/bookingService.js";
 import { chatService } from "../../../services/chat.service.js";
 import { venueService } from "../../../services/venues.js";
+import echo from "../../../echo.js";
 
 export default {
   name: "BookingDetail",
@@ -426,14 +489,20 @@ export default {
       bookingLoadController: null,
       cancellingBooking: false,
       cancelBookingError: "",
+      cancellingPayment: false,
+      cancelPaymentError: "",
       startingChat: false,
       timeLeft: 0,
       timerInterval: null,
       showCancelBookingModal: false,
+      showCancelPaymentModal: false,
       cancelReason: "Khách hàng thay đổi kế hoạch",
       paymentInfo: null,
       paymentLoading: false,
       paymentError: "",
+      bookingPaymentChannelName: null,
+      paymentStatusRefreshing: false,
+      paymentWebhookListening: false,
       qrImageError: false,
       copySuccess: "",
       showServicesModal: false,
@@ -533,6 +602,9 @@ export default {
       const startsAt = new Date(`${date}T${time}:00`);
       return Number.isNaN(startsAt.getTime()) || startsAt > new Date();
     },
+    canCancelPendingPayment() {
+      return this.booking?.status === "pending_payment";
+    },
     canPayOnline() {
       const depositApproval = this.booking?.status === "pending_approval"
         && this.booking?.payment_option === "deposit"
@@ -560,6 +632,7 @@ export default {
   },
   beforeUnmount() {
     this.clearTimer();
+    this.unsubscribeBookingPaymentChannel();
     this.bookingLoadController?.abort();
   },
   watch: {
@@ -637,6 +710,7 @@ export default {
       }
 
       this.bookingLoadController?.abort();
+      this.unsubscribeBookingPaymentChannel();
       const controller = new AbortController();
       this.bookingLoadController = controller;
       this.loading = true;
@@ -648,6 +722,7 @@ export default {
         if (controller.signal.aborted) return;
         this.booking = res;
         this.timeLeft = Math.max(0, Math.floor(Number(res.time_left_seconds) || 0));
+        this.subscribeBookingPaymentChannel();
 
         if (["pending_approval", "pending_payment"].includes(this.booking.status) && this.timeLeft > 0) {
           this.startTimer();
@@ -694,6 +769,74 @@ export default {
         this.paymentLoading = false;
       }
     },
+    subscribeBookingPaymentChannel() {
+      if (!echo || !this.booking?.id) return;
+
+      const channelName = `booking.${this.booking.id}`;
+      if (this.bookingPaymentChannelName === channelName) return;
+
+      this.unsubscribeBookingPaymentChannel();
+      try {
+        this.bookingPaymentChannelName = channelName;
+        echo.private(channelName)
+          .listen('.booking.payment.updated', (event) => {
+            this.handleBookingPaymentUpdated(event);
+          });
+        this.paymentWebhookListening = true;
+      } catch (err) {
+        this.bookingPaymentChannelName = null;
+        this.paymentWebhookListening = false;
+        console.warn("Không thể đăng ký kênh cập nhật thanh toán booking:", err);
+      }
+    },
+    unsubscribeBookingPaymentChannel() {
+      if (this.bookingPaymentChannelName && echo) {
+        try {
+          echo.leave(this.bookingPaymentChannelName);
+        } catch {}
+      }
+      this.bookingPaymentChannelName = null;
+      this.paymentWebhookListening = false;
+    },
+    handleBookingPaymentUpdated(event) {
+      if (String(event?.booking_id) !== String(this.booking?.id)) return;
+      void this.refreshBookingStatus();
+    },
+    async refreshBookingStatus() {
+      if (!this.booking?.id || this.paymentStatusRefreshing) return;
+
+      const bookingId = this.booking.id;
+      this.paymentStatusRefreshing = true;
+      try {
+        const response = await bookingService.getBooking(bookingId, {
+          cache: "no-store",
+          dedupe: false,
+        });
+        const nextBooking = response?.data?.id ? response.data : response;
+        if (!nextBooking?.id || String(nextBooking.id) !== String(this.$route.params.id)) return;
+
+        this.booking = nextBooking;
+        this.timeLeft = Math.max(0, Math.floor(Number(nextBooking.time_left_seconds) || 0));
+
+        if (["pending_approval", "pending_payment"].includes(nextBooking.status) && this.timeLeft > 0) {
+          this.startTimer();
+        } else {
+          this.clearTimer();
+        }
+
+        // Full payment becomes confirmed; a paid deposit remains pending
+        // approval. In both cases the QR panel disappears with fresh data.
+        if (!this.canPayOnline) {
+          this.paymentInfo = null;
+          this.paymentError = "";
+        }
+      } catch (err) {
+        // The webhook has already updated the backend; keep the QR visible if
+        // this follow-up read fails temporarily.
+      } finally {
+        this.paymentStatusRefreshing = false;
+      }
+    },
     async copyPaymentValue(value, label) {
       if (!value) return;
 
@@ -733,6 +876,31 @@ export default {
     closeCancelBookingModal() {
       this.showCancelBookingModal = false;
       this.cancelBookingError = "";
+    },
+    openCancelPaymentModal() {
+      if (!this.canCancelPendingPayment) return;
+      this.showCancelPaymentModal = true;
+      this.cancelPaymentError = "";
+    },
+    closeCancelPaymentModal() {
+      if (this.cancellingPayment) return;
+      this.showCancelPaymentModal = false;
+      this.cancelPaymentError = "";
+    },
+    async cancelPendingPayment() {
+      if (!this.canCancelPendingPayment || this.cancellingPayment) return;
+
+      this.cancellingPayment = true;
+      this.cancelPaymentError = "";
+      try {
+        await bookingService.cancelPayment(this.booking.id);
+        this.showCancelPaymentModal = false;
+        await this.loadBooking();
+      } catch (err) {
+        this.cancelPaymentError = err.message || "Không thể hủy đơn chờ thanh toán.";
+      } finally {
+        this.cancellingPayment = false;
+      }
     },
     async cancelBooking() {
       this.cancellingBooking = true;
@@ -1280,6 +1448,35 @@ export default {
   padding-top: 2px;
 }
 
+.bd-payment-sync {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #166534;
+}
+
+.bd-sync-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+  animation: bd-sync-pulse 1.6s infinite;
+}
+
+@keyframes bd-sync-pulse {
+  70% {
+    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
 .bd-copy-success {
   margin: -6px 0 0;
   font-size: 12px;
@@ -1288,6 +1485,42 @@ export default {
 
 .bd-cancel-action {
   margin-top: 24px;
+}
+
+.bd-payment-cancel-action {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.bd-btn--danger-outline {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #ffffff;
+}
+
+.bd-btn--danger-outline:hover:not(:disabled) {
+  color: #991b1b;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.bd-payment-cancel-hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #64748b;
+  text-align: center;
+}
+
+.bd-cancel-payment-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #475569;
 }
 
 /* STATES & SPINNER */

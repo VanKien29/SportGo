@@ -1266,6 +1266,134 @@
 
             <!-- Part 2: Separate Content Card below for Title & Table (matching OwnerVenueClusters.vue) -->
             <div class="recurring-list-panel profile-section-card">
+            <form
+                v-if="bookingListMode === 'single'"
+                class="booking-list-filters"
+                @submit.prevent="applyBookingListFilters"
+            >
+                <label class="booking-list-filter-search">
+                    <span>Tìm booking hoặc khách</span>
+                    <input
+                        v-model.trim="bookingListFilters.q"
+                        type="search"
+                        placeholder="Mã booking, tên, SĐT..."
+                    />
+                </label>
+                <label>
+                    <span>Ngày chơi</span>
+                    <input
+                        v-model="bookingListFilters.booking_date"
+                        type="date"
+                    />
+                </label>
+                <label>
+                    <span>Sân con</span>
+                    <select v-model="bookingListFilters.venue_court_id">
+                        <option value="">Tất cả sân</option>
+                        <option
+                            v-for="court in courts"
+                            :key="court.id"
+                            :value="court.id"
+                        >
+                            {{ court.name }}
+                        </option>
+                    </select>
+                </label>
+                <label>
+                    <span>Nguồn booking</span>
+                    <select v-model="bookingListFilters.source">
+                        <option value="">Tất cả nguồn</option>
+                        <option value="online">Đặt online</option>
+                        <option value="counter">Tại quầy</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Trạng thái</span>
+                    <select v-model="bookingListFilters.status">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="pending_approval">Chờ duyệt</option>
+                        <option value="pending_payment">Chờ thanh toán</option>
+                        <option value="confirmed">Đã xác nhận</option>
+                        <option value="checked_in">Đã check-in</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="no_show">Không check-in</option>
+                        <option value="cancelled">Đã hủy</option>
+                        <option value="rejected">Từ chối</option>
+                        <option value="expired">Hết hạn</option>
+                    </select>
+                </label>
+                <div class="booking-list-filter-actions">
+                    <button class="primary-btn" type="submit" :disabled="bookingListLoading">
+                        <AppIcon name="search" size="15" />
+                        <span>Lọc danh sách</span>
+                    </button>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        :disabled="bookingListLoading"
+                        @click="resetBookingListFilters"
+                    >
+                        Xóa lọc
+                    </button>
+                </div>
+            </form>
+
+            <form
+                v-else
+                class="recurring-list-filters"
+                @submit.prevent="applyBookingListFilters"
+            >
+                <label class="booking-list-filter-search">
+                    <span>Tìm booking hoặc khách</span>
+                    <input
+                        v-model.trim="recurringGroupFilters.q"
+                        type="search"
+                        placeholder="Mã booking, tên, SĐT..."
+                    />
+                </label>
+                <label>
+                    <span>Sân con</span>
+                    <select v-model="recurringGroupFilters.venue_court_id">
+                        <option value="">Tất cả sân</option>
+                        <option
+                            v-for="court in courts"
+                            :key="court.id"
+                            :value="court.id"
+                        >
+                            {{ court.name }}
+                        </option>
+                    </select>
+                </label>
+                <label>
+                    <span>Trạng thái</span>
+                    <select v-model="recurringGroupFilters.status">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="pending_approval">Chờ duyệt</option>
+                        <option value="pending_payment">Chờ thanh toán</option>
+                        <option value="confirmed">Đã xác nhận</option>
+                        <option value="checked_in">Đã check-in</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="no_show">Không check-in</option>
+                        <option value="cancelled">Đã hủy</option>
+                        <option value="expired">Hết hạn</option>
+                        <option value="rejected">Từ chối</option>
+                    </select>
+                </label>
+                <div class="booking-list-filter-actions">
+                    <button class="primary-btn" type="submit" :disabled="recurringGroupsLoading">
+                        <AppIcon name="search" size="15" />
+                        <span>Lọc danh sách</span>
+                    </button>
+                    <button
+                        class="secondary-btn"
+                        type="button"
+                        :disabled="recurringGroupsLoading"
+                        @click="resetBookingListFilters"
+                    >
+                        Xóa lọc
+                    </button>
+                </div>
+            </form>
             <template v-if="bookingListMode === 'single'">
                 <div v-if="bookingListLoading" class="table-skeleton">
                     <div v-for="row in 4" :key="row" class="table-skeleton-row">
@@ -3456,6 +3584,25 @@ export default {
             }
 
             await this.loadBookingList();
+        },
+        async applyBookingListFilters() {
+            await this.loadCurrentBookingList();
+        },
+        async resetBookingListFilters() {
+            this.bookingListFilters = {
+                venue_court_id: "",
+                booking_date: "",
+                source: "",
+                status: "",
+                q: "",
+            };
+            this.recurringGroupFilters = {
+                venue_court_id: "",
+                status: "",
+                q: "",
+            };
+
+            await this.loadCurrentBookingList();
         },
         async refreshActiveTab() {
             if (this.activeTab === "bookingList") {
@@ -10302,6 +10449,33 @@ input.invalid {
     outline: none;
     border-color: var(--admin-accent, #10b981);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.booking-list-filter-search {
+    flex: 1 1 260px;
+    min-width: 230px;
+}
+
+.booking-list-filters > label:not(.booking-list-filter-search),
+.recurring-list-filters > label:not(.booking-list-filter-search) {
+    flex: 0 1 180px;
+    min-width: 160px;
+}
+
+.booking-list-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+}
+
+.booking-list-filter-actions button {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
 }
 
 .recurring-table-card {
